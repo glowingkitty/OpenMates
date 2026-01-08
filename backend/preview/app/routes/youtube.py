@@ -63,6 +63,7 @@ class YouTubeResponse(BaseModel):
     description: Optional[str] = None  # Truncated to ~500 chars
     channel_name: Optional[str] = None
     channel_id: Optional[str] = None
+    channel_thumbnail: Optional[str] = None  # Channel profile picture URL (fetched separately)
     thumbnails: YouTubeThumbnails
     duration: YouTubeDuration
     view_count: Optional[int] = None
@@ -78,6 +79,7 @@ class YouTubeResponse(BaseModel):
                 "description": "The official video for 'Never Gonna Give You Up' by Rick Astley...",
                 "channel_name": "Rick Astley",
                 "channel_id": "UCuAXFkgsw1L7xaCfnd5JJOw",
+                "channel_thumbnail": "https://yt3.ggpht.com/ytc/AKedOLQgb3UrqvLC5e1T7nWMxGJyuDcDL...",
                 "thumbnails": {
                     "default": "https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg",
                     "medium": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
@@ -150,11 +152,15 @@ async def get_youtube_metadata_post(
     logger.debug(f"[YouTube] POST request for URL: {url[:100]}...")
     
     try:
-        metadata = await youtube_service.get_video_metadata(url)
+        # Use get_video_metadata_with_channel to also fetch channel thumbnail
+        # This makes an additional API call if channel not cached, but provides
+        # a richer preview experience with the channel's profile picture
+        metadata = await youtube_service.get_video_metadata_with_channel(url)
         
         logger.debug(
             f"[YouTube] Returning metadata for video {metadata.get('video_id')}: "
-            f"title='{(metadata.get('title') or 'N/A')[:30]}...'"
+            f"title='{(metadata.get('title') or 'N/A')[:30]}...', "
+            f"has_channel_thumbnail={bool(metadata.get('channel_thumbnail'))}"
         )
         
         # Convert nested dicts to proper response models
@@ -165,6 +171,7 @@ async def get_youtube_metadata_post(
             description=metadata.get("description"),
             channel_name=metadata.get("channel_name"),
             channel_id=metadata.get("channel_id"),
+            channel_thumbnail=metadata.get("channel_thumbnail"),
             thumbnails=YouTubeThumbnails(**metadata.get("thumbnails", {})),
             duration=YouTubeDuration(**metadata.get("duration", {"total_seconds": 0, "formatted": "0:00"})),
             view_count=metadata.get("view_count"),

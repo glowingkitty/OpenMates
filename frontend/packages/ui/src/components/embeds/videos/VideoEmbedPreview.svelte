@@ -1,23 +1,35 @@
 <!--
-  frontend/packages/ui/src/components/embeds/VideoEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
   
   Preview component for Video URL embeds (YouTube, etc.).
   Uses UnifiedEmbedPreview as base and provides video-specific details content.
   
   Features:
-  - Auto-fetches metadata from preview server when not provided
-  - Displays title, description, channel name, and thumbnail
-  - Proxies thumbnails through YouTube CDN (no privacy concerns - public images)
-  - Passes fetched metadata to fullscreen view for consistent display
+  - Receives ALL metadata as props (loaded from IndexedDB embed store)
+  - NO fetch requests to preview server (except for image URL proxying)
+  - Displays video thumbnail in details section (full width)
+  - Channel info displayed in BasicInfosBar:
+    - Line 1: Channel thumbnail (circular, 29x29px) + shortened video title (font-size 16px)
+    - Line 2: Duration + upload date (e.g., "17:08, Jan 6, 2026") (font-size 16px)
+  - Proxies all thumbnails through preview server for privacy
+  - Passes metadata to fullscreen view
   
   Details content structure:
   - Processing: URL hostname
-  - Finished: video thumbnail with title overlay
+  - Finished: video thumbnail (clean, no overlays)
   - Error: hostname with error styling
   
+  BasicInfosBar content (for finished state):
+  - faviconUrl: channel thumbnail (circular)
+  - skillName: shortened video title
+  - customStatusText: duration + upload date
+  
   Data Flow:
-  - When preview fetches metadata (title, description, thumbnail, duration), this data is passed
-    to the fullscreen view via the onFullscreen callback.
+  1. User sends YouTube URL in message
+  2. Client fetches metadata from preview server, creates embed, syncs to server
+  3. Embed data (with ALL metadata) stored in IndexedDB
+  4. When rendering, data loaded from IndexedDB → passed as props → displayed
+  5. NO additional preview server requests needed (except image proxying)
 -->
 
 <script lang="ts">
@@ -26,32 +38,6 @@
   // ===========================================
   // Types
   // ===========================================
-  
-  /**
-   * Metadata response from preview server /api/v1/youtube endpoint
-   */
-  interface YouTubeMetadataResponse {
-    video_id: string;
-    url: string;
-    title?: string;
-    description?: string;
-    channel_name?: string;
-    channel_id?: string;
-    thumbnails: {
-      default?: string;
-      medium?: string;
-      high?: string;
-      standard?: string;
-      maxres?: string;
-    };
-    duration: {
-      total_seconds: number;
-      formatted: string;
-    };
-    view_count?: number;
-    like_count?: number;
-    published_at?: string;
-  }
   
   /**
    * Metadata passed to fullscreen when user clicks to open
@@ -63,6 +49,7 @@
     description?: string;
     channelName?: string;
     channelId?: string;
+    channelThumbnail?: string;  // Channel profile picture URL
     thumbnailUrl?: string;
     duration?: {
       totalSeconds: number;
@@ -75,13 +62,15 @@
   
   /**
    * Props for video embed preview
+   * All metadata can be passed directly from decodedContent (stored in embed store)
+   * or will be fetched from preview server if not provided
    */
   interface Props {
     /** Unique embed ID */
     id: string;
     /** Video URL */
     url: string;
-    /** Video title (if not provided, will be fetched from preview server) */
+    /** Video title */
     title?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
@@ -91,6 +80,27 @@
     isMobile?: boolean;
     /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
     onFullscreen?: (metadata: VideoMetadata) => void;
+    // === Metadata from decodedContent (embed store) ===
+    /** Channel name */
+    channelName?: string;
+    /** Channel ID */
+    channelId?: string;
+    /** Channel thumbnail URL (profile picture) */
+    channelThumbnail?: string;
+    /** Video thumbnail URL */
+    thumbnail?: string;
+    /** Duration in seconds */
+    durationSeconds?: number;
+    /** Duration formatted (e.g., "17:08") */
+    durationFormatted?: string;
+    /** View count */
+    viewCount?: number;
+    /** Like count */
+    likeCount?: number;
+    /** Published date (ISO string) */
+    publishedAt?: string;
+    /** Video ID */
+    videoId?: string;
   }
   
   // ===========================================
@@ -104,25 +114,19 @@
     status,
     taskId,
     isMobile = false,
-    onFullscreen
+    onFullscreen,
+    // Metadata from decodedContent (embed store)
+    channelName,
+    channelId,
+    channelThumbnail,
+    thumbnail,
+    durationSeconds,
+    durationFormatted,
+    viewCount,
+    likeCount,
+    publishedAt,
+    videoId
   }: Props = $props();
-  
-  // State for fetched metadata (when props are not provided)
-  let fetchedTitle = $state<string | undefined>(undefined);
-  let fetchedDescription = $state<string | undefined>(undefined);
-  let fetchedChannelName = $state<string | undefined>(undefined);
-  let fetchedChannelId = $state<string | undefined>(undefined);
-  let fetchedThumbnailUrl = $state<string | undefined>(undefined);
-  let fetchedDuration = $state<{ totalSeconds: number; formatted: string } | undefined>(undefined);
-  let fetchedViewCount = $state<number | undefined>(undefined);
-  let fetchedLikeCount = $state<number | undefined>(undefined);
-  let fetchedPublishedAt = $state<string | undefined>(undefined);
-  let fetchedVideoId = $state<string | undefined>(undefined);
-  let isLoadingMetadata = $state(false);
-  let metadataError = $state(false);
-  
-  // Track which URL we've fetched metadata for to avoid re-fetching
-  let fetchedForUrl = $state<string | null>(null);
   
   // Map skillId to icon name
   const skillIconName = 'video';
@@ -162,125 +166,30 @@
   }
   
   // ===========================================
-  // Metadata Fetching
-  // ===========================================
-  
-  /**
-   * Determine if we need to fetch metadata from the preview server.
-   * We fetch when:
-   * - No title is provided as prop
-   * - The URL hasn't been fetched yet
-   * - Not currently loading
-   */
-  let needsMetadataFetch = $derived.by(() => {
-    // If we already have title from props, no need to fetch
-    if (title) {
-      return false;
-    }
-    // If we already fetched for this URL, no need to re-fetch
-    if (fetchedForUrl === url) {
-      return false;
-    }
-    // If currently loading, don't trigger another fetch
-    if (isLoadingMetadata) {
-      return false;
-    }
-    return true;
-  });
-  
-  /**
-   * Fetch metadata from the preview server when needed.
-   * Uses the /api/v1/youtube endpoint which calls YouTube Data API v3.
-   */
-  async function fetchMetadata() {
-    if (!url) return;
-    
-    isLoadingMetadata = true;
-    metadataError = false;
-    
-    // CRITICAL: Mark this URL as fetched BEFORE the request to prevent infinite loops
-    // Even if the fetch fails, we don't want to retry indefinitely
-    const urlToFetch = url;
-    fetchedForUrl = urlToFetch;
-    
-    console.debug('[VideoEmbedPreview] Fetching YouTube metadata for URL:', urlToFetch);
-    
-    try {
-      // Use GET endpoint for simpler integration
-      const response = await fetch(
-        `https://preview.openmates.org/api/v1/youtube?url=${encodeURIComponent(urlToFetch)}`
-      );
-      
-      if (!response.ok) {
-        console.warn('[VideoEmbedPreview] Metadata fetch failed:', response.status, response.statusText);
-        metadataError = true;
-        return;
-      }
-      
-      const data: YouTubeMetadataResponse = await response.json();
-      
-      // Store fetched values
-      fetchedVideoId = data.video_id;
-      fetchedTitle = data.title;
-      fetchedDescription = data.description;
-      fetchedChannelName = data.channel_name;
-      fetchedChannelId = data.channel_id;
-      fetchedViewCount = data.view_count;
-      fetchedLikeCount = data.like_count;
-      fetchedPublishedAt = data.published_at;
-      
-      // Convert duration format
-      if (data.duration) {
-        fetchedDuration = {
-          totalSeconds: data.duration.total_seconds,
-          formatted: data.duration.formatted
-        };
-      }
-      
-      // Get best available thumbnail (prefer maxres > standard > high > medium > default)
-      const thumbnails = data.thumbnails;
-      fetchedThumbnailUrl = thumbnails.maxres || thumbnails.standard || thumbnails.high || thumbnails.medium || thumbnails.default;
-      
-      console.info('[VideoEmbedPreview] Successfully fetched YouTube metadata:', {
-        videoId: data.video_id,
-        title: data.title?.substring(0, 50) || 'No title',
-        channelName: data.channel_name || 'Unknown',
-        duration: data.duration?.formatted || 'Unknown',
-        hasThumbnail: !!fetchedThumbnailUrl
-      });
-      
-    } catch (error) {
-      console.error('[VideoEmbedPreview] Error fetching YouTube metadata:', error);
-      metadataError = true;
-    } finally {
-      isLoadingMetadata = false;
-    }
-  }
-  
-  // Trigger metadata fetch when needed
-  $effect(() => {
-    if (needsMetadataFetch) {
-      fetchMetadata();
-    }
-  });
-  
-  // ===========================================
   // Derived Display Values
   // ===========================================
   
-  // Video ID: fetched or extracted from URL
-  let effectiveVideoId = $derived(fetchedVideoId || extractVideoId(url) || '');
+  // Video ID: prop or extracted from URL
+  let effectiveVideoId = $derived(videoId || extractVideoId(url) || '');
   
-  // Use prop values if provided, otherwise use fetched values
-  let effectiveTitle = $derived(title || fetchedTitle);
+  // Display title: use prop or fall back to generic
+  let displayTitle = $derived(title || 'YouTube Video');
   
-  // Display title: use effective title or fall back to generic
-  let displayTitle = $derived(effectiveTitle || 'YouTube Video');
+  // Duration object from props
+  let effectiveDuration = $derived.by(() => {
+    if (durationSeconds !== undefined || durationFormatted) {
+      return { 
+        totalSeconds: durationSeconds || 0, 
+        formatted: durationFormatted || '' 
+      };
+    }
+    return undefined;
+  });
   
-  // Raw thumbnail URL (from YouTube CDN)
+  // Raw thumbnail URL: use prop or construct from video ID
   let rawThumbnailUrl = $derived.by(() => {
-    if (fetchedThumbnailUrl) {
-      return fetchedThumbnailUrl;
+    if (thumbnail) {
+      return thumbnail;
     }
     // Fallback: construct thumbnail URL from video ID
     if (effectiveVideoId) {
@@ -296,6 +205,15 @@
     return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
   });
   
+  // Proxied channel thumbnail URL through preview server for privacy
+  // Channel thumbnails are small circular profile pictures
+  // Display size: 29x29px, request 2x for retina (58px)
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
+  let channelThumbnailUrl = $derived.by(() => {
+    if (!channelThumbnail) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(channelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+  });
+  
   // Get hostname for fallback display
   let hostname = $derived.by(() => {
     try {
@@ -305,17 +223,53 @@
     }
   });
   
-  // Compute effective status: if we're loading metadata, show as processing
-  // But only if the original status was 'finished' (don't override explicit processing state)
-  let effectiveStatus = $derived.by(() => {
-    if (isLoadingMetadata && status === 'finished') {
-      return 'processing';
+  // Shortened video title (truncate if too long for preview info bar)
+  let shortenedTitle = $derived.by(() => {
+    const titleToShorten = title || 'YouTube Video';
+    // Max ~30 chars for preview layout in the info bar
+    const maxLength = 30;
+    if (titleToShorten.length <= maxLength) return titleToShorten;
+    return titleToShorten.substring(0, maxLength - 1) + '…';
+  });
+  
+  /**
+   * Format upload date as "Mon DD, YYYY" (e.g., "Jul 31, 2025")
+   * Used for displaying video upload date in a compact format
+   */
+  function formatUploadDate(isoDateString: string | undefined): string {
+    if (!isoDateString) return '';
+    
+    try {
+      const date = new Date(isoDateString);
+      // Format as "Mon DD, YYYY" (e.g., "Jul 31, 2025")
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    } catch {
+      return '';
     }
-    // If metadata fetch failed, still show as finished so user sees the thumbnail/link
-    if (metadataError && status === 'finished') {
-      return 'finished';
+  }
+  
+  // Formatted upload date (e.g., "Jul 31, 2025")
+  let formattedUploadDate = $derived(formatUploadDate(publishedAt));
+  
+  // Status is passed directly from props - no fetching needed
+  // Data is already loaded from IndexedDB (embed store)
+  let effectiveStatus = $derived(status);
+  
+  // Custom status text for BasicInfosBar: "17:08, Jan 6, 2026" (duration + date)
+  // Shown as the second line in BasicInfosBar (font-size 16px)
+  let customStatusText = $derived.by(() => {
+    const parts: string[] = [];
+    if (effectiveDuration?.formatted) {
+      parts.push(effectiveDuration.formatted);
     }
-    return status;
+    if (formattedUploadDate) {
+      parts.push(formattedUploadDate);
+    }
+    return parts.length > 0 ? parts.join(', ') : undefined;
   });
   
   // ===========================================
@@ -323,25 +277,25 @@
   // ===========================================
   
   /**
-   * Handle fullscreen open - passes fetched metadata to fullscreen component
-   * This ensures fullscreen displays the same data as the preview without re-fetching
+   * Handle fullscreen open - passes metadata to fullscreen component
+   * All data comes from props (loaded from IndexedDB embed store)
    */
   function handleFullscreen() {
     if (!onFullscreen) return;
     
-    // Pass the effective metadata values (props or fetched) to fullscreen
-    // Note: Pass raw thumbnail URL so fullscreen can proxy it at higher resolution
+    // Pass metadata values from props to fullscreen
+    // Note: Pass raw thumbnail URLs so fullscreen can proxy them at higher resolution
     const metadata: VideoMetadata = {
       videoId: effectiveVideoId,
-      title: effectiveTitle,
-      description: fetchedDescription,
-      channelName: fetchedChannelName,
-      channelId: fetchedChannelId,
+      title: title,
+      channelName: channelName,
+      channelId: channelId,
+      channelThumbnail: channelThumbnail, // Raw URL - fullscreen will proxy at higher res
       thumbnailUrl: rawThumbnailUrl, // Raw URL - fullscreen will proxy at higher res
-      duration: fetchedDuration,
-      viewCount: fetchedViewCount,
-      likeCount: fetchedLikeCount,
-      publishedAt: fetchedPublishedAt
+      duration: effectiveDuration,
+      viewCount: viewCount,
+      likeCount: likeCount,
+      publishedAt: publishedAt
     };
     
     console.debug('[VideoEmbedPreview] Opening fullscreen with metadata:', {
@@ -349,7 +303,8 @@
       title: metadata.title?.substring(0, 50) || 'none',
       channelName: metadata.channelName || 'none',
       duration: metadata.duration?.formatted || 'none',
-      hasThumbnail: !!metadata.thumbnailUrl
+      hasThumbnail: !!metadata.thumbnailUrl,
+      hasChannelThumbnail: !!metadata.channelThumbnail
     });
     
     onFullscreen(metadata);
@@ -372,14 +327,17 @@
   skillId="video"
   {skillIconName}
   status={effectiveStatus}
-  skillName={displayTitle}
+  skillName={shortenedTitle}
   {taskId}
   {isMobile}
   onFullscreen={handleFullscreen}
   onStop={handleStop}
-  showStatus={false}
+  showStatus={true}
   showSkillIcon={false}
   hasFullWidthImage={true}
+  faviconUrl={channelThumbnailUrl || undefined}
+  faviconIsCircular={true}
+  {customStatusText}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div 
@@ -390,8 +348,9 @@
         <!-- Processing state: show hostname only -->
         <div class="video-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: show thumbnail with duration overlay -->
+        <!-- Finished state: show video thumbnail only (channel info is displayed in BasicInfosBar) -->
         {#if effectiveVideoId && thumbnailUrl}
+          <!-- Video thumbnail (clean, no overlays - channel info moved to BasicInfosBar) -->
           <div class="video-thumbnail-container">
             <img 
               src={thumbnailUrl} 
@@ -409,10 +368,6 @@
                 }
               }}
             />
-            <!-- Duration overlay -->
-            {#if fetchedDuration}
-              <div class="video-duration-badge">{fetchedDuration.formatted}</div>
-            {/if}
           </div>
         {:else}
           <!-- Fallback: show URL path -->
@@ -454,7 +409,7 @@
     justify-content: center;
   }
   
-  /* When thumbnail is present, fill the full height */
+  /* When thumbnail is present, fill the available space */
   .video-details:has(.video-thumbnail-container) {
     gap: 0;
   }
@@ -464,16 +419,10 @@
     justify-content: flex-start;
   }
   
-  /* Video thumbnail container - full width and height */
+  /* Video thumbnail container - full width, fills available height in details section */
+  /* Channel info (title, duration, date) is displayed in BasicInfosBar below */
   .video-thumbnail-container {
-    position: relative;
-    width: 100%;
     height: 100%;
-    border-radius: 8px;
-    overflow: hidden;
-    background-color: var(--color-grey-15);
-    flex: 1;
-    min-height: 0;
   }
   
   .video-thumbnail {
@@ -481,21 +430,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-  }
-  
-  /* Duration badge overlay - bottom right of thumbnail */
-  .video-duration-badge {
-    position: absolute;
-    bottom: 6px;
-    right: 6px;
-    background: rgba(0, 0, 0, 0.8);
-    color: var(--color-grey-100);
-    font-size: 11px;
-    font-weight: 500;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: var(--font-mono, monospace);
-    letter-spacing: 0.3px;
   }
   
   /* Video hostname (for processing state) */

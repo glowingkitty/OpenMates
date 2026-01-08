@@ -184,11 +184,60 @@ async function initializeRegistry(): Promise<void> {
     };
   });
 
+  // Sheet/Table embeds
+  fullscreenComponentRegistry.set('sheets-sheet', async (data: any) => {
+    const { default: component } = await import('../components/embeds/sheets/SheetEmbedFullscreen.svelte');
+    const tableContent = data.decodedContent?.code || data.decodedContent?.table || data.attrs?.code || '';
+    if (!tableContent) return null;
+    
+    return {
+      component,
+      props: {
+        tableContent,
+        title: data.decodedContent?.title || data.attrs?.title,
+        rowCount: data.decodedContent?.rows || data.attrs?.rows || 0,
+        colCount: data.decodedContent?.cols || data.attrs?.cols || 0,
+        onClose: data.onClose,
+        embedId: data.embedId
+      }
+    };
+  });
+
   // Video embeds
+  // Constructs full VideoMetadata from decodedContent so fullscreen displays
+  // all video details (title, channel, duration, thumbnail, etc.) without re-fetching
   fullscreenComponentRegistry.set('videos-video', async (data: any) => {
     const { default: component } = await import('../components/embeds/videos/VideoEmbedFullscreen.svelte');
     const url = data.decodedContent?.url || data.attrs?.url || '';
     if (!url) return null;
+    
+    // Construct VideoMetadata from decoded content
+    // Maps backend TOON format (snake_case) to VideoMetadata format (camelCase)
+    // This ensures fullscreen displays the same data as preview without re-fetching
+    const metadata = {
+      videoId: data.decodedContent?.video_id || '',
+      title: data.decodedContent?.title || data.attrs?.title,
+      description: data.decodedContent?.description,
+      channelName: data.decodedContent?.channel_name,
+      channelId: data.decodedContent?.channel_id,
+      thumbnailUrl: data.decodedContent?.thumbnail,
+      // Construct duration object from backend format
+      duration: (data.decodedContent?.duration_seconds || data.decodedContent?.duration_formatted) ? {
+        totalSeconds: data.decodedContent?.duration_seconds || 0,
+        formatted: data.decodedContent?.duration_formatted || ''
+      } : undefined,
+      viewCount: data.decodedContent?.view_count,
+      likeCount: data.decodedContent?.like_count,
+      publishedAt: data.decodedContent?.published_at
+    };
+    
+    console.debug('[embedFullscreenHandler] Video embed metadata:', {
+      videoId: metadata.videoId,
+      title: metadata.title?.substring(0, 50),
+      channelName: metadata.channelName,
+      duration: metadata.duration?.formatted,
+      hasThumbnail: !!metadata.thumbnailUrl
+    });
     
     return {
       component,
@@ -196,7 +245,8 @@ async function initializeRegistry(): Promise<void> {
         url,
         title: data.decodedContent?.title || data.attrs?.title,
         onClose: data.onClose,
-        embedId: data.embedId // Add embedId for sharing functionality
+        embedId: data.embedId, // Add embedId for sharing functionality
+        metadata // Pass full video metadata to fullscreen
       }
     };
   });

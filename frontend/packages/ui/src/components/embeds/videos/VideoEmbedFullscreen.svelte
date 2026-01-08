@@ -101,9 +101,31 @@
   let rawThumbnailUrl = $state(metadata?.thumbnailUrl || '');
   let displayTitle = $state(metadata?.title || title || 'YouTube Video');
   let channelName = $state(metadata?.channelName || '');
+  let channelId = $state(metadata?.channelId || '');
+  let rawChannelThumbnail = $state(metadata?.channelThumbnail || '');  // Channel profile picture URL
+  let description = $state(metadata?.description || '');
   let duration = $state(metadata?.duration);
   let viewCount = $state(metadata?.viewCount);
+  let likeCount = $state(metadata?.likeCount);
   let publishedAt = $state(metadata?.publishedAt);
+  
+  // DEBUG: Log received metadata to verify data flow
+  $effect(() => {
+    console.debug('[VideoEmbedFullscreen] Component initialized with metadata:', {
+      hasMetadataProp: !!metadata,
+      videoId,
+      title: displayTitle?.substring(0, 50),
+      channelName,
+      channelId,
+      description: description?.substring(0, 50),
+      duration: duration?.formatted,
+      viewCount,
+      likeCount,
+      publishedAt,
+      hasThumbnail: !!rawThumbnailUrl,
+      hasChannelThumbnail: !!rawChannelThumbnail
+    });
+  });
   
   // Track whether video is playing (iframe is active)
   // Subscribe to videoIframeStore to check if video is playing
@@ -139,6 +161,13 @@
   let thumbnailUrl = $derived.by(() => {
     if (!rawThumbnailUrl) return '';
     return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+  });
+  
+  // Proxied channel thumbnail URL (29x29px display, 58px for retina)
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
+  let channelThumbnailUrl = $derived.by(() => {
+    if (!rawChannelThumbnail) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawChannelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
   });
   
   // ===========================================
@@ -202,27 +231,45 @@
   // ===========================================
   
   /**
-   * Format view count with localized number formatting
-   * e.g., 1500000 -> "1.5M views"
+   * Format a number with K/M/B suffix for compact display
+   * e.g., 1500000 -> "1.5M"
    */
-  function formatViewCount(count: number | undefined): string {
-    if (!count) return '';
-    
+  function formatCompactNumber(count: number): string {
     if (count >= 1_000_000_000) {
-      return `${(count / 1_000_000_000).toFixed(1)}B views`;
+      return `${(count / 1_000_000_000).toFixed(1)}B`;
     }
     if (count >= 1_000_000) {
-      return `${(count / 1_000_000).toFixed(1)}M views`;
+      return `${(count / 1_000_000).toFixed(1)}M`;
     }
     if (count >= 1_000) {
-      return `${(count / 1_000).toFixed(1)}K views`;
+      return `${(count / 1_000).toFixed(1)}K`;
     }
-    return `${count} views`;
+    return `${count}`;
   }
   
   /**
-   * Format published date as relative time
-   * e.g., "2 years ago"
+   * Format view count with localized number formatting using translations
+   * e.g., 1500000 -> "1.5M views" (translated)
+   */
+  function formatViewCount(count: number | undefined): string {
+    if (!count) return '';
+    const formattedCount = formatCompactNumber(count);
+    return $text('embeds.video_views.text', { count: formattedCount });
+  }
+  
+  /**
+   * Format like count with localized number formatting using translations
+   * e.g., 68030 -> "68K likes" (translated)
+   */
+  function formatLikeCount(count: number | undefined): string {
+    if (!count) return '';
+    const formattedCount = formatCompactNumber(count);
+    return $text('embeds.video_likes.text', { count: formattedCount });
+  }
+  
+  /**
+   * Format published date as relative time using translations
+   * e.g., "2 years ago" (translated)
    */
   function formatPublishedDate(dateStr: string | undefined): string {
     if (!dateStr) return '';
@@ -233,12 +280,12 @@
       const diffMs = now.getTime() - date.getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       
-      if (diffDays < 1) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-      return `${Math.floor(diffDays / 365)} years ago`;
+      if (diffDays < 1) return $text('embeds.date_today.text');
+      if (diffDays === 1) return $text('embeds.date_yesterday.text');
+      if (diffDays < 7) return $text('embeds.date_days_ago.text', { count: diffDays });
+      if (diffDays < 30) return $text('embeds.date_weeks_ago.text', { count: Math.floor(diffDays / 7) });
+      if (diffDays < 365) return $text('embeds.date_months_ago.text', { count: Math.floor(diffDays / 30) });
+      return $text('embeds.date_years_ago.text', { count: Math.floor(diffDays / 365) });
     } catch {
       return '';
     }
@@ -487,15 +534,11 @@
           <button
             class="play-button-overlay"
             onclick={handlePlayClick}
-            aria-label="Play video"
+            aria-label={$text('embeds.video_play.text')}
             type="button"
           >
             <span class="play-icon"></span>
           </button>
-          <!-- Duration badge overlay -->
-          {#if duration}
-            <div class="duration-badge">{duration.formatted}</div>
-          {/if}
         </div>
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
@@ -503,20 +546,46 @@
         <div class="video-playing-spacer"></div>
       {/if}
       
-      <!-- Video metadata info -->
-      {#if (channelName || viewCount || publishedAt) && !isVideoPlaying}
+      <!-- Video title with channel thumbnail - displayed prominently below thumbnail -->
+      {#if displayTitle && displayTitle !== 'YouTube Video' && !isVideoPlaying}
+        <div class="video-title-row">
+          {#if channelThumbnailUrl}
+            <img 
+              src={channelThumbnailUrl}
+              alt={channelName || 'Channel'}
+              class="title-channel-thumbnail"
+              loading="lazy"
+              onerror={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          {/if}
+          <h2 class="video-title">{displayTitle}</h2>
+        </div>
+      {/if}
+      
+      <!-- Video metadata info: channel name, duration, upload date -->
+      {#if (channelName || duration || publishedAt) && !isVideoPlaying}
         <div class="video-metadata">
-          {#if channelName}
-            <span class="channel-name">{channelName}</span>
-          {/if}
-          {#if viewCount}
-            <span class="metadata-separator">•</span>
-            <span class="view-count">{formatViewCount(viewCount)}</span>
-          {/if}
-          {#if publishedAt}
-            <span class="metadata-separator">•</span>
-            <span class="published-date">{formatPublishedDate(publishedAt)}</span>
-          {/if}
+          <!-- Meta row: "by {channelName}, {date} uploaded" -->
+          <div class="video-meta-line">
+            {#if channelName}
+              <span class="meta-text">by {channelName}</span>
+            {/if}
+            {#if channelName && publishedAt}
+              <span class="meta-separator">,</span>
+            {/if}
+            {#if publishedAt}
+              <span class="meta-text">{formatPublishedDate(publishedAt)} uploaded</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
+      
+      <!-- Video description - truncated with expand option -->
+      {#if description && !isVideoPlaying}
+        <div class="video-description">
+          <p class="description-text">{description}</p>
         </div>
       {/if}
       
@@ -528,7 +597,7 @@
             class="tip-creator-button"
             onclick={handleTipCreator}
             type="button"
-            aria-label="Tip Creator"
+            aria-label={$text('embeds.tip_creator.text')}
           >
             <span class="clickable-icon icon_volunteering"></span>
           </button>
@@ -538,7 +607,7 @@
             rel="noopener noreferrer"
             class="open-on-youtube-button"
           >
-            {$text('embeds.open_on_youtube.text') || 'Open on YouTube'}
+            {$text('embeds.open_on_youtube.text')}
           </a>
           <!-- Picture-in-Picture button - only shown when video is playing -->
           {#if isVideoPlaying && videoId && embedUrl}
@@ -546,12 +615,27 @@
               class="pip-button"
               onclick={handleEnterPip}
               type="button"
-              aria-label="Enter picture-in-picture mode"
+              aria-label={$text('embeds.video_pip.text')}
             >
               <span class="clickable-icon icon_pip"></span>
             </button>
           {/if}
         </div>
+        
+        <!-- Views and likes - displayed below the Open on YouTube button -->
+        {#if (viewCount || likeCount) && !isVideoPlaying}
+          <div class="video-stats-row">
+            {#if viewCount}
+              <span class="stat-item">{formatViewCount(viewCount)}</span>
+            {/if}
+            {#if viewCount && likeCount}
+              <span class="stat-separator">•</span>
+            {/if}
+            {#if likeCount}
+              <span class="stat-item">{formatLikeCount(likeCount)}</span>
+            {/if}
+          </div>
+        {/if}
       {/if}
     </div>
   {/snippet}
@@ -635,19 +719,44 @@
     pointer-events: none;
   }
   
-  /* Duration badge overlay - bottom right of thumbnail */
-  .duration-badge {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.85);
-    color: var(--color-grey-100);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 3px 7px;
-    border-radius: 4px;
-    font-family: var(--font-mono, monospace);
-    letter-spacing: 0.3px;
+  
+  /* ===========================================
+     Video Title with Channel Thumbnail
+     =========================================== */
+  
+  .video-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 48px 0 8px 0;
+    max-width: 780px;
+    width: 100%;
+  }
+  
+  /* Channel thumbnail next to title (29x29px, round) */
+  .title-channel-thumbnail {
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background-color: var(--color-grey-20);
+  }
+  
+  .video-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-font-primary);
+    margin: 0;
+    text-align: left;
+    line-height: 1.4;
+    /* Limit to 2 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   /* ===========================================
@@ -656,27 +765,79 @@
   
   .video-metadata {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     font-size: 14px;
     color: var(--color-grey-60);
-    margin-top: 32px;
-    flex-wrap: wrap;
+    margin-top: 4px;
+    max-width: 780px;
+    width: 100%;
+  }
+  
+  /* Meta line: "by {channel}, {date} uploaded" */
+  .video-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--color-grey-60);
+  }
+  
+  .meta-text {
+    color: var(--color-grey-60);
+  }
+  
+  .meta-separator {
+    color: var(--color-grey-50);
+  }
+  
+  /* ===========================================
+     Video Stats (Views/Likes) - Below Buttons
+     =========================================== */
+  
+  .video-stats-row {
+    display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-grey-60);
+    margin-top: 12px;
   }
   
-  .channel-name {
-    color: var(--color-grey-80);
-    font-weight: 500;
+  .stat-item {
+    color: var(--color-grey-60);
   }
   
-  .metadata-separator {
+  .stat-separator {
     color: var(--color-grey-40);
   }
   
-  .view-count,
-  .published-date {
-    color: var(--color-grey-60);
+  /* ===========================================
+     Video Description
+     =========================================== */
+  
+  .video-description {
+    max-width: 780px;
+    width: 100%;
+    margin-top: 16px;
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+  
+  .description-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    line-height: 1.5;
+    margin: 0;
+    /* Limit to 4 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-wrap;
   }
   
   /* ===========================================

@@ -725,11 +725,31 @@
 			loginInterfaceOpen.set(true);
 		}
 		
-		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
+		// CRITICAL: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
 		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
+		// 
+		// This applies to:
+		// 1. Non-authenticated users - they have no chats to sync, show default suggestions
+		// 2. Authenticated users WITH local data - they have cached data in IndexedDB,
+		//    NewChatSuggestions can load from local DB while background sync runs
+		//
+		// The phasedSyncState store resets to initialSyncCompleted=false on page reload,
+		// so without this early mark, users see "Loading chats..." when clicking "new chat"
+		// before WebSocket sync events fire. This is a race condition that causes poor UX.
+		//
+		// Note: Sync events will still fire and update data in the background.
+		// The event listeners are registered regardless of initialSyncCompleted status
+		// because the condition checks `isAuth || !initialSyncCompleted`.
 		if (!isAuth) {
 			phasedSyncState.markSyncCompleted();
 			console.debug('[+page.svelte] [NON-AUTH] Pre-marked sync as completed to prevent loading flash');
+		} else if (hasLocalAuthData) {
+			// CRITICAL: For authenticated users with local data (master key + profile),
+			// mark sync completed immediately. The NewChatSuggestions component loads from
+			// IndexedDB and has fallbacks to default suggestions. Showing "Loading chats..."
+			// while waiting for WebSocket sync is poor UX when user has cached data.
+			phasedSyncState.markSyncCompleted();
+			console.debug('[+page.svelte] [AUTH WITH LOCAL DATA] Pre-marked sync as completed to prevent loading flash');
 		}
 
 		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)

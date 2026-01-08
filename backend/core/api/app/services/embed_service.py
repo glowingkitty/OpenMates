@@ -806,6 +806,8 @@ class EmbedService:
         json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
         
         # Find all embed references first
+        # Embed references now include optional URL field as fallback for LLM inference
+        # Format: {"type": "...", "embed_id": "...", "url": "..."} (url is optional but recommended)
         embed_refs = []
         for match in re.finditer(json_block_pattern, content):
             json_content = match.group(1).strip()
@@ -814,11 +816,14 @@ class EmbedService:
                 if isinstance(embed_ref, dict):
                     embed_type = embed_ref.get("type")
                     embed_id = embed_ref.get("embed_id")
+                    # Extract URL if present - used as fallback when embed is not in cache
+                    embed_url = embed_ref.get("url")
                     if embed_type and embed_id:
                         embed_refs.append({
                             "match": match,
                             "embed_id": embed_id,
                             "embed_type": embed_type,
+                            "embed_url": embed_url,  # May be None for legacy references
                             "full_match": match.group(0)
                         })
             except json_lib.JSONDecodeError:
@@ -836,6 +841,7 @@ class EmbedService:
             match = embed_ref_info["match"]
             embed_id = embed_ref_info["embed_id"]
             embed_type = embed_ref_info["embed_type"]
+            embed_url = embed_ref_info.get("embed_url")  # May be None for legacy references
             
             # Add content before this match
             resolved_parts.append(content[last_end:match.start()])
@@ -844,15 +850,26 @@ class EmbedService:
             toon_content = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
             
             if not toon_content:
-                # CRITICAL: If embed not found in cache, log a warning but continue with reference
-                # This allows the LLM to process the request even if embeds are missing from cache
-                # The embed reference will be included in the message history, which is better than failing
-                logger.warning(
-                    f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
-                    f"This may indicate embeds expired from cache (24h TTL) or were not cached properly. "
-                    f"Keeping embed reference in message content. LLM will receive reference instead of content."
-                )
-                resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
+                # CRITICAL: If embed not found in cache, try to use URL as fallback
+                # This ensures LLM has at least the URL to work with even if full embed content is missing
+                # This can happen due to: cache expiration (24h TTL), encryption errors, or caching failures
+                if embed_url:
+                    # URL available - create a minimal but useful fallback for LLM
+                    # Format as descriptive text so LLM understands what it is
+                    fallback_text = f"[{embed_type.upper()} EMBED - URL: {embed_url}]"
+                    logger.warning(
+                        f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
+                        f"Using URL fallback for LLM inference: {embed_url}"
+                    )
+                    resolved_parts.append(fallback_text)
+                else:
+                    # No URL available - keep original reference as last resort
+                    logger.warning(
+                        f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
+                        f"No URL fallback available. This may indicate embeds expired from cache (24h TTL) "
+                        f"or were not cached properly. Keeping embed reference in message content."
+                    )
+                    resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
             else:
                 # Replace embed reference with TOON content directly
                 # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it

@@ -891,9 +891,48 @@ export class GroupRenderer implements EmbedRenderer {
     
     // Mount the Svelte component
     try {
-      // Create a handler for fullscreen that dispatches the event
-      const handleFullscreen = () => {
-        this.openFullscreen(item, embedData, decodedContent);
+      // Create a handler for fullscreen that receives metadata from VideoEmbedPreview
+      // The preview passes its effective values (props or fetched from preview server)
+      // so fullscreen can display the same data without re-fetching
+      // VideoMetadata uses camelCase, but we convert to snake_case for backend TOON format
+      const handleFullscreen = (metadata?: {
+        videoId?: string;
+        title?: string;
+        description?: string;
+        channelName?: string;
+        channelId?: string;
+        thumbnailUrl?: string;
+        duration?: { totalSeconds: number; formatted: string };
+        viewCount?: number;
+        likeCount?: number;
+        publishedAt?: string;
+      }) => {
+        // Merge preview's fetched metadata with decoded content
+        // Convert VideoMetadata camelCase to backend TOON snake_case format
+        const enrichedContent = {
+          ...decodedContent,
+          // Override with preview's fetched metadata if provided (maps to backend format)
+          video_id: metadata?.videoId || decodedContent?.video_id,
+          title: metadata?.title || decodedContent?.title,
+          description: metadata?.description || decodedContent?.description,
+          channel_name: metadata?.channelName || decodedContent?.channel_name,
+          channel_id: metadata?.channelId || decodedContent?.channel_id,
+          thumbnail: metadata?.thumbnailUrl || decodedContent?.thumbnail,
+          duration_seconds: metadata?.duration?.totalSeconds || decodedContent?.duration_seconds,
+          duration_formatted: metadata?.duration?.formatted || decodedContent?.duration_formatted,
+          view_count: metadata?.viewCount || decodedContent?.view_count,
+          like_count: metadata?.likeCount || decodedContent?.like_count,
+          published_at: metadata?.publishedAt || decodedContent?.published_at
+        };
+        
+        console.debug('[GroupRenderer] Opening video fullscreen with metadata from preview:', {
+          hasPreviewTitle: !!metadata?.title,
+          hasPreviewChannel: !!metadata?.channelName,
+          hasPreviewThumbnail: !!metadata?.thumbnailUrl,
+          hasPreviewDuration: !!metadata?.duration
+        });
+        
+        this.openFullscreen(item, embedData, enrichedContent);
       };
       
       const component = mount(VideoEmbedPreview, {
@@ -904,7 +943,18 @@ export class GroupRenderer implements EmbedRenderer {
           title: videoTitle,
           status: status as 'processing' | 'finished' | 'error',
           isMobile: false, // Default to desktop in message view
-          onFullscreen: handleFullscreen
+          onFullscreen: handleFullscreen,
+          // Pass all metadata from decodedContent (loaded from IndexedDB embed store)
+          channelName: decodedContent?.channel_name,
+          channelId: decodedContent?.channel_id,
+          channelThumbnail: decodedContent?.channel_thumbnail,
+          thumbnail: decodedContent?.thumbnail,
+          durationSeconds: decodedContent?.duration_seconds,
+          durationFormatted: decodedContent?.duration_formatted,
+          viewCount: decodedContent?.view_count,
+          likeCount: decodedContent?.like_count,
+          publishedAt: decodedContent?.published_at,
+          videoId: decodedContent?.video_id
         }
       });
       
@@ -915,7 +965,9 @@ export class GroupRenderer implements EmbedRenderer {
         embedId,
         url: videoUrl?.substring(0, 50) + '...',
         status,
-        hasTitle: !!videoTitle
+        hasTitle: !!videoTitle,
+        hasChannelThumbnail: !!decodedContent?.channel_thumbnail,
+        hasDuration: !!decodedContent?.duration_formatted
       });
       
     } catch (error) {

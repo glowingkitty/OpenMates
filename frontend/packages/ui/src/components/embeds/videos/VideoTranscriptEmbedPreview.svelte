@@ -8,23 +8,31 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results, status, taskId directly
   
-  Layout (per Figma design, matching WebReadEmbedPreview):
+  Layout (per Figma design, matching VideoEmbedPreview):
   - Details section:
-    - Thumbnail (rounded, top-left of title) - YouTube video thumbnail
-    - Title: video title or hostname
-    - Subtitle: "via YouTube Transcript API:\n{wordCount} words"
+    - Channel thumbnail (circular, 29x29px) - YouTube channel profile picture
+    - Title: video title
+    - Subtitle: "via YouTube:\n{wordCount} words"
   - Basic infos bar:
     - Videos app icon (gradient circle)
     - Transcript skill icon
     - "Transcript" / "Completed" (or "Processing")
+  
+  Data Flow:
+  - Fetches YouTube metadata from preview server (channel thumbnail, title)
+  - Falls back to results metadata if preview server fetch fails
+  - Channel thumbnail is proxied through preview server for privacy
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import type { VideoTranscriptSkillPreviewData } from '../../../types/appSkills';
+  import type { VideoTranscriptSkillPreviewData, SkillExecutionStatus } from '../../../types/appSkills';
+  
+  // ===========================================
+  // Types
+  // ===========================================
   
   /**
    * Video transcript result interface
@@ -33,8 +41,38 @@
     url?: string;
     metadata?: {
       title?: string;
+      channel_name?: string;
+      channel_thumbnail?: string;
     };
     word_count?: number;
+  }
+  
+  /**
+   * Metadata response from preview server /api/v1/youtube endpoint
+   * Includes video metadata and channel thumbnail (profile picture)
+   */
+  interface YouTubeMetadataResponse {
+    video_id: string;
+    url: string;
+    title?: string;
+    description?: string;
+    channel_name?: string;
+    channel_id?: string;
+    channel_thumbnail?: string;  // Channel profile picture URL
+    thumbnails: {
+      default?: string;
+      medium?: string;
+      high?: string;
+      standard?: string;
+      maxres?: string;
+    };
+    duration: {
+      total_seconds: number;
+      formatted: string;
+    };
+    view_count?: number;
+    like_count?: number;
+    published_at?: string;
   }
   
   /**
@@ -81,18 +119,49 @@
   // ===========================================
   let localResults = $state<VideoTranscriptResult[]>([]);
   let localUrl = $state<string>('');
+  // Status type matches UnifiedEmbedPreview expectations (excludes 'cancelled')
+  // We map 'cancelled' to 'error' for display purposes
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localSkillTaskId = $state<string | undefined>(undefined);
+  
+  // ===========================================
+  // YouTube Metadata Fetching State
+  // Fetches channel thumbnail and title from preview server (like VideoEmbedPreview)
+  // ===========================================
+  let fetchedTitle = $state<string | undefined>(undefined);
+  let fetchedChannelName = $state<string | undefined>(undefined);
+  let fetchedChannelThumbnail = $state<string | undefined>(undefined);
+  let isLoadingMetadata = $state(false);
+  let fetchedForUrl = $state<string | null>(null);
+  
+  // Preview server base URL for image proxying
+  const PREVIEW_SERVER = 'https://preview.openmates.org';
+  // Channel thumbnail size: 29x29px display, 2x for retina = 58px
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
+  
+  /**
+   * Map SkillExecutionStatus to UnifiedEmbedPreview status
+   * 'cancelled' is mapped to 'error' since UnifiedEmbedPreview doesn't support it
+   */
+  function mapStatusToEmbedStatus(status: SkillExecutionStatus): 'processing' | 'finished' | 'error' {
+    if (status === 'cancelled') {
+      return 'error';
+    }
+    return status;
+  }
   
   // Initialize local state from props
   $effect(() => {
     // Initialize from previewData or direct props
     if (previewData) {
       localResults = previewData.results || [];
-      localUrl = previewData.url || '';
-      localStatus = previewData.status || 'processing';
+      // URL comes from the first result, not directly from previewData
+      // The effectiveUrl derived value will handle extracting it from results
+      localUrl = '';
+      localStatus = mapStatusToEmbedStatus(previewData.status);
       // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as any).skill_task_id;
+      // Check if it exists as a property (it's not in the type but may be present at runtime)
+      localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
     } else {
       localResults = resultsProp || [];
       localUrl = urlProp || '';
@@ -110,15 +179,93 @@
   // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
   
-  // Get URL from multiple sources (priority: results > localUrl > previewData > direct prop)
+  // Get URL from multiple sources (priority: results > localUrl > direct prop)
   // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
+  // Note: previewData doesn't have a direct url property - URLs come from results[].url
   let effectiveUrl = $derived(
     firstResult?.url || 
     localUrl ||
-    previewData?.url || 
     urlProp || 
     ''
   );
+  
+  // ===========================================
+  // YouTube Metadata Fetching
+  // ===========================================
+  
+  /**
+   * Determine if we need to fetch metadata from the preview server.
+   * We fetch when:
+   * - We have a URL but no channel info from results
+   * - The URL hasn't been fetched yet
+   * - Not currently loading
+   */
+  let needsMetadataFetch = $derived.by(() => {
+    // Need a URL to fetch
+    if (!effectiveUrl) return false;
+    // If we already have channel info from results, no need to fetch
+    if (firstResult?.metadata?.channel_name && firstResult?.metadata?.channel_thumbnail) {
+      return false;
+    }
+    // If we already fetched for this URL, no need to re-fetch
+    if (fetchedForUrl === effectiveUrl) return false;
+    // If currently loading, don't trigger another fetch
+    if (isLoadingMetadata) return false;
+    return true;
+  });
+  
+  /**
+   * Fetch metadata from the preview server when needed.
+   * Uses the /api/v1/youtube endpoint which calls YouTube Data API v3.
+   * This gets channel thumbnail and video title.
+   */
+  async function fetchYouTubeMetadata() {
+    if (!effectiveUrl) return;
+    
+    isLoadingMetadata = true;
+    
+    // CRITICAL: Mark this URL as fetched BEFORE the request to prevent infinite loops
+    const urlToFetch = effectiveUrl;
+    fetchedForUrl = urlToFetch;
+    
+    console.debug('[VideoTranscriptEmbedPreview] Fetching YouTube metadata for URL:', urlToFetch);
+    
+    try {
+      const response = await fetch(
+        `${PREVIEW_SERVER}/api/v1/youtube?url=${encodeURIComponent(urlToFetch)}`
+      );
+      
+      if (!response.ok) {
+        console.warn('[VideoTranscriptEmbedPreview] Metadata fetch failed:', response.status, response.statusText);
+        return;
+      }
+      
+      const data: YouTubeMetadataResponse = await response.json();
+      
+      // Store fetched values
+      fetchedTitle = data.title;
+      fetchedChannelName = data.channel_name;
+      fetchedChannelThumbnail = data.channel_thumbnail;
+      
+      console.info('[VideoTranscriptEmbedPreview] Successfully fetched YouTube metadata:', {
+        title: data.title?.substring(0, 50) || 'No title',
+        channelName: data.channel_name || 'Unknown',
+        hasChannelThumbnail: !!data.channel_thumbnail
+      });
+      
+    } catch (error) {
+      console.error('[VideoTranscriptEmbedPreview] Error fetching YouTube metadata:', error);
+    } finally {
+      isLoadingMetadata = false;
+    }
+  }
+  
+  // Trigger metadata fetch when needed
+  $effect(() => {
+    if (needsMetadataFetch) {
+      fetchYouTubeMetadata();
+    }
+  });
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -131,9 +278,9 @@
       hasContent: !!data.decodedContent
     });
     
-    // Update status
-    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
-      localStatus = data.status;
+    // Update status - map SkillExecutionStatus to embed status
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
+      localStatus = mapStatusToEmbedStatus(data.status as SkillExecutionStatus);
     }
     
     // Update video-transcript-specific fields from decoded content
@@ -157,37 +304,44 @@
     }
   }
   
-  /**
-   * Safely extract hostname from URL
-   * Falls back to stripping the scheme if URL parsing fails
-   */
-  function safeHostname(url?: string): string {
-    if (!url) return '';
-    try {
-      return new URL(url).hostname;
-    } catch {
-      // Fallback: try to strip scheme if present, then take host part.
-      const withoutScheme = url.replace(/^[a-zA-Z]+:\/\//, '');
-      return withoutScheme.split('/')[0] || '';
-    }
-  }
-  
-  // Extract hostname from effective URL
-  let hostname = $derived(safeHostname(effectiveUrl));
-  
   // Get skill name from translations
   let skillName = $derived($text('embeds.video_transcript.text') || 'Transcript');
   
   // Map skillId to icon name
   const skillIconName = 'transcript';
   
-  // Display title: video title from results, or fallback to hostname
-  // CRITICAL: Use effectiveUrl-derived hostname if results are empty
-  let displayTitle = $derived(
+  // ===========================================
+  // Effective Display Values
+  // Priority: results metadata > fetched from preview server > fallbacks
+  // ===========================================
+  
+  // Effective video title: results > fetched > fallback
+  let effectiveTitle = $derived(
     firstResult?.metadata?.title || 
-    hostname || 
-    ($text('embeds.video_transcript.text') || 'Video Transcript')
+    fetchedTitle || 
+    'YouTube Video'
   );
+  
+  // Effective channel name: results > fetched > fallback
+  let effectiveChannelName = $derived(
+    firstResult?.metadata?.channel_name || 
+    fetchedChannelName || 
+    ''
+  );
+  
+  // Raw channel thumbnail URL: results > fetched
+  let rawChannelThumbnailUrl = $derived(
+    firstResult?.metadata?.channel_thumbnail || 
+    fetchedChannelThumbnail || 
+    ''
+  );
+  
+  // Proxied channel thumbnail URL through preview server for privacy
+  // Channel thumbnails are small circular profile pictures (29x29px display)
+  let channelThumbnailUrl = $derived.by(() => {
+    if (!rawChannelThumbnailUrl) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawChannelThumbnailUrl)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+  });
   
   // Calculate total word count across all results
   let totalWordCount = $derived.by(() => {
@@ -200,38 +354,13 @@
     return count;
   });
   
-  // Extract YouTube video ID from the effective URL for thumbnail
-  let videoId = $derived.by(() => {
-    if (effectiveUrl) {
-      try {
-        // YouTube URL patterns
-        const youtubeMatch = effectiveUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-        if (youtubeMatch) {
-          return youtubeMatch[1];
-        }
-      } catch (e) {
-        console.debug('[VideoTranscriptEmbedPreview] Error parsing URL:', e);
-      }
-    }
-    return '';
-  });
-  
-  // Thumbnail URL - use YouTube video thumbnail (medium quality for small display)
-  let thumbnailUrl = $derived(() => {
-    if (videoId) {
-      // Use mqdefault (320x180) for small thumbnail display - loads faster than maxresdefault
-      return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-    }
-    return undefined;
-  });
-  
-  // Subtitle text: "via YouTube Transcript API:\nX words" (matches WebReadEmbedPreview pattern)
-  let subtitleText = $derived(() => {
+  // Subtitle text: "via YouTube:\nX words" (user-friendly, not "YouTube Transcript API")
+  let subtitleText = $derived.by(() => {
     const wordCount = totalWordCount;
     if (wordCount > 0) {
-      return `via YouTube Transcript API:\n${wordCount.toLocaleString()} words`;
+      return `via YouTube:\n${wordCount.toLocaleString()} words`;
     }
-    return 'via YouTube Transcript API';
+    return 'via YouTube';
   });
   
   // Debug logging to help trace data flow issues
@@ -241,11 +370,13 @@
       status,
       resultsCount: results.length,
       effectiveUrl,
-      hostname,
-      displayTitle,
+      effectiveTitle,
+      effectiveChannelName,
+      hasChannelThumbnail: !!channelThumbnailUrl,
       wordCount: totalWordCount,
       hasPreviewData: !!previewData,
-      hasUrlProp: !!urlProp
+      hasUrlProp: !!urlProp,
+      isLoadingMetadata
     });
   });
   
@@ -287,21 +418,24 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="video-transcript-details" class:mobile={isMobileLayout}>
-      <!-- Title row with thumbnail -->
+      <!-- Title row with channel thumbnail (circular, like VideoEmbedPreview) -->
       <div class="title-row">
-        {#if thumbnailUrl()}
+        {#if channelThumbnailUrl}
           <img 
-            src={thumbnailUrl()} 
-            alt="" 
-            class="title-thumbnail"
+            src={channelThumbnailUrl} 
+            alt={effectiveChannelName || ''} 
+            class="channel-thumbnail"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
+        {:else if isLoadingMetadata}
+          <!-- Placeholder while loading -->
+          <div class="channel-thumbnail-placeholder"></div>
         {/if}
-        <div class="transcript-title">{displayTitle}</div>
+        <div class="transcript-title">{effectiveTitle}</div>
       </div>
       
-      <!-- Subtitle: "via YouTube Transcript API:\nX words" -->
-      <div class="transcript-subtitle">{subtitleText()}</div>
+      <!-- Subtitle: "via YouTube:\nX words" -->
+      <div class="transcript-subtitle">{subtitleText}</div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
@@ -329,23 +463,40 @@
     justify-content: flex-start;
   }
   
-  /* Title row with thumbnail and title text */
+  /* Title row with channel thumbnail and title text */
   .title-row {
     display: flex;
     align-items: flex-start;
     gap: 8px;
   }
   
-  /* Thumbnail next to title - rounded rectangle (video aspect ratio hint) */
-  .title-thumbnail {
-    width: 32px;
-    height: 18px;
-    min-width: 32px;
-    border-radius: 4px;
+  /* Circular channel thumbnail (profile picture) - matches VideoEmbedPreview style */
+  .channel-thumbnail {
+    width: 29px;
+    height: 29px;
+    min-width: 29px;
+    border-radius: 50%;
     background-color: var(--color-grey-30);
     object-fit: cover;
     flex-shrink: 0;
     margin-top: 2px; /* Align with first line of title */
+  }
+  
+  /* Placeholder while loading channel thumbnail */
+  .channel-thumbnail-placeholder {
+    width: 29px;
+    height: 29px;
+    min-width: 29px;
+    border-radius: 50%;
+    background-color: var(--color-grey-30);
+    flex-shrink: 0;
+    margin-top: 2px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
   }
   
   /* Video title */

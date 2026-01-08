@@ -240,6 +240,15 @@
   // Track image loading errors for graceful fallback
   let imageLoadError = $state(false);
   
+  // Determine if we should use full-width image layout (no description, has image)
+  // This is passed to UnifiedEmbedPreview to remove padding from details section
+  let shouldUseFullWidthImage = $derived(
+    !effectiveDescription && 
+    !!imageUrl && 
+    !imageLoadError && 
+    !isMobile
+  );
+  
   // Compute effective status: if we're loading metadata, show as processing
   // But only if the original status was 'finished' (don't override explicit processing state)
   // If metadata fetch failed but we still have some data (or the original status was finished),
@@ -306,6 +315,7 @@
   showStatus={false}
   faviconUrl={faviconUrl}
   showSkillIcon={false}
+  hasFullWidthImage={shouldUseFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="website-details" class:mobile={isMobileLayout}>
@@ -314,15 +324,16 @@
         <div class="website-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
         <!-- Finished state: description on LEFT, larger image on RIGHT -->
+        <!-- If no description, image takes FULL WIDTH -->
         <!-- Title and favicon are shown in BasicInfosBar, not here -->
-        <div class="website-content-row">
+        <div class="website-content-row" class:no-description={!effectiveDescription}>
           {#if effectiveDescription}
             <div class="website-description">{effectiveDescription}</div>
           {/if}
           
           {#if imageUrl && !imageLoadError && !isMobileLayout}
-            <!-- Large preview image on the right (desktop only) -->
-            <div class="website-preview-image">
+            <!-- Preview image: full width when no description, right side when description exists -->
+            <div class="website-preview-image" class:full-width={!effectiveDescription}>
               <img 
                 src={imageUrl} 
                 alt={displayTitle}
@@ -353,6 +364,7 @@
     flex-direction: column;
     gap: 4px;
     height: 100%;
+    width: 100%; /* Ensure full width of parent */
   }
   
   /* Desktop layout: vertically centered content */
@@ -371,11 +383,11 @@
   
   .website-content-row {
     display: flex;
-    gap: 12px;
     align-items: stretch; /* Stretch items to fill height */
     flex: 1;
     min-height: 0;
     height: 100%;
+    width: 100%; /* Ensure full width of parent */
   }
   
   /* ===========================================
@@ -390,15 +402,15 @@
     min-width: 0;
     /* Limit lines with ellipsis */
     display: -webkit-box;
-    -webkit-line-clamp: 5;
-    line-clamp: 5;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
     /* Vertically align text to top */
     align-self: flex-start;
-    padding-top: 4px;
+    padding-top: 10px;
   }
   
   .website-details.mobile .website-description {
@@ -408,20 +420,13 @@
   }
   
   /* ===========================================
-     Large Preview Image (Right side)
+     Large Preview Image (Right side by default)
      =========================================== */
   
   .website-preview-image {
-    /* Larger image: takes up significant portion of the card */
-    width: 130px;
-    min-width: 130px;
-    /* Use full available height */
-    height: 100%;
-    min-height: 110px;
-    border-radius: 15px;
-    overflow: hidden;
-    background-color: var(--color-grey-15);
-    flex-shrink: 0;
+    width: 150px;
+    height: 171px;
+    transform: translateX(20px);
   }
   
   .website-preview-image img {
@@ -429,6 +434,30 @@
     height: 100%;
     display: block;
     object-fit: cover;
+  }
+  
+  /* ===========================================
+     Full-Width Image (when no description)
+     =========================================== */
+  
+  /* When no description, make content row fill available width */
+  .website-content-row.no-description {
+    width: 100%;
+  }
+  
+  /* Full-width image styling when no description */
+  .website-preview-image.full-width {
+    width: 100%;
+    min-width: 100%; /* Prevent flex shrinking */
+    height: 100%; /* Fill parent height */
+    transform: none; /* Remove the translateX offset */
+  }
+  
+  .website-preview-image.full-width img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
   }
   
   /* When no image, description takes full width */

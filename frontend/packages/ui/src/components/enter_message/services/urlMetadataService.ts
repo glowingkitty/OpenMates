@@ -49,6 +49,7 @@ export interface YouTubeMetadata {
     description?: string;
     channel_name?: string;
     channel_id?: string;
+    channel_thumbnail?: string;  // Channel profile picture URL (fetched from channels.list API)
     thumbnails?: {
         default?: string;
         medium?: string;
@@ -180,6 +181,7 @@ export async function fetchYouTubeMetadata(url: string): Promise<YouTubeMetadata
             description: data.description,
             channel_name: data.channel_name,
             channel_id: data.channel_id,
+            channel_thumbnail: data.channel_thumbnail,  // Channel profile picture URL
             thumbnails: data.thumbnails,
             duration: data.duration,
             view_count: data.view_count,
@@ -280,7 +282,8 @@ export async function createWebsiteEmbed(metadata: UrlMetadata): Promise<EmbedCr
     }
     
     // Create the embed reference JSON block
-    const embedReference = createEmbedReferenceBlock('website', embed_id);
+    // IMPORTANT: Include URL as fallback for LLM inference if embed resolution fails
+    const embedReference = createEmbedReferenceBlock('website', embed_id, metadata.url);
     
     return {
         embed_id,
@@ -321,6 +324,8 @@ export async function createYouTubeEmbed(metadata: YouTubeMetadata): Promise<Emb
         description: metadata.description || null,
         channel_name: metadata.channel_name || null,
         channel_id: metadata.channel_id || null,
+        // Channel profile picture for rendering alongside channel name
+        channel_thumbnail: metadata.channel_thumbnail || null,
         // Only store useful thumbnail URLs for rendering
         thumbnail: metadata.thumbnails?.maxres || 
                    metadata.thumbnails?.high || 
@@ -379,7 +384,8 @@ export async function createYouTubeEmbed(metadata: YouTubeMetadata): Promise<Emb
     }
     
     // Create the embed reference JSON block
-    const embedReference = createEmbedReferenceBlock('video', embed_id);
+    // IMPORTANT: Include URL as fallback for LLM inference if embed resolution fails
+    const embedReference = createEmbedReferenceBlock('video', embed_id, metadata.url);
     
     return {
         embed_id,
@@ -449,17 +455,29 @@ export async function createEmbedFromUrl(url: string): Promise<EmbedCreationResu
 
 /**
  * Creates a proper JSON code block for embed reference
- * Format: ```json\n{"type": "...", "embed_id": "..."}\n```
+ * Format: ```json\n{"type": "...", "embed_id": "...", "url": "..."}\n```
  * 
  * This is the format that extractEmbedReferences() in embedResolver.ts looks for.
  * The embed data will be loaded from EmbedStore and sent with the message.
  * 
+ * IMPORTANT: The `url` field is included as a FALLBACK for LLM inference.
+ * If the embed cannot be resolved from server cache (e.g., encryption error,
+ * cache expiration, or processing failure), the LLM will still have access
+ * to the original URL and can process the request meaningfully.
+ * 
  * @param type The embed type (website, video, etc.)
  * @param embed_id The unique embed identifier
+ * @param url Optional URL to include as fallback for LLM inference
  * @returns Markdown code block string
  */
-export function createEmbedReferenceBlock(type: string, embed_id: string): string {
-    const jsonContent = JSON.stringify({ type, embed_id }, null, 2);
+export function createEmbedReferenceBlock(type: string, embed_id: string, url?: string): string {
+    // Include URL as fallback - critical for cases where embed resolution fails
+    // Without this, LLM receives only {"type": "...", "embed_id": "..."} which is useless
+    const referenceData: Record<string, string> = { type, embed_id };
+    if (url) {
+        referenceData.url = url;
+    }
+    const jsonContent = JSON.stringify(referenceData, null, 2);
     return `\`\`\`json\n${jsonContent}\n\`\`\``;
 }
 

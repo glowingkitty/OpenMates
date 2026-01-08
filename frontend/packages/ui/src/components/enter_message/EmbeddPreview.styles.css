@@ -53,12 +53,21 @@
 }
 
 /* ========================================
-   App Skill Use Embeds - Container Overrides
-   Allows nested Svelte components to control their own sizing
+   Svelte Component Embeds - Container Overrides
+   
+   These embed types use Svelte components (UnifiedEmbedPreview) that create
+   their own unified-embed-preview container with proper styling.
+   
+   The embed-unified-container should NOT wrap these, but if it does due to
+   edge cases or updates, ensure it's completely transparent to avoid double
+   backgrounds, box-shadows, and border-radius artifacts during 3D transforms.
    ======================================== */
 
 /* App Skill Use embeds: let the Svelte component control sizing (300x200 desktop, 150x290 mobile) */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]) {
+:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]),
+:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"]),
+:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"]),
+:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]) {
     /* Reset fixed dimensions - let Svelte component set its own size */
     width: auto;
     height: auto;
@@ -70,8 +79,11 @@
     overflow: visible;
 }
 
-/* Override embed-content for app-skill-use - let it flow naturally */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .embed-content) {
+/* Override embed-content for Svelte component embeds - let it flow naturally */
+:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .embed-content),
+:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"] .embed-content),
+:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"] .embed-content),
+:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"] .embed-content) {
     position: relative;
     width: auto;
     height: auto;
@@ -82,14 +94,20 @@
     right: auto;
 }
 
-/* Disable hover effects on outer container for app-skill-use (Svelte component has its own) */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]:hover) {
+/* Disable hover effects on outer container for Svelte component embeds (they have their own) */
+:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]:hover),
+:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"]:hover),
+:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"]:hover),
+:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]:hover) {
     background-color: transparent;
     transform: none;
 }
 
 /* Ensure the unified-embed-preview Svelte component displays correctly */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .unified-embed-preview) {
+:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .unified-embed-preview),
+:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"] .unified-embed-preview),
+:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"] .unified-embed-preview),
+:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"] .unified-embed-preview) {
     /* Component handles its own sizing: 300x200 desktop, 150x290 mobile */
     display: block;
 }

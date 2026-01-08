@@ -206,8 +206,8 @@ export interface StoreEmbedPayload {
     is_private?: boolean;
     is_shared?: boolean;
     shared_with_users?: string[];
-    createdAt: number;
-    updatedAt: number;
+    created_at: number;  // Unix timestamp in SECONDS (snake_case for Directus)
+    updated_at: number;  // Unix timestamp in SECONDS (snake_case for Directus)
 }
 // --- End Client to Server Payloads ---
 

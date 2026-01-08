@@ -912,7 +912,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const pipTitle = currentState.title;
         const pipVideoId = currentState.videoId;
         const pipEmbedUrl = currentState.embedUrl || (pipVideoId ? `https://www.youtube-nocookie.com/embed/${pipVideoId}?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0` : '');
-        const pipThumbnailUrl = currentState.thumbnailUrl || (pipVideoId ? `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg` : '');
+        
+        // Proxied thumbnail URL through preview server for privacy
+        // If thumbnailUrl is already set and proxied, use it; otherwise construct and proxy
+        const PREVIEW_SERVER = 'https://preview.openmates.org';
+        const FULLSCREEN_IMAGE_MAX_WIDTH = 1560; // 2x for retina on 780px container
+        let pipThumbnailUrl = currentState.thumbnailUrl;
+        if (!pipThumbnailUrl && pipVideoId) {
+            // Construct raw URL and proxy it
+            const rawThumbnailUrl = `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg`;
+            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+        } else if (pipThumbnailUrl && (pipThumbnailUrl.includes('img.youtube.com') || pipThumbnailUrl.includes('i.ytimg.com'))) {
+            // If it's a direct YouTube URL, proxy it
+            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(pipThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+        }
         
         // Exit PiP mode - this will trigger CSS transition back to fullscreen position
         // The VideoIframe component will smoothly animate back to center
@@ -1112,9 +1125,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isWide = $derived(containerWidth > 1099 && containerWidth <= 1700);
     let isExtraWide = $derived(containerWidth > 1700);
     
-    // Ultra-wide mode: When container is > 1300px, show fullscreen embeds side-by-side with chat
-    // instead of as overlays. This provides a better experience on large displays.
-    let isUltraWide = $derived(containerWidth > 1300);
+    // Side-by-side mode: When container is >= 1024px, show fullscreen embeds side-by-side with chat
+    // instead of as overlays. This threshold accommodates iPad landscape (1024px+) and wider displays.
+    // The chat panel is fixed at 400px, leaving 600+ px for the embed fullscreen content.
+    let isUltraWide = $derived(containerWidth >= 1024);
     
     // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
@@ -4077,14 +4091,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
+                    <!-- Constructs VideoMetadata from decodedContent (backend TOON format: snake_case) -->
+                    <!-- This ensures all video details (channel, duration, thumbnail, etc.) display in fullscreen -->
                     {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
                         {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
                         {#await VideoEmbedFullscreenPromise then module}
                             {@const VideoEmbedFullscreen = module.default}
                             {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
                             {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
-                            {@const videoId = embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
+                            {@const videoId = embedFullscreenData.decodedContent?.video_id || embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
+                            <!-- Construct VideoMetadata from decoded content (snake_case -> camelCase) -->
+                            {@const videoMetadata = {
+                                videoId: videoId || '',
+                                title: videoTitle,
+                                description: embedFullscreenData.decodedContent?.description,
+                                channelName: embedFullscreenData.decodedContent?.channel_name,
+                                channelId: embedFullscreenData.decodedContent?.channel_id,
+                                thumbnailUrl: embedFullscreenData.decodedContent?.thumbnail,
+                                duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
+                                    totalSeconds: embedFullscreenData.decodedContent?.duration_seconds || 0,
+                                    formatted: embedFullscreenData.decodedContent?.duration_formatted || ''
+                                } : undefined,
+                                viewCount: embedFullscreenData.decodedContent?.view_count,
+                                likeCount: embedFullscreenData.decodedContent?.like_count,
+                                publishedAt: embedFullscreenData.decodedContent?.published_at
+                            }}
                             <VideoEmbedFullscreen
                                 url={videoUrl}
                                 title={videoTitle}
@@ -4098,6 +4130,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onNavigateNext={handleNavigateNextEmbed}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
+                                metadata={videoMetadata}
                             />
                         {/await}
                     {/if}
@@ -4215,8 +4248,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     /* ===========================================
-       Side-by-Side Layout for Ultra-Wide Screens (>1300px)
+       Side-by-Side Layout for Wide Screens (>=1024px)
        Shows embed fullscreen next to chat instead of overlay
+       Threshold set for iPad landscape (1024px+) and wider displays
        =========================================== */
     
     /* When side-by-side mode is active, content-container uses row layout */

@@ -440,17 +440,19 @@ export const Embed = Node.create<EmbedOptions>({
           
           const newAttrs = updatedNode.attrs as EmbedNodeAttributes;
           
-          // For app-skill-use, the wrapper is the container (no intermediate container)
+          // For Svelte component embeds, the wrapper is the container (no intermediate container)
           // For other types, update the container classes
-          if (newAttrs.type === 'app-skill-use') {
+          if (svelteComponentEmbedTypes.includes(newAttrs.type)) {
             // No container to update - Svelte component handles its own structure
             // Just update wrapper attributes if needed
             wrapper.setAttribute('data-embed-type', newAttrs.type);
             wrapper.setAttribute('data-embed-status', newAttrs.status);
             // CRITICAL: Ensure wrapper never has embed-unified-container class
             wrapper.classList.remove('embed-unified-container');
+            wrapper.classList.remove('embed-processing');
+            wrapper.classList.remove('embed-finished');
           } else {
-            // Update classes for non-app-skill-use embeds
+            // Update classes for non-Svelte component embeds
             if (newAttrs.type && newAttrs.type.endsWith('-group')) {
               container.className = 'embed-group-container';
             } else {

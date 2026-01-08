@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-Script to inspect chat data including metadata, messages, embeds, usage entries, and cache status.
+Script to inspect chat data including metadata, messages, embeds, embed keys, usage entries, and cache status.
 
 This script:
 1. Takes a chat ID as argument
 2. Fetches chat metadata from Directus
 3. Fetches all messages for the chat from Directus
 4. Fetches all embeds for the chat from Directus
-5. Fetches all usage entries (credit usage) for the chat from Directus
-6. Checks Redis cache status for the chat and its components
+5. Fetches embed encryption keys from embed_keys collection (shows key_type: 'chat' vs 'master')
+6. Fetches all usage entries (credit usage) for the chat from Directus
+7. Checks Redis cache status for the chat and its components
+
+Embed Keys Architecture:
+- key_type='chat': AES(embed_key, chat_key) - for shared chat access
+- key_type='master': AES(embed_key, master_key) - for owner cross-chat access
 
 Usage:
     docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id>
@@ -192,6 +197,80 @@ async def get_chat_embeds(directus_service: DirectusService, chat_id: str, limit
         return []
 
 
+async def get_embed_keys_for_chat(directus_service: DirectusService, chat_id: str) -> Dict[str, Dict[str, int]]:
+    """
+    Fetch all embed_keys entries for a chat from Directus and organize by embed.
+    
+    The embed_keys collection stores wrapped encryption keys for embeds:
+    - key_type='chat': AES(embed_key, chat_key) for shared chat access
+    - key_type='master': AES(embed_key, master_key) for owner cross-chat access
+    
+    Args:
+        directus_service: DirectusService instance
+        chat_id: The chat ID
+        
+    Returns:
+        Dictionary mapping hashed_embed_id -> {'chat': count, 'master': count}
+    """
+    script_logger.debug(f"Fetching embed_keys for chat_id: {chat_id}")
+    
+    # Hash the chat_id to query embed_keys
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    
+    # Result structure: hashed_embed_id -> {key_type -> count}
+    embed_keys_by_embed: Dict[str, Dict[str, int]] = {}
+    
+    # First, fetch all 'chat' type keys for this chat
+    chat_key_params = {
+        'filter[hashed_chat_id][_eq]': hashed_chat_id,
+        'filter[key_type][_eq]': 'chat',
+        'fields': 'id,hashed_embed_id,key_type,encrypted_embed_key',
+        'limit': -1
+    }
+    
+    try:
+        chat_keys_response = await directus_service.get_items('embed_keys', params=chat_key_params, no_cache=True)
+        if chat_keys_response and isinstance(chat_keys_response, list):
+            script_logger.debug(f"Found {len(chat_keys_response)} 'chat' type embed_keys")
+            
+            # Collect hashed_embed_ids for master key lookup
+            hashed_embed_ids = set()
+            
+            for key_entry in chat_keys_response:
+                hashed_embed_id = key_entry.get('hashed_embed_id')
+                if hashed_embed_id:
+                    hashed_embed_ids.add(hashed_embed_id)
+                    if hashed_embed_id not in embed_keys_by_embed:
+                        embed_keys_by_embed[hashed_embed_id] = {'chat': 0, 'master': 0}
+                    embed_keys_by_embed[hashed_embed_id]['chat'] += 1
+            
+            # Now fetch master keys for these embeds
+            if hashed_embed_ids:
+                master_key_params = {
+                    'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids),
+                    'filter[key_type][_eq]': 'master',
+                    'fields': 'id,hashed_embed_id,key_type,encrypted_embed_key',
+                    'limit': -1
+                }
+                
+                master_keys_response = await directus_service.get_items('embed_keys', params=master_key_params, no_cache=True)
+                if master_keys_response and isinstance(master_keys_response, list):
+                    script_logger.debug(f"Found {len(master_keys_response)} 'master' type embed_keys")
+                    
+                    for key_entry in master_keys_response:
+                        hashed_embed_id = key_entry.get('hashed_embed_id')
+                        if hashed_embed_id:
+                            if hashed_embed_id not in embed_keys_by_embed:
+                                embed_keys_by_embed[hashed_embed_id] = {'chat': 0, 'master': 0}
+                            embed_keys_by_embed[hashed_embed_id]['master'] += 1
+        
+        return embed_keys_by_embed
+        
+    except Exception as e:
+        script_logger.error(f"Error fetching embed_keys: {e}")
+        return {}
+
+
 async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str, limit: int = 100) -> List[Dict[str, Any]]:
     """
     Fetch all usage entries for a chat from Directus.
@@ -226,14 +305,17 @@ async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str
         return []
 
 
-async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_user_id: Optional[str] = None) -> Dict[str, Any]:
+async def check_cache_status(cache_service: CacheService, chat_id: str) -> Dict[str, Any]:
     """
     Check Redis cache status for a chat and its components.
+    
+    Uses Redis SCAN to find cache keys by pattern since we don't know the user_id.
+    Cache keys use the UNHASHED user_id (UUID), not hashed_user_id from Directus.
+    The cache key format is: user:{user_id}:chat:{chat_id}:...
     
     Args:
         cache_service: CacheService instance
         chat_id: The chat ID
-        hashed_user_id: Optional hashed user ID (if known from chat metadata)
         
     Returns:
         Dictionary with cache status information
@@ -246,7 +328,8 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
         'embed_ids': None,
         'active_ai_task': None,
         'queued_messages_count': None,
-        'raw_keys': {}
+        'raw_keys': {},
+        'discovered_user_id': None  # Will be populated if we find cache keys
     }
     
     try:
@@ -255,10 +338,38 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
             script_logger.warning("Redis client not available for cache checks")
             return cache_info
         
-        # 1. Check chat versions (requires hashed_user_id)
-        if hashed_user_id:
+        # 1. Use SCAN to find user-specific cache keys for this chat
+        # Pattern: user:*:chat:{chat_id}:* to find any user's cache for this chat
+        # This discovers the user_id from the cache key itself
+        
+        async def scan_for_pattern(pattern: str) -> List[str]:
+            """Scan Redis for keys matching pattern."""
+            keys = []
+            cursor = 0
+            while True:
+                cursor, batch = await client.scan(cursor, match=pattern, count=100)
+                keys.extend([k.decode('utf-8') for k in batch])
+                if cursor == 0:
+                    break
+            return keys
+        
+        # Find all user-specific keys for this chat
+        pattern = f"user:*:chat:{chat_id}:*"
+        found_keys = await scan_for_pattern(pattern)
+        
+        # Extract user_id from found keys and check each type
+        user_id = None
+        for key in found_keys:
+            # Extract user_id from key: user:{user_id}:chat:{chat_id}:...
+            parts = key.split(':')
+            if len(parts) >= 5 and parts[0] == 'user' and parts[2] == 'chat' and parts[3] == chat_id:
+                user_id = parts[1]
+                cache_info['discovered_user_id'] = user_id
+                break
+        
+        if user_id:
             # Check chat versions hash
-            versions_key = f"user:{hashed_user_id}:chat:{chat_id}:versions"
+            versions_key = f"user:{user_id}:chat:{chat_id}:versions"
             versions_data = await client.hgetall(versions_key)
             if versions_data:
                 cache_info['chat_versions'] = {
@@ -267,7 +378,7 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
                 cache_info['raw_keys']['versions'] = versions_key
             
             # Check list item data hash
-            list_item_key = f"user:{hashed_user_id}:chat:{chat_id}:list_item_data"
+            list_item_key = f"user:{user_id}:chat:{chat_id}:list_item_data"
             list_item_data = await client.hgetall(list_item_key)
             if list_item_data:
                 cache_info['list_item_data'] = {
@@ -276,21 +387,21 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
                 cache_info['raw_keys']['list_item_data'] = list_item_key
             
             # Check AI messages cache (vault-encrypted, for AI inference)
-            ai_messages_key = f"user:{hashed_user_id}:chat:{chat_id}:messages:ai"
+            ai_messages_key = f"user:{user_id}:chat:{chat_id}:messages:ai"
             ai_messages_count = await client.llen(ai_messages_key)
             if ai_messages_count > 0:
                 cache_info['ai_messages_count'] = ai_messages_count
                 cache_info['raw_keys']['ai_messages'] = ai_messages_key
             
             # Check sync messages cache (client-encrypted, for sync)
-            sync_messages_key = f"user:{hashed_user_id}:chat:{chat_id}:messages:sync"
+            sync_messages_key = f"user:{user_id}:chat:{chat_id}:messages:sync"
             sync_messages_count = await client.llen(sync_messages_key)
             if sync_messages_count > 0:
                 cache_info['sync_messages_count'] = sync_messages_count
                 cache_info['raw_keys']['sync_messages'] = sync_messages_key
             
             # Check draft cache
-            draft_key = f"user:{hashed_user_id}:chat:{chat_id}:draft"
+            draft_key = f"user:{user_id}:chat:{chat_id}:draft"
             draft_data = await client.hgetall(draft_key)
             if draft_data:
                 cache_info['draft'] = {
@@ -331,6 +442,7 @@ def format_output_text(
     chat_metadata: Optional[Dict[str, Any]],
     messages: List[Dict[str, Any]],
     embeds: List[Dict[str, Any]],
+    embed_keys_by_embed: Dict[str, Dict[str, int]],
     usage_entries: List[Dict[str, Any]],
     cache_info: Dict[str, Any],
     messages_limit: int,
@@ -345,6 +457,7 @@ def format_output_text(
         chat_metadata: Chat metadata from Directus
         messages: List of messages from Directus
         embeds: List of embeds from Directus
+        embed_keys_by_embed: Dict mapping hashed_embed_id -> {'chat': count, 'master': count}
         usage_entries: List of usage entries from Directus
         cache_info: Cache status information
         messages_limit: Limit for messages display
@@ -364,6 +477,70 @@ def format_output_text(
     lines.append(f"Chat ID: {chat_id}")
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 100)
+    
+    # ===================== VERSION CONSISTENCY CHECK =====================
+    # Check for version mismatches between message count, Directus, and cache
+    actual_message_count = len(messages)
+    directus_messages_v = chat_metadata.get('messages_v') if chat_metadata else None
+    cache_messages_v = None
+    if cache_info.get('chat_versions'):
+        try:
+            cache_messages_v = int(cache_info['chat_versions'].get('messages_v', 0))
+        except (ValueError, TypeError):
+            cache_messages_v = None
+    
+    has_version_issues = False
+    version_issues = []
+    
+    # Check: Directus messages_v should equal actual message count
+    if directus_messages_v is not None and directus_messages_v != actual_message_count:
+        has_version_issues = True
+        version_issues.append(
+            f"Directus messages_v ({directus_messages_v}) ≠ actual message count ({actual_message_count})"
+        )
+    
+    # Check: Cache messages_v should equal actual message count (if cached)
+    if cache_messages_v is not None and cache_messages_v != actual_message_count:
+        has_version_issues = True
+        version_issues.append(
+            f"Cache messages_v ({cache_messages_v}) ≠ actual message count ({actual_message_count})"
+        )
+    
+    # Check: Directus and Cache should match (if both exist)
+    if directus_messages_v is not None and cache_messages_v is not None:
+        if directus_messages_v != cache_messages_v:
+            has_version_issues = True
+            version_issues.append(
+                f"Directus messages_v ({directus_messages_v}) ≠ Cache messages_v ({cache_messages_v})"
+            )
+    
+    if has_version_issues:
+        lines.append("")
+        lines.append("🚨" + "=" * 96 + "🚨")
+        lines.append("🚨  VERSION CONSISTENCY ISSUES DETECTED!")
+        lines.append("🚨" + "=" * 96 + "🚨")
+        lines.append("")
+        lines.append(f"  📊 Actual Messages in Directus: {actual_message_count}")
+        lines.append(f"  📝 messages_v in Directus:      {directus_messages_v if directus_messages_v is not None else 'N/A'}")
+        lines.append(f"  💾 messages_v in Cache:         {cache_messages_v if cache_messages_v is not None else 'NOT CACHED'}")
+        lines.append("")
+        lines.append("  ❌ ISSUES:")
+        for issue in version_issues:
+            lines.append(f"     • {issue}")
+        lines.append("")
+        lines.append("  ℹ️  EXPECTED: messages_v should equal the actual message count.")
+        lines.append("     This mismatch may indicate double-counting bugs in version tracking.")
+        lines.append("🚨" + "=" * 96 + "🚨")
+    else:
+        # Show version consistency status (all good)
+        lines.append("")
+        lines.append("-" * 100)
+        lines.append("VERSION CONSISTENCY CHECK")
+        lines.append("-" * 100)
+        lines.append("  ✅ All versions consistent:")
+        lines.append(f"     • Actual Messages: {actual_message_count}")
+        lines.append(f"     • Directus messages_v: {directus_messages_v if directus_messages_v is not None else 'N/A'}")
+        lines.append(f"     • Cache messages_v: {cache_messages_v if cache_messages_v is not None else 'NOT CACHED'}")
     
     # ===================== CHAT METADATA =====================
     lines.append("")
@@ -479,6 +656,15 @@ def format_output_text(
             status_count[status] = status_count.get(status, 0) + 1
         
         lines.append(f"  Status Distribution: {status_count}")
+        
+        # Show encryption keys summary
+        total_chat_keys = sum(k.get('chat', 0) for k in embed_keys_by_embed.values())
+        total_master_keys = sum(k.get('master', 0) for k in embed_keys_by_embed.values())
+        embeds_with_keys = len(embed_keys_by_embed)
+        embeds_missing_keys = len(embeds) - embeds_with_keys
+        
+        lines.append(f"  Encryption Keys: {total_chat_keys} chat-type, {total_master_keys} master-type")
+        lines.append(f"  Embeds with keys: {embeds_with_keys}, Missing keys: {embeds_missing_keys}")
         lines.append("")
         
         # Show embed list (limited)
@@ -512,6 +698,28 @@ def format_output_text(
                 lines.append(f"       Version: {embed.get('version_number')}")
             if embed.get('embed_ids'):
                 lines.append(f"       Child Embeds: {len(embed.get('embed_ids', []))} item(s)")
+            
+            # Show encryption keys for this embed
+            # Need to hash embed_id to lookup in embed_keys_by_embed
+            hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest() if embed_id and embed_id != 'N/A' else None
+            
+            if hashed_embed_id and hashed_embed_id in embed_keys_by_embed:
+                key_info = embed_keys_by_embed[hashed_embed_id]
+                chat_keys = key_info.get('chat', 0)
+                master_keys = key_info.get('master', 0)
+                total_keys = chat_keys + master_keys
+                
+                # Build key status display
+                key_parts = []
+                if chat_keys > 0:
+                    key_parts.append(f"{chat_keys} chat")
+                if master_keys > 0:
+                    key_parts.append(f"{master_keys} master")
+                
+                key_display = ', '.join(key_parts) if key_parts else "none"
+                lines.append(f"       🔑 Encryption Keys: {total_keys} total ({key_display})")
+            else:
+                lines.append("       🔑 Encryption Keys: ❌ MISSING (no keys found in embed_keys collection)")
         
         if len(embeds) > embeds_limit:
             lines.append(f"\n  ... and {len(embeds) - embeds_limit} more embed(s)")
@@ -572,6 +780,11 @@ def format_output_text(
     lines.append("-" * 100)
     lines.append("CACHE STATUS (from Redis)")
     lines.append("-" * 100)
+    
+    # Show discovered user_id if found
+    if cache_info.get('discovered_user_id'):
+        lines.append(f"  🔍 Discovered User ID: {cache_info['discovered_user_id']}")
+        lines.append("")
     
     # Chat versions
     if cache_info.get('chat_versions'):
@@ -663,6 +876,7 @@ def format_output_json(
     chat_metadata: Optional[Dict[str, Any]],
     messages: List[Dict[str, Any]],
     embeds: List[Dict[str, Any]],
+    embed_keys_by_embed: Dict[str, Dict[str, int]],
     usage_entries: List[Dict[str, Any]],
     cache_info: Dict[str, Any]
 ) -> str:
@@ -674,12 +888,17 @@ def format_output_json(
         chat_metadata: Chat metadata from Directus
         messages: List of messages from Directus
         embeds: List of embeds from Directus
+        embed_keys_by_embed: Dict mapping hashed_embed_id -> {'chat': count, 'master': count}
         usage_entries: List of usage entries from Directus
         cache_info: Cache status information
         
     Returns:
         JSON string
     """
+    # Calculate embed key stats
+    total_chat_keys = sum(k.get('chat', 0) for k in embed_keys_by_embed.values())
+    total_master_keys = sum(k.get('master', 0) for k in embed_keys_by_embed.values())
+    
     output = {
         'chat_id': chat_id,
         'generated_at': datetime.now().isoformat(),
@@ -691,6 +910,12 @@ def format_output_json(
         'embeds': {
             'count': len(embeds),
             'items': embeds
+        },
+        'embed_keys': {
+            'embeds_with_keys': len(embed_keys_by_embed),
+            'total_chat_keys': total_chat_keys,
+            'total_master_keys': total_master_keys,
+            'by_hashed_embed_id': embed_keys_by_embed
         },
         'usage': {
             'count': len(usage_entries),
@@ -771,28 +996,34 @@ async def main():
             limit=args.embeds_limit + 100 if not args.json else 10000  # Get more for count
         )
         
-        # 4. Fetch usage entries
+        # 4. Fetch embed encryption keys (from embed_keys collection)
+        embed_keys_by_embed = await get_embed_keys_for_chat(directus_service, args.chat_id)
+        
+        # 5. Fetch usage entries
         usage_entries = await get_chat_usage_entries(
             directus_service,
             args.chat_id,
             limit=args.usage_limit + 100 if not args.json else 10000  # Get more for count
         )
         
-        # 5. Check cache status (if not skipped)
+        # 6. Check cache status (if not skipped)
+        # Uses Redis SCAN to automatically discover user_id from cache keys
         cache_info = {}
         if not args.no_cache:
-            hashed_user_id = chat_metadata.get('hashed_user_id') if chat_metadata else None
-            cache_info = await check_cache_status(cache_service, args.chat_id, hashed_user_id)
+            cache_info = await check_cache_status(cache_service, args.chat_id)
         
-        # 6. Format and output results
+        # 7. Format and output results
         if args.json:
-            output = format_output_json(args.chat_id, chat_metadata, messages, embeds, usage_entries, cache_info)
+            output = format_output_json(
+                args.chat_id, chat_metadata, messages, embeds, embed_keys_by_embed, usage_entries, cache_info
+            )
         else:
             output = format_output_text(
                 args.chat_id,
                 chat_metadata,
                 messages,
                 embeds,
+                embed_keys_by_embed,
                 usage_entries,
                 cache_info,
                 args.messages_limit,

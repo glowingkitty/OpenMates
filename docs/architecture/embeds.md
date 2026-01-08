@@ -451,6 +451,57 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 5. Client updates embed content, changes `status: "finished"`
 6. Frontend automatically updates embed preview
 
+**Client-Created Embeds** (Video URLs, Code Blocks, User Attachments):
+
+Client-created embeds (e.g., video URLs, code blocks in user messages, file uploads, tables/sheets) follow a more efficient flow that avoids round-trip WebSocket calls:
+
+1. **Client-Side Extraction and Creation**:
+   - User includes embed-worthy content in their message (video URL, code blocks, files, etc.)
+   - Client detects and extracts embed-worthy content BEFORE sending:
+     - **Video URLs**: Detected during URL pasting, metadata fetched from preview server
+     - **Code Blocks**: Extracted from markdown (```language\ncode\n```), replaced with embed refs
+     - **File Uploads**: Created when user attaches files
+     - **Tables/Sheets**: Extracted from markdown tables
+   - For each detected item:
+     - Generate `embed_id` (UUID)
+     - Create embed data: `type`, `content` (TOON-encoded), `text_preview`, metadata
+     - Store embed locally in EmbedStore (IndexedDB)
+     - Replace original content in message with embed reference JSON block
+
+2. **Message Submission with Dual Payload**:
+   When user sends the message, client prepares TWO embed payloads:
+   - **Cleartext embeds (`embeds`)**: For AI inference and server-side caching
+     - `embed_id`, `type`, `content` (TOON), `text_preview`, `status`
+   - **Client-Encrypted embeds (`encrypted_embeds`)**: For direct Directus storage
+     - Generate `embed_key` (random 256-bit key)
+     - Encrypt `type`, `content`, `text_preview` with `embed_key`
+     - Create key wrappers: `AES(embed_key, master_key)` + `AES(embed_key, chat_key)`
+     - Include wrapped keys in payload for `embed_keys` collection
+     - Hash all IDs client-side (SHA256)
+
+3. **Server-Side Processing** (Single Request):
+   Server receives message with both embed payloads:
+   - **For AI caching**: Encrypts cleartext embeds with vault key, stores in Redis cache
+   - **For Directus storage**: Stores client-encrypted embeds directly (zero-knowledge)
+   - No round-trip needed - server cannot decrypt client-encrypted data
+   - **Fallback**: Server-side extraction exists for older clients that don't extract client-side
+
+4. **Embed Types Using This Flow**:
+   | Type | Embed Type ID | Client-Side | Why |
+   |------|---------------|-------------|-----|
+   | Video URLs | `videos-video` | ✅ | Client pastes URL, has metadata |
+   | Website URLs | `web-website` | ✅ | Client pastes URL, has metadata |
+   | Code Blocks | `code-code` | ✅ | User types code, client has content |
+   | File Uploads | `docs-doc` | ✅ | User attaches files, client has data |
+   | Tables/Sheets | `sheets-sheet` | ✅ | User creates markdown tables, client has content |
+
+5. **Benefits of This Architecture**:
+   - **Eliminates round-trips**: No `send_embed_data` → `store_embed` WebSocket dance
+   - **Faster message submission**: Single request stores everything
+   - **Maintains zero-knowledge**: Server never decrypts client-encrypted embeds
+   - **Maintains AI capability**: Vault-encrypted copies enable AI context building
+   - **Backwards compatible**: Server-side extraction fallback for older clients
+
 ### 2. Update
 
 **Task Completion**:

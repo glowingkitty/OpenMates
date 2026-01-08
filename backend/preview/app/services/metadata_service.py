@@ -9,6 +9,16 @@ Handles parsing of HTML to extract:
 - Favicon (link rel="icon", rel="shortcut icon")
 - Site name (og:site_name)
 - URL (og:url, canonical)
+
+SECURITY: Text fields (title, description, site_name) are sanitized for prompt
+injection attacks before being returned. This protects against malicious websites
+that embed injection attempts in their metadata to manipulate LLMs.
+
+Two-layer defense:
+1. ASCII smuggling protection (character-level)
+2. LLM-based prompt injection detection (semantic-level)
+
+See: docs/architecture/prompt_injection_protection.md
 """
 
 import logging
@@ -18,6 +28,7 @@ from bs4 import BeautifulSoup
 
 from .fetch_service import fetch_service
 from .cache_service import cache_service
+from .content_sanitization import sanitize_metadata_fields
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +45,11 @@ class MetadataService:
         """
         Get metadata for a URL.
         
-        Checks cache first, then fetches and parses if not cached.
+        Checks cache first, then fetches, parses, and sanitizes if not cached.
+        
+        SECURITY: Text fields (title, description, site_name) are sanitized for
+        prompt injection attacks before caching and returning. This protects
+        against malicious websites embedding injection attempts in their metadata.
         
         Args:
             url: Website URL
@@ -43,37 +58,60 @@ class MetadataService:
         Returns:
             Metadata dictionary with keys:
             - url: Canonical URL
-            - title: Page title
-            - description: Page description
+            - title: Page title (sanitized)
+            - description: Page description (sanitized)
             - image: Preview image URL
             - favicon: Favicon URL
-            - site_name: Site name
+            - site_name: Site name (sanitized)
             
         Raises:
             FetchError: If fetching the page fails
         """
         # Normalize URL for consistent caching
         normalized_url = self._normalize_url(url)
+        log_prefix = f"[MetadataService][{normalized_url[:50]}] "
         
         # Check cache first
+        # Cached metadata is already sanitized (sanitization happens before caching)
         if use_cache:
             cached = cache_service.get_metadata(normalized_url)
             if cached:
-                logger.info(f"[MetadataService] CACHE_HIT for {url[:50]}...")
+                logger.info(f"{log_prefix}CACHE_HIT")
                 return cached
         
         # Cache miss - fetch HTML content
-        logger.info(f"[MetadataService] CACHE_MISS - fetching {url[:50]}...")
+        logger.info(f"{log_prefix}CACHE_MISS - fetching...")
         html = await fetch_service.fetch_html(normalized_url)
         
-        # Parse metadata
+        # Parse metadata from HTML
         metadata = self._parse_metadata(html, normalized_url)
         
-        # Cache the result
+        # =======================================================================
+        # SECURITY: Sanitize text fields for prompt injection protection
+        # =======================================================================
+        # Title, description, and site_name could contain malicious instructions
+        # targeting LLMs. We sanitize these fields before caching/returning.
+        # Image URLs and favicon URLs are NOT sanitized (they're URLs, not text
+        # that will be processed by LLMs).
+        #
+        # NOTE: Using batch sanitization - all fields are processed in a
+        # SINGLE LLM API call for efficiency.
+        # =======================================================================
+        
+        logger.info(f"{log_prefix}Sanitizing text fields for prompt injection protection...")
+        
+        # Batch sanitize all text fields in a SINGLE API call
+        metadata = await sanitize_metadata_fields(
+            metadata,
+            text_fields=["title", "description", "site_name"],
+            log_prefix=log_prefix
+        )
+        
+        # Cache the sanitized result
         cache_service.set_metadata(normalized_url, metadata)
         
         logger.info(
-            f"[MetadataService] Extracted and cached: "
+            f"{log_prefix}Extracted, sanitized, and cached: "
             f"title={(metadata.get('title') or 'N/A')[:30]}..."
         )
         

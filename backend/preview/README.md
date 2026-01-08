@@ -218,6 +218,24 @@ To enable YouTube video metadata extraction, configure a YouTube Data API v3 key
 
 The first format matching will be used.
 
+### Content Sanitization (Prompt Injection Protection)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET__GROQ__API_KEY` | (empty) | Groq API key for LLM-based sanitization |
+| `PREVIEW_GROQ_API_KEY` | (empty) | Alternative: preview-specific key |
+| `PREVIEW_ENABLE_LLM_SANITIZATION` | true | Enable LLM-based detection |
+| `PREVIEW_CONTENT_SANITIZATION_MODEL` | llama-3.3-70b-versatile | Groq model for sanitization |
+| `PREVIEW_SANITIZATION_BLOCK_THRESHOLD` | 7.0 | Score to block content (0.0-10.0) |
+| `PREVIEW_SANITIZATION_REVIEW_THRESHOLD` | 5.0 | Score to flag content (0.0-10.0) |
+
+**Setup:**
+1. Create a free account at [Groq Console](https://console.groq.com/)
+2. Create an API key in the API Keys section
+3. Set `SECRET__GROQ__API_KEY` in your `.env`
+
+**Note:** Without a Groq API key, only ASCII smuggling protection runs. LLM-based detection is skipped.
+
 ## Architecture
 
 ```
@@ -229,12 +247,16 @@ backend/preview/
 │   │   ├── favicon.py   # Favicon proxy endpoint
 │   │   ├── image.py     # Image proxy endpoint
 │   │   ├── metadata.py  # Metadata extraction endpoint
+│   │   ├── youtube.py   # YouTube metadata endpoint
 │   │   └── health.py    # Health check endpoints
 │   └── services/        # Business logic
-│       ├── cache_service.py    # Disk-based LRU caching
-│       ├── fetch_service.py    # External URL fetching with SSRF protection
-│       ├── image_service.py    # Image resizing and optimization
-│       └── metadata_service.py # Open Graph metadata parsing
+│       ├── cache_service.py       # Disk-based LRU caching
+│       ├── fetch_service.py       # External URL fetching with SSRF protection
+│       ├── image_service.py       # Image resizing and optimization
+│       ├── metadata_service.py    # Open Graph metadata parsing
+│       ├── youtube_service.py     # YouTube API integration
+│       ├── text_sanitization.py   # ASCII smuggling protection (character-level)
+│       └── content_sanitization.py # LLM-based prompt injection detection
 ├── Dockerfile           # Docker image definition
 ├── docker-compose.preview.yml  # Standalone deployment
 └── requirements.txt     # Python dependencies
@@ -248,6 +270,7 @@ backend/preview/
 - **No Tracking**: Doesn't forward cookies or referrers to target servers
 - **API Key Auth**: Optional authentication via `X-API-Key` header
 - **Rate Limiting**: Recommended at Caddy/reverse proxy level
+- **Prompt Injection Protection**: Sanitizes text metadata before returning (see below)
 
 ### Referer Validation
 
@@ -263,6 +286,44 @@ PREVIEW_ALLOWED_REFERERS=https://openmates.org/*,https://*.openmates.org/*,http:
 ```
 
 **Note:** Empty referers are always allowed (for privacy settings and direct navigation). Referer headers can be spoofed by non-browser clients, so combine with rate limiting for full protection.
+
+### Prompt Injection Protection (Content Sanitization)
+
+Website and YouTube metadata (titles, descriptions, channel names) could contain prompt injection attacks targeting LLMs. When users paste URLs, this metadata flows to the AI assistant.
+
+The preview server sanitizes all text fields using a **two-layer defense**:
+
+1. **ASCII Smuggling Protection** (Character-level): Removes invisible Unicode characters that could hide malicious instructions
+2. **LLM-Based Detection** (Semantic-level): Uses Groq API to detect and remove prompt injection patterns
+
+**Configuration:**
+```bash
+# Groq API key (required for LLM-based sanitization)
+SECRET__GROQ__API_KEY=your-groq-api-key
+# Or preview-specific:
+PREVIEW_GROQ_API_KEY=your-groq-api-key
+
+# Enable/disable LLM-based sanitization (ASCII sanitization always runs)
+PREVIEW_ENABLE_LLM_SANITIZATION=true
+
+# Model for sanitization (default: llama-3.3-70b-versatile)
+PREVIEW_CONTENT_SANITIZATION_MODEL=llama-3.3-70b-versatile
+
+# Score thresholds (0.0-10.0)
+PREVIEW_SANITIZATION_BLOCK_THRESHOLD=7.0   # Block content entirely
+PREVIEW_SANITIZATION_REVIEW_THRESHOLD=5.0  # Flag for review
+```
+
+**Protected fields:**
+| Source | Sanitized Fields | Not Sanitized (URLs) |
+|--------|------------------|---------------------|
+| Website | title, description, site_name | image, favicon, url |
+| YouTube Video | title, description, channel_name | thumbnails, url |
+| YouTube Channel | title, description | thumbnails, custom_url |
+
+**Graceful degradation:** If Groq API is unavailable, ASCII smuggling protection still runs. LLM-based detection is skipped with a warning.
+
+See: [Prompt Injection Protection](../../docs/architecture/prompt_injection_protection.md)
 
 ## Deployment
 

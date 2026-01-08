@@ -24,6 +24,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   'code-code': new GroupRenderer(),
   'code-code-group': new GroupRenderer(),
   'docs-doc-group': new GroupRenderer(),
+  // Use GroupRenderer for sheet/table embeds (individual and grouped)
+  'sheets-sheet': new GroupRenderer(),
   'sheets-sheet-group': new GroupRenderer(),
   // Image renderer for static images and SVGs (used in legal documents)
   'image': new ImageRenderer(),

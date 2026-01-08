@@ -389,6 +389,29 @@ code_info:
   cs: '{lineCount} {lineCountText}, {language}'
   sv: '{lineCount} {lineCountText}, {language}'
   verified_by_human: []
+table:
+  context: Default title for table/sheet embeds when no title is provided
+  en: Table
+  de: Tabelle
+  zh: 表格
+  es: Tabla
+  fr: Tableau
+  pt: Tabela
+  ru: Таблица
+  ja: テーブル
+  ko: 표
+  it: Tabella
+  tr: Tablo
+  vi: Bảng
+  id: Tabel
+  pl: Tabela
+  nl: Tabel
+  ar: جدول
+  hi: तालिका
+  th: ตาราง
+  cs: Tabulka
+  sv: Tabell
+  verified_by_human: []
 error:
   context: Status text when skill execution has an error
   en: Error
@@ -572,4 +595,234 @@ web_read_loading_content:
   th: กำลังโหลดเนื้อหา...
   cs: Načítání obsahu...
   sv: Laddar innehåll...
+  verified_by_human: []
+video_views:
+  context: View count for videos, e.g. '1.5M views'
+  en: '{count} views'
+  de: '{count} Aufrufe'
+  zh: '{count} 次观看'
+  es: '{count} vistas'
+  fr: '{count} vues'
+  pt: '{count} visualizações'
+  ru: '{count} просмотров'
+  ja: '{count} 回視聴'
+  ko: '조회수 {count}회'
+  it: '{count} visualizzazioni'
+  tr: '{count} görüntüleme'
+  vi: '{count} lượt xem'
+  id: '{count} penayangan'
+  pl: '{count} wyświetleń'
+  nl: '{count} weergaven'
+  ar: '{count} مشاهدة'
+  hi: '{count} व्यूज'
+  th: 'การดู {count} ครั้ง'
+  cs: '{count} zhlédnutí'
+  sv: '{count} visningar'
+  verified_by_human: []
+video_likes:
+  context: Like count for videos, e.g. '68K likes'
+  en: '{count} likes'
+  de: '{count} Likes'
+  zh: '{count} 个赞'
+  es: '{count} me gusta'
+  fr: '{count} j''aime'
+  pt: '{count} curtidas'
+  ru: '{count} лайков'
+  ja: '{count} いいね'
+  ko: '좋아요 {count}개'
+  it: '{count} mi piace'
+  tr: '{count} beğeni'
+  vi: '{count} lượt thích'
+  id: '{count} suka'
+  pl: '{count} polubień'
+  nl: '{count} likes'
+  ar: '{count} إعجاب'
+  hi: '{count} पसंद'
+  th: '{count} ถูกใจ'
+  cs: '{count} líbí se mi'
+  sv: '{count} gillar'
+  verified_by_human: []
+date_today:
+  context: Relative date for today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  verified_by_human: []
+date_yesterday:
+  context: Relative date for yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  verified_by_human: []
+date_days_ago:
+  context: Relative date for N days ago
+  en: '{count} days ago'
+  de: 'vor {count} Tagen'
+  zh: '{count} 天前'
+  es: 'hace {count} días'
+  fr: 'il y a {count} jours'
+  pt: 'há {count} dias'
+  ru: '{count} дней назад'
+  ja: '{count} 日前'
+  ko: '{count}일 전'
+  it: '{count} giorni fa'
+  tr: '{count} gün önce'
+  vi: '{count} ngày trước'
+  id: '{count} hari yang lalu'
+  pl: '{count} dni temu'
+  nl: '{count} dagen geleden'
+  ar: 'منذ {count} أيام'
+  hi: '{count} दिन पहले'
+  th: '{count} วันที่แล้ว'
+  cs: 'před {count} dny'
+  sv: 'för {count} dagar sedan'
+  verified_by_human: []
+date_weeks_ago:
+  context: Relative date for N weeks ago
+  en: '{count} weeks ago'
+  de: 'vor {count} Wochen'
+  zh: '{count} 周前'
+  es: 'hace {count} semanas'
+  fr: 'il y a {count} semaines'
+  pt: 'há {count} semanas'
+  ru: '{count} недель назад'
+  ja: '{count} 週間前'
+  ko: '{count}주 전'
+  it: '{count} settimane fa'
+  tr: '{count} hafta önce'
+  vi: '{count} tuần trước'
+  id: '{count} minggu yang lalu'
+  pl: '{count} tygodni temu'
+  nl: '{count} weken geleden'
+  ar: 'منذ {count} أسابيع'
+  hi: '{count} सप्ताह पहले'
+  th: '{count} สัปดาห์ที่แล้ว'
+  cs: 'před {count} týdny'
+  sv: 'för {count} veckor sedan'
+  verified_by_human: []
+date_months_ago:
+  context: Relative date for N months ago
+  en: '{count} months ago'
+  de: 'vor {count} Monaten'
+  zh: '{count} 个月前'
+  es: 'hace {count} meses'
+  fr: 'il y a {count} mois'
+  pt: 'há {count} meses'
+  ru: '{count} месяцев назад'
+  ja: '{count} ヶ月前'
+  ko: '{count}개월 전'
+  it: '{count} mesi fa'
+  tr: '{count} ay önce'
+  vi: '{count} tháng trước'
+  id: '{count} bulan yang lalu'
+  pl: '{count} miesięcy temu'
+  nl: '{count} maanden geleden'
+  ar: 'منذ {count} أشهر'
+  hi: '{count} महीने पहले'
+  th: '{count} เดือนที่แล้ว'
+  cs: 'před {count} měsíci'
+  sv: 'för {count} månader sedan'
+  verified_by_human: []
+date_years_ago:
+  context: Relative date for N years ago
+  en: '{count} years ago'
+  de: 'vor {count} Jahren'
+  zh: '{count} 年前'
+  es: 'hace {count} años'
+  fr: 'il y a {count} ans'
+  pt: 'há {count} anos'
+  ru: '{count} лет назад'
+  ja: '{count} 年前'
+  ko: '{count}년 전'
+  it: '{count} anni fa'
+  tr: '{count} yıl önce'
+  vi: '{count} năm trước'
+  id: '{count} tahun yang lalu'
+  pl: '{count} lat temu'
+  nl: '{count} jaar geleden'
+  ar: 'منذ {count} سنوات'
+  hi: '{count} साल पहले'
+  th: '{count} ปีที่แล้ว'
+  cs: 'před {count} lety'
+  sv: 'för {count} år sedan'
+  verified_by_human: []
+video_play:
+  context: Button label to play video
+  en: Play video
+  de: Video abspielen
+  zh: 播放视频
+  es: Reproducir video
+  fr: Lire la vidéo
+  pt: Reproduzir vídeo
+  ru: Воспроизвести видео
+  ja: 動画を再生
+  ko: 동영상 재생
+  it: Riproduci video
+  tr: Videoyu oynat
+  vi: Phát video
+  id: Putar video
+  pl: Odtwórz wideo
+  nl: Video afspelen
+  ar: تشغيل الفيديو
+  hi: वीडियो चलाएं
+  th: เล่นวิดีโอ
+  cs: Přehrát video
+  sv: Spela upp video
+  verified_by_human: []
+video_pip:
+  context: Button label for picture-in-picture mode
+  en: Picture-in-picture
+  de: Bild-in-Bild
+  zh: 画中画
+  es: Imagen en imagen
+  fr: Image dans l'image
+  pt: Picture-in-picture
+  ru: Картинка в картинке
+  ja: ピクチャーインピクチャー
+  ko: 화면 속 화면
+  it: Picture-in-picture
+  tr: Resim içinde resim
+  vi: Hình trong hình
+  id: Gambar dalam gambar
+  pl: Obraz w obrazie
+  nl: Beeld-in-beeld
+  ar: صورة داخل صورة
+  hi: पिक्चर-इन-पिक्चर
+  th: ภาพซ้อนภาพ
+  cs: Obraz v obraze
+  sv: Bild-i-bild
   verified_by_human: []

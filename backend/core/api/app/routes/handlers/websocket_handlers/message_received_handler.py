@@ -289,13 +289,30 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Using cached vault_key_id for user {user_id}")
         
         # EXTRACT CODE BLOCKS FROM USER MESSAGE
-        # Server-side extraction of code blocks into embeds
-        # This replaces code blocks with embed references and creates embeds for client storage
+        # ARCHITECTURE UPDATE: Client-side extraction is now preferred.
+        # Modern clients extract code blocks before sending, replacing them with embed references.
+        # Server-side extraction is kept as a FALLBACK for older clients.
+        # 
+        # Detection: If message contains embed references for code (```json with "type": "code"),
+        # then client already did extraction and we skip server-side extraction.
         extracted_code_embeds: List[Dict[str, Any]] = []
         hashed_user_id_for_embeds = hashlib.sha256(user_id.encode()).hexdigest()
         
-        if isinstance(content_plain, str) and '```' in content_plain:
-            # Content has potential code blocks - extract them
+        # Check if client already extracted code blocks (modern client)
+        client_already_extracted = False
+        if isinstance(content_plain, str):
+            # Look for embed reference JSON blocks with type "code"
+            if '"type": "code"' in content_plain or '"type":"code"' in content_plain:
+                # Verify it's an embed reference, not just coincidental text
+                import re
+                embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*\}'
+                if re.search(embed_ref_pattern, content_plain):
+                    client_already_extracted = True
+                    logger.debug(f"Message {message_id} contains client-extracted code embed references - skipping server extraction")
+        
+        if not client_already_extracted and isinstance(content_plain, str) and '```' in content_plain:
+            # FALLBACK: Server-side extraction for older clients
+            # Content has potential code blocks that need extraction
             try:
                 from backend.core.api.app.services.embed_service import EmbedService
                 embed_service = EmbedService(
@@ -496,23 +513,24 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     
                     # Encrypt embed content with vault key for server cache
                     # Server can decrypt for AI context building
-                    encrypted_content = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_content
+                    # encrypt_with_user_key returns (ciphertext, key_version) tuple
+                    encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_content,
+                        key_id=user_vault_key_id
                     )
                     
                     # Encrypt embed type for zero-knowledge storage
-                    encrypted_type = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_type
+                    encrypted_type, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_type,
+                        key_id=user_vault_key_id
                     )
                     
                     # Encrypt text preview if provided
                     encrypted_text_preview = None
                     if embed_text_preview:
-                        encrypted_text_preview = encryption_service.encrypt_with_vault_key(
-                            user_vault_key_id=user_vault_key_id,
-                            plaintext=embed_text_preview
+                        encrypted_text_preview, _ = await encryption_service.encrypt_with_user_key(
+                            plaintext=embed_text_preview,
+                            key_id=user_vault_key_id
                         )
                     
                     # Cache embed for AI processing
@@ -531,10 +549,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     }
                     
                     # Store in cache
+                    # Note: embed_data is already vault-encrypted above
                     await cache_service.set_embed_in_cache(
                         embed_id=embed_id,
                         embed_data=embed_cache_data,
-                        user_vault_key_id=user_vault_key_id
+                        chat_id=chat_id
                     )
                     
                     # Add to chat embed index
@@ -545,6 +564,59 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 except Exception as e_embed:
                     logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
                     # Non-critical error - continue processing other embeds
+        
+        # ARCHITECTURE: Client-created embeds for Directus storage
+        # Client sends BOTH cleartext (for AI cache above) AND client-encrypted version (for Directus)
+        # in the same request. This avoids round-trip WebSocket calls (send_embed_data → store_embed).
+        # The encrypted_embeds array contains pre-encrypted embeds ready for direct Directus storage.
+        encrypted_embeds_from_client = payload.get("encrypted_embeds", [])
+        if encrypted_embeds_from_client and not is_incognito:
+            logger.info(f"Storing {len(encrypted_embeds_from_client)} client-encrypted embeds directly to Directus for message {message_id}")
+            
+            for encrypted_embed in encrypted_embeds_from_client:
+                try:
+                    embed_id = encrypted_embed.get("embed_id")
+                    if not embed_id:
+                        logger.warning("Encrypted embed missing embed_id, skipping")
+                        continue
+                    
+                    # ARCHITECTURE: Fill in hashed_user_id if client didn't provide it
+                    # This happens for new chats where the client doesn't have user_id yet.
+                    # The server knows the user from the authenticated session, so we can fill it in.
+                    if not encrypted_embed.get("hashed_user_id"):
+                        encrypted_embed["hashed_user_id"] = hashed_user_id
+                        logger.debug(f"Filled in hashed_user_id for embed {embed_id}")
+                    
+                    # Store client-encrypted embed directly in Directus
+                    # This is the zero-knowledge architecture: server cannot decrypt this data
+                    await directus_service.embed.create_embed(encrypted_embed)
+                    logger.debug(f"Stored client-encrypted embed {embed_id} in Directus")
+                    
+                    # Also store embed keys if provided
+                    # CRITICAL: embed_keys must be stored for the embed to be decryptable later
+                    embed_keys = encrypted_embed.get("embed_keys", [])
+                    if embed_keys:
+                        logger.info(f"[EMBED_KEYS] 🔑 Received {len(embed_keys)} embed_key(s) for embed {embed_id}")
+                        for key_entry in embed_keys:
+                            # Fill in hashed_user_id for embed keys too if missing
+                            if not key_entry.get("hashed_user_id"):
+                                key_entry["hashed_user_id"] = hashed_user_id
+                            
+                            hashed_embed_id_preview = key_entry.get("hashed_embed_id", "")[:16]
+                            key_type = key_entry.get("key_type")
+                            
+                            result = await directus_service.embed.create_embed_key(key_entry)
+                            if result:
+                                logger.info(f"[EMBED_KEYS] ✅ Stored embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
+                            else:
+                                logger.error(f"[EMBED_KEYS] ❌ Failed to store embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
+                        logger.info(f"[EMBED_KEYS] Completed storing {len(embed_keys)} embed key(s) for embed {embed_id}")
+                    else:
+                        logger.warning(f"[EMBED_KEYS] ⚠️ No embed_keys provided for embed {embed_id} - embed will not be decryptable!")
+                    
+                except Exception as e_store:
+                    logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
+                    # Non-critical error - continue with other embeds
 
         # Send confirmation to the originating client device
         confirmation_payload = {
@@ -605,13 +677,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
                     
                     # Encrypt embed content with vault key for server cache
-                    encrypted_embed_content = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_data["content"]
+                    # encrypt_with_user_key returns (ciphertext, key_version) tuple
+                    encrypted_embed_content, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_data["content"],
+                        key_id=user_vault_key_id
                     )
-                    encrypted_embed_type = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_data["type"]
+                    encrypted_embed_type, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_data["type"],
+                        key_id=user_vault_key_id
                     )
                     
                     embed_cache_data = {

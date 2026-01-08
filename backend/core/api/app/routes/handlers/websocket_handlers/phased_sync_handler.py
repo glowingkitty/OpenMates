@@ -825,27 +825,34 @@ async def _handle_phase2_sync(
         if embeds_list:
             logger.info(f"Phase 2: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across phases)")
         
-        # CRITICAL: Also collect embed_keys for all chats in this phase
+        # CRITICAL: Batch fetch embed_keys for all chats in this phase (optimized)
         # Embed keys are needed to decrypt the encrypted embed content on the client
+        # OPTIMIZATION: Use batch method to reduce from N*2 queries to just 2 queries
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
+        
+        # Collect all hashed_chat_ids for batch fetch
+        hashed_chat_ids_for_keys = []
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
-                try:
-                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
-                    if embed_keys:
-                        for key_entry in embed_keys:
-                            key_id = key_entry.get("id")
-                            if key_id and key_id not in seen_embed_key_ids:
-                                all_embed_keys.append(key_entry)
-                                seen_embed_key_ids.add(key_id)
-                except Exception as e:
-                    logger.warning(f"Phase 2: Error fetching embed_keys for chat {chat_id}: {e}")
+                hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
+        
+        if hashed_chat_ids_for_keys:
+            try:
+                # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
+                batch_embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_chat_ids_for_keys)
+                if batch_embed_keys:
+                    for key_entry in batch_embed_keys:
+                        key_id = key_entry.get("id")
+                        if key_id and key_id not in seen_embed_key_ids:
+                            all_embed_keys.append(key_entry)
+                            seen_embed_key_ids.add(key_id)
+            except Exception as e:
+                logger.warning(f"Phase 2: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
         
         if all_embed_keys:
-            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats")
+            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
         
         # Send Phase 2 data to client (only chats that need updating)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
@@ -1163,27 +1170,34 @@ async def _handle_phase3_sync(
         if embeds_list:
             logger.info(f"Phase 3: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across all phases)")
 
-        # CRITICAL: Also collect embed_keys for all chats in this phase
+        # CRITICAL: Batch fetch embed_keys for all chats in this phase (optimized)
         # Embed keys are needed to decrypt the encrypted embed content on the client
+        # OPTIMIZATION: Use batch method to reduce from N*2 queries to just 2 queries
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
+        
+        # Collect all hashed_chat_ids for batch fetch
+        hashed_chat_ids_for_keys = []
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
-                try:
-                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
-                    if embed_keys:
-                        for key_entry in embed_keys:
-                            key_id = key_entry.get("id")
-                            if key_id and key_id not in seen_embed_key_ids:
-                                all_embed_keys.append(key_entry)
-                                seen_embed_key_ids.add(key_id)
-                except Exception as e:
-                    logger.warning(f"Phase 3: Error fetching embed_keys for chat {chat_id}: {e}")
+                hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
+        
+        if hashed_chat_ids_for_keys:
+            try:
+                # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
+                batch_embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_chat_ids_for_keys)
+                if batch_embed_keys:
+                    for key_entry in batch_embed_keys:
+                        key_id = key_entry.get("id")
+                        if key_id and key_id not in seen_embed_key_ids:
+                            all_embed_keys.append(key_entry)
+                            seen_embed_key_ids.add(key_id)
+            except Exception as e:
+                logger.warning(f"Phase 3: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
         
         if all_embed_keys:
-            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats")
+            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat

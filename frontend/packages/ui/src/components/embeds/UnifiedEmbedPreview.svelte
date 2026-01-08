@@ -70,6 +70,8 @@
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
     faviconUrl?: string;
+    /** Whether favicon should be circular (for channel thumbnails, profile pics) */
+    faviconIsCircular?: boolean;
     /** Custom status text (overrides default status text) */
     customStatusText?: string;
     /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
@@ -94,6 +96,7 @@
     details,
     showStatus = true,
     faviconUrl,
+    faviconIsCircular = false,
     customStatusText,
     showSkillIcon = true,
     hasFullWidthImage = false,
@@ -637,6 +640,7 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
       />
@@ -668,6 +672,7 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
       />
@@ -684,7 +689,11 @@
     position: relative;
     background-color: var(--color-grey-25);
     border-radius: 30px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    /* Base shadow: element "floats" above surface → larger, softer shadow */
+    /* Using two layers: soft ambient shadow + contact shadow */
+    box-shadow: 
+      0 8px 24px rgba(0, 0, 0, 0.16),
+      0 2px 6px rgba(0, 0, 0, 0.1);
     /* Smooth transition for transform (tilt effect) and box-shadow (hover glow) */
     /* Using ease-out for snappy response on hover start, smooth return on leave */
     transition: 
@@ -741,16 +750,19 @@
   
   /* Hovering state (controlled by JS for tilt effect) */
   .unified-embed-preview.finished.hovering {
-    /* Enhanced shadow on hover for depth effect */
+    /* Pressed down → closer to surface → tighter, smaller shadow */
     box-shadow: 
-      0 8px 20px rgba(0, 0, 0, 0.2),
-      0 2px 6px rgba(0, 0, 0, 0.1);
+      0 4px 12px rgba(0, 0, 0, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.08);
   }
   
   /* CSS fallback hover for non-JS scenarios (shouldn't normally apply) */
   .unified-embed-preview.finished:hover:not(.hovering) {
     transform: scale(0.98);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    /* Match the hovering shadow for consistency */
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.08);
   }
   
   .unified-embed-preview.finished:focus {
@@ -794,10 +806,13 @@
   }
   
   /* Full-width image content: remove padding and add negative margin at bottom */
+  /* The negative margin allows the image to extend into the BasicInfosBar area */
+  /* to fill the rounded corners and reach approximately the center of the bar */
+  /* BasicInfosBar is 61px tall, so -55px extends roughly to its center */
   .desktop-layout .details-section.full-width-image {
     padding-right: 0;
     padding-left: 0;
-    margin-bottom: -35px;
+    margin-bottom: -55px;
   }
   
   /* ===========================================

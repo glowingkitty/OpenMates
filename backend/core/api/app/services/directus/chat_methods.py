@@ -253,9 +253,15 @@ class ChatMethods:
             logger.error(f"Error updating chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
-    async def create_chat_in_directus(self, chat_metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def create_chat_in_directus(self, chat_metadata: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], bool]:
         """
         Create a chat record in Directus.
+        
+        Returns:
+            tuple[Optional[Dict], bool]: 
+                - (created_data, False) on success
+                - (None, True) if chat already exists (RECORD_NOT_UNIQUE error - race condition)
+                - (None, False) on other failures
         """
         try:
             chat_id_val = chat_metadata.get('id')
@@ -265,13 +271,28 @@ class ChatMethods:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
                 if chat_id_val: # Check if chat_id_val is not None
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
-                return result_data
+                return result_data, False
             else:
-                logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
-                return None
+                # Check if this is a duplicate key error (race condition - chat was created by another task)
+                # This happens when two tasks check "chat exists?" -> both get False -> both try to create
+                is_duplicate = False
+                if isinstance(result_data, dict):
+                    error_text = result_data.get('text', '')
+                    if 'RECORD_NOT_UNIQUE' in error_text:
+                        is_duplicate = True
+                        logger.warning(
+                            f"⚠️ Chat {chat_id_val} creation returned RECORD_NOT_UNIQUE - "
+                            f"chat was already created by another concurrent task (race condition). "
+                            f"This is expected and safe to proceed with message creation."
+                        )
+                
+                if not is_duplicate:
+                    logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
+                
+                return None, is_duplicate
         except Exception as e:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
-            return None
+            return None, False
 
     async def create_message_in_directus(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

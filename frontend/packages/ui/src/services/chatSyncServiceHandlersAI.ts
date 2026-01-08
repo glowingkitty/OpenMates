@@ -1501,8 +1501,13 @@ export async function handleEmbedUpdateImpl(
                                 (sendersModule as { default?: { sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl } }).default?.sendStoreEmbedImpl;
                             
                             if (typeof sendStoreFunction === 'function') {
+                                // CRITICAL: Convert camelCase timestamps to snake_case and milliseconds to seconds for Directus
+                                const nowSecs = Math.floor(Date.now() / 1000);
+                                const { createdAt, updatedAt, ...restFields } = encryptedEmbedForStorage;
                                 const storePayload = {
-                                    ...encryptedEmbedForStorage
+                                    ...restFields,
+                                    created_at: createdAt ? Math.floor(createdAt / 1000) : nowSecs,
+                                    updated_at: updatedAt ? Math.floor(updatedAt / 1000) : nowSecs
                                 };
                                 await sendStoreFunction(serviceInstance, storePayload);
                                 console.debug(`[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`);
@@ -1982,6 +1987,9 @@ export async function handleSendEmbedDataImpl(
             }
 
             // 9. Send encrypted embed to server for Directus storage
+            // CRITICAL: Use snake_case for Directus fields and Unix timestamps in SECONDS
+            // embedData.createdAt/updatedAt may be in milliseconds, must convert to seconds
+            const nowSeconds = Math.floor(Date.now() / 1000);
             const storePayload: import('../types/chat').StoreEmbedPayload = {
                 embed_id: embedData.embed_id,
                 encrypted_type: encryptedType,
@@ -2000,8 +2008,9 @@ export async function handleSendEmbedDataImpl(
                 text_length_chars: embedData.text_length_chars,
                 is_private: embedData.is_private ?? false,
                 is_shared: embedData.is_shared ?? false,
-                createdAt: embedData.createdAt,
-                updatedAt: embedData.updatedAt
+                // Convert milliseconds to seconds for Directus storage
+                created_at: embedData.createdAt ? Math.floor(embedData.createdAt / 1000) : nowSeconds,
+                updated_at: embedData.updatedAt ? Math.floor(embedData.updatedAt / 1000) : nowSeconds
             };
 
             const sendersModule = await import('./chatSyncServiceSenders');
