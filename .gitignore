@@ -194,6 +194,9 @@ _backup
 # Allow template/example files, but ignore environment-specific overrides
 deployment/dev_server
 deployment/prod_server
+
+# Preview server Caddyfile (keep Caddyfile.example, ignore actual config)
+backend/preview/Caddyfile
 # Legacy .deployment directory (kept for backward compatibility, but gitignored)
 .deployment
 

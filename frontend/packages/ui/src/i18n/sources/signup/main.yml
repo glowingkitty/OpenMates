@@ -2574,6 +2574,52 @@ copy_secret:
   cs: Kopírovat tajný klíč
   sv: Kopiera hemlighet
   verified_by_human: []
+your_secret_key:
+  context: Label shown above the 2FA secret key when displayed for manual copying
+  en: Your secret key
+  de: Dein Geheimschlüssel
+  zh: 你的密钥
+  es: Tu clave secreta
+  fr: Votre clé secrète
+  pt: Sua chave secreta
+  ru: Ваш секретный ключ
+  ja: あなたのシークレットキー
+  ko: 비밀 키
+  it: La tua chiave segreta
+  tr: Gizli anahtarınız
+  vi: Khóa bí mật của bạn
+  id: Kunci rahasia Anda
+  pl: Twój tajny klucz
+  nl: Je geheime sleutel
+  ar: مفتاحك السري
+  hi: आपकी गुप्त कुंजी
+  th: คีย์ลับของคุณ
+  cs: Váš tajný klíč
+  sv: Din hemliga nyckel
+  verified_by_human: []
+hide_secret:
+  context: Button text to hide the displayed 2FA secret key
+  en: Hide
+  de: Ausblenden
+  zh: 隐藏
+  es: Ocultar
+  fr: Masquer
+  pt: Ocultar
+  ru: Скрыть
+  ja: 非表示
+  ko: 숨기기
+  it: Nascondi
+  tr: Gizle
+  vi: Ẩn
+  id: Sembunyikan
+  pl: Ukryj
+  nl: Verbergen
+  ar: إخفاء
+  hi: छुपाएं
+  th: ซ่อน
+  cs: Skrýt
+  sv: Dölj
+  verified_by_human: []
 or_enter_manually:
   context: Label for manual 2FA secret entry option
   en: Or enter manually

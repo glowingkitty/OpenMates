@@ -1,0 +1,2 @@
+# This directory is used for temporary persistence of payment orders during server restarts.
+# The pending_orders_backup.json file is created during shutdown and removed after restore on startup.

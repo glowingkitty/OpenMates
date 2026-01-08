@@ -418,6 +418,17 @@ async def lifespan(app: FastAPI):
             logger.error(f"Error explicitly calling set_discovered_apps_metadata from main.py: {e_cache}", exc_info=True)
     elif not hasattr(app.state, 'cache_service'):
         logger.error("CacheService not available in app.state. Cannot cache discovered_apps_metadata.")
+
+    # --- Restore pending payment orders from disk backup ---
+    # This recovers payment orders that were persisted during the last graceful shutdown
+    # to prevent payment data loss if a webhook arrives after cache was cleared by restart
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_count = await app.state.cache_service.restore_orders_from_disk()
+            if restored_count > 0:
+                logger.info(f"Restored {restored_count} pending payment orders from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring payment orders from disk: {e}", exc_info=True)
     
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
@@ -719,6 +730,17 @@ async def lifespan(app: FastAPI):
     
     # Shutdown logic
     logger.info("Shutting down application...")
+    
+    # --- Persist pending payment orders to disk before shutdown ---
+    # This ensures payment orders survive restarts and can be restored on next startup
+    # Critical for preventing payment data loss when webhook arrives after cache is cleared
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_count = await app.state.cache_service.dump_pending_orders_to_disk()
+            if dumped_count > 0:
+                logger.info(f"Persisted {dumped_count} pending payment orders to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting payment orders to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):
