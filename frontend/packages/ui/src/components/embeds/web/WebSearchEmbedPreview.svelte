@@ -26,15 +26,19 @@
   
   /**
    * Web search result interface for favicon display
-   * Supports both flat (favicon_url) and nested (meta_url.favicon) structures
-   * depending on how the data arrives from backend
+   * Supports multiple favicon field formats depending on data source:
+   * - favicon: Direct field from backend (most common)
+   * - favicon_url: Alternative flat format
+   * - meta_url.favicon: Nested structure from raw Brave Search API
    */
   interface WebSearchResult {
     title?: string;
     url: string;
-    /** Direct favicon URL (transformed format) */
+    /** Direct favicon URL from backend (primary format) */
+    favicon?: string;
+    /** Alternative direct favicon URL */
     favicon_url?: string;
-    /** Nested meta_url structure from Brave Search (raw backend format) */
+    /** Nested meta_url structure from Brave Search (raw API format) */
     meta_url?: {
       favicon?: string;
     };
@@ -43,14 +47,17 @@
   }
   
   /**
-   * Extract favicon URL from result (handles both formats)
+   * Extract favicon URL from result (handles all possible formats)
+   * Priority: favicon > favicon_url > meta_url.favicon
    * @param result - Search result object
    * @returns Favicon URL or undefined
    */
   function getFaviconUrl(result: WebSearchResult): string | undefined {
-    // Check flat format first (transformed data)
+    // Check direct favicon field first (backend format)
+    if (result.favicon) return result.favicon;
+    // Check alternative flat format
     if (result.favicon_url) return result.favicon_url;
-    // Check nested format (raw backend data)
+    // Check nested format (raw Brave Search API)
     if (result.meta_url?.favicon) return result.meta_url.favicon;
     return undefined;
   }
@@ -177,16 +184,68 @@
     `${$text('embeds.via.text') || 'via'} ${provider}`
   );
   
-  // Get first 3 results with favicons for display
-  // Checks both favicon_url and meta_url.favicon formats
+  /**
+   * Flatten nested results structure from backend if needed
+   * Backend returns results as [{ id: X, results: [...] }] for multi-query searches
+   * This flattens it to a simple array of search results
+   */
+  function flattenResults(rawResults: unknown[]): WebSearchResult[] {
+    if (!rawResults || rawResults.length === 0) return [];
+    
+    // Check if first item is nested structure (has 'results' array)
+    const firstItem = rawResults[0] as Record<string, unknown>;
+    if (firstItem && 'results' in firstItem && Array.isArray(firstItem.results)) {
+      // Nested structure - flatten all results from all entries
+      const flattened: WebSearchResult[] = [];
+      for (const entry of rawResults as Array<{ id?: string; results?: unknown[] }>) {
+        if (entry.results && Array.isArray(entry.results)) {
+          flattened.push(...(entry.results as WebSearchResult[]));
+        }
+      }
+      console.debug(`[WebSearchEmbedPreview] Flattened nested results: ${rawResults.length} entries -> ${flattened.length} results`);
+      return flattened;
+    }
+    
+    // Already flat structure
+    return rawResults as WebSearchResult[];
+  }
+  
+  // Get flattened results (handles both nested and flat backend formats)
+  let flatResults = $derived(flattenResults(results));
+  
+  // Get first 3 results with favicons for display (uses flattened results)
+  // Checks favicon, favicon_url, and meta_url.favicon formats
   let faviconResults = $derived(
-    results?.filter(r => getFaviconUrl(r)).slice(0, 3) || []
+    flatResults?.filter(r => getFaviconUrl(r)).slice(0, 3) || []
   );
   
-  // Get remaining results count
+  // Get remaining results count (total flat results minus displayed favicons)
   let remainingCount = $derived(
-    Math.max(0, (results?.length || 0) - 1)
+    Math.max(0, (flatResults?.length || 0) - faviconResults.length)
   );
+  
+  // DEBUG: Log results data to understand what we're receiving
+  $effect(() => {
+    if (results?.length) {
+      console.log(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}:`, {
+        rawResultsLength: results.length,
+        flatResultsLength: flatResults.length,
+        faviconResultsLength: faviconResults.length,
+        remainingCount,
+        // Show raw structure to detect nested vs flat
+        firstRawResult: results[0],
+        // Show all favicon-related fields in first flat result
+        firstFlatResultFaviconFields: flatResults[0] ? {
+          favicon: flatResults[0]?.favicon,
+          favicon_url: flatResults[0]?.favicon_url,
+          meta_url_favicon: flatResults[0]?.meta_url?.favicon
+        } : null,
+        extractedFaviconUrl: flatResults[0] ? getFaviconUrl(flatResults[0]) : undefined
+      });
+    } else {
+      console.log(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}: No results available`);
+    }
+  });
   
   // Handle stop button click - cancels this specific skill, not the entire AI response
   // Uses skill_task_id for individual skill cancellation (AI processing continues)
