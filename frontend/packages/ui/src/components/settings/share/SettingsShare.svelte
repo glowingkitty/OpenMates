@@ -233,17 +233,27 @@
                     }
                 };
             } else if (embedData.type === 'video' || embedContext.type === 'video') {
-                // Video embed
+                // Video embed - pass all metadata from decodedContent
                 return {
                     component: VideoEmbedPreview,
                     props: {
                         id: embedId,
                         url: decodedContent.url || embedContext.url || '',
                         title: decodedContent.title || embedContext.title || '',
-                        description: decodedContent.description || '',
-                        image: decodedContent.image || '',
+                        status: status,
                         isMobile: false,
-                        onFullscreen: () => {}
+                        onFullscreen: () => {},
+                        // Metadata from decodedContent (loaded from IndexedDB)
+                        channelName: decodedContent.channel_name,
+                        channelId: decodedContent.channel_id,
+                        channelThumbnail: decodedContent.channel_thumbnail,
+                        thumbnail: decodedContent.thumbnail,
+                        durationSeconds: decodedContent.duration_seconds,
+                        durationFormatted: decodedContent.duration_formatted,
+                        viewCount: decodedContent.view_count,
+                        likeCount: decodedContent.like_count,
+                        publishedAt: decodedContent.published_at,
+                        videoId: decodedContent.video_id
                     }
                 };
             } else if (embedData.type === 'code' || embedData.type === 'code-block' || embedData.type === 'code-code') {

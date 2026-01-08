@@ -943,7 +943,18 @@ export class GroupRenderer implements EmbedRenderer {
           title: videoTitle,
           status: status as 'processing' | 'finished' | 'error',
           isMobile: false, // Default to desktop in message view
-          onFullscreen: handleFullscreen
+          onFullscreen: handleFullscreen,
+          // Pass all metadata from decodedContent (loaded from IndexedDB embed store)
+          channelName: decodedContent?.channel_name,
+          channelId: decodedContent?.channel_id,
+          channelThumbnail: decodedContent?.channel_thumbnail,
+          thumbnail: decodedContent?.thumbnail,
+          durationSeconds: decodedContent?.duration_seconds,
+          durationFormatted: decodedContent?.duration_formatted,
+          viewCount: decodedContent?.view_count,
+          likeCount: decodedContent?.like_count,
+          publishedAt: decodedContent?.published_at,
+          videoId: decodedContent?.video_id
         }
       });
       
@@ -954,7 +965,9 @@ export class GroupRenderer implements EmbedRenderer {
         embedId,
         url: videoUrl?.substring(0, 50) + '...',
         status,
-        hasTitle: !!videoTitle
+        hasTitle: !!videoTitle,
+        hasChannelThumbnail: !!decodedContent?.channel_thumbnail,
+        hasDuration: !!decodedContent?.duration_formatted
       });
       
     } catch (error) {
