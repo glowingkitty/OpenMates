@@ -294,12 +294,22 @@ async def _async_persist_new_chat_message_task(
                 minimal_chat_payload["encrypted_chat_key"] = encrypted_chat_key
                 logger.info(f"Including encrypted_chat_key in minimal chat creation for {chat_id}")
             
-            created_chat = await directus_service.chat.create_chat_in_directus(minimal_chat_payload)
+            # create_chat_in_directus returns (created_data, is_duplicate)
+            # is_duplicate=True means RECORD_NOT_UNIQUE error (race condition - another task created it)
+            created_chat, is_duplicate = await directus_service.chat.create_chat_in_directus(minimal_chat_payload)
             
             if created_chat and created_chat.get("id"):
                 logger.info(
                     f"✅ Successfully created minimal chat {chat_id} (task_id: {task_id}). "
                     f"Metadata task will update it with encrypted title/icon/category."
+                )
+            elif is_duplicate:
+                # RACE CONDITION HANDLING: Chat was created by another concurrent task
+                # This is normal and expected in concurrent environments.
+                # The chat now exists - proceed with message creation!
+                logger.info(
+                    f"✅ Chat {chat_id} was created by another task (race condition). "
+                    f"Proceeding with message creation. (task_id: {task_id})"
                 )
             else:
                 logger.error(
@@ -464,11 +474,16 @@ async def _async_persist_chat_and_draft_on_logout(
             }
 
             logger.debug(f"Attempting to create chat {chat_id} with payload keys: {creation_payload.keys()}")
-            created_chat = await directus_service.chat.create_chat_in_directus(creation_payload)
-            if not created_chat:
+            # create_chat_in_directus returns (created_data, is_duplicate)
+            # is_duplicate=True means RECORD_NOT_UNIQUE error (race condition - another task created it)
+            created_chat, is_duplicate = await directus_service.chat.create_chat_in_directus(creation_payload)
+            if not created_chat and not is_duplicate:
                 logger.error(f"Failed to create chat {chat_id} in Directus during logout persistence (task_id: {task_id}). Aborting draft persistence.")
                 return # Stop if chat creation fails
-            logger.info(f"Successfully created chat {chat_id} in Directus (task_id: {task_id}).")
+            if is_duplicate:
+                logger.info(f"Chat {chat_id} was created by another task (race condition). Proceeding with draft persistence (task_id: {task_id}).")
+            else:
+                logger.info(f"Successfully created chat {chat_id} in Directus (task_id: {task_id}).")
             chat_exists = True # Mark as existing now
 
         if not chat_exists:
@@ -1313,49 +1328,42 @@ async def _async_persist_encrypted_chat_metadata(
                 f"Creating chat {chat_id} with: messages_v={messages_v}, title_v={title_v}, "
                 f"last_edited={last_edited}, last_message={last_message}"
             )
-            created_chat = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
+            # create_chat_in_directus returns (created_data, is_duplicate)
+            # is_duplicate=True means RECORD_NOT_UNIQUE error (race condition - another task created it)
+            created_chat, is_duplicate = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
             
             if created_chat and created_chat.get("id"):
                 logger.info(
                     f"Successfully created chat {chat_id} with encrypted metadata (task_id: {task_id})"
                 )
-            else:
-                # RACE CONDITION FIX: Chat creation might fail because another task (persist_new_chat_message_task)
-                # already created a minimal chat record. In this case, we should UPDATE the existing chat
-                # with the encrypted metadata instead of failing.
-                logger.warning(
-                    f"Chat {chat_id} creation failed (task_id: {task_id}). "
-                    f"This may be a race condition - checking if chat was created by another task..."
+            elif is_duplicate:
+                # RACE CONDITION FIX: Chat creation failed because another task (persist_new_chat_message_task)
+                # already created a minimal chat record. Update the existing chat with encrypted metadata.
+                logger.info(
+                    f"✅ Chat {chat_id} was created by another task (race condition). "
+                    f"Updating with encrypted metadata instead. (task_id: {task_id})"
                 )
-                
-                # Re-check if chat now exists (another task might have created it)
-                existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
-                if existing_chat:
+                # Update the existing chat with our encrypted metadata
+                # Remove the 'id' field as we're updating, not creating
+                update_payload = {k: v for k, v in chat_creation_payload.items() if k != 'id' and v is not None}
+                updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+                    chat_id=chat_id,
+                    fields_to_update=update_payload
+                )
+                if updated_chat:
                     logger.info(
-                        f"✅ Chat {chat_id} was created by another task (race condition). "
-                        f"Updating with encrypted metadata instead. (task_id: {task_id})"
+                        f"✅ Successfully updated chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
                     )
-                    # Update the existing chat with our encrypted metadata
-                    # Remove the 'id' field as we're updating, not creating
-                    update_payload = {k: v for k, v in chat_creation_payload.items() if k != 'id' and v is not None}
-                    updated_chat = await directus_service.chat.update_chat_fields_in_directus(
-                        chat_id=chat_id,
-                        fields_to_update=update_payload
-                    )
-                    if updated_chat:
-                        logger.info(
-                            f"✅ Successfully updated chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
-                        )
-                    else:
-                        logger.error(
-                            f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
-                        )
                 else:
-                    # Chat truly doesn't exist and creation failed for another reason
                     logger.error(
-                        f"❌ Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). "
-                        f"Response: {created_chat}"
+                        f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
                     )
+            else:
+                # Chat creation failed for another reason (not a race condition)
+                logger.error(
+                    f"❌ Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). "
+                    f"Response: {created_chat}"
+                )
 
     except Exception as e:
         logger.error(

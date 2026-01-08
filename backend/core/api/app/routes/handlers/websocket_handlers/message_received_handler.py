@@ -593,14 +593,26 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     logger.debug(f"Stored client-encrypted embed {embed_id} in Directus")
                     
                     # Also store embed keys if provided
+                    # CRITICAL: embed_keys must be stored for the embed to be decryptable later
                     embed_keys = encrypted_embed.get("embed_keys", [])
                     if embed_keys:
+                        logger.info(f"[EMBED_KEYS] 🔑 Received {len(embed_keys)} embed_key(s) for embed {embed_id}")
                         for key_entry in embed_keys:
                             # Fill in hashed_user_id for embed keys too if missing
                             if not key_entry.get("hashed_user_id"):
                                 key_entry["hashed_user_id"] = hashed_user_id
-                            await directus_service.embed.create_embed_key(key_entry)
-                        logger.debug(f"Stored {len(embed_keys)} embed key(s) for embed {embed_id}")
+                            
+                            hashed_embed_id_preview = key_entry.get("hashed_embed_id", "")[:16]
+                            key_type = key_entry.get("key_type")
+                            
+                            result = await directus_service.embed.create_embed_key(key_entry)
+                            if result:
+                                logger.info(f"[EMBED_KEYS] ✅ Stored embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
+                            else:
+                                logger.error(f"[EMBED_KEYS] ❌ Failed to store embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
+                        logger.info(f"[EMBED_KEYS] Completed storing {len(embed_keys)} embed key(s) for embed {embed_id}")
+                    else:
+                        logger.warning(f"[EMBED_KEYS] ⚠️ No embed_keys provided for embed {embed_id} - embed will not be decryptable!")
                     
                 except Exception as e_store:
                     logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
