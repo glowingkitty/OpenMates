@@ -389,6 +389,29 @@ code_info:
   cs: '{lineCount} {lineCountText}, {language}'
   sv: '{lineCount} {lineCountText}, {language}'
   verified_by_human: []
+table:
+  context: Default title for table/sheet embeds when no title is provided
+  en: Table
+  de: Tabelle
+  zh: 表格
+  es: Tabla
+  fr: Tableau
+  pt: Tabela
+  ru: Таблица
+  ja: テーブル
+  ko: 표
+  it: Tabella
+  tr: Tablo
+  vi: Bảng
+  id: Tabel
+  pl: Tabela
+  nl: Tabel
+  ar: جدول
+  hi: तालिका
+  th: ตาราง
+  cs: Tabulka
+  sv: Tabell
+  verified_by_human: []
 error:
   context: Status text when skill execution has an error
   en: Error

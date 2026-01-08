@@ -44,9 +44,13 @@ class YouTubeService:
     Uses YouTube Data API v3 to fetch video information including:
     - Title and description
     - Thumbnails (multiple resolutions)
-    - Channel name and ID
+    - Channel name, ID, and thumbnail (profile picture)
     - Duration, view count, like count
     - Published date
+    
+    Channel thumbnails require a separate API call (channels.list) since the videos.list
+    endpoint only returns channel name and ID, not the channel's profile picture.
+    Channel metadata is cached separately with the same TTL as video metadata.
     """
     
     # YouTube Data API v3 base URL
@@ -386,6 +390,169 @@ class YouTubeService:
                 result[size] = thumbnails[size]["url"]
         
         return result
+    
+    async def get_channel_metadata(self, channel_id: str, use_cache: bool = True) -> Optional[dict]:
+        """
+        Get metadata for a YouTube channel (primarily for thumbnail/profile picture).
+        
+        Checks cache first, then fetches from YouTube Data API if not cached.
+        Channel thumbnails are small circular profile pictures, useful for displaying
+        alongside video metadata.
+        
+        Args:
+            channel_id: YouTube channel ID (e.g., "UCuAXFkgsw1L7xaCfnd5JJOw")
+            use_cache: Whether to use cached metadata (default: True)
+            
+        Returns:
+            Channel metadata dictionary with keys:
+            - channel_id: YouTube channel ID
+            - title: Channel name
+            - description: Channel description (truncated)
+            - thumbnails: Dict of thumbnail URLs (default, medium, high)
+            - custom_url: Custom channel URL handle (e.g., "@RickAstleyYT")
+            
+            Returns None if channel not found or API error (fails silently to not break video preview)
+        """
+        if not channel_id:
+            logger.warning("[YouTubeService] get_channel_metadata called with empty channel_id")
+            return None
+        
+        # Check if API key is configured
+        if not settings.youtube_api_key:
+            logger.debug("[YouTubeService] No YouTube API key - skipping channel metadata fetch")
+            return None
+        
+        # Cache key for channel metadata (separate from video metadata)
+        cache_key = f"youtube:channel:{channel_id}"
+        
+        # Check cache first
+        if use_cache:
+            cached = cache_service.get_metadata(cache_key)
+            if cached:
+                logger.info(f"[YouTubeService] CACHE_HIT for channel {channel_id}")
+                return cached
+        
+        # Cache miss - fetch from YouTube API
+        logger.info(f"[YouTubeService] CACHE_MISS - fetching metadata for channel {channel_id}")
+        
+        try:
+            # Call YouTube Data API v3 channels.list endpoint
+            # Request snippet part for channel name, description, thumbnails
+            # Cost: 1 quota unit
+            response = await self._client.get(
+                f"{self.API_BASE_URL}/channels",
+                params={
+                    "part": "snippet",
+                    "id": channel_id,
+                    "key": settings.youtube_api_key
+                }
+            )
+            
+            # Handle API errors - fail silently for channel metadata
+            # (video preview should still work without channel thumbnail)
+            if response.status_code == 403:
+                logger.warning(f"[YouTubeService] Channel API quota exceeded or key invalid for {channel_id}")
+                return None
+            
+            if response.status_code != 200:
+                logger.warning(f"[YouTubeService] Channel API error {response.status_code} for {channel_id}")
+                return None
+            
+            data = response.json()
+            
+            # Check if channel was found
+            if not data.get("items"):
+                logger.warning(f"[YouTubeService] Channel not found: {channel_id}")
+                return None
+            
+            # Parse response
+            item = data["items"][0]
+            snippet = item.get("snippet", {})
+            
+            # Build channel metadata response
+            # Channel thumbnails are always circular profile pictures in these sizes:
+            # - default: 88x88
+            # - medium: 240x240
+            # - high: 800x800
+            channel_metadata = {
+                "channel_id": channel_id,
+                "title": snippet.get("title"),
+                "description": self._truncate_description(snippet.get("description", ""), max_length=200),
+                "thumbnails": self._extract_thumbnails(snippet.get("thumbnails", {})),
+                "custom_url": snippet.get("customUrl"),  # e.g., "@RickAstleyYT"
+            }
+            
+            # Cache the result (same TTL as video metadata)
+            cache_service.set_metadata(
+                cache_key,
+                channel_metadata,
+                ttl=settings.youtube_cache_ttl_seconds
+            )
+            
+            logger.info(
+                f"[YouTubeService] Fetched and cached metadata for channel {channel_id}: "
+                f"'{(channel_metadata.get('title') or 'N/A')[:30]}...'"
+            )
+            
+            return channel_metadata
+            
+        except httpx.TimeoutException:
+            logger.warning(f"[YouTubeService] Timeout fetching channel {channel_id}")
+            return None
+        except httpx.RequestError as e:
+            logger.warning(f"[YouTubeService] Request error for channel {channel_id}: {e}")
+            return None
+        except Exception as e:
+            # Log unexpected errors but don't crash - channel metadata is supplementary
+            logger.error(f"[YouTubeService] Unexpected error fetching channel {channel_id}: {e}", exc_info=True)
+            return None
+    
+    async def get_video_metadata_with_channel(self, url_or_id: str, use_cache: bool = True) -> dict:
+        """
+        Get video metadata including channel thumbnail.
+        
+        This is a convenience method that:
+        1. Fetches video metadata (title, duration, thumbnails, etc.)
+        2. Fetches channel metadata (thumbnail/profile picture)
+        3. Combines them into a single response
+        
+        The channel thumbnail is useful for rich video previews showing
+        the channel's profile picture alongside video information.
+        
+        Args:
+            url_or_id: YouTube video URL or video ID
+            use_cache: Whether to use cached metadata (default: True)
+            
+        Returns:
+            Video metadata dict with additional 'channel_thumbnail' key
+            (channel_thumbnail is None if channel fetch fails)
+            
+        Raises:
+            YouTubeServiceError: If video not found or API error
+        """
+        # First, get video metadata (this may raise YouTubeServiceError)
+        video_metadata = await self.get_video_metadata(url_or_id, use_cache)
+        
+        # Then, try to get channel metadata (fails silently)
+        channel_id = video_metadata.get("channel_id")
+        channel_thumbnail = None
+        
+        if channel_id:
+            channel_metadata = await self.get_channel_metadata(channel_id, use_cache)
+            if channel_metadata and channel_metadata.get("thumbnails"):
+                # Get best available channel thumbnail (prefer high > medium > default)
+                thumbnails = channel_metadata["thumbnails"]
+                channel_thumbnail = thumbnails.get("high") or thumbnails.get("medium") or thumbnails.get("default")
+                
+                logger.debug(
+                    f"[YouTubeService] Added channel thumbnail for video {video_metadata.get('video_id')}: "
+                    f"{channel_thumbnail[:50] if channel_thumbnail else 'None'}..."
+                )
+        
+        # Add channel thumbnail to video metadata
+        video_metadata["channel_thumbnail"] = channel_thumbnail
+        
+        return video_metadata
 
 
 # Global YouTube service instance

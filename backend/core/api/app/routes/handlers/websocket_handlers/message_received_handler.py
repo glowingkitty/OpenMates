@@ -289,13 +289,30 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Using cached vault_key_id for user {user_id}")
         
         # EXTRACT CODE BLOCKS FROM USER MESSAGE
-        # Server-side extraction of code blocks into embeds
-        # This replaces code blocks with embed references and creates embeds for client storage
+        # ARCHITECTURE UPDATE: Client-side extraction is now preferred.
+        # Modern clients extract code blocks before sending, replacing them with embed references.
+        # Server-side extraction is kept as a FALLBACK for older clients.
+        # 
+        # Detection: If message contains embed references for code (```json with "type": "code"),
+        # then client already did extraction and we skip server-side extraction.
         extracted_code_embeds: List[Dict[str, Any]] = []
         hashed_user_id_for_embeds = hashlib.sha256(user_id.encode()).hexdigest()
         
-        if isinstance(content_plain, str) and '```' in content_plain:
-            # Content has potential code blocks - extract them
+        # Check if client already extracted code blocks (modern client)
+        client_already_extracted = False
+        if isinstance(content_plain, str):
+            # Look for embed reference JSON blocks with type "code"
+            if '"type": "code"' in content_plain or '"type":"code"' in content_plain:
+                # Verify it's an embed reference, not just coincidental text
+                import re
+                embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*\}'
+                if re.search(embed_ref_pattern, content_plain):
+                    client_already_extracted = True
+                    logger.debug(f"Message {message_id} contains client-extracted code embed references - skipping server extraction")
+        
+        if not client_already_extracted and isinstance(content_plain, str) and '```' in content_plain:
+            # FALLBACK: Server-side extraction for older clients
+            # Content has potential code blocks that need extraction
             try:
                 from backend.core.api.app.services.embed_service import EmbedService
                 embed_service = EmbedService(
@@ -546,6 +563,37 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 except Exception as e_embed:
                     logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
                     # Non-critical error - continue processing other embeds
+        
+        # ARCHITECTURE: Client-created embeds for Directus storage
+        # Client sends BOTH cleartext (for AI cache above) AND client-encrypted version (for Directus)
+        # in the same request. This avoids round-trip WebSocket calls (send_embed_data → store_embed).
+        # The encrypted_embeds array contains pre-encrypted embeds ready for direct Directus storage.
+        encrypted_embeds_from_client = payload.get("encrypted_embeds", [])
+        if encrypted_embeds_from_client and not is_incognito:
+            logger.info(f"Storing {len(encrypted_embeds_from_client)} client-encrypted embeds directly to Directus for message {message_id}")
+            
+            for encrypted_embed in encrypted_embeds_from_client:
+                try:
+                    embed_id = encrypted_embed.get("embed_id")
+                    if not embed_id:
+                        logger.warning("Encrypted embed missing embed_id, skipping")
+                        continue
+                    
+                    # Store client-encrypted embed directly in Directus
+                    # This is the zero-knowledge architecture: server cannot decrypt this data
+                    await directus_service.embed.create_embed(encrypted_embed)
+                    logger.debug(f"Stored client-encrypted embed {embed_id} in Directus")
+                    
+                    # Also store embed keys if provided
+                    embed_keys = encrypted_embed.get("embed_keys", [])
+                    if embed_keys:
+                        for key_entry in embed_keys:
+                            await directus_service.embed.create_embed_key(key_entry)
+                        logger.debug(f"Stored {len(embed_keys)} embed key(s) for embed {embed_id}")
+                    
+                except Exception as e_store:
+                    logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
+                    # Non-critical error - continue with other embeds
 
         # Send confirmation to the originating client device
         confirmation_payload = {

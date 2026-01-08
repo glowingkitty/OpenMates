@@ -1,23 +1,25 @@
 <!--
-  frontend/packages/ui/src/components/embeds/VideoEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
   
   Preview component for Video URL embeds (YouTube, etc.).
   Uses UnifiedEmbedPreview as base and provides video-specific details content.
   
   Features:
   - Auto-fetches metadata from preview server when not provided
-  - Displays title, description, channel name, and thumbnail
-  - Proxies thumbnails through YouTube CDN (no privacy concerns - public images)
+  - Displays title, description, channel name, channel thumbnail (profile picture), and video thumbnail
+  - Shows video duration and relative upload date (e.g., "2 years ago")
+  - Proxies all thumbnails through preview server for privacy
   - Passes fetched metadata to fullscreen view for consistent display
   
   Details content structure:
   - Processing: URL hostname
-  - Finished: video thumbnail with title overlay
+  - Finished: video thumbnail with duration badge, channel info row (thumbnail + name), meta row (duration + upload date)
   - Error: hostname with error styling
   
   Data Flow:
-  - When preview fetches metadata (title, description, thumbnail, duration), this data is passed
-    to the fullscreen view via the onFullscreen callback.
+  - Preview server fetches video metadata including channel thumbnail (requires separate YouTube API call)
+  - Both video and channel metadata are cached server-side for 24 hours
+  - All metadata (title, description, thumbnails, duration, channel info) is passed to fullscreen view
 -->
 
 <script lang="ts">
@@ -29,6 +31,7 @@
   
   /**
    * Metadata response from preview server /api/v1/youtube endpoint
+   * Includes video metadata and channel thumbnail (profile picture)
    */
   interface YouTubeMetadataResponse {
     video_id: string;
@@ -37,6 +40,7 @@
     description?: string;
     channel_name?: string;
     channel_id?: string;
+    channel_thumbnail?: string;  // Channel profile picture URL (fetched separately from channels.list API)
     thumbnails: {
       default?: string;
       medium?: string;
@@ -63,6 +67,7 @@
     description?: string;
     channelName?: string;
     channelId?: string;
+    channelThumbnail?: string;  // Channel profile picture URL
     thumbnailUrl?: string;
     duration?: {
       totalSeconds: number;
@@ -112,6 +117,7 @@
   let fetchedDescription = $state<string | undefined>(undefined);
   let fetchedChannelName = $state<string | undefined>(undefined);
   let fetchedChannelId = $state<string | undefined>(undefined);
+  let fetchedChannelThumbnail = $state<string | undefined>(undefined);  // Channel profile picture
   let fetchedThumbnailUrl = $state<string | undefined>(undefined);
   let fetchedDuration = $state<{ totalSeconds: number; formatted: string } | undefined>(undefined);
   let fetchedViewCount = $state<number | undefined>(undefined);
@@ -225,6 +231,7 @@
       fetchedDescription = data.description;
       fetchedChannelName = data.channel_name;
       fetchedChannelId = data.channel_id;
+      fetchedChannelThumbnail = data.channel_thumbnail;  // Channel profile picture
       fetchedViewCount = data.view_count;
       fetchedLikeCount = data.like_count;
       fetchedPublishedAt = data.published_at;
@@ -246,7 +253,8 @@
         title: data.title?.substring(0, 50) || 'No title',
         channelName: data.channel_name || 'Unknown',
         duration: data.duration?.formatted || 'Unknown',
-        hasThumbnail: !!fetchedThumbnailUrl
+        hasThumbnail: !!fetchedThumbnailUrl,
+        hasChannelThumbnail: !!data.channel_thumbnail
       });
       
     } catch (error) {
@@ -296,6 +304,15 @@
     return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
   });
   
+  // Proxied channel thumbnail URL through preview server for privacy
+  // Channel thumbnails are small circular profile pictures
+  // Display size: 29x29px, request 2x for retina (58px)
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
+  let channelThumbnailUrl = $derived.by(() => {
+    if (!fetchedChannelThumbnail) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fetchedChannelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+  });
+  
   // Get hostname for fallback display
   let hostname = $derived.by(() => {
     try {
@@ -303,6 +320,42 @@
     } catch {
       return url;
     }
+  });
+  
+  /**
+   * Format relative time from ISO date string (e.g., "2 years ago", "3 months ago")
+   * Used for displaying video upload date in a human-readable format
+   */
+  function formatRelativeTime(isoDateString: string | undefined): string {
+    if (!isoDateString) return '';
+    
+    try {
+      const date = new Date(isoDateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 1) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+      return `${Math.floor(diffDays / 365)} years ago`;
+    } catch {
+      return '';
+    }
+  }
+  
+  // Derived relative upload date
+  let relativeUploadDate = $derived(formatRelativeTime(fetchedPublishedAt));
+  
+  // Shortened channel name (truncate if too long for preview)
+  let shortenedChannelName = $derived.by(() => {
+    if (!fetchedChannelName) return '';
+    // Max ~25 chars for preview layout
+    const maxLength = 25;
+    if (fetchedChannelName.length <= maxLength) return fetchedChannelName;
+    return fetchedChannelName.substring(0, maxLength - 1) + '…';
   });
   
   // Compute effective status: if we're loading metadata, show as processing
@@ -330,13 +383,14 @@
     if (!onFullscreen) return;
     
     // Pass the effective metadata values (props or fetched) to fullscreen
-    // Note: Pass raw thumbnail URL so fullscreen can proxy it at higher resolution
+    // Note: Pass raw thumbnail URLs so fullscreen can proxy them at higher resolution
     const metadata: VideoMetadata = {
       videoId: effectiveVideoId,
       title: effectiveTitle,
       description: fetchedDescription,
       channelName: fetchedChannelName,
       channelId: fetchedChannelId,
+      channelThumbnail: fetchedChannelThumbnail, // Raw URL - fullscreen will proxy at higher res
       thumbnailUrl: rawThumbnailUrl, // Raw URL - fullscreen will proxy at higher res
       duration: fetchedDuration,
       viewCount: fetchedViewCount,
@@ -349,7 +403,8 @@
       title: metadata.title?.substring(0, 50) || 'none',
       channelName: metadata.channelName || 'none',
       duration: metadata.duration?.formatted || 'none',
-      hasThumbnail: !!metadata.thumbnailUrl
+      hasThumbnail: !!metadata.thumbnailUrl,
+      hasChannelThumbnail: !!metadata.channelThumbnail
     });
     
     onFullscreen(metadata);
@@ -390,8 +445,9 @@
         <!-- Processing state: show hostname only -->
         <div class="video-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: show thumbnail with duration overlay -->
+        <!-- Finished state: show thumbnail with duration overlay and channel info -->
         {#if effectiveVideoId && thumbnailUrl}
+          <!-- Video thumbnail with duration badge -->
           <div class="video-thumbnail-container">
             <img 
               src={thumbnailUrl} 
@@ -414,6 +470,47 @@
               <div class="video-duration-badge">{fetchedDuration.formatted}</div>
             {/if}
           </div>
+          
+          <!-- Channel info below thumbnail: channel thumbnail + name, duration + upload date -->
+          {#if (channelThumbnailUrl && shortenedChannelName) || (fetchedDuration && relativeUploadDate)}
+            <div class="video-channel-info">
+              <!-- Line 1: Channel thumbnail + shortened channel name -->
+              {#if channelThumbnailUrl || shortenedChannelName}
+                <div class="video-channel-row">
+                  {#if channelThumbnailUrl}
+                    <img 
+                      src={channelThumbnailUrl}
+                      alt={fetchedChannelName || 'Channel'}
+                      class="video-channel-thumbnail"
+                      loading="lazy"
+                      onerror={(e) => {
+                        // Hide if thumbnail fails to load
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  {/if}
+                  {#if shortenedChannelName}
+                    <span class="video-channel-name">{shortenedChannelName}</span>
+                  {/if}
+                </div>
+              {/if}
+              
+              <!-- Line 2: Duration + upload date -->
+              {#if fetchedDuration || relativeUploadDate}
+                <div class="video-meta-row">
+                  {#if fetchedDuration}
+                    <span class="video-meta-item">{fetchedDuration.formatted}</span>
+                  {/if}
+                  {#if fetchedDuration && relativeUploadDate}
+                    <span class="video-meta-separator">•</span>
+                  {/if}
+                  {#if relativeUploadDate}
+                    <span class="video-meta-item">{relativeUploadDate}</span>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/if}
         {:else}
           <!-- Fallback: show URL path -->
           <div class="video-url-fallback">
@@ -454,9 +551,10 @@
     justify-content: center;
   }
   
-  /* When thumbnail is present, fill the full height */
+  /* When thumbnail is present, use flex layout to share space with channel info */
   .video-details:has(.video-thumbnail-container) {
     gap: 0;
+    /* Channel info at bottom will take its natural height, thumbnail takes the rest */
   }
   
   /* Mobile layout: top-aligned content */
@@ -496,6 +594,85 @@
     border-radius: 3px;
     font-family: var(--font-mono, monospace);
     letter-spacing: 0.3px;
+  }
+  
+  /* ===========================================
+     Channel Info Section (below thumbnail)
+     =========================================== */
+  
+  .video-channel-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 4px 2px;
+    min-height: 0;
+    flex-shrink: 0;
+  }
+  
+  /* Line 1: Channel thumbnail + name */
+  .video-channel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  
+  /* Circular channel thumbnail (profile picture) - 29x29px (58px for retina) */
+  .video-channel-thumbnail {
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background-color: var(--color-grey-20);
+  }
+  
+  .video-channel-name {
+    font-size: 12px;
+    color: var(--color-grey-80);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  
+  /* Line 2: Duration + upload date */
+  .video-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--color-grey-60);
+    line-height: 1.2;
+  }
+  
+  .video-meta-item {
+    white-space: nowrap;
+  }
+  
+  .video-meta-separator {
+    color: var(--color-grey-40);
+  }
+  
+  /* Mobile adjustments for channel info */
+  .video-details.mobile .video-channel-info {
+    padding: 4px 2px 0;
+    gap: 1px;
+  }
+  
+  .video-details.mobile .video-channel-thumbnail {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .video-details.mobile .video-channel-name {
+    font-size: 11px;
+  }
+  
+  .video-details.mobile .video-meta-row {
+    font-size: 10px;
+    gap: 3px;
   }
   
   /* Video hostname (for processing state) */

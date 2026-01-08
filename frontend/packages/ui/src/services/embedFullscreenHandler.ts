@@ -184,6 +184,25 @@ async function initializeRegistry(): Promise<void> {
     };
   });
 
+  // Sheet/Table embeds
+  fullscreenComponentRegistry.set('sheets-sheet', async (data: any) => {
+    const { default: component } = await import('../components/embeds/sheets/SheetEmbedFullscreen.svelte');
+    const tableContent = data.decodedContent?.code || data.decodedContent?.table || data.attrs?.code || '';
+    if (!tableContent) return null;
+    
+    return {
+      component,
+      props: {
+        tableContent,
+        title: data.decodedContent?.title || data.attrs?.title,
+        rowCount: data.decodedContent?.rows || data.attrs?.rows || 0,
+        colCount: data.decodedContent?.cols || data.attrs?.cols || 0,
+        onClose: data.onClose,
+        embedId: data.embedId
+      }
+    };
+  });
+
   // Video embeds
   // Constructs full VideoMetadata from decodedContent so fullscreen displays
   // all video details (title, channel, duration, thumbnail, etc.) without re-fetching

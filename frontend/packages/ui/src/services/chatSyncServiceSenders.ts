@@ -233,10 +233,374 @@ export async function sendNewMessageImpl(
     
     console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}, isIncognito: ${isIncognitoChat}`);
     
-    // Extract embed references from message content
+    // ========================================================================
+    // CLIENT-SIDE CODE BLOCK EXTRACTION
+    // Extract code blocks from user message BEFORE sending to server.
+    // This avoids round-trips (server extract → send_embed_data → store_embed).
+    // Client creates embeds locally, encrypts them, and sends everything in one request.
+    // ========================================================================
+    let processedContent = message.content;
+    const extractedCodeEmbeds: Array<{
+        embed_id: string;
+        type: string;
+        content: string;  // TOON-encoded
+        text_preview: string;
+        status: string;
+        language?: string;
+        filename?: string;
+    }> = [];
+    
+    // Only extract code blocks if content contains potential code blocks (performance optimization)
+    if (processedContent && processedContent.includes('```')) {
+        const { encode: toonEncode } = await import('@toon-format/toon');
+        const { generateUUID } = await import('../message_parsing/utils');
+        const { embedStore } = await import('./embedStore');
+        
+        // Regex to match markdown code blocks: ```language:filename\ncontent\n``` or ```language\ncontent\n```
+        // Skip JSON blocks that are already embed references
+        const codeBlockPattern = /```([a-zA-Z0-9_+\-#.]*?)(?::([^\n`]+))?\n([\s\S]*?)\n```/g;
+        
+        // Find all code blocks and replace with embed references
+        let match: RegExpExecArray | null;
+        const replacements: Array<{ start: number; end: number; replacement: string }> = [];
+        
+        while ((match = codeBlockPattern.exec(processedContent)) !== null) {
+            const fullMatch = match[0];
+            let language = (match[1] || '').trim();
+            let filename = match[2]?.trim() || null;
+            let codeContent = match[3];
+            
+            // FIX: If language/filename not in fence line, check first content line
+            // LLMs sometimes put "python:backend/main.py" in content instead of fence line
+            if ((!language || !filename) && codeContent) {
+                const lines = codeContent.split('\n');
+                if (lines.length > 0) {
+                    const firstLine = lines[0].trim();
+                    // Check if first line matches language:filename pattern
+                    if (firstLine.includes(':') && !firstLine.startsWith('#')) {
+                        const langFileMatch = firstLine.match(/^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$/);
+                        if (langFileMatch) {
+                            if (!language) language = langFileMatch[1];
+                            if (!filename) filename = langFileMatch[2];
+                            // Remove the first line from code content since it's metadata
+                            codeContent = lines.slice(1).join('\n');
+                        }
+                    }
+                }
+            }
+            
+            // Skip JSON blocks that are already embed references
+            if (language.toLowerCase() === 'json' || language.toLowerCase() === 'json_embed') {
+                try {
+                    const jsonData = JSON.parse(codeContent.trim());
+                    if ('embed_id' in jsonData || 'embed_ids' in jsonData) {
+                        console.debug('[ChatSyncService:Senders] Skipping existing embed reference JSON block');
+                        continue;  // Keep as-is
+                    }
+                } catch {
+                    // Not valid JSON, treat as code block
+                }
+            }
+            
+            // Generate embed ID
+            const embedId = generateUUID();
+            
+            // Create embed content structure
+            const embedContent = {
+                type: 'code',
+                language: language || 'text',
+                code: codeContent,
+                filename: filename,
+                status: 'finished',
+                line_count: codeContent ? codeContent.split('\n').length : 0
+            };
+            
+            // Encode to TOON format for storage efficiency
+            let toonContent: string;
+            try {
+                toonContent = toonEncode(embedContent);
+            } catch {
+                // Fallback to JSON if TOON encoding fails
+                toonContent = JSON.stringify(embedContent);
+            }
+            
+            // Create text preview (first line of code or language)
+            const textPreview = filename 
+                ? `${filename}${language ? ` (${language})` : ''}`
+                : language 
+                    ? `${language} code block`
+                    : 'Code block';
+            
+            // Store embed locally in EmbedStore (will be encrypted with master key)
+            const now = Date.now();
+            const embedData = {
+                embed_id: embedId,
+                type: 'code-code',  // Frontend embed type for code
+                status: 'finished',
+                content: toonContent,
+                text_preview: textPreview,
+                createdAt: now,
+                updatedAt: now
+            };
+            
+            try {
+                await embedStore.put(`embed:${embedId}`, embedData, 'code-code');
+                console.debug(`[ChatSyncService:Senders] Stored code embed ${embedId} locally`);
+            } catch (storeError) {
+                console.error(`[ChatSyncService:Senders] Failed to store code embed ${embedId}:`, storeError);
+                continue;  // Skip this code block if storage fails
+            }
+            
+            // Add to extracted embeds list (for sending to server)
+            extractedCodeEmbeds.push({
+                embed_id: embedId,
+                type: 'code',  // Server type (will be converted to 'code-code' on client)
+                content: toonContent,
+                text_preview: textPreview,
+                status: 'finished',
+                language: language || undefined,
+                filename: filename || undefined
+            });
+            
+            // Create embed reference JSON block to replace the code block
+            const embedReference = `\`\`\`json\n{"type": "code", "embed_id": "${embedId}"}\n\`\`\``;
+            
+            replacements.push({
+                start: match.index,
+                end: match.index + fullMatch.length,
+                replacement: embedReference
+            });
+        }
+        
+        // Apply replacements in reverse order to maintain correct indices
+        if (replacements.length > 0) {
+            replacements.sort((a, b) => b.start - a.start);
+            for (const { start, end, replacement } of replacements) {
+                processedContent = processedContent.slice(0, start) + replacement + processedContent.slice(end);
+            }
+            console.info(`[ChatSyncService:Senders] Extracted ${extractedCodeEmbeds.length} code blocks from user message, replaced with embed references`);
+        }
+    }
+    
+    // ========================================================================
+    // CLIENT-SIDE TABLE EXTRACTION
+    // Extract markdown tables from user message BEFORE sending to server.
+    // Similar to code block extraction - avoids round-trips.
+    // ========================================================================
+    const extractedTableEmbeds: Array<{
+        embed_id: string;
+        type: string;
+        content: string;  // TOON-encoded
+        text_preview: string;
+        status: string;
+        rows?: number;
+        cols?: number;
+        title?: string;
+    }> = [];
+    
+    // Only extract tables if content contains potential tables (lines starting with |)
+    if (processedContent && processedContent.includes('|')) {
+        const { encode: toonEncode } = await import('@toon-format/toon');
+        const { generateUUID } = await import('../message_parsing/utils');
+        const { embedStore } = await import('./embedStore');
+        
+        // Pattern to match markdown table rows (lines starting and ending with |)
+        const tableRowPattern = /^\|.*\|$/;
+        const lines = processedContent.split('\n');
+        
+        // Find consecutive table rows
+        let tableStart = -1;
+        let tableLines: string[] = [];
+        const tableReplacements: Array<{ start: number; end: number; replacement: string }> = [];
+        
+        // Track character positions
+        let charPos = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+            
+            if (tableRowPattern.test(trimmedLine)) {
+                // This is a table row
+                if (tableStart === -1) {
+                    tableStart = charPos;
+                }
+                tableLines.push(line);
+            } else {
+                // Not a table row - check if we have a complete table
+                if (tableLines.length >= 2) {  // Need at least header + separator (or data)
+                    // Extract table content
+                    const tableContent = tableLines.join('\n');
+                    
+                    // Count rows and columns
+                    const rows = tableLines.length - 2;  // Subtract header and separator
+                    const headerLine = tableLines[0].trim();
+                    const cols = (headerLine.match(/\|/g) || []).length - 1;
+                    
+                    if (rows >= 0 && cols > 0) {  // Valid table
+                        const embedId = generateUUID();
+                        
+                        // Check for title comment before table
+                        let title: string | undefined;
+                        if (i > tableLines.length && lines[i - tableLines.length - 1]) {
+                            const prevLine = lines[i - tableLines.length - 1].trim();
+                            const titleMatch = prevLine.match(/<!--\s*title:\s*"([^"]+)"\s*-->/);
+                            if (titleMatch) {
+                                title = titleMatch[1];
+                            }
+                        }
+                        
+                        // Create embed content structure
+                        const embedContent = {
+                            type: 'sheet',
+                            code: tableContent,
+                            title: title,
+                            rows: rows,
+                            cols: cols,
+                            status: 'finished'
+                        };
+                        
+                        // Encode to TOON format
+                        let toonContent: string;
+                        try {
+                            toonContent = toonEncode(embedContent);
+                        } catch {
+                            toonContent = JSON.stringify(embedContent);
+                        }
+                        
+                        // Create text preview
+                        const textPreview = title || `${rows} rows × ${cols} columns`;
+                        
+                        // Store embed locally
+                        const now = Date.now();
+                        const embedData = {
+                            embed_id: embedId,
+                            type: 'sheets-sheet',
+                            status: 'finished',
+                            content: toonContent,
+                            text_preview: textPreview,
+                            createdAt: now,
+                            updatedAt: now
+                        };
+                        
+                        try {
+                            await embedStore.put(`embed:${embedId}`, embedData, 'sheets-sheet');
+                            console.debug(`[ChatSyncService:Senders] Stored table embed ${embedId} locally`);
+                            
+                            // Add to extracted embeds list
+                            extractedTableEmbeds.push({
+                                embed_id: embedId,
+                                type: 'sheet',
+                                content: toonContent,
+                                text_preview: textPreview,
+                                status: 'finished',
+                                rows: rows,
+                                cols: cols,
+                                title: title
+                            });
+                            
+                            // Create embed reference
+                            const embedReference = `\`\`\`json\n{"type": "sheet", "embed_id": "${embedId}"}\n\`\`\``;
+                            const tableEnd = charPos;  // End is at current position (before non-table line)
+                            
+                            tableReplacements.push({
+                                start: tableStart,
+                                end: tableEnd,
+                                replacement: embedReference
+                            });
+                        } catch (storeError) {
+                            console.error(`[ChatSyncService:Senders] Failed to store table embed:`, storeError);
+                        }
+                    }
+                }
+                // Reset table tracking
+                tableStart = -1;
+                tableLines = [];
+            }
+            
+            // Update character position (add line length + newline)
+            charPos += line.length + 1;
+        }
+        
+        // Check for table at end of content
+        if (tableLines.length >= 2) {
+            const tableContent = tableLines.join('\n');
+            const rows = tableLines.length - 2;
+            const headerLine = tableLines[0].trim();
+            const cols = (headerLine.match(/\|/g) || []).length - 1;
+            
+            if (rows >= 0 && cols > 0) {
+                const embedId = generateUUID();
+                
+                const embedContent = {
+                    type: 'sheet',
+                    code: tableContent,
+                    rows: rows,
+                    cols: cols,
+                    status: 'finished'
+                };
+                
+                let toonContent: string;
+                try {
+                    const { encode: toonEncode2 } = await import('@toon-format/toon');
+                    toonContent = toonEncode2(embedContent);
+                } catch {
+                    toonContent = JSON.stringify(embedContent);
+                }
+                
+                const textPreview = `${rows} rows × ${cols} columns`;
+                const now = Date.now();
+                
+                try {
+                    await embedStore.put(`embed:${embedId}`, {
+                        embed_id: embedId,
+                        type: 'sheets-sheet',
+                        status: 'finished',
+                        content: toonContent,
+                        text_preview: textPreview,
+                        createdAt: now,
+                        updatedAt: now
+                    }, 'sheets-sheet');
+                    
+                    extractedTableEmbeds.push({
+                        embed_id: embedId,
+                        type: 'sheet',
+                        content: toonContent,
+                        text_preview: textPreview,
+                        status: 'finished',
+                        rows: rows,
+                        cols: cols
+                    });
+                    
+                    const embedReference = `\`\`\`json\n{"type": "sheet", "embed_id": "${embedId}"}\n\`\`\``;
+                    tableReplacements.push({
+                        start: tableStart,
+                        end: charPos - 1,  // -1 because charPos includes trailing newline
+                        replacement: embedReference
+                    });
+                } catch (storeError) {
+                    console.error(`[ChatSyncService:Senders] Failed to store table embed:`, storeError);
+                }
+            }
+        }
+        
+        // Apply table replacements in reverse order
+        if (tableReplacements.length > 0) {
+            tableReplacements.sort((a, b) => b.start - a.start);
+            for (const { start, end, replacement } of tableReplacements) {
+                processedContent = processedContent.slice(0, start) + replacement + processedContent.slice(end);
+            }
+            console.info(`[ChatSyncService:Senders] Extracted ${extractedTableEmbeds.length} tables from user message, replaced with embed references`);
+        }
+    }
+    
+    // Use processed content (with code blocks and tables replaced by embed references)
+    const contentForServer = processedContent;
+    
+    // Extract embed references from message content (now includes the newly created code embeds)
     // Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
     const { extractEmbedReferences, loadEmbeds } = await import('./embedResolver');
-    const embedRefs = extractEmbedReferences(message.content);
+    const embedRefs = extractEmbedReferences(contentForServer);
     
     // Load embeds from EmbedStore (decrypted, ready to send as cleartext)
     interface EmbedForServer {
@@ -309,7 +673,9 @@ export async function sendNewMessageImpl(
         message: {
             message_id: message.message_id,
             role: message.role,
-            content: message.content, // ONLY plaintext for AI processing (contains embed references as JSON blocks)
+            // Use processed content (code blocks replaced with embed references)
+            // This allows server to build AI context with embed references
+            content: contentForServer,
             created_at: message.created_at,
             sender_name: message.sender_name, // Include for cache but not critical for AI
             chat_has_title: chatHasMessages // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
@@ -335,6 +701,155 @@ export async function sendNewMessageImpl(
     if (embeds.length > 0) {
         payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
         console.debug('[ChatSyncService:Senders] Including embeds with message:', embeds.length);
+        
+        // ARCHITECTURE FIX: Also include client-encrypted embeds for direct Directus storage
+        // This avoids round-trip WebSocket calls (send_embed_data → store_embed).
+        // The client already has the embed data and encryption keys, so we encrypt before sending.
+        // Server stores the encrypted embeds directly in Directus without decrypting.
+        // Skip for incognito chats (no persistence).
+        if (!isIncognitoChat) {
+            try {
+                const cryptoService = await import('./cryptoService');
+                const { computeSHA256 } = await import('../message_parsing/utils');
+                const { embedStore } = await import('./embedStore');
+                
+                const {
+                    generateEmbedKey,
+                    encryptWithEmbedKey,
+                    wrapEmbedKeyWithMasterKey,
+                    wrapEmbedKeyWithChatKey
+                } = cryptoService;
+                
+                // Hash IDs for zero-knowledge storage
+                const hashedChatId = await computeSHA256(message.chat_id);
+                const hashedMessageId = await computeSHA256(message.message_id);
+                
+                // Get user_id from the chat object (set when chat was created)
+                const userId = chat?.user_id || '';
+                if (!userId) {
+                    console.warn('[ChatSyncService:Senders] No user_id found on chat, skipping embed encryption for Directus');
+                }
+                const hashedUserId = userId ? await computeSHA256(userId) : '';
+                
+                // Get chat key for wrapping embed keys
+                // Chat key is required for wrapEmbedKeyWithChatKey
+                const chatKey = chatDB.getChatKey(message.chat_id);
+                if (!chatKey) {
+                    console.warn('[ChatSyncService:Senders] No chat key found, skipping embed encryption for Directus');
+                }
+                
+                // Only proceed if we have user_id and chat key
+                if (userId && chatKey) {
+                    // Prepare encrypted embeds for Directus storage
+                    interface EncryptedEmbedForDirectus {
+                        embed_id: string;
+                        encrypted_type: string;
+                        encrypted_content: string;
+                        encrypted_text_preview?: string;
+                        status: string;
+                        hashed_chat_id: string;
+                        hashed_message_id: string;
+                        hashed_user_id: string;
+                        embed_ids?: string[];
+                        createdAt?: number;
+                        updatedAt?: number;
+                        embed_keys?: Array<{
+                            hashed_embed_id: string;
+                            key_type: 'master' | 'chat';
+                            hashed_chat_id: string | null;
+                            encrypted_embed_key: string;
+                            hashed_user_id: string;
+                            created_at: number;
+                        }>;
+                    }
+                    const encryptedEmbeds: EncryptedEmbedForDirectus[] = [];
+                    
+                    for (const embed of embeds) {
+                        try {
+                            // Generate unique embed key for this embed
+                            const embedKey = generateEmbedKey();
+                            const hashedEmbedId = await computeSHA256(embed.embed_id);
+                            
+                            // Encrypt embed data with the embed key
+                            const encryptedContent = await encryptWithEmbedKey(embed.content, embedKey);
+                            const encryptedType = await encryptWithEmbedKey(embed.type, embedKey);
+                            let encryptedTextPreview: string | undefined;
+                            if (embed.text_preview) {
+                                encryptedTextPreview = await encryptWithEmbedKey(embed.text_preview, embedKey);
+                            }
+                            
+                            // Wrap embed key for storage (master + chat wrapped versions)
+                            // Master: AES(embed_key, master_key) - for owner's cross-chat access
+                            // Chat: AES(embed_key, chat_key) - for shared chat access
+                            const wrappedWithMaster = await wrapEmbedKeyWithMasterKey(embedKey);
+                            const wrappedWithChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+                            
+                            if (!wrappedWithMaster || !wrappedWithChat) {
+                                console.warn(`[ChatSyncService:Senders] Failed to wrap embed key for ${embed.embed_id}, skipping Directus storage`);
+                                continue;
+                            }
+                            
+                            const now = Date.now();
+                            
+                            // Prepare embed keys for storage
+                            const embedKeys: EncryptedEmbedForDirectus['embed_keys'] = [
+                                {
+                                    hashed_embed_id: hashedEmbedId,
+                                    key_type: 'master',
+                                    hashed_chat_id: null, // Master key wrapper has no chat association
+                                    encrypted_embed_key: wrappedWithMaster,
+                                    hashed_user_id: hashedUserId,
+                                    created_at: now
+                                },
+                                {
+                                    hashed_embed_id: hashedEmbedId,
+                                    key_type: 'chat',
+                                    hashed_chat_id: hashedChatId,
+                                    encrypted_embed_key: wrappedWithChat,
+                                    hashed_user_id: hashedUserId,
+                                    created_at: now
+                                }
+                            ];
+                            
+                            // Cache the embed key locally for future use
+                            embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, hashedChatId);
+                            embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, undefined); // Master fallback
+                            
+                            encryptedEmbeds.push({
+                                embed_id: embed.embed_id,
+                                encrypted_type: encryptedType,
+                                encrypted_content: encryptedContent,
+                                encrypted_text_preview: encryptedTextPreview,
+                                status: embed.status || 'finished',
+                                hashed_chat_id: hashedChatId,
+                                hashed_message_id: hashedMessageId,
+                                hashed_user_id: hashedUserId,
+                                embed_ids: embed.embed_ids,
+                                createdAt: embed.createdAt || now,
+                                updatedAt: embed.updatedAt || now,
+                                embed_keys: embedKeys
+                            });
+                            
+                            console.debug(`[ChatSyncService:Senders] Encrypted embed ${embed.embed_id} for Directus storage`);
+                            
+                        } catch (embedError) {
+                            console.error(`[ChatSyncService:Senders] Error encrypting embed ${embed.embed_id}:`, embedError);
+                            // Continue with other embeds
+                        }
+                    }
+                    
+                    // Add encrypted embeds to payload for direct Directus storage
+                    if (encryptedEmbeds.length > 0) {
+                        (payload as SendMessagePayload & { encrypted_embeds?: EncryptedEmbedForDirectus[] }).encrypted_embeds = encryptedEmbeds;
+                        console.info(`[ChatSyncService:Senders] Including ${encryptedEmbeds.length} client-encrypted embeds for direct Directus storage`);
+                    }
+                }
+                
+            } catch (encryptError) {
+                console.error('[ChatSyncService:Senders] Error preparing encrypted embeds:', encryptError);
+                // Non-fatal: embeds will still be cached server-side for AI, just not stored in Directus
+            }
+        }
     }
     
     // Include encrypted suggestion for deletion if user clicked a new chat suggestion
