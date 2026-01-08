@@ -5,20 +5,30 @@
   Uses UnifiedEmbedPreview as base and provides website-specific details content.
   
   Features:
-  - Auto-fetches metadata from preview server when not provided
+  - PRIMARY: Uses metadata from props (loaded from IndexedDB embed store)
+  - FALLBACK: Fetches metadata from preview server ONLY when props are empty
   - Displays title, description, favicon and OG image
   - Proxies images through preview server to prevent direct external connections
   - Large thumbnail image on the RIGHT side of the preview card
-  - Passes fetched metadata to fullscreen view for consistent display
+  - Passes metadata to fullscreen view for consistent display
   
   Details content structure:
   - Processing/Loading: URL hostname
   - Finished: Description on LEFT, larger thumbnail image on RIGHT
   - Error: hostname with error styling
   
-  Data Flow:
-  - When preview fetches metadata (title, description, image), this data is passed
-    to the fullscreen view via the customFullscreenData event detail.
+  Data Flow (Normal - no extra requests):
+  1. User sends message with URL
+  2. Client fetches metadata from preview server, creates embed, syncs to server
+  3. Embed data (with ALL metadata) stored in IndexedDB
+  4. When rendering, data loaded from IndexedDB → passed as props → displayed
+  5. NO additional preview server requests needed (metadata from props)
+  
+  Data Flow (Fallback - for older embeds without metadata):
+  1. Embed has no metadata stored (legacy or edge case)
+  2. Props are empty → needsMetadataFetch triggers
+  3. Fetches metadata from preview server as fallback
+  4. Stores fetched values in component state for display
 -->
 
 <script lang="ts">
@@ -94,7 +104,13 @@
     onFullscreen
   }: Props = $props();
   
-  // State for fetched metadata (when props are not provided)
+  // ===========================================
+  // FALLBACK State (only used when props are empty)
+  // ===========================================
+  // These are populated by fetchMetadata() ONLY when metadata props are empty.
+  // Normal case: props have metadata from embed store, these remain undefined.
+  // Fallback case: legacy embeds without cached metadata trigger a fetch.
+  
   let fetchedTitle = $state<string | undefined>(undefined);
   let fetchedDescription = $state<string | undefined>(undefined);
   let fetchedFavicon = $state<string | undefined>(undefined);
@@ -109,18 +125,21 @@
   const skillIconName = 'website';
   
   // ===========================================
-  // Metadata Fetching
+  // Metadata Fetching (FALLBACK only)
   // ===========================================
   
   /**
-   * Determine if we need to fetch metadata from the preview server.
-   * We fetch when:
-   * - No title, description, and image are provided as props
-   * - The URL hasn't been fetched yet
-   * - Not currently loading
+   * Determine if we need to fetch metadata from the preview server as FALLBACK.
+   * 
+   * PRIMARY: Metadata should come from props (loaded from IndexedDB embed store)
+   * FALLBACK: Fetch from preview server ONLY when ALL props are empty
+   * 
+   * This ensures:
+   * - Normal case: No extra requests (metadata from embed store)
+   * - Legacy embeds: Still works by fetching metadata as fallback
    */
   let needsMetadataFetch = $derived.by(() => {
-    // If we already have metadata from props, no need to fetch
+    // PRIMARY: If we have ANY metadata from props, use it (no fetch needed)
     if (title || description || image) {
       return false;
     }
@@ -132,11 +151,14 @@
     if (isLoadingMetadata) {
       return false;
     }
+    // FALLBACK: No metadata in props, need to fetch
     return true;
   });
   
   /**
-   * Fetch metadata from the preview server when needed.
+   * FALLBACK: Fetch metadata from the preview server when props are empty.
+   * This handles legacy embeds or edge cases where metadata wasn't stored.
+   * 
    * Uses the /api/v1/metadata endpoint which extracts OG tags, title, etc.
    * Images and favicons are loaded via their respective proxy endpoints.
    */
@@ -151,7 +173,12 @@
     const urlToFetch = url;
     fetchedForUrl = urlToFetch;
     
-    console.debug('[WebsiteEmbedPreview] Fetching metadata for URL:', urlToFetch);
+    // Log that we're using the fallback - this helps identify embeds without cached metadata
+    console.info('[WebsiteEmbedPreview] FALLBACK: No metadata in props, fetching from preview server:', {
+      url: urlToFetch.substring(0, 80),
+      embedId: id,
+      reason: 'Props empty - embed may be legacy or metadata not stored'
+    });
     
     try {
       // Use GET endpoint to avoid CORS preflight (POST with JSON requires OPTIONS preflight)
@@ -160,7 +187,7 @@
       );
       
       if (!response.ok) {
-        console.warn('[WebsiteEmbedPreview] Metadata fetch failed:', response.status, response.statusText);
+        console.warn('[WebsiteEmbedPreview] FALLBACK metadata fetch failed:', response.status, response.statusText);
         metadataError = true;
         return;
       }
@@ -173,7 +200,7 @@
       fetchedFavicon = data.favicon;
       fetchedImage = data.image;
       
-      console.info('[WebsiteEmbedPreview] Successfully fetched metadata:', {
+      console.info('[WebsiteEmbedPreview] FALLBACK fetch successful:', {
         url: urlToFetch.substring(0, 50) + '...',
         title: data.title?.substring(0, 50) || 'No title',
         hasDescription: !!data.description,
@@ -182,14 +209,14 @@
       });
       
     } catch (error) {
-      console.error('[WebsiteEmbedPreview] Error fetching metadata:', error);
+      console.error('[WebsiteEmbedPreview] FALLBACK fetch error:', error);
       metadataError = true;
     } finally {
       isLoadingMetadata = false;
     }
   }
   
-  // Trigger metadata fetch when needed
+  // Trigger fallback metadata fetch when needed
   $effect(() => {
     if (needsMetadataFetch) {
       fetchMetadata();
@@ -249,15 +276,18 @@
     !isMobile
   );
   
-  // Compute effective status: if we're loading metadata, show as processing
-  // But only if the original status was 'finished' (don't override explicit processing state)
-  // If metadata fetch failed but we still have some data (or the original status was finished),
-  // show as finished to display what we have (hostname at minimum)
+  // Compute effective status:
+  // - If FALLBACK fetch is in progress, show as 'processing' (temporary loading state)
+  // - If FALLBACK fetch failed, still show as 'finished' (user sees hostname at minimum)
+  // - Otherwise, use the status from props
+  // Note: This only affects fallback cases where metadata wasn't in the embed store.
+  // Normal case: props have metadata, isLoadingMetadata is false, status passes through.
   let effectiveStatus = $derived.by(() => {
     if (isLoadingMetadata && status === 'finished') {
+      // FALLBACK is loading - show processing state temporarily
       return 'processing';
     }
-    // If metadata fetch failed, still show as finished so user sees the hostname/link
+    // If fallback fetch failed, still show as finished so user sees the hostname/link
     // Don't show error state just because metadata couldn't be fetched
     if (metadataError && status === 'finished') {
       return 'finished';
