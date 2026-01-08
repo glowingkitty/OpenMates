@@ -108,14 +108,15 @@ async def handle_app_settings_memories_confirmed(
                 content = item.get("content")  # Decrypted content from client
                 
                 if not app_id or not item_key or content is None:
-                    logger.warning(f"Invalid app settings/memories item: missing required fields")
+                    logger.warning("Invalid app settings/memories item: missing required fields")
                     continue
                 
                 # Encrypt content with vault key for server cache
                 # Server can decrypt for AI context building
-                encrypted_content = encryption_service.encrypt_with_vault_key(
-                    user_vault_key_id=user_vault_key_id,
-                    plaintext=content if isinstance(content, str) else str(content)
+                # encrypt_with_user_key returns (ciphertext, key_version) tuple
+                encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+                    plaintext=content if isinstance(content, str) else str(content),
+                    key_id=user_vault_key_id
                 )
                 
                 # Prepare cache data (vault-encrypted)

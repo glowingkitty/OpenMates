@@ -496,23 +496,24 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     
                     # Encrypt embed content with vault key for server cache
                     # Server can decrypt for AI context building
-                    encrypted_content = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_content
+                    # encrypt_with_user_key returns (ciphertext, key_version) tuple
+                    encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_content,
+                        key_id=user_vault_key_id
                     )
                     
                     # Encrypt embed type for zero-knowledge storage
-                    encrypted_type = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_type
+                    encrypted_type, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_type,
+                        key_id=user_vault_key_id
                     )
                     
                     # Encrypt text preview if provided
                     encrypted_text_preview = None
                     if embed_text_preview:
-                        encrypted_text_preview = encryption_service.encrypt_with_vault_key(
-                            user_vault_key_id=user_vault_key_id,
-                            plaintext=embed_text_preview
+                        encrypted_text_preview, _ = await encryption_service.encrypt_with_user_key(
+                            plaintext=embed_text_preview,
+                            key_id=user_vault_key_id
                         )
                     
                     # Cache embed for AI processing
@@ -605,13 +606,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
                     
                     # Encrypt embed content with vault key for server cache
-                    encrypted_embed_content = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_data["content"]
+                    # encrypt_with_user_key returns (ciphertext, key_version) tuple
+                    encrypted_embed_content, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_data["content"],
+                        key_id=user_vault_key_id
                     )
-                    encrypted_embed_type = encryption_service.encrypt_with_vault_key(
-                        user_vault_key_id=user_vault_key_id,
-                        plaintext=embed_data["type"]
+                    encrypted_embed_type, _ = await encryption_service.encrypt_with_user_key(
+                        plaintext=embed_data["type"],
+                        key_id=user_vault_key_id
                     )
                     
                     embed_cache_data = {

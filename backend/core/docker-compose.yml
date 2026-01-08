@@ -886,22 +886,27 @@ services:
   #########################################################################
   ##### Frontend Webapp (Static SvelteKit Build)
   #########################################################################
-  webapp:
-    container_name: webapp
-    build:
-      context: ../../  # Build context is project root
-      dockerfile: frontend/apps/web_app/Dockerfile
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    networks:
-      - openmates
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # webapp:
+  #   container_name: webapp
+  #   build:
+  #     context: ../../  # Build context is project root
+  #     dockerfile: frontend/apps/web_app/Dockerfile
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5173:5173"
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+
+  #########################################################################
+  ##### Preview Server (Image/Favicon Proxy & URL Metadata)
+  #########################################################################
+  # NOTE: NEEDS TO BE ADDED AND ADAPTED TO SELF HOSTING (not just accept openmates.org but the main domain of server)
 
 networks:
   openmates:
@@ -927,3 +932,5 @@ volumes:
     name: openmates-vault-setup-data
   celerybeat-schedule-data: # Define the named volume
     name: openmates-celerybeat-schedule-data
+  preview-cache:  # Used by preview server in this stack
+    name: openmates-preview-cache

@@ -527,7 +527,7 @@
     gap: 12px;
     width: 100%;
     max-width: 500px;
-    margin-bottom: 8px;
+    margin-bottom: 25px;
   }
   
   .title-favicon {
