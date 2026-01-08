@@ -240,6 +240,15 @@
   // Track image loading errors for graceful fallback
   let imageLoadError = $state(false);
   
+  // Determine if we should use full-width image layout (no description, has image)
+  // This is passed to UnifiedEmbedPreview to remove padding from details section
+  let shouldUseFullWidthImage = $derived(
+    !effectiveDescription && 
+    !!imageUrl && 
+    !imageLoadError && 
+    !isMobile
+  );
+  
   // Compute effective status: if we're loading metadata, show as processing
   // But only if the original status was 'finished' (don't override explicit processing state)
   // If metadata fetch failed but we still have some data (or the original status was finished),
@@ -306,6 +315,7 @@
   showStatus={false}
   faviconUrl={faviconUrl}
   showSkillIcon={false}
+  hasFullWidthImage={shouldUseFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="website-details" class:mobile={isMobileLayout}>
@@ -354,6 +364,7 @@
     flex-direction: column;
     gap: 4px;
     height: 100%;
+    width: 100%; /* Ensure full width of parent */
   }
   
   /* Desktop layout: vertically centered content */
@@ -376,6 +387,7 @@
     flex: 1;
     min-height: 0;
     height: 100%;
+    width: 100%; /* Ensure full width of parent */
   }
   
   /* ===========================================
@@ -428,19 +440,22 @@
      Full-Width Image (when no description)
      =========================================== */
   
-  /* When no description, center the content row */
+  /* When no description, make content row fill available width */
   .website-content-row.no-description {
-    justify-content: center;
+    width: 100%;
   }
   
   /* Full-width image styling when no description */
   .website-preview-image.full-width {
     width: 100%;
-    height: 171px;
+    min-width: 100%; /* Prevent flex shrinking */
+    height: 100%; /* Fill parent height */
     transform: none; /* Remove the translateX offset */
   }
   
   .website-preview-image.full-width img {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     object-position: center;
   }
