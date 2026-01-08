@@ -41,6 +41,8 @@
     showStatus?: boolean;
     /** Custom favicon URL to show instead of app icon */
     faviconUrl?: string;
+    /** Whether favicon should be circular (for channel thumbnails, profile pics) */
+    faviconIsCircular?: boolean;
     /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
     showSkillIcon?: boolean;
     /** Custom status text (overrides default status text) */
@@ -58,6 +60,7 @@
     onStop,
     showStatus = true,
     faviconUrl,
+    faviconIsCircular = false,
     showSkillIcon = true,
     customStatusText
   }: Props = $props();
@@ -150,9 +153,15 @@
     <div class="status-text" class:single-line={!showStatus}>
       <span class="status-label">
         {#if faviconUrl}
-          <img src={faviconUrl} alt="" class="title-favicon" onerror={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }} />
+          <img 
+            src={faviconUrl} 
+            alt="" 
+            class="title-favicon" 
+            class:circular={faviconIsCircular}
+            onerror={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }} 
+          />
         {/if}
         <span class="title-text">{skillName}</span>
       </span>
@@ -266,6 +275,13 @@
     border-radius: 4px;
     flex-shrink: 0;
     object-fit: cover;
+  }
+  
+  /* Circular favicon for channel thumbnails/profile pictures */
+  .basic-infos-bar.desktop .title-favicon.circular {
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
   }
   
   .basic-infos-bar.desktop .title-text {

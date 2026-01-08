@@ -7,16 +7,22 @@
   Features:
   - Receives ALL metadata as props (loaded from IndexedDB embed store)
   - NO fetch requests to preview server (except for image URL proxying)
-  - Displays video thumbnail with info overlay:
-    - Line 1: Channel thumbnail (29x29px round) + shortened video title
-    - Line 2: Duration + upload date (e.g., "17:08, Jan 6, 2026")
+  - Displays video thumbnail in details section (full width)
+  - Channel info displayed in BasicInfosBar:
+    - Line 1: Channel thumbnail (circular, 29x29px) + shortened video title (font-size 16px)
+    - Line 2: Duration + upload date (e.g., "17:08, Jan 6, 2026") (font-size 16px)
   - Proxies all thumbnails through preview server for privacy
   - Passes metadata to fullscreen view
   
   Details content structure:
   - Processing: URL hostname
-  - Finished: video thumbnail with info overlay (channel thumb + title + duration + date)
+  - Finished: video thumbnail (clean, no overlays)
   - Error: hostname with error styling
+  
+  BasicInfosBar content (for finished state):
+  - faviconUrl: channel thumbnail (circular)
+  - skillName: shortened video title
+  - customStatusText: duration + upload date
   
   Data Flow:
   1. User sends YouTube URL in message
@@ -253,6 +259,19 @@
   // Data is already loaded from IndexedDB (embed store)
   let effectiveStatus = $derived(status);
   
+  // Custom status text for BasicInfosBar: "17:08, Jan 6, 2026" (duration + date)
+  // Shown as the second line in BasicInfosBar (font-size 16px)
+  let customStatusText = $derived.by(() => {
+    const parts: string[] = [];
+    if (effectiveDuration?.formatted) {
+      parts.push(effectiveDuration.formatted);
+    }
+    if (formattedUploadDate) {
+      parts.push(formattedUploadDate);
+    }
+    return parts.length > 0 ? parts.join(', ') : undefined;
+  });
+  
   // ===========================================
   // Event Handlers
   // ===========================================
@@ -308,14 +327,17 @@
   skillId="video"
   {skillIconName}
   status={effectiveStatus}
-  skillName={displayTitle}
+  skillName={shortenedTitle}
   {taskId}
   {isMobile}
   onFullscreen={handleFullscreen}
   onStop={handleStop}
-  showStatus={false}
+  showStatus={true}
   showSkillIcon={false}
   hasFullWidthImage={true}
+  faviconUrl={channelThumbnailUrl || undefined}
+  faviconIsCircular={true}
+  {customStatusText}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div 
@@ -326,9 +348,9 @@
         <!-- Processing state: show hostname only -->
         <div class="video-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: show thumbnail (no duration badge - shown in info bar) and channel info -->
+        <!-- Finished state: show video thumbnail only (channel info is displayed in BasicInfosBar) -->
         {#if effectiveVideoId && thumbnailUrl}
-          <!-- Video thumbnail (clean, no overlays) -->
+          <!-- Video thumbnail (clean, no overlays - channel info moved to BasicInfosBar) -->
           <div class="video-thumbnail-container">
             <img 
               src={thumbnailUrl} 
@@ -347,43 +369,6 @@
               }}
             />
           </div>
-          
-          <!-- Info bar below thumbnail: channel thumbnail + title, duration + upload date -->
-          {#if channelThumbnailUrl || shortenedTitle || effectiveDuration || formattedUploadDate}
-            <div class="video-channel-info">
-              <!-- Line 1: Channel thumbnail + shortened video title -->
-              <div class="video-channel-row">
-                {#if channelThumbnailUrl}
-                  <img 
-                    src={channelThumbnailUrl}
-                    alt={channelName || 'Channel'}
-                    class="video-channel-thumbnail"
-                    loading="lazy"
-                    onerror={(e) => {
-                      // Hide if thumbnail fails to load
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                {/if}
-                <span class="video-title-text">{shortenedTitle}</span>
-              </div>
-              
-              <!-- Line 2: Duration + upload date (e.g., "17:08, Jan 6, 2026") -->
-              {#if effectiveDuration?.formatted || formattedUploadDate}
-                <div class="video-meta-row">
-                  {#if effectiveDuration?.formatted}
-                    <span class="video-meta-item">{effectiveDuration.formatted}</span>
-                  {/if}
-                  {#if effectiveDuration?.formatted && formattedUploadDate}
-                    <span class="video-meta-separator">,</span>
-                  {/if}
-                  {#if formattedUploadDate}
-                    <span class="video-meta-item">{formattedUploadDate}</span>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          {/if}
         {:else}
           <!-- Fallback: show URL path -->
           <div class="video-url-fallback">
@@ -424,11 +409,9 @@
     justify-content: center;
   }
   
-  /* When thumbnail is present, use relative positioning for channel info overlay */
+  /* When thumbnail is present, fill the available space */
   .video-details:has(.video-thumbnail-container) {
     gap: 0;
-    position: relative;
-    /* Channel info will be positioned absolutely at the bottom */
   }
   
   /* Mobile layout: top-aligned content */
@@ -436,16 +419,10 @@
     justify-content: flex-start;
   }
   
-  /* Video thumbnail container - full width and fills all available height */
-  /* The thumbnail extends into the BasicInfosBar area to fill rounded corners */
+  /* Video thumbnail container - full width, fills available height in details section */
+  /* Channel info (title, duration, date) is displayed in BasicInfosBar below */
   .video-thumbnail-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    background-color: var(--color-grey-15);
+    height: 100%;
   }
   
   .video-thumbnail {
@@ -453,106 +430,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-  }
-  
-  /* ===========================================
-     Info Bar Section (below thumbnail)
-     Shows: channel thumbnail + title, duration + date
-     =========================================== */
-  
-  /* Channel info bar - overlays the thumbnail above the BasicInfosBar */
-  /* Positioned at bottom: 60px to appear above the BasicInfosBar overlap area */
-  /* Uses semi-transparent background for readability over the video thumbnail */
-  .video-channel-info {
-    position: absolute;
-    bottom: 60px;
-    left: 0;
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px 10px 10px;
-    background: linear-gradient(
-      to top,
-      rgba(0, 0, 0, 0.8) 0%,
-      rgba(0, 0, 0, 0.6) 70%,
-      rgba(0, 0, 0, 0) 100%
-    );
-    z-index: 1;
-  }
-  
-  /* Line 1: Channel thumbnail + name */
-  .video-channel-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
-  
-  /* Circular channel thumbnail (profile picture) - 29x29px (58px for retina) */
-  /* Has subtle border for visibility on dark gradient background */
-  .video-channel-thumbnail {
-    width: 29px;
-    height: 29px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-  
-  /* Video title text in info bar - white text for readability on dark gradient */
-  .video-title-text {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
-  
-  /* Line 2: Duration + upload date - lighter text on dark gradient */
-  .video-meta-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
-
-  .video-meta-item {
-    white-space: nowrap;
-  }
-
-  .video-meta-separator {
-    color: rgba(255, 255, 255, 0.5);
-  }
-  
-  /* Mobile adjustments for channel info overlay */
-  .video-details.mobile .video-channel-info {
-    bottom: 50px;
-    padding: 6px 8px 8px;
-    gap: 1px;
-  }
-
-  .video-details.mobile .video-channel-thumbnail {
-    width: 24px;
-    height: 24px;
-  }
-
-  .video-details.mobile .video-title-text {
-    font-size: 11px;
-  }
-
-  .video-details.mobile .video-meta-row {
-    font-size: 10px;
-    gap: 3px;
   }
   
   /* Video hostname (for processing state) */

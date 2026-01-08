@@ -70,6 +70,8 @@
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
     faviconUrl?: string;
+    /** Whether favicon should be circular (for channel thumbnails, profile pics) */
+    faviconIsCircular?: boolean;
     /** Custom status text (overrides default status text) */
     customStatusText?: string;
     /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
@@ -94,6 +96,7 @@
     details,
     showStatus = true,
     faviconUrl,
+    faviconIsCircular = false,
     customStatusText,
     showSkillIcon = true,
     hasFullWidthImage = false,
@@ -637,6 +640,7 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
       />
@@ -668,6 +672,7 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
       />
