@@ -549,10 +549,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     }
                     
                     # Store in cache
+                    # Note: embed_data is already vault-encrypted above
                     await cache_service.set_embed_in_cache(
                         embed_id=embed_id,
                         embed_data=embed_cache_data,
-                        user_vault_key_id=user_vault_key_id
+                        chat_id=chat_id
                     )
                     
                     # Add to chat embed index
@@ -579,6 +580,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         logger.warning("Encrypted embed missing embed_id, skipping")
                         continue
                     
+                    # ARCHITECTURE: Fill in hashed_user_id if client didn't provide it
+                    # This happens for new chats where the client doesn't have user_id yet.
+                    # The server knows the user from the authenticated session, so we can fill it in.
+                    if not encrypted_embed.get("hashed_user_id"):
+                        encrypted_embed["hashed_user_id"] = hashed_user_id
+                        logger.debug(f"Filled in hashed_user_id for embed {embed_id}")
+                    
                     # Store client-encrypted embed directly in Directus
                     # This is the zero-knowledge architecture: server cannot decrypt this data
                     await directus_service.embed.create_embed(encrypted_embed)
@@ -588,6 +596,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     embed_keys = encrypted_embed.get("embed_keys", [])
                     if embed_keys:
                         for key_entry in embed_keys:
+                            # Fill in hashed_user_id for embed keys too if missing
+                            if not key_entry.get("hashed_user_id"):
+                                key_entry["hashed_user_id"] = hashed_user_id
                             await directus_service.embed.create_embed_key(key_entry)
                         logger.debug(f"Stored {len(embed_keys)} embed key(s) for embed {embed_id}")
                     

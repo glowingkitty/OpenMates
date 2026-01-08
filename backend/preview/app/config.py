@@ -211,6 +211,51 @@ class Settings(BaseSettings):
     )
     
     # ===========================================
+    # Content Sanitization Settings (Prompt Injection Protection)
+    # ===========================================
+    # LLM-based sanitization to protect against prompt injection attacks
+    # in metadata fields (title, description) that are passed to LLMs.
+    # Uses Groq API for fast, cost-effective content sanitization.
+    
+    # Groq API key for LLM-based prompt injection detection
+    # Get from: https://console.groq.com/keys
+    # Required for content sanitization when enabled
+    groq_api_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SECRET__GROQ__API_KEY",  # Main backend format (shared .env)
+            "PREVIEW_GROQ_API_KEY"  # Preview-specific with env_prefix
+        ),
+        description="Groq API key for LLM-based content sanitization"
+    )
+    
+    # Enable/disable LLM-based content sanitization
+    # When disabled, only ASCII smuggling protection is applied
+    enable_llm_sanitization: bool = Field(
+        default=True,
+        description="Enable LLM-based prompt injection detection for metadata"
+    )
+    
+    # Model to use for content sanitization (Groq models)
+    # Recommended: llama-3.3-70b-versatile (fast and reliable)
+    content_sanitization_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        description="Groq model ID for content sanitization"
+    )
+    
+    # Prompt injection detection thresholds
+    # Score >= block_threshold: Block content entirely
+    # Score >= review_threshold: Flag for review (but still pass)
+    sanitization_block_threshold: float = Field(
+        default=7.0,
+        description="Score threshold for blocking content (0.0-10.0)"
+    )
+    sanitization_review_threshold: float = Field(
+        default=5.0,
+        description="Score threshold for flagging content (0.0-10.0)"
+    )
+    
+    # ===========================================
     # Logging Settings
     # ===========================================
     
