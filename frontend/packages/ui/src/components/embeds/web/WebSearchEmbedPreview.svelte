@@ -20,7 +20,6 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
@@ -67,8 +66,8 @@
     query?: string;
     /** Search provider (e.g., 'Brave Search') (direct format) */
     provider?: string;
-    /** Processing status (direct format) */
-    status?: 'processing' | 'finished' | 'error';
+    /** Processing status (direct format) - must match SkillExecutionStatus */
+    status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) (direct format) */
     results?: WebSearchResult[];
     /** Task ID for cancellation of entire AI response (direct format) */
@@ -101,7 +100,8 @@
   // via the onEmbedDataUpdated callback from UnifiedEmbedPreview
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Brave Search');
-  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  // NOTE: Must include 'cancelled' to match SkillExecutionStatus type from appSkills.ts
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<WebSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
@@ -145,8 +145,8 @@
       hasContent: !!data.decodedContent
     });
     
-    // Update status
-    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
+    // Update status - handle all SkillExecutionStatus values
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
     
@@ -260,10 +260,10 @@
             </div>
           {/if}
           
-          <!-- Remaining count -->
+          <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
           {#if remainingCount > 0}
             <span class="remaining-count">
-              + {remainingCount} {$text('embeds.more.text') || 'more'}
+              {$text('embeds.more_results.text').replace('{count}', String(remainingCount))}
             </span>
           {/if}
         </div>
