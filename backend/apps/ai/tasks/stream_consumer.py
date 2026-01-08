@@ -143,6 +143,11 @@ async def _update_chat_metadata(
 ) -> None:
     """Update chat metadata and save assistant response to cache.
     
+    IMPORTANT: This function does NOT update messages_v in Directus.
+    The client is the source of truth for messages_v - it increments when receiving
+    the AI response and sends the updated version via ai_response_completed event.
+    Updating messages_v here would cause double-counting.
+    
     Args:
         request_data: The AI skill request data
         category: The mate category for this response
@@ -157,35 +162,26 @@ async def _update_chat_metadata(
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
     """
-    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-    if not chat_metadata:
-        logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
-        return
-        
-    current_messages_v = chat_metadata.get("messages_v", 0)
-    new_messages_version = current_messages_v + 1
-    
-    # MESSAGES_V_TRACKING: Log the version change for AI response
-    # This helps debug race conditions where messages_v gets incremented multiple times
-    logger.info(
-        f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
-        f"chat_id={request_data.chat_id}, "
-        f"current_directus_v={current_messages_v}, "
-        f"new_directus_v={new_messages_version}, "
-        f"source=stream_consumer._update_chat_metadata_and_save_response"
-    )
+    # NOTE: We do NOT update messages_v in Directus here.
+    # The client handles messages_v increments for AI responses via ai_response_completed.
+    # Updating it here would cause double-counting (server + client both incrementing).
+    # The cache will track its own version for AI inference purposes.
     
     fields_to_update = {
-        "messages_v": new_messages_version,
+        # NO messages_v update - client handles this via ai_response_completed
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category,
         "updated_at": int(time.time())
     }
     
-    # CRITICAL: Always use optimistic locking or at least ensure we don't downgrade
-    # Directus doesn't support "update if >" natively via simple API, but we can do our best
-    # by using the value we just read.
+    logger.info(
+        f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+        f"chat_id={request_data.chat_id}, "
+        f"NOT updating messages_v in Directus (client handles via ai_response_completed), "
+        f"source=stream_consumer._update_chat_metadata"
+    )
+    
     success = await directus_service.chat.update_chat_fields_in_directus(
         request_data.chat_id, fields_to_update
     )
@@ -194,14 +190,19 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version} (was {current_messages_v}), timestamp {timestamp}.")
+    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}.")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history
+    # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
+        # Get current messages_v from cache or Directus for cache tracking only
+        chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+        current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
+        
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
-            new_messages_version, cache_service, 
+            current_messages_v, cache_service,  # Pass current version, cache will increment
             encryption_service, user_vault_key_id,
             content_markdown, log_prefix,
             model_name=model_name

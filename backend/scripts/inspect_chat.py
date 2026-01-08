@@ -478,6 +478,70 @@ def format_output_text(
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 100)
     
+    # ===================== VERSION CONSISTENCY CHECK =====================
+    # Check for version mismatches between message count, Directus, and cache
+    actual_message_count = len(messages)
+    directus_messages_v = chat_metadata.get('messages_v') if chat_metadata else None
+    cache_messages_v = None
+    if cache_info.get('chat_versions'):
+        try:
+            cache_messages_v = int(cache_info['chat_versions'].get('messages_v', 0))
+        except (ValueError, TypeError):
+            cache_messages_v = None
+    
+    has_version_issues = False
+    version_issues = []
+    
+    # Check: Directus messages_v should equal actual message count
+    if directus_messages_v is not None and directus_messages_v != actual_message_count:
+        has_version_issues = True
+        version_issues.append(
+            f"Directus messages_v ({directus_messages_v}) ≠ actual message count ({actual_message_count})"
+        )
+    
+    # Check: Cache messages_v should equal actual message count (if cached)
+    if cache_messages_v is not None and cache_messages_v != actual_message_count:
+        has_version_issues = True
+        version_issues.append(
+            f"Cache messages_v ({cache_messages_v}) ≠ actual message count ({actual_message_count})"
+        )
+    
+    # Check: Directus and Cache should match (if both exist)
+    if directus_messages_v is not None and cache_messages_v is not None:
+        if directus_messages_v != cache_messages_v:
+            has_version_issues = True
+            version_issues.append(
+                f"Directus messages_v ({directus_messages_v}) ≠ Cache messages_v ({cache_messages_v})"
+            )
+    
+    if has_version_issues:
+        lines.append("")
+        lines.append("🚨" + "=" * 96 + "🚨")
+        lines.append("🚨  VERSION CONSISTENCY ISSUES DETECTED!")
+        lines.append("🚨" + "=" * 96 + "🚨")
+        lines.append("")
+        lines.append(f"  📊 Actual Messages in Directus: {actual_message_count}")
+        lines.append(f"  📝 messages_v in Directus:      {directus_messages_v if directus_messages_v is not None else 'N/A'}")
+        lines.append(f"  💾 messages_v in Cache:         {cache_messages_v if cache_messages_v is not None else 'NOT CACHED'}")
+        lines.append("")
+        lines.append("  ❌ ISSUES:")
+        for issue in version_issues:
+            lines.append(f"     • {issue}")
+        lines.append("")
+        lines.append("  ℹ️  EXPECTED: messages_v should equal the actual message count.")
+        lines.append("     This mismatch may indicate double-counting bugs in version tracking.")
+        lines.append("🚨" + "=" * 96 + "🚨")
+    else:
+        # Show version consistency status (all good)
+        lines.append("")
+        lines.append("-" * 100)
+        lines.append("VERSION CONSISTENCY CHECK")
+        lines.append("-" * 100)
+        lines.append("  ✅ All versions consistent:")
+        lines.append(f"     • Actual Messages: {actual_message_count}")
+        lines.append(f"     • Directus messages_v: {directus_messages_v if directus_messages_v is not None else 'N/A'}")
+        lines.append(f"     • Cache messages_v: {cache_messages_v if cache_messages_v is not None else 'NOT CACHED'}")
+    
     # ===================== CHAT METADATA =====================
     lines.append("")
     lines.append("-" * 100)
