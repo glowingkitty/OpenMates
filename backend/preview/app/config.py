@@ -98,8 +98,9 @@ class Settings(BaseSettings):
     )
     
     # Webshare proxy host (default is their rotating residential proxy endpoint)
+    # NOTE: Use p.webshare.io for rotating residential proxies (not proxy.webshare.io which is for datacenter)
     webshare_proxy_host: str = Field(
-        default="proxy.webshare.io",
+        default="p.webshare.io",
         description="Webshare proxy host"
     )
     webshare_proxy_port: int = Field(
