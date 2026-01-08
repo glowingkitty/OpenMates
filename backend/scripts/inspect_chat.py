@@ -305,14 +305,17 @@ async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str
         return []
 
 
-async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_user_id: Optional[str] = None) -> Dict[str, Any]:
+async def check_cache_status(cache_service: CacheService, chat_id: str) -> Dict[str, Any]:
     """
     Check Redis cache status for a chat and its components.
+    
+    Uses Redis SCAN to find cache keys by pattern since we don't know the user_id.
+    Cache keys use the UNHASHED user_id (UUID), not hashed_user_id from Directus.
+    The cache key format is: user:{user_id}:chat:{chat_id}:...
     
     Args:
         cache_service: CacheService instance
         chat_id: The chat ID
-        hashed_user_id: Optional hashed user ID (if known from chat metadata)
         
     Returns:
         Dictionary with cache status information
@@ -325,7 +328,8 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
         'embed_ids': None,
         'active_ai_task': None,
         'queued_messages_count': None,
-        'raw_keys': {}
+        'raw_keys': {},
+        'discovered_user_id': None  # Will be populated if we find cache keys
     }
     
     try:
@@ -334,10 +338,38 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
             script_logger.warning("Redis client not available for cache checks")
             return cache_info
         
-        # 1. Check chat versions (requires hashed_user_id)
-        if hashed_user_id:
+        # 1. Use SCAN to find user-specific cache keys for this chat
+        # Pattern: user:*:chat:{chat_id}:* to find any user's cache for this chat
+        # This discovers the user_id from the cache key itself
+        
+        async def scan_for_pattern(pattern: str) -> List[str]:
+            """Scan Redis for keys matching pattern."""
+            keys = []
+            cursor = 0
+            while True:
+                cursor, batch = await client.scan(cursor, match=pattern, count=100)
+                keys.extend([k.decode('utf-8') for k in batch])
+                if cursor == 0:
+                    break
+            return keys
+        
+        # Find all user-specific keys for this chat
+        pattern = f"user:*:chat:{chat_id}:*"
+        found_keys = await scan_for_pattern(pattern)
+        
+        # Extract user_id from found keys and check each type
+        user_id = None
+        for key in found_keys:
+            # Extract user_id from key: user:{user_id}:chat:{chat_id}:...
+            parts = key.split(':')
+            if len(parts) >= 5 and parts[0] == 'user' and parts[2] == 'chat' and parts[3] == chat_id:
+                user_id = parts[1]
+                cache_info['discovered_user_id'] = user_id
+                break
+        
+        if user_id:
             # Check chat versions hash
-            versions_key = f"user:{hashed_user_id}:chat:{chat_id}:versions"
+            versions_key = f"user:{user_id}:chat:{chat_id}:versions"
             versions_data = await client.hgetall(versions_key)
             if versions_data:
                 cache_info['chat_versions'] = {
@@ -346,7 +378,7 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
                 cache_info['raw_keys']['versions'] = versions_key
             
             # Check list item data hash
-            list_item_key = f"user:{hashed_user_id}:chat:{chat_id}:list_item_data"
+            list_item_key = f"user:{user_id}:chat:{chat_id}:list_item_data"
             list_item_data = await client.hgetall(list_item_key)
             if list_item_data:
                 cache_info['list_item_data'] = {
@@ -355,21 +387,21 @@ async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_u
                 cache_info['raw_keys']['list_item_data'] = list_item_key
             
             # Check AI messages cache (vault-encrypted, for AI inference)
-            ai_messages_key = f"user:{hashed_user_id}:chat:{chat_id}:messages:ai"
+            ai_messages_key = f"user:{user_id}:chat:{chat_id}:messages:ai"
             ai_messages_count = await client.llen(ai_messages_key)
             if ai_messages_count > 0:
                 cache_info['ai_messages_count'] = ai_messages_count
                 cache_info['raw_keys']['ai_messages'] = ai_messages_key
             
             # Check sync messages cache (client-encrypted, for sync)
-            sync_messages_key = f"user:{hashed_user_id}:chat:{chat_id}:messages:sync"
+            sync_messages_key = f"user:{user_id}:chat:{chat_id}:messages:sync"
             sync_messages_count = await client.llen(sync_messages_key)
             if sync_messages_count > 0:
                 cache_info['sync_messages_count'] = sync_messages_count
                 cache_info['raw_keys']['sync_messages'] = sync_messages_key
             
             # Check draft cache
-            draft_key = f"user:{hashed_user_id}:chat:{chat_id}:draft"
+            draft_key = f"user:{user_id}:chat:{chat_id}:draft"
             draft_data = await client.hgetall(draft_key)
             if draft_data:
                 cache_info['draft'] = {
@@ -685,6 +717,11 @@ def format_output_text(
     lines.append("CACHE STATUS (from Redis)")
     lines.append("-" * 100)
     
+    # Show discovered user_id if found
+    if cache_info.get('discovered_user_id'):
+        lines.append(f"  🔍 Discovered User ID: {cache_info['discovered_user_id']}")
+        lines.append("")
+    
     # Chat versions
     if cache_info.get('chat_versions'):
         lines.append("  ✅ Chat Versions Cached:")
@@ -906,10 +943,10 @@ async def main():
         )
         
         # 6. Check cache status (if not skipped)
+        # Uses Redis SCAN to automatically discover user_id from cache keys
         cache_info = {}
         if not args.no_cache:
-            hashed_user_id = chat_metadata.get('hashed_user_id') if chat_metadata else None
-            cache_info = await check_cache_status(cache_service, args.chat_id, hashed_user_id)
+            cache_info = await check_cache_status(cache_service, args.chat_id)
         
         # 7. Format and output results
         if args.json:
