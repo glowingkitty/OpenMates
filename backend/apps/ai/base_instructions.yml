@@ -40,23 +40,23 @@ preprocess_request_tool:
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
       7.  **relevant_app_skills**: Identify app skills that might be relevant to fulfill the user's request. This helps optimize tool selection for the main LLM processing.
           - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
-          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation, `videos-get_transcript` for YouTube transcripts).
+          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `news-search` for news articles, `maps-search` for places, `videos-search` for video content).
+          - Note: `web-search` is automatically included as a fallback - focus on selecting SPECIFIC skills that are optimized for the query type.
           
-          **CRITICAL: Prefer specific skills over general-purpose ones:**
-          - When the user's request can be fulfilled by BOTH a specific skill AND a general-purpose skill (like `web-search`), ALWAYS include BOTH:
-            - Include the specific skill for best results
-            - Include `web-search` as a fallback/supplement
-          - Example: "Find documentaries about NYC" → select BOTH `videos-search` (specific) AND `web-search` (general)
+          **CRITICAL: Select `news-search` for news and current events queries:**
+          - Use `news-search` when users ask for news articles, current events, recent announcements, breaking news, or journalism content
+          - Trigger phrases: "news about", "latest news", "recent news", "breaking news", "news on", "headlines", "what's happening with", "updates on", "announcements about", "press release", "search for [topic] news"
+          - `news-search` is optimized for news sources with freshness filtering (defaults to past week) - better than general web search for news
+          - For ANY query containing the word "news" or asking about current events/announcements, ALWAYS include `news-search`
           
           **CRITICAL: Select `videos-search` for video/media content queries:**
           - Use `videos-search` when users ask for videos, documentaries, tutorials, clips, films, shows, or any video content
           - Trigger phrases: "find videos", "documentaries about", "watch", "tutorial video", "YouTube videos", "video about", "show me videos", "recommend videos"
-          - For video content discovery, ALWAYS include `videos-search` even if `web-search` might also help
           
-          **CRITICAL: Select `web-search` for time-sensitive queries:**
-          - News, current events, prices, product info, stock/crypto data, sports scores, software versions, weather, recent research
-          - Trigger words: "current", "latest", "recent", "now", "today", "price of", "how much", "who won"
-          - Do NOT assume training data is sufficient for time-sensitive topics
+          **CRITICAL: Select `maps-search` for location and place queries:**
+          - Use `maps-search` when users ask about places, locations, businesses, restaurants, stores, attractions, or nearby services
+          - Trigger phrases: "restaurants in", "places near", "find a", "where is", "nearby", "locations", "directions to", "best [place type] in [location]", "open now"
+          - `maps-search` provides rich place data including ratings, reviews, opening hours, and contact info
           
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
