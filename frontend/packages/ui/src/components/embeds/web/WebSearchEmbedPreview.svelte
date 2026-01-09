@@ -145,8 +145,11 @@
   /**
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
+   * 
+   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no `results`.
+   * In this case, we need to load child embeds asynchronously to get favicon data.
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+  async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
       status: data.status,
       hasContent: !!data.decodedContent
@@ -170,6 +173,69 @@
       if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
+      
+      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
+      // load child embeds asynchronously to get favicon data for preview display.
+      // This handles the architecture where parent embed only stores references.
+      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
+        const embedIds = content.embed_ids;
+        if (embedIds) {
+          // Parse embed_ids (can be pipe-separated string or array)
+          const childEmbedIds: string[] = typeof embedIds === 'string'
+            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
+            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+          
+          if (childEmbedIds.length > 0) {
+            console.debug(`[WebSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            loadChildEmbedsForPreview(childEmbedIds);
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Load child embeds to extract favicon data for preview display
+   * Uses retry logic because child embeds might not be persisted yet
+   * (they arrive via websocket after the parent embed)
+   */
+  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
+    try {
+      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
+      
+      // Use retry logic with shorter timeout for preview (we just need a few favicons)
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
+      
+      if (childEmbeds.length > 0) {
+        // Transform child embeds to WebSearchResult format (just need basic data for favicons)
+        const results = await Promise.all(childEmbeds.map(async (embed) => {
+          const content = embed.content ? await decodeToonContent(embed.content) : null;
+          if (!content) return null;
+          
+          // Extract favicon from nested 'meta_url.favicon' or flat 'favicon' field
+          const faviconUrl = 
+            (content.meta_url as { favicon?: string } | undefined)?.favicon || 
+            content.favicon || 
+            content.favicon_url ||
+            '';
+          
+          return {
+            title: content.title || '',
+            url: content.url || '',
+            favicon: faviconUrl,
+            favicon_url: faviconUrl
+          } as WebSearchResult;
+        }));
+        
+        const validResults = results.filter(r => r !== null) as WebSearchResult[];
+        if (validResults.length > 0) {
+          localResults = validResults;
+          console.debug(`[WebSearchEmbedPreview] Loaded ${validResults.length} results from child embeds`);
+        }
+      }
+    } catch (error) {
+      console.warn('[WebSearchEmbedPreview] Error loading child embeds for preview:', error);
+      // Continue without results - preview will just show query/provider
     }
   }
   

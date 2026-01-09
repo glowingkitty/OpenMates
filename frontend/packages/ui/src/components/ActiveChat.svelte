@@ -599,8 +599,10 @@
             if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
 console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
                 try {
-                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    // Use loadEmbedsWithRetry to handle race condition where child embeds
+                    // might not be persisted yet (they arrive via websocket after parent)
+                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
                     
                     // Transform child embeds to WebSearchResult format
                     const results = await Promise.all(childEmbeds.map(async (embed) => {
@@ -644,8 +646,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
                 console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
                 try {
-                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    // Use loadEmbedsWithRetry to handle race condition where child embeds
+                    // might not be persisted yet (they arrive via websocket after parent)
+                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
                     
                     // Transform child embeds to PlaceSearchResult format
                     const results = await Promise.all(childEmbeds.map(async (embed) => {

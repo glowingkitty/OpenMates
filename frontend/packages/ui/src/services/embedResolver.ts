@@ -313,3 +313,47 @@ export async function loadEmbeds(embedIds: string[]): Promise<EmbedData[]> {
   return embeds;
 }
 
+/**
+ * Load embeds with retry logic for race conditions
+ * Useful when child embeds might not be persisted yet (arriving via websocket)
+ * 
+ * @param embedIds - Array of embed IDs to load
+ * @param maxRetries - Maximum number of retry attempts (default: 5)
+ * @param retryDelayMs - Delay between retries in ms (default: 300ms)
+ * @returns Array of embed data (with TOON content)
+ */
+export async function loadEmbedsWithRetry(
+  embedIds: string[], 
+  maxRetries: number = 5, 
+  retryDelayMs: number = 300
+): Promise<EmbedData[]> {
+  const embeds: EmbedData[] = [];
+  const pendingIds = new Set(embedIds);
+  
+  for (let attempt = 0; attempt <= maxRetries && pendingIds.size > 0; attempt++) {
+    if (attempt > 0) {
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+      console.debug(`[embedResolver] Retry attempt ${attempt}/${maxRetries} for ${pendingIds.size} missing embeds`);
+    }
+    
+    const idsToTry = Array.from(pendingIds);
+    for (const embedId of idsToTry) {
+      try {
+        const embed = await resolveEmbed(embedId);
+        if (embed) {
+          embeds.push(embed);
+          pendingIds.delete(embedId);
+        }
+      } catch (error) {
+        console.error('[embedResolver] Error loading embed:', embedId, error);
+      }
+    }
+  }
+  
+  if (pendingIds.size > 0) {
+    console.warn(`[embedResolver] ${pendingIds.size} embeds not found after ${maxRetries} retries:`, Array.from(pendingIds));
+  }
+  
+  return embeds;
+}
