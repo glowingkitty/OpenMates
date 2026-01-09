@@ -185,9 +185,41 @@
   );
   
   /**
+   * Extract favicon URL from a raw result object
+   * Handles multiple possible field formats from different data sources:
+   * - favicon: Direct field (most common from backend)
+   * - favicon_url: Alternative flat format
+   * - meta_url.favicon: Nested format from raw Brave Search API
+   * 
+   * @param rawResult - Raw result object from backend
+   * @returns Favicon URL or undefined
+   */
+  function extractFaviconFromRaw(rawResult: Record<string, unknown>): string | undefined {
+    // Direct favicon field (processed backend format)
+    if (rawResult.favicon && typeof rawResult.favicon === 'string') {
+      return rawResult.favicon;
+    }
+    // Alternative flat format
+    if (rawResult.favicon_url && typeof rawResult.favicon_url === 'string') {
+      return rawResult.favicon_url;
+    }
+    // Nested meta_url structure (raw Brave Search API format)
+    if (rawResult.meta_url && typeof rawResult.meta_url === 'object') {
+      const metaUrl = rawResult.meta_url as Record<string, unknown>;
+      if (metaUrl.favicon && typeof metaUrl.favicon === 'string') {
+        return metaUrl.favicon;
+      }
+    }
+    return undefined;
+  }
+  
+  /**
    * Flatten nested results structure from backend if needed
    * Backend returns results as [{ id: X, results: [...] }] for multi-query searches
    * This flattens it to a simple array of search results
+   * 
+   * CRITICAL: Also normalizes favicon fields during flattening to ensure
+   * getFaviconUrl() can find them regardless of source format.
    */
   function flattenResults(rawResults: unknown[]): WebSearchResult[] {
     if (!rawResults || rawResults.length === 0) return [];
@@ -199,15 +231,27 @@
       const flattened: WebSearchResult[] = [];
       for (const entry of rawResults as Array<{ id?: string; results?: unknown[] }>) {
         if (entry.results && Array.isArray(entry.results)) {
-          flattened.push(...(entry.results as WebSearchResult[]));
+          // Normalize each result to ensure favicon is in standard format
+          for (const rawResult of entry.results as Array<Record<string, unknown>>) {
+            const normalizedResult: WebSearchResult = {
+              ...(rawResult as WebSearchResult),
+              // Ensure favicon is set from any available source
+              favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
+            };
+            flattened.push(normalizedResult);
+          }
         }
       }
       console.debug(`[WebSearchEmbedPreview] Flattened nested results: ${rawResults.length} entries -> ${flattened.length} results`);
       return flattened;
     }
     
-    // Already flat structure
-    return rawResults as WebSearchResult[];
+    // Already flat structure - but still normalize favicons
+    return (rawResults as Array<Record<string, unknown>>).map(rawResult => ({
+      ...(rawResult as WebSearchResult),
+      // Ensure favicon is set from any available source
+      favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
+    }));
   }
   
   // Get flattened results (handles both nested and flat backend formats)

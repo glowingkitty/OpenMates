@@ -607,14 +607,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const websiteContent = embed.content ? await decodeToon(embed.content) : null;
                         if (!websiteContent) return null;
                         
+                        // Extract favicon from nested 'meta_url.favicon' or flat 'favicon' field
+                        // Brave Search API stores favicon URL in meta_url.favicon (nested object)
+                        const faviconUrl = 
+                            (websiteContent.meta_url as { favicon?: string } | undefined)?.favicon || 
+                            websiteContent.favicon || 
+                            '';
+                        
+                        // Extract preview image from nested 'thumbnail.original' or flat 'image' field
+                        const previewImageUrl = 
+                            (websiteContent.thumbnail as { original?: string } | undefined)?.original ||
+                            websiteContent.image || 
+                            '';
+                        
                         return {
                             type: 'search_result' as const,
                             title: websiteContent.title || '',
                             url: websiteContent.url || '',
                             snippet: websiteContent.description || websiteContent.extra_snippets || '',
                             hash: embed.embed_id || '',
-                            favicon_url: websiteContent.meta_url_favicon || websiteContent.favicon || '',
-                            preview_image_url: websiteContent.thumbnail_original || websiteContent.image || ''
+                            // Include 'favicon' field for WebSearchEmbedPreview's getFaviconUrl()
+                            favicon: faviconUrl,
+                            favicon_url: faviconUrl,
+                            preview_image_url: previewImageUrl
                         };
                     }));
                     

@@ -145,8 +145,19 @@
    * Refetch embed data from the store
    * This ensures we have the latest data after an update
    * and notifies child components via onEmbedDataUpdated callback
+   * 
+   * NOTE: Skips fetch for "legacy-*" IDs which are synthetic IDs created by
+   * transformLegacyResults() in search fullscreens. These IDs don't exist in
+   * IndexedDB - the data is already available from the parent component's props.
    */
   async function refetchFromStore() {
+    // Skip refetch for legacy IDs - these are synthetic IDs from legacy results
+    // that don't exist in IndexedDB. The data is already available from props.
+    if (id.startsWith('legacy-')) {
+      console.debug(`[UnifiedEmbedPreview] Skipping refetch for synthetic legacy ID: ${id}`);
+      return;
+    }
+    
     try {
       const embedData = await embedStore.get(`embed:${id}`);
       if (embedData) {
