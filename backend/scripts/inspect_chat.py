@@ -658,13 +658,25 @@ def format_output_text(
         lines.append(f"  Status Distribution: {status_count}")
         
         # Show encryption keys summary
+        # Count embeds with their own keys vs child embeds (which inherit from parent)
         total_chat_keys = sum(k.get('chat', 0) for k in embed_keys_by_embed.values())
         total_master_keys = sum(k.get('master', 0) for k in embed_keys_by_embed.values())
         embeds_with_keys = len(embed_keys_by_embed)
-        embeds_missing_keys = len(embeds) - embeds_with_keys
+        
+        # Child embeds inherit keys from their parent, so they don't need their own keys
+        child_embeds_count = sum(1 for e in embeds if e.get('parent_embed_id'))
+        parent_embeds_count = len(embeds) - child_embeds_count
+        
+        # Only parent/root embeds should have their own keys - child embeds inherit
+        truly_missing_keys = parent_embeds_count - embeds_with_keys
         
         lines.append(f"  Encryption Keys: {total_chat_keys} chat-type, {total_master_keys} master-type")
-        lines.append(f"  Embeds with keys: {embeds_with_keys}, Missing keys: {embeds_missing_keys}")
+        lines.append(f"  Parent/root embeds: {parent_embeds_count} (with keys: {embeds_with_keys})")
+        lines.append(f"  Child embeds: {child_embeds_count} (inherit keys from parent)")
+        if truly_missing_keys > 0:
+            lines.append(f"  ⚠️  Truly missing keys: {truly_missing_keys} parent embed(s) without keys")
+        else:
+            lines.append("  ✅ All parent embeds have encryption keys")
         lines.append("")
         
         # Show embed list (limited)
@@ -702,8 +714,10 @@ def format_output_text(
             # Show encryption keys for this embed
             # Need to hash embed_id to lookup in embed_keys_by_embed
             hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest() if embed_id and embed_id != 'N/A' else None
+            parent_embed_id = embed.get('parent_embed_id')
             
             if hashed_embed_id and hashed_embed_id in embed_keys_by_embed:
+                # This embed has its own encryption keys
                 key_info = embed_keys_by_embed[hashed_embed_id]
                 chat_keys = key_info.get('chat', 0)
                 master_keys = key_info.get('master', 0)
@@ -718,8 +732,12 @@ def format_output_text(
                 
                 key_display = ', '.join(key_parts) if key_parts else "none"
                 lines.append(f"       🔑 Encryption Keys: {total_keys} total ({key_display})")
+            elif parent_embed_id:
+                # Child embeds inherit encryption keys from their parent - this is expected
+                lines.append(f"       🔑 Encryption Keys: ✅ Inherits from parent ({parent_embed_id[:8]}...)")
             else:
-                lines.append("       🔑 Encryption Keys: ❌ MISSING (no keys found in embed_keys collection)")
+                # Root/parent embed without keys - this is a problem
+                lines.append("       🔑 Encryption Keys: ❌ MISSING (parent embed has no keys in embed_keys collection)")
         
         if len(embeds) > embeds_limit:
             lines.append(f"\n  ... and {len(embeds) - embeds_limit} more embed(s)")
