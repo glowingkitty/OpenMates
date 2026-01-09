@@ -1,0 +1,43 @@
+# backend/providers/zai.yml
+# Z.ai provider config (GLM models).
+# GLM models are served via Cerebras API.
+---
+provider_id: "zai"
+name: "Z.ai"
+description: "Z.ai - GLM large language models"
+logo_svg: "logos/zai.svg"
+
+models:
+  - id: "zai-glm-4.7"
+    name: "GLM 4.7"
+    # Z.ai GLM 4.7 with 355B params and ultra-fast inference (~1000 tok/s).
+    # Served via Cerebras API. Strong reasoning and general performance.
+    description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "cerebras"
+    servers:
+      - id: "cerebras"
+        name: "Cerebras"
+        model_id: "zai-glm-4.7"  # Direct Cerebras model identifier
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "z-ai/glm-4.7"  # OpenRouter fallback
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 200
+        output:
+          per_credit_unit: 100
+    costs:
+      input_per_million_token:
+        price: 2.25
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 2.75
+        currency: USD
+        max_context: 131000

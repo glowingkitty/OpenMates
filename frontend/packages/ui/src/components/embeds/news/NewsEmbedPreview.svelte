@@ -1,16 +1,17 @@
 <!--
-  frontend/packages/ui/src/components/embeds/WebsiteEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/news/NewsEmbedPreview.svelte
   
-  Preview component for Website embeds.
-  Uses UnifiedEmbedPreview as base and provides website-specific details content.
+  Preview component for individual News article embeds.
+  Uses UnifiedEmbedPreview as base and provides news-specific details content.
   
   Features:
   - PRIMARY: Uses metadata from props (loaded from IndexedDB embed store)
   - FALLBACK: Fetches metadata from preview server ONLY when props are empty
-  - Displays title, description, favicon and OG image
+  - Displays title, description, favicon and thumbnail image
   - Proxies images through preview server to prevent direct external connections
   - Large thumbnail image on the RIGHT side of the preview card
   - Passes metadata to fullscreen view for consistent display
+  - Uses NEWS app icon and colors (different from WebsiteEmbedPreview which uses WEB app)
   
   Details content structure:
   - Processing/Loading: URL hostname
@@ -54,7 +55,7 @@
    * Metadata passed to fullscreen when user clicks to open
    * Contains the effective values (props or fetched from preview server)
    */
-  export interface WebsiteMetadata {
+  export interface NewsMetadata {
     title?: string;
     description?: string;
     favicon?: string;
@@ -62,20 +63,20 @@
   }
   
   /**
-   * Props for website embed preview
+   * Props for news embed preview
    */
   interface Props {
     /** Unique embed ID */
     id: string;
-    /** Website URL */
+    /** News article URL */
     url: string;
-    /** Website title (if not provided, will be fetched from preview server) */
+    /** Article title (if not provided, will be fetched from preview server) */
     title?: string;
-    /** Website description (if not provided, will be fetched from preview server) */
+    /** Article description (if not provided, will be fetched from preview server) */
     description?: string;
     /** Favicon URL (if not provided, will be fetched from preview server) */
     favicon?: string;
-    /** Preview image URL (if not provided, will be fetched from preview server) */
+    /** Preview/thumbnail image URL (if not provided, will be fetched from preview server) */
     image?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
@@ -84,7 +85,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
-    onFullscreen?: (metadata: WebsiteMetadata) => void;
+    onFullscreen?: (metadata: NewsMetadata) => void;
   }
   
   // ===========================================
@@ -121,8 +122,8 @@
   // Track which URL we've fetched metadata for to avoid re-fetching
   let fetchedForUrl = $state<string | null>(null);
   
-  // Map skillId to icon name
-  const skillIconName = 'website';
+  // Map skillId to icon name - NEWS uses article icon
+  const skillIconName = 'article';
   
   // ===========================================
   // Utility Functions
@@ -208,7 +209,7 @@
     fetchedForUrl = urlToFetch;
     
     // Log that we're using the fallback - this helps identify embeds without cached metadata
-    console.info('[WebsiteEmbedPreview] FALLBACK: No metadata in props, fetching from preview server:', {
+    console.info('[NewsEmbedPreview] FALLBACK: No metadata in props, fetching from preview server:', {
       url: urlToFetch.substring(0, 80),
       embedId: id,
       reason: 'Props empty - embed may be legacy or metadata not stored'
@@ -221,7 +222,7 @@
       );
       
       if (!response.ok) {
-        console.warn('[WebsiteEmbedPreview] FALLBACK metadata fetch failed:', response.status, response.statusText);
+        console.warn('[NewsEmbedPreview] FALLBACK metadata fetch failed:', response.status, response.statusText);
         metadataError = true;
         return;
       }
@@ -234,7 +235,7 @@
       fetchedFavicon = data.favicon;
       fetchedImage = data.image;
       
-      console.info('[WebsiteEmbedPreview] FALLBACK fetch successful:', {
+      console.info('[NewsEmbedPreview] FALLBACK fetch successful:', {
         url: urlToFetch.substring(0, 50) + '...',
         title: data.title?.substring(0, 50) || 'No title',
         hasDescription: !!data.description,
@@ -243,7 +244,7 @@
       });
       
     } catch (error) {
-      console.error('[WebsiteEmbedPreview] FALLBACK fetch error:', error);
+      console.error('[NewsEmbedPreview] FALLBACK fetch error:', error);
       metadataError = true;
     } finally {
       isLoadingMetadata = false;
@@ -345,14 +346,14 @@
     if (!onFullscreen) return;
     
     // Pass the effective metadata values (props or fetched) to fullscreen
-    const metadata: WebsiteMetadata = {
+    const metadata: NewsMetadata = {
       title: effectiveTitle,
       description: effectiveDescription,
       favicon: effectiveFavicon,
       image: effectiveImage
     };
     
-    console.debug('[WebsiteEmbedPreview] Opening fullscreen with metadata:', {
+    console.debug('[NewsEmbedPreview] Opening fullscreen with metadata:', {
       title: metadata.title?.substring(0, 50) || 'none',
       hasDescription: !!metadata.description,
       hasImage: !!metadata.image,
@@ -362,17 +363,17 @@
     onFullscreen(metadata);
   }
   
-  // Handle stop button click (not applicable for websites, but included for consistency)
+  // Handle stop button click (not applicable for news articles, but included for consistency)
   async function handleStop() {
-    // Websites don't have cancellable tasks, but we include this for API consistency
-    console.debug('[WebsiteEmbedPreview] Stop requested (not applicable for websites)');
+    // News articles don't have cancellable tasks, but we include this for API consistency
+    console.debug('[NewsEmbedPreview] Stop requested (not applicable for news articles)');
   }
 </script>
 
 <UnifiedEmbedPreview
   {id}
-  appId="web"
-  skillId="website"
+  appId="news"
+  skillId="article"
   skillIconName={skillIconName}
   status={effectiveStatus}
   skillName={displayTitle}
@@ -386,29 +387,29 @@
   hasFullWidthImage={shouldUseFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="website-details" class:mobile={isMobileLayout}>
+    <div class="news-details" class:mobile={isMobileLayout}>
       {#if effectiveStatus === 'processing'}
         <!-- Processing/Loading state: show hostname only -->
-        <div class="website-hostname">{hostname}</div>
+        <div class="news-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
         <!-- Finished state: description on LEFT, larger image on RIGHT -->
         <!-- If no description, image takes FULL WIDTH -->
         <!-- Title and favicon are shown in BasicInfosBar, not here -->
-        <div class="website-content-row" class:no-description={!cleanedDescription}>
+        <div class="news-content-row" class:no-description={!cleanedDescription}>
           {#if cleanedDescription}
-            <div class="website-description">{cleanedDescription}</div>
+            <div class="news-description">{cleanedDescription}</div>
           {/if}
           
           {#if imageUrl && !imageLoadError && !isMobileLayout}
             <!-- Preview image: full width when no description, right side when description exists -->
-            <div class="website-preview-image" class:full-width={!effectiveDescription}>
+            <div class="news-preview-image" class:full-width={!effectiveDescription}>
               <img 
                 src={imageUrl} 
                 alt={displayTitle}
                 loading="lazy"
                 onerror={() => {
                   imageLoadError = true;
-                  console.debug('[WebsiteEmbedPreview] Image load error, hiding image');
+                  console.debug('[NewsEmbedPreview] Image load error, hiding image');
                 }}
               />
             </div>
@@ -416,7 +417,7 @@
         </div>
       {:else}
         <!-- Error state -->
-        <div class="website-error">{hostname}</div>
+        <div class="news-error">{hostname}</div>
       {/if}
     </div>
   {/snippet}
@@ -424,10 +425,10 @@
 
 <style>
   /* ===========================================
-     Website Details Content
+     News Details Content
      =========================================== */
   
-  .website-details {
+  .news-details {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -436,20 +437,20 @@
   }
   
   /* Desktop layout: vertically centered content */
-  .website-details:not(.mobile) {
+  .news-details:not(.mobile) {
     justify-content: center;
   }
   
   /* Mobile layout: top-aligned content */
-  .website-details.mobile {
+  .news-details.mobile {
     justify-content: flex-start;
   }
   
   /* ===========================================
-     Website Content Row (description left, image right)
+     News Content Row (description left, image right)
      =========================================== */
   
-  .website-content-row {
+  .news-content-row {
     display: flex;
     align-items: stretch; /* Stretch items to fill height */
     flex: 1;
@@ -459,10 +460,10 @@
   }
   
   /* ===========================================
-     Website Description (Left side)
+     News Description (Left side)
      =========================================== */
   
-  .website-description {
+  .news-description {
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.4;
@@ -481,7 +482,7 @@
     padding-top: 10px;
   }
   
-  .website-details.mobile .website-description {
+  .news-details.mobile .news-description {
     font-size: 12px;
     -webkit-line-clamp: 6;
     line-clamp: 6;
@@ -491,13 +492,13 @@
      Large Preview Image (Right side by default)
      =========================================== */
   
-  .website-preview-image {
+  .news-preview-image {
     width: 150px;
     height: 171px;
     transform: translateX(20px);
   }
   
-  .website-preview-image img {
+  .news-preview-image img {
     width: 100%;
     height: 100%;
     display: block;
@@ -509,19 +510,19 @@
      =========================================== */
   
   /* When no description, make content row fill available width */
-  .website-content-row.no-description {
+  .news-content-row.no-description {
     width: 100%;
   }
   
   /* Full-width image styling when no description */
-  .website-preview-image.full-width {
+  .news-preview-image.full-width {
     width: 100%;
     min-width: 100%; /* Prevent flex shrinking */
     height: 100%; /* Fill parent height */
     transform: none; /* Remove the translateX offset */
   }
   
-  .website-preview-image.full-width img {
+  .news-preview-image.full-width img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -529,22 +530,22 @@
   }
   
   /* When no image, description takes full width */
-  .website-content-row:not(:has(.website-preview-image)) .website-description {
+  .news-content-row:not(:has(.news-preview-image)) .news-description {
     flex: 1;
     max-width: 100%;
   }
   
   /* ===========================================
-     Website Hostname (Processing state)
+     News Hostname (Processing state)
      =========================================== */
   
-  .website-hostname {
+  .news-hostname {
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
-  .website-details.mobile .website-hostname {
+  .news-details.mobile .news-hostname {
     font-size: 12px;
   }
   
@@ -552,10 +553,9 @@
      Error State
      =========================================== */
   
-  .website-error {
+  .news-error {
     font-size: 14px;
     color: var(--color-error);
     line-height: 1.3;
   }
 </style>
-

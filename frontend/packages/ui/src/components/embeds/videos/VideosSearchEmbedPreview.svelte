@@ -6,31 +6,47 @@
   
   Details content structure:
   - Processing: query text + "via {provider}"
-  - Finished: query text + "via {provider}" + thumbnails (first 3) + "+ N more"
+  - Finished: query text + "via {provider}" + channel thumbnails (first 3, circular) + "+ N more"
   
   NOTE: Real-time updates are handled by UnifiedEmbedPreview via embedUpdated events.
   This component implements onEmbedDataUpdated to update its specific data.
+  
+  Channel thumbnails are displayed as circular profile images (similar to favicons in WebSearchEmbedPreview)
+  using the meta_url_profile_image field from video search results.
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   
   /**
-   * Video search result interface for thumbnail display
+   * Video search result interface for channel thumbnail display
+   * Supports multiple field formats depending on data source:
+   * - meta_url_profile_image: TOON-flattened format (most common for stored embeds)
+   * - meta_url.profile_image: Nested structure (raw API format)
+   * - channelThumbnail: Alternative direct field
    */
   interface VideoSearchResult {
     title?: string;
     url: string;
+    /** TOON-flattened channel profile image URL */
+    meta_url_profile_image?: string;
+    /** Alternative direct channel thumbnail field */
+    channelThumbnail?: string;
+    /** Nested meta_url structure (raw API format) */
+    meta_url?: {
+      profile_image?: string;
+      favicon?: string;
+    };
+    /** Video thumbnail (used for fullscreen, not preview) */
     thumbnail?: {
       src?: string;
       original?: string;
     };
-    meta_url?: {
-      favicon?: string;
-    };
+    /** Alternative flattened thumbnail field */
+    thumbnail_original?: string;
     description?: string;
   }
   
@@ -98,9 +114,16 @@
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
+   * Called when the parent component receives and decodes updated embed data
+   * 
+   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no direct `results`.
+   * In this case, we need to load child embeds asynchronously to get channel thumbnail data.
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
-    console.debug(`[VideosSearchEmbedPreview] 🔄 Received embed data update for ${id}`);
+  async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+    console.debug(`[VideosSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent
+    });
     
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
@@ -108,16 +131,120 @@
     
     const content = data.decodedContent;
     if (content) {
-      if (content.query) localQuery = content.query;
-      if (content.provider) localProvider = content.provider;
+      if (typeof content.query === 'string') localQuery = content.query;
+      if (typeof content.provider === 'string') localProvider = content.provider;
       if (content.results && Array.isArray(content.results)) {
-        localResults = content.results;
+        localResults = content.results as VideoSearchResult[];
+        console.debug(`[VideosSearchEmbedPreview] Updated results from callback:`, localResults.length);
       }
       // Extract skill_task_id for individual skill cancellation
-      if (content.skill_task_id) {
+      if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
+      
+      // CRITICAL: When status is "finished" and we have embed_ids but no results,
+      // load child embeds asynchronously to get channel thumbnail data for preview display.
+      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
+        const embedIds = content.embed_ids;
+        if (embedIds) {
+          // Parse embed_ids (can be pipe-separated string or array)
+          const childEmbedIds: string[] = typeof embedIds === 'string'
+            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
+            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+          
+          if (childEmbedIds.length > 0) {
+            console.debug(`[VideosSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            loadChildEmbedsForPreview(childEmbedIds);
+          }
+        }
+      }
     }
+  }
+  
+  /**
+   * Load child embeds to extract channel thumbnail data for preview display
+   * Uses retry logic because child embeds might not be persisted yet
+   * (they arrive via websocket after the parent embed)
+   */
+  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
+    try {
+      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
+      
+      // Use retry logic with shorter timeout for preview (we just need a few channel thumbnails)
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
+      
+      if (childEmbeds.length > 0) {
+        // Transform child embeds to VideoSearchResult format (just need basic data for channel thumbnails)
+        const results = await Promise.all(childEmbeds.map(async (embed) => {
+          const content = embed.content ? await decodeToonContent(embed.content) : null;
+          if (!content) return null;
+          
+          // Extract channel thumbnail URL from multiple possible field formats:
+          // 1. meta_url_profile_image: TOON-flattened format (most common for stored embeds)
+          // 2. meta_url.profile_image: Nested format (raw API)
+          // 3. channelThumbnail: Alternative direct field
+          const channelThumbnailUrl = 
+            content.meta_url_profile_image ||
+            (content.meta_url as { profile_image?: string } | undefined)?.profile_image ||
+            content.channelThumbnail ||
+            '';
+          
+          // DEBUG: Log what we extracted to help diagnose issues
+          if (childEmbeds.indexOf(embed) < 3) {
+            console.debug(`[VideosSearchEmbedPreview] Child embed channel thumbnail extraction:`, {
+              embedId: embed.embed_id,
+              title: (content.title as string)?.substring(0, 30),
+              meta_url_profile_image: content.meta_url_profile_image,
+              meta_url: content.meta_url,
+              channelThumbnail: content.channelThumbnail,
+              extracted: channelThumbnailUrl
+            });
+          }
+          
+          return {
+            title: content.title || '',
+            url: content.url || '',
+            meta_url_profile_image: channelThumbnailUrl,
+            channelThumbnail: channelThumbnailUrl
+          } as VideoSearchResult;
+        }));
+        
+        const validResults = results.filter(r => r !== null) as VideoSearchResult[];
+        if (validResults.length > 0) {
+          localResults = validResults;
+          console.debug(`[VideosSearchEmbedPreview] Loaded ${validResults.length} results from child embeds, channel thumbnails found: ${validResults.filter(r => getChannelThumbnailUrl(r)).length}`);
+        }
+      }
+    } catch (error) {
+      console.warn('[VideosSearchEmbedPreview] Error loading child embeds for preview:', error);
+      // Continue without results - preview will just show query/provider
+    }
+  }
+  
+  /**
+   * Extract channel thumbnail URL from a video search result
+   * Handles multiple possible field formats from different data sources:
+   * - meta_url_profile_image: TOON-flattened format (most common for stored embeds)
+   * - channelThumbnail: Alternative direct field
+   * - meta_url.profile_image: Nested format from raw API
+   * 
+   * @param result - Video search result object
+   * @returns Channel thumbnail URL or undefined
+   */
+  function getChannelThumbnailUrl(result: VideoSearchResult): string | undefined {
+    // TOON-flattened format (meta_url.profile_image becomes meta_url_profile_image)
+    if (result.meta_url_profile_image && typeof result.meta_url_profile_image === 'string') {
+      return result.meta_url_profile_image;
+    }
+    // Alternative direct channel thumbnail field
+    if (result.channelThumbnail && typeof result.channelThumbnail === 'string') {
+      return result.channelThumbnail;
+    }
+    // Nested meta_url structure (raw API format)
+    if (result.meta_url && typeof result.meta_url === 'object' && result.meta_url.profile_image) {
+      return result.meta_url.profile_image;
+    }
+    return undefined;
   }
   
   // Get skill name from translations
@@ -131,14 +258,15 @@
     `${$text('embeds.via.text') || 'via'} ${provider}`
   );
   
-  // Get first 3 results with thumbnails for display
-  let thumbnailResults = $derived(
-    results?.filter(r => r.thumbnail?.src || r.thumbnail?.original).slice(0, 3) || []
+  // Get first 3 results with channel thumbnails for display (circular profile images)
+  // Similar to how WebSearchEmbedPreview shows favicons
+  let channelThumbnailResults = $derived(
+    results?.filter(r => getChannelThumbnailUrl(r)).slice(0, 3) || []
   );
   
-  // Get remaining results count
+  // Get remaining results count (total results minus displayed channel thumbnails)
   let remainingCount = $derived(
-    Math.max(0, (results?.length || 0) - 1)
+    Math.max(0, (results?.length || 0) - channelThumbnailResults.length)
   );
   
   // Handle stop button click - cancels this specific skill, not the entire AI response
@@ -185,29 +313,32 @@
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show thumbnails and remaining count -->
+      <!-- Finished state: show channel thumbnails (circular) and remaining count -->
       {#if status === 'finished'}
         <div class="search-results-info">
-          <!-- Thumbnail row -->
-          {#if thumbnailResults.length > 0}
-            <div class="thumbnail-row">
-              {#each thumbnailResults as result, index}
-                {@const thumbnailUrl = result.thumbnail?.original || result.thumbnail?.src}
-                <img 
-                  src={thumbnailUrl}
-                  alt={result.title || ''}
-                  class="thumbnail"
-                  style="z-index: {thumbnailResults.length - index};"
-                  loading="lazy"
-                />
+          <!-- Channel thumbnails row (circular, overlapping - like favicons in WebSearchEmbedPreview) -->
+          {#if channelThumbnailResults.length > 0}
+            <div class="channel-thumbnail-row">
+              {#each channelThumbnailResults as result, index}
+                {@const channelThumbnailSrc = getChannelThumbnailUrl(result)}
+                {#if channelThumbnailSrc}
+                  <img 
+                    src={channelThumbnailSrc}
+                    alt=""
+                    class="channel-thumbnail"
+                    style="z-index: {channelThumbnailResults.length - index};"
+                    loading="lazy"
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                {/if}
               {/each}
             </div>
           {/if}
           
-          <!-- Remaining count -->
+          <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
           {#if remainingCount > 0}
             <span class="remaining-count">
-              + {remainingCount} {$text('embeds.more.text') || 'more'}
+              {$text('embeds.more_results.text').replace('{count}', String(remainingCount))}
             </span>
           {/if}
         </div>
@@ -271,7 +402,7 @@
     font-size: 12px;
   }
   
-  /* Search results info (thumbnails + remaining count) */
+  /* Search results info (channel thumbnails + remaining count) */
   .search-results-info {
     display: flex;
     align-items: center;
@@ -283,8 +414,8 @@
     margin-top: 2px;
   }
   
-  /* Thumbnail row: overlapping rectangles */
-  .thumbnail-row {
+  /* Channel thumbnail row: overlapping circles (like favicons in WebSearchEmbedPreview) */
+  .channel-thumbnail-row {
     display: flex;
     align-items: center;
     position: relative;
@@ -292,10 +423,11 @@
     min-width: 42px; /* 3 thumbnails with overlap */
   }
   
-  .thumbnail {
+  /* Channel thumbnail: circular profile image (like favicon in web search) */
+  .channel-thumbnail {
     width: 19px;
     height: 19px;
-    border-radius: 4px;
+    border-radius: 50%;
     border: 1px solid white;
     background-color: white;
     object-fit: cover;
@@ -304,7 +436,7 @@
     position: relative;
   }
   
-  .thumbnail:first-child {
+  .channel-thumbnail:first-child {
     margin-left: 0;
   }
   

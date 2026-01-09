@@ -145,8 +145,11 @@
   /**
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
+   * 
+   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no `results`.
+   * In this case, we need to load child embeds asynchronously to get favicon data.
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+  async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
       status: data.status,
       hasContent: !!data.decodedContent
@@ -170,6 +173,87 @@
       if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
+      
+      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
+      // load child embeds asynchronously to get favicon data for preview display.
+      // This handles the architecture where parent embed only stores references.
+      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
+        const embedIds = content.embed_ids;
+        if (embedIds) {
+          // Parse embed_ids (can be pipe-separated string or array)
+          const childEmbedIds: string[] = typeof embedIds === 'string'
+            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
+            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+          
+          if (childEmbedIds.length > 0) {
+            console.debug(`[WebSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            loadChildEmbedsForPreview(childEmbedIds);
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Load child embeds to extract favicon data for preview display
+   * Uses retry logic because child embeds might not be persisted yet
+   * (they arrive via websocket after the parent embed)
+   */
+  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
+    try {
+      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
+      
+      // Use retry logic with shorter timeout for preview (we just need a few favicons)
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
+      
+      if (childEmbeds.length > 0) {
+        // Transform child embeds to WebSearchResult format (just need basic data for favicons)
+        const results = await Promise.all(childEmbeds.map(async (embed) => {
+          const content = embed.content ? await decodeToonContent(embed.content) : null;
+          if (!content) return null;
+          
+          // Extract favicon URL from multiple possible field formats:
+          // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+          // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
+          // 3. favicon: Direct field (processed backend format)
+          // 4. favicon_url: Alternative flat format
+          const faviconUrl = 
+            content.meta_url_favicon ||  // TOON flattened format (most common for stored embeds)
+            (content.meta_url as { favicon?: string } | undefined)?.favicon ||  // Nested format
+            content.favicon || 
+            content.favicon_url ||
+            '';
+          
+          // DEBUG: Log what we extracted to help diagnose issues
+          if (childEmbeds.indexOf(embed) < 3) {
+            console.debug(`[WebSearchEmbedPreview] Child embed favicon extraction:`, {
+              embedId: embed.embed_id,
+              title: content.title?.substring(0, 30),
+              meta_url_favicon: content.meta_url_favicon,
+              meta_url: content.meta_url,
+              favicon: content.favicon,
+              favicon_url: content.favicon_url,
+              extracted: faviconUrl
+            });
+          }
+          
+          return {
+            title: content.title || '',
+            url: content.url || '',
+            favicon: faviconUrl,
+            favicon_url: faviconUrl
+          } as WebSearchResult;
+        }));
+        
+        const validResults = results.filter(r => r !== null) as WebSearchResult[];
+        if (validResults.length > 0) {
+          localResults = validResults;
+          console.debug(`[WebSearchEmbedPreview] Loaded ${validResults.length} results from child embeds, favicons found: ${validResults.filter(r => r.favicon).length}`);
+        }
+      }
+    } catch (error) {
+      console.warn('[WebSearchEmbedPreview] Error loading child embeds for preview:', error);
+      // Continue without results - preview will just show query/provider
     }
   }
   
@@ -185,9 +269,46 @@
   );
   
   /**
+   * Extract favicon URL from a raw result object
+   * Handles multiple possible field formats from different data sources:
+   * - meta_url_favicon: TOON-flattened format (most common for stored embeds)
+   * - favicon: Direct field (processed backend format)
+   * - favicon_url: Alternative flat format
+   * - meta_url.favicon: Nested format from raw Brave Search API
+   * 
+   * @param rawResult - Raw result object from backend
+   * @returns Favicon URL or undefined
+   */
+  function extractFaviconFromRaw(rawResult: Record<string, unknown>): string | undefined {
+    // TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+    if (rawResult.meta_url_favicon && typeof rawResult.meta_url_favicon === 'string') {
+      return rawResult.meta_url_favicon;
+    }
+    // Direct favicon field (processed backend format)
+    if (rawResult.favicon && typeof rawResult.favicon === 'string') {
+      return rawResult.favicon;
+    }
+    // Alternative flat format
+    if (rawResult.favicon_url && typeof rawResult.favicon_url === 'string') {
+      return rawResult.favicon_url;
+    }
+    // Nested meta_url structure (raw Brave Search API format)
+    if (rawResult.meta_url && typeof rawResult.meta_url === 'object') {
+      const metaUrl = rawResult.meta_url as Record<string, unknown>;
+      if (metaUrl.favicon && typeof metaUrl.favicon === 'string') {
+        return metaUrl.favicon;
+      }
+    }
+    return undefined;
+  }
+  
+  /**
    * Flatten nested results structure from backend if needed
    * Backend returns results as [{ id: X, results: [...] }] for multi-query searches
    * This flattens it to a simple array of search results
+   * 
+   * CRITICAL: Also normalizes favicon fields during flattening to ensure
+   * getFaviconUrl() can find them regardless of source format.
    */
   function flattenResults(rawResults: unknown[]): WebSearchResult[] {
     if (!rawResults || rawResults.length === 0) return [];
@@ -199,15 +320,27 @@
       const flattened: WebSearchResult[] = [];
       for (const entry of rawResults as Array<{ id?: string; results?: unknown[] }>) {
         if (entry.results && Array.isArray(entry.results)) {
-          flattened.push(...(entry.results as WebSearchResult[]));
+          // Normalize each result to ensure favicon is in standard format
+          for (const rawResult of entry.results as Array<Record<string, unknown>>) {
+            const normalizedResult: WebSearchResult = {
+              ...(rawResult as WebSearchResult),
+              // Ensure favicon is set from any available source
+              favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
+            };
+            flattened.push(normalizedResult);
+          }
         }
       }
       console.debug(`[WebSearchEmbedPreview] Flattened nested results: ${rawResults.length} entries -> ${flattened.length} results`);
       return flattened;
     }
     
-    // Already flat structure
-    return rawResults as WebSearchResult[];
+    // Already flat structure - but still normalize favicons
+    return (rawResults as Array<Record<string, unknown>>).map(rawResult => ({
+      ...(rawResult as WebSearchResult),
+      // Ensure favicon is set from any available source
+      favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
+    }));
   }
   
   // Get flattened results (handles both nested and flat backend formats)

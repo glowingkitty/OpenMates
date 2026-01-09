@@ -10,7 +10,8 @@ import logging
 import os
 import json
 import yaml
-import asyncio
+import re
+import html
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -24,6 +25,40 @@ from backend.apps.ai.processing.skill_executor import sanitize_external_content,
 from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
+
+
+def strip_html_tags(text: str) -> str:
+    """
+    Strip HTML tags from text to produce clean plain text.
+    
+    This function removes all HTML tags (like <strong>, <em>, <b>, <i>, <a>, etc.)
+    and decodes HTML entities to produce clean text for storage and rendering.
+    
+    Benefits of server-side stripping:
+    - Reduces data size (smaller encrypted payloads)
+    - Simplifies client-side rendering (no HTML parsing needed)
+    - Ensures consistent display across all platforms
+    - Prevents potential XSS vectors
+    
+    Args:
+        text: Text that may contain HTML tags
+        
+    Returns:
+        Clean text with all HTML tags removed and entities decoded
+    """
+    if not text:
+        return text
+    
+    # Remove all HTML tags using regex
+    cleaned = re.sub(r'<[^>]*>', '', text)
+    
+    # Decode HTML entities (e.g., &amp; -> &, &lt; -> <, etc.)
+    cleaned = html.unescape(cleaned)
+    
+    # Clean up extra whitespace that might result from removed tags
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned
 
 
 class SearchRequest(BaseModel):
@@ -241,12 +276,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -285,7 +320,7 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query") or req.get("q")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
         req_count = req.get("count", 10)  # Default from schema
@@ -362,7 +397,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise
@@ -403,11 +438,15 @@ class SearchSkill(BaseSkill):
             
             for idx, result in enumerate(results):
                 # Extract text fields that need sanitization
-                title = result.get("title", "").strip()
-                description = result.get("description", "").strip()
+                # IMPORTANT: Strip HTML tags server-side to reduce data size and simplify client rendering
+                # This removes tags like <strong>, <em>, <b>, etc. that Brave Search may include
+                title = strip_html_tags(result.get("title", "").strip())
+                description = strip_html_tags(result.get("description", "").strip())
                 extra_snippets = result.get("extra_snippets", [])
                 if not isinstance(extra_snippets, list):
                     extra_snippets = []
+                # Strip HTML tags from each snippet
+                extra_snippets = [strip_html_tags(snippet) for snippet in extra_snippets if snippet]
                 
                 # Add to text data structure for sanitization
                 text_data_for_sanitization["results"].append({
@@ -432,6 +471,16 @@ class SearchSkill(BaseSkill):
                 if isinstance(thumbnail, dict):
                     thumbnail_original = thumbnail.get("original")
                 
+                # DEBUG: Log thumbnail and favicon extraction
+                logger.debug(
+                    f"[{task_id}] Result {idx} metadata extraction: "
+                    f"url={result.get('url', '')[:50]}... "
+                    f"raw_thumbnail={result.get('thumbnail')}, "
+                    f"raw_meta_url={result.get('meta_url')}, "
+                    f"extracted_thumbnail_original={thumbnail_original}, "
+                    f"extracted_favicon={favicon}"
+                )
+                
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "page_age": result.get("page_age", result.get("age", "")),
@@ -448,18 +497,23 @@ class SearchSkill(BaseSkill):
             # Skip sanitization if sanitize_output=False (e.g., for health checks)
             if not should_sanitize:
                 logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
-                # Use raw results without sanitization
+                # Use raw results without sanitization but still strip HTML tags
                 for idx, result in enumerate(results):
+                    # Strip HTML tags even when sanitization is skipped
+                    raw_extra_snippets = result.get("extra_snippets", [])
+                    if not isinstance(raw_extra_snippets, list):
+                        raw_extra_snippets = []
+                    
                     preview = {
                         "type": "search_result",
-                        "title": result.get("title", ""),
+                        "title": strip_html_tags(result.get("title", "")),
                         "url": result.get("url", ""),
-                        "description": result.get("description", ""),
+                        "description": strip_html_tags(result.get("description", "")),
                         "page_age": result.get("page_age", result.get("age", "")),
                         "profile": result.get("profile"),
                         "meta_url": result.get("meta_url"),
                         "thumbnail": result.get("thumbnail"),
-                        "extra_snippets": result.get("extra_snippets", []),
+                        "extra_snippets": [strip_html_tags(s) for s in raw_extra_snippets if s],
                         "hash": self._generate_result_hash(result.get("url", ""))
                     }
                     previews.append(preview)
@@ -607,6 +661,16 @@ class SearchSkill(BaseSkill):
                                 "extra_snippets": sanitized_extra_snippets,
                                 "hash": self._generate_result_hash(metadata["url"])
                             }
+                            
+                            # INFO log to verify thumbnail/favicon are being included in preview
+                            logger.info(
+                                f"[{task_id}] [SEARCH_DEBUG] Preview {idx} built: "
+                                f"metadata_favicon={metadata.get('favicon')}, "
+                                f"metadata_thumbnail_original={metadata.get('thumbnail_original')}, "
+                                f"preview_meta_url={preview.get('meta_url')}, "
+                                f"preview_thumbnail={preview.get('thumbnail')}"
+                            )
+                            
                             previews.append(preview)
                     
                     except Exception as e:
@@ -614,7 +678,7 @@ class SearchSkill(BaseSkill):
                         logger.error(error_msg, exc_info=True)
                         return (request_id, [], f"Query '{search_query}': TOON encoding/decoding error - {str(e)}")
                 else:
-                    # No text content to sanitize - add results as-is (shouldn't happen but handle it)
+                    # No text content to sanitize - add results with HTML tags stripped (shouldn't happen but handle it)
                     logger.warning(f"[{task_id}] No text content found in search results to sanitize")
                     for idx, result in enumerate(results):
                         meta_url = result.get("meta_url", {})
@@ -624,16 +688,21 @@ class SearchSkill(BaseSkill):
                         thumbnail = result.get("thumbnail", {})
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
                         
+                        # Strip HTML tags even in fallback case
+                        raw_extra_snippets = result.get("extra_snippets", [])
+                        if not isinstance(raw_extra_snippets, list):
+                            raw_extra_snippets = []
+                        
                         preview = {
                             "type": "search_result",
-                            "title": result.get("title", ""),
+                            "title": strip_html_tags(result.get("title", "")),
                             "url": result.get("url", ""),
-                            "description": result.get("description", ""),
+                            "description": strip_html_tags(result.get("description", "")),
                             "page_age": result.get("page_age", result.get("age", "")),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
                             "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
-                            "extra_snippets": result.get("extra_snippets", []),
+                            "extra_snippets": [strip_html_tags(s) for s in raw_extra_snippets if s],
                             "hash": self._generate_result_hash(result.get("url", ""))
                         }
                         previews.append(preview)

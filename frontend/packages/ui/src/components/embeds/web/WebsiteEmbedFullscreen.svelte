@@ -86,6 +86,43 @@
     onShowChat
   }: Props = $props();
   
+  // ===========================================
+  // HTML Tag Stripping (Client-side fallback)
+  // ===========================================
+  // NOTE: HTML tags should be stripped server-side during search processing.
+  // This client-side function is a FALLBACK for legacy data or edge cases.
+  
+  /**
+   * Strip HTML tags from text to prevent rendering raw HTML in the UI.
+   * This is a FALLBACK - the backend should strip tags before sending data.
+   * Handles tags like <strong>, <em>, <b>, <i>, <a>, <span>, etc.
+   * Also decodes common HTML entities.
+   * 
+   * @param text - Text that may contain HTML tags
+   * @returns Clean text with all HTML tags removed
+   */
+  function stripHtmlTags(text: string | undefined): string {
+    if (!text) return '';
+    
+    // Remove all HTML tags using regex
+    let cleaned = text.replace(/<[^>]*>/g, '');
+    
+    // Decode common HTML entities
+    cleaned = cleaned
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'");
+    
+    // Clean up extra whitespace that might result from removed tags
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  }
+  
   // Debug: Log all props when component is initialized
   // This helps trace data flow issues with extra_snippets and page_age
   $effect(() => {
@@ -183,6 +220,13 @@
   
   let displayTitle = $derived(title || hostname());
   let displayDescription = $derived(description || '');
+  
+  // Strip HTML tags as fallback (backend should already strip them)
+  // This ensures clean text display even for legacy data
+  let cleanedDescription = $derived(stripHtmlTags(displayDescription));
+  
+  // Strip HTML tags from each snippet as fallback
+  let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
   
   // Favicon URL with fallback chain
   let faviconUrl = $derived(
@@ -449,9 +493,9 @@
         Open on {hostname()}
       </button>
       
-      <!-- Description -->
-      {#if displayDescription}
-        <p class="description">{displayDescription}</p>
+      <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
+      {#if cleanedDescription}
+        <p class="description">{cleanedDescription}</p>
       {/if}
       
       <!-- Snippets Section -->
@@ -461,7 +505,7 @@
           <div class="snippets-source">via Brave Search</div>
           
           <div class="snippets-list">
-            {#each snippets as snippet}
+            {#each cleanedSnippets as snippet}
               <div class="snippet-card">
                 <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
                 <div class="quote-icon quote-open clickable-icon icon_quote"></div>

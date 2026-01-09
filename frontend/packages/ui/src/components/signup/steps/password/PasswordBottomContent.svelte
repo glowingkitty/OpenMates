@@ -147,32 +147,42 @@
             }
             const saltB64 = window.btoa(saltBinary);
             
+            console.debug('[PasswordBottomContent] Starting email crypto operations...');
+            
             // Generate hashed email for lookup
             const hashedEmail = await cryptoService.hashEmail(storeData.email);
+            console.debug('[PasswordBottomContent] Email hashed successfully');
             
             // Generate email salt and derive email encryption key
             const emailSalt = cryptoService.generateEmailSalt();
             const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
+            console.debug('[PasswordBottomContent] Email salt generated');
             
             // Generate lookup hash from password using user_email_salt instead of a random salt
             // This makes authentication more efficient as we don't need to query encryption_keys
             const lookupHash = await cryptoService.hashKey(password, emailSalt);
+            console.debug('[PasswordBottomContent] Lookup hash generated');
             
             // Derive email encryption key (for server use)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
+            console.debug('[PasswordBottomContent] Email encryption key derived');
             
             // Store the email encryption key on the client (for future server communication)
             cryptoService.saveEmailEncryptionKey(emailEncryptionKey, storeData.stayLoggedIn);
+            console.debug('[PasswordBottomContent] Email encryption key saved');
             
             // Store the email salt on the client (for recovery key and other authentication methods)
             cryptoService.saveEmailSalt(emailSalt, storeData.stayLoggedIn);
+            console.debug('[PasswordBottomContent] Email salt saved');
             
             // Encrypt the email with the email encryption key (for server storage)
             const encryptedEmailForServer = await cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            console.debug('[PasswordBottomContent] Email encrypted for server');
             
             // Encrypt the email with the master key (for client storage)
             // CRITICAL: Must await this async function to ensure email is encrypted before proceeding
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
+            console.debug(`[PasswordBottomContent] Email stored with master key: ${emailStoredSuccessfully}`);
             
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
@@ -181,26 +191,39 @@
             }
             
             // Make API call to setup password and create user account
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_password), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    hashed_email: hashedEmail, // Hashed email for lookup
-                    encrypted_email: encryptedEmailForServer, // Client-side encrypted email
-                    user_email_salt: emailSaltB64, // Salt for email encryption
-                    username: storeData.username,
-                    invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
-                    encrypted_master_key: encryptedMasterKey,
-                    key_iv: keyIv, // IV for master key encryption (Web Crypto API)
-                    salt: saltB64,
-                    lookup_hash: lookupHash, // Hash of email + password
-                    language: storeData.language || 'en',
-                    darkmode: storeData.darkmode || false
-                }),
-                credentials: 'include'
-            });
+            const apiUrl = getApiEndpoint(apiEndpoints.auth.setup_password);
+            console.debug(`[PasswordBottomContent] Making API call to: ${apiUrl}`);
+            
+            let response: Response;
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail, // Hashed email for lookup
+                        encrypted_email: encryptedEmailForServer, // Client-side encrypted email
+                        user_email_salt: emailSaltB64, // Salt for email encryption
+                        username: storeData.username,
+                        invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
+                        encrypted_master_key: encryptedMasterKey,
+                        key_iv: keyIv, // IV for master key encryption (Web Crypto API)
+                        salt: saltB64,
+                        lookup_hash: lookupHash, // Hash of email + password
+                        language: storeData.language || 'en',
+                        darkmode: storeData.darkmode || false
+                    }),
+                    credentials: 'include'
+                });
+                console.debug(`[PasswordBottomContent] API response status: ${response.status}`);
+            } catch (fetchError) {
+                // Log specific fetch error details (without sensitive data)
+                const errorName = fetchError instanceof Error ? fetchError.name : 'Unknown';
+                const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+                console.error(`[PasswordBottomContent] Fetch failed - Type: ${errorName}, Message: ${errorMsg}`);
+                throw fetchError; // Re-throw to be caught by outer catch
+            }
             
             if (!response.ok) {
                 const errorData = await response.json();
@@ -293,6 +316,12 @@
             }
             
         } catch (error) {
+            // Log error details separately to help debugging while keeping sensitive data safe
+            const errorName = error instanceof Error ? error.name : 'Unknown';
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[PasswordBottomContent] Password setup error - Type: ${errorName}, Message: ${errorMessage}`);
+            
+            // Also log the full error for debugging (will be sanitized by logCollector)
             console.error('Error setting up password:', error);
             
             // Check for chunk loading errors (stale cache after deployment)
@@ -300,6 +329,13 @@
             if (isChunkLoadError(error)) {
                 logChunkLoadError('PasswordBottomContent', error);
                 notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+                return;
+            }
+            
+            // Check for network errors (common when connection to API fails)
+            if (error instanceof TypeError && errorMessage.includes('fetch')) {
+                console.error('[PasswordBottomContent] Network error detected - API may be unreachable');
+                notificationStore.error('Unable to connect to the server. Please check your internet connection and try again.', 8000);
                 return;
             }
             

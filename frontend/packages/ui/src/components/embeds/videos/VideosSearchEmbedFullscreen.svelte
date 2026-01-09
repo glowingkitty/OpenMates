@@ -7,7 +7,7 @@
   Shows:
   - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
   - Video embeds in a grid (auto-responsive columns)
-  - Each video uses WebsiteEmbedPreview component
+  - Each video uses VideoEmbedPreview component (NOT WebsiteEmbedPreview)
   - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
   - Top bar with share, copy, and minimize buttons
   
@@ -23,25 +23,63 @@
   - No re-loading of child embeds
   - Scroll position preserved on search results
   - Instant close transition since search results are always visible
+  
+  Video Data Flow:
+  - Child embeds contain full video metadata (title, channelTitle, duration, viewCount, etc.)
+  - VideoEmbedPreview receives all metadata as props (no additional fetch needed)
+  - When clicked, VideoEmbedFullscreen receives metadata for proper display
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
-  import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import VideoEmbedFullscreen from './VideoEmbedFullscreen.svelte';
+  import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   import { text } from '@repo/ui';
   
   /**
    * Video search result interface (transformed from child embeds)
+   * Contains all video metadata needed for VideoEmbedPreview and VideoEmbedFullscreen
+   * 
+   * Field mapping from TOON-encoded embed content:
+   * - title: video title
+   * - url: YouTube URL
+   * - channelTitle -> channelName: channel name
+   * - meta_url_profile_image -> channelThumbnail: channel profile picture
+   * - thumbnail_original -> thumbnail: video thumbnail URL
+   * - duration: ISO 8601 duration string (e.g., "PT18M4S")
+   * - viewCount: number of views
+   * - likeCount: number of likes
+   * - publishedAt: ISO 8601 date string
+   * - description: video description
    */
   interface VideoSearchResult {
     embed_id: string;
     title?: string;
     url: string;
+    /** Video thumbnail URL */
     thumbnail?: string;
-    favicon?: string;
+    /** Channel profile picture URL */
+    channelThumbnail?: string;
+    /** Channel name */
+    channelName?: string;
+    /** Channel ID */
+    channelId?: string;
+    /** Video description */
     description?: string;
+    /** Duration in seconds */
+    durationSeconds?: number;
+    /** Duration formatted (e.g., "17:08") */
+    durationFormatted?: string;
+    /** View count */
+    viewCount?: number;
+    /** Like count */
+    likeCount?: number;
+    /** Published date (ISO string) */
+    publishedAt?: string;
+    /** Video ID extracted from URL */
+    videoId?: string;
   }
   
   /**
@@ -111,21 +149,134 @@
   );
   
   /**
+   * Parse ISO 8601 duration string to seconds and formatted string
+   * Example: "PT18M4S" -> { totalSeconds: 1084, formatted: "18:04" }
+   * 
+   * @param isoDuration - ISO 8601 duration string (e.g., "PT18M4S", "PT1H2M3S")
+   * @returns Object with totalSeconds and formatted string, or undefined if invalid
+   */
+  function parseIsoDuration(isoDuration: string | undefined): { totalSeconds: number; formatted: string } | undefined {
+    if (!isoDuration || typeof isoDuration !== 'string') return undefined;
+    
+    // Match ISO 8601 duration format: PT[hours]H[minutes]M[seconds]S
+    const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return undefined;
+    
+    const hours = parseInt(match[1] || '0', 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    const seconds = parseInt(match[3] || '0', 10);
+    
+    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+    
+    // Format as HH:MM:SS or MM:SS
+    let formatted: string;
+    if (hours > 0) {
+      formatted = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    return { totalSeconds, formatted };
+  }
+  
+  /**
+   * Extract video ID from YouTube URL
+   * Supports various YouTube URL formats (watch, youtu.be, embed, shorts)
+   * 
+   * @param videoUrl - YouTube URL
+   * @returns Video ID or undefined
+   */
+  function extractVideoId(videoUrl: string): string | undefined {
+    if (!videoUrl) return undefined;
+    
+    // YouTube URL patterns
+    const patterns = [
+      /(?:youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
+      /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = videoUrl.match(pattern);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    return undefined;
+  }
+  
+  /**
    * Transform raw embed content to VideoSearchResult format
    * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   * 
+   * Extracts ALL video metadata from TOON-encoded content for proper display
+   * in VideoEmbedPreview and VideoEmbedFullscreen
+   * 
+   * Field mapping from TOON-encoded embed content:
+   * - title: video title
+   * - url: YouTube URL
+   * - channelTitle -> channelName: channel name
+   * - meta_url_profile_image -> channelThumbnail: channel profile picture
+   * - thumbnail_original -> thumbnail: video thumbnail URL
+   * - duration: ISO 8601 duration string (e.g., "PT18M4S") -> parsed to seconds/formatted
+   * - viewCount: number of views
+   * - likeCount: number of likes
+   * - publishedAt: ISO 8601 date string
+   * - description: video description
    */
   function transformToVideoResult(embedId: string, content: Record<string, unknown>): VideoSearchResult {
-    // Handle nested thumbnail and meta_url objects
+    // Handle nested thumbnail and meta_url objects (fallback for non-flattened data)
     const thumbnail = content.thumbnail as Record<string, string> | undefined;
     const metaUrl = content.meta_url as Record<string, string> | undefined;
+    
+    // Extract video URL
+    const url = content.url as string || '';
+    
+    // Parse ISO 8601 duration to seconds and formatted string
+    const duration = parseIsoDuration(content.duration as string | undefined);
+    
+    // Extract video ID from URL
+    const videoId = extractVideoId(url);
+    
+    // DEBUG: Log transformed data for first few results
+    console.debug(`[VideosSearchEmbedFullscreen] Transforming embed ${embedId}:`, {
+      title: (content.title as string)?.substring(0, 40),
+      channelTitle: content.channelTitle,
+      meta_url_profile_image: content.meta_url_profile_image,
+      duration: content.duration,
+      parsedDuration: duration,
+      viewCount: content.viewCount,
+      likeCount: content.likeCount,
+      publishedAt: content.publishedAt
+    });
     
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
-      url: content.url as string,
+      url: url,
+      // Video thumbnail: prefer flattened format, fall back to nested
       thumbnail: (content.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
-      favicon: (content.meta_url_favicon as string) || metaUrl?.favicon,
-      description: (content.description as string) || (content.snippet as string)
+      // Channel profile picture: prefer TOON-flattened format
+      channelThumbnail: (content.meta_url_profile_image as string) || metaUrl?.profile_image,
+      // Channel name: from channelTitle field
+      channelName: content.channelTitle as string | undefined,
+      // Channel ID (if available)
+      channelId: content.channelId as string | undefined,
+      // Video description
+      description: (content.description as string) || (content.snippet as string),
+      // Duration: parsed from ISO 8601 format
+      durationSeconds: duration?.totalSeconds,
+      durationFormatted: duration?.formatted,
+      // View and like counts
+      viewCount: content.viewCount as number | undefined,
+      likeCount: content.likeCount as number | undefined,
+      // Published date (ISO string)
+      publishedAt: content.publishedAt as string | undefined,
+      // Video ID extracted from URL
+      videoId: videoId
     };
   }
   
@@ -136,14 +287,25 @@
     return (results as Array<Record<string, unknown>>).map((r, i) => {
       const thumbnail = r.thumbnail as Record<string, string> | undefined;
       const metaUrl = r.meta_url as Record<string, string> | undefined;
+      const url = r.url as string || '';
+      const duration = parseIsoDuration(r.duration as string | undefined);
+      const videoId = extractVideoId(url);
       
       return {
         embed_id: `legacy-${i}`,
         title: r.title as string | undefined,
-        url: r.url as string,
-        thumbnail: thumbnail?.original || thumbnail?.src,
-        favicon: metaUrl?.favicon,
-        description: (r.description as string) || (r.snippet as string)
+        url: url,
+        thumbnail: (r.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
+        channelThumbnail: (r.meta_url_profile_image as string) || metaUrl?.profile_image,
+        channelName: r.channelTitle as string | undefined,
+        channelId: r.channelId as string | undefined,
+        description: (r.description as string) || (r.snippet as string),
+        durationSeconds: duration?.totalSeconds,
+        durationFormatted: duration?.formatted,
+        viewCount: r.viewCount as number | undefined,
+        likeCount: r.likeCount as number | undefined,
+        publishedAt: r.publishedAt as string | undefined,
+        videoId: videoId
       };
     });
   }
@@ -217,15 +379,23 @@
   /**
    * Handle video click - shows the video in fullscreen mode
    * Uses VideoEmbedFullscreen for full video player experience
+   * Passes all video metadata for proper display
    */
-  function handleVideoFullscreen(videoData: VideoSearchResult) {
+  function handleVideoFullscreen(videoData: VideoSearchResult, metadata: VideoMetadata) {
     console.debug('[VideosSearchEmbedFullscreen] Opening video fullscreen:', {
       embedId: videoData.embed_id,
       url: videoData.url,
-      title: videoData.title
+      title: videoData.title,
+      channelName: metadata.channelName,
+      duration: metadata.duration?.formatted,
+      viewCount: metadata.viewCount
     });
     selectedVideo = videoData;
+    selectedVideoMetadata = metadata;
   }
+  
+  /** Metadata for the currently selected video (passed to VideoEmbedFullscreen) */
+  let selectedVideoMetadata = $state<VideoMetadata | null>(null);
   
   /**
    * Handle closing the video fullscreen - returns to search results
@@ -234,6 +404,7 @@
   function handleVideoFullscreenClose() {
     console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
     selectedVideo = null;
+    selectedVideoMetadata = null;
   }
   
   /**
@@ -244,10 +415,33 @@
     // If a video is open, first close it and return to search results
     if (selectedVideo) {
       selectedVideo = null;
+      selectedVideoMetadata = null;
     } else {
       // Otherwise, close the entire fullscreen
       onClose();
     }
+  }
+  
+  /**
+   * Create VideoMetadata object from VideoSearchResult for passing to VideoEmbedFullscreen
+   * This converts the search result format to the metadata format expected by VideoEmbedFullscreen
+   */
+  function createVideoMetadata(result: VideoSearchResult): VideoMetadata {
+    return {
+      videoId: result.videoId || '',
+      title: result.title,
+      description: result.description,
+      channelName: result.channelName,
+      channelId: result.channelId,
+      channelThumbnail: result.channelThumbnail,
+      thumbnailUrl: result.thumbnail,
+      duration: result.durationSeconds !== undefined || result.durationFormatted 
+        ? { totalSeconds: result.durationSeconds || 0, formatted: result.durationFormatted || '' }
+        : undefined,
+      viewCount: result.viewCount,
+      likeCount: result.likeCount,
+      publishedAt: result.publishedAt
+    };
   }
 </script>
 
@@ -310,18 +504,26 @@
       </div>
     {:else}
       <!-- Video embeds grid - responsive auto-fill columns -->
+      <!-- Uses VideoEmbedPreview for proper video display with channel info, duration, etc. -->
       <div class="video-embeds-grid" class:mobile={isMobile}>
         {#each videoResults as result}
-          <WebsiteEmbedPreview
+          <VideoEmbedPreview
             id={result.embed_id}
             url={result.url}
             title={result.title}
-            description={result.description}
-            favicon={result.favicon}
-            image={result.thumbnail}
             status="finished"
             isMobile={false}
-            onFullscreen={() => handleVideoFullscreen(result)}
+            channelName={result.channelName}
+            channelId={result.channelId}
+            channelThumbnail={result.channelThumbnail}
+            thumbnail={result.thumbnail}
+            durationSeconds={result.durationSeconds}
+            durationFormatted={result.durationFormatted}
+            viewCount={result.viewCount}
+            likeCount={result.likeCount}
+            publishedAt={result.publishedAt}
+            videoId={result.videoId}
+            onFullscreen={(metadata) => handleVideoFullscreen(result, metadata)}
           />
         {/each}
       </div>
@@ -331,6 +533,7 @@
 
 <!-- Video fullscreen overlay - rendered ON TOP when a video is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+<!-- Passes full metadata to VideoEmbedFullscreen for proper display (no additional fetch needed) -->
 {#if selectedVideo}
   <ChildEmbedOverlay>
     <VideoEmbedFullscreen
@@ -338,6 +541,8 @@
       title={selectedVideo.title}
       onClose={handleVideoFullscreenClose}
       embedId={selectedVideo.embed_id}
+      videoId={selectedVideo.videoId}
+      metadata={selectedVideoMetadata || createVideoMetadata(selectedVideo)}
     />
   </ChildEmbedOverlay>
 {/if}

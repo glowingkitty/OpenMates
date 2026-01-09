@@ -133,6 +133,8 @@
     onBasicInfosBarClick?: () => void;
     /** Custom favicon URL for BasicInfosBar */
     faviconUrl?: string;
+    /** Whether favicon should be circular (for channel thumbnails, profile pics) */
+    faviconIsCircular?: boolean;
     /** Whether to show skill icon in BasicInfosBar */
     showSkillIcon?: boolean;
     /** Custom status text for BasicInfosBar */
@@ -210,6 +212,7 @@
     taskId,
     onBasicInfosBarClick,
     faviconUrl,
+    faviconIsCircular = false,
     showSkillIcon = true,
     customStatusText,
     showStatus = true,
@@ -738,6 +741,7 @@
                 {skillName}
                 {taskId}
                 {faviconUrl}
+                {faviconIsCircular}
                 {showSkillIcon}
                 {customStatusText}
                 {showStatus}
@@ -753,6 +757,7 @@
                 {skillName}
                 {taskId}
                 {faviconUrl}
+                {faviconIsCircular}
                 {showSkillIcon}
                 {customStatusText}
                 {showStatus}

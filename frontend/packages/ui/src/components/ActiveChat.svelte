@@ -599,13 +599,35 @@
             if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
 console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
                 try {
-                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    // Use loadEmbedsWithRetry to handle race condition where child embeds
+                    // might not be persisted yet (they arrive via websocket after parent)
+                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
                     
                     // Transform child embeds to WebSearchResult format
                     const results = await Promise.all(childEmbeds.map(async (embed) => {
                         const websiteContent = embed.content ? await decodeToon(embed.content) : null;
                         if (!websiteContent) return null;
+                        
+                        // Extract favicon URL from multiple possible field formats:
+                        // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+                        // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
+                        // 3. favicon: Direct field (processed backend format)
+                        const faviconUrl = 
+                            websiteContent.meta_url_favicon ||  // TOON flattened format (most common)
+                            (websiteContent.meta_url as { favicon?: string } | undefined)?.favicon || 
+                            websiteContent.favicon || 
+                            '';
+                        
+                        // Extract preview image from multiple possible field formats:
+                        // 1. thumbnail_original: TOON-flattened format
+                        // 2. thumbnail.original: Nested format
+                        // 3. image: Direct field
+                        const previewImageUrl = 
+                            websiteContent.thumbnail_original ||  // TOON flattened format
+                            (websiteContent.thumbnail as { original?: string } | undefined)?.original ||
+                            websiteContent.image || 
+                            '';
                         
                         return {
                             type: 'search_result' as const,
@@ -613,8 +635,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             url: websiteContent.url || '',
                             snippet: websiteContent.description || websiteContent.extra_snippets || '',
                             hash: embed.embed_id || '',
-                            favicon_url: websiteContent.meta_url_favicon || websiteContent.favicon || '',
-                            preview_image_url: websiteContent.thumbnail_original || websiteContent.image || ''
+                            // Include 'favicon' field for WebSearchEmbedPreview's getFaviconUrl()
+                            favicon: faviconUrl,
+                            favicon_url: faviconUrl,
+                            preview_image_url: previewImageUrl
                         };
                     }));
                     
@@ -629,8 +653,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
                 console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
                 try {
-                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    // Use loadEmbedsWithRetry to handle race condition where child embeds
+                    // might not be persisted yet (they arrive via websocket after parent)
+                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
                     
                     // Transform child embeds to PlaceSearchResult format
                     const results = await Promise.all(childEmbeds.map(async (embed) => {

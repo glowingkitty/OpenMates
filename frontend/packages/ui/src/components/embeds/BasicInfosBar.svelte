@@ -163,7 +163,7 @@
             }} 
           />
         {/if}
-        <span class="title-text">{skillName}</span>
+        <span class="title-text" class:two-lines={!customStatusText}>{skillName}</span>
       </span>
       {#if showStatus}
         <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
@@ -279,22 +279,29 @@
   
   /* Circular favicon for channel thumbnails/profile pictures */
   .basic-infos-bar.desktop .title-favicon.circular {
-    width: 29px;
-    height: 29px;
+    width: 25px;
+    height: 25px;
     border-radius: 50%;
   }
   
   .basic-infos-bar.desktop .title-text {
     flex: 1;
     min-width: 0;
-    /* Limit to 2 lines with ellipsis */
+    /* Default: 1 line with ellipsis (for embeds with custom status text like videos) */
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
+  }
+  
+  /* Two lines for title when no custom status text is present (e.g., websites) */
+  /* This allows the title to use more vertical space when there's no duration/date line */
+  .basic-infos-bar.desktop .title-text.two-lines {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
   
   .basic-infos-bar.desktop .status-value {

@@ -226,14 +226,23 @@
   
   /**
    * Transform legacy results to WebSearchResult format (for backwards compatibility)
-   * Handles both nested and flat field formats
+   * Handles both nested and flat field formats.
+   * 
+   * NOTE: Legacy results use synthetic 'legacy-X' IDs since they don't correspond
+   * to actual embeds in IndexedDB. These IDs are handled specially by
+   * UnifiedEmbedPreview to skip unnecessary embedStore lookups.
+   * 
+   * Also checks the 'favicon' field first (backend-processed format) before
+   * trying nested paths (raw API format).
    */
   function transformLegacyResults(results: unknown[]): WebSearchResult[] {
     return (results as Array<Record<string, unknown>>).map((r, i) => ({
       embed_id: `legacy-${i}`,
       title: r.title as string | undefined,
       url: r.url as string,
-      favicon_url: getNestedField(r, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
+      // Check 'favicon' first (backend-processed format from ActiveChat),
+      // then 'favicon_url', then nested 'meta_url.favicon' (raw API format)
+      favicon_url: (r.favicon as string) || getNestedField(r, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
       preview_image_url: getNestedField(r, 'thumbnail.original', 'preview_image_url', 'thumbnail_original', 'image'),
       snippet: (r.snippet as string) || (r.description as string),
       description: r.description as string | undefined,
@@ -399,14 +408,22 @@
       <div class="search-provider">{viaProvider}</div>
     </div>
     
-    {#if ctx.isLoadingChildren}
-      <div class="loading-state">
-        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
-      </div>
-    {:else if webResults.length === 0}
-      <div class="no-results">
-        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
-      </div>
+    <!-- 
+      Show results immediately if available (from children OR legacyResults).
+      Only show loading state if we have NO results at all and are still loading.
+      This ensures pre-loaded results from ActiveChat display immediately
+      without waiting for the (redundant) child embed reload.
+    -->
+    {#if webResults.length === 0}
+      {#if ctx.isLoadingChildren}
+        <div class="loading-state">
+          <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+        </div>
+      {:else}
+        <div class="no-results">
+          <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+        </div>
+      {/if}
     {:else}
       <!-- Website embeds grid - uses CSS container queries for responsive layout -->
       <!-- No JavaScript-based mobile detection; CSS handles responsive columns automatically -->
@@ -543,6 +560,18 @@
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
+  }
+  
+  /* ===========================================
+     Skill Icon Styling (skill-specific)
+     Defines the search icon mask-image for BasicInfosBar
+     Must be defined here since BasicInfosBar only provides
+     base styling without skill-specific icon URLs
+     =========================================== */
+  
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
 

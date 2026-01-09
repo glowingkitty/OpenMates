@@ -1015,8 +1015,27 @@ class EmbedService:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
+                    # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
+                        f"has_thumbnail={'thumbnail' in result}, "
+                        f"has_meta_url={'meta_url' in result}, "
+                        f"thumbnail={result.get('thumbnail')}, "
+                        f"meta_url={result.get('meta_url')}"
+                    )
+
                     # Convert result to TOON format (PLAINTEXT)
                     flattened_result = _flatten_for_toon_tabular(result)
+                    
+                    # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
+                        f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
+                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}, "
+                        f"thumbnail_original={flattened_result.get('thumbnail_original', 'NOT_FOUND')[:80] if flattened_result.get('thumbnail_original') else 'NOT_FOUND'}..., "
+                        f"meta_url_favicon={flattened_result.get('meta_url_favicon', 'NOT_FOUND')[:80] if flattened_result.get('meta_url_favicon') else 'NOT_FOUND'}..."
+                    )
+                    
                     content_toon = encode(flattened_result)
 
                     # Calculate text length for child embed
@@ -1054,6 +1073,8 @@ class EmbedService:
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
                     # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -1068,7 +1089,8 @@ class EmbedService:
                         created_at=created_at,
                         updated_at=created_at,
                         parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        check_cache_status=False  # Skip cache check - we just created this embed
                     )
 
                     child_embed_ids.append(child_embed_id)
@@ -1658,6 +1680,8 @@ class EmbedService:
                     
                     # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
                     # Without this, child embeds only exist in server cache and won't be stored in Directus
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -1672,7 +1696,8 @@ class EmbedService:
                         created_at=created_at,
                         updated_at=created_at,
                         parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        check_cache_status=False  # Skip cache check - we just created this embed
                     )
                     
                     child_embed_ids.append(child_embed_id)

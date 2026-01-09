@@ -26,7 +26,6 @@
   import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   // Import VideoMetadata type from preview component
@@ -291,6 +290,55 @@
     }
   }
   
+  /**
+   * Format upload date as localized date string
+   * Used for the BasicInfosBar status text (same format as VideoEmbedPreview)
+   */
+  function formatUploadDate(isoDateString: string | undefined): string {
+    if (!isoDateString) return '';
+    
+    try {
+      const date = new Date(isoDateString);
+      // Use browser locale for date formatting
+      return date.toLocaleDateString(undefined, { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    } catch {
+      return '';
+    }
+  }
+  
+  // ===========================================
+  // BasicInfosBar Derived Values (match VideoEmbedPreview format)
+  // ===========================================
+  
+  // Shortened video title for BasicInfosBar (truncate if too long)
+  let shortenedTitle = $derived.by(() => {
+    const titleToShorten = displayTitle || $text('embeds.youtube_video.text');
+    // Max ~30 chars for preview layout in the info bar
+    const maxLength = 30;
+    if (titleToShorten.length <= maxLength) return titleToShorten;
+    return titleToShorten.substring(0, maxLength - 1) + '…';
+  });
+  
+  // Formatted upload date for BasicInfosBar
+  let formattedUploadDate = $derived(formatUploadDate(publishedAt));
+  
+  // Custom status text for BasicInfosBar: "17:08, Jan 6, 2026" (duration + date)
+  // Shown as the second line in BasicInfosBar (same format as VideoEmbedPreview)
+  let customStatusText = $derived.by(() => {
+    const parts: string[] = [];
+    if (duration?.formatted) {
+      parts.push(duration.formatted);
+    }
+    if (formattedUploadDate) {
+      parts.push(formattedUploadDate);
+    }
+    return parts.length > 0 ? parts.join(', ') : undefined;
+  });
+  
   // ===========================================
   // Event Handlers
   // ===========================================
@@ -498,9 +546,12 @@
   onShare={handleShare}
   skillIconName="video"
   status="finished"
-  skillName={displayTitle}
+  skillName={shortenedTitle}
+  faviconUrl={channelThumbnailUrl || undefined}
+  faviconIsCircular={true}
   showSkillIcon={false}
-  showStatus={false}
+  showStatus={true}
+  {customStatusText}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -540,14 +591,102 @@
             <span class="play-icon"></span>
           </button>
         </div>
+        <!-- Action buttons - positioned below thumbnail -->
+        {#if url}
+          <div class="button-container">
+            <!-- Tip Creator button - positioned left to the play on YouTube button -->
+            <button
+              class="tip-creator-button"
+              onclick={handleTipCreator}
+              type="button"
+              aria-label={$text('embeds.tip_creator.text')}
+            >
+              <span class="clickable-icon icon_volunteering"></span>
+            </button>
+            <a 
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="open-on-youtube-button"
+            >
+              {$text('embeds.open_on_youtube.text')}
+            </a>
+            <!-- Picture-in-Picture button - only shown when video is playing -->
+            {#if isVideoPlaying && videoId && embedUrl}
+              <button
+                class="pip-button"
+                onclick={handleEnterPip}
+                type="button"
+                aria-label={$text('embeds.video_pip.text')}
+              >
+                <span class="clickable-icon icon_pip"></span>
+              </button>
+            {/if}
+          </div>
+        {/if}
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
         <!-- This spacer maintains layout so buttons stay below the video -->
         <div class="video-playing-spacer"></div>
+        
+        <!-- Action buttons when video is playing -->
+        {#if url}
+          <div class="button-container">
+            <!-- Tip Creator button -->
+            <button
+              class="tip-creator-button"
+              onclick={handleTipCreator}
+              type="button"
+              aria-label={$text('embeds.tip_creator.text')}
+            >
+              <span class="clickable-icon icon_volunteering"></span>
+            </button>
+            <a 
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="open-on-youtube-button"
+            >
+              {$text('embeds.open_on_youtube.text')}
+            </a>
+            <!-- Picture-in-Picture button -->
+            {#if videoId && embedUrl}
+              <button
+                class="pip-button"
+                onclick={handleEnterPip}
+                type="button"
+                aria-label={$text('embeds.video_pip.text')}
+              >
+                <span class="clickable-icon icon_pip"></span>
+              </button>
+            {/if}
+          </div>
+        {/if}
       {/if}
       
-      <!-- Video title with channel thumbnail - displayed prominently below thumbnail -->
-      {#if displayTitle && displayTitle !== 'YouTube Video' && !isVideoPlaying}
+      <!-- Views and likes - displayed below the buttons with icons -->
+      {#if (viewCount || likeCount) && !isVideoPlaying}
+        <div class="video-stats-row">
+          {#if viewCount}
+            <span class="stat-item">
+              <span class="stat-icon icon_visibility"></span>
+              {formatViewCount(viewCount)}
+            </span>
+          {/if}
+          {#if viewCount && likeCount}
+            <span class="stat-separator">•</span>
+          {/if}
+          {#if likeCount}
+            <span class="stat-item">
+              <span class="stat-icon icon_thumb_up"></span>
+              {formatLikeCount(likeCount)}
+            </span>
+          {/if}
+        </div>
+      {/if}
+      
+      <!-- Video title - displayed prominently below stats -->
+      {#if displayTitle && !isVideoPlaying}
         <div class="video-title-row">
           {#if channelThumbnailUrl}
             <img 
@@ -564,78 +703,28 @@
         </div>
       {/if}
       
-      <!-- Video metadata info: channel name, duration, upload date -->
-      {#if (channelName || duration || publishedAt) && !isVideoPlaying}
+      <!-- Video metadata info: channel name, upload date -->
+      {#if (channelName || publishedAt) && !isVideoPlaying}
         <div class="video-metadata">
-          <!-- Meta row: "by {channelName}, {date} uploaded" -->
           <div class="video-meta-line">
             {#if channelName}
-              <span class="meta-text">by {channelName}</span>
+              <span class="meta-text">{$text('embeds.video_by.text', { default: 'by' })} {channelName}</span>
             {/if}
             {#if channelName && publishedAt}
               <span class="meta-separator">,</span>
             {/if}
             {#if publishedAt}
-              <span class="meta-text">{formatPublishedDate(publishedAt)} uploaded</span>
+              <span class="meta-text">{formatPublishedDate(publishedAt)} {$text('embeds.video_uploaded.text', { default: 'uploaded' })}</span>
             {/if}
           </div>
         </div>
       {/if}
       
-      <!-- Video description - truncated with expand option -->
+      <!-- Video description - truncated -->
       {#if description && !isVideoPlaying}
         <div class="video-description">
           <p class="description-text">{description}</p>
         </div>
-      {/if}
-      
-      <!-- Action buttons - moves down when video is playing to avoid collision -->
-      {#if url}
-        <div class="button-container" class:video-playing={isVideoPlaying}>
-          <!-- Tip Creator button - positioned left to the play on YouTube button -->
-          <button
-            class="tip-creator-button"
-            onclick={handleTipCreator}
-            type="button"
-            aria-label={$text('embeds.tip_creator.text')}
-          >
-            <span class="clickable-icon icon_volunteering"></span>
-          </button>
-          <a 
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="open-on-youtube-button"
-          >
-            {$text('embeds.open_on_youtube.text')}
-          </a>
-          <!-- Picture-in-Picture button - only shown when video is playing -->
-          {#if isVideoPlaying && videoId && embedUrl}
-            <button
-              class="pip-button"
-              onclick={handleEnterPip}
-              type="button"
-              aria-label={$text('embeds.video_pip.text')}
-            >
-              <span class="clickable-icon icon_pip"></span>
-            </button>
-          {/if}
-        </div>
-        
-        <!-- Views and likes - displayed below the Open on YouTube button -->
-        {#if (viewCount || likeCount) && !isVideoPlaying}
-          <div class="video-stats-row">
-            {#if viewCount}
-              <span class="stat-item">{formatViewCount(viewCount)}</span>
-            {/if}
-            {#if viewCount && likeCount}
-              <span class="stat-separator">•</span>
-            {/if}
-            {#if likeCount}
-              <span class="stat-item">{formatLikeCount(likeCount)}</span>
-            {/if}
-          </div>
-        {/if}
       {/if}
     </div>
   {/snippet}
@@ -668,7 +757,7 @@
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    top: 40px;
+    margin-top: 60px;
   }
   
   .video-thumbnail {
@@ -729,7 +818,7 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    margin: 48px 0 8px 0;
+    margin: 8px 0;
     max-width: 780px;
     width: 100%;
   }
@@ -803,11 +892,26 @@
     gap: 8px;
     font-size: 13px;
     color: var(--color-grey-60);
-    margin-top: 12px;
+    margin-top: 16px;
   }
   
   .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     color: var(--color-grey-60);
+  }
+  
+  .stat-icon {
+    width: 16px;
+    height: 16px;
+    background-color: var(--color-grey-60);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
   }
   
   .stat-separator {
@@ -858,7 +962,7 @@
      Action Buttons
      =========================================== */
   
-  /* Button container - centered, moves down when video is playing */
+  /* Button container - centered below thumbnail */
   .button-container {
     display: flex;
     justify-content: center;
@@ -867,15 +971,7 @@
     flex-wrap: wrap;
     width: 100%;
     max-width: 780px;
-    /* Smooth transition for margin change */
-    transition: margin-top 0.3s ease-out;
-  }
-  
-  /* When video is playing, add margin to push buttons below the video iframe */
-  /* The VideoIframe is ~438px tall (780px * 56.25% aspect ratio) positioned at top:80px */
-  /* So buttons need to be pushed down to avoid collision */
-  .button-container.video-playing {
-    margin-top: 20px;
+    margin-top: 16px;
   }
   
   /* Open on YouTube button - styled as button but is an <a> link */

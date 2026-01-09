@@ -14,8 +14,7 @@
 import logging
 import os
 import httpx
-from typing import Dict, Any, List, Optional
-from urllib.parse import urlencode
+from typing import Dict, Any, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -266,8 +265,16 @@ async def search_web(
                 # Note: Brave Search does not always return 'age' for all results - it's optional metadata
                 page_age = result.get("age", "")
                 
-                # Debug log to track age field availability
-                logger.debug(f"Brave result for '{result.get('url', '')}': age='{page_age}', extra_snippets_count={len(extra_snippets)}")
+                # INFO log to track all metadata fields (for debugging thumbnail/favicon issues)
+                logger.info(
+                    f"[BRAVE_DEBUG] Result for '{result.get('url', '')[:60]}': "
+                    f"raw_meta_url_type={type(result.get('meta_url')).__name__}, "
+                    f"raw_meta_url_keys={list(result.get('meta_url', {}).keys()) if isinstance(result.get('meta_url'), dict) else 'N/A'}, "
+                    f"extracted_favicon={favicon[:80] if favicon else None}, "
+                    f"raw_thumbnail_type={type(result.get('thumbnail')).__name__}, "
+                    f"raw_thumbnail_keys={list(result.get('thumbnail', {}).keys()) if isinstance(result.get('thumbnail'), dict) else 'N/A'}, "
+                    f"extracted_thumbnail_original={thumbnail_original[:80] if thumbnail_original else None}"
+                )
                 
                 formatted_result = {
                     "title": result.get("title", ""),
@@ -421,11 +428,8 @@ async def search_videos(
             # Format results for consistent structure
             formatted_results = []
             for result in video_results:
-                # Extract meta_url and favicon
+                # Extract meta_url
                 meta_url = result.get("meta_url", {})
-                favicon = None
-                if isinstance(meta_url, dict):
-                    favicon = meta_url.get("favicon")
                 
                 # Extract thumbnail
                 thumbnail = result.get("thumbnail", {})
@@ -594,11 +598,8 @@ async def search_news(
             # Format results for consistent structure
             formatted_results = []
             for result in news_results:
-                # Extract meta_url and favicon
+                # Extract meta_url
                 meta_url = result.get("meta_url", {})
-                favicon = None
-                if isinstance(meta_url, dict):
-                    favicon = meta_url.get("favicon")
                 
                 # Extract thumbnail
                 thumbnail = result.get("thumbnail", {})
