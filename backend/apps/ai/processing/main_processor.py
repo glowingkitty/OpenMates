@@ -7,6 +7,7 @@ import json
 import httpx
 import datetime
 import os
+import copy
 from toon_format import encode
 
 # Import Pydantic models for type hinting
@@ -188,14 +189,17 @@ def _filter_skill_results_for_llm(
                     obj.pop(parent_key, None)
     
     for result in results:
-        filtered_result = result.copy()
+        # CRITICAL: Use deepcopy to avoid modifying original results when removing nested fields
+        # Shallow copy() shares nested dict references, so remove_field_path would corrupt originals
+        filtered_result = copy.deepcopy(result)
         
         # Handle both single result dict and result dict with "previews" array
         if "previews" in filtered_result:
             # Result has a "previews" array - filter each preview
             filtered_previews = []
             for preview in filtered_result.get("previews", []):
-                filtered_preview = preview.copy()
+                # Use deepcopy for nested dicts to avoid corrupting original previews
+                filtered_preview = copy.deepcopy(preview)
                 
                 # Remove each excluded field (but preserve essential fields)
                 for field_path in exclude_fields:
@@ -1798,6 +1802,18 @@ async def handle_main_processing(
                                     else:
                                         single_request_metadata["provider"] = "Brave Search"
                                 
+                                # DEBUG: Log what's being passed to update_embed_with_results
+                                if results and len(results) > 0:
+                                    first_result = results[0]
+                                    logger.info(
+                                        f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                        f"results[0] keys: {list(first_result.keys())}, "
+                                        f"has_thumbnail={'thumbnail' in first_result}, "
+                                        f"has_meta_url={'meta_url' in first_result}, "
+                                        f"thumbnail={first_result.get('thumbnail')}, "
+                                        f"meta_url={first_result.get('meta_url')}"
+                                    )
+                                
                                 updated_embed_data = await embed_service.update_embed_with_results(
                                     embed_id=placeholder_embed_data.get('embed_id'),
                                     app_id=app_id,
@@ -1949,7 +1965,7 @@ async def handle_main_processing(
                         "error": "Invalid JSON in function arguments"
                     }
                     tool_calls_info.append(tool_call_info)
-                except:
+                except Exception:
                     pass  # Don't fail if tracking fails
                 # Update embed status to error if placeholder exists
                 try:
@@ -1990,7 +2006,7 @@ async def handle_main_processing(
                         status="error",
                         error="Invalid JSON in function arguments"
                     )
-                except:
+                except Exception:
                     pass  # Don't fail if status publish fails
             except ValueError as e:
                 # Invalid tool name format
@@ -2006,7 +2022,7 @@ async def handle_main_processing(
                         "error": f"Invalid tool name format: {str(e)}"
                     }
                     tool_calls_info.append(tool_call_info)
-                except:
+                except Exception:
                     pass  # Don't fail if tracking fails
                 # Update embed status to error if placeholder exists
                 try:
@@ -2022,7 +2038,7 @@ async def handle_main_processing(
                         # Try to extract app_id and skill_id, fallback to unknown
                         try:
                             app_id, skill_id = tool_name.split('-', 1)
-                        except:
+                        except ValueError:
                             app_id = "unknown"
                             skill_id = "unknown"
                         await embed_service.update_embed_status_to_error(
@@ -2052,7 +2068,7 @@ async def handle_main_processing(
                         status="error",
                         error="Invalid tool name format"
                     )
-                except:
+                except Exception:
                     pass  # Don't fail if status publish fails
             except Exception as e:
                 logger.error(f"{log_prefix} Error executing tool '{tool_name}': {e}", exc_info=True)
@@ -2071,7 +2087,7 @@ async def handle_main_processing(
                         "error": str(e)
                     }
                     tool_calls_info.append(tool_call_info)
-                except:
+                except Exception:
                     pass  # Don't fail if tracking fails
                 # Update embed status to error if placeholder exists
                 try:
@@ -2112,7 +2128,7 @@ async def handle_main_processing(
                         status="error",
                         error=str(e)
                     )
-                except:
+                except Exception:
                     pass  # Don't fail if status publish fails
             
             # Add tool response to message history

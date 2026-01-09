@@ -1015,8 +1015,27 @@ class EmbedService:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
+                    # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
+                        f"has_thumbnail={'thumbnail' in result}, "
+                        f"has_meta_url={'meta_url' in result}, "
+                        f"thumbnail={result.get('thumbnail')}, "
+                        f"meta_url={result.get('meta_url')}"
+                    )
+
                     # Convert result to TOON format (PLAINTEXT)
                     flattened_result = _flatten_for_toon_tabular(result)
+                    
+                    # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
+                        f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
+                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}, "
+                        f"thumbnail_original={flattened_result.get('thumbnail_original', 'NOT_FOUND')[:80] if flattened_result.get('thumbnail_original') else 'NOT_FOUND'}..., "
+                        f"meta_url_favicon={flattened_result.get('meta_url_favicon', 'NOT_FOUND')[:80] if flattened_result.get('meta_url_favicon') else 'NOT_FOUND'}..."
+                    )
+                    
                     content_toon = encode(flattened_result)
 
                     # Calculate text length for child embed
