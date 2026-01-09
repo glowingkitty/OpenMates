@@ -1073,6 +1073,8 @@ class EmbedService:
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
                     # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -1087,7 +1089,8 @@ class EmbedService:
                         created_at=created_at,
                         updated_at=created_at,
                         parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        check_cache_status=False  # Skip cache check - we just created this embed
                     )
 
                     child_embed_ids.append(child_embed_id)
@@ -1677,6 +1680,8 @@ class EmbedService:
                     
                     # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
                     # Without this, child embeds only exist in server cache and won't be stored in Directus
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -1691,7 +1696,8 @@ class EmbedService:
                         created_at=created_at,
                         updated_at=created_at,
                         parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        check_cache_status=False  # Skip cache check - we just created this embed
                     )
                     
                     child_embed_ids.append(child_embed_id)

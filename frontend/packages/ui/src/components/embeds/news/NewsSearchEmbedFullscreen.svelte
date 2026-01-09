@@ -27,7 +27,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
-  import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import NewsEmbedPreview from './NewsEmbedPreview.svelte';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   
@@ -325,7 +325,7 @@
       <!-- News article embeds grid - responsive auto-fill columns -->
       <div class="article-embeds-grid" class:mobile={isMobile}>
         {#each newsResults as result}
-          <WebsiteEmbedPreview
+          <NewsEmbedPreview
             id={result.embed_id}
             url={result.url}
             title={result.title}
