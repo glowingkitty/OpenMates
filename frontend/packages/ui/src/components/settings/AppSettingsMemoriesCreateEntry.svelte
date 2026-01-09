@@ -13,11 +13,10 @@
      - Client-side encryption & decryption of entries
 -->
 <script lang="ts">
-    import { onMount, untrack } from 'svelte';
+    import { untrack } from 'svelte';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
-    import SettingsItem from '../SettingsItem.svelte';
-    import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
+    import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
@@ -76,8 +75,23 @@
     // Get schema from category metadata
     let schema = $derived(category?.schema_definition);
     
-    // Form state - dynamic based on schema
-    // If schema exists, create fields for each property
+    // Filter out auto_generated fields - these are populated automatically, not by user input
+    // Returns only the properties that should be shown in the form
+    // Using $derived.by() for complex computations with return statements
+    let userInputProperties = $derived.by<Record<string, SchemaPropertyDefinition>>(() => {
+        if (!schema?.properties) return {};
+        const filtered: Record<string, SchemaPropertyDefinition> = {};
+        for (const [key, prop] of Object.entries(schema.properties)) {
+            // Only include fields that are NOT auto_generated
+            if (!prop.auto_generated) {
+                filtered[key] = prop;
+            }
+        }
+        return filtered;
+    });
+    
+    // Form state - dynamic based on schema (only user-input fields)
+    // If schema exists, create fields for each non-auto_generated property
     // Otherwise, use generic form with itemKey and itemValue
     let formState = $state<Record<string, unknown>>({});
     let isCreating = $state(false);
@@ -101,10 +115,10 @@
         
         // Use untrack to prevent formState updates from retriggering this effect
         untrack(() => {
-            if (schema?.properties) {
-                // Initialize form fields from schema properties
+            if (Object.keys(userInputProperties).length > 0) {
+                // Initialize form fields from user-input properties only (excludes auto_generated)
                 const initialState: Record<string, unknown> = {};
-                for (const [key, prop] of Object.entries(schema.properties)) {
+                for (const [key, prop] of Object.entries(userInputProperties)) {
                     // Set default value if provided, otherwise empty string or appropriate default
                     if (prop.default !== undefined) {
                         initialState[key] = prop.default;
@@ -155,10 +169,11 @@
     
     /**
      * Validate form fields based on schema requirements.
+     * Only validates user-input fields (excludes auto_generated fields).
      */
     function validateForm(): string | null {
-        if (!schema?.properties) {
-            // Generic form validation
+        if (Object.keys(userInputProperties).length === 0) {
+            // Generic form validation (fallback when no schema)
             if (!formState.itemKey || String(formState.itemKey).trim() === '') {
                 return $text('settings.app_settings_memories.item_key_required.text') || 'Item key is required';
             }
@@ -168,19 +183,24 @@
             return null;
         }
         
-        // Schema-based validation
-        const required = schema.required || [];
+        // Schema-based validation - only check required fields that are NOT auto_generated
+        const required = schema?.required || [];
         for (const fieldName of required) {
+            // Skip validation for auto_generated fields (they'll be populated automatically)
+            if (schema?.properties?.[fieldName]?.auto_generated) {
+                continue;
+            }
+            
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
-                const prop = schema.properties[fieldName];
+                const prop = userInputProperties[fieldName];
                 const fieldLabel = prop?.description || fieldName;
                 return `${fieldLabel} is required`;
             }
         }
         
-        // Type validation
-        for (const [fieldName, prop] of Object.entries(schema.properties)) {
+        // Type validation for user-input fields only
+        for (const [fieldName, prop] of Object.entries(userInputProperties)) {
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
                 continue; // Skip empty optional fields
@@ -206,6 +226,7 @@
     /**
      * Handle form submission to create a new entry.
      * This creates an entry specific to this category type.
+     * Auto-populates auto_generated fields (like timestamps).
      */
     async function handleCreateEntry() {
         createError = '';
@@ -219,40 +240,70 @@
 
         isCreating = true;
         try {
-            let entryValue: unknown;
+            let entryValue: Record<string, unknown>;
             let itemKey: string;
             let settingsGroup: string;
             
-            if (schema?.properties) {
+            if (schema?.properties && Object.keys(userInputProperties).length > 0) {
                 // Build entry value from schema-based form
                 entryValue = {};
-                for (const [key, prop] of Object.entries(schema.properties)) {
+                
+                // First, add user-input fields from form
+                for (const [key, prop] of Object.entries(userInputProperties)) {
                     const value = formState[key];
                     if (value !== undefined && value !== null && String(value).trim() !== '') {
                         // Convert value to appropriate type
                         if (prop.type === 'integer') {
-                            (entryValue as Record<string, unknown>)[key] = parseInt(String(value), 10);
+                            entryValue[key] = parseInt(String(value), 10);
                         } else if (prop.type === 'number') {
-                            (entryValue as Record<string, unknown>)[key] = parseFloat(String(value));
+                            entryValue[key] = parseFloat(String(value));
                         } else if (prop.type === 'boolean') {
-                            (entryValue as Record<string, unknown>)[key] = Boolean(value);
+                            entryValue[key] = Boolean(value);
                         } else {
-                            (entryValue as Record<string, unknown>)[key] = String(value).trim();
+                            entryValue[key] = String(value).trim();
                         }
                     }
                 }
                 
-                // Generate item key from category and timestamp, or use a field value
+                // Then, auto-populate auto_generated fields
+                const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+                for (const [key, prop] of Object.entries(schema.properties)) {
+                    if (prop.auto_generated) {
+                        // Auto-generate based on field name patterns
+                        if (key.includes('date') || key.includes('_at') || key === 'timestamp') {
+                            // Timestamp fields get current time
+                            entryValue[key] = now;
+                        } else if (key === 'id' || key === 'entry_id') {
+                            // ID fields get a UUID
+                            entryValue[key] = crypto.randomUUID();
+                        } else if (prop.type === 'integer' || prop.type === 'number') {
+                            // Default numeric auto-generated to current timestamp
+                            entryValue[key] = now;
+                        } else {
+                            // Default string auto-generated to empty
+                            entryValue[key] = '';
+                        }
+                    }
+                }
+                
+                // Generate item key from category and a unique field value
                 // For bookmarks, use URL as key identifier
                 const urlField = Object.keys(schema.properties).find(k => 
                     k.toLowerCase().includes('url') || k.toLowerCase() === 'url'
                 );
+                const nameField = Object.keys(schema.properties).find(k => 
+                    k.toLowerCase() === 'name' || k.toLowerCase() === 'title'
+                );
+                
                 if (urlField && formState[urlField]) {
                     itemKey = `${categoryId}.${String(formState[urlField]).trim()}`;
+                } else if (nameField && formState[nameField]) {
+                    itemKey = `${categoryId}.${String(formState[nameField]).trim()}`;
                 } else {
-                    // Use first required field or first field as key
-                    const firstRequired = schema.required?.[0] || Object.keys(schema.properties)[0];
-                    itemKey = `${categoryId}.${String(formState[firstRequired] || Date.now()).trim()}`;
+                    // Use first required field or first user-input field as key
+                    const firstRequired = schema.required?.find(r => !schema.properties?.[r]?.auto_generated);
+                    const firstField = firstRequired || Object.keys(userInputProperties)[0];
+                    itemKey = `${categoryId}.${String(formState[firstField] || Date.now()).trim()}`;
                 }
                 
                 // Use category name as settings group
@@ -262,7 +313,7 @@
                 try {
                     entryValue = JSON.parse(String(formState.itemValue));
                 } catch {
-                    entryValue = String(formState.itemValue).trim();
+                    entryValue = { value: String(formState.itemValue).trim() };
                 }
                 itemKey = String(formState.itemKey).trim();
                 settingsGroup = String(formState.settingsGroup || itemKey.split('.')[0] || categoryName).trim();
@@ -289,10 +340,10 @@
      * Reset form and navigate back.
      */
     function handleCancel() {
-        // Reset form state based on schema
-        if (schema?.properties) {
+        // Reset form state based on user-input properties (excludes auto_generated)
+        if (Object.keys(userInputProperties).length > 0) {
             const resetState: Record<string, unknown> = {};
-            for (const [key, prop] of Object.entries(schema.properties)) {
+            for (const [key, prop] of Object.entries(userInputProperties)) {
                 if (prop.default !== undefined) {
                     resetState[key] = prop.default;
                 } else if (prop.type === 'integer' || prop.type === 'number') {
@@ -312,23 +363,15 @@
     }
     
     /**
-     * Get field input type based on schema property type.
-     */
-    function getInputType(propType: string | undefined): string {
-        if (propType === 'integer' || propType === 'number') {
-            return 'number';
-        }
-        if (propType === 'boolean') {
-            return 'checkbox';
-        }
-        return 'text';
-    }
-    
-    /**
      * Check if a field is required.
+     * Note: auto_generated required fields are handled automatically, 
+     * so we only mark user-input fields as required in the UI.
      */
     function isFieldRequired(fieldName: string): boolean {
-        return schema?.required?.includes(fieldName) || false;
+        // Only mark as required if it's in the required list AND not auto_generated
+        if (!schema?.required?.includes(fieldName)) return false;
+        if (schema?.properties?.[fieldName]?.auto_generated) return false;
+        return true;
     }
 </script>
 
@@ -355,12 +398,9 @@
 
         <!-- Create entry form -->
         <div class="form-container">
-            {#if schema?.properties && Object.keys(schema.properties).length > 0}
-                <!-- Schema-based form: Generate fields from schema properties -->
-                <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                    Creating entry for: {categoryName} ({Object.keys(schema.properties).length} fields)
-                </p>
-                {#each Object.entries(schema.properties) as [fieldName, prop]}
+            {#if Object.keys(userInputProperties).length > 0}
+                <!-- Schema-based form: Generate fields from user-input properties (excludes auto_generated) -->
+                {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
                         <label for={fieldName}>
                             {prop.description || fieldName}

@@ -1,0 +1,153 @@
+# Translations for code app settings and memories categories
+# See backend/apps/code/app.yml for the settings_and_memories definitions
+
+preferred_tech:
+  context: Settings/memory name for preferred technologies
+  en: Preferred Technologies
+  de: Bevorzugte Technologien
+  zh: 偏好技术
+  es: Tecnologías preferidas
+  fr: Technologies préférées
+  pt: Tecnologias preferidas
+  ru: Предпочтительные технологии
+  ja: 好みの技術
+  ko: 선호하는 기술
+  it: Tecnologie preferite
+  tr: Tercih edilen teknolojiler
+  vi: Công nghệ ưa thích
+  id: Teknologi pilihan
+  pl: Preferowane technologie
+  nl: Voorkeurstechnologieën
+  ar: التقنيات المفضلة
+  hi: पसंदीदा तकनीकें
+  th: เทคโนโลยีที่ชื่นชอบ
+  cs: Preferované technologie
+  sv: Föredragna teknologier
+  verified_by_human:
+  - en
+  - de
+preferred_tech.description:
+  context: Description for preferred technologies settings/memory
+  en: Languages, frameworks, and tools you prefer to work with
+  de: Sprachen, Frameworks und Tools, mit denen du bevorzugt arbeitest
+  zh: 你喜欢使用的语言、框架和工具
+  es: Lenguajes, frameworks y herramientas con los que prefieres trabajar
+  fr: Langages, frameworks et outils avec lesquels vous préférez travailler
+  pt: Linguagens, frameworks e ferramentas com os quais você prefere trabalhar
+  ru: Языки, фреймворки и инструменты, с которыми вы предпочитаете работать
+  ja: 好んで使用する言語、フレームワーク、ツール
+  ko: 선호하는 언어, 프레임워크 및 도구
+  it: Linguaggi, framework e strumenti con cui preferisci lavorare
+  tr: Çalışmayı tercih ettiğiniz diller, frameworkler ve araçlar
+  vi: Các ngôn ngữ, framework và công cụ bạn thích làm việc
+  id: Bahasa, framework, dan alat yang Anda sukai untuk bekerja
+  pl: Języki, frameworki i narzędzia, z którymi wolisz pracować
+  nl: Talen, frameworks en tools waar je graag mee werkt
+  ar: اللغات والأطر والأدوات التي تفضل العمل بها
+  hi: भाषाएं, फ्रेमवर्क और टूल्स जिनके साथ आप काम करना पसंद करते हैं
+  th: ภาษา เฟรมเวิร์ก และเครื่องมือที่คุณชอบใช้งาน
+  cs: Jazyky, frameworky a nástroje, se kterými preferujete pracovat
+  sv: Språk, ramverk och verktyg du föredrar att arbeta med
+  verified_by_human:
+  - en
+  - de
+projects:
+  context: Settings/memory name for projects
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: परियोजनाएं
+  th: โครงการ
+  cs: Projekty
+  sv: Projekt
+  verified_by_human:
+  - en
+  - de
+projects.description:
+  context: Description for projects settings/memory
+  en: Your projects (active, planned, or completed)
+  de: Deine Projekte (aktiv, geplant oder abgeschlossen)
+  zh: 你的项目（进行中、计划中或已完成）
+  es: Tus proyectos (activos, planificados o completados)
+  fr: Vos projets (actifs, planifiés ou terminés)
+  pt: Seus projetos (ativos, planejados ou concluídos)
+  ru: Ваши проекты (активные, запланированные или завершенные)
+  ja: あなたのプロジェクト（進行中、計画中、完了済み）
+  ko: 당신의 프로젝트 (진행 중, 계획됨, 완료됨)
+  it: I tuoi progetti (attivi, pianificati o completati)
+  tr: Projeleriniz (aktif, planlı veya tamamlanmış)
+  vi: Dự án của bạn (đang hoạt động, đã lên kế hoạch hoặc đã hoàn thành)
+  id: Proyek Anda (aktif, direncanakan, atau selesai)
+  pl: Twoje projekty (aktywne, planowane lub ukończone)
+  nl: Je projecten (actief, gepland of voltooid)
+  ar: مشاريعك (نشطة أو مخططة أو مكتملة)
+  hi: आपकी परियोजनाएं (सक्रिय, नियोजित, या पूर्ण)
+  th: โครงการของคุณ (กำลังดำเนินการ วางแผน หรือเสร็จสิ้น)
+  cs: Vaše projekty (aktivní, plánované nebo dokončené)
+  sv: Dina projekt (aktiva, planerade eller avslutade)
+  verified_by_human:
+  - en
+  - de
+want_to_learn:
+  context: Settings/memory name for technologies to learn
+  en: Want to Learn
+  de: Möchte lernen
+  zh: 想学习
+  es: Quiero aprender
+  fr: Envie d'apprendre
+  pt: Quero aprender
+  ru: Хочу изучить
+  ja: 学びたい
+  ko: 배우고 싶은 것
+  it: Voglio imparare
+  tr: Öğrenmek istiyorum
+  vi: Muốn học
+  id: Ingin belajar
+  pl: Chcę się nauczyć
+  nl: Wil leren
+  ar: أريد أن أتعلم
+  hi: सीखना चाहते हैं
+  th: อยากเรียนรู้
+  cs: Chci se naučit
+  sv: Vill lära mig
+  verified_by_human:
+  - en
+  - de
+want_to_learn.description:
+  context: Description for want to learn settings/memory
+  en: Technologies and skills you want to learn
+  de: Technologien und Fähigkeiten, die du lernen möchtest
+  zh: 你想学习的技术和技能
+  es: Tecnologías y habilidades que quieres aprender
+  fr: Technologies et compétences que vous souhaitez apprendre
+  pt: Tecnologias e habilidades que você quer aprender
+  ru: Технологии и навыки, которые вы хотите изучить
+  ja: 学びたい技術やスキル
+  ko: 배우고 싶은 기술과 기능
+  it: Tecnologie e competenze che vuoi imparare
+  tr: Öğrenmek istediğiniz teknolojiler ve beceriler
+  vi: Các công nghệ và kỹ năng bạn muốn học
+  id: Teknologi dan keterampilan yang ingin Anda pelajari
+  pl: Technologie i umiejętności, których chcesz się nauczyć
+  nl: Technologieën en vaardigheden die je wilt leren
+  ar: التقنيات والمهارات التي تريد تعلمها
+  hi: तकनीक और कौशल जो आप सीखना चाहते हैं
+  th: เทคโนโลยีและทักษะที่คุณต้องการเรียนรู้
+  cs: Technologie a dovednosti, které se chcete naučit
+  sv: Teknologier och färdigheter du vill lära dig
+  verified_by_human:
+  - en
+  - de

@@ -514,15 +514,22 @@ class BaseApp:
 
         all_paths_valid = True
         for skill_def in self.app_config.skills:
+            # Skip planning stage skills - they don't need class_path yet
+            if skill_def.stage == "planning":
+                continue
+            # For development/production skills, class_path is required
             if not skill_def.class_path:
+                logger.warning(f"Skill '{skill_def.id}' has stage '{skill_def.stage}' but no class_path defined")
                 all_paths_valid = False
                 continue
             try:
-                module_path, class_name = skill_def.class_path.rsplit('.', 1)
+                module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)
                 module = importlib.import_module(module_path)
                 if not hasattr(module, class_name):
+                    logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' - class '{class_name}' not found in module")
                     all_paths_valid = False
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' failed to import: {e}")
                 all_paths_valid = False
         
         if not all_paths_valid:

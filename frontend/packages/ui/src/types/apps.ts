@@ -87,6 +87,21 @@ export interface FocusModeMetadata {
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppMemoryFieldDefinition`
  * - Source: `settings_and_memories` field in app.yml files
  */
+/**
+ * Schema property definition for settings/memories fields.
+ * Supports auto_generated flag to mark fields that should be auto-populated
+ * by the client (e.g., timestamps) rather than shown in forms.
+ */
+export interface SchemaPropertyDefinition {
+    type?: string;
+    description?: string;
+    enum?: string[];
+    default?: unknown;
+    minimum?: number;
+    maximum?: number;
+    auto_generated?: boolean; // If true, field is auto-populated by client, not shown in form
+}
+
 export interface MemoryFieldMetadata {
     id: string;
     name_translation_key: string; // Translation key for memory field name
@@ -94,14 +109,7 @@ export interface MemoryFieldMetadata {
     type: string;
     schema_definition?: {
         type?: string;
-        properties?: Record<string, {
-            type?: string;
-            description?: string;
-            enum?: string[];
-            default?: unknown;
-            minimum?: number;
-            maximum?: number;
-        }>;
+        properties?: Record<string, SchemaPropertyDefinition>;
         required?: string[];
     }; // Optional JSON schema for form field generation
 }
