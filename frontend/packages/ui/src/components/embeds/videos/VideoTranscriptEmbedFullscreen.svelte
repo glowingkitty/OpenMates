@@ -128,6 +128,44 @@
   // Get video URL for opening video
   let videoUrl = $derived(firstResult?.url || '');
   
+  // Get video ID from first result
+  let videoId = $derived(firstResult?.video_id || '');
+  
+  // Get metadata from first result for VideoEmbedPreview
+  // Maps the transcript metadata format to VideoEmbedPreview props
+  let channelName = $derived(firstResult?.metadata?.channel_title || '');
+  let channelId = $derived(firstResult?.metadata?.channel_id || '');
+  let thumbnail = $derived(firstResult?.metadata?.thumbnail_url || '');
+  let publishedAt = $derived(firstResult?.metadata?.published_at || '');
+  let viewCount = $derived(firstResult?.metadata?.view_count);
+  let likeCount = $derived(firstResult?.metadata?.like_count);
+  
+  // Parse duration string (e.g., "PT20M26S") to seconds and formatted string
+  let durationData = $derived.by(() => {
+    const durationStr = firstResult?.metadata?.duration;
+    if (!durationStr) return undefined;
+    
+    // Parse ISO 8601 duration format (PT#H#M#S)
+    const match = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return undefined;
+    
+    const hours = parseInt(match[1] || '0', 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    const seconds = parseInt(match[3] || '0', 10);
+    
+    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+    
+    // Format as HH:MM:SS or MM:SS
+    let formatted: string;
+    if (hours > 0) {
+      formatted = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    return { totalSeconds, formatted };
+  });
+  
   // Calculate total word count across all results
   let totalWordCount = $derived(
     results.reduce((sum, result) => sum + (result.word_count || 0), 0)
@@ -408,7 +446,7 @@
     {:else}
       <div class="transcript-container">
         <!-- Top: Fully rendered VideoEmbedPreview - clickable to open video fullscreen -->
-        <!-- Uses the video URL from transcript results - VideoEmbedPreview fetches its own metadata -->
+        <!-- Passes metadata from transcript results to VideoEmbedPreview -->
         {#if videoUrl}
           <div class="video-preview-wrapper">
             <VideoEmbedPreview
@@ -417,6 +455,15 @@
               title={videoTitle}
               status="finished"
               onFullscreen={handleVideoFullscreen}
+              {videoId}
+              {channelName}
+              {channelId}
+              {thumbnail}
+              {publishedAt}
+              {viewCount}
+              {likeCount}
+              durationSeconds={durationData?.totalSeconds}
+              durationFormatted={durationData?.formatted}
             />
           </div>
         {/if}

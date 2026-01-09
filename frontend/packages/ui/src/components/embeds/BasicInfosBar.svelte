@@ -279,8 +279,8 @@
   
   /* Circular favicon for channel thumbnails/profile pictures */
   .basic-infos-bar.desktop .title-favicon.circular {
-    width: 29px;
-    height: 29px;
+    width: 25px;
+    height: 25px;
     border-radius: 50%;
   }
   
@@ -289,8 +289,8 @@
     min-width: 0;
     /* Limit to 2 lines with ellipsis */
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;

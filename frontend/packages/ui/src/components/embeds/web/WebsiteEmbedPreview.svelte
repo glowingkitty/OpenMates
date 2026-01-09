@@ -125,6 +125,40 @@
   const skillIconName = 'website';
   
   // ===========================================
+  // Utility Functions
+  // ===========================================
+  
+  /**
+   * Strip HTML tags from text to prevent rendering raw HTML in the UI.
+   * Handles tags like <strong>, <em>, <b>, <i>, <a>, <span>, etc.
+   * Also decodes common HTML entities.
+   * 
+   * @param text - Text that may contain HTML tags
+   * @returns Clean text with all HTML tags removed
+   */
+  function stripHtmlTags(text: string | undefined): string | undefined {
+    if (!text) return text;
+    
+    // Remove all HTML tags using regex
+    let cleaned = text.replace(/<[^>]*>/g, '');
+    
+    // Decode common HTML entities
+    cleaned = cleaned
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'");
+    
+    // Clean up extra whitespace that might result from removed tags
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  }
+  
+  // ===========================================
   // Metadata Fetching (FALLBACK only)
   // ===========================================
   
@@ -233,6 +267,9 @@
   let effectiveFavicon = $derived(favicon || fetchedFavicon);
   let effectiveImage = $derived(image || fetchedImage);
   
+  // Clean description from HTML tags for safe rendering
+  let cleanedDescription = $derived(stripHtmlTags(effectiveDescription));
+  
   // Get hostname for fallback display
   let hostname = $derived.by(() => {
     try {
@@ -269,8 +306,9 @@
   
   // Determine if we should use full-width image layout (no description, has image)
   // This is passed to UnifiedEmbedPreview to remove padding from details section
+  // Use cleanedDescription to check for actual visible content (not just HTML tags)
   let shouldUseFullWidthImage = $derived(
-    !effectiveDescription && 
+    !cleanedDescription && 
     !!imageUrl && 
     !imageLoadError && 
     !isMobile
@@ -356,9 +394,9 @@
         <!-- Finished state: description on LEFT, larger image on RIGHT -->
         <!-- If no description, image takes FULL WIDTH -->
         <!-- Title and favicon are shown in BasicInfosBar, not here -->
-        <div class="website-content-row" class:no-description={!effectiveDescription}>
-          {#if effectiveDescription}
-            <div class="website-description">{effectiveDescription}</div>
+        <div class="website-content-row" class:no-description={!cleanedDescription}>
+          {#if cleanedDescription}
+            <div class="website-description">{cleanedDescription}</div>
           {/if}
           
           {#if imageUrl && !imageLoadError && !isMobileLayout}

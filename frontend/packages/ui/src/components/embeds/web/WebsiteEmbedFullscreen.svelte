@@ -86,6 +86,71 @@
     onShowChat
   }: Props = $props();
   
+  // ===========================================
+  // HTML Sanitization
+  // ===========================================
+  
+  /**
+   * List of allowed HTML tags that are safe for text formatting.
+   * These tags don't pose XSS risks when their attributes are stripped.
+   */
+  const ALLOWED_TAGS = new Set([
+    'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
+    'mark', 'small', 'sub', 'sup', 'br', 'wbr'
+  ]);
+  
+  /**
+   * Sanitize HTML content to only allow safe formatting tags.
+   * Removes all attributes from allowed tags and strips disallowed tags entirely.
+   * This prevents XSS attacks while preserving text formatting like <strong>, <em>, etc.
+   * 
+   * @param html - HTML string that may contain unsafe content
+   * @returns Sanitized HTML string safe for rendering with {@html}
+   */
+  function sanitizeHtml(html: string | undefined): string {
+    if (!html) return '';
+    
+    // Replace allowed tags (keeping only the tag, no attributes)
+    // and remove disallowed tags entirely (keeping their text content)
+    let result = html;
+    
+    // Process opening tags: either keep them (without attributes) or remove them
+    // We use a non-capturing group (?:...) for attributes since we strip them all for security
+    result = result.replace(/<(\/?)([\w-]+)(?:[^>]*)>/gi, (_match, slash, tagName) => {
+      const tag = tagName.toLowerCase();
+      
+      if (ALLOWED_TAGS.has(tag)) {
+        // Keep the tag but strip all attributes for security
+        return `<${slash}${tag}>`;
+      }
+      
+      // Remove disallowed tags entirely (their content remains)
+      return '';
+    });
+    
+    // Decode common HTML entities that might have been double-encoded
+    result = result
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'");
+    
+    // Re-encode < and > that aren't part of our allowed tags to prevent injection
+    // This handles cases where &lt;script&gt; was decoded above
+    result = result.replace(/<(\/?)([\w-]+)([^>]*)>/gi, (match, slash, tagName) => {
+      const tag = tagName.toLowerCase();
+      if (ALLOWED_TAGS.has(tag)) {
+        return `<${slash}${tag}>`;
+      }
+      // Encode back to prevent rendering
+      return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    });
+    
+    return result;
+  }
+  
   // Debug: Log all props when component is initialized
   // This helps trace data flow issues with extra_snippets and page_age
   $effect(() => {
@@ -183,6 +248,12 @@
   
   let displayTitle = $derived(title || hostname());
   let displayDescription = $derived(description || '');
+  
+  // Sanitized HTML versions for safe rendering with {@html}
+  let sanitizedDescription = $derived(sanitizeHtml(displayDescription));
+  
+  // Sanitize each snippet for safe HTML rendering
+  let sanitizedSnippets = $derived(snippets.map(snippet => sanitizeHtml(snippet)));
   
   // Favicon URL with fallback chain
   let faviconUrl = $derived(
@@ -449,9 +520,10 @@
         Open on {hostname()}
       </button>
       
-      <!-- Description -->
+      <!-- Description - rendered as sanitized HTML to support formatting tags like <strong>, <em> -->
       {#if displayDescription}
-        <p class="description">{displayDescription}</p>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <p class="description">{@html sanitizedDescription}</p>
       {/if}
       
       <!-- Snippets Section -->
@@ -461,7 +533,7 @@
           <div class="snippets-source">via Brave Search</div>
           
           <div class="snippets-list">
-            {#each snippets as snippet}
+            {#each sanitizedSnippets as snippet}
               <div class="snippet-card">
                 <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
                 <div class="quote-icon quote-open clickable-icon icon_quote"></div>
@@ -469,7 +541,8 @@
                 <!-- Closing quote icon (top-right) - rotated 180deg -->
                 <div class="quote-icon quote-close clickable-icon icon_quote"></div>
                 
-                <p class="snippet-text">{snippet}</p>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <p class="snippet-text">{@html snippet}</p>
               </div>
             {/each}
           </div>
