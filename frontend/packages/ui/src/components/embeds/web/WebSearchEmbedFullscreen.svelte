@@ -561,5 +561,17 @@
     max-width: 320px;
     margin: 0 auto;
   }
+  
+  /* ===========================================
+     Skill Icon Styling (skill-specific)
+     Defines the search icon mask-image for BasicInfosBar
+     Must be defined here since BasicInfosBar only provides
+     base styling without skill-specific icon URLs
+     =========================================== */
+  
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
 </style>
 
