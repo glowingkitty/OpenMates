@@ -52,6 +52,7 @@ export interface EmbedNodeAttributes {
   app_id?: string;
   skill_id?: string;
   query?: string;  // Search query for search skills
+  provider?: string;  // Search provider for search skills (e.g., 'Brave Search', 'Google')
 }
 
 export interface ParseMessageOptions {

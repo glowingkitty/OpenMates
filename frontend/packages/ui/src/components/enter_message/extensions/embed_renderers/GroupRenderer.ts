@@ -323,7 +323,16 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   private async mountAppSkillUsePreview(item: EmbedNodeAttributes, target: HTMLElement): Promise<void> {
-    // Resolve content for this app-skill-use item
+    // CRITICAL: Extract app_id, skill_id, query from item attrs FIRST
+    // These are preserved from the original embed parsing and are available
+    // even before embed data arrives from the server via WebSocket.
+    // This allows proper rendering during streaming.
+    const itemAppId = (item as any).app_id || '';
+    const itemSkillId = (item as any).skill_id || '';
+    const itemQuery = (item as any).query || '';
+    const itemProvider = (item as any).provider || '';
+    
+    // Resolve content for this app-skill-use item from EmbedStore
     const embedId = item.contentRef?.startsWith('embed:') ? item.contentRef.replace('embed:', '') : '';
 
     let embedData: any = null;
@@ -338,11 +347,31 @@ export class GroupRenderer implements EmbedRenderer {
       }
     }
 
-    const appId = decodedContent?.app_id || '';
-    const skillId = decodedContent?.skill_id || '';
+    // Determine app_id and skill_id by combining sources in priority order:
+    // 1. decodedContent (from TOON content decoding) - most reliable for finished embeds
+    // 2. embedData directly (from memory cache for processing embeds)
+    // 3. item attrs (from grouped items - preserved from original parsing)
+    const appId = decodedContent?.app_id || embedData?.app_id || itemAppId;
+    const skillId = decodedContent?.skill_id || embedData?.skill_id || itemSkillId;
     const status = (decodedContent?.status || embedData?.status || item.status || 'processing') as 'processing' | 'finished' | 'error';
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
+    
+    // Merge query from multiple sources
+    const query = decodedContent?.query || embedData?.query || itemQuery;
+    const provider = decodedContent?.provider || embedData?.provider || itemProvider;
+    
+    console.debug('[GroupRenderer] mountAppSkillUsePreview:', {
+      appId,
+      skillId,
+      status,
+      query,
+      provider,
+      itemAppId,
+      itemSkillId,
+      hasEmbedData: !!embedData,
+      hasDecodedContent: !!decodedContent
+    });
 
     // Cleanup any existing mounted component (in case this target is reused)
     const existingComponent = mountedComponents.get(target);
@@ -365,8 +394,8 @@ export class GroupRenderer implements EmbedRenderer {
           target,
           props: {
             id: embedId,
-            query: decodedContent?.query || '',
-            provider: decodedContent?.provider || 'Brave Search',
+            query: query || '',
+            provider: provider || 'Brave Search',
             status,
             results,
             taskId,
@@ -383,8 +412,8 @@ export class GroupRenderer implements EmbedRenderer {
           target,
           props: {
             id: embedId,
-            query: decodedContent?.query || '',
-            provider: decodedContent?.provider || 'Brave Search',
+            query: query || '',
+            provider: provider || 'Brave Search',
             status,
             results,
             taskId,
@@ -401,8 +430,8 @@ export class GroupRenderer implements EmbedRenderer {
           target,
           props: {
             id: embedId,
-            query: decodedContent?.query || '',
-            provider: decodedContent?.provider || 'Brave Search',
+            query: query || '',
+            provider: provider || 'Brave Search',
             status,
             results,
             taskId,
@@ -419,8 +448,8 @@ export class GroupRenderer implements EmbedRenderer {
           target,
           props: {
             id: embedId,
-            query: decodedContent?.query || '',
-            provider: decodedContent?.provider || 'Google',
+            query: query || '',
+            provider: provider || 'Google',
             status,
             results,
             taskId,
