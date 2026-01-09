@@ -31,7 +31,7 @@ models:
         input:
           per_credit_unit: 200
         output:
-          per_credit_unit: 165
+          per_credit_unit: 100
     costs:
       input_per_million_token:
         price: 2.25
