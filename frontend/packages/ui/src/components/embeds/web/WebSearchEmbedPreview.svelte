@@ -212,12 +212,30 @@
           const content = embed.content ? await decodeToonContent(embed.content) : null;
           if (!content) return null;
           
-          // Extract favicon from nested 'meta_url.favicon' or flat 'favicon' field
+          // Extract favicon URL from multiple possible field formats:
+          // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+          // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
+          // 3. favicon: Direct field (processed backend format)
+          // 4. favicon_url: Alternative flat format
           const faviconUrl = 
-            (content.meta_url as { favicon?: string } | undefined)?.favicon || 
+            content.meta_url_favicon ||  // TOON flattened format (most common for stored embeds)
+            (content.meta_url as { favicon?: string } | undefined)?.favicon ||  // Nested format
             content.favicon || 
             content.favicon_url ||
             '';
+          
+          // DEBUG: Log what we extracted to help diagnose issues
+          if (childEmbeds.indexOf(embed) < 3) {
+            console.debug(`[WebSearchEmbedPreview] Child embed favicon extraction:`, {
+              embedId: embed.embed_id,
+              title: content.title?.substring(0, 30),
+              meta_url_favicon: content.meta_url_favicon,
+              meta_url: content.meta_url,
+              favicon: content.favicon,
+              favicon_url: content.favicon_url,
+              extracted: faviconUrl
+            });
+          }
           
           return {
             title: content.title || '',
@@ -230,7 +248,7 @@
         const validResults = results.filter(r => r !== null) as WebSearchResult[];
         if (validResults.length > 0) {
           localResults = validResults;
-          console.debug(`[WebSearchEmbedPreview] Loaded ${validResults.length} results from child embeds`);
+          console.debug(`[WebSearchEmbedPreview] Loaded ${validResults.length} results from child embeds, favicons found: ${validResults.filter(r => r.favicon).length}`);
         }
       }
     } catch (error) {
@@ -253,7 +271,8 @@
   /**
    * Extract favicon URL from a raw result object
    * Handles multiple possible field formats from different data sources:
-   * - favicon: Direct field (most common from backend)
+   * - meta_url_favicon: TOON-flattened format (most common for stored embeds)
+   * - favicon: Direct field (processed backend format)
    * - favicon_url: Alternative flat format
    * - meta_url.favicon: Nested format from raw Brave Search API
    * 
@@ -261,6 +280,10 @@
    * @returns Favicon URL or undefined
    */
   function extractFaviconFromRaw(rawResult: Record<string, unknown>): string | undefined {
+    // TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+    if (rawResult.meta_url_favicon && typeof rawResult.meta_url_favicon === 'string') {
+      return rawResult.meta_url_favicon;
+    }
     // Direct favicon field (processed backend format)
     if (rawResult.favicon && typeof rawResult.favicon === 'string') {
       return rawResult.favicon;

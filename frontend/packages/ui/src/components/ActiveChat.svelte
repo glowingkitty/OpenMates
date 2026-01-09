@@ -609,15 +609,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const websiteContent = embed.content ? await decodeToon(embed.content) : null;
                         if (!websiteContent) return null;
                         
-                        // Extract favicon from nested 'meta_url.favicon' or flat 'favicon' field
-                        // Brave Search API stores favicon URL in meta_url.favicon (nested object)
+                        // Extract favicon URL from multiple possible field formats:
+                        // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
+                        // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
+                        // 3. favicon: Direct field (processed backend format)
                         const faviconUrl = 
+                            websiteContent.meta_url_favicon ||  // TOON flattened format (most common)
                             (websiteContent.meta_url as { favicon?: string } | undefined)?.favicon || 
                             websiteContent.favicon || 
                             '';
                         
-                        // Extract preview image from nested 'thumbnail.original' or flat 'image' field
+                        // Extract preview image from multiple possible field formats:
+                        // 1. thumbnail_original: TOON-flattened format
+                        // 2. thumbnail.original: Nested format
+                        // 3. image: Direct field
                         const previewImageUrl = 
+                            websiteContent.thumbnail_original ||  // TOON flattened format
                             (websiteContent.thumbnail as { original?: string } | undefined)?.original ||
                             websiteContent.image || 
                             '';
