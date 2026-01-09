@@ -87,49 +87,29 @@
   }: Props = $props();
   
   // ===========================================
-  // HTML Sanitization
+  // HTML Tag Stripping (Client-side fallback)
   // ===========================================
+  // NOTE: HTML tags should be stripped server-side during search processing.
+  // This client-side function is a FALLBACK for legacy data or edge cases.
   
   /**
-   * List of allowed HTML tags that are safe for text formatting.
-   * These tags don't pose XSS risks when their attributes are stripped.
-   */
-  const ALLOWED_TAGS = new Set([
-    'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
-    'mark', 'small', 'sub', 'sup', 'br', 'wbr'
-  ]);
-  
-  /**
-   * Sanitize HTML content to only allow safe formatting tags.
-   * Removes all attributes from allowed tags and strips disallowed tags entirely.
-   * This prevents XSS attacks while preserving text formatting like <strong>, <em>, etc.
+   * Strip HTML tags from text to prevent rendering raw HTML in the UI.
+   * This is a FALLBACK - the backend should strip tags before sending data.
+   * Handles tags like <strong>, <em>, <b>, <i>, <a>, <span>, etc.
+   * Also decodes common HTML entities.
    * 
-   * @param html - HTML string that may contain unsafe content
-   * @returns Sanitized HTML string safe for rendering with {@html}
+   * @param text - Text that may contain HTML tags
+   * @returns Clean text with all HTML tags removed
    */
-  function sanitizeHtml(html: string | undefined): string {
-    if (!html) return '';
+  function stripHtmlTags(text: string | undefined): string {
+    if (!text) return '';
     
-    // Replace allowed tags (keeping only the tag, no attributes)
-    // and remove disallowed tags entirely (keeping their text content)
-    let result = html;
+    // Remove all HTML tags using regex
+    let cleaned = text.replace(/<[^>]*>/g, '');
     
-    // Process opening tags: either keep them (without attributes) or remove them
-    // We use a non-capturing group (?:...) for attributes since we strip them all for security
-    result = result.replace(/<(\/?)([\w-]+)(?:[^>]*)>/gi, (_match, slash, tagName) => {
-      const tag = tagName.toLowerCase();
-      
-      if (ALLOWED_TAGS.has(tag)) {
-        // Keep the tag but strip all attributes for security
-        return `<${slash}${tag}>`;
-      }
-      
-      // Remove disallowed tags entirely (their content remains)
-      return '';
-    });
-    
-    // Decode common HTML entities that might have been double-encoded
-    result = result
+    // Decode common HTML entities
+    cleaned = cleaned
+      .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -137,18 +117,10 @@
       .replace(/&#39;/g, "'")
       .replace(/&apos;/g, "'");
     
-    // Re-encode < and > that aren't part of our allowed tags to prevent injection
-    // This handles cases where &lt;script&gt; was decoded above
-    result = result.replace(/<(\/?)([\w-]+)([^>]*)>/gi, (match, slash, tagName) => {
-      const tag = tagName.toLowerCase();
-      if (ALLOWED_TAGS.has(tag)) {
-        return `<${slash}${tag}>`;
-      }
-      // Encode back to prevent rendering
-      return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    });
+    // Clean up extra whitespace that might result from removed tags
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
     
-    return result;
+    return cleaned;
   }
   
   // Debug: Log all props when component is initialized
@@ -249,11 +221,12 @@
   let displayTitle = $derived(title || hostname());
   let displayDescription = $derived(description || '');
   
-  // Sanitized HTML versions for safe rendering with {@html}
-  let sanitizedDescription = $derived(sanitizeHtml(displayDescription));
+  // Strip HTML tags as fallback (backend should already strip them)
+  // This ensures clean text display even for legacy data
+  let cleanedDescription = $derived(stripHtmlTags(displayDescription));
   
-  // Sanitize each snippet for safe HTML rendering
-  let sanitizedSnippets = $derived(snippets.map(snippet => sanitizeHtml(snippet)));
+  // Strip HTML tags from each snippet as fallback
+  let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
   
   // Favicon URL with fallback chain
   let faviconUrl = $derived(
@@ -520,10 +493,9 @@
         Open on {hostname()}
       </button>
       
-      <!-- Description - rendered as sanitized HTML to support formatting tags like <strong>, <em> -->
-      {#if displayDescription}
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <p class="description">{@html sanitizedDescription}</p>
+      <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
+      {#if cleanedDescription}
+        <p class="description">{cleanedDescription}</p>
       {/if}
       
       <!-- Snippets Section -->
@@ -533,7 +505,7 @@
           <div class="snippets-source">via Brave Search</div>
           
           <div class="snippets-list">
-            {#each sanitizedSnippets as snippet}
+            {#each cleanedSnippets as snippet}
               <div class="snippet-card">
                 <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
                 <div class="quote-icon quote-open clickable-icon icon_quote"></div>
@@ -541,8 +513,7 @@
                 <!-- Closing quote icon (top-right) - rotated 180deg -->
                 <div class="quote-icon quote-close clickable-icon icon_quote"></div>
                 
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <p class="snippet-text">{@html snippet}</p>
+                <p class="snippet-text">{snippet}</p>
               </div>
             {/each}
           </div>
