@@ -98,20 +98,24 @@ export interface CodeGetDocsSkillPreviewData extends BaseSkillPreviewData {
 
 /**
  * Individual get_docs result from Context7
+ * Note: Backend may send flat (library_id, library_title) or nested (library.id, library.title) structure
  */
 export interface CodeGetDocsResult {
-  type: 'get_docs';
-  /** Selected library info */
+  type?: 'get_docs';
+  /** Selected library info (nested structure) */
   library?: {
     id?: string; // e.g., "/sveltejs/svelte"
     title?: string; // e.g., "Svelte"
     description?: string;
   };
+  /** Flat structure alternatives (from some backend responses) */
+  library_id?: string;
+  library_title?: string;
   /** Documentation content in markdown format */
   documentation?: string;
   /** Source of documentation (context7, openmates, web_search) */
   source?: string;
-  /** Word count of the documentation */
+  /** Word count of the documentation (pre-calculated by backend) */
   word_count?: number;
   /** Error message if retrieval failed */
   error?: string;

@@ -157,15 +157,45 @@
   // Display Values
   // ===========================================
   
+  // ===========================================
+  // Helper functions to handle both flat and nested structures
+  // Backend may send: { library_id, library_title } OR { library: { id, title } }
+  // ===========================================
+  
+  /**
+   * Get library title from result, handling both flat and nested structures
+   */
+  function getLibraryTitle(result: CodeGetDocsResult | undefined): string | undefined {
+    if (!result) return undefined;
+    // Try flat structure first (library_title)
+    if (result.library_title) return result.library_title;
+    // Try nested structure (library.title)
+    if (result.library?.title) return result.library.title;
+    return undefined;
+  }
+  
+  /**
+   * Get library ID from result, handling both flat and nested structures
+   */
+  function getLibraryId(result: CodeGetDocsResult | undefined): string {
+    if (!result) return '';
+    // Try flat structure first (library_id)
+    if (result.library_id) return result.library_id;
+    // Try nested structure (library.id)
+    if (result.library?.id) return result.library.id;
+    return '';
+  }
+
   // Display title: library title > library ID > requested library name > fallback
   let displayTitle = $derived.by(() => {
-    if (firstResult?.library?.title) {
-      return firstResult.library.title;
-    }
-    if (firstResult?.library?.id) {
+    const title = getLibraryTitle(firstResult);
+    if (title) return title;
+    
+    const libId = getLibraryId(firstResult);
+    if (libId) {
       // Extract library name from ID (e.g., "/sveltejs/svelte" -> "svelte")
-      const parts = firstResult.library.id.split('/');
-      return parts[parts.length - 1] || firstResult.library.id;
+      const parts = libId.split('/');
+      return parts[parts.length - 1] || libId;
     }
     if (localLibrary) {
       return localLibrary;
@@ -174,16 +204,14 @@
   });
   
   // Library ID for display (e.g., "/sveltejs/svelte")
-  let libraryId = $derived(firstResult?.library?.id || '');
+  let libraryId = $derived(getLibraryId(firstResult));
   
   /**
-   * Calculate word count from documentation
+   * Get word count from backend-provided field
+   * The word_count is calculated by the backend GetDocsSkill and stored in IndexedDB
+   * We do NOT calculate this client-side - the backend is the source of truth
    */
-  let wordCount = $derived.by(() => {
-    if (!firstResult?.documentation) return 0;
-    const words = firstResult.documentation.trim().split(/\s+/).filter(Boolean);
-    return words.length;
-  });
+  let wordCount = $derived(firstResult?.word_count || 0);
   
   // Provider text: "via Context7" (same pattern as WebSearchEmbedPreview)
   const viaProvider = 'via Context7';
@@ -202,8 +230,13 @@
       resultsCount: results.length,
       displayTitle,
       libraryId,
+      // word_count is provided by backend GetDocsSkill (not calculated client-side)
       wordCount,
-      hasPreviewData: !!previewData
+      wordCountFromBackend: firstResult?.word_count,
+      hasPreviewData: !!previewData,
+      // Show flat vs nested structure detection
+      hasLibraryTitle: !!firstResult?.library_title,
+      hasNestedLibrary: !!firstResult?.library?.title
     });
   });
   

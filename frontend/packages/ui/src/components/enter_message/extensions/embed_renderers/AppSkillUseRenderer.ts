@@ -20,6 +20,7 @@ import VideosSearchEmbedPreview from '../../../embeds/videos/VideosSearchEmbedPr
 import MapsSearchEmbedPreview from '../../../embeds/maps/MapsSearchEmbedPreview.svelte';
 import VideoTranscriptEmbedPreview from '../../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
 import WebReadEmbedPreview from '../../../embeds/web/WebReadEmbedPreview.svelte';
+import CodeGetDocsEmbedPreview from '../../../embeds/code/CodeGetDocsEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -146,6 +147,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For web read, render web read preview
       if (appId === 'web' && skillId === 'read') {
         return this.renderWebReadComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For code get_docs, render documentation preview using Svelte component
+      if (appId === 'code' && skillId === 'get_docs') {
+        console.debug('[AppSkillUseRenderer] Rendering code get_docs for', { appId, skillId, decodedContent, status });
+        return this.renderCodeGetDocsComponent(attrs, embedData, decodedContent, content);
       }
       
       // For other skills with known app_id/skill_id, render generic app skill preview
@@ -678,6 +685,76 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       content.addEventListener('click', () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
+    }
+  }
+  
+  /**
+   * Render code get_docs embed using Svelte component
+   * Uses Svelte 5's mount() API to mount the component into the DOM
+   */
+  private renderCodeGetDocsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement
+  ): void {
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const results = decodedContent?.results || [];
+    const library = decodedContent?.library || (attrs as any).library || '';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[AppSkillUseRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      const embedId = attrs.contentRef?.replace('embed:', '') || '';
+      
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      
+      const component = mount(CodeGetDocsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          results,
+          library,
+          status: status as 'processing' | 'finished' | 'error',
+          taskId,
+          skillTaskId, // For individual skill cancellation
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[AppSkillUseRenderer] Mounted CodeGetDocsEmbedPreview component:', {
+        embedId,
+        status,
+        resultsCount: results.length,
+        library
+      });
+      
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting CodeGetDocsEmbedPreview component:', error);
+      // Fallback to generic skill rendering
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
   

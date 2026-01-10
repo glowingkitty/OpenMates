@@ -58,6 +58,15 @@ preprocess_request_tool:
           - Trigger phrases: "restaurants in", "places near", "find a", "where is", "nearby", "locations", "directions to", "best [place type] in [location]", "open now"
           - `maps-search` provides rich place data including ratings, reviews, opening hours, and contact info
           
+          **CRITICAL: Select `code-get_docs` for programming library/framework documentation queries:**
+          - Use `code-get_docs` when users ask about programming libraries, frameworks, APIs, SDKs, or technical implementation questions
+          - Trigger phrases: "how do I implement", "how to use", "integrate", "documentation", "API", "SDK", "library docs", "set up [library]", "configure [framework]"
+          - Named library triggers: Questions mentioning specific libraries/frameworks like "Stripe", "React", "Svelte", "FastAPI", "Django", "Express", "Next.js", "TailwindCSS", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "AWS SDK", "Firebase", "Supabase", etc.
+          - `code-get_docs` retrieves OFFICIAL documentation directly from library sources via Context7 - this is MUCH better than generic web search for programming questions because it returns authoritative, up-to-date documentation
+          - When calling `code-get_docs`, provide the library name in Context7 format when possible: `/org/project` (e.g., `/stripe/stripe-node`, `/vercel/next.js`, `/sveltejs/svelte`, `/fastapi/fastapi`, `/django/django`). If unsure of exact format, just use the library name (e.g., "stripe", "react") and the skill will auto-resolve it.
+          - ALWAYS prefer `code-get_docs` over `web-search` when the question is about HOW to use a specific programming library or framework
+          - Even if also selecting `web-search`, include `code-get_docs` for programming library questions to ensure official docs are retrieved
+          
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
           - If a previous assistant response used a skill (e.g., `web-search` for weather/prices/news), and the current user message is a short follow-up asking about a different entity for the SAME type of query, select the SAME skill again

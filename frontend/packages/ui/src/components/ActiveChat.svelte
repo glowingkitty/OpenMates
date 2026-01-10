@@ -4064,6 +4064,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
+                    {:else if appId === 'code' && skillId === 'get_docs'}
+                        <!-- Code Get Docs Fullscreen -->
+                        {@const CodeGetDocsEmbedFullscreenPromise = import('./embeds/code/CodeGetDocsEmbedFullscreen.svelte')}
+                        {#await CodeGetDocsEmbedFullscreenPromise then module}
+                            {@const CodeGetDocsEmbedFullscreen = module.default}
+                            {@const previewData = {
+                                app_id: appId,
+                                skill_id: skillId,
+                                status: embedFullscreenData.embedData?.status || 'finished',
+                                results: embedFullscreenData.decodedContent?.results || [],
+                                library: embedFullscreenData.decodedContent?.library || ''
+                            }}
+                            {@const _debugRender = (() => {
+                                console.debug('[ActiveChat] Rendering CodeGetDocsEmbedFullscreen:', {
+                                    appId,
+                                    skillId,
+                                    hasPreviewData: !!previewData,
+                                    resultsCount: previewData.results?.length || 0,
+                                    library: previewData.library
+                                });
+                                return null;
+                            })()}
+                            <CodeGetDocsEmbedFullscreen 
+                                previewData={previewData}
+                                results={embedFullscreenData.decodedContent?.results || []}
+                                library={embedFullscreenData.decodedContent?.library || ''}
+                                embedId={embedFullscreenData.embedId}
+                                onClose={handleCloseEmbedFullscreen}
+                                {hasPreviousEmbed}
+                                {hasNextEmbed}
+                                onNavigatePrevious={handleNavigatePreviousEmbed}
+                                onNavigateNext={handleNavigateNextEmbed}
+                                showChatButton={showChatButtonInFullscreen}
+                                onShowChat={handleShowChat}
+                            />
+                        {/await}
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">

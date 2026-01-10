@@ -70,6 +70,10 @@ class GetDocsResponse(BaseModel):
         None,
         description="Retrieved documentation content (markdown)"
     )
+    word_count: int = Field(
+        default=0,
+        description="Word count of the documentation content"
+    )
     source: str = Field(
         default="context7",
         description="Source of documentation (context7, openmates, web_search)"
@@ -78,6 +82,26 @@ class GetDocsResponse(BaseModel):
         None,
         description="Error message if retrieval failed"
     )
+
+
+def _calculate_word_count(text: Optional[str]) -> int:
+    """
+    Calculate word count from text.
+    
+    Uses simple whitespace splitting to count words.
+    This is the same algorithm used by word processors.
+    
+    Args:
+        text: The text to count words in
+        
+    Returns:
+        Number of words in the text
+    """
+    if not text:
+        return 0
+    # Split on whitespace and filter empty strings
+    words = text.strip().split()
+    return len(words)
 
 
 # =============================================================================
@@ -832,7 +856,10 @@ class GetDocsSkill(BaseSkill):
             if "docs_ms" in timing:
                 timing_summary += f", docs_fetch={timing['docs_ms']}ms"
             
-            logger.info(f"[{task_id}][PERF] Success: {len(sanitized_docs)} chars | {timing_summary}")
+            # Calculate word count for the documentation
+            doc_word_count = _calculate_word_count(sanitized_docs)
+            
+            logger.info(f"[{task_id}][PERF] Success: {len(sanitized_docs)} chars, {doc_word_count} words | {timing_summary}")
             
             return GetDocsResponse(
                 library={
@@ -841,6 +868,7 @@ class GetDocsSkill(BaseSkill):
                     "description": selected_lib.get("description", "")
                 },
                 documentation=sanitized_docs,
+                word_count=doc_word_count,
                 source="context7"
             )
             
@@ -866,13 +894,15 @@ class GetDocsSkill(BaseSkill):
                 
                 # Return relevant portion based on question
                 # For now, return the full spec (could be optimized)
+                docs_content = json.dumps(openapi_spec, indent=2)
                 return GetDocsResponse(
                     library={
                         "id": "openmates",
                         "title": "OpenMates API",
                         "description": "OpenMates internal API documentation"
                     },
-                    documentation=json.dumps(openapi_spec, indent=2),
+                    documentation=docs_content,
+                    word_count=_calculate_word_count(docs_content),
                     source="openmates"
                 )
             else:
