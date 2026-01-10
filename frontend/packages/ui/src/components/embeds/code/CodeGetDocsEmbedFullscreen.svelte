@@ -8,9 +8,8 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
   
-  Layout (similar to WebSearchEmbedPreview pattern for "via provider"):
-  - File widget at top: shows library title with code app icon
-  - "Full documentation experience:" label with "Open on Context7" CTA button
+  Layout (similar to WebSearchEmbedFullscreen pattern):
+  - Header at top: library title (large text), library ID below, "Open on Context7" button
   - "Documentation preview, via Context7: X words" label (text only, no icon)
   - White content card with rendered markdown documentation
   - Bottom bar: code icon + docs icon + "Get Docs" / "Completed"
@@ -146,15 +145,6 @@
   
   // Library ID for display and Context7 URL (e.g., "/sveltejs/svelte")
   let libraryId = $derived(firstResult?.library?.id || '');
-  
-  // Truncated title for file widget (max ~40 chars)
-  let truncatedTitle = $derived.by(() => {
-    const title = displayTitle;
-    if (title.length > 40) {
-      return title.slice(0, 37) + '...';
-    }
-    return title;
-  });
   
   // Context7 URL for "Open on Context7" button
   // Format: https://context7.com{libraryId}
@@ -448,29 +438,23 @@
 >
   {#snippet content()}
     <div class="get-docs-fullscreen-content">
-      <!-- File widget showing library title (mini preview) -->
-      <div class="file-widget">
-        <div class="file-widget-icon">
-          <div class="icon_rounded code"></div>
-        </div>
-        <div class="file-widget-title">{truncatedTitle}</div>
-      </div>
-      
-      <!-- Show "Full documentation experience" and open button only if we have a library ID -->
-      {#if libraryId}
-        <!-- "Full documentation experience:" label -->
-        <div class="full-view-label">
-          {$text('embeds.get_docs_full_view.text')}
-        </div>
-        
+      <!-- Header with library title and ID - similar to WebSearchEmbedFullscreen -->
+      <div class="fullscreen-header">
+        <div class="library-title">{displayTitle}</div>
+        {#if libraryId}
+          <div class="library-id">{libraryId}</div>
+        {/if}
         <!-- CTA Button: "Open on Context7" -->
-        <button 
-          onclick={handleOpenContext7}
-          type="button"
-        >
-          {openButtonText}
-        </button>
-      {/if}
+        {#if libraryId}
+          <button 
+            class="open-context7-btn"
+            onclick={handleOpenContext7}
+            type="button"
+          >
+            {openButtonText}
+          </button>
+        {/if}
+      </div>
       
       <!-- "Documentation preview, via Context7: X words" label - only show if we have content -->
       {#if wordCount > 0}
@@ -501,9 +485,9 @@
         <div class="content-card">
           <div class="result-content">
             {#if renderedMarkdown}
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
               <div class="markdown-content">
                 <!-- SECURITY: Safe - content sanitized with DOMPurify before rendering -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html renderedMarkdown}
               </div>
             {:else if isRenderingMarkdown}
@@ -545,75 +529,67 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 70px; /* Space for top action buttons */
+    padding-top: 60px; /* Space for top action buttons */
     padding-bottom: 120px; /* Space for bottom bar */
   }
   
   /* ===========================================
-     File Widget (mini preview at top)
+     Fullscreen Header - Library Title and ID
+     Uses container queries for responsive sizing
      =========================================== */
   
-  .file-widget {
+  .fullscreen-header {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    padding: 0 16px;
+    text-align: center;
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 8px;
-    background-color: var(--color-grey-30);
-    border-radius: 30px;
-    height: 61px;
-    padding: 0 20px 0 0;
-    max-width: 300px;
-    width: 100%;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    margin-bottom: 24px;
   }
   
-  .file-widget-icon {
-    width: 61px;
-    height: 61px;
-    min-width: 61px;
-    border-radius: 50%;
-    background: var(--color-app-code);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  .file-widget-icon .icon_rounded {
-    width: 26px;
-    height: 26px;
-    position: relative;
-    bottom: auto;
-    left: auto;
-    background: transparent !important;
-  }
-  
-  .file-widget-icon .icon_rounded::after {
-    filter: brightness(0) invert(1);
-  }
-  
-  .file-widget-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--color-grey-100);
+  .library-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-font-primary);
     line-height: 1.3;
-    white-space: nowrap;
+    word-break: break-word;
+    /* Limit to 3 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
   }
   
-  /* ===========================================
-     Full View Label and CTA Button
-     =========================================== */
+  .library-id {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+  }
   
-  .full-view-label {
+  .open-context7-btn {
+    margin-top: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(133.68deg, rgba(89, 81, 208, 1) 9.04%, rgba(125, 116, 255, 1) 90.06%);
+    color: white;
+    border: none;
+    border-radius: 20px;
     font-size: 14px;
-    font-weight: 700;
-    color: var(--color-grey-70);
-    text-align: center;
-    margin-bottom: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .open-context7-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(89, 81, 208, 0.3);
+  }
+  
+  .open-context7-btn:active {
+    transform: scale(0.98);
   }
   
   /* ===========================================
@@ -839,13 +815,23 @@
      Container Query Responsive Adjustments
      =========================================== */
   
+  /* Container query: smaller text on narrow containers */
   @container fullscreen (max-width: 500px) {
     .get-docs-fullscreen-content {
-      padding-top: 80px;
+      padding-top: 70px;
     }
     
-    .file-widget {
-      max-width: 280px;
+    .fullscreen-header {
+      margin-top: 70px; /* More space for action buttons */
+      margin-bottom: 24px;
+    }
+    
+    .library-title {
+      font-size: 20px;
+    }
+    
+    .library-id {
+      font-size: 14px;
     }
     
     .content-card {
