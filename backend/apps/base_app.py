@@ -330,6 +330,21 @@ class BaseApp:
                     logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
                     response = await skill_instance.execute(**clean_request_body)
 
+                # Ensure response is properly serialized before returning
+                # If it's a Pydantic model, convert to dict to ensure proper JSON serialization
+                # This fixes issues where FastAPI might not serialize the model correctly
+                # CRITICAL: FastAPI's automatic Pydantic serialization can sometimes fail for complex models
+                # Explicitly converting to dict ensures the response is properly serialized to JSON
+                if isinstance(response, BaseModel):
+                    response_dict = response.model_dump(exclude_none=False)
+                    logger.debug(
+                        f"Converting Pydantic response to dict for skill '{skill_definition.id}': "
+                        f"keys={list(response_dict.keys())}, "
+                        f"documentation_length={len(response_dict.get('documentation', '')) if isinstance(response_dict.get('documentation'), str) else 0}, "
+                        f"documentation_type={type(response_dict.get('documentation')).__name__}"
+                    )
+                    return response_dict
+                
                 return response
             else:
                 raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")

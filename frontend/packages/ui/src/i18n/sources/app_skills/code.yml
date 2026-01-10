@@ -25,26 +25,26 @@ get_docs:
     - de
 get_docs.description:
   context: Description for get docs skill
-  en: Fetch up-to-date documentation for libraries and frameworks.
-  de: Aktuelle Dokumentation für Bibliotheken und Frameworks abrufen.
+  en: Get latest docs for libraries & frameworks.
+  de: Aktuelle Docs für Bibliotheken & Frameworks.
   zh: 获取库和框架的最新文档。
-  es: Obtener documentación actualizada para bibliotecas y frameworks.
-  fr: Récupérer la documentation à jour pour les bibliothèques et frameworks.
-  pt: Obter documentação atualizada para bibliotecas e frameworks.
-  ru: Получить актуальную документацию для библиотек и фреймворков.
-  ja: ライブラリとフレームワークの最新ドキュメントを取得します。
-  ko: 라이브러리 및 프레임워크에 대한 최신 문서를 가져옵니다.
-  it: Recupera la documentazione aggiornata per librerie e framework.
-  tr: Kütüphaneler ve çerçeveler için güncel belgeleri alın.
-  vi: Lấy tài liệu cập nhật cho thư viện và framework.
-  id: Dapatkan dokumentasi terbaru untuk library dan framework.
-  pl: Pobierz aktualną dokumentację dla bibliotek i frameworków.
-  nl: Haal actuele documentatie op voor bibliotheken en frameworks.
-  ar: احصل على وثائق محدثة للمكتبات وأطر العمل.
-  hi: पुस्तकालयों और फ्रेमवर्क के लिए अद्यतन दस्तावेज़ प्राप्त करें।
-  th: รับเอกสารล่าสุดสำหรับไลบรารีและเฟรมเวิร์ก
-  cs: Získejte aktuální dokumentaci pro knihovny a frameworky.
-  sv: Hämta uppdaterad dokumentation för bibliotek och ramverk.
+  es: Obtén docs de bibliotecas y frameworks.
+  fr: Docs à jour pour bibliothèques et frameworks.
+  pt: Docs atualizados de bibliotecas e frameworks.
+  ru: Актуальные docs библиотек и фреймворков.
+  ja: ライブラリ・フレームワークの最新ドキュメント。
+  ko: 라이브러리 및 프레임워크 최신 문서.
+  it: Docs aggiornati per librerie e framework.
+  tr: Kütüphane ve çerçeve güncel belgeleri.
+  vi: Tài liệu mới nhất cho thư viện & framework.
+  id: Docs terbaru untuk library & framework.
+  pl: Aktualne docs bibliotek i frameworków.
+  nl: Actuele docs voor bibliotheken & frameworks.
+  ar: وثائق محدثة للمكتبات والأطر.
+  hi: लाइब्रेरी और फ्रेमवर्क के नवीनतम डॉक्स।
+  th: เอกสารล่าสุดของไลบรารีและเฟรมเวิร์ก
+  cs: Aktuální docs knihoven a frameworků.
+  sv: Senaste docs för bibliotek & ramverk.
   verified_by_human:
     - en
     - de

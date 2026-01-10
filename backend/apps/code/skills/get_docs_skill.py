@@ -74,10 +74,6 @@ class GetDocsResponse(BaseModel):
         default="context7",
         description="Source of documentation (context7, openmates, web_search)"
     )
-    tokens_used: Optional[int] = Field(
-        None,
-        description="Approximate tokens in documentation"
-    )
     error: Optional[str] = Field(
         None,
         description="Error message if retrieval failed"
@@ -162,6 +158,8 @@ class Context7Client:
         
         url = f"{self.BASE_URL}/context"
         
+        logger.info(f"Context7 get_context: library_id={library_id}, query={query[:50]}..., url={url}")
+        
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url,
@@ -169,19 +167,118 @@ class Context7Client:
                 headers=self._get_headers(),
                 timeout=aiohttp.ClientTimeout(total=60)
             ) as response:
-                if response.status == 200:
-                    # API returns text/markdown
-                    content_type = response.headers.get("Content-Type", "")
-                    if "application/json" in content_type:
-                        data = await response.json()
-                        return data.get("content") or data.get("context") or str(data)
+                # Log response status and headers for debugging
+                content_type = response.headers.get("Content-Type", "")
+                logger.info(f"Context7 get_context response: status={response.status}, content_type={content_type}, url={response.url}")
+                
+                # Read response body - always read as text first, then parse if needed
+                # This ensures we can always log the raw response for debugging
+                response_text = None
+                response_body = None
+                try:
+                    response_text = await response.text()
+                    logger.info(f"Context7 get_context: Response text length={len(response_text) if response_text else 0}")
+                    
+                    # Try to parse as JSON if content type indicates JSON or if text looks like JSON
+                    if "application/json" in content_type or (response_text and (response_text.strip().startswith("{") or response_text.strip().startswith("["))):
+                        try:
+                            response_body = json.loads(response_text)
+                            logger.debug(f"Context7 get_context: Parsed response as JSON, type={type(response_body)}")
+                        except json.JSONDecodeError as json_err:
+                            # Not valid JSON, use as text
+                            logger.debug(f"Context7 get_context: Failed to parse as JSON (using as text): {json_err}")
+                            response_body = response_text
                     else:
-                        return await response.text()
+                        # Use as text
+                        response_body = response_text
+                        
+                except Exception as e:
+                    logger.error(f"Context7 get_context: Failed to read response body: {e}", exc_info=True)
+                    return None
+                
+                if response.status == 200:
+                    # API returns text/markdown or JSON
+                    content = None
+                    
+                    if isinstance(response_body, str):
+                        content = response_body.strip() if response_body else None
+                    elif isinstance(response_body, dict):
+                        # Try common response fields (in order of preference)
+                        content = (
+                            response_body.get("content") or
+                            response_body.get("context") or
+                            response_body.get("data") or
+                            response_body.get("documentation") or
+                            response_body.get("text") or
+                            None
+                        )
+                        # If we found content, ensure it's a string and not empty
+                        if content is not None:
+                            if isinstance(content, str):
+                                content = content.strip()
+                                # Convert empty string to None
+                                if len(content) == 0:
+                                    content = None
+                            else:
+                                # If it's not a string, try to convert
+                                content_str = str(content).strip()
+                                # If the string representation is just braces or empty, it's useless
+                                if content_str in ["{}", "[]", ""] or len(content_str) < 10:
+                                    content = None
+                                else:
+                                    content = content_str
+                        # If no content found in dict, log what we got
+                        if content is None:
+                            logger.debug(
+                                f"Context7 get_context: No content in dict response for library_id={library_id}, "
+                                f"dict_keys={list(response_body.keys())}, dict_preview={str(response_body)[:300]}"
+                            )
+                    elif response_body is not None:
+                        # Try to convert to string for other types (list, etc.)
+                        content_str = str(response_body).strip()
+                        # If it's just braces/brackets, it's useless
+                        if content_str not in ["{}", "[]", "None", ""] and len(content_str) >= 10:
+                            content = content_str
+                    
+                    # Final check: if content is empty or None, log and return None
+                    if not content or len(content.strip()) == 0:
+                        logger.warning(
+                            f"Context7 get_context: Received empty or invalid content for library_id={library_id}, "
+                            f"query={query[:50]}..., response_status={response.status}, "
+                            f"response_body_type={type(response_body)}, "
+                            f"response_body_keys={list(response_body.keys()) if isinstance(response_body, dict) else 'N/A'}, "
+                            f"response_body_preview={str(response_body)[:500] if response_body else 'None'}"
+                        )
+                        return None
+                    
+                    logger.info(f"Context7 get_context: Retrieved {len(content)} chars for library_id={library_id}")
+                    return content
+                    
                 elif response.status == 404:
-                    logger.warning(f"Context7 library not found: {library_id}")
+                    logger.warning(
+                        f"Context7 library not found: library_id={library_id}, "
+                        f"query={query[:50]}..., response_body={str(response_body)[:500] if response_body else 'None'}"
+                    )
+                    return None
+                elif response.status == 401:
+                    logger.error(
+                        f"Context7 authentication failed: library_id={library_id}, "
+                        f"query={query[:50]}..., response_body={str(response_body)[:500] if response_body else 'None'}. "
+                        f"Check if API key is valid and has access to this library."
+                    )
+                    return None
+                elif response.status == 429:
+                    logger.warning(
+                        f"Context7 rate limit exceeded: library_id={library_id}, "
+                        f"query={query[:50]}..., response_body={str(response_body)[:500] if response_body else 'None'}"
+                    )
                     return None
                 else:
-                    logger.error(f"Context7 get_context failed: {response.status}")
+                    logger.error(
+                        f"Context7 get_context failed: status={response.status}, "
+                        f"library_id={library_id}, query={query[:50]}..., "
+                        f"response_body={str(response_body)[:1000] if response_body else 'None'}"
+                    )
                     return None
 
 
@@ -580,7 +677,22 @@ class GetDocsSkill(BaseSkill):
                 if documentation:
                     logger.info(f"[{task_id}][PERF] Direct fetch succeeded in {timing['direct_fetch_ms']}ms")
                     selected_id = library
-                    selected_lib = {"id": library, "title": library.split("/")[-1]}
+                    
+                    # Do a quick search to get library metadata (title, description)
+                    # This adds ~50ms but ensures we have complete metadata
+                    timing["metadata_search_start"] = time.time()
+                    # Extract library name from ID for search (e.g., "/stripe/stripe-js" -> "stripe-js")
+                    lib_name_for_search = library.split("/")[-1]
+                    metadata_results = await client.search_libraries(lib_name_for_search)
+                    timing["metadata_search_end"] = time.time()
+                    timing["metadata_search_ms"] = int((timing["metadata_search_end"] - timing["metadata_search_start"]) * 1000)
+                    
+                    # Find matching library in search results for full metadata
+                    selected_lib = next(
+                        (lib for lib in metadata_results if lib.get("id") == library),
+                        {"id": library, "title": lib_name_for_search}  # Fallback if not found
+                    )
+                    logger.info(f"[{task_id}][PERF] Metadata search completed in {timing['metadata_search_ms']}ms, found description: {bool(selected_lib.get('description'))}")
                     # Skip to documentation processing (after the search/select block)
                 else:
                     logger.info(f"[{task_id}] Direct fetch failed, falling back to search")
@@ -706,14 +818,13 @@ class GetDocsSkill(BaseSkill):
                     source="context7"
                 )
             
-            # Estimate tokens (~4 chars per token)
-            tokens_used = len(sanitized_docs) // 4
-            
             # Log total timing breakdown
             timing["total_ms"] = int((time.time() - timing["start"]) * 1000)
             timing_summary = f"total={timing['total_ms']}ms"
             if "direct_fetch_ms" in timing:
                 timing_summary += f", direct_fetch={timing['direct_fetch_ms']}ms"
+            if "metadata_search_ms" in timing:
+                timing_summary += f", metadata_search={timing['metadata_search_ms']}ms"
             if "search_ms" in timing:
                 timing_summary += f", search={timing['search_ms']}ms"
             if "llm_ms" in timing:
@@ -721,7 +832,7 @@ class GetDocsSkill(BaseSkill):
             if "docs_ms" in timing:
                 timing_summary += f", docs_fetch={timing['docs_ms']}ms"
             
-            logger.info(f"[{task_id}][PERF] Success: {len(sanitized_docs)} chars, ~{tokens_used} tokens | {timing_summary}")
+            logger.info(f"[{task_id}][PERF] Success: {len(sanitized_docs)} chars | {timing_summary}")
             
             return GetDocsResponse(
                 library={
@@ -730,8 +841,7 @@ class GetDocsSkill(BaseSkill):
                     "description": selected_lib.get("description", "")
                 },
                 documentation=sanitized_docs,
-                source="context7",
-                tokens_used=tokens_used
+                source="context7"
             )
             
         except Exception as e:
@@ -763,8 +873,7 @@ class GetDocsSkill(BaseSkill):
                         "description": "OpenMates internal API documentation"
                     },
                     documentation=json.dumps(openapi_spec, indent=2),
-                    source="openmates",
-                    tokens_used=len(json.dumps(openapi_spec)) // 4
+                    source="openmates"
                 )
             else:
                 return GetDocsResponse(

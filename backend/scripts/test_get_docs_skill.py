@@ -121,9 +121,6 @@ async def test_get_docs():
                 print(f"Library ID: {result.library.get('id')}")
                 print(f"Library Title: {result.library.get('title')}")
             
-            if result.tokens_used:
-                print(f"Tokens Used: ~{result.tokens_used}")
-            
             if result.documentation:
                 print(f"Documentation Length: {len(result.documentation)} chars")
                 print(f"\n--- First 300 chars of docs ---")
