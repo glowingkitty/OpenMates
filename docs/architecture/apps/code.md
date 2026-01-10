@@ -346,7 +346,113 @@ See also: [App Skills - Prompt Injection Protection for External Data](./app_ski
 
 ### Get docs
 
-Use Context7 API to get docs for the code. For OpenMates API documentation, retrieve directly from OpenMates docs/openapi.json (bypassing Context7 for internal APIs). If no docs found via Context7, use web search + web read to get docs.
+Fetches up-to-date documentation for libraries/frameworks using Context7 API with intelligent library selection.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `library` | string | Yes | Library name or search query (e.g., "svelte", "fastapi", "react hooks") |
+| `question` | string | Yes | Natural language question about what documentation is needed |
+
+#### Execution Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Step 1: Context7 Library Search                                        │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Input: library parameter                                               │
+│  Output: List of matching libraries (id, title, description, metadata)  │
+│  Note: Fast, no LLM involved                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Step 2: Intelligent Library Selection (LLM)                            │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Input: Sanitized library list + question                               │
+│  Output: Selected library_id (structured JSON)                          │
+│  Model: See "Model Selection" below                                     │
+│  Protection: ASCII sanitization + structured output + ID validation     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Step 3: Context7 Documentation Retrieval                               │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Input: Selected library_id + question                                  │
+│  Output: Documentation context (markdown with code examples)            │
+│  Note: Fast, no LLM involved                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Step 4: Output Sanitization                                            │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Input: Raw documentation from Context7                                 │
+│  Output: Sanitized documentation                                        │
+│  Protection: Full prompt injection detection (see Layer 2 below)        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Model Selection for Library Selection (Step 2)
+
+This step is a **simple classification task** - selecting from 5-10 library options based on the user's question. Speed is critical since this is an intermediate step.
+
+| Priority | Provider | Model | Latency | Cost | Reasoning |
+|----------|----------|-------|---------|------|-----------|
+| **Primary** | Groq | `openai/gpt-oss-20b` | ~150ms | Very low | Fast inference, good reasoning for selection |
+| Fallback 1 | Cerebras | `openai/gpt-oss-120b` | ~300ms | Low | Stronger reasoning if primary fails |
+| Fallback 2 | Mistral | `mistral-small-3.2` | ~400ms | Low | Reliable, good at structured tasks |
+
+**Model rationale:**
+- GPT OSS 20B via Groq provides excellent speed for this simple selection task
+- GPT OSS 120B via Cerebras offers stronger reasoning as fallback without excessive cost
+- Mistral Small 3.2 as last resort for maximum reliability
+
+#### Prompt Injection Protection
+
+Context7 output (library descriptions) is **untrusted external data**. Defense layers:
+
+**Layer 0: ASCII Smuggling Protection**
+- Applied to all library descriptions BEFORE sending to selection LLM
+- Uses existing `text_sanitization.py` implementation
+- Removes invisible Unicode characters, variant selectors, etc.
+
+**Layer 1: Structured Output + Validation (Step 2)**
+- Force JSON response with strict schema: `{"selected_library_id": "..."}`
+- **Output validation**: Verify selected ID exists in the original search results
+- Minimal context: Only pass `id`, `title`, and truncated `description` (100 chars max)
+- If validation fails, select first result as fallback
+
+**Layer 2: Full Sanitization (Step 4)**
+- Documentation output goes through full prompt injection detection
+- Uses existing `content_sanitization.py` with LLM-based detection
+- Chunking at 50,000 tokens if documentation is large
+
+#### Library Selection System Prompt
+
+The system prompt for library selection is defined as a constant `LIBRARY_SELECTION_SYSTEM_PROMPT` in `backend/apps/code/skills/get_docs_skill.py`. The prompt enforces structured function calling output with a strict schema for library ID selection and includes selection criteria based on name matching, description relevance, and library quality metrics.
+
+#### Special Cases
+
+| Case | Handling |
+|------|----------|
+| **OpenMates API** | Bypass Context7, read directly from `docs/openapi.json` |
+| **No Context7 results** | Fallback to web search + web read skill chain |
+| **Single library match** | Skip LLM selection, use the single result directly |
+| **LLM selection fails** | Use first search result (highest relevance score) |
+
+#### Output Format
+
+Returns a structured JSON object containing:
+- `library`: Object with `id`, `title`, and `description` of the selected library
+- `documentation`: Markdown-formatted documentation with code examples and source links
+- `source`: Source identifier (e.g., "context7")
+
+#### Implementation Notes
+
+- **Caching**: Cache library search results for 1 hour (libraries don't change frequently)
+- **Parallel requests**: If multiple Get docs calls in same message, batch library searches
+- **Token limits**: Truncate documentation to fit within context budget
+- **Logging**: Log selected library ID for analytics on selection accuracy
 
 ## Automated Code Quality Checks
 
