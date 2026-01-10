@@ -132,8 +132,8 @@ skills:
         preprocessing_model: mistral/mistral-small-latest
         main_processing_simple: alibaba/qwen3-235b-a22b-2507
         main_processing_simple_name: Qwen3
-        main_processing_complex: zai/zai-glm-4.7
-        main_processing_complex_name: GLM 4.7
+        main_processing_complex: alibaba/qwen3-235b-a22b-2507
+        main_processing_complex_name: Qwen3
         content_sanitization_model: openai/gpt-oss-safeguard-20b
       preprocessing_thresholds:
         harmful_content_score: 7

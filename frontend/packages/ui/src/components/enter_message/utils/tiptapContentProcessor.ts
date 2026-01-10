@@ -79,7 +79,9 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
         
         // Add embed node using the correct schema
         // Basic check to avoid embedding YouTube URLs as generic web embed if they should be video embed
-        const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|v\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+        // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+        const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
         if (!youtubeRegex.test(url)) {
              newNodes.push({
                 type: 'embed',

@@ -35,7 +35,8 @@ from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
-    generate_skill_task_id
+    generate_skill_task_id,
+    DEFAULT_SKILL_TIMEOUT
 )
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
@@ -1272,15 +1273,19 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 
                 try:
+                    # Execute skill with retry logic (20s timeout, 1 retry by default)
+                    # On timeout, the request is cancelled and retried with a fresh connection,
+                    # which helps when external APIs are slow or proxy IPs need rotation
                     results = await execute_skill_with_multiple_requests(
                         app_id=app_id,
                         skill_id=skill_id,
                         arguments=parsed_args,
-                        timeout=30.0,
+                        timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
                         chat_id=request_data.chat_id,
                         message_id=request_data.message_id,
                         skill_task_id=skill_task_id,
                         cache_service=cache_service
+                        # max_retries uses default (1 retry = 2 total attempts)
                     )
                 except SkillCancelledException:
                     # User cancelled this specific skill - continue with cancelled result

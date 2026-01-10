@@ -52,7 +52,9 @@ const EMBED_PATTERNS = {
     TABLE_FENCE: /^\|.*\|$/,
     TITLE_COMMENT: /^<!--\s*title:\s*["'](.+?)["']\s*-->$/,
     URL: /https?:\/\/[^\s]+/g,
-    YOUTUBE_URL: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
+    // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+    // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+    YOUTUBE_URL: /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
 };
 
 function generateUUID() {

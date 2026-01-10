@@ -12,6 +12,10 @@
 #
 # See docs/architecture/apps/code.md for full specification.
 
+# TODO: always directly search for library id and only use search for library if no library with the id was found
+# TODO QUestion: do we get one or multiple documenation results from context7?
+# TODO: how much processing time comes from llm overhead, how much from context7 api call?
+
 import logging
 import os
 import json
@@ -22,8 +26,8 @@ from celery import Celery
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.processing.skill_executor import sanitize_external_content
-from backend.core.api.app.services.cache import CacheService
+# Note: LLM-based sanitize_external_content is NOT used for Context7 docs (trusted source)
+# We only use ASCII smuggling protection which is imported inline where needed
 
 logger = logging.getLogger(__name__)
 
@@ -495,13 +499,16 @@ class GetDocsSkill(BaseSkill):
         library = library.strip()
         question = question.strip()
         
-        # Get or create SecretsManager
-        if secrets_manager is None:
-            try:
-                secrets_manager = SecretsManager()
-            except Exception as e:
-                logger.error(f"Failed to create SecretsManager: {e}")
-                return GetDocsResponse(error="Internal error: secrets manager unavailable")
+        # Get or create SecretsManager using BaseSkill helper method
+        # This properly initializes the SecretsManager with Vault token
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="GetDocsSkill",
+            error_response_factory=lambda msg: GetDocsResponse(error=msg),
+            logger=logger
+        )
+        if error_response:
+            return error_response
         
         task_id = f"get_docs_{library}_{int(time.time())}"
         logger.info(f"[{task_id}] Starting get_docs: library='{library}', question='{question[:50]}...'")
@@ -564,27 +571,62 @@ class GetDocsSkill(BaseSkill):
                     source="context7"
                 )
             
-            # Step 4: Sanitize documentation for prompt injection
-            logger.info(f"[{task_id}] Sanitizing documentation ({len(documentation)} chars)...")
-            cache_service = CacheService()
+            # ARCHITECTURE DECISION: Skip LLM-based sanitization for Context7 documentation
+            # ================================================================================
+            # Context7 is a TRUSTED SOURCE - it provides curated, official library documentation
+            # from GitHub repos and official docs sites. This is NOT user-generated content.
+            # 
+            # Reasons to skip LLM sanitization:
+            # 1. Context7 documentation is curated from official sources (GitHub, official docs)
+            # 2. LLM-based sanitization adds latency (~1-2 seconds) and cost
+            # 3. The Groq safeguard model has reliability issues with function calling
+            # 4. Documentation from official sources is extremely unlikely to contain prompt injection
+            # 5. ASCII smuggling protection (Layer 1) still runs to remove invisible characters
+            #
+            # We still apply ASCII smuggling protection (character-level sanitization) as a
+            # lightweight security measure that doesn't require LLM calls.
+            # ================================================================================
             
-            sanitized_docs = await sanitize_external_content(
-                content=documentation,
-                content_type="text",
-                task_id=task_id,
-                secrets_manager=secrets_manager,
-                cache_service=cache_service
+            logger.info(f"[{task_id}] Applying ASCII smuggling protection to documentation ({len(documentation)} chars)...")
+            
+            # Import ASCII smuggling sanitization for character-level protection
+            from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+            
+            # Apply ASCII smuggling protection (removes invisible Unicode characters)
+            # This is a fast, deterministic operation that doesn't require LLM calls
+            ascii_smuggling_log_prefix = f"[{task_id}][CONTEXT7] "
+            sanitized_docs, ascii_stats = sanitize_text_for_ascii_smuggling(
+                documentation,
+                log_prefix=ascii_smuggling_log_prefix,
+                include_stats=True
             )
             
-            if sanitized_docs is None:
-                logger.error(f"[{task_id}] Documentation sanitization failed")
+            # Log security alert if hidden content was detected
+            if ascii_stats.get("hidden_ascii_detected"):
+                logger.warning(
+                    f"[{task_id}][SECURITY ALERT] ASCII smuggling detected in Context7 documentation! "
+                    f"Hidden Unicode Tags content found and removed. "
+                    f"Removed {ascii_stats['removed_count']} invisible characters."
+                )
+            elif ascii_stats.get("removed_count", 0) > 0:
+                logger.info(
+                    f"[{task_id}][ASCII SANITIZATION] Removed {ascii_stats['removed_count']} "
+                    f"invisible characters from Context7 documentation"
+                )
+            
+            # If content became empty after ASCII sanitization, it was likely all hidden chars
+            if not sanitized_docs.strip():
+                logger.warning(
+                    f"[{task_id}] Context7 documentation became empty after ASCII smuggling removal. "
+                    f"Original may have been entirely hidden characters (attack attempt)."
+                )
                 return GetDocsResponse(
                     library={
                         "id": selected_id,
                         "title": selected_lib.get("title", ""),
                         "description": selected_lib.get("description", "")
                     },
-                    error="Documentation sanitization failed - content may contain security risks",
+                    error="Documentation content was invalid (contained only invisible characters)",
                     source="context7"
                 )
             
