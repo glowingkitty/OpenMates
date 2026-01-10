@@ -826,3 +826,128 @@ video_pip:
   cs: Obraz v obraze
   sv: Bild-i-bild
   verified_by_human: []
+get_docs:
+  context: Get Docs skill label for code app
+  en: Get Docs
+  de: Docs abrufen
+  zh: 获取文档
+  es: Obtener documentación
+  fr: Obtenir la documentation
+  pt: Obter documentação
+  ru: Получить документацию
+  ja: ドキュメントを取得
+  ko: 문서 가져오기
+  it: Ottieni documentazione
+  tr: Belgeleri al
+  vi: Lấy tài liệu
+  id: Dapatkan dokumentasi
+  pl: Pobierz dokumentację
+  nl: Documentatie ophalen
+  ar: الحصول على الوثائق
+  hi: डॉक्स प्राप्त करें
+  th: รับเอกสาร
+  cs: Získat dokumentaci
+  sv: Hämta dokumentation
+  verified_by_human:
+    - en
+    - de
+get_docs_full_view:
+  context: Label above the open Context7 button in get docs fullscreen
+  en: 'Full documentation experience:'
+  de: 'Vollständige Dokumentation:'
+  zh: 完整文档体验：
+  es: 'Experiencia de documentación completa:'
+  fr: 'Expérience de documentation complète :'
+  pt: 'Experiência de documentação completa:'
+  ru: 'Полная документация:'
+  ja: 完全なドキュメント表示：
+  ko: '전체 문서 경험:'
+  it: 'Esperienza di documentazione completa:'
+  tr: 'Tam dokümantasyon deneyimi:'
+  vi: 'Trải nghiệm tài liệu đầy đủ:'
+  id: 'Pengalaman dokumentasi lengkap:'
+  pl: 'Pełne doświadczenie dokumentacji:'
+  nl: 'Volledige documentatie-ervaring:'
+  ar: 'تجربة التوثيق الكاملة:'
+  hi: 'पूर्ण दस्तावेज़ अनुभव:'
+  th: 'ประสบการณ์เอกสารเต็มรูปแบบ:'
+  cs: 'Plná dokumentační zkušenost:'
+  sv: 'Fullständig dokumentationsupplevelse:'
+  verified_by_human:
+    - en
+    - de
+get_docs_preview:
+  context: Label above markdown content in get docs fullscreen
+  en: 'Documentation preview,'
+  de: 'Dokumentationsvorschau,'
+  zh: 文档预览，
+  es: 'Vista previa de documentación,'
+  fr: 'Aperçu de la documentation,'
+  pt: 'Visualização da documentação,'
+  ru: 'Предпросмотр документации,'
+  ja: ドキュメントのプレビュー、
+  ko: '문서 미리보기,'
+  it: 'Anteprima della documentazione,'
+  tr: 'Dokümantasyon önizlemesi,'
+  vi: 'Xem trước tài liệu,'
+  id: 'Pratinjau dokumentasi,'
+  pl: 'Podgląd dokumentacji,'
+  nl: 'Documentatievoorbeeld,'
+  ar: 'معاينة التوثيق،'
+  hi: 'दस्तावेज़ पूर्वावलोकन,'
+  th: 'ตัวอย่างเอกสาร,'
+  cs: 'Náhled dokumentace,'
+  sv: 'Dokumentationsförhandsgranskning,'
+  verified_by_human:
+    - en
+    - de
+get_docs_no_content:
+  context: Message shown when no documentation content is available
+  en: No documentation available.
+  de: Keine Dokumentation verfügbar.
+  zh: 没有可用的文档。
+  es: No hay documentación disponible.
+  fr: Aucune documentation disponible.
+  pt: Nenhuma documentação disponível.
+  ru: Документация недоступна.
+  ja: ドキュメントがありません。
+  ko: 사용 가능한 문서가 없습니다.
+  it: Nessuna documentazione disponibile.
+  tr: Dokümantasyon mevcut değil.
+  vi: Không có tài liệu nào.
+  id: Tidak ada dokumentasi tersedia.
+  pl: Brak dostępnej dokumentacji.
+  nl: Geen documentatie beschikbaar.
+  ar: لا يوجد توثيق متاح.
+  hi: कोई दस्तावेज़ उपलब्ध नहीं है।
+  th: ไม่มีเอกสารที่พร้อมใช้งาน
+  cs: Žádná dokumentace není k dispozici.
+  sv: Ingen dokumentation tillgänglig.
+  verified_by_human:
+    - en
+    - de
+get_docs_loading:
+  context: Message shown when documentation is loading
+  en: Loading documentation...
+  de: Dokumentation wird geladen...
+  zh: 正在加载文档...
+  es: Cargando documentación...
+  fr: Chargement de la documentation...
+  pt: Carregando documentação...
+  ru: Загрузка документации...
+  ja: ドキュメントを読み込み中...
+  ko: 문서 로드 중...
+  it: Caricamento documentazione...
+  tr: Dokümantasyon yükleniyor...
+  vi: Đang tải tài liệu...
+  id: Memuat dokumentasi...
+  pl: Ładowanie dokumentacji...
+  nl: Documentatie laden...
+  ar: جاري تحميل التوثيق...
+  hi: दस्तावेज़ लोड हो रहा है...
+  th: กำลังโหลดเอกสาร...
+  cs: Načítání dokumentace...
+  sv: Laddar dokumentation...
+  verified_by_human:
+    - en
+    - de

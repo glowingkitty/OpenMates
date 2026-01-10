@@ -15,9 +15,7 @@
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
-    // @ts-expect-error - Svelte components are default exports
     import SettingsItem from '../SettingsItem.svelte';
-    // @ts-expect-error - Svelte components are default exports
     import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -366,7 +364,9 @@
     /**
      * Get icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
-     * Also handles special cases like "email.svg" -> "mail" (since the icon file is mail.svg).
+     * Also handles special cases:
+     * - "email.svg" -> "mail" (since the icon file is mail.svg)
+     * - "coding.svg" -> "code" (since the app ID is "code" but icon file is coding.svg)
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return 'app';
@@ -375,6 +375,11 @@
         // Handle special case: email.svg -> mail (since the icon file is mail.svg)
         if (iconName === 'email') {
             iconName = 'mail';
+        }
+        // Handle special case: coding.svg -> code (since the app ID is "code" but icon file is coding.svg)
+        // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
+        if (iconName === 'coding') {
+            iconName = 'code';
         }
         return iconName;
     }

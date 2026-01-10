@@ -84,6 +84,40 @@ export interface VideoTranscriptResult {
 }
 
 /**
+ * Code Get Docs skill preview data
+ * Used to display documentation fetched from Context7 API
+ */
+export interface CodeGetDocsSkillPreviewData extends BaseSkillPreviewData {
+  app_id: 'code';
+  skill_id: 'get_docs';
+  status: SkillExecutionStatus;
+  results?: CodeGetDocsResult[];
+  library?: string; // Library name that was searched
+  question?: string; // Question that was asked
+}
+
+/**
+ * Individual get_docs result from Context7
+ */
+export interface CodeGetDocsResult {
+  type: 'get_docs';
+  /** Selected library info */
+  library?: {
+    id?: string; // e.g., "/sveltejs/svelte"
+    title?: string; // e.g., "Svelte"
+    description?: string;
+  };
+  /** Documentation content in markdown format */
+  documentation?: string;
+  /** Source of documentation (context7, openmates, web_search) */
+  source?: string;
+  /** Word count of the documentation */
+  word_count?: number;
+  /** Error message if retrieval failed */
+  error?: string;
+}
+
+/**
  * WebSocket event payload for skill execution status updates
  */
 export interface SkillExecutionStatusUpdatePayload {

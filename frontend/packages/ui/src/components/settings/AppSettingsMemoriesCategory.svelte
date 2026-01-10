@@ -97,10 +97,19 @@
     
     /**
      * Get icon name from icon_image filename.
+     * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
+     * Also handles special cases:
+     * - "coding.svg" -> "code" (since the app ID is "code" but icon file is coding.svg)
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return appId;
-        return iconImage.replace(/\.svg$/, '');
+        let iconName = iconImage.replace(/\.svg$/, '');
+        // Handle special case: coding.svg -> code (since the app ID is "code" but icon file is coding.svg)
+        // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
+        if (iconName === 'coding') {
+            iconName = 'code';
+        }
+        return iconName;
     }
     
     /**
