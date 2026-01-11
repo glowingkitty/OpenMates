@@ -20,6 +20,7 @@
     import MapsSearchEmbedPreview from '../../../components/embeds/maps/MapsSearchEmbedPreview.svelte';
     import VideoTranscriptEmbedPreview from '../../../components/embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import CodeGetDocsEmbedPreview from '../../../components/embeds/code/CodeGetDocsEmbedPreview.svelte';
+    import CodeEmbedPreview from '../../../components/embeds/code/CodeEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -204,9 +205,14 @@
 
     /**
      * Format date for display
+     * Handles both Unix timestamps in seconds and milliseconds
      */
     function formatDate(timestamp: number): string {
-        const date = new Date(timestamp);
+        // Heuristic: If timestamp is less than year 2000 in milliseconds (946684800000),
+        // it's probably in seconds and needs to be converted to milliseconds
+        // Year 2000 in seconds = 946684800, which is much larger than any realistic ms timestamp
+        const timestampMs = timestamp < 946684800000 ? timestamp * 1000 : timestamp;
+        const date = new Date(timestampMs);
         return date.toLocaleDateString(undefined, {
             year: 'numeric',
             month: 'short',
@@ -394,8 +400,29 @@
                 };
             }
 
+            // Code app: Regular code embeds (AI-generated code blocks)
+            // These have embed type 'code' or 'code_embed' and contain code content
+            const embedType = embedEntry.type || decodedContent.type || '';
+            if (embedAppId === 'code' || embedType === 'code' || embedType === 'code_embed') {
+                // Code embeds have: code, language, filename fields
+                const codeContent = decodedContent.code || decodedContent.content || '';
+                return {
+                    component: CodeEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: status,
+                        language: decodedContent.language || '',
+                        filename: decodedContent.filename,
+                        lineCount: decodedContent.line_count || 0,
+                        codeContent: codeContent,
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
             // Fallback: Generic preview (could be enhanced later)
-            console.warn('[AppEmbedsPanel] No specific preview component for:', { appId: embedAppId, skillId });
+            console.warn('[AppEmbedsPanel] No specific preview component for:', { appId: embedAppId, skillId, embedType });
             return null;
         } catch (error) {
             console.error('[AppEmbedsPanel] Error rendering embed preview:', error);

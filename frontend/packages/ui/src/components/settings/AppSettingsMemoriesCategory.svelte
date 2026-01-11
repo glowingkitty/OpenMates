@@ -275,8 +275,9 @@
     }
     
     /**
-     * Get all entries flattened from all groups.
-     * Since entries are grouped by settings_group, we need to flatten them for display.
+     * Get entries filtered to only the current category.
+     * The categoryId corresponds to the settings_group field in entries.
+     * Only entries matching the current category are displayed.
      */
     let allEntries = $derived.by(() => {
         const entries: Array<{ 
@@ -287,20 +288,23 @@
             item_version: number; 
             settings_group: string 
         }> = [];
-        for (const [groupName, groupEntries] of Object.entries(groupedEntries)) {
-            if (Array.isArray(groupEntries)) {
-                for (const entry of groupEntries) {
-                    entries.push({
-                        id: entry.id as string,
-                        item_key: entry.item_key as string,
-                        item_value: entry.item_value as Record<string, unknown>,
-                        updated_at: entry.updated_at as number,
-                        item_version: entry.item_version as number,
-                        settings_group: groupName
-                    });
-                }
+        
+        // Only get entries for the specific categoryId (settings_group)
+        // This ensures the page only shows entries for the selected category
+        const categoryEntries = groupedEntries[categoryId];
+        if (Array.isArray(categoryEntries)) {
+            for (const entry of categoryEntries) {
+                entries.push({
+                    id: entry.id as string,
+                    item_key: entry.item_key as string,
+                    item_value: entry.item_value as Record<string, unknown>,
+                    updated_at: entry.updated_at as number,
+                    item_version: entry.item_version as number,
+                    settings_group: categoryId
+                });
             }
         }
+        
         // Sort by updated_at descending (newest first)
         return entries.sort((a, b) => b.updated_at - a.updated_at);
     });
