@@ -100,6 +100,7 @@ interface AppSettingsMemoriesSyncReadyPayload {
         id: string;
         app_id: string;
         item_key: string;
+        item_type: string;  // Category ID for filtering (e.g., 'preferred_technologies')
         encrypted_item_json: string;
         encrypted_app_key: string;
         created_at: number;
@@ -173,6 +174,7 @@ interface AppSettingsMemoriesEntrySyncedPayload {
         id: string;
         app_id: string;
         item_key: string;
+        item_type: string;  // Category ID for filtering (e.g., 'preferred_technologies')
         encrypted_item_json: string;
         encrypted_app_key: string;
         created_at: number;

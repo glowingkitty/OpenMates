@@ -23,6 +23,7 @@ export interface AppSettingsMemoriesEntry {
     id: string;                       // Unique entry identifier
     app_id: string;                   // ID of the app this entry belongs to
     item_key: string;                 // Key identifying the setting/memory within the app
+    item_type: string;                // Category/type ID for filtering (e.g., 'preferred_technologies')
     encrypted_item_json: string;      // Encrypted JSON value of the item
     encrypted_app_key: string;        // Encrypted app-specific key for decryption
     created_at: number;               // Unix timestamp of creation
@@ -79,6 +80,7 @@ export async function storeAppSettingsMemoriesEntries(
                             id: entry.id,
                             app_id: entry.app_id,
                             item_key: entry.item_key,
+                            item_type: entry.item_type,  // Category ID for filtering
                             encrypted_item_json: entry.encrypted_item_json,
                             encrypted_app_key: entry.encrypted_app_key,
                             created_at: entry.created_at,
@@ -99,6 +101,7 @@ export async function storeAppSettingsMemoriesEntries(
                                 id: entry.id,
                                 app_id: entry.app_id,
                                 item_key: entry.item_key,
+                                item_type: entry.item_type,  // Category ID for filtering
                                 encrypted_item_json: entry.encrypted_item_json,
                                 encrypted_app_key: entry.encrypted_app_key,
                                 created_at: entry.created_at,
@@ -122,6 +125,7 @@ export async function storeAppSettingsMemoriesEntries(
                         id: entry.id,
                         app_id: entry.app_id,
                         item_key: entry.item_key,
+                        item_type: entry.item_type,  // Category ID for filtering
                         encrypted_item_json: entry.encrypted_item_json,
                         encrypted_app_key: entry.encrypted_app_key,
                         created_at: entry.created_at,
@@ -138,6 +142,7 @@ export async function storeAppSettingsMemoriesEntries(
                         id: entry.id,
                         app_id: entry.app_id,
                         item_key: entry.item_key,
+                        item_type: entry.item_type,  // Category ID for filtering
                         encrypted_item_json: entry.encrypted_item_json,
                         encrypted_app_key: entry.encrypted_app_key,
                         created_at: entry.created_at,

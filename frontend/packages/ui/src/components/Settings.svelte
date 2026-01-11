@@ -584,9 +584,13 @@ changes to the documentation (to keep the documentation up to date).
                 if (app.icon_image) {
                     // Convert icon_image like "web.svg" to icon name "web"
                     let iconName = app.icon_image.replace(/\.svg$/, '');
-                    // Handle special case: email.svg -> mail
+                    // Handle special cases for icon name -> app ID mapping
+                    // These ensure the correct CSS color variable is used (e.g., --color-app-code, not --color-app-coding)
                     if (iconName === 'email') {
                         iconName = 'mail';
+                    } else if (iconName === 'coding') {
+                        // coding.svg -> code (app ID is "code", icon file is "coding.svg")
+                        iconName = 'code';
                     }
                     activeSubMenuIcon = iconName;
                 } else {
@@ -785,8 +789,13 @@ changes to the documentation (to keep the documentation up to date).
                     // Use app icon from icon_image or appId as fallback
                     if (app.icon_image) {
                         let iconName = app.icon_image.replace(/\.svg$/, '');
+                        // Handle special cases for icon name -> app ID mapping
+                        // These ensure the correct CSS color variable is used (e.g., --color-app-code, not --color-app-coding)
                         if (iconName === 'email') {
                             iconName = 'mail';
+                        } else if (iconName === 'coding') {
+                            // coding.svg -> code (app ID is "code", icon file is "coding.svg")
+                            iconName = 'code';
                         }
                         icon = iconName;
                     } else {

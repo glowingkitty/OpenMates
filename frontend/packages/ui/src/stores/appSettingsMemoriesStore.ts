@@ -20,6 +20,7 @@ interface AppSettingsMemoriesEntry {
     id: string;
     app_id: string;
     item_key: string;
+    item_type: string;                // Category ID for filtering (e.g., 'preferred_technologies')
     encrypted_item_json: string;
     encrypted_app_key: string;
     created_at: number;
@@ -95,10 +96,9 @@ function createAppSettingsMemoriesStore() {
                     itemValue = { _encrypted: true };
                 }
 
-                // Extract settings_group from decrypted item value, falling back to 'Default'
-                // Note: item_key in storage is now a hash, so we can't derive settings_group from it
-                const settingsGroup = (typeof itemValue.settings_group === 'string' ? itemValue.settings_group : null) 
-                    || 'Default';
+                // Use top-level item_type for filtering - this is required for all entries
+                // item_type is stored at top level for efficient filtering without decryption
+                const settingsGroup = entry.item_type;
 
                 // Extract original item_key from decrypted data (stored as _original_item_key for privacy)
                 // Falls back to the hashed key if original is not available (legacy entries)
@@ -293,10 +293,13 @@ function createAppSettingsMemoriesStore() {
                 // PRIVACY: item_key is now a hash - original key is inside encrypted_item_json
                 // Note: encrypted_app_key is set to empty string as current implementation
                 // uses master key directly for encryption (per existing decryption logic)
+                // CRITICAL: item_type is stored at top level (unencrypted) for efficient filtering
+                // It's the category ID (e.g., 'preferred_technologies') and is NOT sensitive
                 const encryptedEntry: AppSettingsMemoriesEntry = {
                     id: itemId,
                     app_id: appId,
                     item_key: hashedItemKey.substring(0, 32),  // Use hash prefix as key (privacy)
+                    item_type: entryData.settings_group,  // Category ID at top level for filtering
                     encrypted_item_json: encryptedItemJson,
                     encrypted_app_key: '', // Not used in current implementation
                     created_at: nowSeconds,
@@ -431,10 +434,12 @@ function createAppSettingsMemoriesStore() {
                 }
 
                 // Create the encrypted entry for IndexedDB storage
+                // CRITICAL: item_type is stored at top level (unencrypted) for efficient filtering
                 const encryptedEntry: AppSettingsMemoriesEntry = {
                     id: entryId,
                     app_id: appId,
                     item_key: hashedItemKey.substring(0, 32),
+                    item_type: entryData.settings_group,  // Category ID at top level for filtering
                     encrypted_item_json: encryptedItemJson,
                     encrypted_app_key: '',
                     created_at: existingEntry.created_at,

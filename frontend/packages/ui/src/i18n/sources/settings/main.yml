@@ -2601,6 +2601,29 @@ app_settings_memories.delete:
   cs: Smazat
   sv: Radera
   verified_by_human: []
+app_settings_memories.save:
+  context: Button text to save an entry
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  verified_by_human: []
 newsletter:
   context: Newsletter settings menu item
   en: Newsletter
