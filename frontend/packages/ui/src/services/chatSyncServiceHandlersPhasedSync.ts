@@ -49,11 +49,12 @@ export async function handlePhase2RecentChatsImpl(
         if (chats.length === 0) {
             console.debug("[ChatSyncService] Phase 2 received empty chats array, nothing to store");
             // Still store embeds and embed_keys if any (they can exist without chats being sent)
-            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-                await storeEmbedsBatch(embeds, 'Phase 2');
-            }
+            // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
             if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
                 await storeEmbedKeysBatch(embed_keys, 'Phase 2');
+            }
+            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                await storeEmbedsBatch(embeds, 'Phase 2');
             }
             return;
         }
@@ -61,14 +62,15 @@ export async function handlePhase2RecentChatsImpl(
         // Store recent chats data
         await storeRecentChats(serviceInstance, chats);
         
-        // Store embeds from flat array (new format - deduplicated by backend)
-        if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-            await storeEmbedsBatch(embeds, 'Phase 2');
-        }
-        
-        // CRITICAL: Store embed_keys (needed to decrypt embed content)
+        // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
         if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
             await storeEmbedKeysBatch(embed_keys, 'Phase 2');
+        }
+        
+        // Store embeds from flat array (new format - deduplicated by backend)
+        // Now that keys are stored, putEncrypted can extract app_id/skill_id from decrypted content
+        if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+            await storeEmbedsBatch(embeds, 'Phase 2');
         }
 
         // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
@@ -115,11 +117,12 @@ export async function handlePhase3FullSyncImpl(
         if (chats.length === 0) {
             console.debug("[ChatSyncService] Phase 3 received empty chats array, nothing to store");
             // Still store embeds and embed_keys if any (they can exist without chats being sent)
-            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-                await storeEmbedsBatch(embeds, 'Phase 3');
-            }
+            // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
             if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
                 await storeEmbedKeysBatch(embed_keys, 'Phase 3');
+            }
+            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                await storeEmbedsBatch(embeds, 'Phase 3');
             }
             return;
         }
@@ -127,14 +130,15 @@ export async function handlePhase3FullSyncImpl(
         // Store all chats data
         await storeAllChats(serviceInstance, chats);
         
-        // Store embeds from flat array (new format - deduplicated by backend)
-        if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-            await storeEmbedsBatch(embeds, 'Phase 3');
-        }
-        
-        // CRITICAL: Store embed_keys (needed to decrypt embed content)
+        // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
         if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
             await storeEmbedKeysBatch(embed_keys, 'Phase 3');
+        }
+        
+        // Store embeds from flat array (new format - deduplicated by backend)
+        // Now that keys are stored, putEncrypted can extract app_id/skill_id from decrypted content
+        if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+            await storeEmbedsBatch(embeds, 'Phase 3');
         }
 
         // Store new chat suggestions if provided

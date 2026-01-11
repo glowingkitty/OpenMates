@@ -477,8 +477,7 @@
         
         <!-- CTA Button: "Open on Context7" -->
         {#if libraryId}
-          <button 
-            class="open-context7-btn"
+          <button
             onclick={handleOpenContext7}
             type="button"
           >
@@ -611,28 +610,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  
-  .open-context7-btn {
-    margin-top: 8px;
-    padding: 10px 20px;
-    background: linear-gradient(133.68deg, rgba(89, 81, 208, 1) 9.04%, rgba(125, 116, 255, 1) 90.06%);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  
-  .open-context7-btn:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(89, 81, 208, 0.3);
-  }
-  
-  .open-context7-btn:active {
-    transform: scale(0.98);
   }
   
   /* ===========================================

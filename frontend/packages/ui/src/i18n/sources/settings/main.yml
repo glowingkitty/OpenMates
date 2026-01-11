@@ -2532,6 +2532,75 @@ app_settings_memories.placeholder:
   cs: Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde.
   sv: Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här.
   verified_by_human: []
+app_settings_memories.just_now:
+  context: Timestamp text indicating something happened just now
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Justo ahora
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: الآن
+  hi: अभी अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  verified_by_human: []
+app_settings_memories.edit:
+  context: Button text to edit an entry
+  en: Edit
+  de: Bearbeiten
+  zh: 编辑
+  es: Editar
+  fr: Modifier
+  pt: Editar
+  ru: Редактировать
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Edit
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  verified_by_human: []
+app_settings_memories.delete:
+  context: Button text to delete an entry
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
+  verified_by_human: []
 newsletter:
   context: Newsletter settings menu item
   en: Newsletter
