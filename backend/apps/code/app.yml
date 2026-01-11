@@ -156,7 +156,7 @@ skills:
         library:
           type: string
           description: |
-            Library name to search for (e.g., "svelte", "react", "fastapi").
+            Library name to search for (e.g., "Svelte 5", "React", "FastAPI", "Miro API", etc.).
         question:
           type: string
           description: |

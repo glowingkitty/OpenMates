@@ -409,6 +409,61 @@ async def _async_process_ai_skill_ask_task(
             discovered_apps_metadata=discovered_apps_metadata  # Pass discovered apps for tool preselection
         )
 
+        # --- Cache debug data for preprocessing stage ---
+        # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
+        # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
+        try:
+            if cache_service_instance and encryption_service_instance:
+                # Prepare preprocessor input data with FULL message history for debugging
+                # Convert message history to serializable format
+                message_history_serialized = None
+                if request_data.message_history:
+                    message_history_serialized = [
+                        msg.model_dump() if hasattr(msg, 'model_dump') else (
+                            {"role": msg.role, "content": msg.content, "created_at": msg.created_at, 
+                             "sender_name": getattr(msg, 'sender_name', None), "category": getattr(msg, 'category', None)}
+                            if hasattr(msg, 'role') else msg
+                        )
+                        for msg in request_data.message_history
+                    ]
+                
+                preprocessor_input = {
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "chat_has_title": request_data.chat_has_title,
+                    "mate_id": request_data.mate_id,
+                    "active_focus_id": request_data.active_focus_id,
+                    "user_preferences": request_data.user_preferences,
+                    # FULL message history for debugging
+                    "message_history": message_history_serialized,
+                    "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
+                    # Skill config
+                    "skill_config": skill_config.model_dump() if skill_config else None,
+                    # Discovered apps metadata
+                    "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
+                    "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
+                    # Base instructions keys (not full content to save space, but track what was used)
+                    "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
+                }
+                
+                # Prepare preprocessor output data (full model dump)
+                preprocessor_output = preprocessing_result.model_dump() if preprocessing_result else None
+                
+                await cache_service_instance.cache_debug_request_entry(
+                    encryption_service=encryption_service_instance,
+                    task_id=task_id,
+                    chat_id=request_data.chat_id,
+                    stage="preprocessor",
+                    input_data=preprocessor_input,
+                    output_data=preprocessor_output,
+                )
+                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (full content)")
+        except Exception as e_debug:
+            # Don't fail the task if debug caching fails - just log the error
+            logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
+
         # Note: We no longer handle harmful content rejection here.
         # Instead, we let it flow through to the stream consumer which will handle it properly
         # with the normal streaming flow, ensuring the frontend gets proper completion signals.
@@ -666,6 +721,70 @@ async def _async_process_ai_skill_ask_task(
             always_include_skills=skill_config.always_include_skills if skill_config else None
         )
         logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+
+        # --- Cache debug data for main processor stage ---
+        # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
+        # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
+        try:
+            if cache_service_instance and encryption_service_instance:
+                # Safely serialize preprocessing_result to avoid serialization errors
+                # Use mode='json' for JSON-safe output, catching any serialization issues
+                preprocessing_result_dict = None
+                if preprocessing_result:
+                    try:
+                        preprocessing_result_dict = preprocessing_result.model_dump(mode='json')
+                    except Exception as e_serialize:
+                        logger.error(f"[Task ID: {task_id}] Failed to serialize preprocessing_result for debug cache: {e_serialize}")
+                        # Fallback: try to capture key fields manually
+                        preprocessing_result_dict = {
+                            "serialization_error": str(e_serialize),
+                            "can_proceed": getattr(preprocessing_result, 'can_proceed', None),
+                            "category": getattr(preprocessing_result, 'category', None),
+                        }
+                
+                # Prepare main processor input data with FULL preprocessing result
+                main_processor_input = {
+                    "chat_id": request_data.chat_id,
+                    "task_id": task_id,
+                    # Full preprocessing result that drives main processor behavior
+                    "preprocessing_result": preprocessing_result_dict,
+                    # Key fields extracted for quick reference
+                    "preprocessing_can_proceed": preprocessing_result.can_proceed if preprocessing_result else None,
+                    "preprocessing_selected_model": preprocessing_result.selected_main_llm_model_id if preprocessing_result else None,
+                    "preprocessing_category": preprocessing_result.category if preprocessing_result else None,
+                    "preprocessing_preselected_skills": preprocessing_result.preselected_skill_ids if preprocessing_result else [],
+                    "preprocessing_chat_summary": preprocessing_result.chat_summary if preprocessing_result else None,
+                    "preprocessing_chat_tags": preprocessing_result.chat_tags if preprocessing_result else [],
+                    # Context info
+                    "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
+                    "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
+                    "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
+                    "always_include_skills": skill_config.always_include_skills if skill_config else None,
+                    "user_vault_key_id": user_vault_key_id,
+                    "mates_count": len(all_mates_configs) if all_mates_configs else 0,
+                }
+                
+                # Prepare main processor output data with FULL response
+                main_processor_output = {
+                    # FULL AI response for debugging
+                    "full_response": aggregated_final_response,
+                    "response_length": len(aggregated_final_response) if aggregated_final_response else 0,
+                    "revoked_in_consumer": revoked_in_consumer,
+                    "soft_limited_in_consumer": soft_limited_in_consumer,
+                }
+                
+                await cache_service_instance.cache_debug_request_entry(
+                    encryption_service=encryption_service_instance,
+                    task_id=task_id,
+                    chat_id=request_data.chat_id,
+                    stage="main_processor",
+                    input_data=main_processor_input,
+                    output_data=main_processor_output,
+                )
+                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (full content)")
+        except Exception as e_debug:
+            # Don't fail the task if debug caching fails - log at ERROR level with full traceback
+            logger.error(f"[Task ID: {task_id}] Failed to cache main_processor debug data (non-fatal): {e_debug}", exc_info=True)
 
         # Sync wrapper handles Celery state update for progress
         task_was_revoked = revoked_in_consumer # Update overall flag
@@ -943,6 +1062,48 @@ async def _async_process_ai_skill_ask_task(
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
             await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
             logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
+
+        # --- Cache debug data for postprocessor stage ---
+        # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
+        # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
+        try:
+            if cache_service_instance and encryption_service_instance:
+                # Prepare postprocessor input data with FULL content
+                postprocessor_input = {
+                    "chat_id": request_data.chat_id,
+                    "task_id": task_id,
+                    # FULL user message that was processed
+                    "last_user_message": last_user_message,
+                    "last_user_message_length": len(last_user_message) if last_user_message else 0,
+                    # FULL assistant response that was generated
+                    "assistant_response": aggregated_final_response,
+                    "assistant_response_length": len(aggregated_final_response) if aggregated_final_response else 0,
+                    # FULL chat summary from preprocessing
+                    "chat_summary": chat_summary,
+                    "chat_summary_length": len(chat_summary) if chat_summary else 0,
+                    # Chat tags from preprocessing
+                    "chat_tags": chat_tags,
+                    # Available apps for recommendations
+                    "available_app_ids": available_app_ids,
+                    "available_app_ids_count": len(available_app_ids) if available_app_ids else 0,
+                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                }
+                
+                # Prepare postprocessor output data (full model dump)
+                postprocessor_output = postprocessing_result.model_dump() if postprocessing_result else None
+                
+                await cache_service_instance.cache_debug_request_entry(
+                    encryption_service=encryption_service_instance,
+                    task_id=task_id,
+                    chat_id=request_data.chat_id,
+                    stage="postprocessor",
+                    input_data=postprocessor_input,
+                    output_data=postprocessor_output,
+                )
+                logger.debug(f"[Task ID: {task_id}] Cached postprocessor debug data (full content)")
+        except Exception as e_debug:
+            # Don't fail the task if debug caching fails - just log the error
+            logger.warning(f"[Task ID: {task_id}] Failed to cache postprocessor debug data (non-fatal): {e_debug}")
 
         logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
     else:

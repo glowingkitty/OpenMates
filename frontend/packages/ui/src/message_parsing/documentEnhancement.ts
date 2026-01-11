@@ -138,10 +138,96 @@ export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: Embed
   // Filter out null nodes (duplicate embed references that were marked for removal)
   modifiedContent = modifiedContent.filter(node => node !== null);
   
+  // SECOND PASS: Clean up JSON embed references that appear as plain text in paragraphs
+  // This handles cases where markdown code fences weren't properly recognized (e.g., due to
+  // excessive indentation in lists), leaving the JSON embed reference as plain text.
+  // At this point, renderedEmbedIds contains all embed_ids that were matched with codeBlocks.
+  if (renderedEmbedIds.size > 0) {
+    modifiedContent = cleanupJsonEmbedReferencesInParagraphs(modifiedContent, renderedEmbedIds);
+  }
+  
   return {
     ...doc,
     content: modifiedContent
   };
+}
+
+/**
+ * Recursively clean up JSON embed references in paragraphs throughout the document.
+ * This removes JSON strings like {"type": "code", "embed_id": "..."} from text when
+ * the embed has already been rendered (via a codeBlock replacement).
+ * 
+ * @param nodes - Array of TipTap nodes to process
+ * @param renderedEmbedIds - Set of embed_ids that have already been rendered
+ * @returns Cleaned array of nodes
+ */
+function cleanupJsonEmbedReferencesInParagraphs(nodes: TipTapNode[], renderedEmbedIds: Set<string>): TipTapNode[] {
+  return nodes.map(node => {
+    // Process list items recursively (they can contain paragraphs with embed references)
+    if (node.type === 'listItem' && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Process lists recursively
+    if ((node.type === 'bulletList' || node.type === 'orderedList') && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Process blockquotes recursively
+    if (node.type === 'blockquote' && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Clean up JSON embed references in paragraph text content
+    if (node.type === 'paragraph' && node.content) {
+      const cleanedContent = node.content.map(contentNode => {
+        if (contentNode.type === 'text' && contentNode.text) {
+          const cleanedText = removeRenderedJsonEmbedReferences(contentNode.text, renderedEmbedIds);
+          if (cleanedText !== contentNode.text) {
+            console.debug('[cleanupJsonEmbedReferencesInParagraphs] Cleaned JSON embed references from text:', {
+              originalLength: contentNode.text.length,
+              cleanedLength: cleanedText.length,
+              removed: contentNode.text.length - cleanedText.length
+            });
+          }
+          // If the cleaned text is empty or only whitespace, return null to filter it out
+          if (!cleanedText || !cleanedText.trim()) {
+            return null;
+          }
+          return {
+            ...contentNode,
+            text: cleanedText
+          };
+        }
+        return contentNode;
+      }).filter(n => n !== null);
+      
+      // If paragraph is now empty, return null to potentially filter it out
+      if (cleanedContent.length === 0) {
+        // Keep empty paragraphs for spacing
+        return {
+          ...node,
+          content: []
+        };
+      }
+      
+      return {
+        ...node,
+        content: cleanedContent
+      };
+    }
+    
+    return node;
+  });
 }
 
 /**
@@ -287,6 +373,62 @@ function findMatchingEmbedForCodeBlock(
   }
 
   return null;
+}
+
+/**
+ * Remove JSON embed references from text content when the embed has already been rendered.
+ * This handles cases where markdown code fences aren't properly recognized (e.g., due to
+ * excessive indentation in lists), leaving the JSON embed reference as plain text.
+ * 
+ * Matches patterns like: {"type": "code", "embed_id": "uuid"}
+ * 
+ * @param text - The text content that may contain JSON embed references
+ * @param renderedEmbedIds - Set of embed_ids that have already been rendered
+ * @returns Cleaned text with matched JSON references removed
+ */
+function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<string>): string {
+  if (!text || renderedEmbedIds.size === 0) {
+    return text;
+  }
+  
+  // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
+  // This regex matches JSON-like strings with type and embed_id fields
+  // We use a non-greedy match to handle multiple references in the same text
+  const jsonEmbedRefRegex = /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
+  
+  let result = text;
+  let match;
+  const matches: { fullMatch: string; embedId: string; index: number }[] = [];
+  
+  // Collect all matches first
+  while ((match = jsonEmbedRefRegex.exec(text)) !== null) {
+    const embedId = match[1];
+    if (renderedEmbedIds.has(embedId)) {
+      matches.push({
+        fullMatch: match[0],
+        embedId,
+        index: match.index
+      });
+      console.debug('[removeRenderedJsonEmbedReferences] Found rendered JSON embed reference to remove:', {
+        embedId,
+        matchLength: match[0].length
+      });
+    }
+  }
+  
+  // Remove matches in reverse order to preserve indices
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, index } = matches[i];
+    // Remove the JSON reference and any trailing newlines/whitespace
+    const beforeMatch = result.substring(0, index);
+    const afterMatch = result.substring(index + fullMatch.length);
+    
+    // Clean up whitespace around the removed reference
+    const cleanedAfter = afterMatch.replace(/^[\s\n]*/, '');
+    result = beforeMatch.trimEnd() + (cleanedAfter ? '\n' + cleanedAfter : '');
+  }
+  
+  return result.trim();
 }
 
 /**

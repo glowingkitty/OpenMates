@@ -172,6 +172,7 @@ export class ChatSynchronizationService extends EventTarget {
         import('./chatSyncServiceHandlersAppSettings').then(module => {
             webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));
             webSocketService.on('app_settings_memories_sync_ready', (payload) => module.handleAppSettingsMemoriesSyncReadyImpl(this, payload));
+            webSocketService.on('app_settings_memories_entry_synced', (payload) => module.handleAppSettingsMemoriesEntrySyncedImpl(this, payload));
         });
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));
@@ -330,6 +331,28 @@ export class ChatSynchronizationService extends EventTarget {
 
     public async sendDeleteNewChatSuggestionById(suggestionId: string): Promise<void> {
         await senders.sendDeleteNewChatSuggestionByIdImpl(this, suggestionId);
+    }
+    /**
+     * Sends an app settings/memories entry to server for permanent storage in Directus.
+     * 
+     * This is used when creating entries from the App Store settings UI:
+     * 1. Client encrypts entry with master key and stores in IndexedDB
+     * 2. Client sends encrypted entry to server via this function
+     * 3. Server stores encrypted entry in Directus (zero-knowledge)
+     * 4. Server broadcasts to other logged-in devices for multi-device sync
+     */
+    public async sendStoreAppSettingsMemoriesEntry(entry: {
+        id: string;
+        app_id: string;
+        item_key: string;
+        encrypted_item_json: string;
+        encrypted_app_key: string;
+        created_at: number;
+        updated_at: number;
+        item_version: number;
+        sequence_number?: number;
+    }): Promise<boolean> {
+        return await senders.sendStoreAppSettingsMemoriesEntryImpl(this, entry);
     }
     public async queueOfflineChange(change: Omit<OfflineChange, 'change_id'>): Promise<void> {
         // This one is tricky as it's called by senders. For now, keep it public or make senders pass `this` to it.

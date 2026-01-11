@@ -23,6 +23,10 @@ SUPPORT_PAYMENTS_ENCRYPTION_KEY = "support_payments"
 # Vault transit key name for issue report email encryption
 # This is a system-level key used to encrypt issue report contact email addresses
 ISSUE_REPORT_ENCRYPTION_KEY = "issue_report_emails"
+# Vault transit key name for debug request data encryption
+# This is a system-level key used to encrypt AI request debug data (last 10 requests)
+# for debugging purposes. Data auto-expires after 30 minutes.
+DEBUG_REQUESTS_ENCRYPTION_KEY = "debug_requests"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -554,6 +558,52 @@ class EncryptionService:
             logger.error(f"Failed to ensure issue report encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize issue report encryption key: {str(e)}")
 
+        # --- Ensure DEBUG_REQUESTS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting AI request debug data (preprocessor/main/postprocessor
+        # input/output) for debugging purposes. Data auto-expires after 30 minutes.
+        try:
+            logger.debug(f"Checking for debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{DEBUG_REQUESTS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == DEBUG_REQUESTS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{DEBUG_REQUESTS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize debug requests encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure debug requests encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize debug requests encryption key: {str(e)}")
+
     # Removed get_email_hash_key method
 
     async def create_user_key(self) -> str:
@@ -734,6 +784,42 @@ class EncryptionService:
             return None
         
         return await self.decrypt(encrypted_data, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+    
+    async def encrypt_debug_request_data(self, data: str) -> str:
+        """
+        Encrypt debug request data (AI processor inputs/outputs) using the
+        system-level debug requests encryption key.
+        
+        This is used to cache the last 10 AI requests for debugging purposes.
+        The data includes complete input/output for preprocessor, main processor,
+        and postprocessor stages.
+        
+        Args:
+            data: JSON string containing debug request data
+            
+        Returns:
+            Encrypted data (ciphertext)
+        """
+        if not data:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(data, key_name=DEBUG_REQUESTS_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_debug_request_data(self, encrypted_data: str) -> Optional[str]:
+        """
+        Decrypt debug request data using the system-level debug requests encryption key.
+        
+        Args:
+            encrypted_data: Encrypted data (ciphertext)
+            
+        Returns:
+            Decrypted data (JSON string) or None if decryption fails
+        """
+        if not encrypted_data:
+            return None
+        
+        return await self.decrypt(encrypted_data, key_name=DEBUG_REQUESTS_ENCRYPTION_KEY)
     
     async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
         """

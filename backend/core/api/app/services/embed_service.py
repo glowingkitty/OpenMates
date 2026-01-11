@@ -452,6 +452,11 @@ class EmbedService:
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
             if should_send_event:
+                # CRITICAL FIX: Pass check_cache_status=False because we already checked the cache
+                # status above (at line 440). The cache was updated at line 451 BEFORE this call,
+                # so send_embed_data_to_client's default cache check would see the NEW status
+                # ("finished") and incorrectly skip sending. This was causing embeds to never
+                # be finalized on the frontend because the "finished" event was being dropped.
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="code",
@@ -466,7 +471,8 @@ class EmbedService:
                     is_shared=cached_embed.get("is_shared", False),
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
-                    log_prefix=log_prefix
+                    log_prefix=log_prefix,
+                    check_cache_status=False  # Already checked above, cache was just updated
                 )
 
             logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
@@ -1760,11 +1766,9 @@ class EmbedService:
                     "updated_at": parent_created_at
                 }
                 
-                # Cache parent embed
-                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash)
-                
-                # CRITICAL: Send parent embed to client via WebSocket for client-side encryption and storage
-                # Without this, parent embed only exists in server cache and won't be stored in Directus
+                # CRITICAL: Send parent embed to client BEFORE caching to avoid duplicate prevention blocking
+                # The cache will have status="finished" after caching, so send_embed_data_to_client's
+                # default cache check would skip sending if we cached first.
                 await self.send_embed_data_to_client(
                     embed_id=parent_embed_id,
                     embed_type="app_skill_use",
@@ -1781,6 +1785,9 @@ class EmbedService:
                     updated_at=parent_created_at,
                     log_prefix=log_prefix
                 )
+                
+                # Cache parent embed AFTER sending
+                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash)
                 
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
                 
@@ -1853,11 +1860,9 @@ class EmbedService:
                     "updated_at": single_created_at
                 }
                 
-                # Cache embed
-                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
-                
-                # CRITICAL: Send embed to client via WebSocket for client-side encryption and storage
-                # Without this, the embed only exists in server cache and won't be stored in Directus
+                # CRITICAL: Send embed to client BEFORE caching to avoid duplicate prevention blocking
+                # The cache will have status="finished" after caching, so send_embed_data_to_client's
+                # default cache check would skip sending if we cached first.
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
@@ -1873,6 +1878,9 @@ class EmbedService:
                     updated_at=single_created_at,
                     log_prefix=log_prefix
                 )
+                
+                # Cache embed AFTER sending
+                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
                 
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
                 

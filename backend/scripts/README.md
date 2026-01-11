@@ -177,6 +177,90 @@ docker exec -it api python /app/backend/scripts/send_newsletter.py --limit 5
 
 ---
 
+### Inspect Chat
+
+**Purpose:** Display detailed information about a specific chat including metadata, messages, embeds, usage entries, and cache status.
+
+**Command:**
+```bash
+docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id>
+
+# With options
+docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --messages-limit 50
+docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --json
+docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --no-cache
+```
+
+**What it shows:**
+- Chat metadata from Directus (hashed user ID, timestamps, versions, sharing status)
+- Messages with role distribution and encrypted content status
+- Embeds with encryption keys status
+- Usage entries (credit consumption)
+- Redis cache status (versions, messages, drafts, etc.)
+- Version consistency checks between Directus and cache
+
+**Options:**
+- `--messages-limit N`: Limit number of messages to display (default: 20)
+- `--embeds-limit N`: Limit number of embeds to display (default: 20)
+- `--usage-limit N`: Limit number of usage entries to display (default: 20)
+- `--json`: Output as JSON instead of formatted text
+- `--no-cache`: Skip cache checks (faster if Redis is unavailable)
+
+**Use case:** Debugging chat sync issues, investigating message delivery problems, checking cache consistency.
+
+---
+
+### Inspect Last AI Requests (Debug)
+
+**Purpose:** Inspect the last 10 AI request processing cycles with FULL input/output data for preprocessor, main processor, and postprocessor stages. Essential for debugging AI behavior and understanding the decision-making process.
+
+**Command:**
+```bash
+# Save all recent requests to YAML
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py
+
+# Filter by chat ID
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id <chat_id>
+
+# Custom output path
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --output /tmp/debug.yml
+```
+
+**What it captures (FULL content for each request):**
+
+**Preprocessor:**
+- Input: Full message history, user preferences, skill config, discovered apps
+- Output: Can proceed flag, selected model, category, harmful content score, preselected skills, chat summary, title
+
+**Main Processor:**
+- Input: Full preprocessing result, message history count, discovered apps, always-include skills
+- Output: Full AI response text, response length, revoked/soft-limited flags
+
+**Postprocessor:**
+- Input: Full user message, full assistant response, chat summary, chat tags, available apps
+- Output: Follow-up suggestions, new chat suggestions, harmful response score, recommended apps
+
+**Output:**
+- Saves to `/app/backend/scripts/debug_output/last_requests_<timestamp>.yml`
+- Requests are sorted chronologically (oldest first) so you can follow the conversation flow
+- Contains complete data for debugging the AI decision process
+- Data auto-expires after 30 minutes in cache
+
+**Copy to host machine:**
+```bash
+docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./debug.yml
+```
+
+**Options:**
+- `--chat-id`: Filter by chat ID
+- `--output, -o`: Custom output file path
+
+**Use case:** Understanding why the AI made specific decisions, debugging tool selection, investigating preprocessing failures, analyzing response quality issues.
+
+**Note:** Debug data is encrypted in cache with a system-level Vault key and auto-expires after 30 minutes for privacy.
+
+---
+
 ## Running Scripts
 
 All scripts in this directory should be executed inside the Docker container to ensure:
