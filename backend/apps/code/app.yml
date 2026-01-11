@@ -17,10 +17,12 @@ settings_and_memories:
         name:
           type: string
           description: Technology name (e.g., Python, React, Docker)
+          is_title: true
         proficiency:
           type: string
           description: Your proficiency level
           enum: ["beginner", "intermediate", "advanced", "expert"]
+          is_subtitle: true
         added_date:
           type: integer
           description: Unix timestamp when added
@@ -39,10 +41,12 @@ settings_and_memories:
         name:
           type: string
           description: Project name
+          is_title: true
         status:
           type: string
           description: Project status
           enum: ["active", "planned", "completed"]
+          is_subtitle: true
         added_date:
           type: integer
           description: Unix timestamp when added
@@ -61,6 +65,7 @@ settings_and_memories:
         name:
           type: string
           description: Technology or skill you want to learn
+          is_title: true
         added_date:
           type: integer
           description: Unix timestamp when added

@@ -4,20 +4,23 @@
   Preview component for Code Get Docs skill embeds.
   Uses UnifiedEmbedPreview as base and provides get_docs-specific details content.
   
-  Displays (similar to WebSearchEmbedPreview pattern):
-  - Library title as the main title
-  - "via Context7" as subtitle text (no icon)
+  Displays:
+  - Selected library ID (e.g., "/sveltejs/svelte")
+  - Query/question that was asked
+  - "via Context7" provider attribution
   - Word count when finished
   
-  Layout follows the same pattern as WebSearchEmbedPreview:
-  - Title (library name)
-  - Provider subtitle ("via Context7")
-  - Word count info when finished
+  Layout:
+  - Library ID (selected library)
+  - Query (question asked)
+  - "via Context7"
+  - Word count (when finished)
   
   Data Flow:
-  - Receives results from backend GetDocsSkill which returns GetDocsResponse
-  - Library info contains id (e.g., "/sveltejs/svelte"), title, description
-  - Documentation is markdown text with word count
+  - Receives embed data with `library` (input) and `question` (input) fields
+  - Results contain: library object (id, title), documentation, word_count
+  - Library ID comes from results (library.id or library_id)
+  - Question comes from embed metadata (question field)
 -->
 
 <script lang="ts">
@@ -43,6 +46,8 @@
     results?: CodeGetDocsResult[];
     /** Library name from request (for processing state) */
     library?: string;
+    /** Question/query that was asked (for display) */
+    question?: string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -60,6 +65,7 @@
     status: statusProp,
     results: resultsProp,
     library: libraryProp,
+    question: questionProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     previewData,
@@ -74,6 +80,7 @@
   // ===========================================
   let localResults = $state<CodeGetDocsResult[]>([]);
   let localLibrary = $state<string>('');
+  let localQuestion = $state<string>('');
   // Status type matches UnifiedEmbedPreview expectations (excludes 'cancelled')
   // We map 'cancelled' to 'error' for display purposes
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
@@ -96,12 +103,14 @@
     if (previewData) {
       localResults = previewData.results || [];
       localLibrary = previewData.library || '';
+      localQuestion = previewData.question || '';
       localStatus = mapStatusToEmbedStatus(previewData.status);
       // skill_task_id might be in previewData for skill-level cancellation
       localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
     } else {
       localResults = resultsProp || [];
       localLibrary = libraryProp || '';
+      localQuestion = questionProp || '';
       localStatus = statusProp || 'processing';
       localSkillTaskId = skillTaskIdProp;
     }
@@ -141,9 +150,14 @@
         localResults = content.results as CodeGetDocsResult[];
       }
       
-      // Update library if available
+      // Update library if available (input library name)
       if (content.library && typeof content.library === 'string') {
         localLibrary = content.library;
+      }
+      
+      // Update question if available (the query that was asked)
+      if (content.question && typeof content.question === 'string') {
+        localQuestion = content.question;
       }
       
       // Extract skill_task_id for individual skill cancellation
@@ -163,18 +177,6 @@
   // ===========================================
   
   /**
-   * Get library title from result, handling both flat and nested structures
-   */
-  function getLibraryTitle(result: CodeGetDocsResult | undefined): string | undefined {
-    if (!result) return undefined;
-    // Try flat structure first (library_title)
-    if (result.library_title) return result.library_title;
-    // Try nested structure (library.title)
-    if (result.library?.title) return result.library.title;
-    return undefined;
-  }
-  
-  /**
    * Get library ID from result, handling both flat and nested structures
    */
   function getLibraryId(result: CodeGetDocsResult | undefined): string {
@@ -186,25 +188,19 @@
     return '';
   }
 
-  // Display title: library title > library ID > requested library name > fallback
-  let displayTitle = $derived.by(() => {
-    const title = getLibraryTitle(firstResult);
-    if (title) return title;
-    
+  // Library ID for display (e.g., "/sveltejs/svelte")
+  // This is the SELECTED library from Context7 - shown as main identifier
+  let libraryId = $derived.by(() => {
     const libId = getLibraryId(firstResult);
-    if (libId) {
-      // Extract library name from ID (e.g., "/sveltejs/svelte" -> "svelte")
-      const parts = libId.split('/');
-      return parts[parts.length - 1] || libId;
-    }
-    if (localLibrary) {
-      return localLibrary;
-    }
-    return $text('embeds.get_docs.text') || 'Documentation';
+    // If we have a selected library ID from results, use it
+    if (libId) return libId;
+    // Fallback to input library name during processing
+    if (localLibrary) return localLibrary;
+    return '';
   });
   
-  // Library ID for display (e.g., "/sveltejs/svelte")
-  let libraryId = $derived(getLibraryId(firstResult));
+  // Query/question that was asked - displayed below library ID
+  let displayQuestion = $derived(localQuestion || '');
   
   /**
    * Get word count from backend-provided field
@@ -228,15 +224,14 @@
       id,
       status,
       resultsCount: results.length,
-      displayTitle,
       libraryId,
+      displayQuestion,
       // word_count is provided by backend GetDocsSkill (not calculated client-side)
       wordCount,
       wordCountFromBackend: firstResult?.word_count,
       hasPreviewData: !!previewData,
-      // Show flat vs nested structure detection
-      hasLibraryTitle: !!firstResult?.library_title,
-      hasNestedLibrary: !!firstResult?.library?.title
+      localLibrary,
+      localQuestion
     });
   });
   
@@ -281,10 +276,17 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="get-docs-details" class:mobile={isMobileLayout}>
-      <!-- Library title (main title) -->
-      <div class="docs-title">{displayTitle}</div>
+      <!-- Library ID (selected library from Context7) -->
+      {#if libraryId}
+        <div class="docs-library-id">{libraryId}</div>
+      {/if}
       
-      <!-- Provider subtitle: "via Context7" (same pattern as WebSearchEmbedPreview) -->
+      <!-- Question/query that was asked -->
+      {#if displayQuestion}
+        <div class="docs-question">{displayQuestion}</div>
+      {/if}
+      
+      <!-- Provider attribution: "via Context7" -->
       <div class="docs-provider">{viaProvider}</div>
       
       <!-- Word count info (shown when finished) -->
@@ -300,7 +302,7 @@
 <style>
   /* ===========================================
      Get Docs Details Content
-     Follows WebSearchEmbedPreview pattern
+     Layout: library ID, question, via Context7, word count
      =========================================== */
   
   .get-docs-details {
@@ -320,29 +322,48 @@
     justify-content: flex-start;
   }
   
-  /* Library title (same pattern as .search-query in WebSearchEmbedPreview) */
-  .docs-title {
+  /* Library ID - the selected library from Context7 (e.g., "/sveltejs/svelte") */
+  .docs-library-id {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
-    /* Limit to 3 lines with ellipsis */
+    /* Use monospace font for library IDs */
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    /* Limit to 2 lines with ellipsis */
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
   }
   
-  .get-docs-details.mobile .docs-title {
+  .get-docs-details.mobile .docs-library-id {
     font-size: 14px;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
   }
   
-  /* Provider subtitle: "via Context7" (same pattern as .search-provider in WebSearchEmbedPreview) */
+  /* Question/query that was asked */
+  .docs-question {
+    font-size: 14px;
+    color: var(--color-grey-80);
+    line-height: 1.3;
+    /* Limit to 2 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  
+  .get-docs-details.mobile .docs-question {
+    font-size: 12px;
+  }
+  
+  /* Provider attribution: "via Context7" */
   .docs-provider {
     font-size: 14px;
     color: var(--color-grey-70);
@@ -353,7 +374,7 @@
     font-size: 12px;
   }
   
-  /* Docs info (word count) - same pattern as .search-results-info */
+  /* Docs info (word count) */
   .docs-info {
     display: flex;
     align-items: center;
@@ -365,7 +386,7 @@
     margin-top: 2px;
   }
   
-  /* Word count - same pattern as .remaining-count */
+  /* Word count */
   .word-count {
     font-size: 14px;
     color: var(--color-grey-70);

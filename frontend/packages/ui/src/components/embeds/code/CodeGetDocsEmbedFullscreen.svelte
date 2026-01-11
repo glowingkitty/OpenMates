@@ -8,16 +8,17 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
   
-  Layout (similar to WebSearchEmbedFullscreen pattern):
-  - Header at top: library title (large text), library ID below, "Open on Context7" button
-  - "Documentation preview, via Context7: X words" label (text only, no icon)
+  Layout:
+  - Header at top: library ID (selected library), question below, "Open on Context7" button
+  - "via Context7: X words" label
   - White content card with rendered markdown documentation
   - Bottom bar: code icon + docs icon + "Get Docs" / "Completed"
   
   Data Flow:
-  - Receives results from backend GetDocsSkill which returns GetDocsResponse
-  - Library info contains id (e.g., "/sveltejs/svelte"), title, description
-  - Documentation is markdown text from Context7 API
+  - Receives embed data with `library` (input) and `question` (input) fields
+  - Results contain: library object (id, title), documentation, word_count
+  - Library ID comes from results (library.id or library_id)
+  - Question comes from embed metadata (question field)
 -->
 
 <script lang="ts">
@@ -35,6 +36,8 @@
     results?: CodeGetDocsResult[];
     /** Library name from request */
     library?: string;
+    /** Question/query that was asked (for display) */
+    question?: string;
     /** Skill preview data (skill preview context) */
     previewData?: CodeGetDocsSkillPreviewData;
     /** Close handler */
@@ -58,6 +61,7 @@
   let {
     results: resultsProp,
     library: libraryProp,
+    question: questionProp,
     previewData,
     onClose,
     embedId,
@@ -76,6 +80,7 @@
   // ===========================================
   let localResults = $state<CodeGetDocsResult[]>([]);
   let localLibrary = $state<string>('');
+  let localQuestion = $state<string>('');
   
   // Initialize local state from props
   $effect(() => {
@@ -83,9 +88,11 @@
     if (previewData) {
       localResults = previewData.results || [];
       localLibrary = previewData.library || '';
+      localQuestion = previewData.question || '';
     } else {
       localResults = resultsProp || [];
       localLibrary = libraryProp || '';
+      localQuestion = questionProp || '';
     }
   });
   
@@ -117,9 +124,14 @@
       localResults = data.decodedContent.results as CodeGetDocsResult[];
     }
     
-    // Update library if available
+    // Update library if available (input library name)
     if (data.decodedContent?.library && typeof data.decodedContent.library === 'string') {
       localLibrary = data.decodedContent.library;
+    }
+    
+    // Update question if available (the query that was asked)
+    if (data.decodedContent?.question && typeof data.decodedContent.question === 'string') {
+      localQuestion = data.decodedContent.question;
     }
   }
   
@@ -127,24 +139,31 @@
   // Display Values
   // ===========================================
   
-  // Display title: library title > library ID > requested library name > fallback
-  let displayTitle = $derived.by(() => {
-    if (firstResult?.library?.title) {
-      return firstResult.library.title;
-    }
-    if (firstResult?.library?.id) {
-      // Extract library name from ID (e.g., "/sveltejs/svelte" -> "svelte")
-      const parts = firstResult.library.id.split('/');
-      return parts[parts.length - 1] || firstResult.library.id;
-    }
-    if (localLibrary) {
-      return localLibrary;
-    }
-    return 'Documentation';
+  /**
+   * Get library ID from result, handling both flat and nested structures
+   */
+  function getLibraryId(result: CodeGetDocsResult | undefined): string {
+    if (!result) return '';
+    // Try flat structure first (library_id)
+    if (result.library_id) return result.library_id;
+    // Try nested structure (library.id)
+    if (result.library?.id) return result.library.id;
+    return '';
+  }
+  
+  // Library ID for display (e.g., "/sveltejs/svelte")
+  // This is the SELECTED library from Context7 - shown as main identifier
+  let libraryId = $derived.by(() => {
+    const libId = getLibraryId(firstResult);
+    // If we have a selected library ID from results, use it
+    if (libId) return libId;
+    // Fallback to input library name during processing
+    if (localLibrary) return localLibrary;
+    return '';
   });
   
-  // Library ID for display and Context7 URL (e.g., "/sveltejs/svelte")
-  let libraryId = $derived(firstResult?.library?.id || '');
+  // Question/query that was asked - displayed below library ID
+  let displayQuestion = $derived(localQuestion || '');
   
   // Context7 URL for "Open on Context7" button
   // Format: https://context7.com{libraryId}
@@ -180,11 +199,13 @@
   $effect(() => {
     console.debug('[CodeGetDocsEmbedFullscreen] Rendering with:', {
       resultsCount: results.length,
-      displayTitle,
       libraryId,
+      displayQuestion,
       wordCount,
       hasPreviewData: !!previewData,
-      hasDocumentation: !!firstResult?.documentation
+      hasDocumentation: !!firstResult?.documentation,
+      localLibrary,
+      localQuestion
     });
   });
   
@@ -313,11 +334,13 @@
       const documentation = firstResult?.documentation;
       if (documentation) {
         let content = '';
-        if (displayTitle) {
-          content += `# ${displayTitle}\n\n`;
+        if (libraryId) {
+          content += `# ${libraryId}\n\n`;
+        }
+        if (displayQuestion) {
+          content += `Query: ${displayQuestion}\n`;
         }
         if (libraryId) {
-          content += `Library: ${libraryId}\n`;
           content += `Source: Context7 (${context7Url})\n\n`;
         }
         content += `---\n\n`;
@@ -344,11 +367,13 @@
       const documentation = firstResult?.documentation;
       if (documentation) {
         let content = '';
-        if (displayTitle) {
-          content += `# ${displayTitle}\n\n`;
+        if (libraryId) {
+          content += `# ${libraryId}\n\n`;
+        }
+        if (displayQuestion) {
+          content += `Query: ${displayQuestion}\n`;
         }
         if (libraryId) {
-          content += `Library: ${libraryId}\n`;
           content += `Source: Context7 (${context7Url})\n\n`;
         }
         content += `---\n\n`;
@@ -358,8 +383,8 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        // Create filename from library name
-        const filename = displayTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        // Create filename from library ID (e.g., "/sveltejs/svelte" -> "sveltejs_svelte")
+        const filename = libraryId.replace(/[^a-z0-9]/gi, '_').toLowerCase().replace(/^_+/, '');
         a.download = `${filename}_docs.md`;
         document.body.appendChild(a);
         a.click();
@@ -395,8 +420,8 @@
       const embedContext = {
         type: 'get_docs',
         embed_id: embedId,
-        library: displayTitle,
-        libraryId: libraryId,
+        library: libraryId,
+        question: displayQuestion,
         source: 'Context7'
       };
       
@@ -438,12 +463,18 @@
 >
   {#snippet content()}
     <div class="get-docs-fullscreen-content">
-      <!-- Header with library title and ID - similar to WebSearchEmbedFullscreen -->
+      <!-- Header with library ID and question -->
       <div class="fullscreen-header">
-        <div class="library-title">{displayTitle}</div>
+        <!-- Library ID (selected library from Context7) -->
         {#if libraryId}
           <div class="library-id">{libraryId}</div>
         {/if}
+        
+        <!-- Question/query that was asked -->
+        {#if displayQuestion}
+          <div class="docs-question">{displayQuestion}</div>
+        {/if}
+        
         <!-- CTA Button: "Open on Context7" -->
         {#if libraryId}
           <button 
@@ -456,10 +487,9 @@
         {/if}
       </div>
       
-      <!-- "Documentation preview, via Context7: X words" label - only show if we have content -->
+      <!-- "via Context7: X words" label - only show if we have content -->
       {#if wordCount > 0}
         <div class="text-preview-label">
-          <span>{$text('embeds.get_docs_preview.text')}</span>
           <span>via Context7: {wordCount.toLocaleString()} words</span>
         </div>
       {/if}
@@ -534,7 +564,7 @@
   }
   
   /* ===========================================
-     Fullscreen Header - Library Title and ID
+     Fullscreen Header - Library ID and Question
      Uses container queries for responsive sizing
      =========================================== */
   
@@ -549,12 +579,31 @@
     gap: 8px;
   }
   
-  .library-title {
+  /* Library ID - the selected library from Context7 (e.g., "/sveltejs/svelte") */
+  .library-id {
     font-size: 24px;
     font-weight: 600;
     color: var(--color-font-primary);
     line-height: 1.3;
     word-break: break-word;
+    /* Use monospace font for library IDs */
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    /* Limit to 2 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Question/query that was asked */
+  .docs-question {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    line-height: 1.4;
+    word-break: break-word;
+    max-width: 600px;
     /* Limit to 3 lines with ellipsis */
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -562,12 +611,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  
-  .library-id {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
   }
   
   .open-context7-btn {
@@ -593,7 +636,7 @@
   }
   
   /* ===========================================
-     Text Preview Label
+     Text Preview Label (via Context7: X words)
      =========================================== */
   
   .text-preview-label {
@@ -602,9 +645,6 @@
     color: var(--color-grey-70);
     text-align: center;
     margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
     margin-top: 15px;
   }
   
@@ -826,11 +866,11 @@
       margin-bottom: 24px;
     }
     
-    .library-title {
-      font-size: 20px;
+    .library-id {
+      font-size: 18px;
     }
     
-    .library-id {
+    .docs-question {
       font-size: 14px;
     }
     

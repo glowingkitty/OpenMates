@@ -111,10 +111,15 @@ async def handle_store_app_settings_memories_entry(
         
         try:
             # Check if entry already exists (by ID)
-            existing_entry = await directus_service.get_item(
-                "user_app_settings_and_memories", 
-                entry_id
+            # Note: DirectusService uses get_items with filter, not get_item
+            existing_entries = await directus_service.get_items(
+                "user_app_settings_and_memories",
+                params={
+                    "filter": {"id": {"_eq": entry_id}},
+                    "limit": 1
+                }
             )
+            existing_entry = existing_entries[0] if existing_entries else None
             
             if existing_entry:
                 # Update existing entry

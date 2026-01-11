@@ -816,6 +816,10 @@ class ChatDatabase {
     async getAppSettingsMemoriesEntriesByApp(appId: string): Promise<appSettingsMemoriesOps.AppSettingsMemoriesEntry[]> {
         return appSettingsMemoriesOps.getAppSettingsMemoriesEntriesByApp(this, appId);
     }
+
+    async deleteAppSettingsMemoriesEntry(entryId: string): Promise<boolean> {
+        return appSettingsMemoriesOps.deleteAppSettingsMemoriesEntry(this, entryId);
+    }
 }
 
 export const chatDB = new ChatDatabase();

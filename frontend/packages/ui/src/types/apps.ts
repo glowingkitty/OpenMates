@@ -91,6 +91,10 @@ export interface FocusModeMetadata {
  * Schema property definition for settings/memories fields.
  * Supports auto_generated flag to mark fields that should be auto-populated
  * by the client (e.g., timestamps) rather than shown in forms.
+ * 
+ * **Display Fields**:
+ * - is_title: If true, this field's value is used as the entry title in list views
+ * - is_subtitle: If true, this field's value is used as the entry subtitle in list views
  */
 export interface SchemaPropertyDefinition {
     type?: string;
@@ -100,6 +104,8 @@ export interface SchemaPropertyDefinition {
     minimum?: number;
     maximum?: number;
     auto_generated?: boolean; // If true, field is auto-populated by client, not shown in form
+    is_title?: boolean; // If true, this field's value is displayed as the entry title in list views
+    is_subtitle?: boolean; // If true, this field's value is displayed as the entry subtitle in list views
 }
 
 export interface MemoryFieldMetadata {
