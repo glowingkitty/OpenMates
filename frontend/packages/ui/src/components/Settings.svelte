@@ -540,6 +540,14 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive translation of the submenu title
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
     
+    // Track if we're in an app store sub-page (not the main app_store or 'all' page)
+    // This is used to render the app icon properly in the header
+    let isAppStoreSubPage = $derived(
+        activeSettingsView.startsWith('app_store/') && 
+        activeSettingsView !== 'app_store' && 
+        activeSettingsView !== 'app_store/all'
+    );
+    
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
 
@@ -1530,10 +1538,12 @@ changes to the documentation (to keep the documentation up to date).
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
                 <!-- Replace this with SettingsItem component -->
+                <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
                 <SettingsItem
                     type="heading"
                     icon={activeSubMenuIcon}
                     title={activeSubMenuTitle}
+                    iconType={isAppStoreSubPage ? 'app' : 'default'}
                 />
             </div>
         {/if}

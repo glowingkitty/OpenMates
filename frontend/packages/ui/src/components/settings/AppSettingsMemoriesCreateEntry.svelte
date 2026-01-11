@@ -315,8 +315,11 @@
                     itemKey = `${categoryId}.${String(formState[firstField] || Date.now()).trim()}`;
                 }
                 
-                // Use category name as settings group
-                settingsGroup = categoryName;
+                // CRITICAL: Use categoryId (not categoryName) as settings_group
+                // The filtering in AppSettingsMemoriesCategory.svelte uses categoryId to filter entries:
+                //   const categoryEntries = groupedEntries[categoryId];
+                // So the stored settings_group MUST match the categoryId, not the translated name
+                settingsGroup = categoryId;
             } else {
                 // Generic form - parse JSON or use plain text
                 try {

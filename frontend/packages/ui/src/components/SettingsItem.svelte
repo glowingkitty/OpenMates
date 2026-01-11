@@ -1,6 +1,7 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
+    import Icon from './Icon.svelte';
     import { text } from '@repo/ui';
 
     // Props using Svelte 5 runes
@@ -22,6 +23,7 @@
         disabled = false,
         onClick = undefined,
         hasNestedItems = false,
+        iconType = 'default',
         children
     }: {
         icon: string;
@@ -41,6 +43,7 @@
         disabled?: boolean;
         onClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
+        iconType?: 'default' | 'app';
         children?: any;
     } = $props();
 
@@ -131,10 +134,23 @@
     <div class="menu-item-content">
         <div class="menu-item-left">
             <!-- Main icon - width and size preserved -->
-            <div class="icon-container">
-                <div class={iconClass}>
+            <!-- Use Icon component with type="app" for app icons to render proper app-style icon -->
+            {#if iconType === 'app'}
+                <div class="app-icon-wrapper">
+                    <Icon 
+                        name={icon}
+                        type="app"
+                        size="38px"
+                        className="app-icon-main no-fade"
+                        borderColor="#ffffff"
+                    />
                 </div>
-            </div>
+            {:else}
+                <div class="icon-container">
+                    <div class={iconClass}>
+                    </div>
+                </div>
+            {/if}
             
                 <div class="text-and-nested-container">
                     <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
@@ -232,10 +248,23 @@
     <div class="menu-item-content">
         <div class="menu-item-left">
             <!-- Main icon - width and size preserved -->
-            <div class="icon-container">
-                <div class={iconClass}>
+            <!-- Use Icon component with type="app" for app icons to render proper app-style icon -->
+            {#if iconType === 'app'}
+                <div class="app-icon-wrapper">
+                    <Icon 
+                        name={icon}
+                        type="app"
+                        size="38px"
+                        className="app-icon-main no-fade"
+                        borderColor="#ffffff"
+                    />
                 </div>
-            </div>
+            {:else}
+                <div class="icon-container">
+                    <div class={iconClass}>
+                    </div>
+                </div>
+            {/if}
             
             <div class="text-and-nested-container">
                 <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
@@ -359,6 +388,17 @@
     }
 
     .icon-container {
+        width: 44px;
+        height: 44px;
+        margin-right: 12px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* App icon wrapper for displaying app icons using the Icon component */
+    .app-icon-wrapper {
         width: 44px;
         height: 44px;
         margin-right: 12px;

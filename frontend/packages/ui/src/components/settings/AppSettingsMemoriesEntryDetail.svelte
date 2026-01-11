@@ -67,15 +67,6 @@
         return undefined;
     });
 
-    /**
-     * Get the translated category name.
-     */
-    let categoryName = $derived(
-        category?.name_translation_key
-            ? $text(category.name_translation_key)
-            : categoryId
-    );
-
     // Get schema from category metadata
     let schema = $derived(category?.schema_definition);
     
@@ -293,7 +284,9 @@
                     itemKey = entry.item_key;
                 }
                 
-                settingsGroup = categoryName;
+                // CRITICAL: Use categoryId (not categoryName) as settings_group
+                // The filtering in AppSettingsMemoriesCategory.svelte uses categoryId to filter entries
+                settingsGroup = categoryId;
             } else {
                 // Generic form
                 try {
