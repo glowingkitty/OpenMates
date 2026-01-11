@@ -5,7 +5,9 @@
      - app_store/{app_id} -> AppDetails
      - app_store/{app_id}/skill/{skill_id} -> SkillDetails
      - app_store/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
-     - app_store/{app_id}/settings_memories -> AppSettingsMemories
+     - app_store/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
+     - app_store/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
+     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail
      
      It receives activeSettingsView as a prop from CurrentSettingsPage.
 -->
@@ -16,6 +18,7 @@
     import FocusModeDetails from './FocusModeDetails.svelte';
     import AppSettingsMemoriesCategory from './AppSettingsMemoriesCategory.svelte';
     import AppSettingsMemoriesCreateEntry from './AppSettingsMemoriesCreateEntry.svelte';
+    import AppSettingsMemoriesEntryDetail from './AppSettingsMemoriesEntryDetail.svelte';
     import { createEventDispatcher } from 'svelte';
     
     interface Props {
@@ -29,7 +32,8 @@
         | { type: 'skill_details'; appId: string; skillId: string }
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
-        | { type: 'settings_memories_create'; appId: string; categoryId: string };
+        | { type: 'settings_memories_create'; appId: string; categoryId: string }
+        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string };
     
     let { activeSettingsView = '' }: Props = $props();
     
@@ -57,6 +61,9 @@
         } else if (parts.length === 4 && parts[1] === 'settings_memories' && parts[3] === 'create') {
             // app_store/{app_id}/settings_memories/{category_id}/create
             return { type: 'settings_memories_create', appId: parts[0], categoryId: parts[2] };
+        } else if (parts.length === 5 && parts[1] === 'settings_memories' && parts[3] === 'entry') {
+            // app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4] };
         }
         
         return { type: 'invalid', appId: '' };
@@ -82,11 +89,19 @@
         return null;
     });
     
+    // Extract entry detail route info for type safety
+    let entryDetailRouteInfo = $derived.by((): { appId: string; categoryId: string; entryId: string } | null => {
+        if (routeInfo.type === 'settings_memories_entry_detail') {
+            console.log('[AppDetailsWrapper] Entry detail route detected:', routeInfo);
+            return { appId: routeInfo.appId, categoryId: routeInfo.categoryId, entryId: routeInfo.entryId };
+        }
+        return null;
+    });
+    
     // Debug logging for route parsing
     $effect(() => {
         console.log('[AppDetailsWrapper] activeSettingsView:', activeSettingsView);
         console.log('[AppDetailsWrapper] routeInfo:', routeInfo);
-        console.log('[AppDetailsWrapper] createRouteInfo:', createRouteInfo);
     });
 </script>
 
@@ -102,6 +117,10 @@
     {@const route = createRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
     <AppSettingsMemoriesCreateEntry appId={route.appId} categoryId={route.categoryId} on:openSettings={handleOpenSettings} />
+{:else if entryDetailRouteInfo}
+    {@const route = entryDetailRouteInfo}
+    <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
+    <AppSettingsMemoriesEntryDetail appId={route.appId} categoryId={route.categoryId} entryId={route.entryId} on:openSettings={handleOpenSettings} />
 {:else}
     <div class="error">Invalid app route.</div>
 {/if}

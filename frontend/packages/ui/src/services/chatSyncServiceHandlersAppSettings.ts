@@ -15,8 +15,6 @@
  */
 
 import type { ChatSynchronizationService } from './chatSyncService';
-import { decryptWithMasterKey, encryptWithMasterKey } from './cryptoService';
-import { webSocketService } from './websocketService';
 import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db';
 
@@ -102,6 +100,7 @@ interface AppSettingsMemoriesSyncReadyPayload {
         id: string;
         app_id: string;
         item_key: string;
+        item_type: string;  // Category ID for filtering (e.g., 'preferred_technologies')
         encrypted_item_json: string;
         encrypted_app_key: string;
         created_at: number;
@@ -133,7 +132,7 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
         entries_received: payload.entries?.length || 0
     });
 
-    const { entries, entry_count } = payload;
+    const { entries } = payload;
 
     if (!entries || !Array.isArray(entries)) {
         console.error("[ChatSyncService:AppSettings] Invalid sync payload - entries is not an array:", payload);
@@ -165,3 +164,75 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
     }
 }
 
+
+/**
+ * Payload structure for app_settings_memories_entry_synced WebSocket message
+ * This is received when another device creates/updates an entry
+ */
+interface AppSettingsMemoriesEntrySyncedPayload {
+    entries: Array<{
+        id: string;
+        app_id: string;
+        item_key: string;
+        item_type: string;  // Category ID for filtering (e.g., 'preferred_technologies')
+        encrypted_item_json: string;
+        encrypted_app_key: string;
+        created_at: number;
+        updated_at: number;
+        item_version: number;
+        sequence_number?: number;
+    }>;
+    entry_count: number;
+    source_device: string; // Device fingerprint hash of the source device
+}
+
+/**
+ * Handles app settings/memories entry synced from another device.
+ * 
+ * When another device creates or updates an app settings/memories entry:
+ * 1. Server broadcasts the encrypted entry to all other logged-in devices
+ * 2. This handler receives the entry and stores it in IndexedDB
+ * 3. Dispatches event to notify App Store components to refresh
+ * 
+ * **Zero-Knowledge Architecture**: Entry remains encrypted - server never decrypts it.
+ * This device decrypts on-demand when displaying in App Store settings.
+ */
+export async function handleAppSettingsMemoriesEntrySyncedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AppSettingsMemoriesEntrySyncedPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'app_settings_memories_entry_synced' from another device:", {
+        entry_count: payload.entry_count,
+        source_device: payload.source_device?.substring(0, 8) + '...'
+    });
+
+    const { entries } = payload;
+
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+        console.warn("[ChatSyncService:AppSettings] Invalid entry_synced payload - no entries");
+        return;
+    }
+
+    try {
+        // Store encrypted entries in IndexedDB
+        // The storeAppSettingsMemoriesEntries method handles conflict resolution
+        await chatDB.storeAppSettingsMemoriesEntries(entries);
+
+        console.info(`[ChatSyncService:AppSettings] Synced ${entries.length} entries from another device`);
+
+        // Dispatch custom event to notify App Store components to refresh
+        // This allows the UI to show the new entry immediately
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('appSettingsMemoriesEntrySynced', {
+                detail: { 
+                    entries: entries,
+                    entry_count: entries.length,
+                    synced_at: Date.now()
+                }
+            }));
+        }
+
+    } catch (error) {
+        console.error("[ChatSyncService:AppSettings] Error handling entry sync from other device:", error);
+    }
+}

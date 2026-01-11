@@ -330,6 +330,21 @@ class BaseApp:
                     logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
                     response = await skill_instance.execute(**clean_request_body)
 
+                # Ensure response is properly serialized before returning
+                # If it's a Pydantic model, convert to dict to ensure proper JSON serialization
+                # This fixes issues where FastAPI might not serialize the model correctly
+                # CRITICAL: FastAPI's automatic Pydantic serialization can sometimes fail for complex models
+                # Explicitly converting to dict ensures the response is properly serialized to JSON
+                if isinstance(response, BaseModel):
+                    response_dict = response.model_dump(exclude_none=False)
+                    logger.debug(
+                        f"Converting Pydantic response to dict for skill '{skill_definition.id}': "
+                        f"keys={list(response_dict.keys())}, "
+                        f"documentation_length={len(response_dict.get('documentation', '')) if isinstance(response_dict.get('documentation'), str) else 0}, "
+                        f"documentation_type={type(response_dict.get('documentation')).__name__}"
+                    )
+                    return response_dict
+                
                 return response
             else:
                 raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
@@ -514,15 +529,22 @@ class BaseApp:
 
         all_paths_valid = True
         for skill_def in self.app_config.skills:
+            # Skip planning stage skills - they don't need class_path yet
+            if skill_def.stage == "planning":
+                continue
+            # For development/production skills, class_path is required
             if not skill_def.class_path:
+                logger.warning(f"Skill '{skill_def.id}' has stage '{skill_def.stage}' but no class_path defined")
                 all_paths_valid = False
                 continue
             try:
-                module_path, class_name = skill_def.class_path.rsplit('.', 1)
+                module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)
                 module = importlib.import_module(module_path)
                 if not hasattr(module, class_name):
+                    logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' - class '{class_name}' not found in module")
                     all_paths_valid = False
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' failed to import: {e}")
                 all_paths_valid = False
         
         if not all_paths_valid:

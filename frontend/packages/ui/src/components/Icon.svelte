@@ -402,6 +402,7 @@
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
     --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
+    --icon-url-context7: url('@openmates/ui/static/icons/context7.svg');
   }
 
   /* Base icon container with common styles */

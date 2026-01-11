@@ -268,8 +268,26 @@ changes to the documentation (to keep the documentation up to date).
         return views;
     }
     
-    // Reactive settingsViews that includes dynamic app routes
-    let allSettingsViews = $derived(buildSettingsViews());
+    /**
+     * Track dynamically added entry detail routes.
+     * Entry detail routes have dynamic entry IDs that aren't known at build time,
+     * so they need to be added dynamically when navigated to.
+     */
+    let dynamicEntryRoutes = $state<Set<string>>(new Set());
+    
+    // Reactive settingsViews that includes dynamic app routes and entry detail routes
+    // Entry detail routes are added dynamically when navigated to (tracked in dynamicEntryRoutes)
+    let allSettingsViews = $derived.by(() => {
+        const views = buildSettingsViews();
+        
+        // Add any dynamically registered entry detail routes
+        // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+        for (const route of dynamicEntryRoutes) {
+            views[route] = AppDetailsWrapper;
+        }
+        
+        return views;
+    });
 
     // Payment status - check if payment is enabled (self-hosted mode detection)
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
@@ -455,6 +473,13 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         pathLabels.push($text(category.name_translation_key));
                     }
+                } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
+                    // This is the entry detail page segment - add category name
+                    const categoryId = pathParts[2];
+                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
+                    if (category && category.name_translation_key) {
+                        pathLabels.push($text(category.name_translation_key));
+                    }
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
                     const skillId = pathParts[2];
                     const skill = app?.skills?.find(s => s.id === skillId);
@@ -515,6 +540,14 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive translation of the submenu title
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
     
+    // Track if we're in an app store sub-page (not the main app_store or 'all' page)
+    // This is used to render the app icon properly in the header
+    let isAppStoreSubPage = $derived(
+        activeSettingsView.startsWith('app_store/') && 
+        activeSettingsView !== 'app_store' && 
+        activeSettingsView !== 'app_store/all'
+    );
+    
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
 
@@ -523,6 +556,17 @@ changes to the documentation (to keep the documentation up to date).
         const detail = 'detail' in event ? event.detail : event;
         const { settingsPath, direction: newDirection, icon } = detail;
         direction = newDirection;
+
+        // Check if this is a dynamic entry detail route that needs to be registered
+        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+$/;
+        if (entryDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            // Add this entry detail route dynamically
+            dynamicEntryRoutes.add(settingsPath);
+            // Trigger reactivity by reassigning the Set
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+            console.debug(`[Settings] Dynamically registered entry detail route: ${settingsPath}`);
+        }
 
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
@@ -540,9 +584,13 @@ changes to the documentation (to keep the documentation up to date).
                 if (app.icon_image) {
                     // Convert icon_image like "web.svg" to icon name "web"
                     let iconName = app.icon_image.replace(/\.svg$/, '');
-                    // Handle special case: email.svg -> mail
+                    // Handle special cases for icon name -> app ID mapping
+                    // These ensure the correct CSS color variable is used (e.g., --color-app-code, not --color-app-coding)
                     if (iconName === 'email') {
                         iconName = 'mail';
+                    } else if (iconName === 'coding') {
+                        // coding.svg -> code (app ID is "code", icon file is "coding.svg")
+                        iconName = 'code';
                     }
                     activeSubMenuIcon = iconName;
                 } else {
@@ -583,6 +631,11 @@ changes to the documentation (to keep the documentation up to date).
                     // Note: category lookup removed as it's not currently used
                     // Use "Add entry" translation for the create page
                     activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry.text';
+                } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
+                    // Settings/memories entry detail route
+                    // The title is passed from the category page, use it directly
+                    // The title is already set in the event detail.title
+                    activeSubMenuTitleKey = ''; // Will be set from title below
                 } else {
                     // Regular app details route
                     activeSubMenuTitleKey = `apps.${appId}.text`;
@@ -694,15 +747,19 @@ changes to the documentation (to keep the documentation up to date).
                 const pathParts = currentPath.replace('app_store/', '').split('/');
                 const appId = pathParts[0];
                 
-                // Check if this is a nested route (skill, focus, settings_memories)
-                if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
-                    // This is a nested route - go back to app details page
-                    previousPath = `app_store/${appId}`;
-                    previousPathSegments = ['app_store', appId];
+                // Check if this is an entry detail route - go back to category page
+                if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
+                    // This is the entry detail route - go back to the category page
+                    previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
+                    previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // This is the create entry route - go back to the category page
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
+                    // This is a nested route (category page, skill, focus) - go back to app details page
+                    previousPath = `app_store/${appId}`;
+                    previousPathSegments = ['app_store', appId];
                 } else {
                     // Regular app details page - go back one level normally
                     previousPath = navigationPath.slice(0, -1).join('/');
@@ -732,8 +789,13 @@ changes to the documentation (to keep the documentation up to date).
                     // Use app icon from icon_image or appId as fallback
                     if (app.icon_image) {
                         let iconName = app.icon_image.replace(/\.svg$/, '');
+                        // Handle special cases for icon name -> app ID mapping
+                        // These ensure the correct CSS color variable is used (e.g., --color-app-code, not --color-app-coding)
                         if (iconName === 'email') {
                             iconName = 'mail';
+                        } else if (iconName === 'coding') {
+                            // coding.svg -> code (app ID is "code", icon file is "coding.svg")
+                            iconName = 'code';
                         }
                         icon = iconName;
                     } else {
@@ -1485,10 +1547,12 @@ changes to the documentation (to keep the documentation up to date).
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
                 <!-- Replace this with SettingsItem component -->
+                <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
                 <SettingsItem
                     type="heading"
                     icon={activeSubMenuIcon}
                     title={activeSubMenuTitle}
+                    iconType={isAppStoreSubPage ? 'app' : 'default'}
                 />
             </div>
         {/if}

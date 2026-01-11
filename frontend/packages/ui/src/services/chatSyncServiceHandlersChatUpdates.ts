@@ -101,7 +101,13 @@ export async function handleChatDraftUpdatedImpl(
             chat.encrypted_draft_md = payload.data.encrypted_draft_md;
             chat.encrypted_draft_preview = payload.data.encrypted_draft_preview || null;
             chat.draft_v = payload.versions.draft_v;
-            chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
+            // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
+            // Only messages should update this timestamp for proper sorting
+            // Chats with drafts will appear at the top via sorting logic (hasNonEmptyDraft check),
+            // but their position among "recent" chats should be based on last message time, not draft time.
+            // This prevents old chats from appearing as recent just because a draft was added/deleted.
+            // See chatSortUtils.ts for the sorting contract.
+            // chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp; // REMOVED
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
         } else {

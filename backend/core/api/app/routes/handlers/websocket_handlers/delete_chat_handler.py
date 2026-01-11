@@ -64,6 +64,12 @@ async def handle_delete_chat(
         if deleted_app_data_count > 0:
             logger.info(f"Deleted {deleted_app_data_count} app settings/memories entries for deleted chat {chat_id}")
         
+        # Delete all cached embeds for this chat
+        # This removes individual embed:{embed_id} entries and the chat:{chat_id}:embed_ids index
+        deleted_embed_count = await cache_service.delete_chat_embed_cache(chat_id)
+        if deleted_embed_count > 0:
+            logger.info(f"Deleted {deleted_embed_count} embed cache entries for deleted chat {chat_id}")
+        
         tombstone_success = removed_from_set or deleted_specific_keys_count > 0
         if tombstone_success:
             logger.info(f"Successfully tombstoned chat {chat_id} in cache for user {user_id}.")

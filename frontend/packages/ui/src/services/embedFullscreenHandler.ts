@@ -129,6 +129,21 @@ async function initializeRegistry(): Promise<void> {
       };
     }
     
+    // Code get docs
+    if (appId === 'code' && skillId === 'get_docs') {
+      const { default: component } = await import('../components/embeds/code/CodeGetDocsEmbedFullscreen.svelte');
+      return {
+        component,
+        props: {
+          results: data.decodedContent?.results || [],
+          library: data.decodedContent?.library || '',
+          status: data.embedData?.status || 'finished',
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
+        }
+      };
+    }
+    
     // Fallback for unknown app skills
     return null;
   });

@@ -24,8 +24,8 @@ class AppSkillDefinition(BaseModel):
     id: str
     name_translation_key: str  # Required: Translation key for skill name (e.g., "app_translations.web.skills.search.name")
     description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
-    class_path: str # e.g., "apps.ai.skills.ask_skill.AskSkill"
-    stage: str = Field(default="development", pattern="^(development|production)$")
+    class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - optional for planning stage skills
+    stage: Optional[str] = Field(default="development", description="Stage of the skill: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
     pricing: Optional[AppPricing] = None
     providers: Optional[List[str]] = None  # Optional list of provider names (e.g., ["Brave"]) - used for provider-level pricing lookup
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
@@ -39,7 +39,8 @@ class AppFocusDefinition(BaseModel):
     id: str
     name_translation_key: str  # Required: Translation key for focus mode name (e.g., "app_translations.web.focus_modes.research.name")
     description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
-    system_prompt: str = Field(alias="systemprompt") # Allow 'systemprompt' in YAML
+    system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML - optional for planning stage focuses
+    process: Optional[List[str]] = Field(default=None, description="Optional list of process steps for the focus mode")
     stage: Optional[str] = Field(default=None, description="Stage of the focus mode: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
 
 class AppMemoryFieldDefinition(BaseModel):

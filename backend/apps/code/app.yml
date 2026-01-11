@@ -5,18 +5,73 @@ icon_image: |
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
-  - id: |
-      preferred_languages_frameworks_tech
-    stage: planning
-  - id: |
-      current_projects
-    stage: planning
-  - id: |
-      past_projects
-    stage: planning
-  - id: |
-      want_to_learn
-    stage: planning
+  # Preferred technologies: Languages, frameworks, tools the user prefers
+  - id: preferred_tech
+    name_translation_key: code.preferred_tech.text
+    description_translation_key: code.preferred_tech.description.text
+    type: list
+    stage: development
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology name (e.g., Python, React, Docker)
+          is_title: true
+        proficiency:
+          type: string
+          description: Your proficiency level
+          enum: ["beginner", "intermediate", "advanced", "expert"]
+          is_subtitle: true
+        added_date:
+          type: integer
+          description: Unix timestamp when added
+          auto_generated: true
+      required:
+      - name
+  # Projects: All projects with status to indicate current state
+  - id: projects
+    name_translation_key: code.projects.text
+    description_translation_key: code.projects.description.text
+    type: list
+    stage: development
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Project name
+          is_title: true
+        status:
+          type: string
+          description: Project status
+          enum: ["active", "planned", "completed"]
+          is_subtitle: true
+        added_date:
+          type: integer
+          description: Unix timestamp when added
+          auto_generated: true
+      required:
+      - name
+  # Technologies to learn: Things the user wants to learn
+  - id: want_to_learn
+    name_translation_key: code.want_to_learn.text
+    description_translation_key: code.want_to_learn.description.text
+    type: list
+    stage: development
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology or skill you want to learn
+          is_title: true
+        added_date:
+          type: integer
+          description: Unix timestamp when added
+          auto_generated: true
+      required:
+      - name
 
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
@@ -92,6 +147,29 @@ embeds:
     description_fullscreen: |
       Code on the left, rendered preview (auto playing) on the right.
 skills:
+  - id: get_docs
+    name_translation_key: code.get_docs.text
+    description_translation_key: code.get_docs.description.text
+    stage: development
+    class_path: |
+      backend.apps.code.skills.get_docs_skill.GetDocsSkill
+    providers:
+      - Context7
+    tool_schema:
+      type: object
+      properties:
+        library:
+          type: string
+          description: |
+            Library name to search for (e.g., "Svelte 5", "React", "FastAPI", "Miro API", etc.).
+        question:
+          type: string
+          description: |
+            Natural language question about the documentation needed
+            (e.g., "How to use useState hook?", "How to setup routing?").
+      required:
+        - library
+        - question
   - id: clean_repo
     name_translation_key: code.clean_repo.text
     description_translation_key: code.clean_repo.description.text
@@ -137,9 +215,9 @@ focuses:
     description_translation_key: code.write_test_debug_document.description.text
     stage: planning
     process:
-      - ask users clearifying question to make the requirements clear and create requirements.md file
-      - for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
-      - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+      - "ask users clarifying question to make the requirements clear and create requirements.md file"
+      - "for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
+      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
     systemprompt: |
       You are a programming expert.
   - id: analyze_logs

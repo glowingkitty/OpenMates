@@ -3,6 +3,15 @@
 
 import { EmbedNodeAttributes } from './types';
 
+// Special marker to indicate a duplicate embed reference that should be removed from the document
+const DUPLICATE_EMBED_MARKER = Symbol('DUPLICATE_EMBED');
+
+// TipTap document structure types (loosely typed to accommodate various node types)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TipTapDocument = { content?: TipTapNode[] } & Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TipTapNode = { type: string; content?: TipTapNode[]; text?: string; attrs?: Record<string, any> } & Record<string, any>;
+
 /**
  * Enhance a TipTap document with unified embed nodes
  * @param doc - The basic TipTap document
@@ -10,13 +19,18 @@ import { EmbedNodeAttributes } from './types';
  * @param mode - 'write' or 'read' mode
  * @returns Enhanced TipTap document with unified embed nodes
  */
-export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttributes[], mode: 'write' | 'read'): any {
+export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: EmbedNodeAttributes[], mode: 'write' | 'read'): TipTapDocument {
   if (!doc || !doc.content) {
     return doc;
   }
   
   // For json_embed blocks, we need to replace them in the text, not just append
   let modifiedContent = [...doc.content];
+  
+  // Track which embed_ids have already been rendered to handle duplicate references
+  // This happens when the backend sends the same embed reference multiple times in a message
+  // (e.g., skill placeholders appearing twice due to streaming concatenation)
+  const renderedEmbedIds = new Set<string>();
   
   console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'individual embed nodes');
   
@@ -27,7 +41,15 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
     // These preview embeds are temporary and don't create EmbedStore entries
     if (node.type === 'codeBlock') {
       // Try to match this code block with an embed node
-      const matchingEmbed = findMatchingEmbedForCodeBlock(node, embedNodes);
+      const matchResult = findMatchingEmbedForCodeBlock(node, embedNodes, renderedEmbedIds);
+      
+      // Check if this is a duplicate embed reference that should be removed
+      if (matchResult === DUPLICATE_EMBED_MARKER) {
+        console.debug('[enhanceDocumentWithEmbeds] Removing duplicate embed reference from document');
+        return null; // Will be filtered out below
+      }
+      
+      const matchingEmbed = matchResult;
       if (matchingEmbed) {
         // In write mode, replace with preview embeds (contentRef starts with 'preview:')
         // These are temporary visual previews that will be converted to real embeds server-side
@@ -113,6 +135,17 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
     return node;
   });
   
+  // Filter out null nodes (duplicate embed references that were marked for removal)
+  modifiedContent = modifiedContent.filter(node => node !== null);
+  
+  // SECOND PASS: Clean up JSON embed references that appear as plain text in paragraphs
+  // This handles cases where markdown code fences weren't properly recognized (e.g., due to
+  // excessive indentation in lists), leaving the JSON embed reference as plain text.
+  // At this point, renderedEmbedIds contains all embed_ids that were matched with codeBlocks.
+  if (renderedEmbedIds.size > 0) {
+    modifiedContent = cleanupJsonEmbedReferencesInParagraphs(modifiedContent, renderedEmbedIds);
+  }
+  
   return {
     ...doc,
     content: modifiedContent
@@ -120,12 +153,95 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
 }
 
 /**
+ * Recursively clean up JSON embed references in paragraphs throughout the document.
+ * This removes JSON strings like {"type": "code", "embed_id": "..."} from text when
+ * the embed has already been rendered (via a codeBlock replacement).
+ * 
+ * @param nodes - Array of TipTap nodes to process
+ * @param renderedEmbedIds - Set of embed_ids that have already been rendered
+ * @returns Cleaned array of nodes
+ */
+function cleanupJsonEmbedReferencesInParagraphs(nodes: TipTapNode[], renderedEmbedIds: Set<string>): TipTapNode[] {
+  return nodes.map(node => {
+    // Process list items recursively (they can contain paragraphs with embed references)
+    if (node.type === 'listItem' && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Process lists recursively
+    if ((node.type === 'bulletList' || node.type === 'orderedList') && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Process blockquotes recursively
+    if (node.type === 'blockquote' && node.content) {
+      return {
+        ...node,
+        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+      };
+    }
+    
+    // Clean up JSON embed references in paragraph text content
+    if (node.type === 'paragraph' && node.content) {
+      const cleanedContent = node.content.map(contentNode => {
+        if (contentNode.type === 'text' && contentNode.text) {
+          const cleanedText = removeRenderedJsonEmbedReferences(contentNode.text, renderedEmbedIds);
+          if (cleanedText !== contentNode.text) {
+            console.debug('[cleanupJsonEmbedReferencesInParagraphs] Cleaned JSON embed references from text:', {
+              originalLength: contentNode.text.length,
+              cleanedLength: cleanedText.length,
+              removed: contentNode.text.length - cleanedText.length
+            });
+          }
+          // If the cleaned text is empty or only whitespace, return null to filter it out
+          if (!cleanedText || !cleanedText.trim()) {
+            return null;
+          }
+          return {
+            ...contentNode,
+            text: cleanedText
+          };
+        }
+        return contentNode;
+      }).filter(n => n !== null);
+      
+      // If paragraph is now empty, return null to potentially filter it out
+      if (cleanedContent.length === 0) {
+        // Keep empty paragraphs for spacing
+        return {
+          ...node,
+          content: []
+        };
+      }
+      
+      return {
+        ...node,
+        content: cleanedContent
+      };
+    }
+    
+    return node;
+  });
+}
+
+/**
  * Find a matching embed node for a code block
  * @param codeBlockNode - The TipTap codeBlock node
  * @param embedNodes - Array of embed nodes to search
- * @returns The matching embed node or null
+ * @param renderedEmbedIds - Set of embed_ids that have already been rendered (to detect duplicates)
+ * @returns The matching embed node, DUPLICATE_EMBED_MARKER for duplicates, or null
  */
-function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes | null {
+function findMatchingEmbedForCodeBlock(
+  codeBlockNode: TipTapNode, 
+  embedNodes: EmbedNodeAttributes[],
+  renderedEmbedIds: Set<string>
+): EmbedNodeAttributes | typeof DUPLICATE_EMBED_MARKER | null {
   // Extract text content from the code block
   const codeText = codeBlockNode.content?.[0]?.text || '';
 
@@ -147,9 +263,22 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
 
     // Check if this is an embed reference with type and embed_id
     if (parsed.type && parsed.embed_id) {
+      const embedId = parsed.embed_id;
+      
+      // CRITICAL FIX: Check if this embed_id has already been rendered
+      // This handles duplicate embed references in the message content
+      // (which can happen when the backend streams embed references multiple times)
+      if (renderedEmbedIds.has(embedId)) {
+        console.debug('[findMatchingEmbedForCodeBlock] Duplicate embed reference detected, marking for removal:', {
+          type: parsed.type,
+          embed_id: embedId
+        });
+        return DUPLICATE_EMBED_MARKER;
+      }
+      
       // Find matching embed node by checking contentRef
       const matchingEmbed = embedNodes.find(node => {
-        const expectedContentRef = `embed:${parsed.embed_id}`;
+        const expectedContentRef = `embed:${embedId}`;
         console.debug('[findMatchingEmbedForCodeBlock] Comparing:', {
           expectedContentRef,
           nodeContentRef: node.contentRef,
@@ -161,27 +290,34 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
       if (matchingEmbed) {
         console.debug('[findMatchingEmbedForCodeBlock] Found matching embed for JSON block:', {
           type: parsed.type,
-          embed_id: parsed.embed_id,
+          embed_id: embedId,
           embedNodeId: matchingEmbed.id,
           embedNodeType: matchingEmbed.type
         });
-        // Remove from array to prevent reuse (same pattern as code-code embeds)
-        const index = embedNodes.indexOf(matchingEmbed);
-        if (index > -1) {
-          embedNodes.splice(index, 1);
-          console.debug('[findMatchingEmbedForCodeBlock] Removed matched embed from array, remaining:', embedNodes.length);
-        }
+        
+        // Mark this embed_id as rendered to detect future duplicates
+        renderedEmbedIds.add(embedId);
+        
+        // NOTE: We no longer remove from the array with splice() because:
+        // 1. The same embed_id can appear multiple times in the message (backend bug)
+        // 2. Instead, we use renderedEmbedIds Set to track what's been rendered
+        // 3. Duplicates are marked for removal from the document
+        
         return matchingEmbed;
       } else {
+        // No matching embed found - this could be because:
+        // 1. The embed wasn't created by parseEmbedNodes (bug)
+        // 2. Or this is a duplicate and the Set check above didn't catch it
+        //    (shouldn't happen with the current fix)
         console.warn('[findMatchingEmbedForCodeBlock] No matching embed found for:', {
           type: parsed.type,
-          embed_id: parsed.embed_id,
+          embed_id: embedId,
           availableEmbeds: embedNodes.map(n => ({ id: n.id, type: n.type, contentRef: n.contentRef }))
         });
       }
     }
-  } catch (error) {
-    // Not JSON, might be a regular code block
+  } catch {
+    // Not JSON, might be a regular code block - this is expected for actual code blocks
     console.debug('[findMatchingEmbedForCodeBlock] Not JSON, treating as code block');
   }
 
@@ -240,12 +376,68 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
 }
 
 /**
+ * Remove JSON embed references from text content when the embed has already been rendered.
+ * This handles cases where markdown code fences aren't properly recognized (e.g., due to
+ * excessive indentation in lists), leaving the JSON embed reference as plain text.
+ * 
+ * Matches patterns like: {"type": "code", "embed_id": "uuid"}
+ * 
+ * @param text - The text content that may contain JSON embed references
+ * @param renderedEmbedIds - Set of embed_ids that have already been rendered
+ * @returns Cleaned text with matched JSON references removed
+ */
+function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<string>): string {
+  if (!text || renderedEmbedIds.size === 0) {
+    return text;
+  }
+  
+  // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
+  // This regex matches JSON-like strings with type and embed_id fields
+  // We use a non-greedy match to handle multiple references in the same text
+  const jsonEmbedRefRegex = /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
+  
+  let result = text;
+  let match;
+  const matches: { fullMatch: string; embedId: string; index: number }[] = [];
+  
+  // Collect all matches first
+  while ((match = jsonEmbedRefRegex.exec(text)) !== null) {
+    const embedId = match[1];
+    if (renderedEmbedIds.has(embedId)) {
+      matches.push({
+        fullMatch: match[0],
+        embedId,
+        index: match.index
+      });
+      console.debug('[removeRenderedJsonEmbedReferences] Found rendered JSON embed reference to remove:', {
+        embedId,
+        matchLength: match[0].length
+      });
+    }
+  }
+  
+  // Remove matches in reverse order to preserve indices
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { fullMatch, index } = matches[i];
+    // Remove the JSON reference and any trailing newlines/whitespace
+    const beforeMatch = result.substring(0, index);
+    const afterMatch = result.substring(index + fullMatch.length);
+    
+    // Clean up whitespace around the removed reference
+    const cleanedAfter = afterMatch.replace(/^[\s\n]*/, '');
+    result = beforeMatch.trimEnd() + (cleanedAfter ? '\n' + cleanedAfter : '');
+  }
+  
+  return result.trim();
+}
+
+/**
  * Split text content by json_embed blocks and replace them with embed nodes
  * @param text - The text content that may contain json_embed blocks
  * @param embedNodes - Array of embed nodes to use for replacement
  * @returns Array of text nodes and embed nodes
  */
-function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttributes[]): any[] {
+function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttributes[]): TipTapNode[] {
   const result = [];
   
   // Filter to only get website embed nodes that came from json_embed blocks

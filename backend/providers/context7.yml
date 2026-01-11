@@ -1,0 +1,68 @@
+# backend/providers/context7.yml
+#
+# Configuration for Context7 API provider.
+# Used by the code app for fetching up-to-date library documentation.
+
+provider_id: "context7"
+name: "Context7"
+description: "Documentation retrieval API for programming libraries and frameworks. Provides up-to-date documentation from official sources."
+logo_svg: "logos/context7.svg" # Path for UI, relative to a common logos directory
+
+# API endpoint configuration
+api_base_url: "https://context7.com/api/v2"
+
+# Context7 API Plans (https://context7.com/plans)
+# 
+# **Free Plan:**
+# - Price: $0
+# - API Calls: 500/month
+# - Features: Public repos only
+#
+# **Pro Plan:**
+# - Price: $10/seat/month
+# - API Calls: 1000 free per seat/month, then $10 per 1,000 additional calls
+# - Features: Private repos, team collaboration, unlimited API calls (with overage billing)
+#
+# **Enterprise Plan:**
+# - Price: Custom
+# - Features: SOC-2, GDPR, SSO, self-hosted options
+#
+# We use the Pro plan for production.
+#
+# Environment Variables Required:
+# - SECRET__CONTEXT7__API_KEY: Your Context7 API key (stored in Vault)
+#   Get your API key from: https://context7.com
+
+# Rate limiting configuration
+# Context7 doesn't specify rate limits in their docs, so we assume generous limits
+rate_limits:
+  free:
+    requests_per_second: 50
+    requests_per_month: 500
+  pro:
+    requests_per_second: 50
+    requests_per_month: null  # 1000 free per seat, then overage billing
+
+# Pricing information
+# Cost per request in credits (user-facing pricing)
+#
+# Context7 Pro Plan Cost Calculation:
+# - API call cost: $10 / 1,000 calls = $0.01 per API call
+# - The get_docs skill uses 2 API calls per request:
+#   1. Library search (GET /libs/search)
+#   2. Documentation retrieval (GET /context)
+# - Total Context7 cost: 2 × $0.01 = $0.02 per get_docs request
+#
+# Additional costs:
+# - LLM library selection: ~100-500 tokens via Groq/Cerebras (minimal, ~1-2 credits)
+#
+# Converting to OpenMates credits (1 credit ≈ €0.001 ≈ $0.001):
+# - Base cost: $0.02 / $0.001 = 20 credits
+# - LLM library selection overhead: absorbed by OpenMates
+#
+# Final pricing:
+# - Users are charged 20 credits per get_docs request
+# - This covers Context7 API costs (we absorb the LLM selection overhead)
+pricing:
+  per_request_credits: 20  # 20 credits per get_docs request
+

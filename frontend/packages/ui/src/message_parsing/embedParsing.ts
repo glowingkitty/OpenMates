@@ -216,6 +216,11 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
                 (embedAttrs as any).query = embedRef.query;
               }
               
+              // Copy provider if present (for search skills)
+              if (embedRef.provider) {
+                (embedAttrs as any).provider = embedRef.provider;
+              }
+              
               embedNodes.push(embedAttrs);
               console.debug('[parseEmbedNodes] Created embed from JSON reference:', {
                 type: embedRef.type,
@@ -223,6 +228,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
                 app_id: embedRef.app_id,
                 skill_id: embedRef.skill_id,
                 query: embedRef.query,
+                provider: embedRef.provider,
                 status: embedAttrs.status,
                 mode
               });

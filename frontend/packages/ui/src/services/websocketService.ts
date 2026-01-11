@@ -66,6 +66,8 @@ type KnownMessageTypes =
     | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
     | 'request_app_settings_memories'  // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
     | 'app_settings_memories_sync_ready' // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
+    | 'app_settings_memories_entry_synced' // Multi-device sync: Another device created/updated an entry
+    | 'app_settings_memories_entry_stored' // Acknowledgment that server stored entry successfully
     | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
     | 'pong'                           // Response to client's ping
 

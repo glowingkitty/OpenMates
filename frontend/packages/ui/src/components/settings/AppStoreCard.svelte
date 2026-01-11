@@ -96,7 +96,9 @@
     /**
      * Get icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
-     * Also handles special cases like "email.svg" -> "mail" (since the icon file is mail.svg).
+     * Also handles special cases:
+     * - "email.svg" -> "mail" (since the icon file is mail.svg)
+     * - "coding.svg" -> "code" (since the app ID is "code" but icon file is coding.svg)
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return 'app';
@@ -105,6 +107,11 @@
         // Handle special case: email.svg -> mail (since the icon file is mail.svg)
         if (iconName === 'email') {
             iconName = 'mail';
+        }
+        // Handle special case: coding.svg -> code (since the app ID is "code" but icon file is coding.svg)
+        // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
+        if (iconName === 'coding') {
+            iconName = 'code';
         }
         return iconName;
     }

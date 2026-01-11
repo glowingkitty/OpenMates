@@ -5,6 +5,7 @@ icon_image: |
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
+  # Bookmarks: Simple URL storage, just need the URL
   - id: bookmarks
     name_translation_key: web.bookmarks.text
     description_translation_key: web.bookmarks.description.text
@@ -13,20 +14,16 @@ settings_and_memories:
     schema:
       type: object
       properties:
-        title:
-          type: string
-          description: Page title
         url:
           type: string
-          description: Website URL
-        category:
-          type: string
-          description: Bookmark category (e.g., reference, news, tools)
+          description: Website URL to bookmark
         added_date:
           type: integer
           description: Unix timestamp when bookmarked
+          auto_generated: true  # Auto-populated by client, not shown in form
       required:
       - url
+  # Favorite websites: Just URL, can be expanded later
   - id: favorite_websites
     name_translation_key: web.favorite_websites.text
     description_translation_key: web.favorite_websites.description.text
@@ -35,20 +32,16 @@ settings_and_memories:
     schema:
       type: object
       properties:
-        title:
-          type: string
-          description: Page title
         url:
           type: string
-          description: Website URL
-        category:
-          type: string
-          description: Favorite category (e.g., reference, news, tools)
+          description: Website URL to save as favorite
         added_date:
           type: integer
           description: Unix timestamp when added to favorites
+          auto_generated: true  # Auto-populated by client, not shown in form
       required:
       - url
+  # Read later: URL + optional notes
   - id: read_later
     name_translation_key: web.read_later.text
     description_translation_key: web.read_later.description.text
@@ -57,21 +50,16 @@ settings_and_memories:
     schema:
       type: object
       properties:
-        title:
-          type: string
-          description: Page title
         url:
           type: string
-          description: Website URL
-        category:
-          type: string
-          description: Read later category (e.g., article, tutorial, documentation)
-        added_date:
-          type: integer
-          description: Unix timestamp when saved for later
+          description: Website URL to read later
         notes:
           type: string
           description: Optional notes about why this was saved
+        added_date:
+          type: integer
+          description: Unix timestamp when saved for later
+          auto_generated: true  # Auto-populated by client, not shown in form
       required:
       - url
 instructions:

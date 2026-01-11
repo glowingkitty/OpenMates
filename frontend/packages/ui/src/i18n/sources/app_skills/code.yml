@@ -1,3 +1,53 @@
+get_docs:
+  context: Skill name for get docs
+  en: Get docs
+  de: Docs abrufen
+  zh: 获取文档
+  es: Obtener documentación
+  fr: Obtenir la documentation
+  pt: Obter documentação
+  ru: Получить документацию
+  ja: ドキュメントを取得
+  ko: 문서 가져오기
+  it: Ottieni documentazione
+  tr: Belgeleri al
+  vi: Lấy tài liệu
+  id: Dapatkan dokumentasi
+  pl: Pobierz dokumentację
+  nl: Documentatie ophalen
+  ar: الحصول على الوثائق
+  hi: डॉक्स प्राप्त करें
+  th: รับเอกสาร
+  cs: Získat dokumentaci
+  sv: Hämta dokumentation
+  verified_by_human:
+    - en
+    - de
+get_docs.description:
+  context: Description for get docs skill
+  en: Get latest docs for libraries & frameworks.
+  de: Aktuelle Docs für Bibliotheken & Frameworks.
+  zh: 获取库和框架的最新文档。
+  es: Obtén docs de bibliotecas y frameworks.
+  fr: Docs à jour pour bibliothèques et frameworks.
+  pt: Docs atualizados de bibliotecas e frameworks.
+  ru: Актуальные docs библиотек и фреймворков.
+  ja: ライブラリ・フレームワークの最新ドキュメント。
+  ko: 라이브러리 및 프레임워크 최신 문서.
+  it: Docs aggiornati per librerie e framework.
+  tr: Kütüphane ve çerçeve güncel belgeleri.
+  vi: Tài liệu mới nhất cho thư viện & framework.
+  id: Docs terbaru untuk library & framework.
+  pl: Aktualne docs bibliotek i frameworków.
+  nl: Actuele docs voor bibliotheken & frameworks.
+  ar: وثائق محدثة للمكتبات والأطر.
+  hi: लाइब्रेरी और फ्रेमवर्क के नवीनतम डॉक्स।
+  th: เอกสารล่าสุดของไลบรารีและเฟรมเวิร์ก
+  cs: Aktuální docs knihoven a frameworků.
+  sv: Senaste docs för bibliotek & ramverk.
+  verified_by_human:
+    - en
+    - de
 clean_repo:
   context: Skill name for clean repo
   en: Clean repo

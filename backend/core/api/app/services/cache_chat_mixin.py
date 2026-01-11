@@ -1312,6 +1312,60 @@ class ChatCacheMixin:
             logger.error(f"Error adding embed {embed_id} to chat index {chat_id}: {e}", exc_info=True)
             return False
     
+    async def delete_chat_embed_cache(self, chat_id: str) -> int:
+        """
+        Delete all cached embeds for a chat and the embed index.
+        
+        This should be called when a chat is deleted to clean up all embed caches
+        associated with that chat. It removes:
+        1. All individual embed cache entries (embed:{embed_id})
+        2. The chat's embed index (chat:{chat_id}:embed_ids)
+        
+        Args:
+            chat_id: The chat ID whose embeds should be cleared
+            
+        Returns:
+            Number of embed cache entries deleted (not including the index)
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, cannot delete embed cache for chat {chat_id}")
+            return 0
+        
+        chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)
+        deleted_count = 0
+        
+        try:
+            # Get all embed IDs from the chat's index
+            embed_ids_bytes = await client.smembers(chat_embed_index_key)
+            
+            if embed_ids_bytes:
+                # Delete each embed's cache entry
+                for embed_id_bytes in embed_ids_bytes:
+                    embed_id = embed_id_bytes.decode('utf-8') if isinstance(embed_id_bytes, bytes) else embed_id_bytes
+                    embed_key = self._get_embed_cache_key(embed_id)
+                    try:
+                        result = await client.delete(embed_key)
+                        if result:
+                            deleted_count += 1
+                            logger.debug(f"Deleted embed cache: {embed_key}")
+                    except Exception as embed_delete_error:
+                        logger.warning(f"Failed to delete embed cache {embed_key}: {embed_delete_error}")
+                
+                logger.info(f"Deleted {deleted_count} embed cache entries for chat {chat_id}")
+            else:
+                logger.debug(f"No embed IDs found in index for chat {chat_id}")
+            
+            # Always attempt to delete the index key itself
+            await client.delete(chat_embed_index_key)
+            logger.debug(f"Deleted chat embed index key: {chat_embed_index_key}")
+            
+            return deleted_count
+            
+        except Exception as e:
+            logger.error(f"Error deleting embed cache for chat {chat_id}: {e}", exc_info=True)
+            return deleted_count
+    
     async def get_sync_embeds_for_chat(self, chat_id: str) -> List[Dict[str, Any]]:
         """
         Get all embeds from sync cache for a chat.

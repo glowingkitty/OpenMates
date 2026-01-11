@@ -38,25 +38,27 @@ preprocess_request_tool:
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - Only include keys if the user's query explicitly or implicitly refers to information likely stored under those item keys.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
-      7.  **relevant_app_skills**: Identify app skills that might be relevant to fulfill the user's request. This helps optimize tool selection for the main LLM processing.
-          - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
-          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `news-search` for news articles, `maps-search` for places, `videos-search` for video content).
-          - Note: `web-search` is automatically included as a fallback - focus on selecting SPECIFIC skills that are optimized for the query type.
+      7.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
+          - Available skills (format: `app_id-skill_id`): {AVAILABLE_APP_SKILLS}
+          - Include skills that might help fulfill the request. When in doubt, include them.
           
-          **CRITICAL: Select `news-search` for news and current events queries:**
-          - Use `news-search` when users ask for news articles, current events, recent announcements, breaking news, or journalism content
-          - Trigger phrases: "news about", "latest news", "recent news", "breaking news", "news on", "headlines", "what's happening with", "updates on", "announcements about", "press release", "search for [topic] news"
-          - `news-search` is optimized for news sources with freshness filtering (defaults to past week) - better than general web search for news
-          - For ANY query containing the word "news" or asking about current events/announcements, ALWAYS include `news-search`
+          **Include `code-get_docs` for ANY programming-related query:**
+          - Questions about APIs, SDKs, libraries, frameworks, or programming languages
+          - "How does [X] work?", "[X] documentation", "code examples for [X]"
+          - Keywords: API, SDK, library, framework, docs, implement, integrate, code
+          - Examples: "How does the Miro API work?", "Stripe SDK", "React hooks", "Python asyncio"
           
-          **CRITICAL: Select `videos-search` for video/media content queries:**
-          - Use `videos-search` when users ask for videos, documentaries, tutorials, clips, films, shows, or any video content
-          - Trigger phrases: "find videos", "documentaries about", "watch", "tutorial video", "YouTube videos", "video about", "show me videos", "recommend videos"
+          **Include `news-search` for news/current events:**
+          - News articles, current events, announcements, headlines
+          - Keywords: news, latest, recent, breaking, headlines, announcements
           
-          **CRITICAL: Select `maps-search` for location and place queries:**
-          - Use `maps-search` when users ask about places, locations, businesses, restaurants, stores, attractions, or nearby services
-          - Trigger phrases: "restaurants in", "places near", "find a", "where is", "nearby", "locations", "directions to", "best [place type] in [location]", "open now"
-          - `maps-search` provides rich place data including ratings, reviews, opening hours, and contact info
+          **Include `videos-search` for video content:**
+          - Videos, documentaries, tutorials, clips
+          - Keywords: video, watch, tutorial, documentary, YouTube
+          
+          **Include `maps-search` for locations/places:**
+          - Places, businesses, restaurants, directions
+          - Keywords: near, nearby, directions, restaurant, location
           
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message

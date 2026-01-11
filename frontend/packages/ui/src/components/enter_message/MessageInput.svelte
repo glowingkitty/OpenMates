@@ -661,7 +661,9 @@
                         // Check if this is a YouTube URL from the block content
                         // Use the same pattern as EMBED_PATTERNS.YOUTUBE_URL for consistency
                         // Note: This is a fallback - YouTube URLs should be detected as 'video' type in streamingSemantics
-                        const youtubePattern = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+                        // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+                        // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+                        const youtubePattern = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
                         if (block.content && youtubePattern.test(block.content)) {
                             className = 'unclosed-block-video';
                             console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red):', block.content.substring(0, 50));

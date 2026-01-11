@@ -1129,6 +1129,55 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
     }
 }
 
+/**
+ * Sends an app settings/memories entry to server for permanent storage in Directus.
+ * 
+ * This is used when creating entries from the App Store settings UI:
+ * 1. Client encrypts entry with master key and stores in IndexedDB
+ * 2. Client sends encrypted entry to server via this function
+ * 3. Server stores encrypted entry in Directus (zero-knowledge - server never decrypts)
+ * 4. Server broadcasts to other logged-in devices for multi-device sync
+ * 
+ * @param serviceInstance ChatSynchronizationService instance
+ * @param entry The encrypted app settings/memories entry to store
+ */
+export async function sendStoreAppSettingsMemoriesEntryImpl(
+    serviceInstance: ChatSynchronizationService,
+    entry: {
+        id: string;
+        app_id: string;
+        item_key: string;
+        item_type: string;  // Category ID for filtering (e.g., 'preferred_technologies')
+        encrypted_item_json: string;
+        encrypted_app_key: string;
+        created_at: number;
+        updated_at: number;
+        item_version: number;
+        sequence_number?: number;
+    }
+): Promise<boolean> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'store_app_settings_memories_entry'.");
+        return false;
+    }
+    
+    if (!entry || !entry.id || !entry.app_id || !entry.item_key || entry.encrypted_item_json === undefined) {
+        console.error("[ChatSyncService:Senders] Invalid entry data for store_app_settings_memories_entry");
+        return false;
+    }
+    
+    const payload = { entry };
+    
+    try {
+        await webSocketService.sendMessage('store_app_settings_memories_entry', payload);
+        console.info(`[ChatSyncService:Senders] Sent app settings/memories entry ${entry.id} for app ${entry.app_id} to server`);
+        return true;
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending 'store_app_settings_memories_entry' for entry ${entry.id}:`, error);
+        return false;
+    }
+}
+
 export async function sendCancelAiTaskImpl(
     serviceInstance: ChatSynchronizationService,
     taskId: string

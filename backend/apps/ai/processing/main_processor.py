@@ -35,7 +35,8 @@ from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
-    generate_skill_task_id
+    generate_skill_task_id,
+    DEFAULT_SKILL_TIMEOUT
 )
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
@@ -1272,15 +1273,19 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 
                 try:
+                    # Execute skill with retry logic (20s timeout, 1 retry by default)
+                    # On timeout, the request is cancelled and retried with a fresh connection,
+                    # which helps when external APIs are slow or proxy IPs need rotation
                     results = await execute_skill_with_multiple_requests(
                         app_id=app_id,
                         skill_id=skill_id,
                         arguments=parsed_args,
-                        timeout=30.0,
+                        timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
                         chat_id=request_data.chat_id,
                         message_id=request_data.message_id,
                         skill_task_id=skill_task_id,
                         cache_service=cache_service
+                        # max_retries uses default (1 retry = 2 total attempts)
                     )
                 except SkillCancelledException:
                     # User cancelled this specific skill - continue with cancelled result
@@ -1724,12 +1729,15 @@ async def handle_main_processing(
                                     
                                     if updated_embed_data:
                                         # Generate embed_reference for the updated embed (same embed_id, so same reference)
+                                        # Note: Placeholder embeds were already yielded at creation time (line ~949)
+                                        # Mark as "from_placeholder" so we don't yield duplicates later
                                         updated_embed_data["embed_reference"] = json.dumps({
                                             "type": "app_skill_use",
                                             "embed_id": placeholder_embed_id
                                         })
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata
+                                        updated_embed_data["from_placeholder"] = True  # Flag: already yielded
                                         updated_embed_data_list.append(updated_embed_data)
                                         logger.info(
                                             f"{log_prefix} Updated placeholder {placeholder_embed_id} with results for request {request_id}: "
@@ -1739,6 +1747,7 @@ async def handle_main_processing(
                                         logger.warning(f"{log_prefix} Failed to update placeholder for request {request_id}")
                                 else:
                                     # No placeholder found - create new embed
+                                    # This is a NEW embed, not from a placeholder, so we'll need to yield it
                                     logger.info(
                                         f"{log_prefix} No placeholder found for request {request_id}, creating new embed"
                                     )
@@ -1759,6 +1768,7 @@ async def handle_main_processing(
                                     if embed_data:
                                         embed_data["request_id"] = request_id
                                         embed_data["request_metadata"] = request_metadata
+                                        embed_data["from_placeholder"] = False  # Flag: newly created, needs yielding
                                         updated_embed_data_list.append(embed_data)
                                         logger.info(
                                             f"{log_prefix} Created embed {embed_data.get('parent_embed_id')} for request {request_id}: "
@@ -1767,8 +1777,19 @@ async def handle_main_processing(
                                     else:
                                         logger.warning(f"{log_prefix} Failed to create embed for request {request_id}")
                             
-                            # Stream all embed references as separate JSON code blocks
+                            # Stream embed references ONLY for newly created embeds (not from placeholders)
+                            # Placeholder embed references were already yielded at creation time (line ~949)
+                            # to allow the frontend to show "loading" state immediately.
+                            # Yielding them again would cause duplicate embed references in the message.
                             for embed_data in updated_embed_data_list:
+                                # Skip embeds that came from placeholders - they were already yielded
+                                if embed_data.get("from_placeholder"):
+                                    logger.debug(
+                                        f"{log_prefix} Skipping duplicate yield for placeholder embed: "
+                                        f"request_id={embed_data.get('request_id')}"
+                                    )
+                                    continue
+                                    
                                 embed_reference = embed_data.get("embed_reference")
                                 if embed_reference:
                                     embed_code_block = f"```json\n{embed_reference}\n```\n\n"

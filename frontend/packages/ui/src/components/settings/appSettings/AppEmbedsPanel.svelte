@@ -19,6 +19,8 @@
     import VideosSearchEmbedPreview from '../../../components/embeds/videos/VideosSearchEmbedPreview.svelte';
     import MapsSearchEmbedPreview from '../../../components/embeds/maps/MapsSearchEmbedPreview.svelte';
     import VideoTranscriptEmbedPreview from '../../../components/embeds/videos/VideoTranscriptEmbedPreview.svelte';
+    import CodeGetDocsEmbedPreview from '../../../components/embeds/code/CodeGetDocsEmbedPreview.svelte';
+    import CodeEmbedPreview from '../../../components/embeds/code/CodeEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -66,58 +68,32 @@
     /**
      * Load embeds for this app from IndexedDB
      * 
-     * Only shows embeds that have the correct app_id set in the IndexedDB entry.
-     * This ensures we only display embeds that actually belong to this specific app.
-     * 
-     * Note: Embeds without app_id in IndexedDB are not shown. If needed, a migration
-     * should be added to backfill app_id for existing embeds.
+     * Uses the efficient IndexedDB index on app_id for fast queries.
+     * Embeds are indexed with app_id/skill_id during sync (see chatSyncServiceHandlersPhasedSync.ts).
      */
     async function loadEmbeds() {
         embedsLoading = true;
         try {
             // Get all embeds for this app using the efficient IndexedDB index on app_id
-            // This index ensures we only get embeds that belong to this specific app
             const appEmbeds = await embedStore.getEmbedsByAppId(appId);
             
-            // Filter to ensure all embeds have the correct app_id (defensive check)
-            // This handles edge cases where the index might return incorrect results
-            const filteredEmbeds = appEmbeds.filter(embed => {
-                // Only include embeds that have app_id set and match the current app
-                if (embed.app_id === appId) {
-                    return true;
-                }
-                // Log warning if we find embeds with mismatched app_id (shouldn't happen with proper index)
-                if (embed.app_id && embed.app_id !== appId) {
-                    console.warn('[AppEmbedsPanel] Found embed with mismatched app_id:', {
-                        embedId: embed.contentRef,
-                        expectedAppId: appId,
-                        actualAppId: embed.app_id
-                    });
-                }
-                return false;
-            });
+            console.debug(`[AppEmbedsPanel] Found ${appEmbeds.length} embeds for app_id: ${appId}`);
             
-            // Debug: Log embed details to diagnose issues
-            console.debug(`[AppEmbedsPanel] Query returned ${appEmbeds.length} embeds for app_id: ${appId}, filtered to ${filteredEmbeds.length} matching embeds`);
-            
-            embeds = filteredEmbeds;
+            embeds = appEmbeds;
 
-            if (filteredEmbeds.length > 0) {
+            if (appEmbeds.length > 0) {
                 console.debug('[AppEmbedsPanel] Sample embed:', {
-                    contentRef: filteredEmbeds[0].contentRef,
-                    type: filteredEmbeds[0].type,
-                    app_id: filteredEmbeds[0].app_id,
-                    skill_id: filteredEmbeds[0].skill_id,
-                    createdAt: filteredEmbeds[0].createdAt
+                    contentRef: appEmbeds[0].contentRef,
+                    type: appEmbeds[0].type,
+                    app_id: appEmbeds[0].app_id,
+                    skill_id: appEmbeds[0].skill_id,
+                    createdAt: appEmbeds[0].createdAt
                 });
-            } else if (appEmbeds.length > 0 && filteredEmbeds.length === 0) {
-                // This shouldn't happen, but log if it does
-                console.warn('[AppEmbedsPanel] All embeds were filtered out - possible index issue');
             }
 
             // Validate embeds to ensure they can be rendered
             // This filters out embeds that fail to decrypt or don't have a valid preview component
-            await validateEmbeds(filteredEmbeds);
+            await validateEmbeds(appEmbeds);
 
             // Reset to first page when embeds are loaded
             currentPage = 1;
@@ -229,9 +205,14 @@
 
     /**
      * Format date for display
+     * Handles both Unix timestamps in seconds and milliseconds
      */
     function formatDate(timestamp: number): string {
-        const date = new Date(timestamp);
+        // Heuristic: If timestamp is less than year 2000 in milliseconds (946684800000),
+        // it's probably in seconds and needs to be converted to milliseconds
+        // Year 2000 in seconds = 946684800, which is much larger than any realistic ms timestamp
+        const timestampMs = timestamp < 946684800000 ? timestamp * 1000 : timestamp;
+        const date = new Date(timestampMs);
         return date.toLocaleDateString(undefined, {
             year: 'numeric',
             month: 'short',
@@ -400,8 +381,48 @@
                 };
             }
 
+            // Code app: get_docs skill - fetches library documentation via Context7
+            if (embedAppId === 'code' && (skillId === 'get_docs' || skillId === 'get-docs')) {
+                return {
+                    component: CodeGetDocsEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: status,
+                        // Results contain: library object (id, title), documentation, word_count
+                        results: decodedContent.results || [],
+                        // Input library name from the request
+                        library: decodedContent.library || '',
+                        // Question/query that was asked
+                        question: decodedContent.question || '',
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Code app: Regular code embeds (AI-generated code blocks)
+            // These have embed type 'code' or 'code_embed' and contain code content
+            const embedType = embedEntry.type || decodedContent.type || '';
+            if (embedAppId === 'code' || embedType === 'code' || embedType === 'code_embed') {
+                // Code embeds have: code, language, filename fields
+                const codeContent = decodedContent.code || decodedContent.content || '';
+                return {
+                    component: CodeEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: status,
+                        language: decodedContent.language || '',
+                        filename: decodedContent.filename,
+                        lineCount: decodedContent.line_count || 0,
+                        codeContent: codeContent,
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
             // Fallback: Generic preview (could be enhanced later)
-            console.warn('[AppEmbedsPanel] No specific preview component for:', { appId: embedAppId, skillId });
+            console.warn('[AppEmbedsPanel] No specific preview component for:', { appId: embedAppId, skillId, embedType });
             return null;
         } catch (error) {
             console.error('[AppEmbedsPanel] Error rendering embed preview:', error);

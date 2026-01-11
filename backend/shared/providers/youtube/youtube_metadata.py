@@ -68,8 +68,12 @@ def extract_youtube_id_from_url(url: str) -> Optional[str]:
     
     Supports:
     - https://www.youtube.com/watch?v=VIDEO_ID
+    - https://m.youtube.com/watch?v=VIDEO_ID (mobile)
     - https://youtu.be/VIDEO_ID
     - https://youtube.com/watch?v=VIDEO_ID
+    - https://youtube.com/embed/VIDEO_ID
+    - https://youtube.com/shorts/VIDEO_ID
+    - https://youtube.com/v/VIDEO_ID (legacy)
     
     **Security**: URL fragments (#{text}) are removed before extraction as a security measure.
     Fragments can contain malicious content and are not needed for video ID extraction.
@@ -93,8 +97,10 @@ def extract_youtube_id_from_url(url: str) -> Optional[str]:
     # Use sanitized URL for extraction
     url = sanitized_url
     
-    # Pattern for youtube.com/watch?v=VIDEO_ID and youtu.be/VIDEO_ID
-    match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]{11})', url)
+    # Pattern for various YouTube URL formats
+    # Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+    # Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+    match = re.search(r'(?:(?:www\.|m\.)?youtube\.com/(?:watch\?v=|embed/|shorts/|v/)|youtu\.be/)([\w-]{11})', url)
     if match:
         return match.group(1)
     

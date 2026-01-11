@@ -678,12 +678,21 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       return 0; // Keep original order for same status
     });
     
-    // Extract only the essential, serializable attributes for groupedItems
+    // Extract serializable attributes for groupedItems
+    // CRITICAL: Preserve app_id, skill_id, query, and provider so that GroupRenderer
+    // can render the correct Svelte component during streaming, even before
+    // the full embed data arrives from the server via WebSocket.
+    // Without these, the group items will render as empty/generic fallback HTML.
     const serializableGroupedItems = sortedEmbeds.map(embed => ({
       id: embed.id,
       type: embed.type as any,
       status: embed.status as 'processing' | 'finished',
-      contentRef: embed.contentRef
+      contentRef: embed.contentRef,
+      // Preserve app skill metadata for rendering during streaming
+      app_id: embed.app_id,
+      skill_id: embed.skill_id,
+      query: embed.query,
+      provider: embed.provider
     }));
     
     console.log('[AppSkillUseGroupHandler] Creating group with items:', serializableGroupedItems);

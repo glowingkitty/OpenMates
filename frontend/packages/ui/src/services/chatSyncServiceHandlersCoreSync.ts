@@ -356,9 +356,25 @@ export async function handlePhase1LastChatImpl(
             console.warn("[ChatSyncService:CoreSync] ⚠️ No new chat suggestions received in Phase 1 - this is unexpected!");
         }
         
-        // CRITICAL: Save embeds to EmbedStore (Phase 1 may include embeds for the chat)
-        // This ensures embeds are available for rendering when messages are displayed
-        // Embeds from sync are already client-encrypted, so we store them as-is (no re-encryption)
+        // CRITICAL: Save embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
+        // Without embed_keys, embeds cannot be decrypted and putEncrypted can't extract metadata
+        if (payload.embed_keys && payload.embed_keys.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.embed_keys.length, "embed_keys to EmbedStore (FIRST, before embeds)");
+            try {
+                const { embedStore } = await import('./embedStore');
+                
+                // Store all embed key entries
+                await embedStore.storeEmbedKeys(payload.embed_keys);
+                
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embed_keys.length, "embed_keys to EmbedStore");
+            } catch (embedKeyError) {
+                console.error("[ChatSyncService:CoreSync] Error saving embed_keys to EmbedStore:", embedKeyError);
+            }
+        } else {
+            console.debug("[ChatSyncService:CoreSync] No embed_keys in Phase 1 payload (embeds may not have keys yet)");
+        }
+        
+        // Now save embeds - keys are available so putEncrypted can extract app_id/skill_id metadata
         console.debug("[ChatSyncService:CoreSync] Phase 1 payload embeds check:", {
             hasEmbeds: !!payload.embeds,
             embedsLength: payload.embeds?.length || 0,
@@ -381,7 +397,7 @@ export async function handlePhase1LastChatImpl(
                     const contentRef = `embed:${embed.embed_id}`;
                     
                     // Store the embed with its already-encrypted content (no re-encryption)
-                    // This matches the pattern used for messages during sync
+                    // putEncrypted will decrypt content to extract app_id/skill_id for indexing
                     await embedStore.putEncrypted(contentRef, {
                         encrypted_content: embed.encrypted_content, // Already client-encrypted from Directus
                         encrypted_type: embed.encrypted_type, // Already client-encrypted from Directus
@@ -409,24 +425,6 @@ export async function handlePhase1LastChatImpl(
             }
         } else {
             console.debug("[ChatSyncService:CoreSync] No embeds in Phase 1 payload (chat may not have any)");
-        }
-        
-        // CRITICAL: Save embed_keys to EmbedStore (needed to decrypt embed content)
-        // Without embed_keys, embeds cannot be decrypted and will show errors
-        if (payload.embed_keys && payload.embed_keys.length > 0) {
-            console.info("[ChatSyncService:CoreSync] Saving", payload.embed_keys.length, "embed_keys to EmbedStore");
-            try {
-                const { embedStore } = await import('./embedStore');
-                
-                // Store all embed key entries
-                await embedStore.storeEmbedKeys(payload.embed_keys);
-                
-                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embed_keys.length, "embed_keys to EmbedStore");
-            } catch (embedKeyError) {
-                console.error("[ChatSyncService:CoreSync] Error saving embed_keys to EmbedStore:", embedKeyError);
-            }
-        } else {
-            console.debug("[ChatSyncService:CoreSync] No embed_keys in Phase 1 payload (embeds may not have keys yet)");
         }
         
         // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable

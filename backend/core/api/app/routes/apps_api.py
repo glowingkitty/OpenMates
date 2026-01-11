@@ -1273,13 +1273,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         
                         # Look for Request and Response models in the module
                         # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
-                        for model_name in ['SearchRequest', 'ReadRequest', 'TranscriptRequest', 'Request']:
+                        # Include skill-specific names like GetDocsRequest for get_docs skill
+                        for model_name in ['SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'Request']:
                             if hasattr(skill_module, model_name):
                                 SkillRequestModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
                                 break
                         
-                        for model_name in ['SearchResponse', 'ReadResponse', 'TranscriptResponse', 'Response']:
+                        for model_name in ['SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'Response']:
                             if hasattr(skill_module, model_name):
                                 SkillResponseModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")

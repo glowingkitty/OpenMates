@@ -402,11 +402,13 @@ export async function createYouTubeEmbed(metadata: YouTubeMetadata): Promise<Emb
  * YouTube URL patterns for detection
  * Matches:
  * - https://www.youtube.com/watch?v=VIDEO_ID
+ * - https://m.youtube.com/watch?v=VIDEO_ID (mobile)
  * - https://youtu.be/VIDEO_ID
  * - https://www.youtube.com/embed/VIDEO_ID
  * - https://www.youtube.com/shorts/VIDEO_ID
+ * - https://www.youtube.com/v/VIDEO_ID (legacy)
  */
-const YOUTUBE_URL_PATTERN = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/)|youtu\.be\/)/i;
+const YOUTUBE_URL_PATTERN = /^https?:\/\/(www\.|m\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)/i;
 
 /**
  * Check if a URL is a YouTube video URL

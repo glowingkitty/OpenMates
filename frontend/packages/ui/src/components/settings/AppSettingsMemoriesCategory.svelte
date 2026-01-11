@@ -14,6 +14,11 @@
      - Decrypted on-demand for display
      - CRUD operations maintain encryption
      - Sync happens after all chats are synced (Phase 3)
+     
+     **Display Features**:
+     - Uses is_title and is_subtitle schema properties to show entry title/subtitle
+     - Entries displayed as clickable menu items (SettingsItem components)
+     - Clicking an entry navigates to its detail view for viewing/editing
 -->
 
 <script lang="ts">
@@ -59,15 +64,6 @@
     let groupedEntries = $appEntries;
 
     /**
-     * Get the translated category name.
-     */
-    let categoryName = $derived(
-        category?.name_translation_key
-            ? $text(category.name_translation_key)
-            : categoryId
-    );
-
-    /**
      * Get the translated category description.
      */
     let categoryDescription = $derived(
@@ -75,6 +71,51 @@
             ? $text(category.description_translation_key)
             : ''
     );
+
+    // Get schema from category for title/subtitle field detection
+    let schema = $derived(category?.schema_definition);
+    
+    /**
+     * Find the field name marked as is_title in the schema.
+     * Falls back to 'name' or 'title' if no explicit is_title is set.
+     */
+    let titleFieldName = $derived.by<string | null>(() => {
+        if (!schema?.properties) return null;
+        
+        // First, look for explicit is_title
+        for (const [fieldName, prop] of Object.entries(schema.properties)) {
+            if (prop.is_title) return fieldName;
+        }
+        
+        // Fallback: look for common title field names
+        const commonTitleFields = ['name', 'title', 'label'];
+        for (const field of commonTitleFields) {
+            if (schema.properties[field]) return field;
+        }
+        
+        return null;
+    });
+    
+    /**
+     * Find the field name marked as is_subtitle in the schema.
+     * Falls back to 'proficiency', 'description', 'status' if no explicit is_subtitle is set.
+     */
+    let subtitleFieldName = $derived.by<string | null>(() => {
+        if (!schema?.properties) return null;
+        
+        // First, look for explicit is_subtitle
+        for (const [fieldName, prop] of Object.entries(schema.properties)) {
+            if (prop.is_subtitle) return fieldName;
+        }
+        
+        // Fallback: look for common subtitle field names
+        const commonSubtitleFields = ['proficiency', 'description', 'status', 'type'];
+        for (const field of commonSubtitleFields) {
+            if (schema.properties[field]) return field;
+        }
+        
+        return null;
+    });
 
     /**
      * Load entries for this category on mount.
@@ -106,10 +147,19 @@
     
     /**
      * Get icon name from icon_image filename.
+     * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
+     * Also handles special cases:
+     * - "coding.svg" -> "code" (since the app ID is "code" but icon file is coding.svg)
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return appId;
-        return iconImage.replace(/\.svg$/, '');
+        let iconName = iconImage.replace(/\.svg$/, '');
+        // Handle special case: coding.svg -> code (since the app ID is "code" but icon file is coding.svg)
+        // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
+        if (iconName === 'coding') {
+            iconName = 'code';
+        }
+        return iconName;
     }
     
     /**
@@ -138,55 +188,123 @@
     }
     
     /**
-     * Format date timestamp for display.
+     * Navigate to entry detail view for viewing/editing.
      */
-    function formatDate(timestamp: number): string {
-        const date = new Date(timestamp * 1000);
-        return date.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+    function handleEntryClick(entryId: string, entryTitle: string) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/${entryId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: entryTitle
         });
     }
     
     /**
-     * Format entry value for display.
+     * Get the title to display for an entry based on schema is_title field.
      */
-    function formatValue(value: unknown): string {
-        if (value === null || value === undefined) {
-            return 'null';
+    function getEntryTitle(itemValue: Record<string, unknown>): string {
+        if (titleFieldName && itemValue[titleFieldName] !== undefined) {
+            return String(itemValue[titleFieldName]);
         }
-        if (typeof value === 'boolean') {
-            return value ? 'true' : 'false';
+        // Fallback: use _original_item_key or first string value
+        if (itemValue._original_item_key) {
+            const key = String(itemValue._original_item_key);
+            // Remove category prefix if present (e.g., "preferred_tech.Python" -> "Python")
+            const parts = key.split('.');
+            return parts.length > 1 ? parts.slice(1).join('.') : key;
         }
-        if (typeof value === 'object') {
-            return JSON.stringify(value, null, 2);
+        // Last resort: use first non-internal string value
+        for (const [key, value] of Object.entries(itemValue)) {
+            if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string') {
+                return value;
+            }
         }
-        return String(value);
+        return 'Entry';
     }
     
     /**
-     * Get all entries flattened from all groups.
-     * Since entries are grouped by settings_group, we need to flatten them for display.
+     * Get the subtitle to display for an entry based on schema is_subtitle field.
      */
-    let allEntries = $derived.by(() => {
-        const entries: Array<{ id: string; item_key: string; item_value: unknown; updated_at: number; item_version: number; settings_group: string }> = [];
-        for (const [groupName, groupEntries] of Object.entries(groupedEntries)) {
-            if (Array.isArray(groupEntries)) {
-                for (const entry of groupEntries) {
-                    entries.push({
-                        id: entry.id as string,
-                        item_key: entry.item_key as string,
-                        item_value: entry.item_value,
-                        updated_at: entry.updated_at as number,
-                        item_version: entry.item_version as number,
-                        settings_group: groupName
-                    });
-                }
+    function getEntrySubtitle(itemValue: Record<string, unknown>, updatedAt: number): string {
+        const parts: string[] = [];
+        
+        // Add subtitle field value if available
+        if (subtitleFieldName && itemValue[subtitleFieldName] !== undefined) {
+            const value = itemValue[subtitleFieldName];
+            if (typeof value === 'boolean') {
+                parts.push(value ? 'Yes' : 'No');
+            } else {
+                parts.push(String(value));
             }
         }
+        
+        // Add relative time
+        parts.push(formatRelativeTime(updatedAt));
+        
+        return parts.join(' • ');
+    }
+    
+    /**
+     * Format timestamp as relative time (e.g., "2 days ago", "Just now").
+     */
+    function formatRelativeTime(timestamp: number): string {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = now - timestamp;
+        
+        if (diff < 60) return $text('settings.app_settings_memories.just_now.text') || 'Just now';
+        if (diff < 3600) {
+            const mins = Math.floor(diff / 60);
+            return `${mins}m ago`;
+        }
+        if (diff < 86400) {
+            const hours = Math.floor(diff / 3600);
+            return `${hours}h ago`;
+        }
+        if (diff < 604800) {
+            const days = Math.floor(diff / 86400);
+            return `${days}d ago`;
+        }
+        
+        // For older entries, show the actual date
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+        });
+    }
+    
+    /**
+     * Get entries filtered to only the current category.
+     * The categoryId corresponds to the settings_group field in entries.
+     * Only entries matching the current category are displayed.
+     */
+    let allEntries = $derived.by(() => {
+        const entries: Array<{ 
+            id: string; 
+            item_key: string; 
+            item_value: Record<string, unknown>; 
+            updated_at: number; 
+            item_version: number; 
+            settings_group: string 
+        }> = [];
+        
+        // Only get entries for the specific categoryId (settings_group)
+        // This ensures the page only shows entries for the selected category
+        const categoryEntries = groupedEntries[categoryId];
+        if (Array.isArray(categoryEntries)) {
+            for (const entry of categoryEntries) {
+                entries.push({
+                    id: entry.id as string,
+                    item_key: entry.item_key as string,
+                    item_value: entry.item_value as Record<string, unknown>,
+                    updated_at: entry.updated_at as number,
+                    item_version: entry.item_version as number,
+                    settings_group: categoryId
+                });
+            }
+        }
+        
         // Sort by updated_at descending (newest first)
         return entries.sort((a, b) => b.updated_at - a.updated_at);
     });
@@ -208,25 +326,17 @@
         </div>
 
         {#if isAuthenticated}
-            <!-- Add entry button - temporarily commented out -->
-            <!-- TODO: Commenting out add entry functionality - feature needs more testing and stability -->
-            <!-- <div class="add-entry-section">
+            <!-- Add entry button -->
+            <div class="add-entry-section">
                 <SettingsItem
                     type="submenu"
                     icon="create"
                     title={$text('settings.app_settings_memories.add_entry.text')}
                     onClick={handleAddEntry}
                 />
-            </div> -->
-
-            <!-- Placeholder message for disabled functionality -->
-            <div class="placeholder-section">
-                <div class="placeholder-message">
-                    <p>{$text('settings.app_settings_memories.placeholder.text')}</p>
-                </div>
             </div>
             
-            <!-- List of existing entries -->
+            <!-- List of existing entries as clickable menu items -->
             <div class="entries-section">
                 {#if isInitialLoad}
                     <div class="loading">
@@ -239,17 +349,15 @@
                 {:else}
                     <div class="entries-list">
                         {#each allEntries as entry (entry.id)}
-                            <div class="entry-item">
-                                <div class="entry-header">
-                                    <span class="entry-key">{entry.item_key}</span>
-                                    <span class="entry-meta">
-                                        {entry.settings_group} • v{entry.item_version} • {formatDate(entry.updated_at)}
-                                    </span>
-                                </div>
-                                <div class="entry-value">
-                                    <code>{formatValue(entry.item_value)}</code>
-                                </div>
-                            </div>
+                            {@const entryTitle = getEntryTitle(entry.item_value)}
+                            {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
+                            <SettingsItem
+                                type="submenu"
+                                icon={getIconName(app?.icon_image)}
+                                title={entryTitle}
+                                subtitleBottom={entrySubtitle}
+                                onClick={() => handleEntryClick(entry.id, entryTitle)}
+                            />
                         {/each}
                     </div>
                 {/if}
@@ -286,7 +394,7 @@
     }
     
     .add-entry-section {
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
         padding-left: 0;
     }
     
@@ -309,55 +417,7 @@
     .entries-list {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .entry-item {
-        padding: 1rem;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-    }
-    
-    .entry-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-    
-    .entry-key {
-        font-family: 'Courier New', monospace;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        word-break: break-word;
-    }
-    
-    .entry-meta {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        white-space: nowrap;
-    }
-    
-    .entry-value {
-        margin-top: 0.5rem;
-    }
-    
-    code {
-        display: block;
-        padding: 0.75rem;
-        background: var(--color-white);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        font-size: 0.85rem;
-        overflow-x: auto;
-        color: var(--text-primary);
-        word-break: break-word;
-        white-space: pre-wrap;
+        gap: 0;
     }
     
     .error {
@@ -394,19 +454,5 @@
         line-height: 1.6;
     }
 
-    .placeholder-section {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-
-    .placeholder-message {
-        padding: 2rem;
-        text-align: center;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        color: var(--text-secondary, #666666);
-        font-style: italic;
-    }
 </style>
 
