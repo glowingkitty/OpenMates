@@ -99,7 +99,8 @@ async def handle_chat_system_message_added(
         logger.info(f"[SystemMessage] Processing system message {message_id} for chat {chat_id} from {user_id}")
         
         # Verify chat ownership
-        chat_metadata = await directus_service.get_chat_metadata(chat_id, include_encrypted_fields=False)
+        # Note: get_chat_metadata only takes chat_id - it always fetches the same metadata fields
+        chat_metadata = await directus_service.get_chat_metadata(chat_id)
         if not chat_metadata:
             logger.error(f"[SystemMessage] Chat {chat_id} not found in Directus")
             await manager.send_personal_message(

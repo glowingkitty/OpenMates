@@ -17,6 +17,8 @@ import type { ChatSynchronizationService } from './chatSyncService';
 import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db';
 import { decryptWithMasterKey } from './cryptoService';
+import { aiTypingStore } from '../stores/aiTypingStore';
+import { get } from 'svelte/store';
 
 /**
  * Payload structure for request_app_settings_memories WebSocket message
@@ -191,6 +193,37 @@ export async function handleRequestAppSettingsMemoriesImpl(
         }
         
         console.info(`[ChatSyncService:AppSettings] Built ${categories.length} categories for permission dialog`);
+        
+        // Clear the typing indicator - AI processing is now paused waiting for user input
+        // The server has sent this request because it needs user permission before continuing
+        const currentTypingStatus = get(aiTypingStore);
+        if (currentTypingStatus.chatId === chat_id && currentTypingStatus.isTyping) {
+            console.info(`[ChatSyncService:AppSettings] Clearing typing indicator for chat ${chat_id} - waiting for user permission`);
+            aiTypingStore.reset();
+        }
+        
+        // Update user message status from 'processing' to 'synced' since we're waiting for input
+        // This prevents the "Processing..." indicator from showing
+        if (payload.message_id) {
+            try {
+                const userMessage = await chatDB.getMessage(payload.message_id);
+                if (userMessage && userMessage.status === 'processing') {
+                    // Update the message status and save it back
+                    const updatedMessage = { ...userMessage, status: 'synced' as const };
+                    await chatDB.saveMessage(updatedMessage);
+                    console.info(`[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'synced'`);
+                    
+                    // Dispatch event to update UI immediately
+                    if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('messageStatusUpdated', {
+                            detail: { messageId: payload.message_id, status: 'synced', chatId: chat_id }
+                        }));
+                    }
+                }
+            } catch (msgError) {
+                console.warn(`[ChatSyncService:AppSettings] Could not update user message status:`, msgError);
+            }
+        }
         
         // Store the pending request
         const pendingRequest: PendingPermissionRequest = {

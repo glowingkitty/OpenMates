@@ -15,7 +15,8 @@ user message, rather than waiting/blocking the original task.
 
 import logging
 import time
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -85,6 +86,8 @@ async def handle_app_settings_memories_confirmed(
         # Load the pending request context and trigger re-processing
         await _trigger_continuation(
             cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
             user_id=user_id,
             chat_id=chat_id,
             device_fingerprint_hash=device_fingerprint_hash,
@@ -203,6 +206,8 @@ async def _cache_app_settings_memories(
 
 async def _trigger_continuation(
     cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
     user_id: str,
     chat_id: str,
     device_fingerprint_hash: str,
@@ -216,10 +221,12 @@ async def _trigger_continuation(
     continues without them (if rejected).
     
     NOTE: We only store minimal context in the pending request - NOT the message_history.
-    The chat history is retrieved from the existing chat cache (recent chats are cached).
+    The chat history is retrieved from the existing AI cache (vault-encrypted messages).
     
     Args:
         cache_service: CacheService instance
+        directus_service: DirectusService instance
+        encryption_service: EncryptionService instance
         user_id: User ID
         chat_id: Chat ID
         device_fingerprint_hash: Device fingerprint hash
@@ -245,35 +252,77 @@ async def _trigger_continuation(
         f"message_id={message_id}, is_rejection={is_rejection}"
     )
     
-    # Retrieve the chat and message history from cache
+    # Retrieve vault-encrypted messages from AI cache
     # The chat should be cached since it's a recent chat that triggered the request
-    cached_messages = await cache_service.get_chat_messages(user_id, chat_id)
+    cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id)
     
-    if not cached_messages:
+    if not cached_messages_str_list:
         logger.error(f"Failed to retrieve cached messages for chat {chat_id} - cannot continue processing")
         # Delete the pending context to avoid stale data
         await cache_service.delete_pending_app_settings_memories_request(chat_id)
         return
     
+    # Get user's vault key for decryption
+    user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+    if not user_vault_key_id:
+        logger.debug(f"vault_key_id not in cache for user {user_id}, fetching from Directus")
+        try:
+            user_profile_result = await directus_service.get_user_profile(user_id)
+            if user_profile_result and user_profile_result[0]:
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+        except Exception as e_profile:
+            logger.error(f"Error fetching user profile for decryption: {e_profile}", exc_info=True)
+    
+    if not user_vault_key_id:
+        logger.error(f"Cannot decrypt messages without vault_key_id for user {user_id}")
+        await cache_service.delete_pending_app_settings_memories_request(chat_id)
+        return
+    
     # Convert cached messages to the format expected by AskSkillRequest
-    # Filter and format for message_history
-    message_history = []
-    for msg in cached_messages:
-        # Only include user and assistant messages (not system messages)
-        role = msg.get("role", "")
-        if role in ("user", "assistant"):
+    # Messages are stored newest first (LPUSH), so reverse for chronological order
+    message_history: List[Dict[str, Any]] = []
+    for msg_str in reversed(cached_messages_str_list):
+        try:
+            msg_cache_data = json.loads(msg_str)
+            role = msg_cache_data.get("role", "")
+            
+            # Only include user and assistant messages (not system messages)
+            if role not in ("user", "assistant"):
+                continue
+            
+            # Decrypt the content using vault key
+            encrypted_content = msg_cache_data.get("encrypted_content")
+            if not encrypted_content:
+                logger.debug(f"Cached message missing encrypted_content for chat {chat_id}, skipping")
+                continue
+            
+            try:
+                decrypted_content = await encryption_service.decrypt_with_user_key(
+                    encrypted_content,
+                    user_vault_key_id
+                )
+                if not decrypted_content:
+                    logger.warning(f"Failed to decrypt message for chat {chat_id}, skipping")
+                    continue
+            except Exception as e_decrypt:
+                logger.warning(f"Error decrypting message for chat {chat_id}: {e_decrypt}")
+                continue
+            
             message_history.append({
                 "role": role,
-                "content": msg.get("content", ""),
-                "message_id": msg.get("message_id", ""),
+                "content": decrypted_content,
+                "message_id": msg_cache_data.get("message_id", ""),
             })
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse cached message JSON for chat {chat_id}: {e}")
+            continue
     
     if not message_history:
         logger.error(f"No user/assistant messages found in cached chat {chat_id} - cannot continue processing")
         await cache_service.delete_pending_app_settings_memories_request(chat_id)
         return
     
-    logger.info(f"Retrieved {len(message_history)} messages from cached chat {chat_id}")
+    logger.info(f"Retrieved and decrypted {len(message_history)} messages from AI cache for chat {chat_id}")
     
     # Delete the pending context (we're about to process it)
     await cache_service.delete_pending_app_settings_memories_request(chat_id)
