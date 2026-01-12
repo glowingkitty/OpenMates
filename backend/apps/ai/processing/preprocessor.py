@@ -890,17 +890,54 @@ async def handle_preprocessing(
                 for item_key in item_keys:
                     available_keys.add(f"{app_id}-{item_key}")
 
-            # Filter out invalid keys
-            validated_keys = [key for key in load_app_settings_and_memories_val if key in available_keys]
-            invalid_keys = [key for key in load_app_settings_and_memories_val if key not in available_keys]
+            # Helper function to normalize LLM output format to match expected format
+            # LLMs may return formats like "code: preferred_tech", "code - preferred_tech", etc.
+            # We need to normalize these to "code-preferred_tech" (hyphen separator, no spaces)
+            def normalize_app_settings_key(key: str) -> str:
+                """
+                Normalizes app settings/memories key format from LLM output.
+                Handles variations like:
+                  - "code: preferred_tech" -> "code-preferred_tech"
+                  - "code - preferred_tech" -> "code-preferred_tech"
+                  - "code:preferred_tech" -> "code-preferred_tech"
+                  - "code -preferred_tech" -> "code-preferred_tech"
+                """
+                # Replace colon+space, space+hyphen+space, colon with hyphen
+                normalized = key.strip()
+                # Handle "app_id: item_key" format (colon followed by space)
+                normalized = normalized.replace(": ", "-")
+                # Handle "app_id : item_key" format (space colon space)
+                normalized = normalized.replace(" : ", "-")
+                # Handle "app_id - item_key" format (space hyphen space)
+                normalized = normalized.replace(" - ", "-")
+                # Handle any remaining colons as separators
+                normalized = normalized.replace(":", "-")
+                # Handle "app_id -item_key" or "app_id- item_key" edge cases
+                normalized = normalized.replace(" -", "-").replace("- ", "-")
+                # Remove any leading/trailing whitespace that may have been left
+                normalized = normalized.strip()
+                return normalized
+
+            # Normalize all LLM-provided keys and validate against available keys
+            validated_keys = []
+            invalid_keys = []
+            for raw_key in load_app_settings_and_memories_val:
+                normalized_key = normalize_app_settings_key(raw_key)
+                if normalized_key in available_keys:
+                    validated_keys.append(normalized_key)
+                else:
+                    invalid_keys.append(f"{raw_key} (normalized: {normalized_key})")
 
             if invalid_keys:
                 logger.warning(
                     f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s) that don't exist: {invalid_keys}. "
-                    f"Filtered out. Valid keys: {validated_keys}."
+                    f"Filtered out. Valid keys: {validated_keys}. Available keys: {list(available_keys)}"
                 )
-                load_app_settings_and_memories_val = validated_keys
-                llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+            elif validated_keys:
+                logger.info(f"{log_prefix} Successfully validated {len(validated_keys)} app_settings_and_memories key(s): {validated_keys}")
+            
+            load_app_settings_and_memories_val = validated_keys
+            llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
 

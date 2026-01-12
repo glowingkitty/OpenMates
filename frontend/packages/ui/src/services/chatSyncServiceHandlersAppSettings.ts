@@ -550,6 +550,57 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
 
 
 /**
+ * Payload structure for app_settings_memories_entry_stored WebSocket message
+ * This is an acknowledgment from the server that it successfully stored an entry
+ */
+interface AppSettingsMemoriesEntryStoredPayload {
+    entry_id: string;
+    app_id: string;
+    item_key: string;
+    success: boolean;
+}
+
+/**
+ * Handles acknowledgment that server stored an app settings/memories entry.
+ * 
+ * This is sent by the server after successfully storing an entry in Directus.
+ * The source device receives this as confirmation that the entry was persisted.
+ * 
+ * This handler dispatches an event so UI components can update accordingly
+ * (e.g., show a success indicator, remove pending state).
+ */
+export async function handleAppSettingsMemoriesEntryStoredImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AppSettingsMemoriesEntryStoredPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'app_settings_memories_entry_stored' acknowledgment:", {
+        entry_id: payload.entry_id,
+        app_id: payload.app_id,
+        item_key: payload.item_key,
+        success: payload.success
+    });
+
+    if (!payload.success) {
+        console.warn("[ChatSyncService:AppSettings] Server reported entry storage failed:", payload);
+        return;
+    }
+
+    // Dispatch custom event to notify UI components that the entry was successfully stored
+    // This allows components to update their state (e.g., remove pending indicator)
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appSettingsMemoriesEntryStored', {
+            detail: { 
+                entry_id: payload.entry_id,
+                app_id: payload.app_id,
+                item_key: payload.item_key,
+                stored_at: Date.now()
+            }
+        }));
+    }
+}
+
+
+/**
  * Payload structure for app_settings_memories_entry_synced WebSocket message
  * This is received when another device creates/updates an entry
  */

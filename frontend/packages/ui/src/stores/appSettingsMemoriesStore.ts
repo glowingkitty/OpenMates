@@ -268,7 +268,11 @@ function createAppSettingsMemoriesStore() {
                 // The actual item_key is stored INSIDE the encrypted JSON for recovery on decryption
                 // This ensures only the app_id and settings_group type are visible, not the content
                 const hashedItemKey = await hashString(`${appId}-${entryData.item_key}-${now}`);
-                const itemId = `${appId}-${hashedItemKey.substring(0, 16)}-${now}`;
+                
+                // Generate a proper UUID for the entry ID
+                // The database schema requires UUID type, not composite strings
+                // App ID and timestamps are stored in separate fields, so the ID just needs to be unique
+                const itemId = crypto.randomUUID();
 
                 // Include BOTH settings_group AND the original item_key in the encrypted value
                 // The item_key is stored encrypted so it can be recovered for display
