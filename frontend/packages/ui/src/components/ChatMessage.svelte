@@ -70,36 +70,6 @@
   } = $props();
   
   /**
-   * Get icon gradient for an app ID
-   */
-  function getAppGradient(appId: string): string {
-    // Try to get from app metadata first
-    const app = appSkillsStore.apps[appId];
-    if (app?.icon_colorgradient) {
-      return `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`;
-    }
-    // Fallback gradients
-    const gradientMap: Record<string, string> = {
-      'code': 'linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)',
-      'travel': 'linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)',
-      'finance': 'linear-gradient(135deg, #119106 9.04%, #15780D 90.06%)',
-      'health': 'linear-gradient(135deg, #FD50A0 9.04%, #F42C2D 90.06%)',
-      'news': 'linear-gradient(135deg, #F53F5B 9.04%, #DD0B2B 90.06%)',
-      'weather': 'linear-gradient(135deg, #005BA5 9.04%, #00A7C9 90.06%)',
-      'jobs': 'linear-gradient(135deg, #049363 9.04%, #00C382 90.06%)',
-      'legal': 'linear-gradient(135deg, #239CFF 9.04%, #005BA5 90.06%)',
-      'files': 'linear-gradient(135deg, #1E3A8A 9.04%, #29BEFB 90.06%)',
-      'ai': 'linear-gradient(135deg, #CB7D5D 9.04%, #CB685D 90.06%)',
-      'tv': 'linear-gradient(135deg, #8B5CF6 9.04%, #6D28D9 90.06%)',
-      'videos': 'linear-gradient(135deg, #EF4444 9.04%, #DC2626 90.06%)',
-      'maps': 'linear-gradient(135deg, #10B981 9.04%, #059669 90.06%)',
-      'study': 'linear-gradient(135deg, #F59E0B 9.04%, #D97706 90.06%)',
-      'plants': 'linear-gradient(135deg, #22C55E 9.04%, #16A34A 90.06%)',
-    };
-    return gradientMap[appId] || 'linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)';
-  }
-  
-  /**
    * Get display name for an app settings/memories category.
    * Loads from app metadata using appId and itemType.
    * Returns the translated name if available, otherwise a formatted fallback.
@@ -773,9 +743,11 @@
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
               <span class="category-badge">
-                <span class="badge-icon" style="background: {getAppGradient(cat.appId)}">
-                  <Icon name="code-xml" size="12" />
-                </span>
+                <Icon 
+                  name={cat.appId} 
+                  type="app" 
+                  size="22px"
+                />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </span>
             {/each}
@@ -912,21 +884,10 @@
   .category-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     background: var(--color-grey-15, #f5f5f5);
     border-radius: 12px;
     padding: 4px 10px 4px 4px;
-  }
-  
-  .badge-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: white;
   }
   
   .badge-text {

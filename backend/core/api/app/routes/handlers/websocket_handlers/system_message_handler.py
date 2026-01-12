@@ -121,8 +121,49 @@ async def handle_chat_system_message_added(
             )
             return
         
-        # Encrypt message content with vault key for storage
-        encrypted_content = encryption_service.encrypt(content)
+        # Get user's vault_key_id for encryption (try cache first, fallback to Directus)
+        user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+        if not user_vault_key_id:
+            logger.debug(f"[SystemMessage] vault_key_id not in cache for user {user_id}, fetching from Directus")
+            try:
+                user_profile_result = await directus_service.get_user_profile(user_id)
+                if not user_profile_result or not user_profile_result[0]:
+                    logger.error(f"[SystemMessage] Failed to fetch user profile for {user_id}")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "Failed to fetch user profile"}},
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return
+                
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+                if not user_vault_key_id:
+                    logger.error(f"[SystemMessage] User {user_id} missing vault_key_id in Directus profile")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "User vault key not configured"}},
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return
+                
+                # Cache the vault_key_id for future use
+                await cache_service.update_user(user_id, {"vault_key_id": user_vault_key_id})
+                logger.debug(f"[SystemMessage] Cached vault_key_id for user {user_id}")
+            except Exception as e_profile:
+                logger.error(f"[SystemMessage] Error fetching user profile: {e_profile}", exc_info=True)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to fetch user profile"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+        
+        # Encrypt message content with user's vault key for storage
+        # encrypt_with_user_key returns (ciphertext, key_version) tuple
+        encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+            plaintext=content,
+            key_id=user_vault_key_id
+        )
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
         hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
         
