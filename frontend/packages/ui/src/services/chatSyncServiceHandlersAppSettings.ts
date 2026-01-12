@@ -202,6 +202,18 @@ export async function handleRequestAppSettingsMemoriesImpl(
             aiTypingStore.reset();
         }
         
+        // Clear the active AI task so the stop button disappears
+        // The task is paused waiting for user input - it's not actively processing
+        const taskInfo = serviceInstance.activeAITasks.get(chat_id);
+        if (taskInfo) {
+            console.info(`[ChatSyncService:AppSettings] Clearing active AI task ${taskInfo.taskId} for chat ${chat_id} - waiting for user permission`);
+            serviceInstance.activeAITasks.delete(chat_id);
+            // Dispatch aiTaskEnded event so MessageInput component updates
+            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { 
+                detail: { chatId: chat_id, taskId: taskInfo.taskId, status: 'waiting_for_permission' } 
+            }));
+        }
+        
         // Update user message status from 'processing' to 'synced' since we're waiting for input
         // This prevents the "Processing..." indicator from showing
         if (payload.message_id) {
