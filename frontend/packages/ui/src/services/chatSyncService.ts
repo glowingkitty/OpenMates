@@ -171,6 +171,7 @@ export class ChatSynchronizationService extends EventTarget {
         // Import and register app settings/memories handlers
         import('./chatSyncServiceHandlersAppSettings').then(module => {
             webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));
+            webSocketService.on('dismiss_app_settings_memories_dialog', (payload) => module.handleDismissAppSettingsMemoriesDialogImpl(this, payload));
             webSocketService.on('app_settings_memories_sync_ready', (payload) => module.handleAppSettingsMemoriesSyncReadyImpl(this, payload));
             webSocketService.on('app_settings_memories_entry_synced', (payload) => module.handleAppSettingsMemoriesEntrySyncedImpl(this, payload));
             webSocketService.on('app_settings_memories_entry_stored', (payload) => module.handleAppSettingsMemoriesEntryStoredImpl(this, payload));

@@ -156,12 +156,28 @@ export const permissionDialogLoading = derived(
 );
 
 /**
- * Initialize the store to listen for showAppSettingsMemoriesPermissionDialog events
+ * Payload for dismiss event dispatched when server auto-rejects a pending request
+ * (e.g., user sent a new message without responding to the permission dialog)
+ */
+interface DismissDialogEventDetail {
+    requestId: string;
+    chatId: string;
+    reason: string;
+    messageId: string;
+}
+
+/**
+ * Initialize the store to listen for show and dismiss events.
  * Call this once at app startup (e.g., in app.ts or a layout component)
+ * 
+ * Events handled:
+ * - showAppSettingsMemoriesPermissionDialog: Display the dialog for a new request
+ * - dismissAppSettingsMemoriesPermissionDialog: Auto-dismiss (user sent new message without responding)
  */
 export function initPermissionDialogListener() {
     if (typeof window === 'undefined') return;
     
+    // Handler for showing the permission dialog
     const handleShowDialog = (event: CustomEvent<PendingPermissionRequest>) => {
         const request = event.detail;
         if (request) {
@@ -169,12 +185,34 @@ export function initPermissionDialogListener() {
         }
     };
     
-    window.addEventListener('showAppSettingsMemoriesPermissionDialog', handleShowDialog as EventListener);
+    // Handler for auto-dismissing the dialog (server rejected due to new user message)
+    const handleDismissDialog = (event: CustomEvent<DismissDialogEventDetail>) => {
+        const { requestId, reason } = event.detail;
+        const currentRequestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
+        
+        // Only dismiss if this is the currently shown dialog
+        if (currentRequestId && currentRequestId === requestId) {
+            console.info(
+                `[PermissionDialogStore] Auto-dismissing dialog for request ${requestId} ` +
+                `(reason: ${reason})`
+            );
+            appSettingsMemoriesPermissionStore.clear();
+        } else {
+            console.debug(
+                `[PermissionDialogStore] Ignoring dismiss for request ${requestId} ` +
+                `(current: ${currentRequestId || 'none'})`
+            );
+        }
+    };
     
-    console.info('[PermissionDialogStore] Initialized event listener for showAppSettingsMemoriesPermissionDialog');
+    window.addEventListener('showAppSettingsMemoriesPermissionDialog', handleShowDialog as EventListener);
+    window.addEventListener('dismissAppSettingsMemoriesPermissionDialog', handleDismissDialog as EventListener);
+    
+    console.info('[PermissionDialogStore] Initialized event listeners for permission dialog');
     
     // Return cleanup function
     return () => {
         window.removeEventListener('showAppSettingsMemoriesPermissionDialog', handleShowDialog as EventListener);
+        window.removeEventListener('dismissAppSettingsMemoriesPermissionDialog', handleDismissDialog as EventListener);
     };
 }

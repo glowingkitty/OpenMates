@@ -14,6 +14,7 @@ import { websocketStatus } from '../../../stores/websocketStatusStore'; // Impor
 import { chatListCache } from '../../../services/chatListCache';
 import { createEmbedFromUrl } from '../services/urlMetadataService'; // Import URL-to-embed creation
 import { authStore } from '../../../stores/authStore'; // Import authStore for authentication check
+import { appSettingsMemoriesPermissionStore } from '../../../stores/appSettingsMemoriesPermissionStore'; // For auto-dismissing permission dialog
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -374,6 +375,36 @@ export async function handleSend(
         }
         
         // No need to fetch current title - server will send metadata after preprocessing
+
+        // =============================================================================
+        // AUTO-DISMISS PENDING PERMISSION DIALOG
+        // =============================================================================
+        // If user sends a new message while a permission dialog is visible for this chat,
+        // we immediately dismiss it locally (treat as reject). This happens BEFORE sending
+        // the message so the UI updates instantly without waiting for server round-trip.
+        // The server will also auto-reject the pending request when it receives the new message.
+        const currentPermissionRequestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
+        const currentPermissionChatId = appSettingsMemoriesPermissionStore.getCurrentChatId();
+        
+        if (currentPermissionRequestId && currentPermissionChatId === chatIdToUse) {
+            console.info(
+                `[handleSend] Auto-dismissing permission dialog for request ${currentPermissionRequestId} ` +
+                `(user sent new message to chat ${chatIdToUse})`
+            );
+            
+            // Create "rejected" system message in chat history (same as clicking "Reject All")
+            // This is done via the handler function for consistency
+            try {
+                const { handlePermissionDialogExclude } = await import('../../../services/chatSyncServiceHandlersAppSettings');
+                await handlePermissionDialogExclude(chatSyncService, currentPermissionRequestId);
+                console.info('[handleSend] Permission dialog auto-dismissed and rejected response recorded');
+            } catch (dismissError) {
+                console.error('[handleSend] Error auto-dismissing permission dialog:', dismissError);
+                // Continue with sending the message even if dismiss fails
+                // At minimum, clear the dialog UI
+                appSettingsMemoriesPermissionStore.clear();
+            }
+        }
 
         // Create new message payload using the processed markdown and determined chatIdToUse
         // The markdown has already been processed to convert URLs to embed references

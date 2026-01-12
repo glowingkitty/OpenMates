@@ -671,3 +671,89 @@ export async function handleAppSettingsMemoriesEntrySyncedImpl(
         console.error("[ChatSyncService:AppSettings] Error handling entry sync from other device:", error);
     }
 }
+
+
+/**
+ * Payload structure for dismiss_app_settings_memories_dialog WebSocket message
+ * Sent when user sends a new message without responding to the permission dialog
+ */
+interface DismissAppSettingsMemoriesDialogPayload {
+    chat_id: string;
+    request_id: string;
+    reason: string;  // e.g., "new_message_sent"
+    message_id: string;  // Original message that triggered the request
+}
+
+/**
+ * Handles auto-dismissal of app settings/memories permission dialog.
+ * 
+ * This is called when user sends a new message without responding to the 
+ * permission dialog. The server auto-rejects the pending request and sends
+ * this event to dismiss the UI.
+ * 
+ * The UI should:
+ * 1. Close the permission dialog if shown
+ * 2. Update the chat message to show "rejected" state (like user clicked Reject All)
+ * 3. Remove from pending requests
+ */
+export async function handleDismissAppSettingsMemoriesDialogImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: DismissAppSettingsMemoriesDialogPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'dismiss_app_settings_memories_dialog':", payload);
+    
+    const { chat_id, request_id, reason, message_id } = payload;
+    
+    if (!chat_id || !request_id) {
+        console.warn("[ChatSyncService:AppSettings] Invalid dismiss payload:", payload);
+        return;
+    }
+    
+    // Get the pending request before removing it
+    const pendingRequest = pendingPermissionRequests.get(request_id);
+    
+    console.info(
+        `[ChatSyncService:AppSettings] Auto-rejecting request ${request_id} for chat ${chat_id} ` +
+        `(reason: ${reason}, original_message: ${message_id})`
+    );
+    
+    // Create system message to show "rejected" state in chat UI
+    // This is identical to what happens when user clicks "Reject All"
+    if (pendingRequest?.messageId && pendingRequest?.chatId) {
+        try {
+            await saveAppSettingsMemoriesResponseMessage(
+                serviceInstance,
+                pendingRequest.chatId,
+                pendingRequest.messageId,
+                'rejected'  // Shows as rejected in chat UI
+            );
+            console.info(`[ChatSyncService:AppSettings] Created system message for auto-rejected request on message ${pendingRequest.messageId}`);
+        } catch (saveError) {
+            console.error('[ChatSyncService:AppSettings] Error saving auto-rejected response message:', saveError);
+        }
+    }
+    
+    // Remove from pending requests
+    removePendingPermissionRequest(request_id);
+    
+    // Dispatch event to dismiss the Permission Dialog UI
+    // The dialog component should listen for this and close itself
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dismissAppSettingsMemoriesPermissionDialog', {
+            detail: {
+                requestId: request_id,
+                chatId: chat_id,
+                reason: reason,
+                messageId: message_id
+            }
+        }));
+        console.info(`[ChatSyncService:AppSettings] Dispatched dismissAppSettingsMemoriesPermissionDialog event for request ${request_id}`);
+    }
+    
+    // Show a brief notification to user explaining what happened
+    notificationStore.addNotification(
+        'info',
+        'Previous data request was cancelled because you sent a new message',
+        4000
+    );
+}
