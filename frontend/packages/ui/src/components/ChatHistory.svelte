@@ -29,6 +29,10 @@
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import type { 
+    AppSettingsMemoriesResponseContent, 
+    AppSettingsMemoriesResponseCategory 
+  } from '../services/chatSyncServiceHandlersAppSettings';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -43,6 +47,7 @@
     original_message?: GlobalMessage; // Store original message for full content loading
     appCards?: any[]; // App skill preview cards
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
+    appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -92,6 +97,60 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+
+  /**
+   * Parse system message content to check if it's an app_settings_memories_response.
+   * Returns the parsed content or null if not a valid response.
+   */
+  function parseAppSettingsMemoriesResponse(content: string | any): AppSettingsMemoriesResponseContent | null {
+    if (typeof content !== 'string') return null;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_response') {
+        return parsed as AppSettingsMemoriesResponseContent;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+    return null;
+  }
+
+  /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories response.
+   * System messages with type 'app_settings_memories_response' contain the user's decision
+   * (included/rejected) and should be displayed as part of the user's message, not separately.
+   */
+  let appSettingsMemoriesResponseMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesResponseContent>();
+    
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        if (response && response.user_message_id) {
+          map.set(response.user_message_id, response);
+        }
+      }
+    }
+    
+    return map;
+  });
+
+  /**
+   * Derived state: Filter out system messages that are app_settings_memories_response.
+   * These are displayed as part of the user's message, not as separate chat bubbles.
+   */
+  let displayMessages = $derived.by(() => {
+    return messages.filter(msg => {
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        // Filter out app_settings_memories_response system messages
+        if (response?.type === 'app_settings_memories_response') {
+          return false;
+        }
+      }
+      return true;
+    });
+  });
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
@@ -566,17 +625,17 @@
 -->
 <div 
     class="chat-history-container" 
-    class:empty={messages.length === 0}
+    class:empty={displayMessages.length === 0}
     bind:this={container}
     style={containerStyle}
     onscroll={handleScroll}
 >
     {#if showMessages}
         <div class="chat-history-content" 
-             class:has-messages={messages.length > 0}
+             class:has-messages={displayMessages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-            {#each messages as msg (msg.id)}
+            {#each displayMessages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
                      data-message-id={msg.id}
                      style={`
@@ -586,6 +645,7 @@
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
+                        messageId={msg.id}
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
@@ -597,6 +657,7 @@
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
+                        appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
                     />
                 </div>
             {/each}

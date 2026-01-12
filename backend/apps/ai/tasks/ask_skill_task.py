@@ -14,10 +14,8 @@ import logging
 import asyncio
 import time
 import os
-import hashlib
 import uuid
 from typing import Dict, Any, List, Optional
-import json
 import httpx
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -366,25 +364,41 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] user_id is missing in request_data. Cannot fetch user_vault_key_id. Aborting task.")
         raise RuntimeError("user_id is missing.")
 
+    # Parse app settings/memories metadata from client
+    # CLIENT IS THE SOURCE OF TRUTH - only the client can decrypt this data
+    # Format from client: ["code-preferred_technologies", "travel-trips", ...]
+    # Convert to dict format for preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
     user_app_memories_metadata: Dict[str, List[str]] = {}
-    # TODO: [v0.2] Re-enable this functionality with client-side E2EE.
-    # The current implementation is disabled to prevent errors and will be replaced.
-    # if directus_service_instance and request_data.user_id_hash:
-    #     try:
-    #         raw_items_metadata: List[Dict[str, Any]] = await directus_service_instance.app_settings_and_memories.get_user_app_data_metadata(request_data.user_id_hash)
-    #         for item_meta in raw_items_metadata:
-    #             app_id_key = item_meta.get("app_id")
-    #             item_key_val = item_meta.get("item_key")
-    #             if app_id_key and item_key_val:
-    #                 if app_id_key not in user_app_memories_metadata:
-    #                     user_app_memories_metadata[app_id_key] = []
-    #                 if item_key_val not in user_app_memories_metadata[app_id_key]:
-    #                     user_app_memories_metadata[app_id_key].append(item_key_val)
-    #         logger.info(f"[Task ID: {task_id}] Successfully fetched user_app_memories_metadata (keys) from Directus.")
-    #     except Exception as e:
-    #         logger.error(f"[Task ID: {task_id}] Error during Directus ops for fetching user_app_memories_metadata: {e}", exc_info=True)
-    # elif not directus_service_instance:
-    #     logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories metadata.")
+    if request_data.app_settings_memories_metadata:
+        for key in request_data.app_settings_memories_metadata:
+            if not isinstance(key, str):
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key (not a string): {key}")
+                continue
+            
+            # Parse "app_id-item_type" format
+            dash_index = key.find('-')
+            if dash_index == -1:
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key format (no hyphen): {key}")
+                continue
+            
+            app_id = key[:dash_index]
+            item_type = key[dash_index + 1:]
+            
+            if not app_id or not item_type:
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key (empty parts): {key}")
+                continue
+            
+            if app_id not in user_app_memories_metadata:
+                user_app_memories_metadata[app_id] = []
+            if item_type not in user_app_memories_metadata[app_id]:
+                user_app_memories_metadata[app_id].append(item_type)
+        
+        if user_app_memories_metadata:
+            logger.info(f"[Task ID: {task_id}] Parsed client-provided app_settings_memories_metadata: {len(user_app_memories_metadata)} apps, {sum(len(keys) for keys in user_app_memories_metadata.values())} total keys")
+        else:
+            logger.debug(f"[Task ID: {task_id}] Client provided app_settings_memories_metadata but no valid keys found.")
+    else:
+        logger.debug(f"[Task ID: {task_id}] No app_settings_memories_metadata provided by client.")
 
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.

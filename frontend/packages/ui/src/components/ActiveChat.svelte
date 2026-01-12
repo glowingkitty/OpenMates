@@ -4,6 +4,7 @@
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+    import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
@@ -3877,6 +3878,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onSuggestionClick={handleSuggestionClick}
                             />
                         {/if}
+
+                        <!-- App settings/memories permission dialog (non-blocking, inline) -->
+                        <!-- Users can still scroll and interact with the chat while this is visible -->
+                        <AppSettingsMemoriesPermissionDialog />
 
                         <!-- Read-only indicator for shared chats -->
                         {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}

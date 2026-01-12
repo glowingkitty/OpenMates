@@ -57,6 +57,7 @@ class AskSkillRequest(BaseModel):
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
+    app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
 
 class AskSkillResponse(BaseModel):
     task_id: str = Field(..., description="The ID of the Celery task processing the request.")

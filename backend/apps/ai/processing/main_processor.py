@@ -543,7 +543,8 @@ async def handle_main_processing(
                     cache_service=cache_service,
                     connection_manager=None,  # Celery tasks run in separate processes, can't access WebSocket manager directly
                     user_id=request_data.user_id,
-                    device_fingerprint_hash=None  # Will use first available device connection
+                    device_fingerprint_hash=None,  # Will use first available device connection
+                    message_id=request_data.message_id  # User message that triggered this request (for UI display)
                 )
                 
                 if request_id:

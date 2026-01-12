@@ -42,7 +42,8 @@ class ChatDatabase {
     // Version incremented for various schema changes
     // Version 15: Added pinned field and index for chat pinning functionality
     // Version 16: Added hashed_chat_id index to embeds store for embed cleanup on chat deletion
-    private readonly VERSION = 16;
+    // Version 17: (Removed) Was app_settings_memories_actions store - now using system messages instead
+    private readonly VERSION = 17;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -259,6 +260,9 @@ class ChatDatabase {
             ogMetadataStore.createIndex('created_at', 'created_at', { unique: false });
             console.debug('[ChatDatabase] Created pending_og_metadata_updates store');
         }
+
+        // Note: app_settings_memories_actions store was removed in favor of system messages
+        // The store may still exist in some databases but is no longer used
 
         // Embed data migration (v14)
         if (transaction && oldVersion < 14) {
@@ -820,6 +824,39 @@ class ChatDatabase {
     async deleteAppSettingsMemoriesEntry(entryId: string): Promise<boolean> {
         return appSettingsMemoriesOps.deleteAppSettingsMemoriesEntry(this, entryId);
     }
+
+    async deleteAppSettingsMemoriesEntriesByApp(appId: string): Promise<number> {
+        return appSettingsMemoriesOps.deleteAppSettingsMemoriesEntriesByApp(this, appId);
+    }
+
+    /**
+     * Get metadata keys for all app settings/memories.
+     * Returns array of unique keys in "app_id-item_type" format.
+     * Used to tell server what app settings/memories exist without sending content.
+     */
+    async getAppSettingsMemoriesMetadataKeys(): Promise<string[]> {
+        return appSettingsMemoriesOps.getAppSettingsMemoriesMetadataKeys(this);
+    }
+
+    /**
+     * Get entry counts per app_id-item_type combination.
+     * Used to show counts in permission dialog (e.g., "Favorite tech (6 entries)").
+     */
+    async getAppSettingsMemoriesEntryCounts(): Promise<Map<string, number>> {
+        return appSettingsMemoriesOps.getAppSettingsMemoriesEntryCounts(this);
+    }
+
+    /**
+     * Get all entries for a specific app_id-item_type combination.
+     * Used to retrieve entries when user confirms sharing with AI.
+     */
+    async getAppSettingsMemoriesEntriesByAppAndType(appId: string, itemType: string): Promise<appSettingsMemoriesOps.AppSettingsMemoriesEntry[]> {
+        return appSettingsMemoriesOps.getAppSettingsMemoriesEntriesByAppAndType(this, appId, itemType);
+    }
+
+    // ============================================================================
+    // APP SETTINGS MEMORIES ACTIONS (Included/Rejected tracking)
+    // ============================================================================
 }
 
 export const chatDB = new ChatDatabase();

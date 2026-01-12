@@ -31,6 +31,7 @@ from .handlers.websocket_handlers.store_app_settings_memories_handler import han
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
+from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 
 logger = logging.getLogger(__name__)
 
@@ -806,6 +807,19 @@ async def websocket_endpoint(
                     manager=manager,
                     cache_service=cache_service,
                     directus_service=directus_service, # Pass DirectusService
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "chat_system_message_added":
+                # Handle system messages (app settings/memories response, focus mode, etc.)
+                await handle_chat_system_message_added(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,

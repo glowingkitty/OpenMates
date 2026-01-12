@@ -84,6 +84,11 @@ class BaseApp:
 
         for skill_def in self.app_config.skills:
             try:
+                # Skip skills without a class_path (e.g., planning-stage skills)
+                if not skill_def.class_path:
+                    logger.debug(f"Skill '{skill_def.id}' has no class_path, skipping route registration (likely a planning-stage skill)")
+                    continue
+                
                 module_path, class_name = skill_def.class_path.rsplit('.', 1)
                 module = importlib.import_module(module_path)
                 skill_class_attr = getattr(module, class_name)

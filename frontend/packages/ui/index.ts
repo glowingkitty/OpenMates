@@ -10,6 +10,7 @@ export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as MetaTags } from "./src/components/MetaTags.svelte";
 export { default as Icon } from "./src/components/Icon.svelte";
+export { default as AppSettingsMemoriesPermissionDialog } from "./src/components/AppSettingsMemoriesPermissionDialog.svelte";
 export { default as AnimatedChatExamples } from "./src/components/AnimatedChatExamples.svelte";
 export { default as WaitingList } from "./src/components/WaitingList.svelte";
 export { default as Highlights } from "./src/components/Highlights.svelte";

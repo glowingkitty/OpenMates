@@ -22,7 +22,6 @@ import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
@@ -157,7 +156,8 @@ async def create_app_settings_memories_request_message(
     cache_service: CacheService,
     connection_manager: Optional[ConnectionManager],
     user_id: str,
-    device_fingerprint_hash: Optional[str]
+    device_fingerprint_hash: Optional[str],
+    message_id: Optional[str] = None
 ) -> Optional[str]:
     """
     Creates a system message request for app settings/memories in chat history.
@@ -175,6 +175,7 @@ async def create_app_settings_memories_request_message(
         connection_manager: WebSocket connection manager (may be None in Celery tasks)
         user_id: User ID
         device_fingerprint_hash: Device fingerprint hash (optional)
+        message_id: The user's message ID that triggered this request (for UI display)
     
     Returns:
         Request ID if successful, None otherwise
@@ -205,7 +206,8 @@ async def create_app_settings_memories_request_message(
                                 "request_id": request_id,
                                 "chat_id": chat_id,
                                 "requested_keys": requested_keys,
-                                "yaml_content": yaml_content
+                                "yaml_content": yaml_content,
+                                "message_id": message_id  # User message that triggered this request
                             }
                         },
                         user_id,
@@ -226,7 +228,8 @@ async def create_app_settings_memories_request_message(
                             "request_id": request_id,
                             "chat_id": chat_id,
                             "requested_keys": requested_keys,
-                            "yaml_content": yaml_content
+                            "yaml_content": yaml_content,
+                            "message_id": message_id  # User message that triggered this request
                         }
                     }
                     await redis_client.publish(channel, json.dumps(pubsub_message))

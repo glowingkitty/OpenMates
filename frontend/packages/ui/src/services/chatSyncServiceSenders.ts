@@ -650,6 +650,22 @@ export async function sendNewMessageImpl(
         }
     }
     
+    // Load app settings/memories metadata keys (format: "app_id-item_type")
+    // This tells the server what app settings/memories exist on this device WITHOUT sending content
+    // The server's preprocessor uses this to decide which settings/memories to request
+    let appSettingsMemoriesMetadataKeys: string[] = [];
+    if (!isIncognitoChat) {
+        try {
+            appSettingsMemoriesMetadataKeys = await chatDB.getAppSettingsMemoriesMetadataKeys();
+            if (appSettingsMemoriesMetadataKeys.length > 0) {
+                console.debug(`[ChatSyncService:Senders] Loaded ${appSettingsMemoriesMetadataKeys.length} app settings/memories metadata keys`);
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService:Senders] Error loading app settings/memories metadata:`, error);
+            // Continue without metadata - don't fail the message send
+        }
+    }
+    
     // Phase 1 payload: ONLY fields needed for AI processing
     interface SendMessagePayload {
         chat_id: string;
@@ -667,6 +683,7 @@ export async function sendNewMessageImpl(
         embeds?: EmbedForServer[];
         message_history?: Message[];
         encrypted_suggestion_to_delete?: string | null;
+        app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
     }
     const payload: SendMessagePayload = {
         chat_id: message.chat_id,
@@ -684,6 +701,13 @@ export async function sendNewMessageImpl(
         },
         is_incognito: isIncognitoChat // Flag for backend to skip persistence
     };
+    
+    // Include app settings/memories metadata (keys only, no content)
+    // Server preprocessor uses this to know what data exists and decide what to request
+    if (appSettingsMemoriesMetadataKeys.length > 0) {
+        payload.app_settings_memories_metadata = appSettingsMemoriesMetadataKeys;
+        console.debug('[ChatSyncService:Senders] Including app settings/memories metadata:', appSettingsMemoriesMetadataKeys);
+    }
     
     // For incognito chats, include full message history (no server-side caching)
     if (isIncognitoChat && messageHistory.length > 0) {
