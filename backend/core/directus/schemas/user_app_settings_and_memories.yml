@@ -7,9 +7,8 @@
 # - Each app/user combination has a unique encryption_key_user_app (shared across all items in that app)
 # - The app encryption key is encrypted with the user's master encryption key for device sync
 # - All items are encrypted client-side before upload
-# - Server stores only encrypted items + hashed identifiers, never plaintext data
+# - Server stores only encrypted items, never plaintext data
 # - Enables server-side pagination, sorting, and efficient selective sync
-# - Settings group names are hashed (server cannot identify which group, e.g., "watched_movies")
 #
 # Reference: docs/architecture/security.md#app-settings--memories
 
@@ -19,22 +18,27 @@ user_app_settings_and_memories:
     id:
       type: uuid
       primary: true
-      note: "Primary Key - Unique identifier for this item"
+      note: "Primary Key - Unique identifier for this item (client-generated)"
 
     hashed_user_id:
       type: string
       length: 255
       note: "[Indexed] Hashed identifier of the user. Backend hashes user's actual ID before storing/querying."
 
-    app_hash:
+    app_id:
       type: string
       length: 64
-      note: "[Indexed] SHA256(app_id + user_email_salt). Allows filtering by app without revealing which app. Server cannot identify app."
+      note: "[Indexed] The app identifier (e.g., 'code', 'travel', 'tv'). Stored as cleartext for efficient filtering."
 
-    settings_group_hash:
+    item_key:
+      type: string
+      length: 255
+      note: "[Indexed] Key identifying the entry within a category (e.g., unique ID for a specific movie or restaurant). Can be hashed by client for privacy."
+
+    item_type:
       type: string
       length: 64
-      note: "[Indexed] SHA256(settings_group_key + user_email_salt). Allows filtering by group (e.g., 'watched_movies', 'to_watch_list', 'favorite_restaurants') without revealing group names."
+      note: "[Indexed] Category/type ID for filtering (e.g., 'preferred_technologies', 'watched_movies', 'favorite_restaurants'). Stored as cleartext for efficient filtering without decryption."
 
     encrypted_app_key:
       type: string
@@ -43,7 +47,7 @@ user_app_settings_and_memories:
 
     encrypted_item_json:
       type: text
-      note: "[Encrypted] Single item encrypted with app-specific key. Structure defined in each app's app.yml (e.g., backend/apps/tv/app.yml). Examples: one movie, one restaurant, one trip."
+      note: "[Encrypted] Single item encrypted with user's master key. Structure defined in each app's app.yml (e.g., backend/apps/tv/app.yml). Examples: one movie, one restaurant, one trip."
 
     created_at:
       type: integer

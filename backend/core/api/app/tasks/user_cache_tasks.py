@@ -633,25 +633,38 @@ async def _warm_user_app_settings_and_memories_cache(
     cache_service: CacheService,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
-    """Warms the cache with all user-specific app settings and memories."""
-    log_prefix = f"TASK_LOGIC_APP_DATA ({task_id}): User {user_id}:"
+    """Warms the cache with all user-specific app settings and memories.
+    
+    Note: This function is called during cache warming to pre-populate the cache
+    with app settings/memories data. The Directus service method get_all_user_app_data_raw
+    handles user_id hashing internally, so we pass the raw user_id.
+    
+    However, the cache methods expect a hashed user_id, so we hash it here for caching.
+    """
+    import hashlib
+    log_prefix = f"TASK_LOGIC_APP_DATA ({task_id}): User {user_id[:8]}...:"
     logger.info(f"{log_prefix} Starting to warm app settings and memories cache.")
     
     try:
+        # get_all_user_app_data_raw handles hashing internally when querying Directus
         all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id)
 
         if not all_user_app_data:
             logger.info(f"{log_prefix} No app settings or memories found in Directus to cache.")
             return
 
+        # Hash user_id for cache key (cache methods expect hashed user_id)
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        
         for item_data in all_user_app_data:
             app_id = item_data.get("app_id")
             item_key = item_data.get("item_key")
-            encrypted_value = item_data.get("encrypted_item_value_json")
+            # Field name is encrypted_item_json (consistent with schema and other code)
+            encrypted_value = item_data.get("encrypted_item_json")
 
             if app_id and item_key and encrypted_value is not None:
                 await cache_service.set_user_app_settings_and_memories_item(
-                    user_id_hash=user_id,
+                    user_id_hash=hashed_user_id,
                     app_id=app_id,
                     item_key=item_key,
                     encrypted_value_json=encrypted_value,

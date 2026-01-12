@@ -666,18 +666,27 @@
     const detail = customEvent.detail;
 
     if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
-      // CRITICAL: For draft deletion events, invalidate cache and fetch fresh chat data
-      // This ensures the draft preview is removed from the UI immediately
-      if (detail.type === 'draft_deleted') {
-        console.debug('[Chat] Draft deleted event received, invalidating cache and fetching fresh data for chat:', chat.chat_id);
+      // CRITICAL: For draft deletion and title/metadata update events, invalidate cache and fetch fresh chat data
+      // This ensures the UI reflects the latest state (draft removed, or new title/category/icon)
+      const eventTypesRequiringFreshData = ['draft_deleted', 'title_updated', 'metadata_updated'];
+      
+      if (eventTypesRequiringFreshData.includes(detail.type)) {
+        console.debug(`[Chat] ${detail.type} event received, invalidating cache and fetching fresh data for chat:`, chat.chat_id);
         chatMetadataCache.invalidateChat(chat.chat_id);
         
-        // Fetch fresh chat data from database to ensure we have the latest state (without draft)
+        // Fetch fresh chat data from database to ensure we have the latest state
         try {
           const freshChat = await chatDB.getChat(chat.chat_id);
           if (freshChat) {
             // Update display info with fresh data - the parent component will update the prop
             // when it receives the event and refreshes from the database
+            console.debug(`[Chat] Fetched fresh chat data after ${detail.type}:`, {
+              chatId: chat.chat_id,
+              hasEncryptedTitle: !!freshChat.encrypted_title,
+              hasEncryptedCategory: !!freshChat.encrypted_category,
+              hasEncryptedIcon: !!freshChat.encrypted_icon,
+              waitingForMetadata: freshChat.waiting_for_metadata
+            });
             await updateDisplayInfo(freshChat);
             return;
           }
@@ -687,7 +696,7 @@
             console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
             return;
           }
-          console.error('[Chat] Error fetching fresh chat data after draft deletion:', error);
+          console.error(`[Chat] Error fetching fresh chat data after ${detail.type}:`, error);
           // Fallback: update display with current chat data (cache already invalidated)
         }
       }

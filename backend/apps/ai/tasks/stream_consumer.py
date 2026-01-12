@@ -825,12 +825,25 @@ async def _consume_main_processing_stream(
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
 
+    # Track if we're awaiting app settings/memories permission from user
+    # When this is True, we should NOT send an error message for empty stream
+    awaiting_app_settings_memories_permission = False
+    
     try:
         async for chunk in main_processing_stream:
             # Check for tool calls info marker (special dict at end of stream)
             if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
                 tool_calls_info = chunk["__tool_calls_info__"]
                 logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+            
+            # Check for app settings/memories permission marker
+            # This is yielded by main_processor when user needs to confirm data sharing
+            # The task completes without any LLM response - this is NOT an error
+            if isinstance(chunk, dict) and "__awaiting_app_settings_memories_permission__" in chunk:
+                awaiting_app_settings_memories_permission = True
+                request_id = chunk.get("request_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
                 continue
             
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
@@ -1554,10 +1567,14 @@ async def _consume_main_processing_stream(
     # Ensure we never complete with an empty assistant message on server-side failures.
     # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
     # and ensures the user always sees a retryable error message when all providers fail.
+    # 
+    # EXCEPTION: When awaiting app settings/memories permission, empty content is EXPECTED.
+    # The user needs to respond to the permission dialog before LLM processing continues.
     if (
         not aggregated_response
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
+        and not awaiting_app_settings_memories_permission
     ):
         if stream_exception:
             logger.error(
@@ -1586,6 +1603,15 @@ async def _consume_main_processing_stream(
                     f"Published synthetic error chunk (seq: 1) to '{redis_channel_name}'",
                 )
             stream_chunk_count = 1
+    
+    # Handle the case where we're awaiting app settings/memories permission
+    # No error message, no response, no final marker - the client will show the permission dialog
+    # We don't save anything to cache or publish any Redis messages in this case
+    if awaiting_app_settings_memories_permission:
+        logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
+        # Return early - no message processing needed
+        # The client will receive the permission request via WebSocket and show the dialog
+        return "", False, False
     
     # IMPROVED LOGGING: Log the full streamed assistant message for debugging
     # This helps diagnose parsing issues, embed reference problems, and code block extraction

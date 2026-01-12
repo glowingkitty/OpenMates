@@ -58,6 +58,65 @@ def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: i
             loop.close()
 
 
+async def _async_persist_chat_active_focus_id_task(
+    chat_id: str,
+    encrypted_active_focus_id: Optional[str],
+    task_id: str
+):
+    """
+    Async logic for persisting an updated chat active focus mode.
+    
+    Args:
+        chat_id: The chat ID
+        encrypted_active_focus_id: The encrypted focus mode ID, or None to clear it
+        task_id: The Celery task ID for logging
+    """
+    logger.info(f"Task _async_persist_chat_active_focus_id_task (task_id: {task_id}): Persisting active_focus_id for chat {chat_id}")
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    fields_to_update = {
+        "encrypted_active_focus_id": encrypted_active_focus_id,
+        "updated_at": int(datetime.now(timezone.utc).timestamp())
+    }
+
+    try:
+        updated = await directus_service.chat.update_chat_fields_in_directus(
+            chat_id=chat_id,
+            fields_to_update=fields_to_update
+        )
+        if updated:
+            logger.info(f"Successfully persisted active_focus_id for chat {chat_id} (task_id: {task_id}).")
+        else:
+            logger.error(f"Failed to persist active_focus_id for chat {chat_id} (task_id: {task_id}). Update operation returned false.")
+    except Exception as e:
+        logger.error(f"Error in _async_persist_chat_active_focus_id_task for chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_chat_active_focus_id", bind=True)
+def persist_chat_active_focus_id_task(self, chat_id: str, encrypted_active_focus_id: Optional[str]):
+    """
+    Celery task to persist the active focus mode ID for a chat.
+    
+    Args:
+        chat_id: The chat ID
+        encrypted_active_focus_id: The encrypted focus mode ID, or None to clear it
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(f"SYNC_WRAPPER: persist_chat_active_focus_id_task for chat {chat_id}, task_id: {task_id}")
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_chat_active_focus_id_task(chat_id, encrypted_active_focus_id, task_id))
+    except Exception as e:
+        logger.error(f"SYNC_WRAPPER_ERROR: persist_chat_active_focus_id_task for chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
+        raise
+    finally:
+        if loop:
+            loop.close()
+
+
 async def _async_persist_user_draft_task(
     hashed_user_id: str,
     chat_id: str,

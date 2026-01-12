@@ -500,11 +500,59 @@ async def handle_main_processing(
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
     
+    # --- Auto-reject any pending app settings/memories request for this chat ---
+    # If user sends a new message without responding to the permission dialog,
+    # we auto-interpret this as a rejection of the previous request.
+    # This ensures we only process the NEW message, not both.
+    if cache_service:
+        try:
+            pending_context = await cache_service.get_pending_app_settings_memories_request(request_data.chat_id)
+            if pending_context:
+                old_request_id = pending_context.get("request_id", "unknown")
+                old_message_id = pending_context.get("message_id", "unknown")
+                logger.info(
+                    f"{log_prefix} Found pending app settings/memories request {old_request_id} for message {old_message_id}. "
+                    f"User sent new message - auto-rejecting previous request."
+                )
+                
+                # Delete the pending context (auto-reject)
+                await cache_service.delete_pending_app_settings_memories_request(request_data.chat_id)
+                
+                # Notify client to dismiss the permission dialog
+                # Use Redis pub/sub to send to WebSocket
+                try:
+                    import json
+                    redis_client = await cache_service.client
+                    if redis_client:
+                        channel = f"user_cache_events:{request_data.user_id}"
+                        pubsub_message = {
+                            "event_type": "dismiss_app_settings_memories_dialog",
+                            "payload": {
+                                "chat_id": request_data.chat_id,
+                                "request_id": old_request_id,
+                                "reason": "new_message_sent",
+                                "message_id": old_message_id  # The original message that triggered the request
+                            }
+                        }
+                        await redis_client.publish(channel, json.dumps(pubsub_message))
+                        logger.info(f"{log_prefix} Sent dismiss_app_settings_memories_dialog event to client")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to notify client about auto-rejection: {e}")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error checking/auto-rejecting pending request: {e}", exc_info=True)
+    
     # --- Request app settings/memories from client (zero-knowledge architecture) ---
     # The server NEVER decrypts app settings/memories - client decrypts using crypto API
     # App settings/memories are stored in cache (similar to embeds) when client confirms
     # Cache key format: app_settings_memories:{user_id}:{app_id}:{item_key}
     # This is more efficient than extracting from YAML in chat history
+    #
+    # IMPORTANT: If app settings/memories are needed but not in cache:
+    # - Server sends request to client via WebSocket
+    # - Task COMPLETES immediately (no LLM processing)
+    # - Client shows permission dialog to user
+    # - Once user confirms/rejects, client sends data back
+    # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         try:
@@ -548,15 +596,58 @@ async def handle_main_processing(
                 )
                 
                 if request_id:
-                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - client will respond when ready (may be hours/days later)")
+                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - storing pending context and returning")
+                    # IMPORTANT: Store the pending request context so we can re-trigger processing
+                    # when user confirms or rejects. The confirmation/rejection acts as a trigger
+                    # for a NEW AI processing pass - not a continuation of this task.
+                    #
+                    # Flow:
+                    # 1. This task completes (no LLM response)
+                    # 2. Client shows permission dialog
+                    # 3. User confirms/rejects (could be seconds or hours later)
+                    # 4. Server receives confirmation → triggers NEW ask_skill task
+                    # 5. New task finds data in cache (if confirmed) → normal LLM response
+                    #
+                    # NOTE: We only store minimal context here - NOT the message_history!
+                    # The chat history is already cached on the server (recent chat).
+                    # When continuing, we retrieve the chat from cache.
+                    try:
+                        # Store MINIMAL context needed to re-trigger processing
+                        # Do NOT store message_history - it's already in the chat cache
+                        pending_context = {
+                            "request_id": request_id,
+                            "chat_id": request_data.chat_id,
+                            "message_id": request_data.message_id,
+                            "user_id": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "mate_id": request_data.mate_id,
+                            "active_focus_id": request_data.active_focus_id,
+                            "chat_has_title": request_data.chat_has_title,
+                            "is_incognito": request_data.is_incognito,
+                            "requested_keys": missing_keys,  # Keys that were requested
+                            "task_id": task_id,
+                        }
+                        await cache_service.store_pending_app_settings_memories_request(
+                            chat_id=request_data.chat_id,
+                            context=pending_context,
+                            ttl=86400 * 7  # 7 days - user can confirm/reject within a week
+                        )
+                        logger.info(f"{log_prefix} Stored pending context for request {request_id}")
+                    except Exception as e:
+                        logger.error(f"{log_prefix} Failed to store pending context: {e}", exc_info=True)
+                        # Continue without storing - user will need to send a new message
+                    
+                    # CRITICAL: Yield a special marker to signal that we're awaiting user permission.
+                    # The stream_consumer.py will detect this marker and NOT send an error message.
+                    # Without this marker, the empty stream would be treated as an error.
+                    yield {"__awaiting_app_settings_memories_permission__": True, "request_id": request_id}
+                    
+                    # Return early - task complete, no LLM response
+                    return
                 else:
-                    logger.warning(f"{log_prefix} Failed to create app settings/memories request message")
+                    logger.warning(f"{log_prefix} Failed to create app settings/memories request message - continuing without app settings/memories")
             else:
                 logger.info(f"{log_prefix} All requested app settings/memories keys found in cache")
-            
-            # Continue processing immediately (no waiting)
-            # If data is missing, the conversation continues without it
-            # User can respond hours/days later, and the data will be available for the next message
             
         except Exception as e:
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
@@ -748,6 +839,69 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     )
+    
+    # --- Add focus mode tools if relevant ---
+    # Focus modes are treated as special system tools that change the AI's behavior
+    # activate_focus_mode: only when relevant focus modes exist AND no focus mode is active
+    # deactivate_focus_mode: only when a focus mode is currently active
+    
+    relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
+    has_active_focus_mode = bool(request_data.active_focus_id)
+    
+    if relevant_focus_modes and not has_active_focus_mode:
+        # Build enum and descriptions for activate_focus_mode tool
+        focus_mode_descriptions = []
+        for focus_id in relevant_focus_modes:
+            try:
+                app_id, mode_id = focus_id.split('-', 1)
+                app_metadata = discovered_apps_metadata.get(app_id)
+                if app_metadata and app_metadata.focuses:
+                    for focus in app_metadata.focuses:
+                        if focus.id == mode_id:
+                            # Get translated description
+                            description = translation_service.get_translation(focus.description_translation_key) or focus.description_translation_key
+                            focus_mode_descriptions.append(f"- {focus_id}: {description}")
+                            break
+            except Exception as e:
+                logger.warning(f"{log_prefix} Error building description for focus mode {focus_id}: {e}")
+        
+        activate_tool = {
+            "type": "function",
+            "function": {
+                "name": "system-activate_focus_mode",
+                "description": "Activate a focus mode to specialize the assistant's behavior for a specific task. Focus modes provide specialized instructions that help with particular types of requests.\n\nAvailable focus modes:\n" + "\n".join(focus_mode_descriptions) if focus_mode_descriptions else "Activate a focus mode to specialize the assistant's behavior.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "focus_id": {
+                            "type": "string",
+                            "description": "The focus mode to activate (format: app_id-focus_id)",
+                            "enum": relevant_focus_modes
+                        }
+                    },
+                    "required": ["focus_id"]
+                }
+            }
+        }
+        available_tools_for_llm.append(activate_tool)
+        logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
+    
+    if has_active_focus_mode:
+        # Add deactivate tool when a focus mode is active
+        deactivate_tool = {
+            "type": "function",
+            "function": {
+                "name": "system-deactivate_focus_mode",
+                "description": f"Deactivate the current focus mode ({request_data.active_focus_id}) and return to normal assistant behavior. Use this when the user no longer needs the specialized focus mode or asks to exit it.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        }
+        available_tools_for_llm.append(deactivate_tool)
+        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
@@ -1138,6 +1292,147 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                
+                # --- Handle system tools (focus mode activation/deactivation) ---
+                # System tools are special tools that modify the chat state rather than executing skills
+                # They use app_id="system" to distinguish from regular app skills
+                if app_id == "system":
+                    if skill_id == "activate_focus_mode":
+                        focus_id = parsed_args.get("focus_id")
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Activating focus mode: {focus_id}")
+                        
+                        # Update active_focus_id in request_data for this processing session
+                        request_data.active_focus_id = focus_id
+                        
+                        # Update cache with encrypted focus_id
+                        # The focus_id needs to be encrypted with the server-side encryption (vault key)
+                        encrypted_focus_id = None
+                        if cache_service and encryption_service:
+                            try:
+                                encrypted_focus_id = encryption_service.encrypt(focus_id)
+                                await cache_service.update_chat_active_focus_id(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                    encrypted_focus_id=encrypted_focus_id
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Updated cache with encrypted focus_id")
+                                
+                                # Dispatch Celery task to persist to Directus
+                                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                                celery_app_instance.send_task(
+                                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                                    kwargs={
+                                        "chat_id": request_data.chat_id,
+                                        "encrypted_active_focus_id": encrypted_focus_id
+                                    },
+                                    queue='persistence'
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to persist focus_id to Directus")
+                            except Exception as cache_error:
+                                logger.error(f"{log_prefix} [FOCUS_MODE] Error updating cache: {cache_error}", exc_info=True)
+                        
+                        tool_result_content_str = json.dumps({
+                            "status": "activated",
+                            "focus_id": focus_id,
+                            "message": f"Focus mode '{focus_id}' has been activated. The system will now restart with specialized instructions for this focus mode."
+                        })
+                        
+                        # Add tool response to history
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        
+                        # Signal restart needed - break out of tool processing and restart main loop
+                        # The restart will rebuild the system prompt with the focus mode instructions
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Restart required - will rebuild system prompt with focus mode '{focus_id}'")
+                        
+                        # Update the full_system_prompt with focus mode for restart
+                        # Find and load the focus mode prompt
+                        try:
+                            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+                            app_metadata_for_focus = discovered_apps_metadata.get(focus_app_id)
+                            if app_metadata_for_focus and app_metadata_for_focus.focuses:
+                                for focus_def in app_metadata_for_focus.focuses:
+                                    if focus_def.id == focus_mode_id:
+                                        focus_prompt = focus_def.systemprompt
+                                        if focus_prompt:
+                                            # Prepend focus mode prompt to system prompt
+                                            full_system_prompt = f"--- Active Focus: {focus_id} ---\n{focus_prompt}\n--- End Active Focus ---\n\n{full_system_prompt}"
+                                            logger.info(f"{log_prefix} [FOCUS_MODE] Injected focus mode prompt ({len(focus_prompt)} chars) into system prompt")
+                                        break
+                        except Exception as e:
+                            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus mode prompt: {e}", exc_info=True)
+                        
+                        # Continue to next iteration with updated system prompt
+                        # The tool call was handled, continue processing
+                        continue
+                        
+                    elif skill_id == "deactivate_focus_mode":
+                        previous_focus_id = request_data.active_focus_id
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
+                        
+                        # Clear active_focus_id
+                        request_data.active_focus_id = None
+                        
+                        # Clear focus_id in cache and Directus
+                        if cache_service:
+                            try:
+                                await cache_service.update_chat_active_focus_id(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                    encrypted_focus_id=None  # Clear the field
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Cleared focus_id from cache")
+                                
+                                # Dispatch Celery task to clear in Directus
+                                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                                celery_app_instance.send_task(
+                                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                                    kwargs={
+                                        "chat_id": request_data.chat_id,
+                                        "encrypted_active_focus_id": None  # Clear the field
+                                    },
+                                    queue='persistence'
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to clear focus_id in Directus")
+                            except Exception as cache_error:
+                                logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
+                        
+                        tool_result_content_str = json.dumps({
+                            "status": "deactivated",
+                            "previous_focus_id": previous_focus_id,
+                            "message": f"Focus mode '{previous_focus_id}' has been deactivated. Returning to normal assistant behavior."
+                        })
+                        
+                        # Add tool response to history
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        
+                        # Remove focus mode from system prompt by rebuilding without it
+                        # For simplicity, we'll continue with the current prompt
+                        # The focus mode instructions will no longer apply to this response
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
+                        continue
+                    else:
+                        logger.warning(f"{log_prefix} Unknown system tool: {skill_id}")
+                        tool_result_content_str = json.dumps({"error": f"Unknown system tool: {skill_id}"})
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        continue
                 
                 # Validate arguments against original schema (with min/max constraints)
                 # The schema sent to LLM providers has min/max removed, but we validate against the original

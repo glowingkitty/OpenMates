@@ -460,6 +460,14 @@ async def _async_process_ai_skill_ask_task(
                     "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
                     # Base instructions keys (not full content to save space, but track what was used)
                     "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
+                    # App settings and memories metadata from client (what's available to choose from)
+                    # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
+                    "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
+                    "app_settings_memories_metadata_from_client_count": len(request_data.app_settings_memories_metadata) if request_data.app_settings_memories_metadata else 0,
+                    # Parsed format used by preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
+                    "user_app_memories_metadata_parsed": user_app_memories_metadata,
+                    "user_app_memories_metadata_parsed_apps_count": len(user_app_memories_metadata) if user_app_memories_metadata else 0,
+                    "user_app_memories_metadata_parsed_total_keys": sum(len(keys) for keys in user_app_memories_metadata.values()) if user_app_memories_metadata else 0,
                 }
                 
                 # Prepare preprocessor output data (full model dump)
@@ -766,7 +774,7 @@ async def _async_process_ai_skill_ask_task(
                     "preprocessing_can_proceed": preprocessing_result.can_proceed if preprocessing_result else None,
                     "preprocessing_selected_model": preprocessing_result.selected_main_llm_model_id if preprocessing_result else None,
                     "preprocessing_category": preprocessing_result.category if preprocessing_result else None,
-                    "preprocessing_preselected_skills": preprocessing_result.preselected_skill_ids if preprocessing_result else [],
+                    "preprocessing_preselected_skills": preprocessing_result.relevant_app_skills if preprocessing_result else [],
                     "preprocessing_chat_summary": preprocessing_result.chat_summary if preprocessing_result else None,
                     "preprocessing_chat_tags": preprocessing_result.chat_tags if preprocessing_result else [],
                     # Context info

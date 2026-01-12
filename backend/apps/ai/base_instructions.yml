@@ -34,7 +34,7 @@ preprocess_request_tool:
       5.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id-item_key`) that should be loaded to provide context for the main LLM.
+      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - Only include keys if the user's query explicitly or implicitly refers to information likely stored under those item keys.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
@@ -76,7 +76,13 @@ preprocess_request_tool:
           
           - If no specific skills are relevant, return an empty list: [].
           - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
-      8.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
+      8.  **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
+          - Available focus modes (format: `app_id-focus_id`): {AVAILABLE_FOCUS_MODES}
+          - Include focus modes when the user's request would benefit from specialized behavior (e.g., in-depth research, code writing, fact checking).
+          - Match focus modes based on their names and descriptions from the available list.
+          - If no focus mode would help, if the available list is empty, or if user explicitly asks for normal mode, return an empty list: [].
+          - **Important**: Only select focus modes that are actually listed in the provided {AVAILABLE_FOCUS_MODES} list. Do not invent focus mode names.
+      9.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
           - Common preview types include: 'code' (for syntax-highlighted code blocks), 'math' (for mathematical formulas and equations), 'music' (for music notation or sheet music), 'website' (for embedded website previews), 'image' (for image previews), etc.
           - Select preview types that match the content likely to be generated for this user's request.
           - Each preview type requires specific YAML structure generation by the main LLM to be properly parsed in the frontend.
@@ -105,12 +111,17 @@ preprocess_request_tool:
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
         load_app_settings_and_memories:
           type: "array"
-          description: "List of app settings and memory item keys (e.g., 'app_id-item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
+          description: "List of app settings and memory item keys (e.g., 'app_id:item_key' with colon separator) to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
           items:
             type: "string"
         relevant_app_skills:
           type: "array"
           description: "List of relevant app skill identifiers (format: 'app_id-skill_id') that might be useful for fulfilling the request. Selected from the dynamically provided {AVAILABLE_APP_SKILLS} list. Empty list if none relevant."
+          items:
+            type: "string"
+        relevant_focus_modes:
+          type: "array"
+          description: "List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request. Selected from the dynamically provided {AVAILABLE_FOCUS_MODES} list. Empty list if none relevant."
           items:
             type: "string"
         relevant_embedded_previews:
@@ -142,6 +153,7 @@ preprocess_request_tool:
         - "misuse_risk"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
+        - "relevant_focus_modes"
         - "relevant_embedded_previews"
         - "icon_names"
         - "chat_summary"

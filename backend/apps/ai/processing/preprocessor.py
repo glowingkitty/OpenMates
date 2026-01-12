@@ -43,13 +43,14 @@ class PreprocessingResult(BaseModel):
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
-    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id-item_key']).")
+    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id:item_key']).")
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
+    relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
 
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -586,13 +587,28 @@ async def handle_preprocessing(
                     skill_identifier = f"{app_id}-{skill.id}"
                     available_skills_list.append(skill_identifier)
     
+    # Build list of available focus modes from discovered apps
+    # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
+    # Format: "app_id-focus_id" with description for LLM context
+    available_focus_modes_list: List[str] = []
+    
+    if discovered_apps_metadata:
+        for app_id, app_metadata in discovered_apps_metadata.items():
+            if app_metadata and app_metadata.focuses:
+                for focus in app_metadata.focuses:
+                    # Use hyphen format for focus mode identifiers (consistent with skill tool names)
+                    focus_identifier = f"{app_id}-{focus.id}"
+                    available_focus_modes_list.append(focus_identifier)
+    
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
     logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
     logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
+    logger.info(f"  - Available focus modes ({len(available_focus_modes_list)} total): {', '.join(available_focus_modes_list) if available_focus_modes_list else 'None'}")
     logger.info(f"  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
+    logger.info(f"    - AVAILABLE_FOCUS_MODES: {available_focus_modes_list if available_focus_modes_list else 'None'}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
     preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
@@ -614,6 +630,7 @@ async def handle_preprocessing(
     dynamic_context = {
         "CATEGORIES_LIST": available_categories_list,
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
+        "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
         "CURRENT_DATE_TIME": date_time_str
     }
 
@@ -884,36 +901,40 @@ async def handle_preprocessing(
     else:
         # Validate each key against available metadata
         if user_app_settings_and_memories_metadata:
-            # Build a set of all available keys (format: "app_id-item_key" using hyphen for consistency)
+            # Build a set of all available keys (format: "app_id:item_key" using colon for cache mixin compatibility)
             available_keys = set()
             for app_id, item_keys in user_app_settings_and_memories_metadata.items():
                 for item_key in item_keys:
-                    available_keys.add(f"{app_id}-{item_key}")
+                    available_keys.add(f"{app_id}:{item_key}")
 
             # Helper function to normalize LLM output format to match expected format
             # LLMs may return formats like "code: preferred_tech", "code - preferred_tech", etc.
-            # We need to normalize these to "code-preferred_tech" (hyphen separator, no spaces)
+            # We need to normalize these to "code:preferred_tech" (colon separator, no spaces)
+            # NOTE: The cache mixin expects "app_id:item_key" format (colon separator)
             def normalize_app_settings_key(key: str) -> str:
                 """
                 Normalizes app settings/memories key format from LLM output.
                 Handles variations like:
-                  - "code: preferred_tech" -> "code-preferred_tech"
-                  - "code - preferred_tech" -> "code-preferred_tech"
-                  - "code:preferred_tech" -> "code-preferred_tech"
-                  - "code -preferred_tech" -> "code-preferred_tech"
+                  - "code: preferred_tech" -> "code:preferred_tech"
+                  - "code - preferred_tech" -> "code:preferred_tech"
+                  - "code:preferred_tech" -> "code:preferred_tech" (already correct)
+                  - "code -preferred_tech" -> "code:preferred_tech"
+                  - "code-preferred_tech" -> "code:preferred_tech"
                 """
-                # Replace colon+space, space+hyphen+space, colon with hyphen
                 normalized = key.strip()
-                # Handle "app_id: item_key" format (colon followed by space)
-                normalized = normalized.replace(": ", "-")
-                # Handle "app_id : item_key" format (space colon space)
-                normalized = normalized.replace(" : ", "-")
-                # Handle "app_id - item_key" format (space hyphen space)
-                normalized = normalized.replace(" - ", "-")
-                # Handle any remaining colons as separators
-                normalized = normalized.replace(":", "-")
-                # Handle "app_id -item_key" or "app_id- item_key" edge cases
-                normalized = normalized.replace(" -", "-").replace("- ", "-")
+                # Handle "app_id: item_key" format (colon followed by space) - remove the space
+                normalized = normalized.replace(": ", ":")
+                # Handle "app_id : item_key" format (space colon space) - normalize to single colon
+                normalized = normalized.replace(" : ", ":")
+                # Handle "app_id - item_key" format (space hyphen space) - convert to colon
+                normalized = normalized.replace(" - ", ":")
+                # Handle "app_id -item_key" or "app_id- item_key" edge cases - convert to colon
+                normalized = normalized.replace(" -", ":").replace("- ", ":")
+                # Handle any remaining hyphens that are used as separators (single hyphen between app_id and item_key)
+                # Only replace if there's no colon already (to avoid double-converting)
+                if ":" not in normalized and "-" in normalized:
+                    # Replace the first hyphen only (the separator between app_id and item_key)
+                    normalized = normalized.replace("-", ":", 1)
                 # Remove any leading/trailing whitespace that may have been left
                 normalized = normalized.strip()
                 return normalized
@@ -1084,6 +1105,61 @@ async def handle_preprocessing(
         validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
         logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
     
+    # Extract relevant_focus_modes from LLM response if present (for focus mode activation)
+    # Focus modes change how the AI responds by providing specialized system prompt instructions
+    relevant_focus_modes_val = llm_analysis_args.get("relevant_focus_modes")
+    validated_relevant_focus_modes: List[str] = []
+    
+    if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
+        # Build a resolver map to handle common LLM hallucinations (similar to skills)
+        focus_resolver_map: Dict[str, str] = {}
+        
+        for valid_focus in available_focus_modes_list:
+            # Add exact match
+            focus_resolver_map[valid_focus] = valid_focus
+            
+            # Handle underscore variant: app_focus -> app-focus
+            underscore_variant = valid_focus.replace("-", "_")
+            focus_resolver_map[underscore_variant] = valid_focus
+        
+        # Validate and correct focus mode identifiers
+        corrected_focus_modes = []
+        invalid_focus_modes = []
+        
+        for focus in relevant_focus_modes_val:
+            if focus in available_focus_modes_list:
+                # Exact match - no correction needed
+                validated_relevant_focus_modes.append(focus)
+            elif focus in focus_resolver_map:
+                # Hallucinated name that we can correct
+                corrected_focus = focus_resolver_map[focus]
+                validated_relevant_focus_modes.append(corrected_focus)
+                corrected_focus_modes.append(f"{focus} -> {corrected_focus}")
+            else:
+                # Could not resolve - truly invalid
+                invalid_focus_modes.append(focus)
+        
+        # Remove duplicates while preserving order
+        validated_relevant_focus_modes = list(dict.fromkeys(validated_relevant_focus_modes))
+        
+        if corrected_focus_modes:
+            logger.info(
+                f"{log_prefix} Corrected {len(corrected_focus_modes)} hallucinated focus mode name(s): {corrected_focus_modes}"
+            )
+        
+        if invalid_focus_modes:
+            logger.warning(
+                f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
+                f"Filtered out. Available focus modes: {available_focus_modes_list if available_focus_modes_list else 'None'}."
+            )
+        
+        if validated_relevant_focus_modes:
+            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_focus_modes)} relevant focus mode(s): {', '.join(validated_relevant_focus_modes)}")
+        else:
+            logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
+    else:
+        logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+    
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
@@ -1131,6 +1207,7 @@ async def handle_preprocessing(
         chat_summary=chat_summary_val,  # Use validated chat_summary (validated above - may be None if LLM didn't provide it)
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
+        relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,

@@ -4,7 +4,8 @@
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import FollowUpSuggestions from './FollowUpSuggestions.svelte';
-    import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+    // AppSettingsMemoriesPermissionDialog is now rendered inside ChatHistory.svelte
+    // so it scrolls with the messages instead of being fixed at the bottom
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
@@ -3879,9 +3880,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/if}
 
-                        <!-- App settings/memories permission dialog (non-blocking, inline) -->
-                        <!-- Users can still scroll and interact with the chat while this is visible -->
-                        <AppSettingsMemoriesPermissionDialog />
+                        <!-- App settings/memories permission dialog has been moved to ChatHistory.svelte -->
+                        <!-- This allows it to scroll with messages instead of being fixed at the bottom -->
 
                         <!-- Read-only indicator for shared chats -->
                         {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}

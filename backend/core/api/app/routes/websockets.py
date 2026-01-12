@@ -103,9 +103,15 @@ async def listen_for_cache_events(app: FastAPI):
                     elif event_type == "send_app_settings_memories_request":
                         # Send app settings/memories request to client via WebSocket
                         # This is triggered from Celery tasks via Redis pub/sub
+                        # IMPORTANT: Forward ALL fields from the payload - client requires:
+                        # - request_id, chat_id, requested_keys, yaml_content, message_id
                         request_id = payload.get("request_id")
+                        chat_id = payload.get("chat_id")
                         requested_keys = payload.get("requested_keys", [])
-                        if request_id and requested_keys:
+                        yaml_content = payload.get("yaml_content", "")
+                        message_id = payload.get("message_id")
+                        
+                        if request_id and chat_id and requested_keys:
                             user_connections = manager.get_connections_for_user(user_id)
                             if user_connections:
                                 # Send to first available device
@@ -115,15 +121,47 @@ async def listen_for_cache_events(app: FastAPI):
                                         "type": "request_app_settings_memories",
                                         "payload": {
                                             "request_id": request_id,
-                                            "requested_keys": requested_keys
+                                            "chat_id": chat_id,
+                                            "requested_keys": requested_keys,
+                                            "yaml_content": yaml_content,
+                                            "message_id": message_id
                                         }
                                     },
                                     user_id,
                                     target_device
                                 )
-                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} via WebSocket")
+                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "dismiss_app_settings_memories_dialog":
+                        # User sent a new message without responding to the permission dialog
+                        # Auto-reject the previous request and tell client to dismiss the dialog
+                        chat_id = payload.get("chat_id")
+                        request_id = payload.get("request_id")
+                        reason = payload.get("reason", "unknown")
+                        message_id = payload.get("message_id")
+                        
+                        if chat_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                # Send to ALL connected devices (dialog may be shown on any)
+                                for device_id in user_connections.keys():
+                                    await manager.send_personal_message(
+                                        {
+                                            "type": "dismiss_app_settings_memories_dialog",
+                                            "payload": {
+                                                "chat_id": chat_id,
+                                                "request_id": request_id,
+                                                "reason": reason,
+                                                "message_id": message_id
+                                            }
+                                        },
+                                        user_id,
+                                        device_id
+                                    )
+                                logger.info(f"Redis Listener: Sent dismiss_app_settings_memories_dialog to user {user_id} for chat {chat_id} (reason: {reason})")
+                            else:
+                                logger.debug(f"Redis Listener: User {user_id} has no active connections for dismiss event")
                     else:
                         logger.warning(f"Redis Listener: Unknown event_type '{event_type}' for user {user_id}.")
                 else:

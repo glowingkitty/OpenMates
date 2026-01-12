@@ -33,6 +33,14 @@
     AppSettingsMemoriesResponseContent, 
     AppSettingsMemoriesResponseCategory 
   } from '../services/chatSyncServiceHandlersAppSettings';
+  
+  // Import the permission dialog component and its store for inline rendering
+  // The permission dialog is rendered as part of the chat history (scrollable with messages)
+  // rather than as a fixed overlay, so users can scroll while the dialog is visible
+  import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import { 
+    isPermissionDialogVisible 
+  } from '../stores/appSettingsMemoriesPermissionStore';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -661,6 +669,14 @@
                     />
                 </div>
             {/each}
+            
+            <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
+            <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
+            {#if $isPermissionDialogVisible}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
         </div>
     {/if}
 </div>
@@ -712,6 +728,16 @@
     min-height: 100%;
   }
 
+
+  /* Permission dialog wrapper - renders as part of chat history */
+  /* This allows users to scroll the chat while the dialog is visible */
+  .permission-dialog-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+    margin-top: 10px;
+  }
 
   .message-wrapper {
     margin: 5px 0;

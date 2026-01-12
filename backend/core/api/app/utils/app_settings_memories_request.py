@@ -28,12 +28,44 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 logger = logging.getLogger(__name__)
 
 
+def _convert_keys_to_client_format(keys: List[str]) -> List[str]:
+    """
+    Converts app settings/memories keys from server format (colon) to client format (hyphen).
+    
+    Server internally uses colon separator (e.g., "code:preferred_tech") for cache mixin compatibility.
+    Client expects hyphen separator (e.g., "code-preferred_tech") for parsing.
+    
+    Args:
+        keys: List of keys in server format (colon separator)
+    
+    Returns:
+        List of keys in client format (hyphen separator)
+    """
+    return [key.replace(":", "-", 1) for key in keys]
+
+
+def _convert_keys_to_server_format(keys: List[str]) -> List[str]:
+    """
+    Converts app settings/memories keys from client format (hyphen) to server format (colon).
+    
+    Client uses hyphen separator (e.g., "code-preferred_tech").
+    Server internally uses colon separator (e.g., "code:preferred_tech") for cache mixin compatibility.
+    
+    Args:
+        keys: List of keys in client format (hyphen separator)
+    
+    Returns:
+        List of keys in server format (colon separator)
+    """
+    return [key.replace("-", ":", 1) for key in keys]
+
+
 def _create_request_yaml(requested_keys: List[str]) -> str:
     """
     Creates a YAML structure for app settings/memories request.
     
     Args:
-        requested_keys: List of app settings/memories keys in "app_id-item_key" format
+        requested_keys: List of app settings/memories keys in "app_id:item_key" format (colon separator)
     
     Returns:
         YAML string containing the request structure
@@ -89,7 +121,7 @@ def _extract_accepted_responses(request_data: Dict[str, Any]) -> Dict[str, Any]:
         request_data: Parsed request data from YAML
     
     Returns:
-        Dictionary mapping "app_id-item_key" to decrypted values (only accepted ones)
+        Dictionary mapping "app_id:item_key" to decrypted values (only accepted ones)
     """
     accepted_responses = {}
     responses = request_data.get("responses", {})
@@ -114,7 +146,7 @@ async def check_chat_history_for_app_settings_memories(
         requested_keys: List of keys we're looking for
     
     Returns:
-        Dictionary mapping "app_id-item_key" to decrypted values (only accepted ones)
+        Dictionary mapping "app_id:item_key" to decrypted values (only accepted ones)
     """
     accepted_responses = {}
     
@@ -170,7 +202,7 @@ async def create_app_settings_memories_request_message(
     
     Args:
         chat_id: Chat ID where the request should be stored
-        requested_keys: List of app settings/memories keys in "app_id-item_key" format
+        requested_keys: List of app settings/memories keys in "app_id:item_key" format (colon separator)
         cache_service: Cache service (for WebSocket notifications via Redis pub/sub)
         connection_manager: WebSocket connection manager (may be None in Celery tasks)
         user_id: User ID
@@ -191,6 +223,10 @@ async def create_app_settings_memories_request_message(
         request_id = request_data.get("request_id")
         logger.info(f"Creating app_settings_memories request {request_id} in chat {chat_id} with {len(requested_keys)} keys")
         
+        # Convert keys from server format (colon) to client format (hyphen) before sending
+        # Server uses "app_id:item_key" internally, client expects "app_id-item_type"
+        client_format_keys = _convert_keys_to_client_format(requested_keys)
+        
         # Send YAML content to client via WebSocket
         # Client will encrypt with chat key and create system message in chat history
         if connection_manager:
@@ -205,7 +241,7 @@ async def create_app_settings_memories_request_message(
                             "payload": {
                                 "request_id": request_id,
                                 "chat_id": chat_id,
-                                "requested_keys": requested_keys,
+                                "requested_keys": client_format_keys,  # Client expects hyphen format
                                 "yaml_content": yaml_content,
                                 "message_id": message_id  # User message that triggered this request
                             }
@@ -227,7 +263,7 @@ async def create_app_settings_memories_request_message(
                         "payload": {
                             "request_id": request_id,
                             "chat_id": chat_id,
-                            "requested_keys": requested_keys,
+                            "requested_keys": client_format_keys,  # Client expects hyphen format
                             "yaml_content": yaml_content,
                             "message_id": message_id  # User message that triggered this request
                         }

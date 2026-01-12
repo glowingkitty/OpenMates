@@ -71,28 +71,6 @@
     
     // Check if any category is selected
     let hasSelection = $derived($currentPermissionRequest?.categories.some(cat => cat.selected) ?? false);
-    
-    // Get default gradient based on app ID
-    function getDefaultGradient(appId: string): string {
-        const gradientMap: Record<string, string> = {
-            'code': 'linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)',
-            'travel': 'linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)',
-            'finance': 'linear-gradient(135deg, #119106 9.04%, #15780D 90.06%)',
-            'health': 'linear-gradient(135deg, #FD50A0 9.04%, #F42C2D 90.06%)',
-            'news': 'linear-gradient(135deg, #F53F5B 9.04%, #DD0B2B 90.06%)',
-            'weather': 'linear-gradient(135deg, #005BA5 9.04%, #00A7C9 90.06%)',
-            'jobs': 'linear-gradient(135deg, #049363 9.04%, #00C382 90.06%)',
-            'legal': 'linear-gradient(135deg, #239CFF 9.04%, #005BA5 90.06%)',
-            'files': 'linear-gradient(135deg, #1E3A8A 9.04%, #29BEFB 90.06%)',
-            'ai': 'linear-gradient(135deg, #CB7D5D 9.04%, #CB685D 90.06%)',
-            'tv': 'linear-gradient(135deg, #8B5CF6 9.04%, #6D28D9 90.06%)',
-            'videos': 'linear-gradient(135deg, #EF4444 9.04%, #DC2626 90.06%)',
-            'maps': 'linear-gradient(135deg, #10B981 9.04%, #059669 90.06%)',
-            'study': 'linear-gradient(135deg, #F59E0B 9.04%, #D97706 90.06%)',
-            'plants': 'linear-gradient(135deg, #22C55E 9.04%, #16A34A 90.06%)',
-        };
-        return gradientMap[appId] || 'linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)';
-    }
 </script>
 
 <!-- Non-blocking dialog - rendered inside ActiveChat above the message input -->
@@ -125,11 +103,13 @@
                         ariaLabel={`Toggle ${category.displayName}`}
                     />
                     
-                    <div 
-                        class="category-icon" 
-                        style="background: {category.iconGradient || getDefaultGradient(category.appId)}"
-                    >
-                        <span class="icon-code">&lt;/&gt;</span>
+                    <!-- App icon with proper styling - uses Icon component for consistent app icon rendering -->
+                    <div class="app-icon-wrapper">
+                        <Icon 
+                            name={category.appId} 
+                            type="app" 
+                            size="38px"
+                        />
                     </div>
                     
                     <div class="category-info">
@@ -225,21 +205,9 @@
         background: var(--color-grey-20, #eee);
     }
     
-    .category-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* App icon wrapper for proper icon sizing within category items */
+    .app-icon-wrapper {
         flex-shrink: 0;
-    }
-    
-    .icon-code {
-        color: white;
-        font-size: 14px;
-        font-weight: 600;
-        font-family: monospace;
     }
     
     .category-info {
