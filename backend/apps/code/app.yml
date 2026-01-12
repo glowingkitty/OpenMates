@@ -10,7 +10,7 @@ settings_and_memories:
     name_translation_key: code.preferred_tech.text
     description_translation_key: code.preferred_tech.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -34,7 +34,7 @@ settings_and_memories:
     name_translation_key: code.projects.text
     description_translation_key: code.projects.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -58,7 +58,7 @@ settings_and_memories:
     name_translation_key: code.want_to_learn.text
     description_translation_key: code.want_to_learn.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -150,7 +150,7 @@ skills:
   - id: get_docs
     name_translation_key: code.get_docs.text
     description_translation_key: code.get_docs.description.text
-    stage: development
+    stage: production
     class_path: |
       backend.apps.code.skills.get_docs_skill.GetDocsSkill
     providers:
