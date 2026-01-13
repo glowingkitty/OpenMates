@@ -508,11 +508,13 @@ async function saveAppSettingsMemoriesResponseMessage(
         
         console.debug(`[ChatSyncService:AppSettings] Sent system message ${messageId} to server`);
         
-        // Dispatch event to update UI
-        serviceInstance.dispatchEvent(new CustomEvent('messageAdded', { 
+        // Dispatch chatUpdated event to trigger UI refresh
+        // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
             detail: { 
-                chatId, 
-                message: syncedMessage 
+                chat_id: chatId,
+                type: 'system_message_added',
+                newMessage: syncedMessage 
             } 
         }));
     } catch (sendError) {
@@ -801,4 +803,56 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
         'Previous data request was cancelled because you sent a new message',
         4000
     );
+}
+
+/**
+ * Payload structure for system_message_confirmed WebSocket message
+ * Sent by server when a system message is successfully persisted
+ */
+interface SystemMessageConfirmedPayload {
+    chat_id: string;
+    message_id: string;
+    messages_v: number;
+}
+
+/**
+ * Handles confirmation that a system message was successfully persisted.
+ * 
+ * This is called when the server confirms that a system message (like app settings/memories response)
+ * has been stored in Directus. The handler:
+ * 1. Updates the message status from 'sending' to 'synced' (if needed)
+ * 2. Updates the chat's messages_v version counter
+ * 3. Dispatches event to update UI
+ */
+export async function handleSystemMessageConfirmedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: SystemMessageConfirmedPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'system_message_confirmed':", payload);
+    
+    const { chat_id, message_id, messages_v } = payload;
+    
+    if (!chat_id || !message_id) {
+        console.warn("[ChatSyncService:AppSettings] Invalid system_message_confirmed payload:", payload);
+        return;
+    }
+    
+    try {
+        // Update message status to synced (if it's still 'sending')
+        const message = await chatDB.getMessage(message_id);
+        if (message && message.status === 'sending') {
+            const syncedMessage = { ...message, status: 'synced' as const };
+            await chatDB.saveMessage(syncedMessage);
+            console.debug(`[ChatSyncService:AppSettings] Updated system message ${message_id} status to 'synced'`);
+        }
+        
+        // Update the chat's messages_v version counter
+        if (messages_v !== undefined) {
+            await chatDB.updateChatComponentVersion(chat_id, 'messages_v', messages_v);
+            console.debug(`[ChatSyncService:AppSettings] Updated chat ${chat_id} messages_v to ${messages_v}`);
+        }
+        
+    } catch (error) {
+        console.error("[ChatSyncService:AppSettings] Error handling system_message_confirmed:", error);
+    }
 }

@@ -15,6 +15,7 @@ These messages:
 
 import logging
 import hashlib
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from fastapi import WebSocket
@@ -164,8 +165,6 @@ async def handle_chat_system_message_added(
             plaintext=content,
             key_id=user_vault_key_id
         )
-        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
         
         # Increment messages_v in cache
         new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
@@ -174,21 +173,25 @@ async def handle_chat_system_message_added(
             new_messages_v = 0
         
         # Persist to Directus via Celery task
-        message_data_for_directus = {
-            "message_id": message_id,
-            "hashed_message_id": hashed_message_id,
-            "hashed_chat_id": hashed_chat_id,
-            "hashed_user_id": hashed_user_id,
-            "role": "system",
-            "encrypted_content": encrypted_content,
-            "created_at": created_at
-        }
+        # Use persist_new_chat_message_task which handles all message types including system messages
+        now_ts = int(datetime.now(timezone.utc).timestamp())
         
         celery_app_instance.send_task(
-            'app.tasks.persistence_tasks.persist_message',
+            'app.tasks.persistence_tasks.persist_new_chat_message',
             kwargs={
-                "message_data": message_data_for_directus,
-                "messages_v": new_messages_v
+                "message_id": message_id,
+                "chat_id": chat_id,
+                "hashed_user_id": hashed_user_id,
+                "role": "system",
+                "encrypted_sender_name": None,  # System messages don't have sender names
+                "encrypted_category": None,  # System messages don't have categories
+                "encrypted_model_name": None,  # System messages don't have model names
+                "encrypted_content": encrypted_content,
+                "created_at": created_at,
+                "new_chat_messages_version": new_messages_v,
+                "new_last_edited_overall_timestamp": now_ts,
+                "encrypted_chat_key": None,  # Not needed for system messages in existing chats
+                "user_id": user_id  # For sync cache updates
             },
             queue='persistence'
         )
@@ -223,7 +226,7 @@ async def handle_chat_system_message_added(
         await manager.broadcast_to_user(
             message=broadcast_payload,
             user_id=user_id,
-            exclude_device=device_fingerprint_hash  # Don't send back to sender
+            exclude_device_hash=device_fingerprint_hash  # Don't send back to sender
         )
         logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices")
         

@@ -16,6 +16,7 @@ user message, rather than waiting/blocking the original task.
 import logging
 import time
 import json
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -311,7 +312,11 @@ async def _trigger_continuation(
             message_history.append({
                 "role": role,
                 "content": decrypted_content,
-                "message_id": msg_cache_data.get("message_id", ""),
+                # created_at is required by AIHistoryMessage - get from cached message or use current time
+                "created_at": msg_cache_data.get("created_at", int(datetime.now(timezone.utc).timestamp())),
+                # Optional fields for full compatibility with AIHistoryMessage
+                "sender_name": msg_cache_data.get("sender_name", role),
+                "category": msg_cache_data.get("category"),
             })
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse cached message JSON for chat {chat_id}: {e}")

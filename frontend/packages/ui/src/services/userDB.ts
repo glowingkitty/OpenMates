@@ -8,10 +8,20 @@ class UserDatabaseService {
     public readonly STORE_NAME = 'user_data';
     private readonly VERSION = 1;
     
+    // Flag to prevent new operations during database deletion
+    // This ensures that no new transactions are started while we're trying to delete the database
+    private isDeleting: boolean = false;
+    
     /**
      * Initialize the database
      */
     async init(): Promise<void> {
+        // Prevent initialization during deletion to avoid blocking the delete operation
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping init - database is being deleted");
+            throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
         console.debug("[UserDatabase] Initializing user database");
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
@@ -42,6 +52,12 @@ class UserDatabaseService {
      * Save user data to IndexedDB
      */
     async saveUserData(userData: User): Promise<void> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping saveUserData - database is being deleted");
+            return;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -207,6 +223,12 @@ class UserDatabaseService {
      * Get user profile data from IndexedDB
      */
     async getUserProfile(): Promise<UserProfile | null> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping getUserProfile - database is being deleted");
+            return null;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -231,7 +253,7 @@ class UserDatabaseService {
             const languageRequest = store.get('language');
             const darkmodeRequest = store.get('darkmode');
             
-            let profile: UserProfile = {
+            const profile: UserProfile = {
                 username: '',
                 profile_image_url: null,
                 credits: 0,
@@ -377,6 +399,12 @@ class UserDatabaseService {
      * Get user credits from IndexedDB
      */
     async getUserCredits(): Promise<number> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping getUserCredits - database is being deleted");
+            return 0;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -402,6 +430,12 @@ class UserDatabaseService {
      * Clear all user data from IndexedDB
      */
     async clearUserData(): Promise<void> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping clearUserData - database is being deleted");
+            return;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -430,6 +464,12 @@ class UserDatabaseService {
      * @param newUserData User data to compare with stored data
      */
     async hasUserDataChanged(newUserData: Partial<User>): Promise<boolean> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping hasUserDataChanged - database is being deleted");
+            return false;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -465,6 +505,12 @@ class UserDatabaseService {
      * Get complete user data from IndexedDB
      */
     async getUserData(): Promise<User | null> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping getUserData - database is being deleted");
+            return null;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -482,7 +528,7 @@ class UserDatabaseService {
             const currency = store.get('currency'); // Get currency
             const last_sync_timestamp = store.get('last_sync_timestamp');
             
-            let userData: User = {
+            const userData: User = {
                 username: '',
                 is_admin: false,
                 profile_image_url: null,
@@ -517,6 +563,12 @@ class UserDatabaseService {
      * Update specific fields of the user data
      */
     async updateUserData(partialData: Partial<User>): Promise<void> {
+        // Prevent operations during deletion
+        if (this.isDeleting) {
+            console.debug("[UserDatabase] Skipping updateUserData - database is being deleted");
+            return;
+        }
+        
         if (!this.db) {
             await this.init();
         }
@@ -602,9 +654,21 @@ class UserDatabaseService {
 
     /**
      * Deletes the entire user database.
+     * 
+     * This method sets the isDeleting flag to prevent new operations from starting,
+     * closes the existing connection, and waits a short delay before attempting deletion.
+     * The delay allows any pending transactions to complete before the deletion request.
+     * 
+     * NOTE: Unlike the previous implementation, this does NOT reject on onblocked.
+     * Instead, it logs a warning and waits for other connections to close.
+     * The deletion will succeed once all connections are closed.
      */
     async deleteDatabase(): Promise<void> {
         console.debug(`[UserDatabase] Attempting to delete database: ${this.DB_NAME}`);
+        
+        // Set flag to prevent new operations during deletion
+        this.isDeleting = true;
+        
         return new Promise((resolve, reject) => {
             if (this.db) {
                 this.db.close(); // Close the connection before deleting
@@ -612,22 +676,35 @@ class UserDatabaseService {
                 console.debug(`[UserDatabase] Database connection closed for ${this.DB_NAME}.`);
             }
 
-            const request = indexedDB.deleteDatabase(this.DB_NAME);
+            // Use setTimeout to give pending transactions time to complete
+            // This matches the implementation in chatDB for consistency
+            setTimeout(() => {
+                const request = indexedDB.deleteDatabase(this.DB_NAME);
 
-            request.onsuccess = () => {
-                console.debug(`[UserDatabase] Database ${this.DB_NAME} deleted successfully.`);
-                resolve();
-            };
+                request.onsuccess = () => {
+                    console.debug(`[UserDatabase] Database ${this.DB_NAME} deleted successfully.`);
+                    this.isDeleting = false;
+                    resolve();
+                };
 
-            request.onerror = (event) => {
-                console.error(`[UserDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
-                reject((event.target as IDBOpenDBRequest).error);
-            };
+                request.onerror = (event) => {
+                    console.error(`[UserDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
+                    this.isDeleting = false;
+                    reject((event.target as IDBOpenDBRequest).error);
+                };
 
-            request.onblocked = (event) => {
-                console.warn(`[UserDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
-                reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
-            };
+                // CRITICAL: Do NOT reject on onblocked - just log a warning
+                // The deletion will succeed once all connections close
+                // Rejecting here caused logout errors when other operations were in progress
+                request.onblocked = (event) => {
+                    console.warn(
+                        `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
+                        event
+                    );
+                    // Don't reject - the deletion will proceed once connections close
+                    // This is consistent with how chatDB handles this case
+                };
+            }, 100); // Small delay to allow pending transactions to complete
         });
     }
 }
