@@ -318,9 +318,11 @@ export async function handlePermissionDialogConfirm(
                     const decryptedJson = await decryptWithMasterKey(entry.encrypted_item_json);
                     if (decryptedJson) {
                         const content = JSON.parse(decryptedJson);
+                        // IMPORTANT: Use itemType (human-readable like 'preferred_tech') NOT entry.item_key (hash)
+                        // The server cache lookup uses the human-readable key from preprocessing LLM output
                         appSettingsMemories.push({
                             app_id: appId,
-                            item_key: entry.item_key,
+                            item_key: itemType,
                             content
                         });
                     }
