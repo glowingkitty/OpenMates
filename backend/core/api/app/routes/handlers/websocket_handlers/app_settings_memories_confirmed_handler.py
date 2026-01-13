@@ -16,6 +16,8 @@ user message, rather than waiting/blocking the original task.
 import logging
 import time
 import json
+import os
+import yaml
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
@@ -23,6 +25,60 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
+
+
+def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
+    """
+    Load the 'ask' skill's configuration from the AI app's app.yml.
+    
+    This includes the default_llms, preprocessing_thresholds, and always_include_skills
+    that are needed for the task to function correctly.
+    
+    Returns:
+        Dictionary containing the skill_config for the 'ask' skill, or an empty dict
+        with a warning if loading fails.
+    """
+    # Find the AI app's directory relative to this file
+    # This handler is at: backend/core/api/app/routes/handlers/websocket_handlers/
+    # AI app.yml is at: backend/apps/ai/app.yml
+    # Path traversal:
+    #   websocket_handlers/ (1) → handlers/ (2) → routes/ (3) → app/ (4) → 
+    #   api/ (5) → core/ (6) → backend/ (7)
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up 7 levels to get to 'backend', then down to 'apps/ai'
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_dir))))))
+    app_yml_path = os.path.join(backend_dir, "apps", "ai", "app.yml")
+    
+    if not os.path.exists(app_yml_path):
+        logger.error(f"AI app.yml not found at {app_yml_path} - using empty skill config")
+        return {}
+    
+    try:
+        with open(app_yml_path, 'r', encoding='utf-8') as f:
+            app_config = yaml.safe_load(f)
+        
+        if not app_config:
+            logger.error(f"AI app.yml is empty or malformed at {app_yml_path}")
+            return {}
+        
+        # Find the 'ask' skill and return its skill_config
+        skills = app_config.get("skills", [])
+        for skill in skills:
+            if skill.get("id", "").strip() == "ask":
+                skill_config = skill.get("skill_config", {})
+                if skill_config:
+                    logger.debug(f"Loaded ask skill config from app.yml: {list(skill_config.keys())}")
+                    return skill_config
+                else:
+                    logger.warning("Ask skill found in app.yml but has no skill_config")
+                    return {}
+        
+        logger.warning(f"Ask skill not found in AI app.yml at {app_yml_path}")
+        return {}
+        
+    except Exception as e:
+        logger.error(f"Error loading ask skill config from {app_yml_path}: {e}", exc_info=True)
+        return {}
 
 
 async def handle_app_settings_memories_confirmed(
@@ -154,22 +210,53 @@ async def _cache_app_settings_memories(
     
     logger.info(f"Caching {len(app_settings_memories)} app settings/memories confirmations for chat {chat_id} from user {user_id}")
     
-    cached_count = 0
+    # DEBUG: Log the raw items received from client
+    for i, item in enumerate(app_settings_memories):
+        logger.info(f"[DEBUG] Caching item {i}: app_id={item.get('app_id')!r}, item_key={item.get('item_key')!r}")
+    
+    # Group entries by app_id:item_key (category) since multiple entries can share the same category
+    # e.g., "preferred_tech" category might have entries for "Python" and "Svelte 5"
+    # We aggregate all entries per category into a single cache entry with an array of contents
+    from collections import defaultdict
+    entries_by_category: Dict[str, List[Any]] = defaultdict(list)
+    
     for item in app_settings_memories:
+        app_id = item.get("app_id")
+        item_key = item.get("item_key")  # This is the category name (e.g., "preferred_tech")
+        content = item.get("content")  # Decrypted content from client
+        
+        if not app_id or not item_key or content is None:
+            logger.warning("Invalid app settings/memories item: missing required fields")
+            continue
+        
+        category_key = f"{app_id}:{item_key}"
+        entries_by_category[category_key].append({
+            "app_id": app_id,
+            "item_key": item_key,
+            "content": content
+        })
+    
+    logger.info(f"Grouped {len(app_settings_memories)} entries into {len(entries_by_category)} categories")
+    
+    cached_count = 0
+    for category_key, entries in entries_by_category.items():
         try:
-            app_id = item.get("app_id")
-            item_key = item.get("item_key")
-            content = item.get("content")  # Decrypted content from client
+            # Extract app_id and item_key from the first entry (all entries in group share same values)
+            app_id = entries[0]["app_id"]
+            item_key = entries[0]["item_key"]
             
-            if not app_id or not item_key or content is None:
-                logger.warning("Invalid app settings/memories item: missing required fields")
-                continue
+            # Aggregate all contents into a list
+            all_contents = [entry["content"] for entry in entries]
             
-            # Encrypt content with vault key for server cache
+            # Serialize the aggregated content as JSON
+            import json as json_module
+            aggregated_content_str = json_module.dumps(all_contents)
+            
+            # Encrypt aggregated content with vault key for server cache
             # Server can decrypt for AI context building
             # encrypt_with_user_key returns (ciphertext, key_version) tuple
             encrypted_content, _ = await encryption_service.encrypt_with_user_key(
-                plaintext=content if isinstance(content, str) else str(content),
+                plaintext=aggregated_content_str,
                 key_id=user_vault_key_id
             )
             
@@ -177,7 +264,8 @@ async def _cache_app_settings_memories(
             cache_data = {
                 "app_id": app_id,
                 "item_key": item_key,
-                "content": encrypted_content,  # Vault-encrypted content
+                "content": encrypted_content,  # Vault-encrypted aggregated content (JSON array)
+                "entry_count": len(entries),  # Track how many entries were aggregated
                 "cached_at": int(time.time())
             }
             
@@ -193,15 +281,15 @@ async def _cache_app_settings_memories(
             
             if success:
                 cached_count += 1
-                logger.debug(f"Cached app settings/memories {app_id}:{item_key} for chat {chat_id}")
+                logger.info(f"Cached {len(entries)} entries for category {app_id}:{item_key} in chat {chat_id}")
             else:
                 logger.warning(f"Failed to cache app settings/memories {app_id}:{item_key} for chat {chat_id}")
                 
         except Exception as e:
-            logger.error(f"Error processing app settings/memories item: {e}", exc_info=True)
+            logger.error(f"Error processing app settings/memories category {category_key}: {e}", exc_info=True)
             continue
     
-    logger.info(f"Successfully cached {cached_count}/{len(app_settings_memories)} app settings/memories entries for chat {chat_id}")
+    logger.info(f"Successfully cached {cached_count}/{len(entries_by_category)} categories for chat {chat_id}")
     return cached_count
 
 
@@ -247,10 +335,13 @@ async def _trigger_continuation(
     active_focus_id = pending_context.get("active_focus_id")
     chat_has_title = pending_context.get("chat_has_title", False)
     is_incognito = pending_context.get("is_incognito", False)
+    # Get the requested keys from the pending context
+    # These will be passed as app_settings_memories_metadata so preprocessing knows what's available
+    requested_keys = pending_context.get("requested_keys", [])
     
     logger.info(
         f"Loaded pending context for chat {chat_id}: original_task_id={original_task_id}, "
-        f"message_id={message_id}, is_rejection={is_rejection}"
+        f"message_id={message_id}, is_rejection={is_rejection}, requested_keys={requested_keys}"
     )
     
     # Retrieve vault-encrypted messages from AI cache
@@ -337,6 +428,19 @@ async def _trigger_continuation(
         from backend.apps.ai.tasks.ask_skill_task import process_ai_skill_ask_task
         
         # Build the request data dict
+        # Convert requested_keys to app_settings_memories_metadata format
+        # The keys are stored as "app_id:item_key" but the metadata format uses "app_id-item_key"
+        app_settings_memories_metadata = []
+        if requested_keys and not is_rejection:
+            for key in requested_keys:
+                # Keys are stored as "app_id:item_key", convert to "app_id-item_key" for metadata
+                if ":" in key:
+                    app_id, item_key = key.split(":", 1)
+                    app_settings_memories_metadata.append(f"{app_id}-{item_key}")
+                else:
+                    app_settings_memories_metadata.append(key)
+            logger.info(f"Passing {len(app_settings_memories_metadata)} app_settings_memories_metadata keys to continuation task: {app_settings_memories_metadata}")
+        
         request_data_dict = {
             "chat_id": chat_id,
             "message_id": message_id,
@@ -347,17 +451,25 @@ async def _trigger_continuation(
             "is_incognito": is_incognito,
             "mate_id": mate_id,
             "active_focus_id": active_focus_id,
+            # Pass the app_settings_memories_metadata so preprocessing knows what's available
+            # This is CRITICAL: without this, preprocessing won't know to load the cached data
+            "app_settings_memories_metadata": app_settings_memories_metadata if app_settings_memories_metadata else None,
             # Signal that this is a continuation after app settings/memories confirmation
             # This allows the task to skip storing another pending context if data
             # is still not in cache for some reason (avoids infinite loop)
             "is_app_settings_memories_continuation": True,
         }
         
-        # Use default skill config
-        skill_config_dict = {
-            "preprocessing_llm_model_id": None,
-            "max_tokens": 4096,
-        }
+        # Load the proper skill config from AI app's app.yml
+        # This includes default_llms which is REQUIRED for preprocessing to work
+        # The preprocessor accesses skill_config.default_llms.preprocessing_model
+        skill_config_dict = _load_ask_skill_config_from_app_yml()
+        
+        if not skill_config_dict or "default_llms" not in skill_config_dict:
+            logger.error(
+                f"Failed to load ask skill config with default_llms from app.yml for chat {chat_id}. "
+                "The continuation task may fail during preprocessing."
+            )
         
         # Trigger the task with the original request parameters
         # The task will find app settings/memories in cache (if confirmed)

@@ -521,7 +521,7 @@ async def handle_main_processing(
                 # Notify client to dismiss the permission dialog
                 # Use Redis pub/sub to send to WebSocket
                 try:
-                    import json
+                    # Note: json is imported at module level, don't re-import locally as it shadows the global import
                     redis_client = await cache_service.client
                     if redis_client:
                         channel = f"user_cache_events:{request_data.user_id}"
@@ -574,7 +574,34 @@ async def handle_main_processing(
             
             if cached_data:
                 logger.info(f"{log_prefix} Found {len(cached_data)} app settings/memories entries in cache")
-                loaded_app_settings_and_memories_content = cached_data
+                
+                # IMPORTANT: Decrypt the vault-encrypted content before passing to LLM
+                # The cache stores: {"app_id": ..., "item_key": ..., "content": "<encrypted>", "cached_at": ...}
+                # We need to decrypt "content" and pass only the decrypted content to the LLM
+                for key, cache_entry in cached_data.items():
+                    try:
+                        encrypted_content = cache_entry.get("content")
+                        if encrypted_content and user_vault_key_id and encryption_service:
+                            # Decrypt the vault-encrypted content
+                            decrypted_content = await encryption_service.decrypt_with_user_key(
+                                ciphertext=encrypted_content,
+                                key_id=user_vault_key_id
+                            )
+                            if decrypted_content:
+                                # Try to parse as JSON (content might be serialized JSON)
+                                try:
+                                    loaded_app_settings_and_memories_content[key] = json.loads(decrypted_content)
+                                except json.JSONDecodeError:
+                                    # If not JSON, use as plain string
+                                    loaded_app_settings_and_memories_content[key] = decrypted_content
+                                logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key}")
+                            else:
+                                logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
+                        else:
+                            # If no encryption service or vault key, log warning
+                            logger.warning(f"{log_prefix} Cannot decrypt app settings/memories for {key} - missing encryption_service or user_vault_key_id")
+                    except Exception as decrypt_error:
+                        logger.error(f"{log_prefix} Error decrypting app settings/memories for {key}: {decrypt_error}", exc_info=True)
             
             # Check if we need to create a new request for missing keys
             missing_keys = [key for key in requested_keys if key not in cached_data]

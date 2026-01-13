@@ -1662,6 +1662,9 @@ class ChatCacheMixin:
         """
         result = {}
         
+        # DEBUG: Log all requested keys
+        logger.info(f"[DEBUG] get_app_settings_memories_batch_from_cache called with requested_keys={requested_keys} for chat {chat_id}")
+        
         for key_str in requested_keys:
             try:
                 # Parse "app_id:item_key" format
@@ -1671,6 +1674,7 @@ class ChatCacheMixin:
                     continue
                 
                 app_id, item_key = parts
+                logger.info(f"[DEBUG] Looking up cache key: app_id={app_id!r}, item_key={item_key!r} for chat {chat_id}")
                 data = await self.get_app_settings_memories_from_cache(user_id, chat_id, app_id, item_key)
                 if data:
                     result[key_str] = data
