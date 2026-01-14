@@ -665,9 +665,28 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
   embedType = 'app-skill-use';
   
   canGroup(nodeA: EmbedNodeAttributes, nodeB: EmbedNodeAttributes): boolean {
-    // App skill use embeds can be grouped together if they're the same type
-    // This allows multiple search requests to be displayed as a horizontally scrollable group
-    return nodeA.type === 'app-skill-use' && nodeB.type === 'app-skill-use';
+    // App skill use embeds can only be grouped if they have the SAME app_id AND skill_id
+    // This ensures that different skill types (e.g., web.search vs code.get_docs) are NOT grouped together
+    // Each unique app_id+skill_id combination should be in its own group
+    if (nodeA.type !== 'app-skill-use' || nodeB.type !== 'app-skill-use') {
+      return false;
+    }
+    
+    // Both must have the same app_id and skill_id to be grouped
+    const sameAppId = nodeA.app_id === nodeB.app_id;
+    const sameSkillId = nodeA.skill_id === nodeB.skill_id;
+    
+    console.debug('[AppSkillUseGroupHandler] canGroup check:', {
+      nodeA_app_id: nodeA.app_id,
+      nodeA_skill_id: nodeA.skill_id,
+      nodeB_app_id: nodeB.app_id,
+      nodeB_skill_id: nodeB.skill_id,
+      sameAppId,
+      sameSkillId,
+      canGroup: sameAppId && sameSkillId
+    });
+    
+    return sameAppId && sameSkillId;
   }
   
   createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {

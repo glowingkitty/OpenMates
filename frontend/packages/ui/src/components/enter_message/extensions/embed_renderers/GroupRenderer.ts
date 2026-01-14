@@ -16,6 +16,7 @@ import VideosSearchEmbedPreview from '../../../embeds/videos/VideosSearchEmbedPr
 import MapsSearchEmbedPreview from '../../../embeds/maps/MapsSearchEmbedPreview.svelte';
 import VideoTranscriptEmbedPreview from '../../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
 import WebReadEmbedPreview from '../../../embeds/web/WebReadEmbedPreview.svelte';
+import CodeGetDocsEmbedPreview from '../../../embeds/code/CodeGetDocsEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -485,6 +486,27 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle code.get_docs skill (documentation lookup)
+      if (appId === 'code' && skillId === 'get_docs') {
+        const library = decodedContent?.library || '';
+        const skillTaskId = decodedContent?.skill_task_id || '';
+        const component = mount(CodeGetDocsEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            results,
+            library,
+            status,
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen
           }
