@@ -397,7 +397,10 @@
                     HTMLAttributes: {}
                 },
                 // Disable extensions we provide through MarkdownExtensions to avoid duplicates
+                // NOTE: StarterKit v3.4+ now includes link and underline by default
                 strike: false, // Using MarkdownStrike instead
+                link: false,   // Using MarkdownLink instead (with custom renderHTML for internal links)
+                underline: false, // Using MarkdownUnderline instead
             }),
             Embed,
             MateNode,
