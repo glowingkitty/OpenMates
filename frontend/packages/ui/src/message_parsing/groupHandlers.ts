@@ -672,6 +672,20 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       return false;
     }
     
+    // CRITICAL: If either embed is missing app_id or skill_id, they CANNOT be grouped.
+    // This prevents undefined === undefined from incorrectly grouping different skill types together.
+    // Without this check, web.search and code.get_docs would be grouped together when their
+    // app_id/skill_id haven't been resolved yet from the EmbedStore.
+    if (!nodeA.app_id || !nodeA.skill_id || !nodeB.app_id || !nodeB.skill_id) {
+      console.debug('[AppSkillUseGroupHandler] canGroup: Missing app_id or skill_id, cannot group:', {
+        nodeA_app_id: nodeA.app_id,
+        nodeA_skill_id: nodeA.skill_id,
+        nodeB_app_id: nodeB.app_id,
+        nodeB_skill_id: nodeB.skill_id
+      });
+      return false;
+    }
+    
     // Both must have the same app_id and skill_id to be grouped
     const sameAppId = nodeA.app_id === nodeB.app_id;
     const sameSkillId = nodeA.skill_id === nodeB.skill_id;

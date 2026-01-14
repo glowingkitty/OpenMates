@@ -101,7 +101,7 @@
     }
     
     .thinking-section.expanded {
-        background: var(--color-surface-primary, #fff);
+        background: var(--color-grey-20);
     }
     
     .thinking-header {
