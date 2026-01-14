@@ -317,21 +317,14 @@ class BaseSkill:
         # Use provided logger or fall back to print for debug messages
         log_func = logger.debug if logger else print
         
-        # For single requests, 'id' is optional - auto-generate if missing
-        # For multi-request calls, 'id' is required to match responses to requests
-        if total_requests == 1:
-            # Single request: auto-generate 'id' if missing
-            if "id" not in req:
-                req["id"] = 1  # Default to 1 for single requests
-                log_func(f"Auto-generated 'id'=1 for single request")
-        else:
-            # Multiple requests: 'id' is required
-            if "id" not in req:
-                error_msg = (
-                    f"Request {request_index + 1} is missing required 'id' field. "
-                    f"Each request must have a unique 'id' (number or UUID string) for matching responses in multi-request calls."
-                )
-                return (None, error_msg)
+        # Auto-generate 'id' if missing for any request
+        # This makes the system more robust by not relying on LLMs to always provide IDs
+        # The ID is used to match responses to requests in multi-request calls
+        if "id" not in req:
+            # Use request_index + 1 as the auto-generated ID (1-indexed for readability)
+            auto_id = request_index + 1
+            req["id"] = auto_id
+            log_func(f"Auto-generated 'id'={auto_id} for request {request_index + 1} of {total_requests}")
         
         request_id = req.get("id")
         

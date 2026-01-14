@@ -310,6 +310,108 @@ async def listen_for_ai_chat_streams(app: FastAPI):
             await asyncio.sleep(1) # Prevent tight loop on continuous errors
 
 
+async def listen_for_ai_thinking_streams(app: FastAPI):
+    """
+    Listens to Redis Pub/Sub for AI thinking/reasoning stream events from thinking models
+    (Gemini 2.5+, Anthropic Claude with extended thinking) and forwards them to relevant users.
+    
+    Thinking content is streamed to a separate channel (chat_stream_thinking::{chat_id})
+    from the main response channel. This allows the frontend to:
+    - Display a collapsible "Thinking..." section in the UI
+    - Store thinking content separately (encrypted)
+    - Show real-time thinking progress during streaming
+    
+    Event types:
+    - thinking_chunk: Partial thinking content (streamed paragraph by paragraph)
+    - thinking_complete: Thinking finished (includes signature and token count)
+    """
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. AI thinking stream listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.debug("Starting Redis Pub/Sub listener for AI thinking stream events (channel: chat_stream_thinking::*)...")
+
+    await cache_service.client  # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("chat_stream_thinking::*"):
+        logger.debug(f"AI Thinking Stream Listener: Raw message from pubsub channel chat_stream_thinking::*: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")  # e.g., "chat_stream_thinking::some_chat_id"
+                
+                # Validate payload structure
+                if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
+                    logger.warning(f"AI Thinking Stream Listener: Received malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+
+                event_type = redis_payload.get("type")
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                chat_id_from_payload = redis_payload.get("chat_id")
+                task_id = redis_payload.get("task_id")
+
+                if not user_id_uuid:
+                    logger.warning(f"AI Thinking Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.debug(f"AI Thinking Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload}")
+
+                if event_type == "thinking_chunk":
+                    # Forward thinking chunk to all devices where this chat is active
+                    user_connections = manager.get_connections_for_user(user_id_uuid)
+                    for device_hash, websocket_conn in user_connections.items():
+                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
+                        
+                        if chat_id_from_payload == active_chat_on_device:
+                            # Send thinking chunk to active chat
+                            thinking_chunk_payload = {
+                                "task_id": task_id,
+                                "chat_id": chat_id_from_payload,
+                                "content": redis_payload.get("content", ""),
+                            }
+                            await manager.send_personal_message(
+                                message={"type": "thinking_chunk", "payload": thinking_chunk_payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash
+                            )
+                            logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_chunk' to {user_id_uuid}/{device_hash} ({len(thinking_chunk_payload.get('content', ''))} chars)")
+                
+                elif event_type == "thinking_complete":
+                    # Forward thinking complete event to all devices where this chat is active
+                    user_connections = manager.get_connections_for_user(user_id_uuid)
+                    for device_hash, websocket_conn in user_connections.items():
+                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
+                        
+                        if chat_id_from_payload == active_chat_on_device:
+                            # Send thinking complete to active chat
+                            thinking_complete_payload = {
+                                "task_id": task_id,
+                                "chat_id": chat_id_from_payload,
+                                "signature": redis_payload.get("signature"),
+                                "total_tokens": redis_payload.get("total_tokens"),
+                            }
+                            await manager.send_personal_message(
+                                message={"type": "thinking_complete", "payload": thinking_complete_payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash
+                            )
+                            logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_complete' to {user_id_uuid}/{device_hash}")
+                
+                else:
+                    logger.warning(f"AI Thinking Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
+            
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"AI Thinking Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"AI Thinking Stream Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"AI Thinking Stream Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)  # Prevent tight loop on continuous errors
+
+
 async def listen_for_ai_typing_indicator_events(app: FastAPI):
     """Listens to Redis Pub/Sub for AI processing started events to send typing indicators."""
     if not hasattr(app.state, 'cache_service'):

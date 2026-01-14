@@ -70,7 +70,8 @@ logger = logging.getLogger(__name__)
 # Import the listener functions for Redis Pub/Sub
 from backend.core.api.app.routes.websockets import (  # noqa: E402
     listen_for_cache_events, 
-    listen_for_ai_chat_streams, 
+    listen_for_ai_chat_streams,
+    listen_for_ai_thinking_streams,  # Thinking/reasoning streams for thinking models (Gemini, Anthropic)
     listen_for_ai_message_persisted_events,
     listen_for_ai_typing_indicator_events, # Added import
     listen_for_chat_updates, # Added import
@@ -710,6 +711,9 @@ async def lifespan(app: FastAPI):
     
     logger.info("Starting Redis Pub/Sub listener for AI chat streams as a background task...")
     app.state.ai_chat_stream_listener_task = asyncio.create_task(listen_for_ai_chat_streams(app))
+
+    logger.info("Starting Redis Pub/Sub listener for AI thinking streams as a background task...")
+    app.state.ai_thinking_stream_listener_task = asyncio.create_task(listen_for_ai_thinking_streams(app))
 
     logger.info("Starting Redis Pub/Sub listener for AI message persisted events as a background task...")
     app.state.ai_message_persisted_listener_task = asyncio.create_task(listen_for_ai_message_persisted_events(app))

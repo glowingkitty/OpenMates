@@ -117,10 +117,10 @@ skills:
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
-            Example for single search: {"requests": [{"id": 1, "query": "Python async"}]}
-            Example for multiple searches: {"requests": [{"id": 1, "query": "Python async"}, {"id": 2, "query": "FastAPI best practices"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (id, count, country, search_lang, safesearch).
-            Note: The 'id' field is automatically added to all skills with 'requests' arrays - it's optional for single requests (defaults to 1) and required for multiple requests to match responses.
+            Example for single search: {"requests": [{"query": "Python async"}]}
+            Example for multiple searches: {"requests": [{"query": "Python async"}, {"query": "FastAPI best practices"}]}
+            Each object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
+            Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
             properties:
