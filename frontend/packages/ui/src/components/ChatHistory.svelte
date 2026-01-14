@@ -39,7 +39,8 @@
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import { 
-    isPermissionDialogVisible 
+    isPermissionDialogVisible,
+    currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
 
   interface InternalMessage {
@@ -169,14 +170,26 @@
   // Props using Svelte 5 runes mode
   let {
     messageInputHeight = 0,
-    containerWidth = 0
+    containerWidth = 0,
+    currentChatId = undefined
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
+    currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+  
+  // CRITICAL: Only show permission dialog if it belongs to the current chat
+  // This prevents the dialog from showing in the wrong chat when user switches chats
+  // The dialog's chatId must match the currently active chat's ID
+  let shouldShowPermissionDialog = $derived(
+    $isPermissionDialogVisible && 
+    $currentPermissionRequest?.chatId && 
+    currentChatId && 
+    $currentPermissionRequest.chatId === currentChatId
+  );
 
   const dispatch = createEventDispatcher();
 
@@ -672,7 +685,8 @@
             
             <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
             <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
-            {#if $isPermissionDialogVisible}
+            <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
+            {#if shouldShowPermissionDialog}
                 <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
                 </div>

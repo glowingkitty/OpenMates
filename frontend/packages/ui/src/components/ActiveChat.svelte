@@ -75,6 +75,7 @@
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
+    import { appSettingsMemoriesPermissionStore } from '../stores/appSettingsMemoriesPermissionStore'; // Import for clearing permission dialog on chat switch
     
     const dispatch = createEventDispatcher();
     
@@ -2398,6 +2399,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Video in PiP mode - keeping video playing during chat switch');
         }
         
+        // CRITICAL: Clear app settings/memories permission dialog if it belongs to a different chat
+        // This ensures the permission dialog only shows in the chat where the request originated
+        const permissionDialogChatId = appSettingsMemoriesPermissionStore.getCurrentChatId();
+        if (permissionDialogChatId && permissionDialogChatId !== chat.chat_id) {
+            console.debug('[ActiveChat] Clearing permission dialog - switching from chat', permissionDialogChatId, 'to', chat.chat_id);
+            appSettingsMemoriesPermissionStore.clear();
+        }
+        
         // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
@@ -3825,6 +3834,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         bind:this={chatHistoryRef}
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         containerWidth={effectiveChatWidth}
+                        currentChatId={currentChat?.chat_id}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}

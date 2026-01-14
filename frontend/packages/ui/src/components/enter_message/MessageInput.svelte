@@ -1372,12 +1372,12 @@
             }
             
             // Optimistic UI update: immediately clear typing indicator
-            // Use currentTypingStatus to get chatId and taskId for clearing
+            // Use clearTypingForChat since we only have taskId, not message_id
+            // (aiMessageId in the store is set to message_id, not task_id)
             if (currentTypingStatus?.isTyping && 
-                currentTypingStatus.chatId === currentChatId && 
-                currentTypingStatus.aiMessageId === taskId) {
-                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel');
-                aiTypingStore.clearTyping(currentChatId, taskId);
+                currentTypingStatus.chatId === currentChatId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', currentChatId);
+                aiTypingStore.clearTypingForChat(currentChatId);
             }
             
             // Clear any queued message text

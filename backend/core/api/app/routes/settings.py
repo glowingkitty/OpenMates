@@ -2991,7 +2991,7 @@ class UpdatePasswordResponse(BaseModel):
     message: str
 
 
-@router.post("/update-password", response_model=UpdatePasswordResponse)
+@router.post("/update-password", response_model=UpdatePasswordResponse, include_in_schema=False)  # Exclude from schema - web app only, not for API access
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def update_password(
     request: Request,

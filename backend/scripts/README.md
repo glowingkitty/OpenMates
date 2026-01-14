@@ -261,6 +261,204 @@ docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./
 
 ---
 
+### Fetch OpenRouter Rankings
+
+**Purpose:** Fetch AI model rankings from OpenRouter.ai including the LLM Leaderboard, Top Apps, and Programming category leaderboard.
+
+**Command:**
+```bash
+# Fetch general LLM leaderboard and Top Apps
+docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py
+
+# Fetch with Programming category leaderboard
+docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --category programming
+
+# Output as JSON
+docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --json
+
+# Save to file
+docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --json -o /app/rankings.json
+
+# Basic mode (no Firecrawl, limited to main leaderboard only)
+docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --basic
+```
+
+**What it shows:**
+
+Without `--category`:
+- **General LLM Leaderboard** - Top models by overall token usage this week
+- **Top Apps** - Largest public apps using OpenRouter
+
+With `--category programming`:
+- **Programming Category Leaderboard** - Top models used specifically for programming tasks
+- Different rankings reflecting which models developers prefer for coding
+
+**Example output:**
+```
+═══════════════════════════════════════════════════════════════════════════
+📊 OPENROUTER AI MODEL RANKINGS - PROGRAMMING
+═══════════════════════════════════════════════════════════════════════════
+Source:   https://openrouter.ai/rankings/programming
+Method:   firecrawl
+Time:     2026-01-14T12:13:51.420367+00:00
+Category: programming
+Status:   ✅ Valid
+
+───────────────────────────────────────────────────────────────────────────
+📈 PROGRAMMING LEADERBOARD (Token Usage)
+───────────────────────────────────────────────────────────────────────────
+#    Model                            Provider     Tokens     Share   
+1    Grok Code Fast 1                 x-ai         200B       25.1%   
+2    Claude Opus 4.5                  anthropic    143B       18.0%   
+3    Devstral 2 2512 (free)          mistralai    70.2B      8.8%    
+4    Gemini 3 Flash Preview           google       63.3B      8.0%    
+5    Claude Sonnet 4.5               anthropic    62.2B      7.8%    
+...
+```
+
+**Validation:** The script validates output and warns if the scraper may be broken:
+```
+⚠️  Warnings (1):
+   - NO_CATEGORY_DATA: 'programming' leaderboard empty - scraper may be broken
+```
+
+**Options:**
+- `--category, -c CAT`: Fetch category-specific leaderboard (only `programming` is reliably available)
+- `--json`: Output as JSON instead of formatted text
+- `-o, --output FILE`: Save output to file
+- `--basic`: Use basic HTML parsing (no Firecrawl, limited data)
+
+**Known Limitation:** OpenRouter's rankings page is a Single Page Application (SPA). The Categories section always defaults to showing "Programming" data regardless of the URL path. Other categories (roleplay, legal, marketing, etc.) cannot be reliably fetched because the UI dropdown doesn't auto-select based on the URL.
+
+**Note:** Uses Firecrawl API (key from Vault) to render JavaScript. Without Firecrawl (`--basic`), only the general leaderboard is available.
+
+---
+
+### Fetch LMArena Rankings
+
+**Purpose:** Fetch AI model rankings from LMArena.ai (LMSYS Chatbot Arena) based on human preference votes using Elo ratings.
+
+**Command:**
+```bash
+# Fetch overall text leaderboard (default)
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py
+
+# Fetch coding category leaderboard
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --category coding
+
+# Output as JSON
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --json
+
+# Save to file
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py -o /app/lmarena.json
+
+# List all available categories
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --list-categories
+
+# Limit results
+docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --limit 20
+```
+
+**What it shows:**
+- Model rankings based on Elo scores (human preference votes)
+- Vote counts per model
+- Organization/provider information
+- Data quality validation metrics
+
+**Available categories:**
+- Main: `text`, `webdev`, `vision`, `text-to-image`, `image-edit`, `search`, `text-to-video`, `image-to-video`
+- Text subcategories: `overall`, `hard-prompts`, `coding`, `math`, `creative-writing`, `instruction-following`, `longer-query`
+- Aliases: `code` → coding, `writing` → creative-writing
+
+**Options:**
+- `--category, -c CAT`: Category to fetch (default: text)
+- `--limit, -n N`: Max models to return (default: 50)
+- `--json, -j`: Output as JSON
+- `-o, --output FILE`: Save output to file
+- `--list-categories, -l`: List all available categories
+
+**Validation:** Includes comprehensive validation with data quality metrics:
+- Completeness percentage (required fields)
+- Vote count coverage
+- Organization coverage
+- Expected model families found
+- Score range validation
+
+**Note:** LMArena has NO official API - uses Firecrawl to render JavaScript. Cloudflare protection may occasionally block requests.
+
+**Documentation:** See [LMARENA_RANKINGS_README.md](./LMARENA_RANKINGS_README.md) for detailed documentation.
+
+---
+
+### Fetch SimpleBench Rankings
+
+**Purpose:** Fetch AI model rankings from SimpleBench (simple-bench.com), a multiple-choice reasoning benchmark where non-specialized humans outperform frontier LLMs.
+
+**Command:**
+```bash
+# Fetch SimpleBench leaderboard
+docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py
+
+# Output as JSON
+docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py --json
+
+# Save to file
+docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py -o /app/simplebench.json
+
+# Include human baseline in results
+docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py --include-human
+
+# Limit results
+docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py --limit 20
+```
+
+**What it shows:**
+- Model rankings by percentage score
+- Organization/provider for each model
+- Human baseline comparison (83.7%)
+- Validation warnings if data quality issues detected
+
+**Example output:**
+```
+================================================================================
+SIMPLEBENCH LEADERBOARD - AI Reasoning Benchmark
+Source: https://simple-bench.com/
+Fetched: 2026-01-14 12:30:35 UTC
+================================================================================
+
+Rank   Model                                    Score        Organization        
+--------------------------------------------------------------------------------
+#1     Gemini 3 Pro Preview                     76.4%        Google              
+#2     Gemini 2.5 Pro (06-05)                   62.4%        Google              
+#3     Claude Opus 4.5                          62.0%        Anthropic           
+#4     GPT-5 Pro                                61.6%        OpenAI              
+...
+```
+
+**Options:**
+- `--json`: Output as JSON instead of formatted text
+- `-o, --output FILE`: Save output to file
+- `--limit N`: Max models to return (default: 100)
+- `--include-human`: Include human baseline in results (rank 0)
+
+**Note:** SimpleBench tests spatio-temporal reasoning, social intelligence, and linguistic adversarial robustness where humans significantly outperform current AI models.
+
+---
+
+## Leaderboard Scripts Quick Reference
+
+| Script | Source | Data Type | Command |
+|--------|--------|-----------|---------|
+| OpenRouter | openrouter.ai | API usage (tokens) | `fetch_openrouter_rankings.py` |
+| LMArena | lmarena.ai | Human votes (Elo) | `fetch_lmarena_rankings.py` |
+| SimpleBench | simple-bench.com | Reasoning benchmark | `fetch_simplebench_rankings.py` |
+
+All three scripts require:
+- Running inside Docker container (`docker exec -it api python ...`)
+- Firecrawl API key (configured in Vault)
+
+---
+
 ## Running Scripts
 
 All scripts in this directory should be executed inside the Docker container to ensure:

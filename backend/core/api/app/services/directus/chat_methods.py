@@ -518,8 +518,11 @@ class ChatMethods:
             
             messages_by_chat: Dict[str, List[Dict[str, Any]]] = {chat_id: [] for chat_id in chat_ids}
             for msg in messages_from_db:
-                # Alias 'id' to 'message_id' to match client-side expectations
-                msg['message_id'] = msg.get('id')
+                # CRITICAL: Use 'client_message_id' as 'message_id' to match client-side expectations
+                # The 'client_message_id' is the client-generated ID (format: {chat_id_suffix}-{uuid})
+                # which is used for matching user_message_id in app settings/memories system messages.
+                # Fall back to 'id' (Directus UUID) only if client_message_id is not available.
+                msg['message_id'] = msg.get('client_message_id') or msg.get('id')
                 messages_by_chat[msg['chat_id']].append(msg)
 
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}

@@ -344,19 +344,57 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e_cache_get:
         logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
-    # --- Fetch user_vault_key_id from cache and user_app_memories_metadata from Directus ---
+    # --- Fetch user_vault_key_id from cache (with on-demand warming from Directus if not cached) ---
+    # This supports API-only users who may not have logged in via web app to trigger cache warming
     user_vault_key_id: Optional[str] = None
     if cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
+        
         if not cached_user_data:
-            logger.error(f"[Task ID: {task_id}] Failed to retrieve cached user data for user_id: {request_data.user_id}. Aborting task.")
-            raise RuntimeError("User data not found in cache.")
+            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache
+            # This is critical for API-only users who haven't logged in via web app
+            logger.info(f"[Task ID: {task_id}] User not in cache, attempting on-demand cache warming for user_id: {request_data.user_id}")
+            try:
+                if directus_service_instance:
+                    # Fetch minimal user data from Directus (just what we need for AI processing)
+                    user_data_from_db = await directus_service_instance.get_items(
+                        'users',
+                        params={
+                            'filter[id][_eq]': request_data.user_id,
+                            'fields': 'id,vault_key_id,encrypted_username,encrypted_credits',
+                            'limit': 1
+                        }
+                    )
+                    
+                    if user_data_from_db and len(user_data_from_db) > 0:
+                        user_record = user_data_from_db[0]
+                        # Cache the user data for future requests
+                        cache_data = {
+                            'id': user_record.get('id'),
+                            'user_id': user_record.get('id'),
+                            'vault_key_id': user_record.get('vault_key_id'),
+                            'encrypted_username': user_record.get('encrypted_username'),
+                            'encrypted_credits': user_record.get('encrypted_credits'),
+                            '_api_warmed': True  # Flag to indicate this was warmed via API
+                        }
+                        await cache_service_instance.set_user(cache_data, user_id=request_data.user_id)
+                        cached_user_data = cache_data
+                        logger.info(f"[Task ID: {task_id}] On-demand cache warming successful for user_id: {request_data.user_id}")
+                    else:
+                        logger.error(f"[Task ID: {task_id}] User not found in Directus: {request_data.user_id}")
+                        raise RuntimeError(f"User not found: {request_data.user_id}")
+                else:
+                    logger.error(f"[Task ID: {task_id}] DirectusService not available for on-demand cache warming")
+                    raise RuntimeError("DirectusService not available for cache warming")
+            except Exception as e:
+                logger.error(f"[Task ID: {task_id}] On-demand cache warming failed: {e}", exc_info=True)
+                raise RuntimeError(f"Failed to warm cache for user: {e}")
 
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
-            logger.error(f"[Task ID: {task_id}] vault_key_id not found in cached user data for user_id: {request_data.user_id}. Aborting task.")
-            raise RuntimeError("User vault key ID not found in cache.")
-        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id from cache using user_id: {request_data.user_id}.")
+            logger.error(f"[Task ID: {task_id}] vault_key_id not found in user data for user_id: {request_data.user_id}. Aborting task.")
+            raise RuntimeError("User vault key ID not found.")
+        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id for user_id: {request_data.user_id}.")
     elif not cache_service_instance:
         logger.error(f"[Task ID: {task_id}] CacheService instance not available. Cannot fetch user_vault_key_id. Aborting task.")
         raise RuntimeError("CacheService not available.")

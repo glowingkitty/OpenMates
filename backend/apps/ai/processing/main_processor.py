@@ -479,6 +479,67 @@ async def _charge_skill_credits(
         # Don't raise - billing failure shouldn't break skill execution
 
 
+def _convert_timestamps_to_human_readable(value: Any) -> Any:
+    """
+    Recursively converts Unix timestamps in app settings/memories data to human-readable date strings.
+    
+    CRITICAL: LLMs cannot reliably interpret raw Unix timestamps (e.g., 1768390180).
+    They may hallucinate incorrect years, especially for dates outside their training data.
+    Converting timestamps to human-readable format (e.g., "January 14, 2026") ensures
+    the LLM correctly understands when settings/memories were created.
+    
+    Detects timestamps by:
+    1. Looking for keys containing 'date', 'time', 'created', 'updated', 'added', '_at' (case-insensitive)
+    2. Checking if the value is an integer in a reasonable Unix timestamp range (2010-2100)
+    
+    Args:
+        value: The value to process (can be dict, list, or primitive)
+    
+    Returns:
+        The processed value with timestamps converted to readable strings
+    """
+    # Define timestamp field name patterns (case-insensitive)
+    TIMESTAMP_PATTERNS = ('date', 'time', 'created', 'updated', 'added', '_at')
+    
+    # Unix timestamp range: 2010-01-01 to 2100-01-01 (to avoid false positives)
+    MIN_TIMESTAMP = 1262304000  # 2010-01-01 00:00:00 UTC
+    MAX_TIMESTAMP = 4102444800  # 2100-01-01 00:00:00 UTC
+    
+    def is_likely_timestamp(key: str, val: Any) -> bool:
+        """Check if a field is likely a Unix timestamp based on key name and value."""
+        if not isinstance(val, (int, float)):
+            return False
+        key_lower = key.lower()
+        # Check if key matches any timestamp pattern
+        if any(pattern in key_lower for pattern in TIMESTAMP_PATTERNS):
+            # Check if value is in valid Unix timestamp range
+            return MIN_TIMESTAMP <= val <= MAX_TIMESTAMP
+        return False
+    
+    def timestamp_to_readable(timestamp: int) -> str:
+        """Convert Unix timestamp to human-readable date string."""
+        try:
+            dt = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+            # Format: "January 14, 2026" - clear and unambiguous
+            return dt.strftime("%B %d, %Y")
+        except Exception:
+            # If conversion fails, return original value as string
+            return str(timestamp)
+    
+    if isinstance(value, dict):
+        processed = {}
+        for k, v in value.items():
+            if is_likely_timestamp(k, v):
+                processed[k] = timestamp_to_readable(int(v))
+            else:
+                processed[k] = _convert_timestamps_to_human_readable(v)
+        return processed
+    elif isinstance(value, list):
+        return [_convert_timestamps_to_human_readable(item) for item in value]
+    else:
+        return value
+
+
 async def handle_main_processing(
     task_id: str,
     request_data: AskSkillRequest,
@@ -793,7 +854,11 @@ async def handle_main_processing(
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
-            value_str = json.dumps(value) if not isinstance(value, str) else value
+            # CRITICAL: Convert Unix timestamps to human-readable date strings
+            # LLMs hallucinate dates when given raw timestamps (e.g., may say "added in 2024" for 2026 timestamps)
+            # This ensures dates like "added_date" are formatted as "January 14, 2026" instead of 1768390180
+            processed_value = _convert_timestamps_to_human_readable(value)
+            value_str = json.dumps(processed_value) if not isinstance(processed_value, str) else processed_value
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 

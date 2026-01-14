@@ -188,19 +188,119 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
 
 
 def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Optional[str], List[types.Content]):
+    """
+    Convert OpenAI-compatible message format to Google Gemini format.
+    
+    Handles:
+    - system messages: Extracted as system_instruction
+    - user messages: Converted to role='user' with text parts
+    - assistant messages: Converted to role='model' with text and/or function call parts
+    - tool messages: Converted to role='user' with function_response parts
+    
+    IMPORTANT: For Google Gemini, tool/function results must be sent as:
+    - types.Content(role='user', parts=[types.Part.from_function_response(...)])
+    - The role is 'user' (not 'tool') because function responses come from the user side
+    
+    This is critical to prevent the model from echoing tool results as if they were
+    its own previous responses.
+    """
     system_prompt = None
     history = []
     
     processed_messages = list(messages)
     
+    # Extract system prompt if present
     if processed_messages and processed_messages[0].get("role") == "system":
         system_prompt = processed_messages.pop(0)["content"]
 
     for msg in processed_messages:
-        role = "user" if msg.get("role") == "user" else "model"
+        role = msg.get("role", "")
         content = msg.get("content", "")
-        if content:
-            history.append(types.Content(role=role, parts=[types.Part.from_text(text=content)]))
+        
+        if role == "user":
+            # User message: Simple text content
+            if content:
+                history.append(types.Content(role="user", parts=[types.Part.from_text(text=content)]))
+        
+        elif role == "assistant":
+            # Assistant message: May have text content and/or function calls
+            parts = []
+            
+            # Check for function/tool calls in the assistant message
+            tool_calls = msg.get("tool_calls", [])
+            if tool_calls:
+                # Convert each tool call to a FunctionCall part
+                for tc in tool_calls:
+                    if isinstance(tc, dict):
+                        # Parse from dict format (OpenAI-compatible)
+                        func = tc.get("function", {})
+                        func_name = func.get("name", "")
+                        func_args_raw = func.get("arguments", "{}")
+                        try:
+                            func_args = json.loads(func_args_raw) if isinstance(func_args_raw, str) else func_args_raw
+                        except json.JSONDecodeError:
+                            func_args = {}
+                        if func_name:
+                            # Create FunctionCall using types module
+                            # Note: In google-genai SDK, FunctionCall is accessed via types
+                            parts.append(types.Part.from_function_call(
+                                name=func_name,
+                                args=func_args
+                            ))
+            
+            # Add text content if present (assistant may have both text and function calls)
+            if content:
+                parts.append(types.Part.from_text(text=content))
+            
+            if parts:
+                history.append(types.Content(role="model", parts=parts))
+        
+        elif role == "tool":
+            # Tool/function result message: Must be formatted as function_response
+            # CRITICAL: This is the key fix - tool results must use from_function_response()
+            # to tell Gemini these are function results, not assistant text
+            tool_call_id = msg.get("tool_call_id", "")
+            func_name = msg.get("name", "")
+            
+            # If we don't have the function name, try to extract it from tool_call_id
+            # (some formats use "func_name-uuid" pattern)
+            if not func_name and tool_call_id:
+                # tool_call_id might be in format "func_name-uuid" or just an ID
+                if "-" in tool_call_id:
+                    # Try to extract function name from patterns like "web-search-abc123"
+                    func_name = "-".join(tool_call_id.split("-")[:-1]) if tool_call_id.count("-") > 1 else tool_call_id.split("-")[0]
+            
+            # Parse tool result content - could be JSON or plain text
+            try:
+                # Try to parse as JSON to get structured response
+                if isinstance(content, str):
+                    tool_response = json.loads(content)
+                else:
+                    tool_response = content
+            except (json.JSONDecodeError, TypeError):
+                # If not valid JSON, wrap as string result
+                tool_response = {"result": content}
+            
+            if func_name:
+                # Create function response part
+                # Use 'user' role because function responses come from the user/system side
+                function_response_part = types.Part.from_function_response(
+                    name=func_name,
+                    response=tool_response
+                )
+                history.append(types.Content(role="user", parts=[function_response_part]))
+                logger.debug(f"Converted tool message to function_response: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
+            else:
+                # Fallback if we can't determine function name: treat as user message with context
+                # This shouldn't happen often but provides a graceful fallback
+                logger.warning(f"Tool message without function name, falling back to user message. tool_call_id={tool_call_id}")
+                if content:
+                    history.append(types.Content(role="user", parts=[types.Part.from_text(text=f"[Tool result]: {content}")]))
+        
+        else:
+            # Unknown role: treat as model message (fallback)
+            if content:
+                history.append(types.Content(role="model", parts=[types.Part.from_text(text=content)]))
             
     return system_prompt, history
 
@@ -280,9 +380,14 @@ async def invoke_google_ai_studio_chat_completions(
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
+        # CRITICAL: Configure thinking to minimize/disable reasoning output
+        # For Gemini models that support thinking (2.5+, 3+), we want to:
+        # 1. Set thinking_budget=0 to disable thinking entirely (if supported)
+        # 2. Set include_thoughts=False as fallback to not include thoughts in output
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                thinking_budget=0  # Set to 0 to turn off thinking, or increase for more thinking
+                thinking_budget=0,  # Set to 0 to turn off thinking
+                include_thoughts=False  # Don't include thoughts in output if thinking happens
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -312,9 +417,22 @@ async def invoke_google_ai_studio_chat_completions(
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
                 usage_metadata_dict = None
 
+        # Convert FunctionCall objects to dicts for storage in raw_response
+        # The FunctionCall object from google-genai SDK is a Pydantic model, so we use model_dump() or manual extraction
+        function_calls_dicts = None
+        if response.function_calls:
+            function_calls_dicts = []
+            for fc in response.function_calls:
+                # Extract function call data - FunctionCall has 'name' and 'args' attributes
+                fc_dict = {
+                    "name": fc.name,
+                    "args": dict(fc.args) if fc.args else {}
+                }
+                function_calls_dicts.append(fc_dict)
+
         raw_response_pydantic = RawGoogleChatCompletionResponse(
             text=response.text,
-            function_calls=[fc.to_dict() for fc in response.function_calls] if response.function_calls else None,
+            function_calls=function_calls_dicts,
             usage_metadata=GoogleUsageMetadata.model_validate(usage_metadata_dict) if usage_metadata_dict else None,
         )
 
@@ -371,9 +489,30 @@ async def invoke_google_ai_studio_chat_completions(
                         )
                         logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
                         yield parsed_tool_call
-                elif chunk.text:
-                    output_buffer += chunk.text
-                    yield chunk.text
+                else:
+                    # CRITICAL: Filter out thought/reasoning content from streaming response
+                    # Gemini models with thinking enabled may return "thought" parts that contain
+                    # internal reasoning. We must filter these out and only yield actual text content.
+                    text_content = ""
+                    try:
+                        if chunk.candidates:
+                            for candidate in chunk.candidates:
+                                if candidate.content and candidate.content.parts:
+                                    for part in candidate.content.parts:
+                                        # Only include parts that have text but NOT thought
+                                        if hasattr(part, 'text') and part.text and not (hasattr(part, 'thought') and part.thought):
+                                            text_content += part.text
+                                        elif hasattr(part, 'thought') and part.thought:
+                                            logger.debug(f"{log_prefix} Filtering out thought part from stream")
+                    except Exception as e:
+                        # Fallback: If we can't parse candidates structure, use chunk.text
+                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought filtering: {e}")
+                        if chunk.text:
+                            text_content = chunk.text
+                    
+                    if text_content:
+                        output_buffer += text_content
+                        yield text_content
 
             try:
                 usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
@@ -521,9 +660,16 @@ async def invoke_google_chat_completions(
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
+        # CRITICAL: Configure thinking to minimize/disable reasoning output
+        # For Gemini models that support thinking (2.5+, 3+), we want to:
+        # 1. Set thinking_budget=0 to disable thinking entirely (if supported)
+        # 2. Set include_thoughts=False as fallback to not include thoughts in output
+        # Note: Some models (like Gemini 2.5 Pro) have minimum thinking budgets that cannot
+        # be disabled. In those cases, we rely on include_thoughts=False and filtering.
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                include_thoughts=False
+                thinking_budget=0,  # Try to disable thinking entirely
+                include_thoughts=False  # Don't include thoughts in output if thinking happens
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -556,9 +702,22 @@ async def invoke_google_chat_completions(
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
                 usage_metadata_dict = None
         
+        # Convert FunctionCall objects to dicts for storage in raw_response
+        # The FunctionCall object from google-genai SDK is a Pydantic model, so we use manual extraction
+        function_calls_dicts = None
+        if response.function_calls:
+            function_calls_dicts = []
+            for fc in response.function_calls:
+                # Extract function call data - FunctionCall has 'name' and 'args' attributes
+                fc_dict = {
+                    "name": fc.name,
+                    "args": dict(fc.args) if fc.args else {}
+                }
+                function_calls_dicts.append(fc_dict)
+        
         raw_response_pydantic = RawGoogleChatCompletionResponse(
             text=response.text,
-            function_calls=[fc.to_dict() for fc in response.function_calls] if response.function_calls else None,
+            function_calls=function_calls_dicts,
             usage_metadata=GoogleUsageMetadata.model_validate(usage_metadata_dict) if usage_metadata_dict else None
         )
 
@@ -614,9 +773,34 @@ async def invoke_google_chat_completions(
                         )
                         logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
                         yield parsed_tool_call
-                elif chunk.text:
-                    output_buffer += chunk.text
-                    yield chunk.text
+                else:
+                    # CRITICAL: Filter out thought/reasoning content from streaming response
+                    # Gemini models with thinking enabled may return "thought" parts that contain
+                    # internal reasoning. We must filter these out and only yield actual text content.
+                    # Access parts through candidates to check for thought vs text parts.
+                    text_content = ""
+                    try:
+                        if chunk.candidates:
+                            for candidate in chunk.candidates:
+                                if candidate.content and candidate.content.parts:
+                                    for part in candidate.content.parts:
+                                        # Only include parts that have text but NOT thought
+                                        # The Part type has separate 'text' and 'thought' attributes
+                                        if hasattr(part, 'text') and part.text and not (hasattr(part, 'thought') and part.thought):
+                                            text_content += part.text
+                                        elif hasattr(part, 'thought') and part.thought:
+                                            # Log that we're filtering out thinking content
+                                            logger.debug(f"{log_prefix} Filtering out thought part from stream")
+                    except Exception as e:
+                        # Fallback: If we can't parse candidates structure, use chunk.text
+                        # but this might include thoughts
+                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought filtering: {e}")
+                        if chunk.text:
+                            text_content = chunk.text
+                    
+                    if text_content:
+                        output_buffer += text_content
+                        yield text_content
             
             # After the stream is done, the response object on the iterator has usage metadata
             try:

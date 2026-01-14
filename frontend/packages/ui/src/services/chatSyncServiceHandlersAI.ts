@@ -161,13 +161,26 @@ export function handleAIMessageUpdateImpl(
 
     if (payload.is_final_chunk) {
         console.log(`[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`);
+        
+        // CRITICAL FIX: ALWAYS clear typing indicator when final chunk is received
+        // The typing indicator must be cleared regardless of whether we have task tracking info.
+        // Previously, clearTyping was only called if taskInfo existed AND task IDs matched,
+        // which caused the typing indicator to persist forever if:
+        // 1. ai_task_initiated event was missed (websocket hiccup)
+        // 2. Task IDs didn't match for some reason
+        aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+        console.info(`[ChatSyncService:AI] Typing status cleared for chat ${payload.chat_id} (message_id: ${payload.message_id})`);
+        
+        // Clean up task tracking if we have matching task info
         const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
             serviceInstance.activeAITasks.delete(payload.chat_id);
-            // Clear typing status for this specific AI task
-            aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
-            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker. Typing status cleared.`);
+            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`);
+        } else {
+            // Task info missing or mismatched - still dispatch event but log warning
+            console.warn(`[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : 'undefined'}, payload.task_id=${payload.task_id}`);
+            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
         }
     }
 }
@@ -393,8 +406,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
             console.info(`[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`);
         }
         
-        // Clear typing status for this specific AI task
-        aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
+        // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
+        // Previously used task_id which caused mismatch - typing indicator wouldn't clear
+        aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
         
         // Dispatch chatUpdated event to notify UI (e.g., update chat list)
         // This will NOT update ActiveChat if the chat is not currently open
@@ -849,7 +863,9 @@ export function handleAITaskCancelRequestedImpl(
         chatIdsToClear.forEach(chatId => {
             serviceInstance.activeAITasks.delete(chatId);
         // Clear typing status for this cancelled task
-        aiTypingStore.clearTyping(chatId, payload.task_id);
+        // Use clearTypingForChat since we only have task_id, not message_id
+        // (message_id is what setTyping stores as aiMessageId)
+        aiTypingStore.clearTypingForChat(chatId);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status === 'revocation_sent' ? 'cancelled' : payload.status } }));
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });

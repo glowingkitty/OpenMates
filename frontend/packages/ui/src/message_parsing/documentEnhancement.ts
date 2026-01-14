@@ -390,6 +390,10 @@ function findMatchingEmbedForCodeBlock(
  * 
  * Matches patterns like: {"type": "code", "embed_id": "uuid"}
  * 
+ * IMPORTANT: This function must preserve whitespace in text that does NOT contain JSON
+ * embed references. Only remove/trim whitespace that is directly adjacent to the removed
+ * JSON references, not leading/trailing whitespace of the entire text.
+ * 
  * @param text - The text content that may contain JSON embed references
  * @param renderedEmbedIds - Set of embed_ids that have already been rendered
  * @returns Cleaned text with matched JSON references removed
@@ -424,6 +428,13 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
     }
   }
   
+  // CRITICAL FIX: If no matches found, return the original text UNCHANGED
+  // Do NOT trim text that has no JSON embed references - this preserves spaces around
+  // bold/italic/link formatting that is essential for proper rendering
+  if (matches.length === 0) {
+    return text;
+  }
+  
   // Remove matches in reverse order to preserve indices
   for (let i = matches.length - 1; i >= 0; i--) {
     const { fullMatch, index } = matches[i];
@@ -436,6 +447,8 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
     result = beforeMatch.trimEnd() + (cleanedAfter ? '\n' + cleanedAfter : '');
   }
   
+  // Only trim if we actually removed something, and only trim the final result
+  // (at this point we know there were JSON references, so trimming is safe)
   return result.trim();
 }
 
