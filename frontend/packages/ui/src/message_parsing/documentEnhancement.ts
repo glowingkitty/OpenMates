@@ -119,9 +119,17 @@ export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: Embed
 
       for (const contentNode of node.content) {
         if (contentNode.type === 'text' && contentNode.text) {
-          // Split text by json_embed blocks and create appropriate nodes
-          const parts = splitTextByJsonEmbedBlocks(contentNode.text, embedNodes);
-          newParagraphContent.push(...parts);
+          // CRITICAL FIX: Only process text nodes that don't have marks (like bold, italic, link)
+          // If the node has marks, preserve them as-is - they contain important formatting info
+          // Only call splitTextByJsonEmbedBlocks for plain text that might contain json_embed blocks
+          if (contentNode.marks && contentNode.marks.length > 0) {
+            // Preserve text nodes with marks (links, bold, italic, etc.)
+            newParagraphContent.push(contentNode);
+          } else {
+            // Plain text - check for json_embed blocks
+            const parts = splitTextByJsonEmbedBlocks(contentNode.text, embedNodes);
+            newParagraphContent.push(...parts);
+          }
         } else {
           newParagraphContent.push(contentNode);
         }

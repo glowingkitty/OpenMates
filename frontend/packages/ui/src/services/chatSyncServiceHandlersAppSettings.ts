@@ -444,6 +444,10 @@ export interface AppSettingsMemoriesResponseContent {
  * Create and save a system message for app settings/memories response.
  * This message is stored in IndexedDB and synced to the server for cross-device display.
  * 
+ * IMPORTANT: System messages are encrypted client-side with the chat key (zero-knowledge architecture)
+ * just like regular messages. The server stores the encrypted content directly in Directus
+ * and can only decrypt using the vault key for AI processing if needed.
+ * 
  * @param serviceInstance - The ChatSynchronizationService instance
  * @param chatId - The chat ID
  * @param userMessageId - The user message ID that triggered the request
@@ -460,6 +464,7 @@ async function saveAppSettingsMemoriesResponseMessage(
     // Import required utilities
     const { generateUUID } = await import('../message_parsing/utils');
     const { webSocketService } = await import('./websocketService');
+    const { encryptWithChatKey } = await import('./cryptoService');
     
     // Generate unique message ID (format: last 10 chars of chat_id + uuid)
     const chatIdSuffix = chatId.slice(-10);
@@ -473,30 +478,46 @@ async function saveAppSettingsMemoriesResponseMessage(
         categories: action === 'included' ? categories : undefined
     };
     
+    const contentString = JSON.stringify(responseContent);
+    
+    // Get chat key for encryption (zero-knowledge architecture)
+    const chatKey = chatDB.getChatKey(chatId);
+    if (!chatKey) {
+        console.error(`[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt system message`);
+        throw new Error(`No chat key found for chat ${chatId}`);
+    }
+    
+    // Encrypt content with chat key (same as regular messages)
+    const encryptedContent = await encryptWithChatKey(contentString, chatKey);
+    if (!encryptedContent) {
+        console.error(`[ChatSyncService:AppSettings] Failed to encrypt system message content`);
+        throw new Error('Failed to encrypt system message content');
+    }
+    
     // Create the system message
     const now = Math.floor(Date.now() / 1000);
     const systemMessage = {
         message_id: messageId,
         chat_id: chatId,
         role: 'system' as const,
-        content: JSON.stringify(responseContent),
+        content: contentString,
         created_at: now,
         status: 'sending' as const,
-        encrypted_content: ''  // Will be populated by chatDB.saveMessage()
+        encrypted_content: encryptedContent  // Pre-encrypted with chat key
     };
     
-    // Save to IndexedDB (will be encrypted with chat key)
+    // Save to IndexedDB (already has encrypted_content, won't re-encrypt)
     await chatDB.saveMessage(systemMessage);
     console.debug(`[ChatSyncService:AppSettings] Saved system message ${messageId} to IndexedDB`);
     
-    // Send to server for persistence and cross-device sync
-    // Use a dedicated WebSocket message type for system messages
+    // Send ENCRYPTED content to server for persistence and cross-device sync
+    // Server stores this directly in Directus without re-encryption (zero-knowledge)
     const payload = {
         chat_id: chatId,
         message: {
             message_id: messageId,
             role: 'system',
-            content: JSON.stringify(responseContent),
+            encrypted_content: encryptedContent,  // Send encrypted, not plaintext!
             created_at: now
         }
     };
@@ -805,6 +826,96 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
         'Previous data request was cancelled because you sent a new message',
         4000
     );
+}
+
+/**
+ * Payload structure for new_system_message WebSocket broadcast
+ * Sent by server when a system message is added from another device
+ */
+interface NewSystemMessagePayload {
+    event: string;
+    chat_id: string;
+    data: {
+        message_id: string;
+        role: 'system';
+        encrypted_content: string;  // Encrypted with chat key (zero-knowledge)
+        created_at: number;
+    };
+    versions: {
+        messages_v: number;
+    };
+}
+
+/**
+ * Handles new system messages broadcast from other devices.
+ * 
+ * When another device creates a system message (like app settings/memories response):
+ * 1. Server broadcasts the encrypted message to all other logged-in devices
+ * 2. This handler receives the message and stores it in IndexedDB
+ * 3. Dispatches event to notify UI components to refresh
+ * 
+ * **Zero-Knowledge Architecture**: Message content is encrypted with chat key.
+ * Server stores but cannot decrypt. Decryption happens client-side on-demand.
+ */
+export async function handleNewSystemMessageImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: NewSystemMessagePayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'new_system_message' from another device:", {
+        chat_id: payload.chat_id,
+        message_id: payload.data?.message_id,
+        messages_v: payload.versions?.messages_v
+    });
+
+    const { chat_id, data, versions } = payload;
+
+    if (!chat_id || !data || !data.message_id || !data.encrypted_content) {
+        console.warn("[ChatSyncService:AppSettings] Invalid new_system_message payload:", payload);
+        return;
+    }
+
+    try {
+        // Check if chat exists locally
+        const chat = await chatDB.getChat(chat_id);
+        if (!chat) {
+            console.warn(`[ChatSyncService:AppSettings] Chat ${chat_id} not found locally, skipping system message sync`);
+            return;
+        }
+
+        // Create message object for IndexedDB
+        // Content is encrypted with chat key - will be decrypted when loaded
+        const systemMessage = {
+            message_id: data.message_id,
+            chat_id: chat_id,
+            role: 'system' as const,
+            encrypted_content: data.encrypted_content,
+            created_at: data.created_at,
+            status: 'synced' as const
+        };
+
+        // Save to IndexedDB
+        await chatDB.saveMessage(systemMessage);
+        console.debug(`[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device`);
+
+        // Update chat's messages_v version counter
+        if (versions?.messages_v !== undefined) {
+            await chatDB.updateChatComponentVersion(chat_id, 'messages_v', versions.messages_v);
+            console.debug(`[ChatSyncService:AppSettings] Updated chat ${chat_id} messages_v to ${versions.messages_v}`);
+        }
+
+        // Dispatch chatUpdated event to trigger UI refresh
+        // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+            detail: { 
+                chat_id: chat_id,
+                type: 'system_message_synced',
+                messagesUpdated: true
+            } 
+        }));
+
+    } catch (error) {
+        console.error("[ChatSyncService:AppSettings] Error handling new_system_message:", error);
+    }
 }
 
 /**

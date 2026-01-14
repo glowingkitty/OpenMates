@@ -176,6 +176,8 @@ export class ChatSynchronizationService extends EventTarget {
             webSocketService.on('app_settings_memories_entry_synced', (payload) => module.handleAppSettingsMemoriesEntrySyncedImpl(this, payload));
             webSocketService.on('app_settings_memories_entry_stored', (payload) => module.handleAppSettingsMemoriesEntryStoredImpl(this, payload));
             webSocketService.on('system_message_confirmed', (payload) => module.handleSystemMessageConfirmedImpl(this, payload));
+            // Handle system messages broadcast from other devices (cross-device sync)
+            webSocketService.on('new_system_message', (payload) => module.handleNewSystemMessageImpl(this, payload));
         });
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));
