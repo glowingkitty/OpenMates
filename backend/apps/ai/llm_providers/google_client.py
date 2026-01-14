@@ -17,6 +17,7 @@ from google.genai import errors as google_errors
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 
 logger = logging.getLogger(__name__)
 
@@ -464,10 +465,18 @@ async def invoke_google_ai_studio_chat_completions(
 
         return unified_resp
 
-    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]:
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, UnifiedStreamChunk]]:
+        """
+        Stream response iterator that yields:
+        - str: Regular text content
+        - ParsedGoogleToolCall: Tool/function calls (happens AFTER thinking completes)
+        - GoogleUsageMetadata: Token usage metadata
+        - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
+        """
         logger.info(f"{log_prefix} Stream connection initiated.")
         stream_iterator = None
         output_buffer = ""
+        thinking_buffer = ""
         usage = None
         stream_succeeded = False
         try:
@@ -479,6 +488,7 @@ async def invoke_google_ai_studio_chat_completions(
 
             async for chunk in stream_iterator:
                 if chunk.function_calls:
+                    # Tool calls happen AFTER thinking completes
                     for fc in chunk.function_calls:
                         args_dict = dict(fc.args)
                         parsed_tool_call = ParsedGoogleToolCall(
@@ -490,29 +500,41 @@ async def invoke_google_ai_studio_chat_completions(
                         logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
                         yield parsed_tool_call
                 else:
-                    # CRITICAL: Filter out thought/reasoning content from streaming response
-                    # Gemini models with thinking enabled may return "thought" parts that contain
-                    # internal reasoning. We must filter these out and only yield actual text content.
-                    text_content = ""
+                    # Process content parts, separating thinking from regular text
                     try:
                         if chunk.candidates:
                             for candidate in chunk.candidates:
                                 if candidate.content and candidate.content.parts:
                                     for part in candidate.content.parts:
-                                        # Only include parts that have text but NOT thought
-                                        if hasattr(part, 'text') and part.text and not (hasattr(part, 'thought') and part.thought):
-                                            text_content += part.text
-                                        elif hasattr(part, 'thought') and part.thought:
-                                            logger.debug(f"{log_prefix} Filtering out thought part from stream")
+                                        # Check if this is a thinking/thought part
+                                        is_thought = hasattr(part, 'thought') and part.thought
+                                        
+                                        if is_thought and hasattr(part, 'text') and part.text:
+                                            # Yield thinking content as UnifiedStreamChunk
+                                            thinking_buffer += part.text
+                                            logger.debug(f"{log_prefix} Yielding thinking chunk ({len(part.text)} chars)")
+                                            yield UnifiedStreamChunk(
+                                                type=StreamChunkType.THINKING,
+                                                content=part.text
+                                            )
+                                        elif hasattr(part, 'text') and part.text and not is_thought:
+                                            # Regular text content
+                                            output_buffer += part.text
+                                            yield part.text
+                                            
+                                # Check for thinking signature on the candidate
+                                if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
+                                    logger.info(f"{log_prefix} Yielding thinking signature")
+                                    yield UnifiedStreamChunk(
+                                        type=StreamChunkType.THINKING_SIGNATURE,
+                                        signature=candidate.thought_signature
+                                    )
                     except Exception as e:
                         # Fallback: If we can't parse candidates structure, use chunk.text
-                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought filtering: {e}")
+                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
                         if chunk.text:
-                            text_content = chunk.text
-                    
-                    if text_content:
-                        output_buffer += text_content
-                        yield text_content
+                            output_buffer += chunk.text
+                            yield chunk.text
 
             try:
                 usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
@@ -748,10 +770,18 @@ async def invoke_google_chat_completions(
             
         return unified_resp
 
-    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]:
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, UnifiedStreamChunk]]:
+        """
+        Stream response iterator that yields:
+        - str: Regular text content
+        - ParsedGoogleToolCall: Tool/function calls (happens AFTER thinking completes)
+        - GoogleUsageMetadata: Token usage metadata
+        - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
+        """
         logger.info(f"{log_prefix} Stream connection initiated.")
         stream_iterator = None
         output_buffer = ""
+        thinking_buffer = ""
         usage = None
         stream_succeeded = False  # Track if stream completed successfully (no exception)
         try:
@@ -763,6 +793,7 @@ async def invoke_google_chat_completions(
             
             async for chunk in stream_iterator:
                 if chunk.function_calls:
+                    # Tool calls happen AFTER thinking completes
                     for fc in chunk.function_calls:
                         args_dict = dict(fc.args)
                         parsed_tool_call = ParsedGoogleToolCall(
@@ -774,33 +805,41 @@ async def invoke_google_chat_completions(
                         logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
                         yield parsed_tool_call
                 else:
-                    # CRITICAL: Filter out thought/reasoning content from streaming response
-                    # Gemini models with thinking enabled may return "thought" parts that contain
-                    # internal reasoning. We must filter these out and only yield actual text content.
-                    # Access parts through candidates to check for thought vs text parts.
-                    text_content = ""
+                    # Process content parts, separating thinking from regular text
                     try:
                         if chunk.candidates:
                             for candidate in chunk.candidates:
                                 if candidate.content and candidate.content.parts:
                                     for part in candidate.content.parts:
-                                        # Only include parts that have text but NOT thought
-                                        # The Part type has separate 'text' and 'thought' attributes
-                                        if hasattr(part, 'text') and part.text and not (hasattr(part, 'thought') and part.thought):
-                                            text_content += part.text
-                                        elif hasattr(part, 'thought') and part.thought:
-                                            # Log that we're filtering out thinking content
-                                            logger.debug(f"{log_prefix} Filtering out thought part from stream")
+                                        # Check if this is a thinking/thought part
+                                        is_thought = hasattr(part, 'thought') and part.thought
+                                        
+                                        if is_thought and hasattr(part, 'text') and part.text:
+                                            # Yield thinking content as UnifiedStreamChunk
+                                            thinking_buffer += part.text
+                                            logger.debug(f"{log_prefix} Yielding thinking chunk ({len(part.text)} chars)")
+                                            yield UnifiedStreamChunk(
+                                                type=StreamChunkType.THINKING,
+                                                content=part.text
+                                            )
+                                        elif hasattr(part, 'text') and part.text and not is_thought:
+                                            # Regular text content
+                                            output_buffer += part.text
+                                            yield part.text
+                                            
+                                # Check for thinking signature on the candidate
+                                if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
+                                    logger.info(f"{log_prefix} Yielding thinking signature")
+                                    yield UnifiedStreamChunk(
+                                        type=StreamChunkType.THINKING_SIGNATURE,
+                                        signature=candidate.thought_signature
+                                    )
                     except Exception as e:
                         # Fallback: If we can't parse candidates structure, use chunk.text
-                        # but this might include thoughts
-                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought filtering: {e}")
+                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
                         if chunk.text:
-                            text_content = chunk.text
-                    
-                    if text_content:
-                        output_buffer += text_content
-                        yield text_content
+                            output_buffer += chunk.text
+                            yield chunk.text
             
             # After the stream is done, the response object on the iterator has usage metadata
             try:

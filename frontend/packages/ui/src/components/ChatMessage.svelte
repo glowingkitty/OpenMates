@@ -2,6 +2,7 @@
   import type { SvelteComponent } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
@@ -48,7 +49,10 @@
     original_message = null,
     containerWidth = 0,
     _embedUpdateTimestamp = 0,
-    appSettingsMemoriesResponse = undefined
+    appSettingsMemoriesResponse = undefined,
+    // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
+    thinkingContent = undefined,
+    isThinkingStreaming = false
   }: {
     messageId?: string; // Message ID for loading app settings/memories action data
     role?: MessageRole;
@@ -67,7 +71,13 @@
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
+    // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
+    thinkingContent?: string; // Decrypted thinking content
+    isThinkingStreaming?: boolean; // Whether thinking is currently streaming
   } = $props();
+  
+  // State for thinking section expansion
+  let thinkingExpanded = $state(false);
   
   /**
    * Get display name for an app settings/memories category.
@@ -654,6 +664,15 @@
       {/if}
 
       <div class="chat-message-text">
+        <!-- Thinking Section: Displayed above message content for thinking models -->
+        {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
+          <ThinkingSection
+            thinkingContent={thinkingContent || ''}
+            isStreaming={isThinkingStreaming}
+            bind:isExpanded={thinkingExpanded}
+          />
+        {/if}
+        
         {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
               content={fullContent}

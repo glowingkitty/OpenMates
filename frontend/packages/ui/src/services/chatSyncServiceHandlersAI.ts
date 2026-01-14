@@ -85,7 +85,9 @@ import type {
     AIMessageReadyPayload,
     AITaskCancelRequestedPayload,
     EmbedUpdatePayload,
-    SendEmbedDataPayload
+    SendEmbedDataPayload,
+    AIThinkingChunkPayload,
+    AIThinkingCompletePayload
 } from '../types/chat'; // Assuming these types might be moved or are already in a shared types file
 
 // --- Deduplication tracking for embed processing ---
@@ -125,6 +127,55 @@ export function handleAITaskInitiatedImpl(
     serviceInstance.activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
     serviceInstance.dispatchEvent(new CustomEvent('aiTaskInitiated', { detail: payload }));
 }
+
+// --- Thinking/Reasoning Event Handlers ---
+// These handlers process thinking content from thinking models (Gemini, Anthropic Claude)
+// Thinking content is streamed to a separate channel and displayed above the main response
+
+/**
+ * Handle thinking content chunks from thinking models.
+ * Dispatches 'aiThinkingChunk' event for ActiveChat to display.
+ */
+export function handleAIThinkingChunkImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AIThinkingChunkPayload
+): void {
+    const contentLength = payload.content?.length || 0;
+    const contentPreview = payload.content?.substring(0, 80).replace(/\n/g, '\\n') || '(empty)';
+    
+    console.log(
+        `[ChatSyncService:AI] 🧠 THINKING CHUNK | ` +
+        `chat_id: ${payload.chat_id} | ` +
+        `task_id: ${payload.task_id} | ` +
+        `content_length: ${contentLength} chars | ` +
+        `preview: "${contentPreview}${contentLength > 80 ? '...' : ''}"`
+    );
+    
+    // Dispatch event for ActiveChat component to display thinking content
+    serviceInstance.dispatchEvent(new CustomEvent('aiThinkingChunk', { detail: payload }));
+}
+
+/**
+ * Handle thinking completion from thinking models.
+ * Contains the signature (if provided) and total token count for cost tracking.
+ * Dispatches 'aiThinkingComplete' event for ActiveChat to finalize thinking display.
+ */
+export function handleAIThinkingCompleteImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AIThinkingCompletePayload
+): void {
+    console.log(
+        `[ChatSyncService:AI] 🧠 THINKING COMPLETE | ` +
+        `chat_id: ${payload.chat_id} | ` +
+        `task_id: ${payload.task_id} | ` +
+        `has_signature: ${!!payload.signature} | ` +
+        `total_tokens: ${payload.total_tokens || 'unknown'}`
+    );
+    
+    // Dispatch event for ActiveChat component to finalize thinking
+    serviceInstance.dispatchEvent(new CustomEvent('aiThinkingComplete', { detail: payload }));
+}
+// --- End Thinking/Reasoning Event Handlers ---
 
 export function handleAIMessageUpdateImpl(
     serviceInstance: ChatSynchronizationService,

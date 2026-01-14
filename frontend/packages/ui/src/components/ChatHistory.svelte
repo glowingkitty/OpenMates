@@ -171,11 +171,13 @@
   let {
     messageInputHeight = 0,
     containerWidth = 0,
-    currentChatId = undefined
+    currentChatId = undefined,
+    thinkingContentByTask = new Map()
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
+    thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean }>; // Thinking content from thinking models
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -679,6 +681,8 @@
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
+                        thinkingContent={msg.role === 'assistant' ? thinkingContentByTask.get(msg.id)?.content : undefined}
+                        isThinkingStreaming={msg.role === 'assistant' ? thinkingContentByTask.get(msg.id)?.isStreaming || false : false}
                     />
                 </div>
             {/each}

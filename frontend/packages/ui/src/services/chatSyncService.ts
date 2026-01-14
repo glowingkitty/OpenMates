@@ -168,6 +168,10 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('embed_update', (payload) => aiHandlers.handleEmbedUpdateImpl(this, payload as import('../types/chat').EmbedUpdatePayload));
         webSocketService.on('send_embed_data', (payload) => aiHandlers.handleSendEmbedDataImpl(this, payload as SendEmbedDataPayload));
         
+        // Thinking/Reasoning handlers for thinking models (Gemini, Anthropic Claude)
+        webSocketService.on('thinking_chunk', (payload) => aiHandlers.handleAIThinkingChunkImpl(this, payload as import('../types/chat').AIThinkingChunkPayload));
+        webSocketService.on('thinking_complete', (payload) => aiHandlers.handleAIThinkingCompleteImpl(this, payload as import('../types/chat').AIThinkingCompletePayload));
+        
         // Import and register app settings/memories handlers
         import('./chatSyncServiceHandlersAppSettings').then(module => {
             webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));

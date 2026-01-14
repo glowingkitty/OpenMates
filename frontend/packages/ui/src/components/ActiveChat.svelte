@@ -1205,6 +1205,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
     let currentTypingStatus: AITypingStatus | null = null;
     
+    // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
+    // Map of task_id -> thinking content and streaming status
+    let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean }>>(new Map());
+    
     // ===========================================
     // Embed Navigation Derived States
     // ===========================================
@@ -1791,6 +1795,74 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    // --- Thinking/Reasoning Handlers for Thinking Models (Gemini, Anthropic Claude) ---
+    
+    /**
+     * Handle thinking content chunks from thinking models.
+     * Accumulates thinking content and triggers UI update.
+     */
+    function handleAiThinkingChunk(event: CustomEvent) {
+        const chunk = event.detail as { task_id: string; chat_id: string; content: string };
+        
+        // Only process if for current chat
+        if (chunk.chat_id !== currentChat?.chat_id) {
+            console.debug(`[ActiveChat] Thinking chunk for different chat (${chunk.chat_id}), ignoring`);
+            return;
+        }
+        
+        console.log(`[ActiveChat] 🧠 Thinking chunk received | task_id: ${chunk.task_id} | length: ${chunk.content?.length || 0}`);
+        
+        // Update thinking content map
+        const existing = thinkingContentByTask.get(chunk.task_id);
+        const newContent = (existing?.content || '') + (chunk.content || '');
+        
+        thinkingContentByTask.set(chunk.task_id, {
+            content: newContent,
+            isStreaming: true
+        });
+        
+        // Force reactivity by creating new Map
+        thinkingContentByTask = new Map(thinkingContentByTask);
+        
+        // Update UI if chatHistoryRef exists
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
+    }
+    
+    /**
+     * Handle thinking completion from thinking models.
+     * Marks thinking as complete (no longer streaming).
+     */
+    function handleAiThinkingComplete(event: CustomEvent) {
+        const payload = event.detail as { task_id: string; chat_id: string; signature?: string; total_tokens?: number };
+        
+        // Only process if for current chat
+        if (payload.chat_id !== currentChat?.chat_id) {
+            console.debug(`[ActiveChat] Thinking complete for different chat (${payload.chat_id}), ignoring`);
+            return;
+        }
+        
+        console.log(`[ActiveChat] 🧠 Thinking complete | task_id: ${payload.task_id} | tokens: ${payload.total_tokens || 'unknown'}`);
+        
+        // Mark thinking as complete (no longer streaming)
+        const existing = thinkingContentByTask.get(payload.task_id);
+        if (existing) {
+            thinkingContentByTask.set(payload.task_id, {
+                content: existing.content,
+                isStreaming: false
+            });
+            
+            // Force reactivity by creating new Map
+            thinkingContentByTask = new Map(thinkingContentByTask);
+        }
+        
+        // Update UI if chatHistoryRef exists
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
+    }
+    // --- End Thinking/Reasoning Handlers ---
 
     // Handle draft saved event
     function handleDraftSaved(event: CustomEvent) {
@@ -3377,6 +3449,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.log('[ActiveChat] 📌 Registering aiMessageChunk event listener');
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
         console.log('[ActiveChat] ✅ aiMessageChunk event listener registered');
+        
+        // Add listeners for AI thinking/reasoning content (Gemini, Anthropic Claude)
+        console.log('[ActiveChat] 📌 Registering thinking event listeners');
+        chatSyncService.addEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListener);
+        chatSyncService.addEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListener);
+        console.log('[ActiveChat] ✅ Thinking event listeners registered');
 
         // Add listeners for AI task state changes
         const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
@@ -3835,6 +3913,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         containerWidth={effectiveChatWidth}
                         currentChatId={currentChat?.chat_id}
+                        {thinkingContentByTask}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}

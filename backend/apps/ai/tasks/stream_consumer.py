@@ -28,6 +28,7 @@ from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
+from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.apps.ai.processing.url_validator import (
     validate_urls_in_paragraph,
     extract_urls_from_markdown,
@@ -73,6 +74,58 @@ def _create_redis_payload(
         })
     
     return payload
+
+
+def _create_thinking_redis_payload(
+    task_id: str,
+    request_data: AskSkillRequest,
+    content: str,
+    is_complete: bool = False,
+    signature: Optional[str] = None,
+    total_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Create standardized Redis payload for thinking/reasoning content.
+    
+    Thinking content is streamed to a separate channel (chat_stream_thinking::)
+    from the main response channel. This allows the frontend to:
+    - Display a "Thinking..." indicator during streaming
+    - Store thinking content separately (encrypted)
+    - Show collapsible thinking section in UI
+    
+    Args:
+        task_id: The task ID for this AI request
+        request_data: The original request data
+        content: The thinking content (accumulated)
+        is_complete: Whether thinking is complete (signature received)
+        signature: The thinking signature for verification (Anthropic/Gemini)
+        total_tokens: Token count for thinking (for cost tracking)
+    
+    Returns:
+        Dict payload for Redis publishing
+    """
+    if is_complete:
+        return {
+            "type": "thinking_complete",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": task_id,
+            "signature": signature,
+            "total_tokens": total_tokens,
+        }
+    else:
+        return {
+            "type": "thinking_chunk",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": task_id,
+            "content": content,  # Just the new chunk, not accumulated
+        }
+
 
 async def _publish_to_redis(
     cache_service: Optional[CacheService],
@@ -794,7 +847,12 @@ async def _consume_main_processing_stream(
     stream_chunk_count = 0
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
+    thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
+    
+    # Thinking content tracking for thinking models (Gemini, Anthropic)
+    thinking_buffer: List[str] = []  # Accumulate thinking content
+    thinking_signature: Optional[str] = None  # Thinking signature for verification
 
     # Persist model identifier in stream payloads so clients can store it encrypted with the message.
     # Prefer the friendly model name from preprocessing, fallback to extracting from model_id, then safe default.
@@ -844,6 +902,56 @@ async def _consume_main_processing_stream(
                 awaiting_app_settings_memories_permission = True
                 request_id = chunk.get("request_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
+                continue
+            
+            # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
+            # These chunks contain thinking content or signatures that should be streamed
+            # to a separate channel for the frontend to display
+            if isinstance(chunk, UnifiedStreamChunk):
+                if chunk.type == StreamChunkType.THINKING:
+                    # Stream thinking content to separate thinking channel
+                    if chunk.content:
+                        thinking_buffer.append(chunk.content)
+                        thinking_payload = _create_thinking_redis_payload(
+                            task_id=task_id,
+                            request_data=request_data,
+                            content=chunk.content,
+                            is_complete=False
+                        )
+                        await _publish_to_redis(
+                            cache_service, thinking_channel_name, thinking_payload, log_prefix,
+                            f"Published thinking chunk ({len(chunk.content)} chars) to '{thinking_channel_name}'"
+                        )
+                elif chunk.type == StreamChunkType.THINKING_SIGNATURE:
+                    # Store signature and publish thinking complete event
+                    thinking_signature = chunk.signature
+                    thinking_complete_payload = _create_thinking_redis_payload(
+                        task_id=task_id,
+                        request_data=request_data,
+                        content="",
+                        is_complete=True,
+                        signature=thinking_signature,
+                        total_tokens=len("".join(thinking_buffer)) // 4  # Rough token estimate
+                    )
+                    await _publish_to_redis(
+                        cache_service, thinking_channel_name, thinking_complete_payload, log_prefix,
+                        f"Published thinking complete event to '{thinking_channel_name}'"
+                    )
+                elif chunk.type == StreamChunkType.THINKING_REDACTED:
+                    # Handle redacted thinking (Anthropic safety feature)
+                    logger.info(f"{log_prefix} Received redacted thinking block (safety feature)")
+                    thinking_buffer.append("[Some reasoning was hidden for safety reasons]")
+                    thinking_payload = _create_thinking_redis_payload(
+                        task_id=task_id,
+                        request_data=request_data,
+                        content="[Some reasoning was hidden for safety reasons]",
+                        is_complete=False
+                    )
+                    await _publish_to_redis(
+                        cache_service, thinking_channel_name, thinking_payload, log_prefix,
+                        f"Published redacted thinking notice to '{thinking_channel_name}'"
+                    )
+                # Skip to next chunk - thinking chunks don't go to main response
                 continue
             
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
