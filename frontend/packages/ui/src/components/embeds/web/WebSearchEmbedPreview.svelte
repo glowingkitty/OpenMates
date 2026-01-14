@@ -263,6 +263,22 @@
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
   
+  // Preview server base URL for image proxying
+  // ALL external images must be proxied for user privacy (hides user IP from external servers)
+  const PREVIEW_SERVER = 'https://preview.openmates.org';
+  
+  /**
+   * Proxy a favicon URL through the preview server for privacy.
+   * This prevents direct requests to external CDNs (like Brave Search) which would expose user IPs.
+   * Uses the /api/v1/image endpoint which handles caching and image optimization.
+   * @param faviconUrl - Direct favicon URL to proxy
+   * @returns Proxied URL through preview server, or empty string if no URL
+   */
+  function getProxiedFaviconUrl(faviconUrl: string | undefined): string {
+    if (!faviconUrl) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(faviconUrl)}&max_width=38`;
+  }
+  
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
     `${$text('embeds.via.text') || 'via'} ${provider}`
@@ -437,10 +453,11 @@
           {#if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
-                {@const faviconSrc = getFaviconUrl(result)}
-                {#if faviconSrc}
+                {@const rawFaviconUrl = getFaviconUrl(result)}
+                {@const proxiedFaviconUrl = getProxiedFaviconUrl(rawFaviconUrl)}
+                {#if proxiedFaviconUrl}
                   <img 
-                    src={faviconSrc}
+                    src={proxiedFaviconUrl}
                     alt=""
                     class="favicon"
                     style="z-index: {faviconResults.length - index};"

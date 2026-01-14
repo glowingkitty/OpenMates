@@ -253,6 +253,24 @@
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
   
+  // Preview server base URL for image proxying
+  // ALL external images must be proxied for user privacy (hides user IP from external servers)
+  const PREVIEW_SERVER = 'https://preview.openmates.org';
+  // Channel thumbnails are small (19x19px display), request 2x for retina = 38px
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 38;
+  
+  /**
+   * Proxy a channel thumbnail URL through the preview server for privacy.
+   * This prevents direct requests to external CDNs which would expose user IPs.
+   * Uses the /api/v1/image endpoint which handles caching and image optimization.
+   * @param thumbnailUrl - Direct channel thumbnail URL to proxy
+   * @returns Proxied URL through preview server, or empty string if no URL
+   */
+  function getProxiedChannelThumbnailUrl(thumbnailUrl: string | undefined): string {
+    if (!thumbnailUrl) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(thumbnailUrl)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+  }
+  
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
     `${$text('embeds.via.text') || 'via'} ${provider}`
@@ -320,10 +338,11 @@
           {#if channelThumbnailResults.length > 0}
             <div class="channel-thumbnail-row">
               {#each channelThumbnailResults as result, index}
-                {@const channelThumbnailSrc = getChannelThumbnailUrl(result)}
-                {#if channelThumbnailSrc}
+                {@const rawChannelThumbnailUrl = getChannelThumbnailUrl(result)}
+                {@const proxiedChannelThumbnailUrl = getProxiedChannelThumbnailUrl(rawChannelThumbnailUrl)}
+                {#if proxiedChannelThumbnailUrl}
                   <img 
-                    src={channelThumbnailSrc}
+                    src={proxiedChannelThumbnailUrl}
                     alt=""
                     class="channel-thumbnail"
                     style="z-index: {channelThumbnailResults.length - index};"

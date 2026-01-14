@@ -282,11 +282,17 @@
   // Display title: use effective title or fall back to hostname
   let displayTitle = $derived(effectiveTitle || hostname);
   
-  // Favicon URL: use effective favicon or fall back to preview server endpoint
-  let faviconUrl = $derived(
-    effectiveFavicon || 
-    `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
-  );
+  // Favicon URL - ALWAYS proxy through preview server for privacy
+  // This ensures user IPs are hidden from external servers, even when we have a direct favicon URL
+  // Uses /api/v1/image for direct URLs, /api/v1/favicon for page URLs (extracts favicon)
+  let faviconUrl = $derived.by(() => {
+    if (effectiveFavicon) {
+      // Proxy the direct favicon URL through image endpoint
+      return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(effectiveFavicon)}&max_width=38`;
+    }
+    // Fall back to favicon endpoint which extracts favicon from page URL
+    return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`;
+  });
   
   // Preview image URL - proxy through preview server with max_width for optimization
   // The preview thumbnail is now larger (full-width ~260px), so we request 520px for retina displays
