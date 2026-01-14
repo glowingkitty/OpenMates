@@ -2070,9 +2070,13 @@ async def handle_main_processing(
                                             
                                             if updated_error_embed:
                                                 # Generate embed_reference for the error embed
+                                                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                                                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                                                 updated_error_embed["embed_reference"] = json.dumps({
                                                     "type": "app_skill_use",
-                                                    "embed_id": placeholder_embed_id
+                                                    "embed_id": placeholder_embed_id,
+                                                    "app_id": app_id,
+                                                    "skill_id": skill_id
                                                 })
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -2152,9 +2156,13 @@ async def handle_main_processing(
                                         # Generate embed_reference for the updated embed (same embed_id, so same reference)
                                         # Note: Placeholder embeds were already yielded at creation time (line ~949)
                                         # Mark as "from_placeholder" so we don't yield duplicates later
+                                        # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                                        # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                                         updated_embed_data["embed_reference"] = json.dumps({
                                             "type": "app_skill_use",
-                                            "embed_id": placeholder_embed_id
+                                            "embed_id": placeholder_embed_id,
+                                            "app_id": app_id,
+                                            "skill_id": skill_id
                                         })
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

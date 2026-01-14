@@ -354,6 +354,10 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
 
 /**
  * Converts a single message to YAML format
+ * 
+ * Includes thinking content for thinking models (Gemini, Anthropic Claude, etc.)
+ * when available. Thinking content is decrypted from encrypted_thinking_content
+ * if needed and included as a separate field in the exported message.
  */
 async function convertMessageToYaml(message: Message): Promise<any> {
     try {
@@ -377,6 +381,42 @@ async function convertMessageToYaml(message: Message): Promise<any> {
             messageData.content = markdown;
         } else {
             messageData.content = '';
+        }
+        
+        // Include thinking content for thinking models (Gemini, Anthropic Claude, etc.)
+        // Thinking content is the model's internal reasoning process
+        if (message.role === 'assistant') {
+            // Try decrypted thinking_content first (if already decrypted)
+            if (message.thinking_content) {
+                messageData.thinking = message.thinking_content;
+                console.debug('[ChatExportService] Included decrypted thinking content in export');
+            } 
+            // Fall back to encrypted_thinking_content and decrypt it
+            else if (message.encrypted_thinking_content) {
+                try {
+                    // Get chat key for this message's chat to decrypt thinking content
+                    const chatKey = chatDB.getChatKey(message.chat_id);
+                    if (chatKey) {
+                        const { decryptWithChatKey } = await import('./cryptoService');
+                        const decryptedThinking = decryptWithChatKey(message.encrypted_thinking_content, chatKey);
+                        if (decryptedThinking) {
+                            messageData.thinking = decryptedThinking;
+                            console.debug('[ChatExportService] Decrypted and included thinking content in export');
+                        }
+                    } else {
+                        console.warn('[ChatExportService] Could not decrypt thinking content: chat key not available');
+                    }
+                } catch (decryptError) {
+                    console.error('[ChatExportService] Error decrypting thinking content:', decryptError);
+                }
+            }
+            // Also include thinking metadata if available
+            if (message.has_thinking) {
+                messageData.has_thinking = true;
+            }
+            if (message.thinking_token_count) {
+                messageData.thinking_tokens = message.thinking_token_count;
+            }
         }
         
         return messageData;

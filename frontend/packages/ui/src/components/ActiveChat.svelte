@@ -1203,7 +1203,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-    let currentTypingStatus: AITypingStatus | null = null;
+    // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
+    // won't trigger re-evaluation of $derived values that depend on this variable
+    let currentTypingStatus = $state<AITypingStatus | null>(null);
     
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content and streaming status
@@ -1462,6 +1464,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 `currentChat exists: ${!!currentChat}`
             );
             return;
+        }
+
+        // FALLBACK: Mark thinking as complete when we start receiving the actual response
+        // This ensures the "Thinking..." state ends even if thinking_complete event is missed
+        // The message_id in the chunk should match the task_id used for thinking
+        const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
+        if (thinkingEntry && thinkingEntry.isStreaming) {
+            console.log(`[ActiveChat] 🧠 Marking thinking as complete (fallback) | message_id: ${chunk.message_id}`);
+            thinkingContentByTask.set(chunk.message_id, {
+                content: thinkingEntry.content,
+                isStreaming: false
+            });
+            // Force reactivity by creating new Map
+            thinkingContentByTask = new Map(thinkingContentByTask);
         }
 
         // Operate on currentMessages state
@@ -3484,6 +3500,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
+                
+                // FALLBACK: Mark ALL thinking entries as complete when AI task ends
+                // This ensures no thinking state is left in "streaming" mode after the task finishes
+                let hasStreamingThinking = false;
+                thinkingContentByTask.forEach((entry, taskId) => {
+                    if (entry.isStreaming) {
+                        hasStreamingThinking = true;
+                        thinkingContentByTask.set(taskId, {
+                            content: entry.content,
+                            isStreaming: false
+                        });
+                        console.log(`[ActiveChat] 🧠 Marking thinking as complete (task ended fallback) | task_id: ${taskId}`);
+                    }
+                });
+                
+                // Force reactivity if we made changes
+                if (hasStreamingThinking) {
+                    thinkingContentByTask = new Map(thinkingContentByTask);
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                }
             }
         }) as EventListener;
 
@@ -3727,6 +3765,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
+            // Remove thinking/reasoning event listeners
+            chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListener);
+            chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListener);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);

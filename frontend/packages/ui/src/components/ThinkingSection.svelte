@@ -6,8 +6,14 @@
   Features:
   - Collapsed by default showing "Thinking..." or "Thought process"
   - Expandable to show full thinking content
-  - Streaming support with animated loader
+  - Streaming support with shimmer animation on icon and text
   - Uses ReadOnlyMessage for markdown rendering
+  
+  Visual Design:
+  - reasoning.svg icon on the left with shimmer during streaming
+  - "Thinking..." text during streaming, "Thought process" when done
+  - dropdown.svg icon on the right that rotates 180° when expanded
+  - Hover color change to indicate clickability (when not streaming)
   
   Props:
   - thinkingContent: The thinking markdown content
@@ -17,7 +23,6 @@
 <script lang="ts">
     import { slide } from 'svelte/transition';
     import ReadOnlyMessage from './ReadOnlyMessage.svelte';
-    import Icon from './Icon.svelte';
     import { parse_message } from '../message_parsing/parse_message';
     
     // Props using Svelte 5 runes mode
@@ -65,13 +70,14 @@
             aria-expanded={isExpanded}
             aria-label={isExpanded ? 'Collapse thought process' : 'Expand thought process'}
         >
-            <div class="thinking-icon-wrapper" class:spinning={isStreaming}>
-                <Icon name={isStreaming ? 'loader-2' : 'brain'} size="16" />
-            </div>
-            <span class="thinking-summary">{collapsedSummary}</span>
-            <div class="expand-icon">
-                <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size="16" />
-            </div>
+            <!-- Reasoning icon with shimmer during streaming -->
+            <div class="thinking-icon" class:shimmer={isStreaming}></div>
+            
+            <!-- Summary text with shimmer during streaming -->
+            <span class="thinking-summary" class:shimmer={isStreaming}>{collapsedSummary}</span>
+            
+            <!-- Dropdown icon that rotates when expanded -->
+            <div class="expand-icon" class:rotated={isExpanded}></div>
         </button>
         
         <!-- Expanded Content -->
@@ -93,7 +99,7 @@
         background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
         border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
         overflow: hidden;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
     }
     
     .thinking-section.streaming {
@@ -117,11 +123,20 @@
         font-size: 13px;
         font-family: inherit;
         text-align: left;
-        transition: background-color 0.15s ease;
+        transition: background-color 0.15s ease, color 0.15s ease;
     }
     
     .thinking-header:hover {
         background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+        color: var(--color-primary, #007aff);
+    }
+    
+    .thinking-header:hover .thinking-icon:not(.shimmer) {
+        background-color: var(--color-primary, #007aff);
+    }
+    
+    .thinking-header:hover .expand-icon {
+        background-color: var(--color-primary, #007aff);
     }
     
     .thinking-header:focus {
@@ -129,35 +144,81 @@
         box-shadow: inset 0 0 0 2px var(--color-accent-primary, #3b82f6);
     }
     
-    .thinking-icon-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.7;
-        color: var(--color-text-tertiary, #888);
+    /* Reasoning icon using mask-image */
+    .thinking-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        background-color: var(--color-text-tertiary, #888);
+        -webkit-mask-image: url('@openmates/ui/static/icons/reasoning.svg');
+        mask-image: url('@openmates/ui/static/icons/reasoning.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        transition: background-color 0.15s ease;
     }
     
-    .thinking-icon-wrapper.spinning {
-        animation: spin 1s linear infinite;
-        color: var(--color-accent-secondary, #6366f1);
-        opacity: 1;
+    /* Shimmer animation for streaming state */
+    .thinking-icon.shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite linear;
+        /* Preserve mask while animating background */
     }
     
     .thinking-summary {
         flex: 1;
         font-weight: 500;
+        transition: color 0.15s ease;
     }
     
+    /* Shimmer animation for summary text during streaming */
+    .thinking-summary.shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: shimmer 1.5s infinite linear;
+    }
+    
+    /* Dropdown expand icon using mask-image */
     .expand-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.5;
-        transition: opacity 0.15s ease;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        background-color: var(--color-text-tertiary, #888);
+        -webkit-mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        transition: transform 0.2s ease, background-color 0.15s ease;
     }
     
-    .thinking-header:hover .expand-icon {
-        opacity: 0.8;
+    /* Rotate dropdown icon when expanded */
+    .expand-icon.rotated {
+        transform: rotate(180deg);
     }
     
     .thinking-content {
@@ -174,9 +235,14 @@
         opacity: 0.85;
     }
     
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    /* Shimmer animation keyframes */
+    @keyframes shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
     
     /* Dark mode support */

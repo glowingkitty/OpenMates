@@ -215,9 +215,14 @@ class EmbedService:
             )
 
             # Generate embed reference JSON
+            # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+            # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
+            # Without these, undefined === undefined comparisons incorrectly group different skills
             embed_reference = json.dumps({
                 "type": "app_skill_use",
-                "embed_id": embed_id
+                "embed_id": embed_id,
+                "app_id": app_id,
+                "skill_id": skill_id
             })
 
             return {
@@ -1792,9 +1797,14 @@ class EmbedService:
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
                 
                 # Generate embed reference JSON
+                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
+                # Without these, undefined === undefined comparisons incorrectly group different skills
                 embed_reference = json.dumps({
                     "type": "app_skill_use",
-                    "embed_id": parent_embed_id
+                    "embed_id": parent_embed_id,
+                    "app_id": app_id,
+                    "skill_id": skill_id
                 })
                 
                 return {
@@ -1885,9 +1895,14 @@ class EmbedService:
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
                 
                 # Generate embed reference JSON
+                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
+                # Without these, undefined === undefined comparisons incorrectly group different skills
                 embed_reference = json.dumps({
                     "type": "app_skill_use",
-                    "embed_id": embed_id
+                    "embed_id": embed_id,
+                    "app_id": app_id,
+                    "skill_id": skill_id
                 })
                 
                 return {

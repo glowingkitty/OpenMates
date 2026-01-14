@@ -135,7 +135,9 @@
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
-    let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
+    // won't trigger re-evaluation of reactive statements that depend on this variable
+    let currentTypingStatus = $state<AITypingStatus>({ isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null });
     let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
     let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
