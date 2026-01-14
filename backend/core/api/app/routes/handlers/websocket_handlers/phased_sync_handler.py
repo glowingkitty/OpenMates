@@ -744,8 +744,18 @@ async def _handle_phase2_sync(
                     # If client already has up-to-date messages, skip fetching entirely
                     # Client will use messages from IndexedDB
                     if client_messages_v >= server_messages_v:
-                        logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                   f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                        # CRITICAL: Get server message count for client-side validation
+                        # This allows client to detect data inconsistency (version matches but messages missing)
+                        try:
+                            server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                            chat_wrapper["server_message_count"] = server_message_count
+                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                       f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                        except Exception as count_err:
+                            logger.warning(f"Phase 2: Failed to get message count for {chat_id}: {count_err}")
+                            # Continue without count - client will have to trust version
+                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
                         # Ensure messages is None to indicate client should use local data
                         if "messages" not in chat_wrapper:
                             chat_wrapper["messages"] = None
@@ -1089,8 +1099,18 @@ async def _handle_phase3_sync(
                         # If client already has up-to-date messages, skip fetching entirely
                         # Client will use messages from IndexedDB
                         if client_messages_v >= server_messages_v:
-                            logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                            # CRITICAL: Get server message count for client-side validation
+                            # This allows client to detect data inconsistency (version matches but messages missing)
+                            try:
+                                server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                                chat_wrapper["server_message_count"] = server_message_count
+                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                           f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                            except Exception as count_err:
+                                logger.warning(f"Phase 3: Failed to get message count for {chat_id}: {count_err}")
+                                # Continue without count - client will have to trust version
+                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                           f"(client: m={client_messages_v}, server: m={server_messages_v})")
                             # Ensure messages is None to indicate client should use local data
                             if "messages" not in chat_wrapper:
                                 chat_wrapper["messages"] = None

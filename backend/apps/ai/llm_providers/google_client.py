@@ -7,6 +7,7 @@ import os
 import tempfile
 import uuid
 import atexit
+import base64
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 
@@ -51,6 +52,7 @@ class ParsedGoogleToolCall(BaseModel):
     function_arguments_raw: str
     function_arguments_parsed: Dict[str, Any]
     parsing_error: Optional[str] = None
+    thought_signature: Optional[str] = None  # For Gemini 3 thinking models - must be passed back in multi-turn
 
 class UnifiedGoogleResponse(BaseModel):
     task_id: str
@@ -198,12 +200,13 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
     - assistant messages: Converted to role='model' with text and/or function call parts
     - tool messages: Converted to role='user' with function_response parts
     
-    IMPORTANT: For Google Gemini, tool/function results must be sent as:
-    - types.Content(role='user', parts=[types.Part.from_function_response(...)])
-    - The role is 'user' (not 'tool') because function responses come from the user side
-    
-    This is critical to prevent the model from echoing tool results as if they were
-    its own previous responses.
+    IMPORTANT: For Google Gemini:
+    1. Tool/function results must be sent as function_response parts (not plain text)
+    2. When multiple function calls are made in one turn, ALL responses MUST be
+       in a SINGLE Content object with multiple parts - not separate Content objects!
+       
+    This is critical because Gemini validates that the number of function_response parts
+    equals the number of function_call parts from the previous assistant turn.
     """
     system_prompt = None
     history = []
@@ -214,7 +217,10 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
     if processed_messages and processed_messages[0].get("role") == "system":
         system_prompt = processed_messages.pop(0)["content"]
 
-    for msg in processed_messages:
+    # Process messages, grouping consecutive tool responses together
+    i = 0
+    while i < len(processed_messages):
+        msg = processed_messages[i]
         role = msg.get("role", "")
         content = msg.get("content", "")
         
@@ -222,6 +228,7 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
             # User message: Simple text content
             if content:
                 history.append(types.Content(role="user", parts=[types.Part.from_text(text=content)]))
+            i += 1
         
         elif role == "assistant":
             # Assistant message: May have text content and/or function calls
@@ -231,23 +238,35 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
             tool_calls = msg.get("tool_calls", [])
             if tool_calls:
                 # Convert each tool call to a FunctionCall part
+                # CRITICAL: For Gemini 3 thinking models, we MUST include thought_signature
                 for tc in tool_calls:
                     if isinstance(tc, dict):
                         # Parse from dict format (OpenAI-compatible)
                         func = tc.get("function", {})
                         func_name = func.get("name", "")
                         func_args_raw = func.get("arguments", "{}")
+                        thought_sig = tc.get("thought_signature")  # May be None for non-thinking models
                         try:
                             func_args = json.loads(func_args_raw) if isinstance(func_args_raw, str) else func_args_raw
                         except json.JSONDecodeError:
                             func_args = {}
                         if func_name:
-                            # Create FunctionCall using types module
-                            # Note: In google-genai SDK, FunctionCall is accessed via types
-                            parts.append(types.Part.from_function_call(
+                            # Create FunctionCall part
+                            fc_part = types.Part.from_function_call(
                                 name=func_name,
                                 args=func_args
-                            ))
+                            )
+                            # CRITICAL: Add thought_signature for Gemini 3 thinking models
+                            # Without this, multi-turn function calling fails with validation error
+                            # The thought_sig is stored as base64 string, convert back to bytes for API
+                            if thought_sig:
+                                if isinstance(thought_sig, str):
+                                    # Decode base64 string back to bytes for Gemini API
+                                    fc_part.thought_signature = base64.b64decode(thought_sig)
+                                else:
+                                    fc_part.thought_signature = thought_sig
+                                logger.debug(f"Added thought_signature to function call part: {func_name}")
+                            parts.append(fc_part)
             
             # Add text content if present (assistant may have both text and function calls)
             if content:
@@ -255,53 +274,56 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
             
             if parts:
                 history.append(types.Content(role="model", parts=parts))
+            i += 1
         
         elif role == "tool":
-            # Tool/function result message: Must be formatted as function_response
-            # CRITICAL: This is the key fix - tool results must use from_function_response()
-            # to tell Gemini these are function results, not assistant text
-            tool_call_id = msg.get("tool_call_id", "")
-            func_name = msg.get("name", "")
+            # CRITICAL: Collect ALL consecutive tool messages into a SINGLE Content object
+            # Gemini requires that all function responses be in one Content with multiple parts
+            # when there were multiple function calls in the previous assistant turn
+            tool_response_parts = []
             
-            # If we don't have the function name, try to extract it from tool_call_id
-            # (some formats use "func_name-uuid" pattern)
-            if not func_name and tool_call_id:
-                # tool_call_id might be in format "func_name-uuid" or just an ID
-                if "-" in tool_call_id:
-                    # Try to extract function name from patterns like "web-search-abc123"
-                    func_name = "-".join(tool_call_id.split("-")[:-1]) if tool_call_id.count("-") > 1 else tool_call_id.split("-")[0]
-            
-            # Parse tool result content - could be JSON or plain text
-            try:
-                # Try to parse as JSON to get structured response
-                if isinstance(content, str):
-                    tool_response = json.loads(content)
+            while i < len(processed_messages) and processed_messages[i].get("role") == "tool":
+                tool_msg = processed_messages[i]
+                tool_call_id = tool_msg.get("tool_call_id", "")
+                func_name = tool_msg.get("name", "")
+                tool_content = tool_msg.get("content", "")
+                
+                # If we don't have the function name, try to extract it from tool_call_id
+                if not func_name and tool_call_id:
+                    if "-" in tool_call_id:
+                        func_name = "-".join(tool_call_id.split("-")[:-1]) if tool_call_id.count("-") > 1 else tool_call_id.split("-")[0]
+                
+                # Parse tool result content
+                try:
+                    if isinstance(tool_content, str):
+                        tool_response = json.loads(tool_content)
+                    else:
+                        tool_response = tool_content
+                except (json.JSONDecodeError, TypeError):
+                    tool_response = {"result": tool_content}
+                
+                if func_name:
+                    function_response_part = types.Part.from_function_response(
+                        name=func_name,
+                        response=tool_response
+                    )
+                    tool_response_parts.append(function_response_part)
+                    logger.debug(f"Prepared tool response part: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
                 else:
-                    tool_response = content
-            except (json.JSONDecodeError, TypeError):
-                # If not valid JSON, wrap as string result
-                tool_response = {"result": content}
+                    logger.warning(f"Tool message without function name, skipping. tool_call_id={tool_call_id}")
+                
+                i += 1
             
-            if func_name:
-                # Create function response part
-                # Use 'user' role because function responses come from the user/system side
-                function_response_part = types.Part.from_function_response(
-                    name=func_name,
-                    response=tool_response
-                )
-                history.append(types.Content(role="user", parts=[function_response_part]))
-                logger.debug(f"Converted tool message to function_response: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
-            else:
-                # Fallback if we can't determine function name: treat as user message with context
-                # This shouldn't happen often but provides a graceful fallback
-                logger.warning(f"Tool message without function name, falling back to user message. tool_call_id={tool_call_id}")
-                if content:
-                    history.append(types.Content(role="user", parts=[types.Part.from_text(text=f"[Tool result]: {content}")]))
+            # Add all tool responses as a single Content with multiple parts
+            if tool_response_parts:
+                history.append(types.Content(role="user", parts=tool_response_parts))
+                logger.debug(f"Added {len(tool_response_parts)} function response parts in single Content")
         
         else:
             # Unknown role: treat as model message (fallback)
             if content:
                 history.append(types.Content(role="model", parts=[types.Part.from_text(text=content)]))
+            i += 1
             
     return system_prompt, history
 
@@ -381,14 +403,14 @@ async def invoke_google_ai_studio_chat_completions(
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
-        # CRITICAL: Configure thinking to minimize/disable reasoning output
-        # For Gemini models that support thinking (2.5+, 3+), we want to:
-        # 1. Set thinking_budget=0 to disable thinking entirely (if supported)
-        # 2. Set include_thoughts=False as fallback to not include thoughts in output
+        # Configure thinking for models that support it (Gemini 2.5+, 3+)
+        # We enable include_thoughts=True to receive thinking content for streaming
+        # The thinking content will be yielded as UnifiedStreamChunk(type=THINKING)
+        # and displayed in a collapsible "Thinking..." section in the UI
+        # Note: thinking_budget is NOT set - models have minimum budgets that can't be disabled
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                thinking_budget=0,  # Set to 0 to turn off thinking
-                include_thoughts=False  # Don't include thoughts in output if thinking happens
+                include_thoughts=True  # Include thoughts in output so we can stream them
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -487,29 +509,40 @@ async def invoke_google_ai_studio_chat_completions(
             )
 
             async for chunk in stream_iterator:
-                if chunk.function_calls:
-                    # Tool calls happen AFTER thinking completes
-                    for fc in chunk.function_calls:
-                        args_dict = dict(fc.args)
-                        parsed_tool_call = ParsedGoogleToolCall(
-                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                            function_name=fc.name,
-                            function_arguments_parsed=args_dict,
-                            function_arguments_raw=json.dumps(args_dict),
-                        )
-                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
-                        yield parsed_tool_call
-                else:
-                    # Process content parts, separating thinking from regular text
-                    try:
-                        if chunk.candidates:
-                            for candidate in chunk.candidates:
-                                if candidate.content and candidate.content.parts:
-                                    for part in candidate.content.parts:
-                                        # Check if this is a thinking/thought part
-                                        is_thought = hasattr(part, 'thought') and part.thought
-                                        
-                                        if is_thought and hasattr(part, 'text') and part.text:
+                # Process all content parts to extract function calls WITH thought signatures
+                # and regular content (thinking/text)
+                try:
+                    if chunk.candidates:
+                        for candidate in chunk.candidates:
+                            if candidate.content and candidate.content.parts:
+                                for part in candidate.content.parts:
+                                    # Check for function call on this part (with thought signature)
+                                    # This is the proper way to get function calls + signatures together
+                                    if hasattr(part, 'function_call') and part.function_call:
+                                        fc = part.function_call
+                                        args_dict = dict(fc.args) if fc.args else {}
+                                        # CRITICAL: Extract thought_signature from the part
+                                        # The signature may be bytes (binary) - convert to base64 string for storage
+                                        thought_sig_raw = getattr(part, 'thought_signature', None)
+                                        thought_sig = None
+                                        if thought_sig_raw is not None:
+                                            if isinstance(thought_sig_raw, bytes):
+                                                # Convert bytes to base64 string for JSON serialization
+                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
+                                            elif isinstance(thought_sig_raw, str):
+                                                thought_sig = thought_sig_raw
+                                        parsed_tool_call = ParsedGoogleToolCall(
+                                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
+                                            function_name=fc.name,
+                                            function_arguments_parsed=args_dict,
+                                            function_arguments_raw=json.dumps(args_dict),
+                                            thought_signature=thought_sig  # Capture for multi-turn (base64 if bytes)
+                                        )
+                                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name} (has_signature={thought_sig is not None})")
+                                        yield parsed_tool_call
+                                    # Check if this is a thinking/thought part
+                                    elif hasattr(part, 'thought') and part.thought:
+                                        if hasattr(part, 'text') and part.text:
                                             # Yield thinking content as UnifiedStreamChunk
                                             thinking_buffer += part.text
                                             logger.debug(f"{log_prefix} Yielding thinking chunk ({len(part.text)} chars)")
@@ -517,24 +550,28 @@ async def invoke_google_ai_studio_chat_completions(
                                                 type=StreamChunkType.THINKING,
                                                 content=part.text
                                             )
-                                        elif hasattr(part, 'text') and part.text and not is_thought:
-                                            # Regular text content
-                                            output_buffer += part.text
-                                            yield part.text
-                                            
-                                # Check for thinking signature on the candidate
-                                if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                    logger.info(f"{log_prefix} Yielding thinking signature")
-                                    yield UnifiedStreamChunk(
-                                        type=StreamChunkType.THINKING_SIGNATURE,
-                                        signature=candidate.thought_signature
-                                    )
-                    except Exception as e:
-                        # Fallback: If we can't parse candidates structure, use chunk.text
-                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
-                        if chunk.text:
-                            output_buffer += chunk.text
-                            yield chunk.text
+                                    elif hasattr(part, 'text') and part.text:
+                                        # Regular text content
+                                        output_buffer += part.text
+                                        yield part.text
+                                        
+                            # Check for thinking signature on the candidate level (fallback)
+                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
+                                # Convert bytes to base64 string if needed
+                                sig_value = candidate.thought_signature
+                                if isinstance(sig_value, bytes):
+                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                                logger.info(f"{log_prefix} Yielding thinking signature from candidate")
+                                yield UnifiedStreamChunk(
+                                    type=StreamChunkType.THINKING_SIGNATURE,
+                                    signature=sig_value
+                                )
+                except Exception as e:
+                    # Fallback: If we can't parse candidates structure, use chunk.text
+                    logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
+                    if chunk.text:
+                        output_buffer += chunk.text
+                        yield chunk.text
 
             try:
                 usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
@@ -682,16 +719,14 @@ async def invoke_google_chat_completions(
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
-        # CRITICAL: Configure thinking to minimize/disable reasoning output
-        # For Gemini models that support thinking (2.5+, 3+), we want to:
-        # 1. Set thinking_budget=0 to disable thinking entirely (if supported)
-        # 2. Set include_thoughts=False as fallback to not include thoughts in output
-        # Note: Some models (like Gemini 2.5 Pro) have minimum thinking budgets that cannot
-        # be disabled. In those cases, we rely on include_thoughts=False and filtering.
+        # Configure thinking for models that support it (Gemini 2.5+, 3+)
+        # We enable include_thoughts=True to receive thinking content for streaming
+        # The thinking content will be yielded as UnifiedStreamChunk(type=THINKING)
+        # and displayed in a collapsible "Thinking..." section in the UI
+        # Note: thinking_budget is NOT set - models have minimum budgets that can't be disabled
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                thinking_budget=0,  # Try to disable thinking entirely
-                include_thoughts=False  # Don't include thoughts in output if thinking happens
+                include_thoughts=True  # Include thoughts in output so we can stream them
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -792,29 +827,40 @@ async def invoke_google_chat_completions(
             )
             
             async for chunk in stream_iterator:
-                if chunk.function_calls:
-                    # Tool calls happen AFTER thinking completes
-                    for fc in chunk.function_calls:
-                        args_dict = dict(fc.args)
-                        parsed_tool_call = ParsedGoogleToolCall(
-                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                            function_name=fc.name,
-                            function_arguments_parsed=args_dict,
-                            function_arguments_raw=json.dumps(args_dict)
-                        )
-                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
-                        yield parsed_tool_call
-                else:
-                    # Process content parts, separating thinking from regular text
-                    try:
-                        if chunk.candidates:
-                            for candidate in chunk.candidates:
-                                if candidate.content and candidate.content.parts:
-                                    for part in candidate.content.parts:
-                                        # Check if this is a thinking/thought part
-                                        is_thought = hasattr(part, 'thought') and part.thought
-                                        
-                                        if is_thought and hasattr(part, 'text') and part.text:
+                # Process all content parts to extract function calls WITH thought signatures
+                # and regular content (thinking/text)
+                try:
+                    if chunk.candidates:
+                        for candidate in chunk.candidates:
+                            if candidate.content and candidate.content.parts:
+                                for part in candidate.content.parts:
+                                    # Check for function call on this part (with thought signature)
+                                    # This is the proper way to get function calls + signatures together
+                                    if hasattr(part, 'function_call') and part.function_call:
+                                        fc = part.function_call
+                                        args_dict = dict(fc.args) if fc.args else {}
+                                        # CRITICAL: Extract thought_signature from the part
+                                        # The signature may be bytes (binary) - convert to base64 string for storage
+                                        thought_sig_raw = getattr(part, 'thought_signature', None)
+                                        thought_sig = None
+                                        if thought_sig_raw is not None:
+                                            if isinstance(thought_sig_raw, bytes):
+                                                # Convert bytes to base64 string for JSON serialization
+                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
+                                            elif isinstance(thought_sig_raw, str):
+                                                thought_sig = thought_sig_raw
+                                        parsed_tool_call = ParsedGoogleToolCall(
+                                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
+                                            function_name=fc.name,
+                                            function_arguments_parsed=args_dict,
+                                            function_arguments_raw=json.dumps(args_dict),
+                                            thought_signature=thought_sig  # Capture for multi-turn (base64 if bytes)
+                                        )
+                                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name} (has_signature={thought_sig is not None})")
+                                        yield parsed_tool_call
+                                    # Check if this is a thinking/thought part
+                                    elif hasattr(part, 'thought') and part.thought:
+                                        if hasattr(part, 'text') and part.text:
                                             # Yield thinking content as UnifiedStreamChunk
                                             thinking_buffer += part.text
                                             logger.debug(f"{log_prefix} Yielding thinking chunk ({len(part.text)} chars)")
@@ -822,24 +868,28 @@ async def invoke_google_chat_completions(
                                                 type=StreamChunkType.THINKING,
                                                 content=part.text
                                             )
-                                        elif hasattr(part, 'text') and part.text and not is_thought:
-                                            # Regular text content
-                                            output_buffer += part.text
-                                            yield part.text
-                                            
-                                # Check for thinking signature on the candidate
-                                if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                    logger.info(f"{log_prefix} Yielding thinking signature")
-                                    yield UnifiedStreamChunk(
-                                        type=StreamChunkType.THINKING_SIGNATURE,
-                                        signature=candidate.thought_signature
-                                    )
-                    except Exception as e:
-                        # Fallback: If we can't parse candidates structure, use chunk.text
-                        logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
-                        if chunk.text:
-                            output_buffer += chunk.text
-                            yield chunk.text
+                                    elif hasattr(part, 'text') and part.text:
+                                        # Regular text content
+                                        output_buffer += part.text
+                                        yield part.text
+                                        
+                            # Check for thinking signature on the candidate level (fallback)
+                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
+                                # Convert bytes to base64 string if needed
+                                sig_value = candidate.thought_signature
+                                if isinstance(sig_value, bytes):
+                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                                logger.info(f"{log_prefix} Yielding thinking signature from candidate")
+                                yield UnifiedStreamChunk(
+                                    type=StreamChunkType.THINKING_SIGNATURE,
+                                    signature=sig_value
+                                )
+                except Exception as e:
+                    # Fallback: If we can't parse candidates structure, use chunk.text
+                    logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
+                    if chunk.text:
+                        output_buffer += chunk.text
+                        yield chunk.text
             
             # After the stream is done, the response object on the iterator has usage metadata
             try:

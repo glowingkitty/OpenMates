@@ -20,6 +20,7 @@ from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, 
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
+from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -1313,6 +1314,27 @@ async def handle_main_processing(
                     # Don't fail the stream processing if inline placeholder creation fails
                     logger.error(f"{log_prefix} INLINE: Error creating placeholder during stream: {e}", exc_info=True)
                 
+            elif isinstance(chunk, UnifiedStreamChunk):
+                # Handle thinking/reasoning content from models like Gemini 3 Pro
+                # These chunks contain the model's internal reasoning process
+                # Pass them through to stream_consumer which will publish to thinking Redis channel
+                if chunk.type == StreamChunkType.THINKING:
+                    # Thinking content - yield through for stream_consumer to handle
+                    logger.debug(f"{log_prefix} Yielding thinking chunk ({len(chunk.content or '')} chars)")
+                    yield chunk
+                elif chunk.type == StreamChunkType.THINKING_SIGNATURE:
+                    # Thinking signature - yield through for storage
+                    logger.debug(f"{log_prefix} Yielding thinking signature")
+                    yield chunk
+                elif chunk.type == StreamChunkType.TEXT:
+                    # Text content wrapped in UnifiedStreamChunk - extract and yield as string
+                    llm_turn_had_content = True
+                    if chunk.content:
+                        yield chunk.content
+                        if tool_calls_for_this_turn:
+                            current_turn_text_buffer.append(chunk.content)
+                else:
+                    logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
                 llm_turn_had_content = True
                 # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
@@ -1333,7 +1355,18 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
         assistant_message_content_for_history = final_buffered_text_for_turn
-        assistant_message_tool_calls_formatted = [{"id": tc.tool_call_id, "type": "function", "function": {"name": tc.function_name, "arguments": tc.function_arguments_raw}} for tc in tool_calls_for_this_turn]
+        # Format tool calls for message history
+        # CRITICAL: Include thought_signature for Gemini 3 thinking models - required for multi-turn function calling
+        assistant_message_tool_calls_formatted = [
+            {
+                "id": tc.tool_call_id,
+                "type": "function",
+                "function": {"name": tc.function_name, "arguments": tc.function_arguments_raw},
+                # Include thought_signature if present (for Gemini 3 thinking models)
+                **({"thought_signature": tc.thought_signature} if hasattr(tc, 'thought_signature') and tc.thought_signature else {})
+            }
+            for tc in tool_calls_for_this_turn
+        ]
         assistant_message: Dict[str, Any] = {"role": "assistant", "content": assistant_message_content_for_history or None, "tool_calls": assistant_message_tool_calls_formatted}
         current_message_history.append(assistant_message)
 
@@ -2186,57 +2219,106 @@ async def handle_main_processing(
                         else:
                             # Single request: Update the existing placeholder embed
                             if placeholder_embed_data:
-                                # Extract metadata from parsed_args for single request
-                                # This preserves input parameters (query, url, provider, etc.) in the embed
-                                single_request_metadata = {}
-                                if parsed_args and isinstance(parsed_args, dict):
-                                    # Copy all input parameters except internal fields
-                                    for key, value in parsed_args.items():
-                                        if key not in ['requests']:  # Skip requests array for single request
-                                            single_request_metadata[key] = value
-                                    
-                                    # If we have a requests array with one item, extract from that
-                                    if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
-                                        first_request = parsed_args["requests"][0]
-                                        if isinstance(first_request, dict):
-                                            # Copy all fields from the first request
-                                            for key, value in first_request.items():
-                                                if key != "id":  # Skip id field
-                                                    single_request_metadata[key] = value
-                                
-                                # Add provider fallback for search skills
-                                if "provider" not in single_request_metadata and skill_id == "search":
-                                    if app_id == "maps":
-                                        single_request_metadata["provider"] = "Google Maps"
-                                    else:
-                                        single_request_metadata["provider"] = "Brave Search"
-                                
-                                # DEBUG: Log what's being passed to update_embed_with_results
-                                if results and len(results) > 0:
-                                    first_result = results[0]
-                                    logger.info(
-                                        f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
-                                        f"results[0] keys: {list(first_result.keys())}, "
-                                        f"has_thumbnail={'thumbnail' in first_result}, "
-                                        f"has_meta_url={'meta_url' in first_result}, "
-                                        f"thumbnail={first_result.get('thumbnail')}, "
-                                        f"meta_url={first_result.get('meta_url')}"
+                                # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
+                                # because is_multiple_requests was False (e.g., skill returned non-grouped results)
+                                # In this case, we need to update each placeholder with the same results
+                                if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple"):
+                                    # Multiple placeholders exist but results aren't grouped - update all with combined results
+                                    placeholders_list = placeholder_embed_data.get("placeholders", [])
+                                    logger.warning(
+                                        f"{log_prefix} Multiple placeholders ({len(placeholders_list)}) but results not grouped. "
+                                        f"Will update each placeholder with combined results."
                                     )
-                                
-                                updated_embed_data = await embed_service.update_embed_with_results(
-                                    embed_id=placeholder_embed_data.get('embed_id'),
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    results=results,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix,
-                                    request_metadata=single_request_metadata
-                                )
+                                    
+                                    for idx, placeholder in enumerate(placeholders_list):
+                                        embed_id = placeholder.get("embed_id")
+                                        if not embed_id:
+                                            continue
+                                        
+                                        # Use placeholder's request_metadata if available
+                                        placeholder_metadata = {
+                                            "query": placeholder.get("query"),
+                                            "provider": placeholder.get("provider", "Brave Search" if skill_id == "search" and app_id != "maps" else None)
+                                        }
+                                        # Filter out None values
+                                        placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
+                                        
+                                        updated_embed_data = await embed_service.update_embed_with_results(
+                                            embed_id=embed_id,
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            results=results,  # Same results for all placeholders
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            log_prefix=f"{log_prefix}[placeholder_{idx}]",
+                                            request_metadata=placeholder_metadata
+                                        )
+                                        
+                                        if updated_embed_data:
+                                            updated_embed_data_list.append(updated_embed_data)
+                                            logger.info(
+                                                f"{log_prefix} Updated placeholder {idx}/{len(placeholders_list)} "
+                                                f"(embed_id={embed_id}) with combined results"
+                                            )
+                                else:
+                                    # Standard single placeholder - extract its embed_id directly
+                                    single_embed_id = placeholder_embed_data.get('embed_id')
+                                    
+                                    # Extract metadata from parsed_args for single request
+                                    # This preserves input parameters (query, url, provider, etc.) in the embed
+                                    single_request_metadata = {}
+                                    if parsed_args and isinstance(parsed_args, dict):
+                                        # Copy all input parameters except internal fields
+                                        for key, value in parsed_args.items():
+                                            if key not in ['requests']:  # Skip requests array for single request
+                                                single_request_metadata[key] = value
+                                        
+                                        # If we have a requests array with one item, extract from that
+                                        if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                                            first_request = parsed_args["requests"][0]
+                                            if isinstance(first_request, dict):
+                                                # Copy all fields from the first request
+                                                for key, value in first_request.items():
+                                                    if key != "id":  # Skip id field
+                                                        single_request_metadata[key] = value
+                                    
+                                    # Add provider fallback for search skills
+                                    if "provider" not in single_request_metadata and skill_id == "search":
+                                        if app_id == "maps":
+                                            single_request_metadata["provider"] = "Google Maps"
+                                        else:
+                                            single_request_metadata["provider"] = "Brave Search"
+                                    
+                                    # DEBUG: Log what's being passed to update_embed_with_results
+                                    if results and len(results) > 0:
+                                        first_result = results[0]
+                                        logger.info(
+                                            f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                            f"results[0] keys: {list(first_result.keys())}, "
+                                            f"has_thumbnail={'thumbnail' in first_result}, "
+                                            f"has_meta_url={'meta_url' in first_result}, "
+                                            f"thumbnail={first_result.get('thumbnail')}, "
+                                            f"meta_url={first_result.get('meta_url')}"
+                                        )
+                                    
+                                    updated_embed_data = await embed_service.update_embed_with_results(
+                                        embed_id=single_embed_id,
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        results=results,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix,
+                                        request_metadata=single_request_metadata
+                                    )
 
                                 if updated_embed_data:
                                     updated_embed_data_list.append(updated_embed_data)

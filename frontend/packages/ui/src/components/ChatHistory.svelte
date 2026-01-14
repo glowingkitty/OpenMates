@@ -355,6 +355,9 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
+  // ChatGPT-like scroll behavior: when user sends a message, scroll to position
+  // the BOTTOM of the user message near the top of the viewport (showing last 1-2 lines)
+  // This leaves maximum space below for the assistant's response to render
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
@@ -365,10 +368,16 @@
           if (userMessageElement) {
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
-            const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20;
+            
+            // Calculate scroll position to show the BOTTOM of the user message near the top
+            // messageRect.bottom gives us the bottom edge of the message
+            // We want the bottom of the message to be ~60px from the top of the viewport
+            // This shows the last 1-2 lines of the user message with space below for the response
+            const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
+            const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
 
             container.scrollTo({
-              top: scrollOffset,
+              top: Math.max(0, scrollOffset), // Don't scroll to negative
               behavior: 'smooth'
             });
 
@@ -390,6 +399,7 @@
   $effect(() => {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   });
+
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
@@ -449,11 +459,11 @@
   function checkIfAtBottomForUI() {
     if (!container) return;
     
-    const isAtBottom = 
+    const isAtBottomLocal = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
     // Dispatch immediate event for UI state changes (button visibility)
-    dispatch('scrollPositionUI', { isAtBottom });
+    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal });
   }
 
   // Find the last message that's currently visible in viewport
