@@ -683,6 +683,9 @@ async def _async_process_ai_skill_ask_task(
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
                 "provider_name": provider_name, # Add provider_name to the payload
+                # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                # When this is True, the user message was already persisted before the app settings/memories pause
+                "is_continuation": request_data.is_app_settings_memories_continuation,
             }
             
             # Log the complete typing payload for debugging

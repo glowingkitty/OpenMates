@@ -48,13 +48,17 @@ async def handle_chat_system_message_added(
     
     These are persisted in Directus and synced across devices.
     
+    IMPORTANT: Zero-knowledge architecture - system messages are encrypted client-side
+    with the chat key (same as regular messages). The server stores the encrypted content
+    directly in Directus without re-encryption.
+    
     Expected payload:
     {
         "chat_id": "...",
         "message": {
             "message_id": "...",
             "role": "system",
-            "content": "{\"type\": \"app_settings_memories_response\", ...}",
+            "encrypted_content": "...",  # Client-encrypted with chat key
             "created_at": 1234567890
         }
     }
@@ -74,14 +78,16 @@ async def handle_chat_system_message_added(
         
         message_id = message_payload.get("message_id")
         role = message_payload.get("role")
-        content = message_payload.get("content")
+        # CRITICAL: Accept encrypted_content (chat-key encrypted, zero-knowledge)
+        # Fallback to 'content' for backwards compatibility
+        encrypted_content = message_payload.get("encrypted_content") or message_payload.get("content")
         created_at = message_payload.get("created_at")
         
         # Validate required fields
-        if not message_id or not content:
-            logger.error(f"Missing required fields in system message from {user_id}: message_id={message_id}, has_content={bool(content)}")
+        if not message_id or not encrypted_content:
+            logger.error(f"Missing required fields in system message from {user_id}: message_id={message_id}, has_encrypted_content={bool(encrypted_content)}")
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing message_id or content"}},
+                {"type": "error", "payload": {"message": "Missing message_id or encrypted_content"}},
                 user_id,
                 device_fingerprint_hash
             )
@@ -122,49 +128,13 @@ async def handle_chat_system_message_added(
             )
             return
         
-        # Get user's vault_key_id for encryption (try cache first, fallback to Directus)
-        user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
-        if not user_vault_key_id:
-            logger.debug(f"[SystemMessage] vault_key_id not in cache for user {user_id}, fetching from Directus")
-            try:
-                user_profile_result = await directus_service.get_user_profile(user_id)
-                if not user_profile_result or not user_profile_result[0]:
-                    logger.error(f"[SystemMessage] Failed to fetch user profile for {user_id}")
-                    await manager.send_personal_message(
-                        {"type": "error", "payload": {"message": "Failed to fetch user profile"}},
-                        user_id,
-                        device_fingerprint_hash
-                    )
-                    return
-                
-                user_vault_key_id = user_profile_result[1].get("vault_key_id")
-                if not user_vault_key_id:
-                    logger.error(f"[SystemMessage] User {user_id} missing vault_key_id in Directus profile")
-                    await manager.send_personal_message(
-                        {"type": "error", "payload": {"message": "User vault key not configured"}},
-                        user_id,
-                        device_fingerprint_hash
-                    )
-                    return
-                
-                # Cache the vault_key_id for future use
-                await cache_service.update_user(user_id, {"vault_key_id": user_vault_key_id})
-                logger.debug(f"[SystemMessage] Cached vault_key_id for user {user_id}")
-            except Exception as e_profile:
-                logger.error(f"[SystemMessage] Error fetching user profile: {e_profile}", exc_info=True)
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Failed to fetch user profile"}},
-                    user_id,
-                    device_fingerprint_hash
-                )
-                return
-        
-        # Encrypt message content with user's vault key for storage
-        # encrypt_with_user_key returns (ciphertext, key_version) tuple
-        encrypted_content, _ = await encryption_service.encrypt_with_user_key(
-            plaintext=content,
-            key_id=user_vault_key_id
-        )
+        # ZERO-KNOWLEDGE ARCHITECTURE: System messages are encrypted client-side with the chat key
+        # The server stores the encrypted content directly in Directus without re-encryption.
+        # This ensures the server can never read system message content.
+        # 
+        # Note: We use the encrypted_content received from the client directly.
+        # No vault-key encryption is needed here since the content is already encrypted
+        # with the chat key for permanent storage.
         
         # Increment messages_v in cache
         new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
@@ -211,14 +181,16 @@ async def handle_chat_system_message_added(
             device_fingerprint_hash
         )
         
-        # Broadcast to other devices for sync
+        # Broadcast to other devices for sync (zero-knowledge architecture)
+        # CRITICAL: Send encrypted_content, not plaintext - other devices decrypt with their chat key
         broadcast_payload = {
+            "type": "new_system_message",  # Message type for frontend handler
             "event": "new_system_message",
             "chat_id": chat_id,
             "data": {
                 "message_id": message_id,
                 "role": "system",
-                "content": content,  # Send plaintext for other devices to display
+                "encrypted_content": encrypted_content,  # Client-encrypted with chat key
                 "created_at": created_at
             },
             "versions": {"messages_v": new_messages_v}
@@ -228,7 +200,7 @@ async def handle_chat_system_message_added(
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash  # Don't send back to sender
         )
-        logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices")
+        logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices (encrypted)")
         
     except Exception as e:
         logger.error(f"[SystemMessage] Error handling system message: {e}", exc_info=True)

@@ -245,6 +245,9 @@ export interface AITypingStartedPayload {
     icon_names?: string[]; // Added to include the icon names from AI preprocessing
     // DUAL-PHASE: task_id for tracking
     task_id?: string;
+    // CRITICAL: When true, this is a continuation task after app settings/memories confirmation
+    // The user message was already persisted before the pause, so skip re-persistence to avoid duplicates
+    is_continuation?: boolean;
 }
 
 export interface AIMessageReadyPayload {

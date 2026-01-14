@@ -294,6 +294,48 @@ class ChatMethods:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
             return None, False
 
+    async def message_exists_by_client_message_id(self, client_message_id: str) -> bool:
+        """
+        Check if a message with the given client_message_id already exists in Directus.
+        
+        This is used for idempotency checking to prevent duplicate messages from being created
+        due to race conditions (e.g., duplicate requests from cached webapp on mobile devices).
+        
+        Args:
+            client_message_id: The client-generated unique message identifier
+            
+        Returns:
+            True if message already exists, False otherwise
+        """
+        try:
+            success, result = await self.directus_service.fetch_items(
+                collection='messages',
+                params={
+                    "filter": {"client_message_id": {"_eq": client_message_id}},
+                    "limit": 1,
+                    "fields": ["id", "client_message_id"]  # Only fetch minimal fields
+                }
+            )
+            
+            if success and result:
+                # Message already exists
+                logger.info(
+                    f"[IDEMPOTENCY_CHECK] Message with client_message_id={client_message_id} "
+                    f"already exists in Directus (id: {result[0].get('id')})"
+                )
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(
+                f"[IDEMPOTENCY_CHECK] Error checking for existing message {client_message_id}: {e}",
+                exc_info=True
+            )
+            # On error, return False to allow message creation to proceed
+            # (the unique constraint will catch duplicates if this check failed)
+            return False
+
     async def create_message_in_directus(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a message record in Directus.

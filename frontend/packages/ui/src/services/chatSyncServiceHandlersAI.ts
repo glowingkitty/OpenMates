@@ -483,6 +483,16 @@ export async function handleAITypingStartedImpl( // Changed to async
             return;
         }
         
+        // CRITICAL: Skip user message persistence for continuation tasks (after app settings/memories confirmation)
+        // The user message was already persisted during the initial ai_typing_started event before the pause.
+        // Re-persisting would create a duplicate message in Directus.
+        if (payload.is_continuation) {
+            console.info(`[ChatSyncService:AI] Skipping user message persistence for CONTINUATION task in chat ${payload.chat_id} - message already persisted before app settings/memories pause`);
+            // Still dispatch the typing event for UI updates
+            serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+            return;
+        }
+        
         const isNewChat = payload.icon_names && payload.icon_names.length > 0;
         
         if (isNewChat) {

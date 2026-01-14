@@ -356,7 +356,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "category": category,
                         "model_name": model_name, # Include model_name in the client payload
                         "title": title, # Include title in the client payload
-                        "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
+                        "icon_names": redis_payload.get("icon_names", []), # Include icon names in the client payload
+                        # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                        # When True, this is a continuation after app settings/memories confirmation - user message already persisted
+                        "is_continuation": redis_payload.get("is_continuation", False)
                     }
 
                     # This event should go to all devices of the user, as it's a UI update.

@@ -158,7 +158,36 @@ redis_retry_on_timeout = True
 
 # Dynamically generate configuration values from TASK_CONFIG
 include_modules = [config['module'] for config in TASK_CONFIG]
-task_queues = tuple(Queue(config['name'], exchange=config['name'], routing_key=config['name']) for config in TASK_CONFIG)
+
+# =================================================================
+# WORKER-SPECIFIC QUEUE FILTERING
+# =================================================================
+# When running as a worker, CELERY_QUEUES env var specifies which queues
+# this worker should consume from. We filter task_queues accordingly.
+#
+# This fixes a critical bug where workers were consuming from ALL queues
+# despite --queues flag being set. By filtering at the config level,
+# workers only ever know about their designated queues.
+#
+# For API/scheduler processes, we need ALL queues for routing tasks.
+
+worker_queues_env = os.getenv('CELERY_QUEUES', '')
+if worker_queues_env:
+    # Worker mode: Only include designated queues
+    designated_queue_names = {q.strip() for q in worker_queues_env.split(',')}
+    task_queues = tuple(
+        Queue(config['name'], exchange=config['name'], routing_key=config['name'])
+        for config in TASK_CONFIG
+        if config['name'] in designated_queue_names
+    )
+    logger.info(f"[WORKER_QUEUE_FILTER] Worker mode - filtered queues to: {[q.name for q in task_queues]}")
+else:
+    # API/scheduler mode: Include all queues for routing
+    task_queues = tuple(
+        Queue(config['name'], exchange=config['name'], routing_key=config['name'])
+        for config in TASK_CONFIG
+    )
+    logger.info(f"[WORKER_QUEUE_FILTER] API/scheduler mode - all queues available for routing: {[q.name for q in task_queues]}")
 
 # Create Celery app
 app = Celery(
@@ -438,6 +467,94 @@ def task_unknown_handler(message, exc, name, id, **kwargs):
         f"task_name={name}, exception={exc}. "
         f"CRITICAL: No worker can process this task! Check task registration and routing."
     )
+
+
+# ===========================================================================
+# WORKER QUEUE ENFORCEMENT
+# ===========================================================================
+# This signal handler ensures workers only consume from their designated queues.
+# Despite setting --queues on the command line, Celery workers were consuming from
+# ALL queues defined in task_queues. This caused race conditions where multiple
+# workers would process the same task from the persistence queue.
+#
+# The fix: After the worker is ready, cancel consumers for any queues that the
+# worker should NOT be consuming from (based on CELERY_QUEUES env var or --queues arg).
+
+def _get_designated_queues() -> set:
+    """
+    Get the set of queues this worker should consume from.
+    Checks CELERY_QUEUES environment variable first, then --queues command line arg.
+    """
+    # First check environment variable (set in docker-compose)
+    worker_queues_str = os.getenv('CELERY_QUEUES', '')
+    
+    if not worker_queues_str:
+        # Try to get from command line arguments
+        for i, arg in enumerate(sys.argv):
+            if arg == '--queues' and i + 1 < len(sys.argv):
+                worker_queues_str = sys.argv[i + 1]
+                break
+            elif arg.startswith('--queues='):
+                worker_queues_str = arg.split('=', 1)[1]
+                break
+    
+    if worker_queues_str:
+        return {q.strip() for q in worker_queues_str.split(',')}
+    
+    # If no queues specified, return empty set (will consume from all - original behavior)
+    return set()
+
+
+@signals.celeryd_after_setup.connect
+def enforce_queue_restrictions(sender, instance, **kwargs):
+    """
+    Called after the worker is set up but before it starts processing tasks.
+    Cancels consumers for queues this worker should NOT be consuming from.
+    
+    This fixes a bug where workers with --queues=app_ai were still consuming from
+    ALL queues (email, persistence, etc.) causing race conditions in task processing.
+    """
+    # Log immediately to confirm signal is firing
+    print("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
+    logger.info("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
+    
+    designated_queues = _get_designated_queues()
+    
+    print(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
+    logger.info(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
+    
+    if not designated_queues:
+        logger.info("[QUEUE_ENFORCEMENT] No queue restrictions specified, worker will consume from all declared queues")
+        return
+    
+    logger.info(f"[QUEUE_ENFORCEMENT] Worker designated queues: {designated_queues}")
+    
+    # Get the list of all declared queues from task_queues config
+    all_declared_queues = {q.name for q in app.conf.task_queues} if app.conf.task_queues else set()
+    
+    print(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
+    logger.info(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
+    
+    # Find queues to remove (declared but not designated for this worker)
+    queues_to_remove = all_declared_queues - designated_queues
+    
+    if queues_to_remove:
+        print(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
+        logger.info(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
+        
+        # Cancel consumers for unwanted queues
+        # Use the instance (which is the worker) to cancel consumers
+        for queue_name in queues_to_remove:
+            try:
+                # Cancel consumer for this queue on this worker
+                instance.app.control.cancel_consumer(queue_name, destination=[instance.hostname])
+                print(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
+                logger.info(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
+            except Exception as e:
+                print(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
+                logger.warning(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
+    else:
+        logger.info("[QUEUE_ENFORCEMENT] Worker is already subscribed only to designated queues")
 
 
 # Configure logging on worker start as well
