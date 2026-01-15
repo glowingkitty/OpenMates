@@ -42,21 +42,26 @@ async def request_confirm_email_code(
         # SIGNUP_DOMAIN_RESTRICTION is ALWAYS enforced when set (for all server editions)
         # For self-hosted: domain restriction OR invite code required
         # For non-self-hosted: use SIGNUP_LIMIT logic
-        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+        require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
         )
         
         # Check domain restriction if configured (ALWAYS enforced when set, regardless of server edition)
-        if require_domain_restriction and domain_restriction_value:
+        if require_domain_restriction and allowed_domains:
             email_parts = email_request.email.split('@')
-            if len(email_parts) != 2 or email_parts[1].lower() != domain_restriction_value.lower():
-                logger.warning(f"Email domain not allowed: {email_parts[1] if len(email_parts) > 1 else 'invalid email format'}")
+            email_domain = email_parts[1].lower() if len(email_parts) == 2 else None
+            # Domain checks intentionally compare exact domains to avoid unintended wildcard access.
+            if not email_domain or email_domain not in allowed_domains:
+                logger.warning(
+                    "Email domain not allowed: "
+                    f"{email_domain or 'invalid email format'} (allowed: {', '.join(allowed_domains)})"
+                )
                 return RequestEmailCodeResponse(
                     success=False,
                     message="signup.domain_not_allowed.text",
                     error_code="DOMAIN_NOT_ALLOWED"
                 )
-            logger.info(f"Email domain check passed: {email_parts[1]}")
+            logger.info(f"Email domain check passed: {email_domain}")
         
         # If invite code is required, validate it
         if require_invite_code:
@@ -195,7 +200,7 @@ async def check_confirm_email_code(
         # Get signup requirements based on server edition and configuration
         # For self-hosted: domain restriction OR invite code required
         # For non-self-hosted: use SIGNUP_LIMIT logic
-        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+        require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
         )
         

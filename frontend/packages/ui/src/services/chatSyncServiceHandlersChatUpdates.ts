@@ -238,14 +238,13 @@ export async function handleNewChatMessageImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
     let isNewChat = false;
 
     try {
-        tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
-        
-        // Check if chat exists
-        let chat = await chatDB.getChat(payload.chat_id, tx);
+        // CRITICAL: Avoid shared transactions here because encryption/decryption is async.
+        // A shared transaction can auto-commit before saveMessage/updateChat runs, which
+        // prevents UI updates from firing (seen as "missing" messages on other devices).
+        let chat = await chatDB.getChat(payload.chat_id);
         
         if (!chat) {
             // Chat doesn't exist locally - create a new chat shell
@@ -286,9 +285,21 @@ export async function handleNewChatMessageImpl(
                 console.warn(`[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`);
             }
             
-            await chatDB.addChat(newChat, tx);
+            await chatDB.addChat(newChat);
             chat = newChat; // Use the newly created chat for message saving
             console.info(`[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`);
+        } else if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
+            // Existing chat without cached key - try to decrypt and cache for immediate encryption
+            try {
+                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                const chatKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+                if (chatKey) {
+                    chatDB.setChatKey(payload.chat_id, chatKey);
+                    console.info(`[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`);
+                }
+            } catch (error) {
+                console.error(`[ChatSyncService:ChatUpdates] Error decrypting chat key for existing chat ${payload.chat_id}:`, error);
+            }
         }
         
         // Create the message object from the payload
@@ -306,7 +317,7 @@ export async function handleNewChatMessageImpl(
         };
         
         // Save the message (chatDB.saveMessage will handle encryption if chat key is available)
-        await chatDB.saveMessage(newMessage, tx);
+        await chatDB.saveMessage(newMessage);
         console.debug(`[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`);
         
         // Update chat metadata
@@ -314,26 +325,24 @@ export async function handleNewChatMessageImpl(
         chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
         chat.updated_at = Math.floor(Date.now() / 1000);
         
-        await chatDB.updateChat(chat, tx);
+        await chatDB.updateChat(chat);
+        
+        // Invalidate metadata cache so chat list reloads updated data
+        chatMetadataCache.invalidateChat(payload.chat_id);
 
-        tx.oncomplete = () => {
-            console.info(`[ChatSyncService:ChatUpdates] Successfully processed new_chat_message for chat ${payload.chat_id}`);
-            // Dispatch event to update UI
-            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
-                detail: { 
-                    chat_id: payload.chat_id, 
-                    newMessage, 
-                    chat,
-                    isNewChat // Indicate if this was a newly created chat
-                } 
-            }));
-        };
+        console.info(`[ChatSyncService:ChatUpdates] Successfully processed new_chat_message for chat ${payload.chat_id}`);
+        // Dispatch event to update UI immediately (no transaction callback needed)
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+            detail: { 
+                chat_id: payload.chat_id, 
+                newMessage, 
+                chat,
+                isNewChat // Indicate if this was a newly created chat
+            } 
+        }));
         
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleNewChatMessage:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 

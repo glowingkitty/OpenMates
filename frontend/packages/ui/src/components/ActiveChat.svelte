@@ -76,7 +76,226 @@
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import { appSettingsMemoriesPermissionStore } from '../stores/appSettingsMemoriesPermissionStore'; // Import for clearing permission dialog on chat switch
+    import type { 
+        WebSearchSkillPreviewData,
+        VideoTranscriptSkillPreviewData,
+        VideoTranscriptResult,
+        CodeGetDocsSkillPreviewData,
+        CodeGetDocsResult
+    } from '../types/appSkills';
+    import type { EmbedStoreEntry } from '../message_parsing/types';
     
+    // Lightweight type aliases to keep complex event payloads and component refs explicit.
+    type EventListenerCallback = (event: Event) => void;
+    type UserProfileRecord = { user_id?: string | null };
+    type HiddenChatFlag = { is_hidden?: boolean | null };
+
+    type ChatHistoryRef = {
+        updateMessages: (messages: ChatMessageModel[]) => void;
+        scrollToTop: () => void;
+        scrollToBottom: () => void;
+        restoreScrollPosition: (messageId: string) => void;
+    };
+
+    type MessageInputFieldRef = {
+        setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
+        setSuggestionText: (text: string) => void;
+        setOriginalMarkdown?: (markdown: string) => void;
+        focus: () => void;
+        getTextContent: () => string;
+        clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+    };
+
+    type EmbedResolverData = {
+        embed_id: string;
+        type: string;
+        status: 'processing' | 'finished' | 'error';
+        content: string;
+        text_preview?: string;
+        embed_ids?: string[];
+        file_path?: string;
+        createdAt: number;
+        updatedAt: number;
+    };
+
+    type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
+
+    type EmbedDecodedContent = Record<string, unknown> & {
+        app_id?: string;
+        skill_id?: string;
+        query?: string;
+        provider?: string;
+        url?: string;
+        title?: string;
+        description?: string;
+        meta_url_favicon?: string;
+        favicon?: string;
+        thumbnail_original?: string;
+        image?: string;
+        extra_snippets?: string | string[];
+        page_age?: string;
+        code?: string;
+        language?: string;
+        filename?: string;
+        lineCount?: number;
+        video_id?: string;
+        videoId?: string;
+        channel_name?: string;
+        channel_id?: string;
+        thumbnail?: string;
+        duration_seconds?: number;
+        duration_formatted?: string;
+        view_count?: number;
+        like_count?: number;
+        published_at?: string;
+        embed_ids?: string[] | string;
+        results?: unknown[];
+        original_metadata?: { url?: string };
+        video_count?: number;
+        success_count?: number;
+        failed_count?: number;
+        library?: string;
+    };
+
+    type EmbedFullscreenState = {
+        embedId?: string | null;
+        embedData?: EmbedDataRecord | null;
+        decodedContent?: EmbedDecodedContent | null;
+        embedType?: string | null;
+        attrs?: Record<string, unknown> & {
+            url?: string;
+            title?: string;
+            description?: string;
+            favicon?: string;
+            image?: string;
+            code?: string;
+            language?: string;
+            filename?: string;
+            lineCount?: number;
+            videoId?: string;
+        };
+        restoreFromPip?: boolean;
+    } | null;
+
+    type EmbedFullscreenEventDetail = {
+        embedId?: string | null;
+        embedData?: EmbedDataRecord | null;
+        decodedContent?: EmbedDecodedContent | null;
+        embedType?: string | null;
+        attrs?: Record<string, unknown> & {
+            url?: string;
+            title?: string;
+            description?: string;
+            favicon?: string;
+            image?: string;
+        };
+    };
+
+    type AiMessageChunkPayload = {
+        sequence: number;
+        chat_id: string;
+        message_id: string;
+        user_message_id?: string | null;
+        full_content_so_far?: string | null;
+        is_final_chunk?: boolean;
+        category?: string;
+        model_name?: string;
+    };
+
+    type ChatUpdatedDetail = {
+        chat_id?: string;
+        chat?: Chat;
+        messages?: ChatMessageModel[];
+        newMessage?: ChatMessageModel;
+        type?: string;
+    };
+
+    type SkillPreviewData = WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData;
+
+    type SkillPreviewDetail = {
+        task_id: string;
+        previewData: SkillPreviewData;
+        chat_id: string;
+        message_id: string;
+    };
+
+    // Minimal result shapes for fullscreen embed components (mirrors local interfaces there).
+    type WebSearchResult = {
+        embed_id: string;
+        url: string;
+        title?: string;
+        favicon_url?: string;
+        preview_image_url?: string;
+        snippet?: string;
+        description?: string;
+        extra_snippets?: string | string[];
+        page_age?: string;
+    };
+
+    type NewsSearchResult = {
+        embed_id: string;
+        url: string;
+        title?: string;
+        favicon_url?: string;
+        thumbnail?: string;
+        description?: string;
+    };
+
+    type VideoSearchResult = {
+        embed_id: string;
+        url: string;
+        title?: string;
+        description?: string;
+        channel_title?: string;
+        channel_id?: string;
+        thumbnail_url?: string;
+        view_count?: number;
+        duration?: string;
+    };
+
+    type PlaceSearchResult = {
+        embed_id: string;
+        displayName?: string;
+        formattedAddress?: string;
+        location?: { latitude?: number; longitude?: number };
+        rating?: number;
+        userRatingCount?: number;
+        websiteUri?: string;
+        placeId?: string;
+    };
+
+    type WebReadResult = {
+        type: string;
+        url: string;
+        title?: string;
+        markdown?: string;
+        language?: string;
+        favicon?: string;
+        og_image?: string;
+        og_sitename?: string;
+        hash?: string;
+    };
+
+    type WebReadPreviewData = {
+        app_id: 'web';
+        skill_id: 'read';
+        status: WebSearchSkillPreviewData['status'];
+        results: WebReadResult[];
+        url?: string;
+    };
+
+    type AppCardEntry = {
+        component: typeof WebSearchEmbedPreview | typeof VideoTranscriptEmbedPreview;
+        props: {
+            id: string;
+            previewData: SkillPreviewData;
+            isMobile: boolean;
+            onFullscreen: () => void;
+        };
+    };
+
+    type MessageWithAppCards = ChatMessageModel & { appCards?: AppCardEntry[] };
+
     const dispatch = createEventDispatcher();
     
     // Step sequences for signup status bar (must match Signup.svelte)
@@ -116,6 +335,23 @@
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
     let username = $derived($userProfile.username || '');
+
+    // Split translation strings that include <br> into safe text parts for rendering.
+    function splitHtmlLineBreaks(text: string): string[] {
+        return text.split(/<br\s*\/?>/gi);
+    }
+
+    // Pre-split welcome copy to avoid {@html} and keep translations XSS-safe.
+    let welcomeHeadingParts = $derived.by(() => {
+        const rawHeading = username
+            ? $text('chat.welcome.hey_user.text').replace('{username}', username)
+            : $text('chat.welcome.hey_guest.text');
+        return splitHtmlLineBreaks(rawHeading);
+    });
+
+    let welcomePromptParts = $derived.by(() => {
+        return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with.text'));
+    });
     
     // State for current user ID (cached to avoid repeated DB lookups)
     let currentUserId = $state<string | null>(null);
@@ -146,7 +382,7 @@
         if (!currentUserId) {
             try {
                 const profile = await userDB.getUserProfile();
-                currentUserId = (profile as any)?.user_id || null;
+                currentUserId = (profile as UserProfileRecord | null)?.user_id || null;
             } catch (error) {
                 console.warn('[ActiveChat] Error getting user_id from profile:', error);
                 // Fail open for UX - allow editing if we can't determine ownership
@@ -460,10 +696,53 @@
         console.debug('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
     }
+
+    // Normalize embed result arrays for fullscreen components with strict prop types.
+    function getWebSearchResults(results?: unknown[]): WebSearchResult[] {
+        return Array.isArray(results) ? (results as WebSearchResult[]) : [];
+    }
+
+    function getNewsSearchResults(results?: unknown[]): NewsSearchResult[] {
+        return Array.isArray(results) ? (results as NewsSearchResult[]) : [];
+    }
+
+    function getVideoSearchResults(results?: unknown[]): VideoSearchResult[] {
+        return Array.isArray(results) ? (results as VideoSearchResult[]) : [];
+    }
+
+    function getPlaceSearchResults(results?: unknown[]): PlaceSearchResult[] {
+        return Array.isArray(results) ? (results as PlaceSearchResult[]) : [];
+    }
+
+    function getVideoTranscriptResults(results?: unknown[]): VideoTranscriptResult[] {
+        return Array.isArray(results) ? (results as VideoTranscriptResult[]) : [];
+    }
+
+    function getWebReadResults(results?: unknown[]): WebReadResult[] {
+        return Array.isArray(results) ? (results as WebReadResult[]) : [];
+    }
+
+    function getCodeDocsResults(results?: unknown[]): CodeGetDocsResult[] {
+        return Array.isArray(results) ? (results as CodeGetDocsResult[]) : [];
+    }
+
+    // Coerce skill preview status to embed status (embed data doesn't support "cancelled").
+    function toEmbedStatus(status: SkillPreviewData['status']): EmbedResolverData['status'] {
+        return status === 'cancelled' ? 'error' : status;
+    }
+
+    // Normalize unknown values from embed payloads into the primitive types UI components expect.
+    function coerceString(value: unknown, fallback: string = ''): string {
+        return typeof value === 'string' ? value : fallback;
+    }
+
+    function coerceNumber(value: unknown, fallback: number = 0): number {
+        return typeof value === 'number' ? value : fallback;
+    }
     
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
-    let embedFullscreenData = $state<any>(null);
+    let embedFullscreenData = $state<EmbedFullscreenState>(null);
     
     // Debug: Track state changes
     $effect(() => {
@@ -473,8 +752,8 @@
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
-        
-        const { embedId, embedData, decodedContent, embedType, attrs } = event.detail;
+        const detail = event.detail as EmbedFullscreenEventDetail;
+        const { embedId, embedData, decodedContent, embedType, attrs } = detail;
         
         // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data
         // The embed might have been updated since the preview was rendered (e.g., processing -> finished)
@@ -485,7 +764,7 @@
         if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-                const freshEmbedData = await resolveEmbed(embedId);
+                const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
                 
                 if (freshEmbedData) {
                     // Use fresh data from EmbedStore
@@ -647,8 +926,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Filter out nulls and add to decoded content
                     finalDecodedContent.results = results.filter(r => r !== null);
-                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'website results for web search fullscreen:', 
-                        finalDecodedContent.results.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
+                    const websiteResults = getWebSearchResults(finalDecodedContent.results);
+                    console.info('[ActiveChat] Loaded', websiteResults.length, 'website results for web search fullscreen:', 
+                        websiteResults.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
                 } catch (error) {
                     console.error('[ActiveChat] Error loading child embeds for web search:', error);
                     // Continue without results - fullscreen will show "No results" message
@@ -697,8 +977,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Filter out nulls and add to decoded content
                     finalDecodedContent.results = results.filter(r => r !== null);
-                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'place results for maps search fullscreen:', 
-                        finalDecodedContent.results.map(r => ({ name: r?.displayName?.substring(0, 30), address: r?.formattedAddress })));
+                    const placeResults = getPlaceSearchResults(finalDecodedContent.results);
+                    console.info('[ActiveChat] Loaded', placeResults.length, 'place results for maps search fullscreen:', 
+                        placeResults.map(r => ({ name: r?.displayName?.substring(0, 30), address: r?.formattedAddress })));
                 } catch (error) {
                     console.error('[ActiveChat] Error loading child embeds for maps search:', error);
                     // Continue without results - fullscreen will show "No results" message
@@ -1106,9 +1387,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     };
 
     // Create a reference for the ChatHistory component using $state
-    let chatHistoryRef = $state<any>(null);
+    let chatHistoryRef = $state<ChatHistoryRef | null>(null);
     // Create a reference for the MessageInput component using $state
-    let messageInputFieldRef = $state<any>(null);
+    let messageInputFieldRef = $state<MessageInputFieldRef | null>(null);
 
     let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
@@ -1208,8 +1489,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentTypingStatus = $state<AITypingStatus | null>(null);
     
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
-    // Map of task_id -> thinking content and streaming status
-    let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean }>>(new Map());
+    // Map of task_id -> thinking content, streaming status, and signature metadata
+    let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
     
     // ===========================================
     // Embed Navigation Derived States
@@ -1354,6 +1635,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let typingIndicatorText = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
+        void _aiTaskStateTrigger;
         
         // Check if there's a processing message (user message waiting for AI to start)
         const hasProcessingMessage = currentMessages.some(m => 
@@ -1406,6 +1688,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return null; // No indicator
     })());
 
+    // Split typing indicator into safe text lines for rendering without {@html}.
+    let typingIndicatorParts = $derived.by(() => {
+        return typingIndicatorText ? splitHtmlLineBreaks(typingIndicatorText) : [];
+    });
+
 
     // Convert plain text to Tiptap JSON for UI rendering only
     // CRITICAL: This is only for UI display, never stored in database
@@ -1427,7 +1714,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // 🔍 STREAMING DEBUG: Log handler invocation immediately
         console.log(`[ActiveChat] 🎯 HANDLER INVOKED | event received at ${new Date().toISOString()}`);
         
-        const chunk = event.detail as any; // AIMessageUpdatePayload
+        const chunk = event.detail as AiMessageChunkPayload; // AIMessageUpdatePayload
         const timestamp = new Date().toISOString();
         const contentLength = chunk.full_content_so_far?.length || 0;
         
@@ -1474,7 +1761,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.log(`[ActiveChat] 🧠 Marking thinking as complete (fallback) | message_id: ${chunk.message_id}`);
             thinkingContentByTask.set(chunk.message_id, {
                 content: thinkingEntry.content,
-                isStreaming: false
+                isStreaming: false,
+                signature: thinkingEntry.signature,
+                totalTokens: thinkingEntry.totalTokens
             });
             // Force reactivity by creating new Map
             thinkingContentByTask = new Map(thinkingContentByTask);
@@ -1679,10 +1968,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
                 const finalModelName = finalMessageInArray.model_name || chunk.model_name || fallbackModelName;
 
+                // Attach thinking metadata to the final message so it persists across devices.
+                const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
                     status: 'synced' as const,
-                    model_name: finalModelName // Explicitly preserve/set model_name
+                    model_name: finalModelName, // Explicitly preserve/set model_name
+                    thinking_content: thinkingEntry?.content || finalMessageInArray.thinking_content,
+                    thinking_signature: thinkingEntry?.signature || finalMessageInArray.thinking_signature,
+                    thinking_token_count: thinkingEntry?.totalTokens ?? finalMessageInArray.thinking_token_count,
+                    has_thinking: !!(thinkingEntry?.content || finalMessageInArray.thinking_content)
                 };
 
                 console.debug(`[ActiveChat] Final chunk - preserving model_name: "${finalModelName}" for message ${chunk.message_id}`, {
@@ -1834,7 +2129,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         thinkingContentByTask.set(chunk.task_id, {
             content: newContent,
-            isStreaming: true
+            isStreaming: true,
+            signature: existing?.signature,
+            totalTokens: existing?.totalTokens
         });
         
         // Force reactivity by creating new Map
@@ -1866,7 +2163,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (existing) {
             thinkingContentByTask.set(payload.task_id, {
                 content: existing.content,
-                isStreaming: false
+                isStreaming: false,
+                signature: payload.signature ?? existing.signature,
+                totalTokens: payload.total_tokens ?? existing.totalTokens
             });
             
             // Force reactivity by creating new Map
@@ -1987,19 +2286,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     const { incognitoChatService } = await import('../services/incognitoChatService');
                     const incognitoChat = await incognitoChatService.getChat(message.chat_id);
                     if (incognitoChat) {
-                        currentChat = incognitoChat as any;
+                        currentChat = incognitoChat as Chat;
                     } else {
                         const dbChat = await chatDB.getChat(message.chat_id);
                         if (dbChat) {
-                            currentChat = dbChat as any;
+                            currentChat = dbChat as Chat;
                         } else {
                             // Minimal fallback to keep UI consistent; DB should catch up shortly
-                            currentChat = { chat_id: message.chat_id } as any;
+                            currentChat = { chat_id: message.chat_id } as Chat;
                         }
                     }
                 } catch (err) {
                     console.warn('[ActiveChat] Failed to load chat for sent message; using minimal fallback:', err);
-                    currentChat = { chat_id: message.chat_id } as any;
+                    currentChat = { chat_id: message.chat_id } as Chat;
                 }
             }
             currentMessages = [message]; // Initialize messages with the first message
@@ -2253,7 +2552,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
-        const detail = event.detail as any; 
+        const detail = event.detail as ChatUpdatedDetail; 
         const incomingChatId = detail.chat_id;
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
@@ -2334,6 +2633,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    // Preserve optional helpers for debugging and future UI workflows without triggering linter noise.
+    const preservedHelperRefs = { _plainTextToTiptapJson, _loadMessagesForCurrentChat };
+    void preservedHelperRefs;
+
     // Handle message status changes without full reload
     async function handleMessageStatusChanged(event: CustomEvent) {
         const { chatId, messageId, status, chat: chatMetadata } = event.detail as { chatId: string, messageId: string, status: MessageStatus, chat?: Chat };
@@ -2349,7 +2652,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
             // Only update fields that are defined to avoid overwriting with undefined values
             const validMetadata = Object.fromEntries(
-                Object.entries(chatMetadata).filter(([_key, value]) => value !== undefined)
+                Object.entries(chatMetadata).filter(([, value]) => value !== undefined)
             );
             currentChat = { ...currentChat, ...validMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
         }
@@ -2379,7 +2682,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Scroll position tracking handlers
-    let scrollSaveDebounceTimer: NodeJS.Timeout | null = null;
+    let scrollSaveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let lastSavedMessageId: string | null = null;
 
     // Handle immediate UI state updates from ChatHistory (no debounce)
@@ -2856,16 +3159,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // CRITICAL: Check again if user is still in signup flow when WebSocket connects
                     if ($authStore.isAuthenticated && $isInSignupProcess) {
                         console.debug('[ActiveChat] User is in signup flow - skipping deferred set_active_chat to preserve last_opened path');
-                        chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                        chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListenerCallback);
                         return;
                     }
                     console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
                     chatSyncService.sendSetActiveChat(chatIdToNotify);
                     // Remove the listener after sending
-                    chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                    chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListenerCallback);
                 };
                 
-                chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListenerCallback);
             }
         }
     }
@@ -3110,14 +3413,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const embedFullscreenHandler = (event: CustomEvent) => {
             handleEmbedFullscreen(event);
         };
-        document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+        document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
         
         // Add event listener for video PiP restore fullscreen events
         // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
-        const videoPipRestoreHandler = (_event: CustomEvent) => {
+        const videoPipRestoreHandler = () => {
             handlePipOverlayClick();
         };
-        document.addEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
+        document.addEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
         
         // Add event listeners for login interface and demo chat
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
@@ -3305,7 +3608,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             // Check if current chat is marked as hidden (property might be set)
-            const chatIsHidden = (currentChat as any).is_hidden === true;
+            const chatIsHidden = (currentChat as HiddenChatFlag).is_hidden === true;
             
             // If chat is explicitly marked as hidden, close it immediately
             if (chatIsHidden) {
@@ -3320,7 +3623,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if ($authStore.isAuthenticated && currentChat.encrypted_chat_key) {
                 try {
                     const freshChat = await chatDB.getChat(chatId);
-                    if (freshChat && (freshChat as any).is_hidden === true) {
+                    if (freshChat && (freshChat as HiddenChatFlag).is_hidden === true) {
                         console.debug('[ActiveChat] Hidden chats locked and fresh chat from DB is marked as hidden - closing chat and showing new chat window', {
                             chatId: chatId
                         });
@@ -3449,13 +3752,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         const messageStatusHandler = ((event: CustomEvent) => {
             // Call the component's own method which correctly updates currentMessages,
             // saves to DB, and calls chatHistoryRef.updateMessages()
             handleMessageStatusChanged(event); 
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         // Listen to events directly from chatSyncService
         chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
@@ -3463,13 +3766,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Add listener for AI message chunks
         console.log('[ActiveChat] 📌 Registering aiMessageChunk event listener');
-        chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
+        chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback);
         console.log('[ActiveChat] ✅ aiMessageChunk event listener registered');
         
         // Add listeners for AI thinking/reasoning content (Gemini, Anthropic Claude)
         console.log('[ActiveChat] 📌 Registering thinking event listeners');
-        chatSyncService.addEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListener);
-        chatSyncService.addEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListener);
+        chatSyncService.addEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListenerCallback);
+        chatSyncService.addEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
         console.log('[ActiveChat] ✅ Thinking event listeners registered');
 
         // Add listeners for AI task state changes
@@ -3495,7 +3798,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 _aiTaskStateTrigger++;
             }
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
@@ -3509,7 +3812,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         hasStreamingThinking = true;
                         thinkingContentByTask.set(taskId, {
                             content: entry.content,
-                            isStreaming: false
+                            isStreaming: false,
+                            signature: entry.signature,
+                            totalTokens: entry.totalTokens
                         });
                         console.log(`[ActiveChat] 🧠 Marking thinking as complete (task ended fallback) | task_id: ${taskId}`);
                     }
@@ -3523,7 +3828,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
             }
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
             const { chat_id, user_message_id } = event.detail;
@@ -3545,7 +3850,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
             }
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         // Handle chat deletion - if the currently active chat is deleted, reset to new chat
         const chatDeletedHandler = ((event: CustomEvent) => {
@@ -3557,13 +3862,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Reset to new chat state using the existing handler
                 handleNewChatClick();
             }
-        }) as EventListener;
+        }) as EventListenerCallback;
 
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
-        const postProcessingHandler = handlePostProcessingCompleted as EventListener;
+        const postProcessingHandler = handlePostProcessingCompleted as EventListenerCallback;
         chatSyncService.addEventListener('postProcessingCompleted', postProcessingHandler);
         console.debug('[ActiveChat] ✅ Registered postProcessingCompleted event listener');
         
@@ -3605,14 +3910,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef.updateMessages(currentMessages);
                 console.debug(`[ActiveChat] 🔄 Forced message re-render after embed update for ${embed_id}`);
             }
-        }) as EventListener;
+        }) as EventListenerCallback;
         
         chatSyncService.addEventListener('embedUpdated', embedUpdatedHandler);
         console.debug('[ActiveChat] ✅ Registered embedUpdated event listener');
         
         // Handle skill preview updates - add app cards to messages
         const handleSkillPreviewUpdate = async (event: CustomEvent) => {
-            const { task_id, previewData, chat_id, message_id } = event.detail;
+            const { task_id, previewData, chat_id, message_id } = event.detail as SkillPreviewDetail;
             
             // Only process if this preview is for the current chat
             if (!currentChat || currentChat.chat_id !== chat_id) {
@@ -3671,7 +3976,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             // Create app card from skill preview data
-            let appCard: any = null;
+            let appCard: AppCardEntry | null = null;
             if (previewData.app_id === 'web' && previewData.skill_id === 'search') {
                 // Create WebSearchEmbedPreview card
                 appCard = {
@@ -3686,8 +3991,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Set fullscreen data for web search
                             embedFullscreenData = {
                                 embedType: 'app-skill-use',
-                                embedData: { status: previewData.status },
-                                decodedContent: previewData
+                                embedData: { status: toEmbedStatus(previewData.status) },
+                                decodedContent: previewData as unknown as EmbedDecodedContent
                             };
                             showEmbedFullscreen = true;
                             console.debug('[ActiveChat] Opening fullscreen for web search skill:', task_id);
@@ -3708,8 +4013,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Set fullscreen data for video transcript
                             embedFullscreenData = {
                                 embedType: 'app-skill-use',
-                                embedData: { status: previewData.status },
-                                decodedContent: previewData
+                                embedData: { status: toEmbedStatus(previewData.status) },
+                                decodedContent: previewData as unknown as EmbedDecodedContent
                             };
                             showEmbedFullscreen = true;
                             console.debug('[ActiveChat] Opening fullscreen for video transcript skill:', task_id);
@@ -3721,24 +4026,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (appCard) {
                 // Update the message with the app card
                 const updatedMessages = [...currentMessages];
-                const message = updatedMessages[messageIndex];
+                const message = updatedMessages[messageIndex] as MessageWithAppCards;
                 
                 // Initialize appCards array if it doesn't exist
-                if (!(message as any).appCards) {
-                    (message as any).appCards = [];
+                if (!message.appCards) {
+                    message.appCards = [];
                 }
                 
                 // Check if this task_id already has a card (update existing)
-                const existingCardIndex = (message as any).appCards.findIndex(
-                    (card: any) => card.props?.id === task_id
+                const existingCardIndex = message.appCards.findIndex(
+                    (card) => card.props?.id === task_id
                 );
                 
                 if (existingCardIndex !== -1) {
                     // Update existing card
-                    (message as any).appCards[existingCardIndex] = appCard;
+                    message.appCards[existingCardIndex] = appCard;
                 } else {
                     // Add new card
-                    (message as any).appCards.push(appCard);
+                    message.appCards.push(appCard);
                 }
                 
                 // Update messages
@@ -3753,7 +4058,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         };
         
-        skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
+        skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
 
         return () => {
             // Remove listeners from chatSyncService
@@ -3761,35 +4066,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             unsubscribeDraftState(); // Unsubscribe from draft state
-            chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
+            chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             // Remove thinking/reasoning event listeners
-            chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListener);
-            chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListener);
+            chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListenerCallback);
+            chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
-            chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
-            skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
+            skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
             window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
-            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
-            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
-            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListenerCallback);
+            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);
+            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
-            window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListener);
+            window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
             if (handleLogoutEvent) {
-                window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
+                window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListenerCallback);
             }
-            window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListener);
-            window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListener);
-            window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListener);
+            window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListenerCallback);
+            window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListenerCallback);
+            window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListenerCallback);
             // Remove embed and video PiP fullscreen listeners
-            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
-            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
+            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
         };
     });
 
@@ -3803,7 +4108,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // To be safe and ensure no double-unsubscribe issues if onMount's return is ever bypassed:
         // (Though Svelte's lifecycle should prevent this)
         // unsubscribeAiTyping(); // Already in onMount return
-        // chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Already in onMount return
+        // chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Already in onMount return
     });
 </script>
 
@@ -3942,8 +4247,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html username ? $text('chat.welcome.hey_user.text').replace('{username}', username) : $text('chat.welcome.hey_guest.text')}</h2>
-                                    <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
+                                    <h2>
+                                        {#each welcomeHeadingParts as part, index}
+                                            <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
+                                        {/each}
+                                    </h2>
+                                    <p>
+                                        {#each welcomePromptParts as part, index}
+                                            <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
+                                        {/each}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -3965,9 +4278,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper">
-                    {#if typingIndicatorText}
+                    {#if typingIndicatorParts.length > 0}
                         <div class="typing-indicator" transition:fade={{ duration: 200 }}>
-                            {@html typingIndicatorText}
+                            {#each typingIndicatorParts as part, index}
+                                <span>{part}</span>{#if index < typingIndicatorParts.length - 1}<br>{/if}
+                            {/each}
                         </div>
                     {/if}
 
@@ -4082,7 +4397,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={embedFullscreenData.decodedContent?.results || []}
+                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
@@ -4099,7 +4414,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={embedFullscreenData.decodedContent?.results || []}
+                            results={getNewsSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
@@ -4116,7 +4431,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={embedFullscreenData.decodedContent?.results || []}
+                            results={getVideoSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
@@ -4133,7 +4448,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={embedFullscreenData.decodedContent?.results || []}
+                            results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
@@ -4145,16 +4460,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
-                        {@const previewData = {
-                            app_id: appId,
-                            skill_id: skillId,
-                            status: embedFullscreenData.embedData?.status || 'finished',
-                            results: embedFullscreenData.decodedContent?.results || [],
+                        {@const previewData: VideoTranscriptSkillPreviewData = {
+                            app_id: 'videos',
+                            skill_id: 'get_transcript',
+                            status: (embedFullscreenData.embedData?.status || 'finished') as VideoTranscriptSkillPreviewData['status'],
+                            results: getVideoTranscriptResults(embedFullscreenData.decodedContent?.results),
                             video_count: embedFullscreenData.decodedContent?.video_count || 0,
                             success_count: embedFullscreenData.decodedContent?.success_count || 0,
                             failed_count: embedFullscreenData.decodedContent?.failed_count || 0
                         }}
-                        {@const _debugRender = (() => {
+                        {@const debugRender = (() => {
                             console.debug('[ActiveChat] Rendering VideoTranscriptEmbedFullscreen:', {
                                 appId,
                                 skillId,
@@ -4163,6 +4478,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             });
                             return null;
                         })()}
+                        {debugRender}
                         <VideoTranscriptEmbedFullscreen 
                             previewData={previewData}
                             embedId={embedFullscreenData.embedId}
@@ -4177,14 +4493,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {:else if appId === 'web' && skillId === 'read'}
                         <!-- Web Read Fullscreen -->
                         <!-- Pass URL from decoded content (from processing placeholder or original_metadata) -->
+                        {@const webReadResults = getWebReadResults(embedFullscreenData.decodedContent?.results)}
                         {@const webReadUrl = embedFullscreenData.decodedContent?.url || 
                             embedFullscreenData.decodedContent?.original_metadata?.url || 
-                            embedFullscreenData.decodedContent?.results?.[0]?.url || ''}
-                        {@const previewData = {
-                            app_id: appId,
-                            skill_id: skillId,
-                            status: embedFullscreenData.embedData?.status || 'finished',
-                            results: embedFullscreenData.decodedContent?.results || [],
+                            webReadResults?.[0]?.url || ''}
+                        {@const previewData: WebReadPreviewData = {
+                            app_id: 'web',
+                            skill_id: 'read',
+                            status: (embedFullscreenData.embedData?.status || 'finished') as WebReadPreviewData['status'],
+                            results: webReadResults,
                             url: webReadUrl
                         }}
                         <WebReadEmbedFullscreen 
@@ -4204,14 +4521,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const CodeGetDocsEmbedFullscreenPromise = import('./embeds/code/CodeGetDocsEmbedFullscreen.svelte')}
                         {#await CodeGetDocsEmbedFullscreenPromise then module}
                             {@const CodeGetDocsEmbedFullscreen = module.default}
-                            {@const previewData = {
-                                app_id: appId,
-                                skill_id: skillId,
-                                status: embedFullscreenData.embedData?.status || 'finished',
-                                results: embedFullscreenData.decodedContent?.results || [],
+                            {@const previewData: CodeGetDocsSkillPreviewData = {
+                                app_id: 'code',
+                                skill_id: 'get_docs',
+                                status: (embedFullscreenData.embedData?.status || 'finished') as CodeGetDocsSkillPreviewData['status'],
+                                results: getCodeDocsResults(embedFullscreenData.decodedContent?.results),
                                 library: embedFullscreenData.decodedContent?.library || ''
                             }}
-                            {@const _debugRender = (() => {
+                            {@const debugRender = (() => {
                                 console.debug('[ActiveChat] Rendering CodeGetDocsEmbedFullscreen:', {
                                     appId,
                                     skillId,
@@ -4221,6 +4538,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 });
                                 return null;
                             })()}
+                            {debugRender}
                             <CodeGetDocsEmbedFullscreen 
                                 previewData={previewData}
                                 results={embedFullscreenData.decodedContent?.results || []}
@@ -4272,11 +4590,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {:else if embedFullscreenData.embedType === 'code-code'}
                     <!-- Code Fullscreen -->
                     {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        {@const codeContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
+                        {@const codeLanguage = coerceString(embedFullscreenData.decodedContent?.language ?? embedFullscreenData.attrs?.language, '')}
+                        {@const codeFilename = coerceString(embedFullscreenData.decodedContent?.filename ?? embedFullscreenData.attrs?.filename, '')}
+                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
                         <CodeEmbedFullscreen 
-                            codeContent={embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code || ''}
-                            language={embedFullscreenData.decodedContent?.language || embedFullscreenData.attrs?.language}
-                            filename={embedFullscreenData.decodedContent?.filename || embedFullscreenData.attrs?.filename}
-                            lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
+                            codeContent={codeContent}
+                            language={codeLanguage}
+                            filename={codeFilename}
+                            lineCount={codeLineCount}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
@@ -4295,25 +4617,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
                         {#await VideoEmbedFullscreenPromise then module}
                             {@const VideoEmbedFullscreen = module.default}
-                            {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
-                            {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
-                            {@const videoId = embedFullscreenData.decodedContent?.video_id || embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
+                            {@const videoUrl = coerceString(embedFullscreenData.decodedContent?.url ?? embedFullscreenData.attrs?.url, '')}
+                            {@const videoTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
+                            {@const videoId = coerceString(
+                                embedFullscreenData.decodedContent?.video_id ??
+                                embedFullscreenData.decodedContent?.videoId ??
+                                embedFullscreenData.attrs?.videoId,
+                                ''
+                            )}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
                             <!-- Construct VideoMetadata from decoded content (snake_case -> camelCase) -->
                             {@const videoMetadata = {
-                                videoId: videoId || '',
+                                videoId,
                                 title: videoTitle,
-                                description: embedFullscreenData.decodedContent?.description,
-                                channelName: embedFullscreenData.decodedContent?.channel_name,
-                                channelId: embedFullscreenData.decodedContent?.channel_id,
-                                thumbnailUrl: embedFullscreenData.decodedContent?.thumbnail,
+                                description: coerceString(embedFullscreenData.decodedContent?.description, ''),
+                                channelName: coerceString(embedFullscreenData.decodedContent?.channel_name, ''),
+                                channelId: coerceString(embedFullscreenData.decodedContent?.channel_id, ''),
+                                thumbnailUrl: coerceString(embedFullscreenData.decodedContent?.thumbnail, ''),
                                 duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
-                                    totalSeconds: embedFullscreenData.decodedContent?.duration_seconds || 0,
-                                    formatted: embedFullscreenData.decodedContent?.duration_formatted || ''
+                                    totalSeconds: coerceNumber(embedFullscreenData.decodedContent?.duration_seconds, 0),
+                                    formatted: coerceString(embedFullscreenData.decodedContent?.duration_formatted, '')
                                 } : undefined,
-                                viewCount: embedFullscreenData.decodedContent?.view_count,
-                                likeCount: embedFullscreenData.decodedContent?.like_count,
-                                publishedAt: embedFullscreenData.decodedContent?.published_at
+                                viewCount: coerceNumber(embedFullscreenData.decodedContent?.view_count, 0),
+                                likeCount: coerceNumber(embedFullscreenData.decodedContent?.like_count, 0),
+                                publishedAt: coerceString(embedFullscreenData.decodedContent?.published_at, '')
                             }}
                             <VideoEmbedFullscreen
                                 url={videoUrl}

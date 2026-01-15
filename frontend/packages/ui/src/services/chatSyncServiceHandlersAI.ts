@@ -95,6 +95,59 @@ import type {
 // Key: embed_id, Value: true if already processed
 const processedFinalizedEmbeds = new Set<string>();
 
+// --- Thinking content buffering (cross-device persistence) ---
+// We buffer thinking content per message_id so we can:
+// 1) Stream updates to the active chat immediately (UI),
+// 2) Persist the completed thinking content to IndexedDB on ALL devices,
+//    so reopening the chat shows the thinking section.
+type ThinkingBufferEntry = {
+    chatId: string;
+    content: string;
+    signature?: string | null;
+    totalTokens?: number | null;
+};
+const thinkingBufferByMessageId = new Map<string, ThinkingBufferEntry>();
+
+/**
+ * Persist completed thinking content into IndexedDB so it syncs across devices.
+ * This intentionally runs outside ActiveChat so background tabs/devices still store it.
+ */
+async function persistThinkingToDb(
+    messageId: string,
+    chatId: string,
+    entry: ThinkingBufferEntry
+): Promise<void> {
+    try {
+        const existingMessage = await chatDB.getMessage(messageId);
+        
+        // If the assistant message doesn't exist yet, create a minimal placeholder.
+        // The streaming handler will later update it with full content.
+        const messageToSave: Message = existingMessage
+            ? { ...existingMessage }
+            : {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant',
+                created_at: Math.floor(Date.now() / 1000),
+                status: 'processing',
+                encrypted_content: ''
+            };
+        
+        // Attach thinking metadata so the UI can render it after reload.
+        messageToSave.thinking_content = entry.content;
+        messageToSave.thinking_signature = entry.signature || undefined;
+        if (entry.totalTokens !== undefined && entry.totalTokens !== null) {
+            messageToSave.thinking_token_count = entry.totalTokens;
+        }
+        messageToSave.has_thinking = !!entry.content;
+        
+        await chatDB.saveMessage(messageToSave);
+        console.debug(`[ChatSyncService:AI] ✅ Persisted thinking content for message ${messageId} (chat ${chatId})`);
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] Error persisting thinking content for message ${messageId}:`, error);
+    }
+}
+
 /**
  * Check if a finalized embed has already been processed
  */
@@ -140,6 +193,7 @@ export function handleAIThinkingChunkImpl(
     serviceInstance: ChatSynchronizationService,
     payload: AIThinkingChunkPayload
 ): void {
+    const messageId = payload.message_id || payload.task_id;
     const contentLength = payload.content?.length || 0;
     const contentPreview = payload.content?.substring(0, 80).replace(/\n/g, '\\n') || '(empty)';
     
@@ -147,9 +201,21 @@ export function handleAIThinkingChunkImpl(
         `[ChatSyncService:AI] 🧠 THINKING CHUNK | ` +
         `chat_id: ${payload.chat_id} | ` +
         `task_id: ${payload.task_id} | ` +
+        `message_id: ${messageId} | ` +
         `content_length: ${contentLength} chars | ` +
         `preview: "${contentPreview}${contentLength > 80 ? '...' : ''}"`
     );
+    
+    // Buffer thinking content so we can persist on completion.
+    // This runs for ALL devices, not just the active chat tab.
+    const existing = thinkingBufferByMessageId.get(messageId);
+    const updatedEntry: ThinkingBufferEntry = {
+        chatId: payload.chat_id,
+        content: (existing?.content || '') + (payload.content || ''),
+        signature: existing?.signature,
+        totalTokens: existing?.totalTokens
+    };
+    thinkingBufferByMessageId.set(messageId, updatedEntry);
     
     // Dispatch event for ActiveChat component to display thinking content
     serviceInstance.dispatchEvent(new CustomEvent('aiThinkingChunk', { detail: payload }));
@@ -164,16 +230,36 @@ export function handleAIThinkingCompleteImpl(
     serviceInstance: ChatSynchronizationService,
     payload: AIThinkingCompletePayload
 ): void {
+    const messageId = payload.message_id || payload.task_id;
     console.log(
         `[ChatSyncService:AI] 🧠 THINKING COMPLETE | ` +
         `chat_id: ${payload.chat_id} | ` +
         `task_id: ${payload.task_id} | ` +
+        `message_id: ${messageId} | ` +
         `has_signature: ${!!payload.signature} | ` +
         `total_tokens: ${payload.total_tokens || 'unknown'}`
     );
     
+    // Update the buffer with signature/token metadata for persistence.
+    const existing = thinkingBufferByMessageId.get(messageId);
+    if (existing) {
+        thinkingBufferByMessageId.set(messageId, {
+            ...existing,
+            signature: payload.signature ?? existing.signature,
+            totalTokens: payload.total_tokens ?? existing.totalTokens
+        });
+    }
+    
     // Dispatch event for ActiveChat component to finalize thinking
     serviceInstance.dispatchEvent(new CustomEvent('aiThinkingComplete', { detail: payload }));
+    
+    // Persist completed thinking content to IndexedDB so it's available after reload/sync.
+    const entryToPersist = thinkingBufferByMessageId.get(messageId);
+    if (entryToPersist) {
+        void persistThinkingToDb(messageId, payload.chat_id, entryToPersist);
+    } else {
+        console.warn(`[ChatSyncService:AI] Thinking complete received with no buffered content for message ${messageId}`);
+    }
 }
 // --- End Thinking/Reasoning Event Handlers ---
 

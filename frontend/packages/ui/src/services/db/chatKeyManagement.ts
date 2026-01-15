@@ -323,6 +323,8 @@ export async function getEncryptedFields(
     encrypted_sender_name?: string;
     encrypted_category?: string;
     encrypted_model_name?: string;
+    encrypted_thinking_content?: string;
+    encrypted_thinking_signature?: string;
 }> {
     const chatKey = getOrGenerateChatKey(dbInstance, chatId);
     const encryptedFields: {
@@ -330,6 +332,8 @@ export async function getEncryptedFields(
         encrypted_sender_name?: string;
         encrypted_category?: string;
         encrypted_model_name?: string;
+        encrypted_thinking_content?: string;
+        encrypted_thinking_signature?: string;
     } = {};
 
     // CRITICAL FIX: await all async encryption calls to prevent storing Promises
@@ -352,6 +356,14 @@ export async function getEncryptedFields(
     // Encrypt model_name if present
     if (message.model_name) {
         encryptedFields.encrypted_model_name = await encryptWithChatKey(message.model_name, chatKey);
+    }
+    
+    // Encrypt thinking content/signature for thinking models (Gemini, Anthropic Claude, etc.)
+    if (message.thinking_content) {
+        encryptedFields.encrypted_thinking_content = await encryptWithChatKey(message.thinking_content, chatKey);
+    }
+    if (message.thinking_signature) {
+        encryptedFields.encrypted_thinking_signature = await encryptWithChatKey(message.thinking_signature, chatKey);
     }
 
     return encryptedFields;

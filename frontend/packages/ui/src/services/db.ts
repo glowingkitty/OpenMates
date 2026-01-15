@@ -26,6 +26,36 @@ import * as messageOps from './db/messageOperations';
 import * as chatCrudOps from './db/chatCrudOperations';
 import * as offlineOps from './db/offlineChangesAndUpdates';
 
+// Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
+type ChatRecordWithMessages = Chat & { messages?: Message[] };
+type MessageRecordWithTimestamp = Message & { timestamp?: number };
+type EmbedMigrationRecord = {
+    data?: string;
+    contentRef?: string;
+    encrypted_content?: string | null;
+    createdAt?: number;
+    updatedAt?: number;
+    embed_id?: string | null;
+    encrypted_type?: string | null;
+    encrypted_text_preview?: string | null;
+    status?: string | null;
+    hashed_chat_id?: string | null;
+    hashed_message_id?: string | null;
+    hashed_task_id?: string | null;
+    hashed_user_id?: string | null;
+    embed_ids?: string[] | string | null;
+    parent_embed_id?: string | null;
+    version_number?: number | null;
+    file_path?: string | null;
+    content_hash?: string | null;
+    text_length_chars?: number | null;
+    is_private?: boolean | null;
+    is_shared?: boolean | null;
+};
+
+// Helper to safely detect Date values when legacy records store Date objects.
+const isDateValue = (value: unknown): value is Date => value instanceof Date;
+
 class ChatDatabase {
     // Database instance - public for extracted modules to access
     public db: IDBDatabase | null = null;
@@ -69,7 +99,7 @@ class ChatDatabase {
             return this.initializationPromise;
         }
 
-        this.initializationPromise = new Promise(async (resolve, reject) => {
+        this.initializationPromise = new Promise((resolve, reject) => {
             console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
@@ -134,6 +164,8 @@ class ChatDatabase {
         oldVersion: number, 
         newVersion: number
     ): void {
+        // Mark the version parameter as used to avoid linter noise when newVersion is only logged elsewhere.
+        void newVersion;
         // Chats store
         if (!db.objectStoreNames.contains(this.CHATS_STORE_NAME)) {
             const chatStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
@@ -282,7 +314,7 @@ class ChatDatabase {
         cursorRequest.onsuccess = (e) => {
             const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
-                const chatData = cursor.value as any;
+                const chatData = cursor.value as ChatRecordWithMessages;
                 if (chatData.messages && Array.isArray(chatData.messages)) {
                     for (const message of chatData.messages) {
                         if (!message.chat_id) message.chat_id = chatData.chat_id;
@@ -311,7 +343,7 @@ class ChatDatabase {
         cursorRequest.onsuccess = (e) => {
             const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
             if (cursor) {
-                const message = cursor.value as any;
+                const message = cursor.value as MessageRecordWithTimestamp;
                 if (message.timestamp !== undefined) {
                     message.created_at = message.timestamp;
                     delete message.timestamp;
@@ -340,7 +372,7 @@ class ChatDatabase {
         cursorRequest.onsuccess = (e) => {
             const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
             if (cursor) {
-                const entry = cursor.value as any;
+                const entry = cursor.value as EmbedMigrationRecord;
                 
                 const needsMigration = entry.data && 
                                        typeof entry.data === 'string' && 
@@ -349,15 +381,22 @@ class ChatDatabase {
                 
                 if (needsMigration) {
                     try {
-                        const parsedData = JSON.parse(entry.data);
+                        const parsedData = JSON.parse(entry.data) as Partial<EmbedMigrationRecord> & {
+                            content?: unknown;
+                            type?: unknown;
+                            text_preview?: unknown;
+                        };
+                        const parsedContent = typeof parsedData.content === 'string' ? parsedData.content : undefined;
+                        const parsedType = typeof parsedData.type === 'string' ? parsedData.type : undefined;
+                        const parsedTextPreview = typeof parsedData.text_preview === 'string' ? parsedData.text_preview : undefined;
                         
                         if (parsedData.createdAt !== undefined) entry.createdAt = parsedData.createdAt;
                         if (parsedData.updatedAt !== undefined) entry.updatedAt = parsedData.updatedAt;
                         
                         entry.embed_id = parsedData.embed_id || entry.embed_id;
-                        entry.encrypted_content = parsedData.encrypted_content || parsedData.content;
-                        entry.encrypted_type = parsedData.encrypted_type || parsedData.type;
-                        entry.encrypted_text_preview = parsedData.encrypted_text_preview || parsedData.text_preview;
+                        entry.encrypted_content = parsedData.encrypted_content || parsedContent;
+                        entry.encrypted_type = parsedData.encrypted_type || parsedType;
+                        entry.encrypted_text_preview = parsedData.encrypted_text_preview || parsedTextPreview;
                         entry.status = parsedData.status || entry.status;
                         entry.hashed_chat_id = parsedData.hashed_chat_id;
                         entry.hashed_message_id = parsedData.hashed_message_id;
@@ -519,13 +558,15 @@ class ChatDatabase {
 
         // Process chat updates
         chatsToUpdate.forEach(chatToUpdate => {
-            const chatMetadata = { ...chatToUpdate };
-            delete (chatMetadata as any).messages;
-            if (typeof (chatMetadata.created_at as any) === 'string' || (chatMetadata.created_at as any) instanceof Date) {
-                chatMetadata.created_at = Math.floor(new Date(chatMetadata.created_at as any).getTime() / 1000);
+            const chatMetadata: ChatRecordWithMessages = { ...chatToUpdate };
+            delete chatMetadata.messages;
+            const createdAtValue = chatMetadata.created_at;
+            if (typeof createdAtValue === 'string' || isDateValue(createdAtValue)) {
+                chatMetadata.created_at = Math.floor(new Date(createdAtValue).getTime() / 1000);
             }
-            if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
-                chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
+            const updatedAtValue = chatMetadata.updated_at;
+            if (typeof updatedAtValue === 'string' || isDateValue(updatedAtValue)) {
+                chatMetadata.updated_at = Math.floor(new Date(updatedAtValue).getTime() / 1000);
             }
             if (chatMetadata.encrypted_draft_md === undefined) chatMetadata.encrypted_draft_md = null;
             if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
@@ -609,8 +650,8 @@ class ChatDatabase {
 
         const storesToClear = [this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
         
-        return new Promise(async (resolve, reject) => {
-            const transaction = await this.getTransaction(storesToClear, 'readwrite');
+        const transaction = await this.getTransaction(storesToClear, 'readwrite');
+        return new Promise((resolve, reject) => {
             
             transaction.oncomplete = () => {
                 console.debug("[ChatDatabase] All chat data stores cleared successfully.");
@@ -749,6 +790,8 @@ class ChatDatabase {
         encrypted_sender_name?: string;
         encrypted_category?: string;
         encrypted_model_name?: string;
+        encrypted_thinking_content?: string;
+        encrypted_thinking_signature?: string;
     }> {
         return chatKeyManagementOps.getEncryptedFields(this, message, chatId);
     }

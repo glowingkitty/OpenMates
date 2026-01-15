@@ -548,6 +548,10 @@ export async function handleChatContentBatchResponseImpl(
                         encrypted_sender_name: serverMsg.encrypted_sender_name,
                         encrypted_category: serverMsg.encrypted_category,
                         encrypted_model_name: serverMsg.encrypted_model_name,
+                        encrypted_thinking_content: serverMsg.encrypted_thinking_content,
+                        encrypted_thinking_signature: serverMsg.encrypted_thinking_signature,
+                        has_thinking: serverMsg.has_thinking,
+                        thinking_token_count: serverMsg.thinking_token_count,
                     };
                     await chatDB.saveMessage(messageToSave, transaction);
                 }

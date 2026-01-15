@@ -359,45 +359,43 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
                 logger.debug(f"AI Thinking Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload}")
 
                 if event_type == "thinking_chunk":
-                    # Forward thinking chunk to all devices where this chat is active
+                    # Broadcast thinking chunks to ALL devices for this user.
+                    # This ensures background tabs can persist thinking content for later viewing.
                     user_connections = manager.get_connections_for_user(user_id_uuid)
                     for device_hash, websocket_conn in user_connections.items():
-                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
-                        
-                        if chat_id_from_payload == active_chat_on_device:
-                            # Send thinking chunk to active chat
-                            thinking_chunk_payload = {
-                                "task_id": task_id,
-                                "chat_id": chat_id_from_payload,
-                                "content": redis_payload.get("content", ""),
-                            }
-                            await manager.send_personal_message(
-                                message={"type": "thinking_chunk", "payload": thinking_chunk_payload},
-                                user_id=user_id_uuid,
-                                device_fingerprint_hash=device_hash
-                            )
-                            logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_chunk' to {user_id_uuid}/{device_hash} ({len(thinking_chunk_payload.get('content', ''))} chars)")
+                        thinking_chunk_payload = {
+                            "task_id": task_id,
+                            "message_id": redis_payload.get("message_id"),
+                            "chat_id": chat_id_from_payload,
+                            "content": redis_payload.get("content", ""),
+                        }
+                        await manager.send_personal_message(
+                            message={"type": "thinking_chunk", "payload": thinking_chunk_payload},
+                            user_id=user_id_uuid,
+                            device_fingerprint_hash=device_hash
+                        )
+                        logger.debug(
+                            f"AI Thinking Stream Listener: Sent 'thinking_chunk' to {user_id_uuid}/{device_hash} "
+                            f"({len(thinking_chunk_payload.get('content', ''))} chars)"
+                        )
                 
                 elif event_type == "thinking_complete":
-                    # Forward thinking complete event to all devices where this chat is active
+                    # Broadcast thinking completion to ALL devices for this user.
                     user_connections = manager.get_connections_for_user(user_id_uuid)
                     for device_hash, websocket_conn in user_connections.items():
-                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
-                        
-                        if chat_id_from_payload == active_chat_on_device:
-                            # Send thinking complete to active chat
-                            thinking_complete_payload = {
-                                "task_id": task_id,
-                                "chat_id": chat_id_from_payload,
-                                "signature": redis_payload.get("signature"),
-                                "total_tokens": redis_payload.get("total_tokens"),
-                            }
-                            await manager.send_personal_message(
-                                message={"type": "thinking_complete", "payload": thinking_complete_payload},
-                                user_id=user_id_uuid,
-                                device_fingerprint_hash=device_hash
-                            )
-                            logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_complete' to {user_id_uuid}/{device_hash}")
+                        thinking_complete_payload = {
+                            "task_id": task_id,
+                            "message_id": redis_payload.get("message_id"),
+                            "chat_id": chat_id_from_payload,
+                            "signature": redis_payload.get("signature"),
+                            "total_tokens": redis_payload.get("total_tokens"),
+                        }
+                        await manager.send_personal_message(
+                            message={"type": "thinking_complete", "payload": thinking_complete_payload},
+                            user_id=user_id_uuid,
+                            device_fingerprint_hash=device_hash
+                        )
+                        logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_complete' to {user_id_uuid}/{device_hash}")
                 
                 else:
                     logger.warning(f"AI Thinking Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")

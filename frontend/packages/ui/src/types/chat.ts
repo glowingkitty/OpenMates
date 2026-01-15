@@ -479,6 +479,12 @@ export interface ServerBatchMessageFormat {
     encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
     encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
     encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
+    // Encrypted thinking metadata for thinking models
+    encrypted_thinking_content?: string; // Encrypted thinking markdown content
+    encrypted_thinking_signature?: string; // Encrypted provider signature for verification
+    // Non-encrypted metadata for UI/cost tracking
+    has_thinking?: boolean;
+    thinking_token_count?: number;
     // Add any other fields that might come from the server message in the batch
 }
 

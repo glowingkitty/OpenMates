@@ -79,6 +79,10 @@ MESSAGE_ALL_FIELDS = (
     "encrypted_sender_name," # Added encrypted sender name
     "encrypted_category," # Added encrypted category
     "encrypted_model_name," # Added encrypted model name
+    "encrypted_thinking_content," # Added encrypted thinking content (assistant only)
+    "encrypted_thinking_signature," # Added encrypted thinking signature (assistant only)
+    "has_thinking," # Added thinking metadata flag
+    "thinking_token_count," # Added thinking token count
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
@@ -388,6 +392,10 @@ class ChatMethods:
                 "encrypted_sender_name": message_data.get("encrypted_sender_name"),
                 "encrypted_category": message_data.get("encrypted_category"),
                 "encrypted_model_name": message_data.get("encrypted_model_name"),
+                "encrypted_thinking_content": message_data.get("encrypted_thinking_content"),
+                "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
+                "has_thinking": message_data.get("has_thinking"),
+                "thinking_token_count": message_data.get("thinking_token_count"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }

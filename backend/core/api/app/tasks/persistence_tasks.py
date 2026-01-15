@@ -983,7 +983,12 @@ async def _async_persist_ai_response_to_directus(
                     "encrypted_category": message_data.get("encrypted_category"),
                     "encrypted_content": message_data.get("encrypted_content"),
                     "created_at": message_data.get("created_at"),
-                    "status": "synced"
+                    "status": "synced",
+                    # Thinking metadata (client-encrypted content + optional plaintext counters)
+                    "encrypted_thinking_content": message_data.get("encrypted_thinking_content"),
+                    "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
+                    "has_thinking": message_data.get("has_thinking"),
+                    "thinking_token_count": message_data.get("thinking_token_count")
                 }
                 # Only include encrypted_model_name for assistant messages
                 if message_data.get("encrypted_model_name"):

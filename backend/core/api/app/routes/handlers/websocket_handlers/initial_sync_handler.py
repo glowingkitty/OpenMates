@@ -319,6 +319,10 @@ async def handle_initial_sync(
                                 'encrypted_category': msg.get('encrypted_category'),
                                 'encrypted_sender_name': msg.get('encrypted_sender_name'),
                                 'encrypted_model_name': msg.get('encrypted_model_name'),
+                                'encrypted_thinking_content': msg.get('encrypted_thinking_content'),
+                                'encrypted_thinking_signature': msg.get('encrypted_thinking_signature'),
+                                'has_thinking': msg.get('has_thinking'),
+                                'thinking_token_count': msg.get('thinking_token_count'),
                                 'status': msg.get('status', 'delivered'),
                                 'created_at': msg.get('created_at', int(datetime.now(timezone.utc).timestamp()))
                             }

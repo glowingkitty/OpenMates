@@ -1,37 +1,23 @@
 <script lang="ts">
   import { createEventDispatcher, tick, onMount, onDestroy } from "svelte"; // Removed afterUpdate for runes mode compatibility
+  import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
-  import { fly, fade } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
-
-  // Define types without the export modifier.
-  type TextMessagePart = {
-    type: "text";
-    content: string;
-  };
-
-  type AppCardsMessagePart = {
-    type: "app-cards";
-    content: any[]; // Use more specific type if available.
-  };
-
-  type MessagePart = TextMessagePart | AppCardsMessagePart;
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
-  import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
   import { parse_message } from '../message_parsing/parse_message';
-  import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
+  import { truncateTiptapContent } from '../utils/messageTruncation';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import type { 
-    AppSettingsMemoriesResponseContent, 
-    AppSettingsMemoriesResponseCategory 
+    AppSettingsMemoriesResponseContent
   } from '../services/chatSyncServiceHandlersAppSettings';
   
   // Import the permission dialog component and its store for inline rendering
@@ -43,27 +29,43 @@
     currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
 
+  type AppCardData = {
+    component: new (...args: unknown[]) => SvelteComponent;
+    props: Record<string, unknown>;
+  };
+
+  type TiptapDoc = {
+    type: 'doc';
+    content: Array<Record<string, unknown>>;
+  };
+
   interface InternalMessage {
     id: string; // Derived from message_id
     role: MessageRole;
     category?: string;
     sender_name?: string; // Actual name of the mate
     model_name?: string; // Model name for AI messages
-    content: any; // Tiptap JSON content
+    content: unknown; // Tiptap JSON content (shape varies by embed nodes)
     status?: MessageStatus; // Status of the message
     is_truncated?: boolean; // Flag indicating if content is truncated
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
-    appCards?: any[]; // App skill preview cards
+    appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
   }
+
+  // Add optional embed/app-card metadata without widening the core message type.
+  type MessageWithEmbedMetadata = GlobalMessage & {
+    appCards?: AppCardData[];
+    _embedUpdateTimestamp?: number;
+  };
 
   // Helper function to map incoming message structure to InternalMessage
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
     // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
     // We need to convert it to Tiptap JSON for display purposes
-    let processedContent: any;
+    let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
       // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
@@ -79,7 +81,11 @@
       }
     } else {
       // Fallback for any other format (should not happen with new architecture)
-      processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
+      const maybeDoc = incomingMessage.content;
+      const isTiptapDoc = (value: unknown): value is TiptapDoc => {
+        return !!value && typeof value === 'object' && (value as { type?: string }).type === 'doc';
+      };
+      processedContent = preprocessTiptapJsonForEmbeds(isTiptapDoc(maybeDoc) ? maybeDoc : null);
     }
 
     // Check if message should be truncated (for UI display purposes)
@@ -99,8 +105,8 @@
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
       original_message: incomingMessage, // Store original for full content loading
-      appCards: (incomingMessage as any).appCards, // Preserve appCards if present
-      _embedUpdateTimestamp: (incomingMessage as any)._embedUpdateTimestamp // Force re-render when embed data arrives
+      appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
+      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp // Force re-render when embed data arrives
     };
   }
  
@@ -111,7 +117,7 @@
    * Parse system message content to check if it's an app_settings_memories_response.
    * Returns the parsed content or null if not a valid response.
    */
-  function parseAppSettingsMemoriesResponse(content: string | any): AppSettingsMemoriesResponseContent | null {
+  function parseAppSettingsMemoriesResponse(content: unknown): AppSettingsMemoriesResponseContent | null {
     if (typeof content !== 'string') return null;
     try {
       const parsed = JSON.parse(content);
@@ -122,6 +128,15 @@
       // Not valid JSON, ignore
     }
     return null;
+  }
+
+  /**
+   * Helper to read thinking entries from the map with a stable signature.
+   * This keeps template logic concise and avoids unsupported {@const} placement.
+   */
+  function getThinkingEntry(messageId: string | undefined) {
+    if (!messageId) return undefined;
+    return thinkingContentByTask.get(messageId);
   }
 
   /**
@@ -177,7 +192,7 @@
     messageInputHeight?: number;
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
-    thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean }>; // Thinking content from thinking models
+    thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -198,10 +213,6 @@
   let lastUserMessageId: string | null = null;
   let shouldScrollToNewUserMessage = false;
   let isScrolling = false;
-
-  // Track current locale reactively to detect changes
-  // Use $derived to ensure it's always in sync with $locale
-  let currentLocale = $derived($locale || 'en');
 
   /**
    * Exposed function to add a new message to the chat.
@@ -292,7 +303,7 @@
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
         // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
-        const hasEmbedUpdate = (newMessage as any)._embedUpdateTimestamp !== undefined;
+        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
         
         if (oldMessage &&
             !localeChanged &&
@@ -425,7 +436,7 @@
   }
 
   // Scroll position tracking for cross-device sync
-  let scrollDebounceTimer: NodeJS.Timeout | null = null;
+  let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
 
@@ -691,8 +702,8 @@
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
-                        thinkingContent={msg.role === 'assistant' ? thinkingContentByTask.get(msg.id)?.content : undefined}
-                        isThinkingStreaming={msg.role === 'assistant' ? thinkingContentByTask.get(msg.id)?.isStreaming || false : false}
+                        thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
+                        isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                     />
                 </div>
             {/each}
