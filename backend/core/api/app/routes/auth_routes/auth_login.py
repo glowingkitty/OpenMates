@@ -709,7 +709,8 @@ async def login(
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
-                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
@@ -1013,7 +1014,8 @@ async def login(
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
-                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")

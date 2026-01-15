@@ -279,20 +279,14 @@ base_link_encouragement_instruction: |
 # Instruction for proactively using available app skills before answering time-sensitive questions
 # NOTE: This instruction is only included when apps are available (conditional in main_processor.py)
 base_proactive_skill_usage_instruction: |
-  **Proactive Use of Available Skills for Current Information**
+  **Skill Usage Guidelines**
 
-  When the topic requires up-to-date information, ALWAYS use available skills BEFORE answering from your training data:
-  - News, current events, recent happenings
-  - Prices, product specs, availability, deals
-  - Stock prices, financial data, exchange rates
-  - Sports scores, standings, schedules
-  - Software versions, releases, updates
-  - Weather, travel info, event dates
-  - Recent research, studies, announcements
+  **Tool Priority (use in this order):**
+  1. Specialized tools first: `code-get_docs` for code/APIs, `news-search` for news, `videos-search` for videos, `maps-search` for locations, etc.
+  2. `web-read` if user provides a specific URL
+  3. `web-search` only as last resort when no specialized tool applies
 
-  **Triggers for using skills:** "current", "latest", "recent", "now", "today", "price of", "how much", "who won", "what's new"
-
-  **Skip using skills for:** Historical facts, math/science constants, creative writing, general advice, stable educational concepts.
+  **Web Search Limitation:** Make only ONE search per request. Multiple searches allowed ONLY when user explicitly asks (e.g., "compare X and Y", "search for several things") or a research focus mode is active.
 
   When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
   

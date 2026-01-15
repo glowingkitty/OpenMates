@@ -1159,8 +1159,16 @@ async def handle_main_processing(
                                     else:
                                         request_metadata["provider"] = "Brave Search"
                                 
-                                # Add request ID for later matching (use id if present, otherwise use index)
-                                request_id = request.get("id", request_idx)
+                                # Add request ID for later matching
+                                # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
+                                # This ensures consistency between placeholder creation here and
+                                # skill execution in base_skill.py which respects provided IDs
+                                # LLMs may provide 0-indexed or arbitrary IDs despite schema instructions,
+                                # so we enforce our own ID scheme for reliable matching
+                                request_id = request_idx + 1
+                                # SET the ID in the request dict so skill receives our auto-generated ID
+                                # This overwrites any LLM-provided ID in the request
+                                request["id"] = request_id
                                 # Normalize to string for consistent matching (handles int/str mismatches)
                                 request_id_normalized = str(request_id)
                                 request_metadata["request_id"] = request_id
@@ -2068,6 +2076,13 @@ async def handle_main_processing(
                                 if isinstance(req, dict) and "id" in req:
                                     request_metadata_map[req["id"]] = req
                             
+                            # Log all grouped_result request_ids for debugging ID mismatches
+                            grouped_result_ids = [str(gr.get("id")) for gr in grouped_results]
+                            logger.info(
+                                f"{log_prefix} Processing {len(grouped_results)} grouped results. "
+                                f"Result request IDs: {grouped_result_ids}, Placeholder request IDs: {list(placeholder_embeds_map.keys())}"
+                            )
+                            
                             for grouped_result in grouped_results:
                                 request_id = grouped_result.get("id")
                                 request_results = grouped_result.get("results", [])
@@ -2077,7 +2092,7 @@ async def handle_main_processing(
                                 
                                 logger.debug(
                                     f"{log_prefix} Processing grouped result: request_id={request_id} (key={request_id_key}), "
-                                    f"result_count={len(request_results)}"
+                                    f"result_count={len(request_results)}, has_error={bool(grouped_result.get('error'))}"
                                 )
                                 
                                 # Get request metadata (query, url, etc.) for this specific request
@@ -2103,7 +2118,8 @@ async def handle_main_processing(
                                         # Update existing placeholder to error status
                                         placeholder_embed_id = matching_placeholder.get("embed_id")
                                         logger.info(
-                                            f"{log_prefix} Updating placeholder {placeholder_embed_id} to error status for failed request {request_id}"
+                                            f"{log_prefix} Found matching placeholder for failed request {request_id}: "
+                                            f"embed_id={placeholder_embed_id}, key={request_id_key}"
                                         )
                                         try:
                                             updated_error_embed = await embed_service.update_embed_status_to_error(
@@ -2142,8 +2158,10 @@ async def handle_main_processing(
                                             )
                                     else:
                                         # No placeholder found - create new error embed
+                                        # This may indicate a request_id mismatch between placeholder creation and skill result
                                         logger.warning(
-                                            f"{log_prefix} No placeholder found for request {request_id}, creating new error embed"
+                                            f"{log_prefix} No placeholder found for failed request {request_id} (key={request_id_key}). "
+                                            f"Available placeholder keys: {list(placeholder_embeds_map.keys())}. Creating new error embed."
                                         )
                                         error_embed_data = await embed_service.create_processing_embed_placeholder(
                                             app_id=app_id,

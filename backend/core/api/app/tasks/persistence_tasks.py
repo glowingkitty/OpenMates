@@ -1202,6 +1202,9 @@ async def _async_persist_encrypted_chat_metadata(
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
             # These fields should be updated whenever provided, regardless of version
             update_fields = encrypted_metadata.copy()
+            # Rotation control flags are internal only - never persist to Directus.
+            allow_chat_key_rotation = bool(update_fields.pop("allow_chat_key_rotation", False))
+            chat_key_rotation_reason = update_fields.pop("chat_key_rotation_reason", None)
             
             # =================================================================
             # CRITICAL FIX: Make encrypted_chat_key IMMUTABLE
@@ -1220,13 +1223,19 @@ async def _async_persist_encrypted_chat_metadata(
             existing_chat_key = chat_metadata.get("encrypted_chat_key")
             incoming_chat_key = update_fields.get("encrypted_chat_key")
             if existing_chat_key and incoming_chat_key:
-                # Chat already has an encrypted_chat_key - NEVER overwrite it
-                update_fields.pop("encrypted_chat_key", None)
-                logger.warning(
-                    f"[CHAT_KEY_IMMUTABLE] ⚠️ Blocked attempt to overwrite encrypted_chat_key for chat {chat_id}. "
-                    f"Existing key is set, incoming key will be ignored to preserve message decryptability. "
-                    f"(task_id: {task_id})"
-                )
+                if allow_chat_key_rotation:
+                    logger.warning(
+                        f"[CHAT_KEY_ROTATION] ⚠️ Allowing encrypted_chat_key rotation for chat {chat_id}. "
+                        f"Reason: {chat_key_rotation_reason or 'unspecified'}. (task_id: {task_id})"
+                    )
+                else:
+                    # Chat already has an encrypted_chat_key - NEVER overwrite it
+                    update_fields.pop("encrypted_chat_key", None)
+                    logger.warning(
+                        f"[CHAT_KEY_IMMUTABLE] ⚠️ Blocked attempt to overwrite encrypted_chat_key for chat {chat_id}. "
+                        f"Existing key is set, incoming key will be ignored to preserve message decryptability. "
+                        f"(task_id: {task_id})"
+                    )
             
             # Separate version fields from metadata fields
             metadata_fields = {
