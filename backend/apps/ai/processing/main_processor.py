@@ -1740,6 +1740,58 @@ async def handle_main_processing(
                                 )
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error publishing cancelled status: {status_error}")
+                except Exception as skill_error:
+                    # CRITICAL: Handle skill execution failures gracefully
+                    # When a skill fails (HTTP error, timeout, rate limit, etc.), we:
+                    # 1. Create an error result that tells the LLM the skill failed
+                    # 2. Update the embed status to "error" so frontend shows failure
+                    # 3. Continue processing - don't crash the entire AI response
+                    # This allows the LLM to interpret results from successful skills
+                    # and provide a meaningful response even when some skills fail.
+                    error_message = str(skill_error)
+                    logger.warning(
+                        f"{log_prefix} Skill '{app_id}.{skill_id}' failed with error: {error_message}. "
+                        f"Main processing will continue with error result for LLM."
+                    )
+                    
+                    # Create error result that tells the LLM the skill failed
+                    # This allows the LLM to acknowledge the failure and continue with other results
+                    results = [{
+                        "status": "error",
+                        "error": error_message,
+                        "message": f"The {skill_id} skill failed: {error_message}. Please continue with any other available information.",
+                        "app_id": app_id,
+                        "skill_id": skill_id
+                    }]
+                    
+                    # Update embed status to "error" so frontend shows failure state
+                    if cache_service and placeholder_embed_data:
+                        try:
+                            embed_id = placeholder_embed_data.get("embed_id")
+                            if embed_id:
+                                # Use embed_service to properly update the embed status
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service
+                                )
+                                await embed_service.update_embed_status_to_error(
+                                    embed_id=embed_id,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    error_message=error_message,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
+                        except Exception as status_error:
+                            logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
 
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return

@@ -98,7 +98,35 @@ async def handle_encrypted_chat_metadata(
         # CRITICAL: Check if we have both message_id and encrypted_content
         if message_id:
             if encrypted_content:
-                logger.info(f"Storing encrypted user message {message_id} for chat {chat_id}")
+                # DIAGNOSTIC: Log encrypted content details for debugging sync/encryption issues
+                # This helps identify if the client is sending correctly encrypted content
+                import base64
+                is_valid_base64 = False
+                try:
+                    # Check if it's valid base64
+                    decoded = base64.b64decode(encrypted_content)
+                    is_valid_base64 = True
+                    # Client-encrypted content should have: 12-byte IV + ciphertext + 16-byte auth tag
+                    # Minimum length: 12 + 1 + 16 = 29 bytes (for 1-char plaintext)
+                    # Base64 of 29 bytes = ~40 chars minimum
+                    decoded_len = len(decoded)
+                    if decoded_len < 29:
+                        logger.warning(
+                            f"⚠️ [ENCRYPTION_VALIDATION] Message {message_id} encrypted_content is suspiciously short: "
+                            f"decoded_len={decoded_len} bytes (expected >= 29 bytes for AES-GCM). "
+                            f"This may indicate malformed encryption or wrong encryption method!"
+                        )
+                except Exception as decode_err:
+                    logger.error(
+                        f"❌ [ENCRYPTION_VALIDATION] Message {message_id} encrypted_content is NOT valid base64: {decode_err}. "
+                        f"Content preview: {encrypted_content[:50]}..."
+                    )
+                
+                logger.info(
+                    f"Storing encrypted user message {message_id} for chat {chat_id}. "
+                    f"encrypted_content_length={len(encrypted_content)}, is_valid_base64={is_valid_base64}, "
+                    f"content_preview={encrypted_content[:30]}..."
+                )
             else:
                 logger.warning(f"⚠️ Message ID {message_id} provided but encrypted_content is missing/null for chat {chat_id}! "
                              f"This means the user message will NOT be stored in Directus. Payload keys: {list(payload.keys())}")

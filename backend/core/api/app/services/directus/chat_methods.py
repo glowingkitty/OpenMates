@@ -308,7 +308,9 @@ class ChatMethods:
             True if message already exists, False otherwise
         """
         try:
-            success, result = await self.directus_service.fetch_items(
+            # CRITICAL FIX: Use get_items instead of fetch_items (which doesn't exist)
+            # get_items returns a list directly, not a (success, result) tuple
+            result = await self.directus_service.get_items(
                 collection='messages',
                 params={
                     "filter": {"client_message_id": {"_eq": client_message_id}},
@@ -317,7 +319,7 @@ class ChatMethods:
                 }
             )
             
-            if success and result:
+            if result and len(result) > 0:
                 # Message already exists
                 logger.info(
                     f"[IDEMPOTENCY_CHECK] Message with client_message_id={client_message_id} "

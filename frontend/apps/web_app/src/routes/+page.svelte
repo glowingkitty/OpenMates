@@ -57,7 +57,10 @@
     // Use untrack to prevent infinite loops when setting loginInterfaceOpen
     $effect(() => {
         // Only check if user is authenticated and has a last_opened path
-        if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened)) {
+        // CRITICAL: Also check that forcedLogoutInProgress is NOT set
+        // If forced logout is in progress (master key missing after page reload with stayLoggedIn=false),
+        // we should NOT resume signup because the user's session is being cleared
+        if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened) && !$forcedLogoutInProgress) {
             // Use untrack to read current state without creating a dependency
             // This prevents infinite loops when we set loginInterfaceOpen or isInSignupProcess
             untrack(() => {
@@ -612,7 +615,13 @@
 		// Now check auth state after optimistic loading (used throughout onMount)
 		const isAuth = $authStore.isAuthenticated;
 		
-		if (hasSignupInLastOpened) {
+		// Check if forced logout is in progress (set earlier when master key is missing)
+		const isForcedLogoutAtStartup = get(forcedLogoutInProgress);
+		
+		// CRITICAL: Only resume signup if NOT in forced logout state
+		// If master key is missing (stayLoggedIn=false reload), we should NOT resume signup
+		// because the user's session is being cleared and they need to start fresh
+		if (hasSignupInLastOpened && !isForcedLogoutAtStartup) {
 			// PRIORITY 1: last_opened signup step takes absolute priority - skip hash processing
 			const step = getStepFromPath(initialProfile.last_opened);
 			currentSignupStep.set(step);
@@ -620,6 +629,11 @@
 			loginInterfaceOpen.set(true);
 			console.debug(`[+page.svelte] [PRIORITY 1] Found signup step in last_opened: ${step} - skipping hash processing`);
 			originalHashChatId = null; // No hash processing when signup is in last_opened
+		} else if (isForcedLogoutAtStartup && hasSignupInLastOpened) {
+			// User had signup in progress but was force-logged out (master key missing)
+			// Clear the signup state and show login/demo instead
+			console.debug(`[+page.svelte] [FORCED LOGOUT] Found signup step in last_opened but master key is missing - skipping signup resume`);
+			// Don't set signup state - let the normal logout flow handle showing login/demo
 		} else {
 			// UNIFIED APPROACH: Always process through deep link handler (including empty hash)
 			// This ensures all chat loading goes through one consistent system
@@ -924,7 +938,9 @@
 		// checkAuth() should have already set this, but we verify and ensure login interface is open
 		// This handles both page reload and login scenarios
 		// Note: The $effect at top level will also handle this reactively, but we check immediately here too
-		if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened)) {
+		// CRITICAL: Also check that forced logout is NOT in progress
+		// If forced logout is happening (master key missing), don't resume signup
+		if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened) && !get(forcedLogoutInProgress)) {
 			console.debug('[+page.svelte] User is in signup flow after initialize() - ensuring login interface is open', {
 				last_opened: $userProfile.last_opened,
 				isInSignupProcess: $isInSignupProcess,

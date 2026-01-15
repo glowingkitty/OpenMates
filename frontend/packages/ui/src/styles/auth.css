@@ -27,7 +27,7 @@
 
     .login-container > .icon-grid {
         width: max-content;
-        justify-self: center;
+        justify-self: right;
         margin: 0;
     }
 

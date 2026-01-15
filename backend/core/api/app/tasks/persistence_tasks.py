@@ -272,7 +272,27 @@ async def _async_persist_new_chat_message_task(
             try:
                 from backend.core.api.app.services.cache import CacheService
                 import json
+                import base64
                 cache_service = CacheService()
+                
+                # VALIDATION: Log encrypted content details for debugging sync/encryption issues
+                # This helps identify if content is properly client-encrypted before syncing
+                encrypted_content_valid = False
+                if encrypted_content:
+                    try:
+                        decoded = base64.b64decode(encrypted_content)
+                        encrypted_content_valid = len(decoded) >= 29  # Minimum for AES-GCM
+                        if not encrypted_content_valid:
+                            logger.warning(
+                                f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} encrypted_content is suspiciously short: "
+                                f"decoded_len={len(decoded)} bytes (expected >= 29). May be incorrectly encrypted!"
+                            )
+                    except Exception as decode_err:
+                        logger.error(
+                            f"[SYNC_CACHE_VALIDATION] ❌ Message {message_id} encrypted_content is NOT valid base64: {decode_err}"
+                        )
+                else:
+                    logger.warning(f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} has no encrypted_content!")
                 
                 # Create the new message as a JSON string (matching Directus format)
                 new_message_dict = {
@@ -300,7 +320,9 @@ async def _async_persist_new_chat_message_task(
                 )
                 logger.info(
                     f"[SYNC_CACHE_UPDATE] ✅ Appended new message {message_id} (role={role}) to sync cache FIRST "
-                    f"for chat {chat_id} (task_id: {task_id})"
+                    f"for chat {chat_id} (task_id: {task_id}). "
+                    f"encrypted_content_length={len(encrypted_content) if encrypted_content else 0}, "
+                    f"encrypted_content_valid={encrypted_content_valid}"
                 )
             except Exception as sync_cache_error:
                 # Non-critical error - sync cache will be populated during cache warming

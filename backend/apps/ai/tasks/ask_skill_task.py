@@ -40,8 +40,156 @@ from backend.apps.ai.processing.preprocessor import handle_preprocessing, Prepro
 from backend.apps.ai.processing.postprocessor import handle_postprocessing, PostProcessingResult
 from .stream_consumer import _consume_main_processing_stream
 
+# Import embed service for cleanup on task failure
+from backend.core.api.app.services.embed_service import EmbedService
+
 
 logger = logging.getLogger(__name__)
+
+
+async def _cleanup_processing_embeds_on_task_failure(
+    task_id: str,
+    chat_id: str,
+    message_id: str,
+    user_id: str,
+    user_id_hash: str,
+    user_vault_key_id: str,
+    error_message: str,
+    cache_service: Optional[CacheService] = None,
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None
+) -> int:
+    """
+    Clean up processing embeds when a task fails unexpectedly.
+    
+    This function finds all embeds in "processing" status that were created by this task
+    and marks them as "error" so the frontend can display the failure state properly.
+    
+    CRITICAL: This prevents embeds from being stuck in "processing" forever when:
+    - Postprocessing LLM fails
+    - Task is revoked or times out
+    - Any unexpected exception occurs
+    
+    Args:
+        task_id: The Celery task ID (used to find related embeds)
+        chat_id: The chat ID where embeds were created
+        message_id: The message ID associated with the embeds
+        user_id: The user ID (for cache access)
+        user_id_hash: The hashed user ID (for Directus storage)
+        user_vault_key_id: The vault key ID for encryption
+        error_message: Error message to include in the embed status
+        cache_service: Optional CacheService instance
+        directus_service: Optional DirectusService instance
+        encryption_service: Optional EncryptionService instance
+        
+    Returns:
+        Number of embeds that were cleaned up
+    """
+    log_prefix = f"[Task ID: {task_id}, ChatID: {chat_id}] EMBED_CLEANUP"
+    cleaned_count = 0
+    
+    try:
+        # Create service instances if not provided
+        if not cache_service:
+            cache_service = CacheService()
+        if not directus_service:
+            directus_service = DirectusService()
+            await directus_service.ensure_auth_token()
+        if not encryption_service:
+            encryption_service = EncryptionService()
+        
+        # Create embed service for cleanup operations
+        embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        
+        # Get all embeds from cache for this chat that might be in processing state
+        # We use the cache key pattern to find embeds created during this task
+        import hashlib
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest()
+        
+        # Query cache for processing embeds associated with this task
+        # The embed cache key pattern: embed:{embed_id}
+        # We need to scan for embeds with hashed_task_id matching this task
+        client = await cache_service.client
+        if not client:
+            logger.warning(f"{log_prefix} Redis client not available for embed cleanup")
+            return 0
+        
+        # Scan for embed keys
+        cursor = 0
+        embed_keys = []
+        while True:
+            cursor, keys = await client.scan(cursor, match="embed:*", count=100)
+            if keys:
+                embed_keys.extend(keys)
+            if cursor == 0:
+                break
+        
+        logger.info(f"{log_prefix} Scanning {len(embed_keys)} embed cache entries for processing embeds")
+        
+        for key in embed_keys:
+            try:
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                embed_data_str = await client.get(key_str)
+                if not embed_data_str:
+                    continue
+                    
+                import json
+                embed_data = json.loads(embed_data_str.decode('utf-8') if isinstance(embed_data_str, bytes) else embed_data_str)
+                
+                # Check if this embed:
+                # 1. Is in "processing" status
+                # 2. Belongs to this chat
+                # 3. Was created by this task (hashed_task_id matches)
+                embed_status = embed_data.get("status")
+                embed_hashed_chat_id = embed_data.get("hashed_chat_id")
+                embed_hashed_task_id = embed_data.get("hashed_task_id")
+                
+                if (embed_status == "processing" and 
+                    embed_hashed_chat_id == hashed_chat_id and
+                    embed_hashed_task_id == hashed_task_id):
+                    
+                    embed_id = embed_data.get("embed_id") or key_str.replace("embed:", "")
+                    app_id = embed_data.get("app_id", "unknown")
+                    skill_id = embed_data.get("skill_id", "unknown")
+                    
+                    logger.info(
+                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as error"
+                    )
+                    
+                    # Update embed to error status
+                    try:
+                        await embed_service.update_embed_status_to_error(
+                            embed_id=embed_id,
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            error_message=f"Task failed: {error_message}",
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                        cleaned_count += 1
+                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as error")
+                    except Exception as update_error:
+                        logger.error(f"{log_prefix} Failed to update embed {embed_id} to error: {update_error}")
+                        
+            except Exception as embed_error:
+                logger.warning(f"{log_prefix} Error processing embed key {key}: {embed_error}")
+                continue
+        
+        if cleaned_count > 0:
+            logger.info(f"{log_prefix} Cleaned up {cleaned_count} processing embed(s)")
+        else:
+            logger.debug(f"{log_prefix} No processing embeds found to clean up")
+            
+    except Exception as e:
+        logger.error(f"{log_prefix} Error during embed cleanup: {e}", exc_info=True)
+    
+    return cleaned_count
 
 # Note: Avoid internal API lookups per task to keep latency low. We rely on
 # the worker-local ConfigManager (see celery_config) and fail fast if configs are missing.
@@ -1301,6 +1449,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message="Task exceeded soft time limit"
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after soft time limit: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'SoftTimeLimitExceeded', 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
@@ -1311,6 +1473,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever (e.g., when postprocessing LLM fails)
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message=str(e)
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after RuntimeError: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
@@ -1320,6 +1496,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise Ignore()
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message=str(e)
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after exception: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),
