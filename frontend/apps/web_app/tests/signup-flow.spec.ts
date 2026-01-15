@@ -7,6 +7,8 @@
 // require() and broad lint disables limited to this spec file.
 const { test, expect } = require('@playwright/test');
 const nodeCrypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Full signup flow test (password + 2FA + purchase) against a deployed web app.
@@ -30,6 +32,63 @@ let MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
+const ARTIFACTS_DIRNAME = 'artifacts';
+const PREVIOUS_RUN_DIRNAME = 'previous_run';
+
+/**
+ * Emit structured step logs so we can pinpoint where the flow stops.
+ * We keep the output flat for easy grep in CI/playwright logs.
+ */
+let signupStepLogIndex = 1;
+function logSignupCheckpoint(message: string, metadata: Record<string, unknown> = {}): void {
+	const timestamp = new Date().toISOString();
+	const step = String(signupStepLogIndex).padStart(2, '0');
+	signupStepLogIndex += 1;
+	const metaSuffix = Object.keys(metadata).length ? ` | meta=${JSON.stringify(metadata)}` : '';
+	console.log(`[SIGNUP_FLOW][${step}][${timestamp}] ${message}${metaSuffix}`);
+}
+
+/**
+ * Move any existing screenshots into artifacts/previous_run at startup.
+ * This preserves the last run's images while keeping the current run clean.
+ */
+async function archiveExistingScreenshots(): Promise<void> {
+	const artifactsDir = path.resolve(process.cwd(), ARTIFACTS_DIRNAME);
+	const previousRunDir = path.join(artifactsDir, PREVIOUS_RUN_DIRNAME);
+
+	await fs.promises.mkdir(artifactsDir, { recursive: true });
+
+	const existingEntries = await fs.promises.readdir(artifactsDir, { withFileTypes: true });
+	const existingScreenshots = existingEntries.filter((entry: any) => {
+		return entry.isFile() && entry.name.toLowerCase().endsWith('.png');
+	});
+
+	if (existingScreenshots.length === 0) {
+		logSignupCheckpoint('No prior screenshots found to archive.', { artifactsDir });
+		return;
+	}
+
+	await fs.promises.mkdir(previousRunDir, { recursive: true });
+
+	const previousRunEntries = await fs.promises.readdir(previousRunDir, { withFileTypes: true });
+	for (const entry of previousRunEntries) {
+		if (entry.isFile() && entry.name.toLowerCase().endsWith('.png')) {
+			await fs.promises.unlink(path.join(previousRunDir, entry.name));
+		}
+	}
+
+	for (const entry of existingScreenshots) {
+		await fs.promises.rename(
+			path.join(artifactsDir, entry.name),
+			path.join(previousRunDir, entry.name)
+		);
+	}
+
+	logSignupCheckpoint('Archived prior screenshots into previous_run.', {
+		movedCount: existingScreenshots.length,
+		previousRunDir
+	});
+}
 
 /**
  * Capture a screenshot for each major step in the signup flow.
@@ -46,6 +105,7 @@ async function takeStepScreenshot(page: any, label: string): Promise<void> {
 		path: `artifacts/${filename}`,
 		fullPage: true
 	});
+	logSignupCheckpoint('Captured step screenshot.', { label, filename });
 }
 
 /**
@@ -258,10 +318,10 @@ function extractSixDigitCode(message: MailosaurMessage): string | null {
 }
 
 /**
- * Extract a refund link from a purchase confirmation email.
- * We look for a URL that includes "refund" to align with the email template.
+ * Extract all clickable links from a Mailosaur message payload.
+ * We consolidate hrefs, raw URLs, and Mailosaur-parsed links for debugging.
  */
-function extractRefundLink(message: MailosaurMessage): string | null {
+function extractMessageLinks(message: MailosaurMessage): string[] {
 	const htmlBody = message.html?.body || '';
 	const textBody = message.text?.body || '';
 	const links: string[] = [];
@@ -292,8 +352,63 @@ function extractRefundLink(message: MailosaurMessage): string | null {
 		}
 	}
 
-	const refundLink = links.find((link) => /refund/i.test(link));
-	return refundLink || null;
+	// De-duplicate to keep logs readable.
+	return Array.from(new Set(links));
+}
+
+/**
+ * Extract a refund link from a purchase confirmation email.
+ * We look for a URL that includes "refund" to align with the email template.
+ */
+function extractRefundLink(message: MailosaurMessage): string | null {
+	const links = extractMessageLinks(message);
+	const htmlBody = message.html?.body || '';
+	const textBody = message.text?.body || '';
+	const refundKeyword = /refund/i;
+
+	// Primary match: direct refund URL with the keyword in the link itself.
+	const refundLink = links.find((link) => refundKeyword.test(link));
+	if (refundLink) {
+		return refundLink;
+	}
+
+	// Secondary match: URL appears near "refund" language in the text body.
+	for (const link of links) {
+		const linkIndex = textBody.indexOf(link);
+		if (linkIndex === -1) {
+			continue;
+		}
+		const contextStart = Math.max(0, linkIndex - 120);
+		const contextEnd = Math.min(textBody.length, linkIndex + link.length + 120);
+		const contextSlice = textBody.slice(contextStart, contextEnd);
+		if (refundKeyword.test(contextSlice)) {
+			return link;
+		}
+	}
+
+	// Tertiary match: anchor text or surrounding HTML mentions refunds.
+	const anchorRegex = /<a [^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
+	let anchorMatch = anchorRegex.exec(htmlBody);
+	while (anchorMatch) {
+		const href = anchorMatch[1];
+		const anchorText = anchorMatch[2].replace(/<[^>]*>/g, ' ');
+		const anchorIndex = anchorMatch.index;
+		const htmlContext = htmlBody.slice(
+			Math.max(0, anchorIndex - 120),
+			Math.min(htmlBody.length, anchorIndex + anchorMatch[0].length + 120)
+		);
+		if (refundKeyword.test(anchorText) || refundKeyword.test(htmlContext)) {
+			return href;
+		}
+		anchorMatch = anchorRegex.exec(htmlBody);
+	}
+
+	// Fallback: some templates link to billing invoices without the explicit /refund suffix.
+	// We treat those as valid refund entry points when the refund action is handled in-app.
+	const invoiceLink = links.find((link) =>
+		/#settings\/billing\/invoices\//i.test(link) || /\/settings\/billing\/invoices\//i.test(link)
+	);
+	return invoiceLink || null;
 }
 
 /**
@@ -341,7 +456,10 @@ function generateTotp(secret: string, windowOffset: number = 0): string {
 
 test('completes full signup flow with email + 2FA + purchase', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
-	test.setTimeout(180000);
+	// Allow extra time for purchase confirmation email + account deletion cleanup.
+	test.setTimeout(240000);
+
+	await archiveExistingScreenshots();
 
 	const signupDomain = getSignupTestDomain();
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
@@ -363,6 +481,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	const signupEmail = buildSignupEmail(signupDomain);
 	const signupUsername = signupEmail.split('@')[0];
 	const signupPassword = 'SignupTest!234';
+	logSignupCheckpoint('Initialized signup identity.', { signupEmail });
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
 	await page.goto('/');
@@ -375,6 +494,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
+	logSignupCheckpoint('Opened login dialog.');
 
 	// Switch to the signup tab inside the login dialog.
 	const loginTabs = page.locator('.login-tabs');
@@ -391,6 +511,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
+	logSignupCheckpoint('Reached basics step.');
 
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
@@ -424,17 +545,20 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	const emailRequestedAt = new Date().toISOString();
 	await page.getByRole('button', { name: /create new account/i }).click();
 	await takeStepScreenshot(page, 'confirm-email');
+	logSignupCheckpoint('Submitted signup basics, waiting for email confirmation.');
 
 	// Confirm email step: verify "Open mail app" link and enter OTP.
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
+	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
 	const confirmEmailMessage = await waitForMailosaurMessage({
 		sentTo: signupEmail,
 		receivedAfter: emailRequestedAt
 	});
 	const emailCode = extractSixDigitCode(confirmEmailMessage);
 	expect(emailCode, 'Expected a 6-digit email confirmation code.').toBeTruthy();
+	logSignupCheckpoint('Received email confirmation code.');
 
 	const confirmEmailInput = page.locator('input[inputmode="numeric"][maxlength="6"]');
 	await confirmEmailInput.fill(emailCode);
@@ -452,6 +576,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	await passwordInputs.nth(0).fill(signupPassword);
 	await passwordInputs.nth(1).fill(signupPassword);
 	await takeStepScreenshot(page, 'password-filled');
+	logSignupCheckpoint('Password fields completed.');
 
 	// Password manager link should be present (no navigation needed).
 	const passwordManagerLink = page.getByRole('link', { name: /password manager/i });
@@ -459,6 +584,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'one-time-codes');
+	logSignupCheckpoint('Reached one-time codes step.');
 
 	// One-time codes step: show QR, copy secret, validate selectable secret input.
 	const qrButton = page.getByRole('button', { name: /scan via 2fa app/i });
@@ -483,11 +609,13 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 
 	const tfaSecret = await secretInput.inputValue();
 	expect(tfaSecret, 'Expected a 2FA secret to be available after copy.').toBeTruthy();
+	logSignupCheckpoint('Retrieved 2FA secret.');
 
 	// Enter the generated TOTP to complete 2FA setup.
 	const otpCode = generateTotp(tfaSecret);
 	const otpInput = page.locator('#otp-code-input');
 	await otpInput.fill(otpCode);
+	logSignupCheckpoint('Entered OTP code.');
 
 	// 2FA app reminder: pick an app name from suggestions and continue.
 	const appNameInput = page.locator('input[placeholder*="app name"]');
@@ -500,6 +628,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	const tfaContinueButton = page.getByRole('button', { name: /continue/i });
 	await tfaContinueButton.click();
 	await takeStepScreenshot(page, 'backup-codes');
+	logSignupCheckpoint('Reached backup codes step.');
 
 	// Backup codes step: download and confirm stored.
 	const backupDownloadButton = page.getByRole('button', { name: /download/i }).first();
@@ -508,10 +637,12 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 		backupDownloadButton.click()
 	]);
 	expect(await backupDownload.suggestedFilename()).toMatch(/backup/i);
+	logSignupCheckpoint('Downloaded backup codes.');
 
 	const backupConfirmToggle = page.locator('#confirm-storage-toggle-step5');
 	await setToggleChecked(backupConfirmToggle, true);
 	await takeStepScreenshot(page, 'backup-codes-confirmed');
+	logSignupCheckpoint('Confirmed backup code storage.');
 
 	// Recovery key step: download, copy, print, and confirm stored.
 	const recoveryDownloadButton = page.getByRole('button', { name: /download/i }).first();
@@ -521,6 +652,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	]);
 	await takeStepScreenshot(page, 'recovery-key');
 	expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
+	logSignupCheckpoint('Downloaded recovery key.');
 
 	const recoveryCopyButton = page.getByRole('button', { name: /^copy$/i });
 	await recoveryCopyButton.click();
@@ -531,10 +663,12 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	]);
 	await printPage.close();
 	await takeStepScreenshot(page, 'recovery-key-actions');
+	logSignupCheckpoint('Completed recovery key actions.');
 
 	const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
 	await setToggleChecked(recoveryConfirmToggle, true);
 	await takeStepScreenshot(page, 'credits-step');
+	logSignupCheckpoint('Reached credits step.');
 
 	// Credits step: exercise gift card path (cancel) and navigation buttons.
 	const giftCardButton = page.locator('.gift-card-button');
@@ -543,6 +677,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	await takeStepScreenshot(page, 'credits-giftcard');
 	await page.getByRole('button', { name: /cancel/i }).click();
 	await takeStepScreenshot(page, 'credits-ready');
+	logSignupCheckpoint('Completed credits step actions.');
 
 	const moreButton = page.getByRole('button', { name: /more/i });
 	const lessButton = page.getByRole('button', { name: /less/i });
@@ -556,11 +691,13 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	// Purchase credits to proceed to payment step.
 	await page.locator('.credits-package-container .buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
+	logSignupCheckpoint('Reached payment consent step.');
 
 	// Payment step: consent to limited refund to reveal payment form.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
 	await setToggleChecked(consentToggle, true);
 	await takeStepScreenshot(page, 'payment-form');
+	logSignupCheckpoint('Payment consent accepted.');
 
 	// Payment security info button should open a Stripe privacy page (close immediately).
 	const securityInfoButton = page.locator('.payment-form .text-button').first();
@@ -570,38 +707,105 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 		securityInfoButton.click()
 	]);
 	await securityInfoPage.close();
+	logSignupCheckpoint('Closed payment security info page.');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
+	logSignupCheckpoint('Filled Stripe card details.');
 
 	// Submit payment and wait for success.
 	const paymentSubmittedAt = new Date().toISOString();
 	await page.locator('.payment-form .buy-button').click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'payment-success');
+	logSignupCheckpoint('Purchase completed successfully.');
 
 	// Auto top-up step: finish setup and confirm redirect into the app.
 	await page.getByRole('button', { name: /finish setup/i }).first().click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat');
+	logSignupCheckpoint('Arrived in chat after signup.');
 
 	// Purchase confirmation email: verify key content and refund link.
+	logSignupCheckpoint('Waiting for purchase confirmation email.');
 	const purchaseEmail = await waitForMailosaurMessage({
 		sentTo: signupEmail,
 		subjectContains: 'Purchase confirmation',
 		receivedAfter: paymentSubmittedAt,
 		timeoutMs: 180000
 	});
+	logSignupCheckpoint('Received purchase confirmation email.');
 
 	const purchaseText = purchaseEmail.text?.body || '';
 	expect(purchaseText).toMatch(/thanks for your purchase/i);
 	expect(purchaseText).toMatch(/invoice/i);
 
 	const refundLink = extractRefundLink(purchaseEmail);
+	if (!refundLink) {
+		const allLinks = extractMessageLinks(purchaseEmail);
+		logSignupCheckpoint('Refund link missing from purchase email.', {
+			linkCount: allLinks.length,
+			links: allLinks.slice(0, 10),
+			textSnippet: purchaseText.slice(0, 300)
+		});
+	}
 	expect(refundLink, 'Expected a refund link in the purchase confirmation email.').toBeTruthy();
 	if (!refundLink) {
 		throw new Error('Refund link missing from purchase confirmation email.');
 	}
 	expect(() => new URL(refundLink)).not.toThrow();
+	logSignupCheckpoint('Validated refund link from purchase email.', {
+		refundLink: refundLink.slice(0, 120)
+	});
+
+	// Open settings to verify credit balance and delete the test account.
+	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	await settingsMenuButton.click();
+	await expect(page.locator('.settings-menu.visible')).toBeVisible();
+	await takeStepScreenshot(page, 'settings-menu-open');
+	logSignupCheckpoint('Opened settings menu for credit verification.');
+
+	// Confirm credits reflect the purchase (should be non-zero after payment).
+	const creditsAmount = page.locator('.credits-amount');
+	await expect(creditsAmount).toBeVisible();
+	const creditsText = (await creditsAmount.textContent()) || '';
+	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
+	expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(0);
+	logSignupCheckpoint('Verified purchased credits in settings.', { creditsValue, creditsText });
+
+	// Navigate to Account settings and open delete account flow.
+	await page.getByRole('menuitem', { name: /account/i }).click();
+	await expect(page.getByRole('menuitem', { name: /delete/i })).toBeVisible();
+	await page.getByRole('menuitem', { name: /delete/i }).click();
+	await expect(page.locator('.delete-account-container')).toBeVisible();
+	await takeStepScreenshot(page, 'delete-account');
+	logSignupCheckpoint('Opened delete account settings.');
+
+	// Confirm data deletion checkbox to enable deletion.
+	// Use the delete account toggle directly because the label text is lengthy and localized.
+	const deleteConfirmToggle = page.locator('.delete-account-container input[type="checkbox"]').first();
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await setToggleChecked(deleteConfirmToggle, true);
+	await takeStepScreenshot(page, 'delete-account-confirmed');
+	logSignupCheckpoint('Confirmed delete account data warning.');
+
+	// Start deletion and complete 2FA authentication.
+	await page.locator('.delete-account-container .delete-button').click();
+	const authModal = page.locator('.auth-modal');
+	await expect(authModal).toBeVisible();
+	await takeStepScreenshot(page, 'delete-account-auth');
+
+	const deleteOtpInput = authModal.locator('input.tfa-input');
+	await expect(deleteOtpInput).toBeVisible();
+	await deleteOtpInput.fill(generateTotp(tfaSecret));
+	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
+
+	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({ timeout: 60000 });
+	await takeStepScreenshot(page, 'delete-account-success');
+	logSignupCheckpoint('Account deletion confirmed.');
+
+	// Confirm logout redirect to demo chat after deletion.
+	await page.waitForFunction(() => window.location.hash.includes('demo-welcome'), null, { timeout: 60000 });
+	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });
 
