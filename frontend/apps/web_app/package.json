@@ -21,6 +21,7 @@
 		"svelte-i18n": "^4.0.1"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.49.0",
 		"@repo/eslint-config": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
 		"@sveltejs/adapter-static": "^3.0.10",

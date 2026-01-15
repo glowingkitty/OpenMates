@@ -1,0 +1,23 @@
+services:
+  playwright:
+    # Official Playwright image with browsers and Node pre-installed.
+    image: mcr.microsoft.com/playwright:v1.49.0-jammy
+    working_dir: /workspace
+    volumes:
+      # Mount only the Playwright config and tests; no need for the app code.
+      - ./frontend/apps/web_app/playwright.config.ts:/workspace/playwright.config.ts:ro
+      - ./frontend/apps/web_app/tests:/workspace/tests:ro
+      # Mount a writable directory for screenshots and other artifacts.
+      - ./playwright-artifacts:/workspace/artifacts
+    environment:
+      # Target the deployed dev environment by default.
+      PLAYWRIGHT_TEST_BASE_URL: "https://app.dev.openmates.org"
+    command: >
+      bash -lc "
+        cd /workspace &&
+        # Create an isolated, throwaway Playwright project inside the container.
+        npm init -y >/dev/null 2>&1 &&
+        npm install --silent @playwright/test@1.49.0 &&
+        npx playwright test --config=playwright.config.ts
+      "
+
