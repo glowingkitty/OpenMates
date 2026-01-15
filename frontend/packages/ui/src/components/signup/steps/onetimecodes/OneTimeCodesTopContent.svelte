@@ -574,9 +574,7 @@ step_4_top_content_svelte:
     .qr-code {
         width: var(--qr-code-size);
         height: var(--qr-code-size);
-        position: absolute;
-        top: 50%;
-        transform: translateY(-28px);
+        transform: translateY(calc(var(--qr-code-size) * 0.53));
         z-index: 1;
         display: flex;
         justify-content: center;

@@ -1309,18 +1309,45 @@ export async function sendEncryptedStoragePackage(
         
         console.debug(`[ChatSyncService:Senders] Using chat with title_v: ${chat.title_v}, messages_v: ${chat.messages_v}`);
         
-        // Get or generate chat key for encryption
-        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id}`);
-        const chatKey = chatDB.getOrGenerateChatKey(chat_id);
-        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`);
-
-        // Get encrypted chat key for server storage
-        console.log(`[ChatSyncService:Senders] Retrieving encrypted_chat_key for ${chat_id}...`);
+        // CRITICAL FIX: Get chat key properly to ensure consistency across devices
+        // 1. First try to get encrypted_chat_key from database
+        // 2. If it exists, DECRYPT it to get the original key (ensures same key as other devices)
+        // 3. If it doesn't exist (new chat), generate a new key
+        // 
+        // This fixes the sync/encryption issue where a new key was generated if the key
+        // wasn't in cache, causing messages to be encrypted with a different key than
+        // what's stored in encrypted_chat_key and synced to other devices.
+        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id} (with encryption consistency fix)`);
+        
         let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
-
-        // DEFENSIVE FIX: If encrypted_chat_key is missing, generate and save it now
-        if (!encryptedChatKey) {
-            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
+        let chatKey: Uint8Array;
+        
+        if (encryptedChatKey) {
+            // CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
+            // This ensures we use the SAME key that was stored when the chat was created
+            console.log(`[ChatSyncService:Senders] encrypted_chat_key found for ${chat_id}, decrypting to ensure key consistency...`);
+            const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+            const decryptedKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+            
+            if (decryptedKey) {
+                chatKey = decryptedKey;
+                // Update the cache with the correct key
+                chatDB.setChatKey(chat_id, chatKey);
+                console.log(`[ChatSyncService:Senders] ✅ Decrypted and cached chat key for ${chat_id}, length: ${chatKey.length}`);
+            } else {
+                // Decryption failed - this is a critical error
+                // The user might have a different master key, or the encrypted_chat_key is corrupted
+                console.error(`[ChatSyncService:Senders] ❌ CRITICAL: Failed to decrypt encrypted_chat_key for ${chat_id}. ` +
+                    `This indicates master key mismatch or data corruption. Messages encrypted now may not be decryptable on other devices.`);
+                // Fall back to getOrGenerateChatKey (which will likely generate a new key)
+                chatKey = chatDB.getOrGenerateChatKey(chat_id);
+            }
+        } else {
+            // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
+            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`);
+            chatKey = chatDB.getOrGenerateChatKey(chat_id);
+            
+            // Encrypt and save the new key
             const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
             encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
@@ -1332,9 +1359,9 @@ export async function sendEncryptedStoragePackage(
             } else {
                 console.error(`[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`);
             }
-        } else {
-            console.log(`[ChatSyncService:Senders] Encrypted chat key for ${chat_id}: ✅ Present (${encryptedChatKey.substring(0, 20)}..., length: ${encryptedChatKey.length})`);
         }
+        
+        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`)
         
         // Import encryption functions
         const { encryptWithChatKey } = await import('./cryptoService');

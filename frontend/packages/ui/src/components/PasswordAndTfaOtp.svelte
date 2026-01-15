@@ -64,10 +64,20 @@
     let tfaCode = $state('');
     let isBackupMode = $state(false);
 
-    // Local state for tfa_required - ALWAYS show 2FA field by default for security
-    // Only hide it if account exists AND user hasn't configured 2FA yet (signup flow)
-    // This prevents email enumeration and provides consistent UX
-    let tfaRequiredState = $state(true); // Default to true - always show 2FA field
+    // Local state for tfa_required - initialized from prop value at component mount
+    // 
+    // The tfa_required prop comes from the /lookup response which correctly indicates
+    // whether the user has actually set up 2FA (based on encrypted_tfa_secret existence).
+    // 
+    // IMPORTANT: We use the prop value for initialization, NOT a hardcoded default.
+    // - If user has 2FA set up: tfa_required=true → show 2FA input initially
+    // - If user has NOT set up 2FA: tfa_required=false → don't show 2FA input
+    // 
+    // Anti-enumeration protection still works because:
+    // - The backend /login endpoint returns tfa_required=true for non-existent accounts
+    // - handleSubmit() logic updates tfaRequiredState based on server response
+    // - This only affects the INITIAL display, which is based on verified user data from /lookup
+    let tfaRequiredState = $state(tfa_required);
 
     // Input references using Svelte 5 runes
     let passwordInput: HTMLInputElement = $state();
