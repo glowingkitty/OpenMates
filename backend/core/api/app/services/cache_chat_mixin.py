@@ -619,6 +619,36 @@ class ChatCacheMixin:
             logger.error(f"Error refreshing TTL for {key}: {e}")
             return False
 
+    async def update_chat_active_focus_id(self, user_id: str, chat_id: str, encrypted_focus_id: Optional[str]) -> bool:
+        """
+        Updates the encrypted_active_focus_id field in the chat's list_item_data.
+        
+        Args:
+            user_id: The user ID
+            chat_id: The chat ID
+            encrypted_focus_id: The encrypted focus mode ID, or None to clear it
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            if encrypted_focus_id is None:
+                # Remove the field if clearing focus mode
+                await client.hdel(key, "encrypted_active_focus_id")
+                logger.debug(f"CACHE_OP: Cleared encrypted_active_focus_id for chat {chat_id}")
+            else:
+                await client.hset(key, "encrypted_active_focus_id", encrypted_focus_id)
+                logger.debug(f"CACHE_OP: Set encrypted_active_focus_id for chat {chat_id}")
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating encrypted_active_focus_id for {key}: {e}", exc_info=True)
+            return False
+
     async def delete_chat_list_item_data(self, user_id: str, chat_id: str) -> bool:
         """
         Deletes the chat list item data hash for a specific user and chat.
@@ -1632,6 +1662,9 @@ class ChatCacheMixin:
         """
         result = {}
         
+        # DEBUG: Log all requested keys
+        logger.info(f"[DEBUG] get_app_settings_memories_batch_from_cache called with requested_keys={requested_keys} for chat {chat_id}")
+        
         for key_str in requested_keys:
             try:
                 # Parse "app_id:item_key" format
@@ -1641,6 +1674,7 @@ class ChatCacheMixin:
                     continue
                 
                 app_id, item_key = parts
+                logger.info(f"[DEBUG] Looking up cache key: app_id={app_id!r}, item_key={item_key!r} for chat {chat_id}")
                 data = await self.get_app_settings_memories_from_cache(user_id, chat_id, app_id, item_key)
                 if data:
                     result[key_str] = data
@@ -1650,3 +1684,124 @@ class ChatCacheMixin:
         
         logger.debug(f"Retrieved {len(result)}/{len(requested_keys)} app settings/memories entries from cache for chat {chat_id}")
         return result
+    
+    # === Pending App Settings/Memories Request Methods ===
+    # These methods manage the pending request context that allows
+    # re-triggering AI processing when user confirms/rejects the request.
+    
+    def _get_pending_app_settings_memories_request_key(self, chat_id: str) -> str:
+        """Get Redis key for pending app settings/memories request context."""
+        return f"pending_app_settings_memories_request:{chat_id}"
+    
+    async def store_pending_app_settings_memories_request(
+        self,
+        chat_id: str,
+        context: Dict[str, Any],
+        ttl: int = 86400 * 7  # 7 days default
+    ) -> bool:
+        """
+        Store pending app settings/memories request context.
+        
+        When the AI needs app settings/memories that aren't in cache, we store
+        the request context so we can re-trigger processing when user confirms/rejects.
+        
+        NOTE: We store MINIMAL context - NOT the message_history!
+        The chat history is already cached on the server (recent chats are cached).
+        When continuing, we retrieve the chat from cache using get_chat_messages().
+        
+        Args:
+            chat_id: Chat ID
+            context: MINIMAL request context needed to re-trigger processing:
+                - request_id: The app settings/memories request ID
+                - chat_id: Chat ID
+                - message_id: Original user message ID
+                - user_id: User ID
+                - user_id_hash: Hashed user ID
+                - mate_id: Selected mate ID (if any)
+                - active_focus_id: Active focus ID (if any)
+                - chat_has_title: Whether chat has a title
+                - is_incognito: Whether chat is incognito
+                - requested_keys: Keys that were requested
+                - task_id: Original task ID (for logging)
+                
+                NOT INCLUDED (retrieved from chat cache when continuing):
+                - message_history
+                - message_content
+            ttl: Time to live in seconds (default: 7 days)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, skipping pending request storage for chat {chat_id}")
+            return False
+        
+        key = self._get_pending_app_settings_memories_request_key(chat_id)
+        try:
+            import json
+            context_json = json.dumps(context)
+            await client.set(key, context_json, ex=ttl)
+            logger.info(f"Stored pending app settings/memories request context for chat {chat_id} with TTL {ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"Error storing pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_pending_app_settings_memories_request(
+        self,
+        chat_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get pending app settings/memories request context.
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            Request context dictionary if found, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_pending_app_settings_memories_request_key(chat_id)
+        try:
+            import json
+            data = await client.get(key)
+            if data:
+                context = json.loads(data.decode('utf-8') if isinstance(data, bytes) else data)
+                logger.debug(f"Retrieved pending app settings/memories request context for chat {chat_id}")
+                return context
+            return None
+        except Exception as e:
+            logger.error(f"Error getting pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
+            return None
+    
+    async def delete_pending_app_settings_memories_request(
+        self,
+        chat_id: str
+    ) -> bool:
+        """
+        Delete pending app settings/memories request context.
+        
+        Called after the request has been processed (user confirmed/rejected).
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            True if deleted (or didn't exist), False on error
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_pending_app_settings_memories_request_key(chat_id)
+        try:
+            await client.delete(key)
+            logger.debug(f"Deleted pending app settings/memories request context for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
+            return False

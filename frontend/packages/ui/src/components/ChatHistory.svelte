@@ -1,34 +1,43 @@
 <script lang="ts">
   import { createEventDispatcher, tick, onMount, onDestroy } from "svelte"; // Removed afterUpdate for runes mode compatibility
+  import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
-  import { fly, fade } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
-
-  // Define types without the export modifier.
-  type TextMessagePart = {
-    type: "text";
-    content: string;
-  };
-
-  type AppCardsMessagePart = {
-    type: "app-cards";
-    content: any[]; // Use more specific type if available.
-  };
-
-  type MessagePart = TextMessagePart | AppCardsMessagePart;
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
-  import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
   import { parse_message } from '../message_parsing/parse_message';
-  import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
+  import { truncateTiptapContent } from '../utils/messageTruncation';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import type { 
+    AppSettingsMemoriesResponseContent
+  } from '../services/chatSyncServiceHandlersAppSettings';
+  
+  // Import the permission dialog component and its store for inline rendering
+  // The permission dialog is rendered as part of the chat history (scrollable with messages)
+  // rather than as a fixed overlay, so users can scroll while the dialog is visible
+  import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import { 
+    isPermissionDialogVisible,
+    currentPermissionRequest
+  } from '../stores/appSettingsMemoriesPermissionStore';
+
+  type AppCardData = {
+    component: new (...args: unknown[]) => SvelteComponent;
+    props: Record<string, unknown>;
+  };
+
+  type TiptapDoc = {
+    type: 'doc';
+    content: Array<Record<string, unknown>>;
+  };
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -36,20 +45,27 @@
     category?: string;
     sender_name?: string; // Actual name of the mate
     model_name?: string; // Model name for AI messages
-    content: any; // Tiptap JSON content
+    content: unknown; // Tiptap JSON content (shape varies by embed nodes)
     status?: MessageStatus; // Status of the message
     is_truncated?: boolean; // Flag indicating if content is truncated
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
-    appCards?: any[]; // App skill preview cards
+    appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
+    appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
   }
+
+  // Add optional embed/app-card metadata without widening the core message type.
+  type MessageWithEmbedMetadata = GlobalMessage & {
+    appCards?: AppCardData[];
+    _embedUpdateTimestamp?: number;
+  };
 
   // Helper function to map incoming message structure to InternalMessage
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
     // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
     // We need to convert it to Tiptap JSON for display purposes
-    let processedContent: any;
+    let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
       // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
@@ -65,7 +81,11 @@
       }
     } else {
       // Fallback for any other format (should not happen with new architecture)
-      processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
+      const maybeDoc = incomingMessage.content;
+      const isTiptapDoc = (value: unknown): value is TiptapDoc => {
+        return !!value && typeof value === 'object' && (value as { type?: string }).type === 'doc';
+      };
+      processedContent = preprocessTiptapJsonForEmbeds(isTiptapDoc(maybeDoc) ? maybeDoc : null);
     }
 
     // Check if message should be truncated (for UI display purposes)
@@ -85,13 +105,76 @@
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
       original_message: incomingMessage, // Store original for full content loading
-      appCards: (incomingMessage as any).appCards, // Preserve appCards if present
-      _embedUpdateTimestamp: (incomingMessage as any)._embedUpdateTimestamp // Force re-render when embed data arrives
+      appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
+      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp // Force re-render when embed data arrives
     };
   }
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+
+  /**
+   * Parse system message content to check if it's an app_settings_memories_response.
+   * Returns the parsed content or null if not a valid response.
+   */
+  function parseAppSettingsMemoriesResponse(content: unknown): AppSettingsMemoriesResponseContent | null {
+    if (typeof content !== 'string') return null;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_response') {
+        return parsed as AppSettingsMemoriesResponseContent;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+    return null;
+  }
+
+  /**
+   * Helper to read thinking entries from the map with a stable signature.
+   * This keeps template logic concise and avoids unsupported {@const} placement.
+   */
+  function getThinkingEntry(messageId: string | undefined) {
+    if (!messageId) return undefined;
+    return thinkingContentByTask.get(messageId);
+  }
+
+  /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories response.
+   * System messages with type 'app_settings_memories_response' contain the user's decision
+   * (included/rejected) and should be displayed as part of the user's message, not separately.
+   */
+  let appSettingsMemoriesResponseMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesResponseContent>();
+    
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        if (response && response.user_message_id) {
+          map.set(response.user_message_id, response);
+        }
+      }
+    }
+    
+    return map;
+  });
+
+  /**
+   * Derived state: Filter out system messages that are app_settings_memories_response.
+   * These are displayed as part of the user's message, not as separate chat bubbles.
+   */
+  let displayMessages = $derived.by(() => {
+    return messages.filter(msg => {
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        // Filter out app_settings_memories_response system messages
+        if (response?.type === 'app_settings_memories_response') {
+          return false;
+        }
+      }
+      return true;
+    });
+  });
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
@@ -102,24 +185,34 @@
   // Props using Svelte 5 runes mode
   let {
     messageInputHeight = 0,
-    containerWidth = 0
+    containerWidth = 0,
+    currentChatId = undefined,
+    thinkingContentByTask = new Map()
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
+    currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
+    thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+  
+  // CRITICAL: Only show permission dialog if it belongs to the current chat
+  // This prevents the dialog from showing in the wrong chat when user switches chats
+  // The dialog's chatId must match the currently active chat's ID
+  let shouldShowPermissionDialog = $derived(
+    $isPermissionDialogVisible && 
+    $currentPermissionRequest?.chatId && 
+    currentChatId && 
+    $currentPermissionRequest.chatId === currentChatId
+  );
 
   const dispatch = createEventDispatcher();
 
   let lastUserMessageId: string | null = null;
   let shouldScrollToNewUserMessage = false;
   let isScrolling = false;
-
-  // Track current locale reactively to detect changes
-  // Use $derived to ensure it's always in sync with $locale
-  let currentLocale = $derived($locale || 'en');
 
   /**
    * Exposed function to add a new message to the chat.
@@ -210,7 +303,7 @@
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
         // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
-        const hasEmbedUpdate = (newMessage as any)._embedUpdateTimestamp !== undefined;
+        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
         
         if (oldMessage &&
             !localeChanged &&
@@ -273,6 +366,9 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
+  // ChatGPT-like scroll behavior: when user sends a message, scroll to position
+  // the BOTTOM of the user message near the top of the viewport (showing last 1-2 lines)
+  // This leaves maximum space below for the assistant's response to render
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
@@ -283,10 +379,16 @@
           if (userMessageElement) {
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
-            const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20;
+            
+            // Calculate scroll position to show the BOTTOM of the user message near the top
+            // messageRect.bottom gives us the bottom edge of the message
+            // We want the bottom of the message to be ~60px from the top of the viewport
+            // This shows the last 1-2 lines of the user message with space below for the response
+            const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
+            const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
 
             container.scrollTo({
-              top: scrollOffset,
+              top: Math.max(0, scrollOffset), // Don't scroll to negative
               behavior: 'smooth'
             });
 
@@ -308,6 +410,7 @@
   $effect(() => {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   });
+
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
@@ -333,7 +436,7 @@
   }
 
   // Scroll position tracking for cross-device sync
-  let scrollDebounceTimer: NodeJS.Timeout | null = null;
+  let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
 
@@ -367,11 +470,11 @@
   function checkIfAtBottomForUI() {
     if (!container) return;
     
-    const isAtBottom = 
+    const isAtBottomLocal = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
     // Dispatch immediate event for UI state changes (button visibility)
-    dispatch('scrollPositionUI', { isAtBottom });
+    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal });
   }
 
   // Find the last message that's currently visible in viewport
@@ -566,17 +669,17 @@
 -->
 <div 
     class="chat-history-container" 
-    class:empty={messages.length === 0}
+    class:empty={displayMessages.length === 0}
     bind:this={container}
     style={containerStyle}
     onscroll={handleScroll}
 >
     {#if showMessages}
         <div class="chat-history-content" 
-             class:has-messages={messages.length > 0}
+             class:has-messages={displayMessages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-            {#each messages as msg (msg.id)}
+            {#each displayMessages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
                      data-message-id={msg.id}
                      style={`
@@ -586,6 +689,7 @@
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
+                        messageId={msg.id}
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
@@ -597,9 +701,21 @@
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
+                        appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
+                        thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
+                        isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                     />
                 </div>
             {/each}
+            
+            <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
+            <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
+            <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
+            {#if shouldShowPermissionDialog}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
         </div>
     {/if}
 </div>
@@ -651,6 +767,16 @@
     min-height: 100%;
   }
 
+
+  /* Permission dialog wrapper - renders as part of chat history */
+  /* This allows users to scroll the chat while the dialog is visible */
+  .permission-dialog-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+    margin-top: 10px;
+  }
 
   .message-wrapper {
     margin: 5px 0;

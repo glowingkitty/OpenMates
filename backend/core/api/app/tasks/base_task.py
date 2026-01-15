@@ -245,6 +245,9 @@ class BaseServiceTask(Task):
             try:
                 await self._secrets_manager.aclose()
                 logger.debug(f"SecretsManager httpx client closed for task {self.request.id}")
+                # Reset the reference so future tasks reinitialize a fresh client.
+                # This prevents reuse of a closed httpx client across Celery tasks.
+                self._secrets_manager = None
             except Exception as e:
                 # Log but don't raise - cleanup errors shouldn't break the task
                 logger.warning(f"Error closing SecretsManager in task {self.request.id}: {e}")
@@ -254,5 +257,8 @@ class BaseServiceTask(Task):
             try:
                 await self._directus_service.close()
                 logger.debug(f"DirectusService httpx client closed for task {self.request.id}")
+                # Reset the reference so future tasks create a new client.
+                # The DirectusService wraps an AsyncClient which cannot be reused once closed.
+                self._directus_service = None
             except Exception as e:
                 logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")

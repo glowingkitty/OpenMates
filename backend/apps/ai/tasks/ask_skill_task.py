@@ -14,10 +14,8 @@ import logging
 import asyncio
 import time
 import os
-import hashlib
 import uuid
 from typing import Dict, Any, List, Optional
-import json
 import httpx
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -42,8 +40,156 @@ from backend.apps.ai.processing.preprocessor import handle_preprocessing, Prepro
 from backend.apps.ai.processing.postprocessor import handle_postprocessing, PostProcessingResult
 from .stream_consumer import _consume_main_processing_stream
 
+# Import embed service for cleanup on task failure
+from backend.core.api.app.services.embed_service import EmbedService
+
 
 logger = logging.getLogger(__name__)
+
+
+async def _cleanup_processing_embeds_on_task_failure(
+    task_id: str,
+    chat_id: str,
+    message_id: str,
+    user_id: str,
+    user_id_hash: str,
+    user_vault_key_id: str,
+    error_message: str,
+    cache_service: Optional[CacheService] = None,
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None
+) -> int:
+    """
+    Clean up processing embeds when a task fails unexpectedly.
+    
+    This function finds all embeds in "processing" status that were created by this task
+    and marks them as "error" so the frontend can display the failure state properly.
+    
+    CRITICAL: This prevents embeds from being stuck in "processing" forever when:
+    - Postprocessing LLM fails
+    - Task is revoked or times out
+    - Any unexpected exception occurs
+    
+    Args:
+        task_id: The Celery task ID (used to find related embeds)
+        chat_id: The chat ID where embeds were created
+        message_id: The message ID associated with the embeds
+        user_id: The user ID (for cache access)
+        user_id_hash: The hashed user ID (for Directus storage)
+        user_vault_key_id: The vault key ID for encryption
+        error_message: Error message to include in the embed status
+        cache_service: Optional CacheService instance
+        directus_service: Optional DirectusService instance
+        encryption_service: Optional EncryptionService instance
+        
+    Returns:
+        Number of embeds that were cleaned up
+    """
+    log_prefix = f"[Task ID: {task_id}, ChatID: {chat_id}] EMBED_CLEANUP"
+    cleaned_count = 0
+    
+    try:
+        # Create service instances if not provided
+        if not cache_service:
+            cache_service = CacheService()
+        if not directus_service:
+            directus_service = DirectusService()
+            await directus_service.ensure_auth_token()
+        if not encryption_service:
+            encryption_service = EncryptionService()
+        
+        # Create embed service for cleanup operations
+        embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        
+        # Get all embeds from cache for this chat that might be in processing state
+        # We use the cache key pattern to find embeds created during this task
+        import hashlib
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest()
+        
+        # Query cache for processing embeds associated with this task
+        # The embed cache key pattern: embed:{embed_id}
+        # We need to scan for embeds with hashed_task_id matching this task
+        client = await cache_service.client
+        if not client:
+            logger.warning(f"{log_prefix} Redis client not available for embed cleanup")
+            return 0
+        
+        # Scan for embed keys
+        cursor = 0
+        embed_keys = []
+        while True:
+            cursor, keys = await client.scan(cursor, match="embed:*", count=100)
+            if keys:
+                embed_keys.extend(keys)
+            if cursor == 0:
+                break
+        
+        logger.info(f"{log_prefix} Scanning {len(embed_keys)} embed cache entries for processing embeds")
+        
+        for key in embed_keys:
+            try:
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                embed_data_str = await client.get(key_str)
+                if not embed_data_str:
+                    continue
+                    
+                import json
+                embed_data = json.loads(embed_data_str.decode('utf-8') if isinstance(embed_data_str, bytes) else embed_data_str)
+                
+                # Check if this embed:
+                # 1. Is in "processing" status
+                # 2. Belongs to this chat
+                # 3. Was created by this task (hashed_task_id matches)
+                embed_status = embed_data.get("status")
+                embed_hashed_chat_id = embed_data.get("hashed_chat_id")
+                embed_hashed_task_id = embed_data.get("hashed_task_id")
+                
+                if (embed_status == "processing" and 
+                    embed_hashed_chat_id == hashed_chat_id and
+                    embed_hashed_task_id == hashed_task_id):
+                    
+                    embed_id = embed_data.get("embed_id") or key_str.replace("embed:", "")
+                    app_id = embed_data.get("app_id", "unknown")
+                    skill_id = embed_data.get("skill_id", "unknown")
+                    
+                    logger.info(
+                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as error"
+                    )
+                    
+                    # Update embed to error status
+                    try:
+                        await embed_service.update_embed_status_to_error(
+                            embed_id=embed_id,
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            error_message=f"Task failed: {error_message}",
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                        cleaned_count += 1
+                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as error")
+                    except Exception as update_error:
+                        logger.error(f"{log_prefix} Failed to update embed {embed_id} to error: {update_error}")
+                        
+            except Exception as embed_error:
+                logger.warning(f"{log_prefix} Error processing embed key {key}: {embed_error}")
+                continue
+        
+        if cleaned_count > 0:
+            logger.info(f"{log_prefix} Cleaned up {cleaned_count} processing embed(s)")
+        else:
+            logger.debug(f"{log_prefix} No processing embeds found to clean up")
+            
+    except Exception as e:
+        logger.error(f"{log_prefix} Error during embed cleanup: {e}", exc_info=True)
+    
+    return cleaned_count
 
 # Note: Avoid internal API lookups per task to keep latency low. We rely on
 # the worker-local ConfigManager (see celery_config) and fail fast if configs are missing.
@@ -346,19 +492,57 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e_cache_get:
         logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
-    # --- Fetch user_vault_key_id from cache and user_app_memories_metadata from Directus ---
+    # --- Fetch user_vault_key_id from cache (with on-demand warming from Directus if not cached) ---
+    # This supports API-only users who may not have logged in via web app to trigger cache warming
     user_vault_key_id: Optional[str] = None
     if cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
+        
         if not cached_user_data:
-            logger.error(f"[Task ID: {task_id}] Failed to retrieve cached user data for user_id: {request_data.user_id}. Aborting task.")
-            raise RuntimeError("User data not found in cache.")
+            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache
+            # This is critical for API-only users who haven't logged in via web app
+            logger.info(f"[Task ID: {task_id}] User not in cache, attempting on-demand cache warming for user_id: {request_data.user_id}")
+            try:
+                if directus_service_instance:
+                    # Fetch minimal user data from Directus (just what we need for AI processing)
+                    user_data_from_db = await directus_service_instance.get_items(
+                        'users',
+                        params={
+                            'filter[id][_eq]': request_data.user_id,
+                            'fields': 'id,vault_key_id,encrypted_username,encrypted_credits',
+                            'limit': 1
+                        }
+                    )
+                    
+                    if user_data_from_db and len(user_data_from_db) > 0:
+                        user_record = user_data_from_db[0]
+                        # Cache the user data for future requests
+                        cache_data = {
+                            'id': user_record.get('id'),
+                            'user_id': user_record.get('id'),
+                            'vault_key_id': user_record.get('vault_key_id'),
+                            'encrypted_username': user_record.get('encrypted_username'),
+                            'encrypted_credits': user_record.get('encrypted_credits'),
+                            '_api_warmed': True  # Flag to indicate this was warmed via API
+                        }
+                        await cache_service_instance.set_user(cache_data, user_id=request_data.user_id)
+                        cached_user_data = cache_data
+                        logger.info(f"[Task ID: {task_id}] On-demand cache warming successful for user_id: {request_data.user_id}")
+                    else:
+                        logger.error(f"[Task ID: {task_id}] User not found in Directus: {request_data.user_id}")
+                        raise RuntimeError(f"User not found: {request_data.user_id}")
+                else:
+                    logger.error(f"[Task ID: {task_id}] DirectusService not available for on-demand cache warming")
+                    raise RuntimeError("DirectusService not available for cache warming")
+            except Exception as e:
+                logger.error(f"[Task ID: {task_id}] On-demand cache warming failed: {e}", exc_info=True)
+                raise RuntimeError(f"Failed to warm cache for user: {e}")
 
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
-            logger.error(f"[Task ID: {task_id}] vault_key_id not found in cached user data for user_id: {request_data.user_id}. Aborting task.")
-            raise RuntimeError("User vault key ID not found in cache.")
-        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id from cache using user_id: {request_data.user_id}.")
+            logger.error(f"[Task ID: {task_id}] vault_key_id not found in user data for user_id: {request_data.user_id}. Aborting task.")
+            raise RuntimeError("User vault key ID not found.")
+        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id for user_id: {request_data.user_id}.")
     elif not cache_service_instance:
         logger.error(f"[Task ID: {task_id}] CacheService instance not available. Cannot fetch user_vault_key_id. Aborting task.")
         raise RuntimeError("CacheService not available.")
@@ -366,25 +550,41 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] user_id is missing in request_data. Cannot fetch user_vault_key_id. Aborting task.")
         raise RuntimeError("user_id is missing.")
 
+    # Parse app settings/memories metadata from client
+    # CLIENT IS THE SOURCE OF TRUTH - only the client can decrypt this data
+    # Format from client: ["code-preferred_technologies", "travel-trips", ...]
+    # Convert to dict format for preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
     user_app_memories_metadata: Dict[str, List[str]] = {}
-    # TODO: [v0.2] Re-enable this functionality with client-side E2EE.
-    # The current implementation is disabled to prevent errors and will be replaced.
-    # if directus_service_instance and request_data.user_id_hash:
-    #     try:
-    #         raw_items_metadata: List[Dict[str, Any]] = await directus_service_instance.app_settings_and_memories.get_user_app_data_metadata(request_data.user_id_hash)
-    #         for item_meta in raw_items_metadata:
-    #             app_id_key = item_meta.get("app_id")
-    #             item_key_val = item_meta.get("item_key")
-    #             if app_id_key and item_key_val:
-    #                 if app_id_key not in user_app_memories_metadata:
-    #                     user_app_memories_metadata[app_id_key] = []
-    #                 if item_key_val not in user_app_memories_metadata[app_id_key]:
-    #                     user_app_memories_metadata[app_id_key].append(item_key_val)
-    #         logger.info(f"[Task ID: {task_id}] Successfully fetched user_app_memories_metadata (keys) from Directus.")
-    #     except Exception as e:
-    #         logger.error(f"[Task ID: {task_id}] Error during Directus ops for fetching user_app_memories_metadata: {e}", exc_info=True)
-    # elif not directus_service_instance:
-    #     logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories metadata.")
+    if request_data.app_settings_memories_metadata:
+        for key in request_data.app_settings_memories_metadata:
+            if not isinstance(key, str):
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key (not a string): {key}")
+                continue
+            
+            # Parse "app_id-item_type" format
+            dash_index = key.find('-')
+            if dash_index == -1:
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key format (no hyphen): {key}")
+                continue
+            
+            app_id = key[:dash_index]
+            item_type = key[dash_index + 1:]
+            
+            if not app_id or not item_type:
+                logger.warning(f"[Task ID: {task_id}] Invalid app_settings_memories_metadata key (empty parts): {key}")
+                continue
+            
+            if app_id not in user_app_memories_metadata:
+                user_app_memories_metadata[app_id] = []
+            if item_type not in user_app_memories_metadata[app_id]:
+                user_app_memories_metadata[app_id].append(item_type)
+        
+        if user_app_memories_metadata:
+            logger.info(f"[Task ID: {task_id}] Parsed client-provided app_settings_memories_metadata: {len(user_app_memories_metadata)} apps, {sum(len(keys) for keys in user_app_memories_metadata.values())} total keys")
+        else:
+            logger.debug(f"[Task ID: {task_id}] Client provided app_settings_memories_metadata but no valid keys found.")
+    else:
+        logger.debug(f"[Task ID: {task_id}] No app_settings_memories_metadata provided by client.")
 
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
@@ -446,6 +646,14 @@ async def _async_process_ai_skill_ask_task(
                     "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
                     # Base instructions keys (not full content to save space, but track what was used)
                     "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
+                    # App settings and memories metadata from client (what's available to choose from)
+                    # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
+                    "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
+                    "app_settings_memories_metadata_from_client_count": len(request_data.app_settings_memories_metadata) if request_data.app_settings_memories_metadata else 0,
+                    # Parsed format used by preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
+                    "user_app_memories_metadata_parsed": user_app_memories_metadata,
+                    "user_app_memories_metadata_parsed_apps_count": len(user_app_memories_metadata) if user_app_memories_metadata else 0,
+                    "user_app_memories_metadata_parsed_total_keys": sum(len(keys) for keys in user_app_memories_metadata.values()) if user_app_memories_metadata else 0,
                 }
                 
                 # Prepare preprocessor output data (full model dump)
@@ -661,6 +869,9 @@ async def _async_process_ai_skill_ask_task(
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
                 "provider_name": provider_name, # Add provider_name to the payload
+                # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                # When this is True, the user message was already persisted before the app settings/memories pause
+                "is_continuation": request_data.is_app_settings_memories_continuation,
             }
             
             # Log the complete typing payload for debugging
@@ -752,7 +963,7 @@ async def _async_process_ai_skill_ask_task(
                     "preprocessing_can_proceed": preprocessing_result.can_proceed if preprocessing_result else None,
                     "preprocessing_selected_model": preprocessing_result.selected_main_llm_model_id if preprocessing_result else None,
                     "preprocessing_category": preprocessing_result.category if preprocessing_result else None,
-                    "preprocessing_preselected_skills": preprocessing_result.preselected_skill_ids if preprocessing_result else [],
+                    "preprocessing_preselected_skills": preprocessing_result.relevant_app_skills if preprocessing_result else [],
                     "preprocessing_chat_summary": preprocessing_result.chat_summary if preprocessing_result else None,
                     "preprocessing_chat_tags": preprocessing_result.chat_tags if preprocessing_result else [],
                     # Context info
@@ -1238,6 +1449,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message="Task exceeded soft time limit"
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after soft time limit: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'SoftTimeLimitExceeded', 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
@@ -1248,6 +1473,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever (e.g., when postprocessing LLM fails)
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message=str(e)
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after RuntimeError: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
@@ -1257,6 +1496,20 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise Ignore()
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
+        # CRITICAL: Clean up processing embeds before failing
+        # This ensures embeds don't get stuck in "processing" state forever
+        try:
+            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+                task_id=task_id,
+                chat_id=request_data.chat_id,
+                message_id=request_data.message_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                error_message=str(e)
+            ))
+        except Exception as cleanup_err:
+            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after exception: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),

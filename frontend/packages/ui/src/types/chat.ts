@@ -37,6 +37,19 @@ export interface Message {
   is_truncated?: boolean; // Flag indicating if content is truncated for display
   truncated_content?: string; // Truncated markdown content for display
   full_content_length?: number; // Length of full content for reference
+  
+  // Thinking/Reasoning fields for thinking models (Gemini, Anthropic Claude, etc.)
+  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB)
+  encrypted_thinking_content?: string; // Encrypted thinking markdown content
+  encrypted_thinking_signature?: string; // Encrypted provider signature for verification
+  
+  // Decrypted fields (computed on-demand, never stored)
+  thinking_content?: string; // Decrypted thinking markdown (computed from encrypted_thinking_content)
+  thinking_signature?: string; // Decrypted signature (computed from encrypted_thinking_signature)
+  
+  // Metadata (not encrypted - for UI rendering and cost tracking)
+  has_thinking?: boolean; // Quick check if message has thinking content
+  thinking_token_count?: number; // Token count for thinking (for cost tracking)
 }
 
 
@@ -245,6 +258,9 @@ export interface AITypingStartedPayload {
     icon_names?: string[]; // Added to include the icon names from AI preprocessing
     // DUAL-PHASE: task_id for tracking
     task_id?: string;
+    // CRITICAL: When true, this is a continuation task after app settings/memories confirmation
+    // The user message was already persisted before the pause, so skip re-persistence to avoid duplicates
+    is_continuation?: boolean;
 }
 
 export interface AIMessageReadyPayload {
@@ -269,6 +285,30 @@ export interface AIBackgroundResponseCompletedPayload {
     interrupted_by_soft_limit?: boolean;
     interrupted_by_revocation?: boolean;
 }
+
+// --- Thinking/Reasoning Payloads (Server to Client) ---
+// For thinking models like Google Gemini, Anthropic Claude, etc.
+export interface AIThinkingChunkPayload {
+    type: 'thinking_chunk';
+    task_id: string;
+    chat_id: string;
+    user_id_uuid: string;
+    user_id_hash: string;
+    message_id: string; // Same as task_id
+    content: string; // The thinking chunk content
+}
+
+export interface AIThinkingCompletePayload {
+    type: 'thinking_complete';
+    task_id: string;
+    chat_id: string;
+    user_id_uuid: string;
+    user_id_hash: string;
+    message_id: string; // Same as task_id
+    signature?: string | null; // Provider signature for verification (Anthropic/Gemini)
+    total_tokens?: number | null; // Token count for cost tracking
+}
+// --- End Thinking/Reasoning Payloads ---
 
 export interface EmbedUpdatePayload {
     type: string; // "embed_update"
@@ -439,6 +479,12 @@ export interface ServerBatchMessageFormat {
     encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
     encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
     encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
+    // Encrypted thinking metadata for thinking models
+    encrypted_thinking_content?: string; // Encrypted thinking markdown content
+    encrypted_thinking_signature?: string; // Encrypted provider signature for verification
+    // Non-encrypted metadata for UI/cost tracking
+    has_thinking?: boolean;
+    thinking_token_count?: number;
     // Add any other fields that might come from the server message in the batch
 }
 

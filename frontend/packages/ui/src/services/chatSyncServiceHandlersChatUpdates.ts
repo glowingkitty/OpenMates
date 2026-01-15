@@ -36,31 +36,29 @@ export async function handleChatTitleUpdatedImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // The async decryption work in getChat() causes IndexedDB transactions to auto-commit.
+    // Instead, use separate transactions for each operation.
     try {
-        tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        // First, get the chat without passing a transaction (getChat will create its own)
+        const chat = await chatDB.getChat(payload.chat_id);
+        
         if (chat) {
             // Update encrypted title from broadcast
             chat.encrypted_title = payload.data.encrypted_title;
             chat.title_v = payload.versions.title_v;
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
             
-            tx.oncomplete = () => {
-                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'title_updated', chat } }));
-            };
-            // tx.onerror is handled by the catch block for the transaction promise or by the outer catch
+            // Use a separate transaction for updateChat (it will create its own internally)
+            await chatDB.updateChat(chat);
+            
+            // DB operation completed successfully - dispatch event
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'title_updated', chat } }));
         } else {
-            // If chat not found, the transaction might not need to proceed or could be aborted.
-            // Depending on desired logic, tx.abort() could be called here.
-            // For now, let it complete or rely on outer catch.
+            console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for title update`);
         }
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleChatTitleUpdated:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) { // Check if tx exists and error is not already from tx
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 
@@ -86,10 +84,14 @@ export async function handleChatDraftUpdatedImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // The async decryption work in getChat() causes IndexedDB transactions to auto-commit,
+    // making the transaction invalid by the time updateChat() is called.
+    // Instead, use separate transactions for each operation (same fix as handleChatMessageReceivedImpl).
     try {
-        tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        // First, get the chat without passing a transaction (getChat will create its own)
+        const chat = await chatDB.getChat(payload.chat_id);
+        
         if (chat) {
             console.debug(`[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`);
             
@@ -109,7 +111,9 @@ export async function handleChatDraftUpdatedImpl(
             // See chatSortUtils.ts for the sorting contract.
             // chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp; // REMOVED
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
+            
+            // Use a separate transaction for updateChat (it will create its own internally)
+            await chatDB.updateChat(chat);
         } else {
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
             const newChatForDraft: Chat = {
@@ -125,22 +129,22 @@ export async function handleChatDraftUpdatedImpl(
                 created_at: payload.last_edited_overall_timestamp,
                 updated_at: payload.last_edited_overall_timestamp,
             };
-            await chatDB.addChat(newChatForDraft, tx);
+            // Use a separate transaction for addChat (it will create its own internally)
+            await chatDB.addChat(newChatForDraft);
         }
 
-        tx.oncomplete = () => {
-            console.info(`[ChatSyncService:ChatUpdates] Transaction for handleChatDraftUpdated (chat_id: ${payload.chat_id}) completed successfully.`);
-            // Invalidate metadata cache since draft content changed
-            chatMetadataCache.invalidateChat(payload.chat_id);
-            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
-        };
-        // tx.onerror handled by outer catch or transaction promise rejection
+        // DB operations completed successfully - now do cache invalidation and event dispatch
+        // This happens AFTER the await completes, ensuring the DB was actually updated
+        console.info(`[ChatSyncService:ChatUpdates] DB update for handleChatDraftUpdated (chat_id: ${payload.chat_id}) completed successfully.`);
+        
+        // Invalidate metadata cache since draft content changed
+        chatMetadataCache.invalidateChat(payload.chat_id);
+        
+        // Dispatch event to notify UI components
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
 
     } catch (error) {
-        console.error(`[ChatSyncService:ChatUpdates] Error in handleChatDraftUpdated (outer catch) for chat_id ${payload.chat_id}:`, error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-             try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
+        console.error(`[ChatSyncService:ChatUpdates] Error in handleChatDraftUpdated for chat_id ${payload.chat_id}:`, error);
     }
 }
 
@@ -161,10 +165,12 @@ export async function handleDraftDeletedImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // The async decryption work in getChat() causes IndexedDB transactions to auto-commit.
+    // Instead, use separate transactions for each operation.
     try {
-        tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        // First, get the chat without passing a transaction (getChat will create its own)
+        const chat = await chatDB.getChat(payload.chat_id);
         
         if (chat) {
             console.debug(`[ChatSyncService:ChatUpdates] Clearing draft for chat ${payload.chat_id}`);
@@ -173,23 +179,22 @@ export async function handleDraftDeletedImpl(
             chat.encrypted_draft_preview = null;
             chat.draft_v = 0;
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
+            
+            // Use a separate transaction for updateChat (it will create its own internally)
+            await chatDB.updateChat(chat);
+            
+            // DB operation completed successfully - now do cache invalidation and event dispatch
+            console.info(`[ChatSyncService:ChatUpdates] DB update for handleDraftDeleted (chat_id: ${payload.chat_id}) completed successfully.`);
+            
+            // Invalidate metadata cache and dispatch event
+            chatMetadataCache.invalidateChat(payload.chat_id);
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft_deleted' } }));
         } else {
             console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found, nothing to clear`);
         }
 
-        tx.oncomplete = () => {
-            console.info(`[ChatSyncService:ChatUpdates] Transaction for handleDraftDeleted (chat_id: ${payload.chat_id}) completed successfully.`);
-            // Invalidate metadata cache and dispatch event
-            chatMetadataCache.invalidateChat(payload.chat_id);
-            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft_deleted' } }));
-        };
-
     } catch (error) {
         console.error(`[ChatSyncService:ChatUpdates] Error in handleDraftDeleted for chat_id ${payload.chat_id}:`, error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 
@@ -233,14 +238,13 @@ export async function handleNewChatMessageImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
     let isNewChat = false;
 
     try {
-        tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
-        
-        // Check if chat exists
-        let chat = await chatDB.getChat(payload.chat_id, tx);
+        // CRITICAL: Avoid shared transactions here because encryption/decryption is async.
+        // A shared transaction can auto-commit before saveMessage/updateChat runs, which
+        // prevents UI updates from firing (seen as "missing" messages on other devices).
+        let chat = await chatDB.getChat(payload.chat_id);
         
         if (!chat) {
             // Chat doesn't exist locally - create a new chat shell
@@ -281,9 +285,21 @@ export async function handleNewChatMessageImpl(
                 console.warn(`[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`);
             }
             
-            await chatDB.addChat(newChat, tx);
+            await chatDB.addChat(newChat);
             chat = newChat; // Use the newly created chat for message saving
             console.info(`[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`);
+        } else if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
+            // Existing chat without cached key - try to decrypt and cache for immediate encryption
+            try {
+                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                const chatKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+                if (chatKey) {
+                    chatDB.setChatKey(payload.chat_id, chatKey);
+                    console.info(`[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`);
+                }
+            } catch (error) {
+                console.error(`[ChatSyncService:ChatUpdates] Error decrypting chat key for existing chat ${payload.chat_id}:`, error);
+            }
         }
         
         // Create the message object from the payload
@@ -301,7 +317,7 @@ export async function handleNewChatMessageImpl(
         };
         
         // Save the message (chatDB.saveMessage will handle encryption if chat key is available)
-        await chatDB.saveMessage(newMessage, tx);
+        await chatDB.saveMessage(newMessage);
         console.debug(`[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`);
         
         // Update chat metadata
@@ -309,26 +325,24 @@ export async function handleNewChatMessageImpl(
         chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
         chat.updated_at = Math.floor(Date.now() / 1000);
         
-        await chatDB.updateChat(chat, tx);
+        await chatDB.updateChat(chat);
+        
+        // Invalidate metadata cache so chat list reloads updated data
+        chatMetadataCache.invalidateChat(payload.chat_id);
 
-        tx.oncomplete = () => {
-            console.info(`[ChatSyncService:ChatUpdates] Successfully processed new_chat_message for chat ${payload.chat_id}`);
-            // Dispatch event to update UI
-            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
-                detail: { 
-                    chat_id: payload.chat_id, 
-                    newMessage, 
-                    chat,
-                    isNewChat // Indicate if this was a newly created chat
-                } 
-            }));
-        };
+        console.info(`[ChatSyncService:ChatUpdates] Successfully processed new_chat_message for chat ${payload.chat_id}`);
+        // Dispatch event to update UI immediately (no transaction callback needed)
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+            detail: { 
+                chat_id: payload.chat_id, 
+                newMessage, 
+                chat,
+                isNewChat // Indicate if this was a newly created chat
+            } 
+        }));
         
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleNewChatMessage:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 
@@ -664,9 +678,12 @@ export async function handleChatMetadataForEncryptionImpl(
         }
         
         // Update local chat with encrypted metadata
-        const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+        // The async decryption work in getChat() causes IndexedDB transactions to auto-commit.
+        // Instead, use separate transactions for each operation.
         try {
-            const chatToUpdate = await chatDB.getChat(chat_id, tx);
+            // First, get the chat without passing a transaction (getChat will create its own)
+            const chatToUpdate = await chatDB.getChat(chat_id);
             if (chatToUpdate) {
                 // Update chat with encrypted metadata
                 if (encryptedTitle) {
@@ -685,22 +702,20 @@ export async function handleChatMetadataForEncryptionImpl(
                 // Update timestamps
                 chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
                 
-                await chatDB.updateChat(chatToUpdate, tx);
+                // Use a separate transaction for updateChat (it will create its own internally)
+                await chatDB.updateChat(chatToUpdate);
                 
-                tx.oncomplete = () => {
-                    console.info(`[ChatSyncService:ChatUpdates] Local chat ${chat_id} updated with encrypted metadata`);
-                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
-                        detail: { chat_id, type: 'metadata_updated', chat: chatToUpdate } 
-                    }));
-                };
+                // DB operation completed successfully - dispatch event
+                console.info(`[ChatSyncService:ChatUpdates] Local chat ${chat_id} updated with encrypted metadata`);
+                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                    detail: { chat_id, type: 'metadata_updated', chat: chatToUpdate } 
+                }));
             } else {
                 console.error(`[ChatSyncService:ChatUpdates] Chat ${chat_id} not found for metadata update`);
-                if (tx.abort) tx.abort();
                 return;
             }
         } catch (error) {
             console.error(`[ChatSyncService:ChatUpdates] Error updating local chat ${chat_id}:`, error);
-            if (tx.abort) tx.abort();
             return;
         }
         
@@ -750,10 +765,12 @@ export async function handleEncryptedChatMetadataImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // The async decryption work in getChat() causes IndexedDB transactions to auto-commit.
+    // Instead, use separate transactions for each operation.
     try {
-        tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        // First, get the chat without passing a transaction (getChat will create its own)
+        const chat = await chatDB.getChat(payload.chat_id);
         
         if (!chat) {
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for encrypted_chat_metadata update broadcast`);
@@ -806,31 +823,26 @@ export async function handleEncryptedChatMetadataImpl(
         
         if (changed) {
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
+            // Use a separate transaction for updateChat (it will create its own internally)
+            await chatDB.updateChat(chat);
             console.info(`[ChatSyncService:ChatUpdates] Successfully updated metadata for chat ${payload.chat_id} from broadcast`);
+            
+            // DB operation completed successfully - dispatch events
+            // Mark chat list cache as dirty to force refresh
+            chatListCache.markDirty();
+            
+            // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: payload.chat_id } }));
+                window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, chat: chat } }));
+            }
+            
+            console.info(`[ChatSyncService:ChatUpdates] Chat list cache marked dirty and update events dispatched for ${payload.chat_id}`);
         } else {
             console.debug(`[ChatSyncService:ChatUpdates] No changes needed for chat ${payload.chat_id} from broadcast`);
         }
         
-        tx.oncomplete = async () => {
-            if (changed) {
-                // Mark chat list cache as dirty to force refresh
-                chatListCache.markDirty();
-                
-                // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
-                if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: payload.chat_id } }));
-                    window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, chat: chat } }));
-                }
-                
-                console.info(`[ChatSyncService:ChatUpdates] Chat list cache marked dirty and update events dispatched for ${payload.chat_id}`);
-            }
-        };
-        
     } catch (error) {
         console.error(`[ChatSyncService:ChatUpdates] Error handling encrypted_chat_metadata for chat ${payload.chat_id}:`, error);
-        if (tx) {
-            tx.abort();
-        }
     }
 }

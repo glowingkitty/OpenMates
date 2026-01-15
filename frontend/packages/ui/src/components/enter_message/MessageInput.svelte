@@ -135,7 +135,9 @@
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
-    let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
+    // won't trigger re-evaluation of reactive statements that depend on this variable
+    let currentTypingStatus = $state<AITypingStatus>({ isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null });
     let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
     let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
@@ -1372,12 +1374,12 @@
             }
             
             // Optimistic UI update: immediately clear typing indicator
-            // Use currentTypingStatus to get chatId and taskId for clearing
+            // Use clearTypingForChat since we only have taskId, not message_id
+            // (aiMessageId in the store is set to message_id, not task_id)
             if (currentTypingStatus?.isTyping && 
-                currentTypingStatus.chatId === currentChatId && 
-                currentTypingStatus.aiMessageId === taskId) {
-                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel');
-                aiTypingStore.clearTyping(currentChatId, taskId);
+                currentTypingStatus.chatId === currentChatId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', currentChatId);
+                aiTypingStore.clearTypingForChat(currentChatId);
             }
             
             // Clear any queued message text

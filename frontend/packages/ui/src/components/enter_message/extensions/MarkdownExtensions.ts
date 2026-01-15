@@ -9,7 +9,7 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { Link } from '@tiptap/extension-link';
 import { Strike } from '@tiptap/extension-strike';
 import { Underline } from '@tiptap/extension-underline';
-import { Plugin } from '@tiptap/pm/state';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 
 // Configure Table extension with custom options
 export const MarkdownTable = Table.configure({
@@ -58,12 +58,15 @@ export const MarkdownHighlight = Highlight.configure({
  * - External links: Open in new tab (default behavior)
  */
 export const MarkdownLink = Link.extend({
-  name: 'markdownLink', // Unique name to avoid conflicts
+  // NOTE: We intentionally do NOT override the name here.
+  // The parser outputs { type: 'link', ... } so we must use the default 'link' name
+  // for TipTap to recognize and render the marks correctly.
   
   addAttributes() {
     const parentAttrs = this.parent?.() || {};
     // Remove target from parent attributes - we'll handle it ourselves
-    const { target, ...parentAttrsWithoutTarget } = parentAttrs;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { target, ...parentAttrsWithoutTarget } = parentAttrs as Record<string, unknown>;
     
     return {
       ...parentAttrsWithoutTarget,
@@ -149,7 +152,7 @@ export const MarkdownLink = Link.extend({
     return [
       ...this.parent?.() || [],
       new Plugin({
-        key: 'markdownLinkClickHandler',
+        key: new PluginKey('markdownLinkClickHandler'),
         props: {
           handleDOMEvents: {
             click: (view, event) => {
@@ -199,7 +202,7 @@ export const MarkdownLink = Link.extend({
 });
 
 export const MarkdownStrike = Strike.extend({
-  name: 'markdownStrike', // Unique name to avoid conflicts
+  // Use default 'strike' name to match parser output (StarterKit's strike is disabled)
 }).configure({
   HTMLAttributes: {
     class: 'markdown-strike',
@@ -207,7 +210,7 @@ export const MarkdownStrike = Strike.extend({
 });
 
 export const MarkdownUnderline = Underline.extend({
-  name: 'markdownUnderline', // Unique name to avoid conflicts
+  // Use default 'underline' name to match parser output
 }).configure({
   HTMLAttributes: {
     class: 'markdown-underline',

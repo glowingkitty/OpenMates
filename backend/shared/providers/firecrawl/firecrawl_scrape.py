@@ -148,7 +148,8 @@ async def scrape_url(
     only_main_content: bool = True,
     max_age: Optional[int] = None,
     timeout: Optional[int] = None,
-    sanitize_output: bool = True
+    sanitize_output: bool = True,
+    wait_for: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Scrapes a single URL using the Firecrawl API.
@@ -162,6 +163,8 @@ async def scrape_url(
         max_age: Cache age in milliseconds (default: 172800000 = 2 days)
         timeout: Timeout in milliseconds for the request (default: None)
         sanitize_output: Whether to sanitize output via LLM (default: True). Set to False for health checks and testing.
+        wait_for: Time in milliseconds to wait for JavaScript to execute before scraping (default: None)
+                  Useful for SPAs that load content dynamically. E.g., 5000 for 5 seconds.
     
     Returns:
         Dict containing scrape results with the following structure:
@@ -201,6 +204,8 @@ async def scrape_url(
         payload["maxAge"] = max_age
     if timeout is not None:
         payload["timeout"] = timeout
+    if wait_for is not None:
+        payload["waitFor"] = wait_for
     
     # Build full URL
     endpoint_url = f"{FIRECRAWL_API_BASE_URL}/scrape"

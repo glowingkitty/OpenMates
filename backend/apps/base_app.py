@@ -84,6 +84,11 @@ class BaseApp:
 
         for skill_def in self.app_config.skills:
             try:
+                # Skip skills without a class_path (e.g., planning-stage skills)
+                if not skill_def.class_path:
+                    logger.debug(f"Skill '{skill_def.id}' has no class_path, skipping route registration (likely a planning-stage skill)")
+                    continue
+                
                 module_path, class_name = skill_def.class_path.rsplit('.', 1)
                 module = importlib.import_module(module_path)
                 skill_class_attr = getattr(module, class_name)
@@ -251,9 +256,15 @@ class BaseApp:
                         break
 
                 if request_model or union_types:
-                    # Remove metadata fields before instantiating Pydantic model
-                    # These fields are not part of the skill's schema
-                    clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                    # Remove internal metadata fields before instantiating Pydantic model
+                    # EXCEPT for context fields (_user_id, _api_key_name, _external_request) which are
+                    # used by skills like AI ask to identify the authenticated user from external API requests
+                    # These context fields are injected by the external API handler and need to be preserved
+                    context_fields = {'_user_id', '_api_key_name', '_external_request'}
+                    clean_request_body = {
+                        k: v for k, v in request_body.items() 
+                        if not k.startswith("_") or k in context_fields
+                    }
 
                     # Instantiate the Pydantic model from request body
                     try:
@@ -325,8 +336,12 @@ class BaseApp:
                         )
                 else:
                     # No Pydantic model found - try unpacking as keyword arguments
-                    # Remove metadata fields before passing to skill
-                    clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                    # Remove internal metadata fields but preserve context fields for API authentication
+                    context_fields = {'_user_id', '_api_key_name', '_external_request'}
+                    clean_request_body = {
+                        k: v for k, v in request_body.items() 
+                        if not k.startswith("_") or k in context_fields
+                    }
                     logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
                     response = await skill_instance.execute(**clean_request_body)
 

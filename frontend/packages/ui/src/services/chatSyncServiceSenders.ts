@@ -650,6 +650,22 @@ export async function sendNewMessageImpl(
         }
     }
     
+    // Load app settings/memories metadata keys (format: "app_id-item_type")
+    // This tells the server what app settings/memories exist on this device WITHOUT sending content
+    // The server's preprocessor uses this to decide which settings/memories to request
+    let appSettingsMemoriesMetadataKeys: string[] = [];
+    if (!isIncognitoChat) {
+        try {
+            appSettingsMemoriesMetadataKeys = await chatDB.getAppSettingsMemoriesMetadataKeys();
+            if (appSettingsMemoriesMetadataKeys.length > 0) {
+                console.debug(`[ChatSyncService:Senders] Loaded ${appSettingsMemoriesMetadataKeys.length} app settings/memories metadata keys`);
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService:Senders] Error loading app settings/memories metadata:`, error);
+            // Continue without metadata - don't fail the message send
+        }
+    }
+    
     // Phase 1 payload: ONLY fields needed for AI processing
     interface SendMessagePayload {
         chat_id: string;
@@ -667,6 +683,7 @@ export async function sendNewMessageImpl(
         embeds?: EmbedForServer[];
         message_history?: Message[];
         encrypted_suggestion_to_delete?: string | null;
+        app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
     }
     const payload: SendMessagePayload = {
         chat_id: message.chat_id,
@@ -684,6 +701,13 @@ export async function sendNewMessageImpl(
         },
         is_incognito: isIncognitoChat // Flag for backend to skip persistence
     };
+    
+    // Include app settings/memories metadata (keys only, no content)
+    // Server preprocessor uses this to know what data exists and decide what to request
+    if (appSettingsMemoriesMetadataKeys.length > 0) {
+        payload.app_settings_memories_metadata = appSettingsMemoriesMetadataKeys;
+        console.debug('[ChatSyncService:Senders] Including app settings/memories metadata:', appSettingsMemoriesMetadataKeys);
+    }
     
     // For incognito chats, include full message history (no server-side caching)
     if (isIncognitoChat && messageHistory.length > 0) {
@@ -1000,7 +1024,13 @@ export async function sendCompletedAIResponseImpl(
                 // ONLY encrypted fields - no plaintext content
                 encrypted_content: encryptedFields.encrypted_content,
                 encrypted_category: encryptedFields.encrypted_category,
-                encrypted_model_name: encryptedFields.encrypted_model_name
+                encrypted_model_name: encryptedFields.encrypted_model_name,
+                // Thinking content is also encrypted client-side for zero-knowledge sync
+                encrypted_thinking_content: encryptedFields.encrypted_thinking_content,
+                encrypted_thinking_signature: encryptedFields.encrypted_thinking_signature,
+                // Non-encrypted metadata for UI/cost tracking (safe to store as plain integers/booleans)
+                has_thinking: aiMessage.has_thinking,
+                thinking_token_count: aiMessage.thinking_token_count
             },
             // Version info for chat update (matches user message pattern)
             versions: {
@@ -1014,7 +1044,9 @@ export async function sendCompletedAIResponseImpl(
             chatId: aiMessage.chat_id,
             hasEncryptedContent: !!encryptedFields.encrypted_content,
             role: aiMessage.role,
-            newMessagesV: newMessagesV
+            newMessagesV: newMessagesV,
+            hasThinking: !!aiMessage.has_thinking,
+            thinkingTokenCount: aiMessage.thinking_token_count || 0
         });
         
         // Use a different event type to avoid triggering AI processing
@@ -1285,18 +1317,76 @@ export async function sendEncryptedStoragePackage(
         
         console.debug(`[ChatSyncService:Senders] Using chat with title_v: ${chat.title_v}, messages_v: ${chat.messages_v}`);
         
-        // Get or generate chat key for encryption
-        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id}`);
-        const chatKey = chatDB.getOrGenerateChatKey(chat_id);
-        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`);
-
-        // Get encrypted chat key for server storage
-        console.log(`[ChatSyncService:Senders] Retrieving encrypted_chat_key for ${chat_id}...`);
+        // CRITICAL FIX: Get chat key properly to ensure consistency across devices
+        // 1. First try to get encrypted_chat_key from database
+        // 2. If it exists, DECRYPT it to get the original key (ensures same key as other devices)
+        // 3. If it doesn't exist (new chat), generate a new key
+        // 
+        // This fixes the sync/encryption issue where a new key was generated if the key
+        // wasn't in cache, causing messages to be encrypted with a different key than
+        // what's stored in encrypted_chat_key and synced to other devices.
+        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id} (with encryption consistency fix)`);
+        
         let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
-
-        // DEFENSIVE FIX: If encrypted_chat_key is missing, generate and save it now
+        // Prefer any cached chat key first (covers hidden chats already unlocked).
+        let chatKey: Uint8Array | null = chatDB.getChatKey(chat_id);
+        
+        if (!chatKey && encryptedChatKey) {
+            // CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
+            // This ensures we use the SAME key that was stored when the chat was created
+            console.log(`[ChatSyncService:Senders] encrypted_chat_key found for ${chat_id}, decrypting to ensure key consistency...`);
+            const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+            const decryptedKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+            
+            if (decryptedKey) {
+                chatKey = decryptedKey;
+                // Update the cache with the correct key
+                chatDB.setChatKey(chat_id, chatKey);
+                console.log(`[ChatSyncService:Senders] ✅ Decrypted and cached chat key for ${chat_id}, length: ${chatKey.length}`);
+            } else {
+                // Decryption failed - this is a critical error for regular chats
+                // or a hidden chat that is currently locked.
+                console.error(
+                    `[ChatSyncService:Senders] ❌ CRITICAL: Failed to decrypt encrypted_chat_key for ${chat_id}. ` +
+                    `This indicates master key mismatch, locked hidden chat, or data corruption.`
+                );
+                
+                // Attempt hidden chat decryption path (if unlocked).
+                try {
+                    const { hiddenChatService } = await import('./hiddenChatService');
+                    const hiddenResult = await hiddenChatService.tryDecryptChatKey(encryptedChatKey);
+                    if (hiddenResult.chatKey) {
+                        chatKey = hiddenResult.chatKey;
+                        chatDB.setChatKey(chat_id, chatKey);
+                        console.info(`[ChatSyncService:Senders] ✅ Decrypted chat key via hidden chat path for ${chat_id}`);
+                    }
+                } catch (hiddenError) {
+                    console.error(`[ChatSyncService:Senders] Hidden chat decryption path failed for ${chat_id}:`, hiddenError);
+                }
+                
+                if (!chatKey) {
+                    // IMPORTANT: Do NOT generate a new key for an existing chat.
+                    // That would corrupt the chat for all devices.
+                    try {
+                        const { notificationStore } = await import('../stores/notificationStore');
+                        notificationStore.error(
+                            'We could not safely store this message due to an encryption key mismatch. ' +
+                            'Please unlock hidden chats or log in again on this device.'
+                        );
+                    } catch {
+                        // If notification import fails, still abort safely.
+                    }
+                    return;
+                }
+            }
+        }
+        
         if (!encryptedChatKey) {
-            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
+            // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
+            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`);
+            chatKey = chatKey || chatDB.getOrGenerateChatKey(chat_id);
+            
+            // Encrypt and save the new key
             const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
             encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
@@ -1308,9 +1398,14 @@ export async function sendEncryptedStoragePackage(
             } else {
                 console.error(`[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`);
             }
-        } else {
-            console.log(`[ChatSyncService:Senders] Encrypted chat key for ${chat_id}: ✅ Present (${encryptedChatKey.substring(0, 20)}..., length: ${encryptedChatKey.length})`);
         }
+        
+        if (!chatKey) {
+            console.error(`[ChatSyncService:Senders] ❌ CRITICAL: No chat key available for ${chat_id}. Aborting encrypted storage.`);
+            return;
+        }
+        
+        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`)
         
         // Import encryption functions
         const { encryptWithChatKey } = await import('./cryptoService');
@@ -1622,6 +1717,10 @@ export async function sendUpdateChatKeyImpl(
         const payload = {
             chat_id,
             encrypted_chat_key,
+            // Explicitly allow chat key rotation for hidden chat hide/unhide flows.
+            // This prevents accidental key overwrites from general message syncs.
+            allow_chat_key_rotation: true,
+            chat_key_rotation_reason: 'hidden_chat',
             // Include version info to preserve chat state
             versions: {
                 messages_v: chat.messages_v || 0,

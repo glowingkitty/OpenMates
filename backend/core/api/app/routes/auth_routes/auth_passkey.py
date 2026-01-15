@@ -928,16 +928,16 @@ async def passkey_registration_complete(
             # Get signup requirements based on server edition and configuration
             # For self-hosted: domain restriction OR invite code required
             # For non-self-hosted: use SIGNUP_LIMIT logic
-            require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+            require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
                 directus_service, cache_service
             )
             
             # Check domain restriction if required (for self-hosted with SIGNUP_DOMAIN_RESTRICTION set)
-            if require_domain_restriction and domain_restriction_value:
+            if require_domain_restriction and allowed_domains:
                 # Extract email from encrypted_email if available, or check during email verification step
                 # For passkey registration, domain check should have happened during email verification
                 # We validate here as a safety check
-                logger.info(f"Domain restriction enabled ({domain_restriction_value}) for self-hosted edition")
+                logger.info(f"Domain restriction enabled ({', '.join(allowed_domains)}) for self-hosted edition")
             
             if require_invite_code:
                 if not invite_code:

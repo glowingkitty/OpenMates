@@ -744,8 +744,18 @@ async def _handle_phase2_sync(
                     # If client already has up-to-date messages, skip fetching entirely
                     # Client will use messages from IndexedDB
                     if client_messages_v >= server_messages_v:
-                        logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                   f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                        # CRITICAL: Get server message count for client-side validation
+                        # This allows client to detect data inconsistency (version matches but messages missing)
+                        try:
+                            server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                            chat_wrapper["server_message_count"] = server_message_count
+                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                       f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                        except Exception as count_err:
+                            logger.warning(f"Phase 2: Failed to get message count for {chat_id}: {count_err}")
+                            # Continue without count - client will have to trust version
+                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
                         # Ensure messages is None to indicate client should use local data
                         if "messages" not in chat_wrapper:
                             chat_wrapper["messages"] = None
@@ -1089,8 +1099,18 @@ async def _handle_phase3_sync(
                         # If client already has up-to-date messages, skip fetching entirely
                         # Client will use messages from IndexedDB
                         if client_messages_v >= server_messages_v:
-                            logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                            # CRITICAL: Get server message count for client-side validation
+                            # This allows client to detect data inconsistency (version matches but messages missing)
+                            try:
+                                server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                                chat_wrapper["server_message_count"] = server_message_count
+                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                           f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                            except Exception as count_err:
+                                logger.warning(f"Phase 3: Failed to get message count for {chat_id}: {count_err}")
+                                # Continue without count - client will have to trust version
+                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                           f"(client: m={client_messages_v}, server: m={server_messages_v})")
                             # Ensure messages is None to indicate client should use local data
                             if "messages" not in chat_wrapper:
                                 chat_wrapper["messages"] = None
@@ -1253,16 +1273,28 @@ async def _handle_app_settings_memories_sync(
     
     **Zero-Knowledge Architecture**: Server never decrypts the data - it only forwards
     encrypted entries from Directus to the client. All decryption happens client-side.
+    
+    **Field Mapping** (Directus -> Client):
+    - id: UUID primary key (client-generated)
+    - app_id: App identifier (e.g., 'code', 'travel', 'tv')
+    - item_key: Entry identifier within a category  
+    - item_type: Category/type ID for filtering (e.g., 'preferred_technologies')
+    - encrypted_item_json: Client-encrypted JSON data
+    - encrypted_app_key: Encrypted app-specific key for device sync
+    - created_at, updated_at: Unix timestamps
+    - item_version: Version for conflict resolution
+    - sequence_number: Optional ordering
     """
     try:
-        logger.info(f"Starting app settings/memories sync for user {user_id}")
+        logger.info(f"[SYNC] Starting app settings/memories sync for user {user_id[:8]}...")
         
         # Fetch all app settings and memories entries for the user
         # Note: This returns encrypted data - server never decrypts it
+        # The get_all_user_app_data_raw method now accepts user_id directly and hashes it internally
         all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id)
         
         if not all_user_app_data:
-            logger.info(f"No app settings/memories found for user {user_id}")
+            logger.info(f"[SYNC] No app settings/memories found for user {user_id[:8]}...")
             # Still send sync event with empty array so client knows sync is complete
             await manager.send_personal_message(
                 {
@@ -1278,15 +1310,20 @@ async def _handle_app_settings_memories_sync(
             return
         
         # Prepare entries for client (all data is already encrypted)
+        # Directus returns fields directly, we just need to forward them to client
         entries = []
         for item_data in all_user_app_data:
             # Include all fields needed for client-side storage and conflict resolution
+            # These field names must match what the frontend expects in:
+            # - chatSyncServiceHandlersAppSettings.ts (AppSettingsMemoriesSyncReadyPayload interface)
+            # - db/appSettingsMemories.ts (AppSettingsMemoriesEntry interface)
             entry = {
                 "id": item_data.get("id"),
                 "app_id": item_data.get("app_id"),
                 "item_key": item_data.get("item_key"),
+                "item_type": item_data.get("item_type"),  # Category ID for filtering
                 "encrypted_item_json": item_data.get("encrypted_item_json"),
-                "encrypted_app_key": item_data.get("encrypted_app_key"),
+                "encrypted_app_key": item_data.get("encrypted_app_key", ""),
                 "created_at": item_data.get("created_at"),
                 "updated_at": item_data.get("updated_at"),
                 "item_version": item_data.get("item_version", 1),
@@ -1307,10 +1344,10 @@ async def _handle_app_settings_memories_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"App settings/memories sync complete for user {user_id}, sent: {len(entries)} entries")
+        logger.info(f"[SYNC] App settings/memories sync complete for user {user_id[:8]}..., sent: {len(entries)} entries")
         
     except Exception as e:
-        logger.error(f"Error in app settings/memories sync for user {user_id}: {e}", exc_info=True)
+        logger.error(f"[SYNC] Error in app settings/memories sync for user {user_id[:8]}...: {e}", exc_info=True)
         # Don't raise - this is a non-critical sync that shouldn't block Phase 3 completion
 
 

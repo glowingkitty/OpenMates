@@ -57,6 +57,8 @@ class AskSkillRequest(BaseModel):
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
+    app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
+    is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
 
 class AskSkillResponse(BaseModel):
     task_id: str = Field(..., description="The ID of the Celery task processing the request.")
@@ -89,6 +91,16 @@ class OpenAICompletionRequest(BaseModel):
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
     focus_mode: Optional[str] = Field(default=None, description="Focus mode ID to use.")
     is_incognito: Optional[bool] = Field(default=False, description="Whether this is an incognito request (no storage/billing).")
+    
+    # Context metadata fields injected by the external API handler from API key authentication
+    # These allow the skill to use the real authenticated user for proper cache lookups and billing
+    # Using aliases to accept underscore-prefixed field names from the API while storing without underscores
+    ctx_user_id: Optional[str] = Field(default=None, alias="_user_id", description="Real user ID from API key authentication (injected by API)")
+    ctx_api_key_name: Optional[str] = Field(default=None, alias="_api_key_name", description="Encrypted API key name (injected by API)")
+    ctx_external_request: Optional[bool] = Field(default=False, alias="_external_request", description="Flag indicating this is an external API request (injected by API)")
+    
+    # Allow extra fields to be passed through (for future context metadata) and populate by field name
+    model_config = {"extra": "allow", "populate_by_name": True}
 
 class OpenAIChoice(BaseModel):
     index: int = Field(..., description="The index of the choice.")
@@ -242,6 +254,11 @@ class AskSkill(BaseSkill):
         Handle requests in OpenAI format (from REST API/CLI).
         Transform to internal format and process, then return OpenAI-compatible response.
         """
+        # Log the incoming request context fields for debugging
+        logger.info(f"[HANDLE_OPENAI] ctx_user_id={request.ctx_user_id}, ctx_external_request={request.ctx_external_request}")
+        if hasattr(request, 'model_extra') and request.model_extra:
+            logger.info(f"[HANDLE_OPENAI] model_extra keys: {list(request.model_extra.keys())}")
+        
         # Transform OpenAI request to internal AskSkillRequest format
         internal_request = await self._transform_openai_to_internal(request)
 
@@ -260,11 +277,34 @@ class AskSkill(BaseSkill):
         """
         Transform OpenAI-compatible request to internal AskSkillRequest format.
         Generates required IDs and converts message format.
+        
+        If _user_id is provided (from API key authentication), uses the real user ID
+        for proper cache lookups and billing. Otherwise falls back to synthetic user.
         """
         # Generate required IDs for stateless operation
         chat_id = f"openai-{uuid.uuid4()}" if not openai_request.is_incognito else "incognito"
         message_id = f"msg-{uuid.uuid4()}"
-        user_id = "openai-api-user"  # Static user for API requests
+        
+        # Use real user ID from API authentication if available, otherwise use synthetic user
+        # The _user_id is injected by the external API handler from the API key's authenticated user
+        # We check multiple ways to access it: via the aliased field and via model_extra
+        api_user_id = openai_request.ctx_user_id
+        
+        # Also check model_extra in case the alias didn't work (Pydantic v2 behavior can vary)
+        if not api_user_id and hasattr(openai_request, 'model_extra') and openai_request.model_extra:
+            api_user_id = openai_request.model_extra.get('_user_id')
+            logger.info(f"[TRANSFORM] Retrieved _user_id from model_extra: {api_user_id}")
+        
+        # Log what we found for debugging
+        extra_keys = list(openai_request.model_extra.keys()) if hasattr(openai_request, 'model_extra') and openai_request.model_extra else []
+        logger.info(f"[TRANSFORM] ctx_user_id={openai_request.ctx_user_id}, model_extra keys={extra_keys}")
+        
+        if api_user_id:
+            user_id = api_user_id
+            logger.info(f"[TRANSFORM] Using authenticated user_id from API key: {user_id[:8]}...")
+        else:
+            user_id = "openai-api-user"  # Fallback for internal calls without API key context
+            logger.info("[TRANSFORM] Using synthetic user_id (no API authentication context)")
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()[:16]
 
         # Convert OpenAI messages to internal message history format

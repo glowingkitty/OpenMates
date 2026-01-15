@@ -205,3 +205,189 @@ loading:
   cs: Načítání...
   sv: Laddar...
   verified_by_human: []
+
+# App Settings & Memories Permission Dialog
+permissions.title:
+  context: Header for the permissions dialog requesting app settings/memories access
+  en: Permissions
+  de: Berechtigungen
+  zh: 权限
+  es: Permisos
+  fr: Autorisations
+  pt: Permissões
+  ru: Разрешения
+  ja: 許可
+  ko: 권한
+  it: Permessi
+  tr: İzinler
+  vi: Quyền
+  id: Izin
+  pl: Uprawnienia
+  nl: Rechten
+  ar: الأذونات
+  hi: अनुमतियाँ
+  th: สิทธิ์
+  cs: Oprávnění
+  sv: Behörigheter
+  verified_by_human: []
+permissions.question:
+  context: Question asking user to confirm sharing app settings and memories
+  en: Include these App settings & memories in this chat, for a more personalized response?
+  de: Diese App-Einstellungen & Erinnerungen in diesen Chat einbeziehen, für eine persönlichere Antwort?
+  zh: 在此聊天中包含这些应用设置和记忆，以获得更个性化的回复？
+  es: ¿Incluir esta configuración de aplicación y memorias en este chat para una respuesta más personalizada?
+  fr: Inclure ces paramètres d'application et souvenirs dans cette discussion pour une réponse plus personnalisée ?
+  pt: Incluir essas configurações de aplicativo e memórias neste chat para uma resposta mais personalizada?
+  ru: Включить эти настройки приложения и воспоминания в этот чат для более персонализированного ответа?
+  ja: よりパーソナライズされた返答のために、このチャットにこれらのアプリ設定と思い出を含めますか？
+  ko: 더 맞춤화된 답변을 위해 이 앱 설정과 기억을 이 채팅에 포함하시겠습니까?
+  it: Includere queste impostazioni dell'app e memorie in questa chat per una risposta più personalizzata?
+  tr: Daha kişiselleştirilmiş bir yanıt için bu uygulama ayarlarını ve anıları bu sohbete dahil edilsin mi?
+  vi: Bao gồm cài đặt ứng dụng và ký ức này trong cuộc trò chuyện này để có phản hồi cá nhân hơn?
+  id: Sertakan pengaturan aplikasi dan memori ini dalam obrolan ini untuk respons yang lebih personal?
+  pl: Uwzględnić te ustawienia aplikacji i wspomnienia w tym czacie dla bardziej spersonalizowanej odpowiedzi?
+  nl: Deze app-instellingen en herinneringen in deze chat opnemen voor een meer gepersonaliseerd antwoord?
+  ar: تضمين إعدادات التطبيق والذكريات هذه في هذه المحادثة للحصول على رد أكثر تخصيصاً؟
+  hi: अधिक व्यक्तिगत प्रतिक्रिया के लिए इन ऐप सेटिंग्स और यादों को इस चैट में शामिल करें?
+  th: รวมการตั้งค่าแอปและความทรงจำเหล่านี้ในแชทนี้เพื่อการตอบกลับที่เป็นส่วนตัวมากขึ้นหรือไม่?
+  cs: Zahrnout tato nastavení aplikace a vzpomínky do tohoto chatu pro více personalizovanou odpověď?
+  sv: Inkludera dessa appinställningar och minnen i denna chatt för ett mer personligt svar?
+  verified_by_human: []
+permissions.include_selected:
+  context: Button to include selected app settings and memories in the chat
+  en: Include selected
+  de: Ausgewählte einbeziehen
+  zh: 包含所选
+  es: Incluir seleccionados
+  fr: Inclure la sélection
+  pt: Incluir selecionados
+  ru: Включить выбранные
+  ja: 選択した項目を含める
+  ko: 선택 항목 포함
+  it: Includi selezionati
+  tr: Seçilenleri dahil et
+  vi: Bao gồm đã chọn
+  id: Sertakan yang dipilih
+  pl: Uwzględnij wybrane
+  nl: Selectie opnemen
+  ar: تضمين المحدد
+  hi: चयनित शामिल करें
+  th: รวมที่เลือก
+  cs: Zahrnout vybrané
+  sv: Inkludera valda
+  verified_by_human: []
+permissions.reject_all:
+  context: Button to reject all app settings and memories request
+  en: Reject all
+  de: Alle ablehnen
+  zh: 全部拒绝
+  es: Rechazar todo
+  fr: Tout rejeter
+  pt: Rejeitar tudo
+  ru: Отклонить все
+  ja: すべて拒否
+  ko: 모두 거부
+  it: Rifiuta tutti
+  tr: Tümünü reddet
+  vi: Từ chối tất cả
+  id: Tolak semua
+  pl: Odrzuć wszystko
+  nl: Alles weigeren
+  ar: رفض الكل
+  hi: सभी अस्वीकार करें
+  th: ปฏิเสธทั้งหมด
+  cs: Odmítnout vše
+  sv: Avvisa alla
+  verified_by_human: []
+permissions.entry_singular:
+  context: Singular form of entry count (e.g., "1 entry")
+  en: entry
+  de: Eintrag
+  zh: 条目
+  es: entrada
+  fr: entrée
+  pt: entrada
+  ru: запись
+  ja: 件
+  ko: 개 항목
+  it: voce
+  tr: giriş
+  vi: mục
+  id: entri
+  pl: wpis
+  nl: item
+  ar: إدخال
+  hi: प्रविष्टि
+  th: รายการ
+  cs: záznam
+  sv: post
+  verified_by_human: []
+permissions.entry_plural:
+  context: Plural form of entry count (e.g., "6 entries")
+  en: entries
+  de: Einträge
+  zh: 条目
+  es: entradas
+  fr: entrées
+  pt: entradas
+  ru: записей
+  ja: 件
+  ko: 개 항목
+  it: voci
+  tr: giriş
+  vi: mục
+  id: entri
+  pl: wpisów
+  nl: items
+  ar: إدخالات
+  hi: प्रविष्टियाँ
+  th: รายการ
+  cs: záznamů
+  sv: poster
+  verified_by_human: []
+permissions.included_summary:
+  context: Label shown after user includes app settings/memories
+  en: Included App settings & memories
+  de: Einbezogene App-Einstellungen & Erinnerungen
+  zh: 已包含的应用设置和记忆
+  es: Configuración de aplicación y memorias incluidas
+  fr: Paramètres d'application et souvenirs inclus
+  pt: Configurações de aplicativo e memórias incluídas
+  ru: Включены настройки приложения и воспоминания
+  ja: 含まれたアプリ設定と思い出
+  ko: 포함된 앱 설정 및 기억
+  it: Impostazioni dell'app e memorie incluse
+  tr: Dahil edilen uygulama ayarları ve anılar
+  vi: Cài đặt ứng dụng và ký ức đã bao gồm
+  id: Pengaturan aplikasi dan memori yang disertakan
+  pl: Uwzględnione ustawienia aplikacji i wspomnienia
+  nl: Opgenomen app-instellingen en herinneringen
+  ar: إعدادات التطبيق والذكريات المضمنة
+  hi: शामिल ऐप सेटिंग्स और यादें
+  th: การตั้งค่าแอปและความทรงจำที่รวม
+  cs: Zahrnutá nastavení aplikace a vzpomínky
+  sv: Inkluderade appinställningar och minnen
+  verified_by_human: []
+permissions.rejected_summary:
+  context: Text shown when user rejects app settings/memories request
+  en: Rejected App settings & memories request.
+  de: Anfrage für App-Einstellungen & Erinnerungen abgelehnt.
+  zh: 已拒绝应用设置和记忆请求。
+  es: Solicitud de configuración de aplicación y memorias rechazada.
+  fr: Demande de paramètres d'application et de souvenirs refusée.
+  pt: Solicitação de configurações de aplicativo e memórias rejeitada.
+  ru: Запрос на настройки приложения и воспоминания отклонён.
+  ja: アプリ設定と思い出のリクエストを拒否しました。
+  ko: 앱 설정 및 기억 요청이 거부되었습니다.
+  it: Richiesta di impostazioni dell'app e memorie rifiutata.
+  tr: Uygulama ayarları ve anılar talebi reddedildi.
+  vi: Đã từ chối yêu cầu cài đặt ứng dụng và ký ức.
+  id: Permintaan pengaturan aplikasi dan memori ditolak.
+  pl: Odrzucono żądanie ustawień aplikacji i wspomnień.
+  nl: App-instellingen en herinneringen verzoek afgewezen.
+  ar: تم رفض طلب إعدادات التطبيق والذكريات.
+  hi: ऐप सेटिंग्स और यादों का अनुरोध अस्वीकृत।
+  th: ปฏิเสธคำขอการตั้งค่าแอปและความทรงจำแล้ว
+  cs: Žádost o nastavení aplikace a vzpomínky byla zamítnuta.
+  sv: Begäran om appinställningar och minnen avvisad.
+  verified_by_human: []

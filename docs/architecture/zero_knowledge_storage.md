@@ -73,6 +73,14 @@ During user signup:
 - Improves performance by reducing redundant data transmission
 - Cache is separate from permanent encrypted storage
 
+### Chat Key Immutability & Rotation
+
+- **Immutability by default**: Once a chat has an `encrypted_chat_key`, the server will not accept or broadcast a different key for that chat.
+- **Explicit rotation only**: Key updates are allowed only when the client includes an explicit rotation flag
+  (used for hidden chat hide/unhide flows).
+- **Safety guarantee**: This prevents a single misconfigured device from corrupting the chat key across devices,
+  which would make existing messages undecryptable.
+
 ### Embed Content Security
 - Each embed generates unique key for content encryption
 - Parent embeds generate their own key with wrapped key storage

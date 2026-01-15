@@ -7,10 +7,13 @@
     // Use $props() for component props in Svelte 5
     let { appId }: { appId: string } = $props();
 
-    // Reactive state using $state() rune in Svelte 5
-    let entriesLoading = $appSettingsMemoriesLoading;
+    // Reactive state using $state() and $derived() runes in Svelte 5
+    // CRITICAL: Use $derived to maintain reactivity with stores
+    // Without $derived, the store value is only read once at initialization
+    // and won't update when loadEntriesForApp completes
+    let entriesLoading = $derived($appSettingsMemoriesLoading);
     let appEntries: Readable<Record<string, unknown>> = appSettingsMemoriesForApp(appId);
-    let groupedEntries = $appEntries;
+    let groupedEntries = $derived($appEntries);
     let expandedGroups = $state(new Set<string>());
 
     let showCreateForm = $state(false);

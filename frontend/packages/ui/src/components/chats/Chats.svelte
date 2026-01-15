@@ -616,9 +616,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
 		
-		// Invalidate cache for the specific chat if provided, to ensure fresh preview data
+		// Invalidate caches for the specific chat if provided, to ensure fresh preview data
+		// CRITICAL: Invalidate BOTH metadata cache AND last message cache
+		// The last message cache may contain stale status (e.g., 'processing' instead of 'synced')
+		// which causes isWaitingForTitle to remain true and show "Sending..." incorrectly
 		if (customEvent.detail?.chat_id) {
 			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
+			chatListCache.invalidateLastMessage(customEvent.detail.chat_id);
 		}
 		
 		// CRITICAL: For non-authenticated users, trigger reactivity by updating sessionStorageDraftUpdateTrigger

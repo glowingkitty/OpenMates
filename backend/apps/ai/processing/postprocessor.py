@@ -118,8 +118,21 @@ async def handle_postprocessing(
         dynamic_context=None  # No dynamic context needed
     )
 
+    # CRITICAL FIX: Handle LLM errors gracefully instead of crashing the entire task
+    # When postprocessing fails, we should still deliver the main AI response to the user
+    # The only consequence is that suggestions won't be generated - this is acceptable
     if llm_result.error_message:
-        raise RuntimeError(f"LLM call failed: {llm_result.error_message}")
+        logger.error(
+            f"[Task ID: {task_id}] [PostProcessor] LLM call failed: {llm_result.error_message}. "
+            f"Returning empty result - main AI response will still be delivered without suggestions."
+        )
+        # Return an empty result instead of crashing - allows main response to be delivered
+        return PostProcessingResult(
+            follow_up_request_suggestions=[],
+            new_chat_request_suggestions=[],
+            harmful_response=0.0,
+            top_recommended_apps_for_user=[]
+        )
 
     # Handle case where LLM returns empty arguments (might be valid - LLM chose not to generate suggestions)
     # Use empty dict as default if arguments is None or empty

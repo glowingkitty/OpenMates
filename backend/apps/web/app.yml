@@ -66,25 +66,16 @@ instructions:
   # This instruction is ALWAYS loaded when web app is available (no category filter)
   # It provides guidance on using web-search and web-read skills
   - instruction: |
-      **Web Search and Read Capabilities**
+      **Web Skills**
       
-      You have access to the `web-search` skill for searching the web and the `web-read` skill for reading webpage content:
+      - **web-search**: Search for current info. Use ONE search query per request (multiple only if user explicitly asks to compare/search multiple things).
+      - **web-read**: Read content from URLs the user provides. Prefer this over searching when a URL is given.
       
-      - **web-search**: Use this to search the web for current information, news, prices, documentation, etc.
-        - ALWAYS search BEFORE answering time-sensitive questions (news, prices, current events, software versions)
-        - Trigger words: "current", "latest", "recent", "now", "today", "price of", "how much", "who won"
-      
-      - **web-read**: Use this to read and extract content from specific URLs that the user provides or mentions
-        - Use when user asks to "summarize", "read", "explain", "analyze", or "extract" content from a URL
-        - Can read multiple URLs in a single call using the 'requests' array format
-      
-      When in doubt about whether information is current, search first - outdated info is worse than a brief search delay.
+      **Important:** Prefer specialized tools (`code-get_docs`, `news-search`, `videos-search`, `maps-search`) over web-search when they match the query type.
   
   # This instruction is only loaded when the conversation category is software_development
   - instruction: |
-      For questions which can likely be answered better with up to date
-      documentation (about APIs for example), always first do web search before answering
-      the question.
+      For API/library documentation, prefer `code-get_docs` over web search.
     categories:
     - software_development
 skills:
@@ -117,10 +108,10 @@ skills:
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
-            Example for single search: {"requests": [{"id": 1, "query": "Python async"}]}
-            Example for multiple searches: {"requests": [{"id": 1, "query": "Python async"}, {"id": 2, "query": "FastAPI best practices"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (id, count, country, search_lang, safesearch).
-            Note: The 'id' field is automatically added to all skills with 'requests' arrays - it's optional for single requests (defaults to 1) and required for multiple requests to match responses.
+            Example for single search: {"requests": [{"query": "Python async"}]}
+            Example for multiple searches: {"requests": [{"query": "Python async"}, {"query": "FastAPI best practices"}]}
+            Each object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
+            Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
             properties:

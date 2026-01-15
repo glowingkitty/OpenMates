@@ -85,13 +85,68 @@ import type {
     AIMessageReadyPayload,
     AITaskCancelRequestedPayload,
     EmbedUpdatePayload,
-    SendEmbedDataPayload
+    SendEmbedDataPayload,
+    AIThinkingChunkPayload,
+    AIThinkingCompletePayload
 } from '../types/chat'; // Assuming these types might be moved or are already in a shared types file
 
 // --- Deduplication tracking for embed processing ---
 // Track which finalized embeds have already been processed to prevent duplicate key generation
 // Key: embed_id, Value: true if already processed
 const processedFinalizedEmbeds = new Set<string>();
+
+// --- Thinking content buffering (cross-device persistence) ---
+// We buffer thinking content per message_id so we can:
+// 1) Stream updates to the active chat immediately (UI),
+// 2) Persist the completed thinking content to IndexedDB on ALL devices,
+//    so reopening the chat shows the thinking section.
+type ThinkingBufferEntry = {
+    chatId: string;
+    content: string;
+    signature?: string | null;
+    totalTokens?: number | null;
+};
+const thinkingBufferByMessageId = new Map<string, ThinkingBufferEntry>();
+
+/**
+ * Persist completed thinking content into IndexedDB so it syncs across devices.
+ * This intentionally runs outside ActiveChat so background tabs/devices still store it.
+ */
+async function persistThinkingToDb(
+    messageId: string,
+    chatId: string,
+    entry: ThinkingBufferEntry
+): Promise<void> {
+    try {
+        const existingMessage = await chatDB.getMessage(messageId);
+        
+        // If the assistant message doesn't exist yet, create a minimal placeholder.
+        // The streaming handler will later update it with full content.
+        const messageToSave: Message = existingMessage
+            ? { ...existingMessage }
+            : {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant',
+                created_at: Math.floor(Date.now() / 1000),
+                status: 'processing',
+                encrypted_content: ''
+            };
+        
+        // Attach thinking metadata so the UI can render it after reload.
+        messageToSave.thinking_content = entry.content;
+        messageToSave.thinking_signature = entry.signature || undefined;
+        if (entry.totalTokens !== undefined && entry.totalTokens !== null) {
+            messageToSave.thinking_token_count = entry.totalTokens;
+        }
+        messageToSave.has_thinking = !!entry.content;
+        
+        await chatDB.saveMessage(messageToSave);
+        console.debug(`[ChatSyncService:AI] ✅ Persisted thinking content for message ${messageId} (chat ${chatId})`);
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] Error persisting thinking content for message ${messageId}:`, error);
+    }
+}
 
 /**
  * Check if a finalized embed has already been processed
@@ -125,6 +180,88 @@ export function handleAITaskInitiatedImpl(
     serviceInstance.activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
     serviceInstance.dispatchEvent(new CustomEvent('aiTaskInitiated', { detail: payload }));
 }
+
+// --- Thinking/Reasoning Event Handlers ---
+// These handlers process thinking content from thinking models (Gemini, Anthropic Claude)
+// Thinking content is streamed to a separate channel and displayed above the main response
+
+/**
+ * Handle thinking content chunks from thinking models.
+ * Dispatches 'aiThinkingChunk' event for ActiveChat to display.
+ */
+export function handleAIThinkingChunkImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AIThinkingChunkPayload
+): void {
+    const messageId = payload.message_id || payload.task_id;
+    const contentLength = payload.content?.length || 0;
+    const contentPreview = payload.content?.substring(0, 80).replace(/\n/g, '\\n') || '(empty)';
+    
+    console.log(
+        `[ChatSyncService:AI] 🧠 THINKING CHUNK | ` +
+        `chat_id: ${payload.chat_id} | ` +
+        `task_id: ${payload.task_id} | ` +
+        `message_id: ${messageId} | ` +
+        `content_length: ${contentLength} chars | ` +
+        `preview: "${contentPreview}${contentLength > 80 ? '...' : ''}"`
+    );
+    
+    // Buffer thinking content so we can persist on completion.
+    // This runs for ALL devices, not just the active chat tab.
+    const existing = thinkingBufferByMessageId.get(messageId);
+    const updatedEntry: ThinkingBufferEntry = {
+        chatId: payload.chat_id,
+        content: (existing?.content || '') + (payload.content || ''),
+        signature: existing?.signature,
+        totalTokens: existing?.totalTokens
+    };
+    thinkingBufferByMessageId.set(messageId, updatedEntry);
+    
+    // Dispatch event for ActiveChat component to display thinking content
+    serviceInstance.dispatchEvent(new CustomEvent('aiThinkingChunk', { detail: payload }));
+}
+
+/**
+ * Handle thinking completion from thinking models.
+ * Contains the signature (if provided) and total token count for cost tracking.
+ * Dispatches 'aiThinkingComplete' event for ActiveChat to finalize thinking display.
+ */
+export function handleAIThinkingCompleteImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AIThinkingCompletePayload
+): void {
+    const messageId = payload.message_id || payload.task_id;
+    console.log(
+        `[ChatSyncService:AI] 🧠 THINKING COMPLETE | ` +
+        `chat_id: ${payload.chat_id} | ` +
+        `task_id: ${payload.task_id} | ` +
+        `message_id: ${messageId} | ` +
+        `has_signature: ${!!payload.signature} | ` +
+        `total_tokens: ${payload.total_tokens || 'unknown'}`
+    );
+    
+    // Update the buffer with signature/token metadata for persistence.
+    const existing = thinkingBufferByMessageId.get(messageId);
+    if (existing) {
+        thinkingBufferByMessageId.set(messageId, {
+            ...existing,
+            signature: payload.signature ?? existing.signature,
+            totalTokens: payload.total_tokens ?? existing.totalTokens
+        });
+    }
+    
+    // Dispatch event for ActiveChat component to finalize thinking
+    serviceInstance.dispatchEvent(new CustomEvent('aiThinkingComplete', { detail: payload }));
+    
+    // Persist completed thinking content to IndexedDB so it's available after reload/sync.
+    const entryToPersist = thinkingBufferByMessageId.get(messageId);
+    if (entryToPersist) {
+        void persistThinkingToDb(messageId, payload.chat_id, entryToPersist);
+    } else {
+        console.warn(`[ChatSyncService:AI] Thinking complete received with no buffered content for message ${messageId}`);
+    }
+}
+// --- End Thinking/Reasoning Event Handlers ---
 
 export function handleAIMessageUpdateImpl(
     serviceInstance: ChatSynchronizationService,
@@ -161,13 +298,26 @@ export function handleAIMessageUpdateImpl(
 
     if (payload.is_final_chunk) {
         console.log(`[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`);
+        
+        // CRITICAL FIX: ALWAYS clear typing indicator when final chunk is received
+        // The typing indicator must be cleared regardless of whether we have task tracking info.
+        // Previously, clearTyping was only called if taskInfo existed AND task IDs matched,
+        // which caused the typing indicator to persist forever if:
+        // 1. ai_task_initiated event was missed (websocket hiccup)
+        // 2. Task IDs didn't match for some reason
+        aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+        console.info(`[ChatSyncService:AI] Typing status cleared for chat ${payload.chat_id} (message_id: ${payload.message_id})`);
+        
+        // Clean up task tracking if we have matching task info
         const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
             serviceInstance.activeAITasks.delete(payload.chat_id);
-            // Clear typing status for this specific AI task
-            aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
-            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker. Typing status cleared.`);
+            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`);
+        } else {
+            // Task info missing or mismatched - still dispatch event but log warning
+            console.warn(`[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : 'undefined'}, payload.task_id=${payload.task_id}`);
+            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
         }
     }
 }
@@ -393,8 +543,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
             console.info(`[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`);
         }
         
-        // Clear typing status for this specific AI task
-        aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
+        // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
+        // Previously used task_id which caused mismatch - typing indicator wouldn't clear
+        aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
         
         // Dispatch chatUpdated event to notify UI (e.g., update chat list)
         // This will NOT update ActiveChat if the chat is not currently open
@@ -480,6 +631,16 @@ export async function handleAITypingStartedImpl( // Changed to async
         // Skip metadata processing for incognito chats (they don't go through post-processing)
         if (isIncognitoChat) {
             console.debug(`[ChatSyncService:AI] Skipping metadata processing for incognito chat ${payload.chat_id}`);
+            return;
+        }
+        
+        // CRITICAL: Skip user message persistence for continuation tasks (after app settings/memories confirmation)
+        // The user message was already persisted during the initial ai_typing_started event before the pause.
+        // Re-persisting would create a duplicate message in Directus.
+        if (payload.is_continuation) {
+            console.info(`[ChatSyncService:AI] Skipping user message persistence for CONTINUATION task in chat ${payload.chat_id} - message already persisted before app settings/memories pause`);
+            // Still dispatch the typing event for UI updates
+            serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
             return;
         }
         
@@ -839,7 +1000,9 @@ export function handleAITaskCancelRequestedImpl(
         chatIdsToClear.forEach(chatId => {
             serviceInstance.activeAITasks.delete(chatId);
         // Clear typing status for this cancelled task
-        aiTypingStore.clearTyping(chatId, payload.task_id);
+        // Use clearTypingForChat since we only have task_id, not message_id
+        // (message_id is what setTyping stores as aiMessageId)
+        aiTypingStore.clearTypingForChat(chatId);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status === 'revocation_sent' ? 'cancelled' : payload.status } }));
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });

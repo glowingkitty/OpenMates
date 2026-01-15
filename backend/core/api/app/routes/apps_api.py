@@ -1264,23 +1264,29 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 SkillRequestModel = None
                 SkillResponseModel = None
                 
-                if captured_skill.tool_schema and captured_skill.class_path:
+                # Try to import models from the skill module if class_path exists
+                # This works for skills both with and without tool_schema
+                if captured_skill.class_path:
                     try:
                         import importlib
                         # Import the skill module to get its models
+                        # class_path is relative to backend/apps (e.g., "ai.skills.ask_skill.AskSkill")
+                        # We need to convert to full module path: "backend.apps.ai.skills.ask_skill"
                         module_path, class_name = captured_skill.class_path.rsplit('.', 1)
-                        skill_module = importlib.import_module(module_path)
+                        full_module_path = f"backend.apps.{module_path}"
+                        skill_module = importlib.import_module(full_module_path)
                         
                         # Look for Request and Response models in the module
                         # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
                         # Include skill-specific names like GetDocsRequest for get_docs skill
-                        for model_name in ['SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'Request']:
+                        # Also include AI-specific models: AskSkillRequest, OpenAICompletionRequest
+                        for model_name in ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'Request']:
                             if hasattr(skill_module, model_name):
                                 SkillRequestModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
                                 break
                         
-                        for model_name in ['SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'Response']:
+                        for model_name in ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'Response']:
                             if hasattr(skill_module, model_name):
                                 SkillResponseModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
@@ -1499,6 +1505,240 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             except Exception as e:
                                 logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
                                 skill_response = result
+                            
+                            return WrappedSkillResponse(
+                                success=True,
+                                data=skill_response,
+                                credits_charged=credits_charged
+                            )
+                            
+                        except HTTPException:
+                            raise
+                        except Exception as e:
+                            logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
+                            return WrappedSkillResponse(
+                                success=False,
+                                error=f"Skill execution failed: {str(e)}"
+                            )
+                    
+                    return post_skill_handler
+                
+                # Skills with request/response models but no tool_schema (e.g., AI ask skill)
+                # These skills define their own Pydantic models directly in the skill module
+                elif SkillRequestModel and SkillResponseModel and not captured_skill.tool_schema:
+                    # Check if this is the AI ask skill which needs special handling for streaming
+                    is_ai_ask_skill = (captured_app_id == "ai" and captured_skill.id == "ask")
+                    
+                    if is_ai_ask_skill:
+                        # Special handler for AI ask skill that supports streaming and non-streaming modes
+                        # Import StreamingResponse for SSE streaming
+                        from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
+                        
+                        async def ai_ask_skill_handler(
+                            request_body: SkillRequestModel,
+                            request: Request = None,
+                            user_info: Dict[str, Any] = ApiKeyAuth,
+                            cache_service: CacheService = Depends(get_cache_service),
+                            directus_service: DirectusService = Depends(get_directus_service)
+                        ):
+                            """
+                            Execute the AI Ask skill with full streaming and non-streaming support.
+                            
+                            - If stream=true: Returns Server-Sent Events (SSE) stream with real-time response chunks
+                            - If stream=false: Returns complete OpenAI-compatible response after processing
+                            
+                            Requires API key authentication.
+                            The skill will be executed, billed, and a usage entry will be created automatically.
+                            """
+                            try:
+                                # Convert Pydantic model to dict
+                                request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                                
+                                # Determine if streaming is requested
+                                is_streaming = request_dict.get('stream', False)
+                                
+                                logger.info(f"External API: User {user_info['user_id']} executing ai/ask (streaming={is_streaming})")
+                                
+                                # Construct skill URL
+                                hostname = f"app-{captured_app_id}"
+                                skill_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/skills/{captured_skill.id}"
+                                
+                                # Prepare headers
+                                headers = {
+                                    'Content-Type': 'application/json',
+                                    'X-External-User-ID': user_info['user_id'],
+                                    'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),
+                                }
+                                
+                                # Sanitize input data
+                                user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
+                                log_prefix = f"[API ai/ask][User {user_id_short}...] "
+                                sanitized_input = _sanitize_dict_recursively(request_dict, log_prefix=log_prefix)
+                                
+                                # Add context metadata
+                                request_payload = sanitized_input.copy() if isinstance(sanitized_input, dict) else {}
+                                request_payload['_user_id'] = user_info['user_id']
+                                request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+                                request_payload['_external_request'] = True
+                                
+                                if is_streaming:
+                                    # STREAMING MODE: Proxy SSE stream from app-ai service
+                                    async def stream_generator():
+                                        """Generator that proxies the SSE stream from the AI service."""
+                                        try:
+                                            # Use a longer timeout for streaming (5 minutes)
+                                            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
+                                                async with client.stream(
+                                                    'POST',
+                                                    skill_url,
+                                                    json=request_payload,
+                                                    headers=headers
+                                                ) as response:
+                                                    if response.status_code != 200:
+                                                        error_text = await response.aread()
+                                                        logger.error(f"AI skill streaming error: {response.status_code} - {error_text}")
+                                                        yield f'data: {{"error": "Service error: {response.status_code}"}}\n\n'
+                                                        yield 'data: [DONE]\n\n'
+                                                        return
+                                                    
+                                                    # Stream the response chunks as-is (they're already in SSE format)
+                                                    async for line in response.aiter_lines():
+                                                        if line:
+                                                            yield f"{line}\n"
+                                                        else:
+                                                            yield "\n"
+                                        except httpx.TimeoutException:
+                                            logger.error("AI skill streaming timeout")
+                                            yield f'data: {{"error": "Request timeout"}}\n\n'
+                                            yield 'data: [DONE]\n\n'
+                                        except Exception as e:
+                                            logger.error(f"AI skill streaming error: {e}", exc_info=True)
+                                            yield f'data: {{"error": "{str(e)}"}}\n\n'
+                                            yield 'data: [DONE]\n\n'
+                                    
+                                    return FastAPIStreamingResponse(
+                                        stream_generator(),
+                                        media_type="text/event-stream",
+                                        headers={
+                                            "Cache-Control": "no-cache",
+                                            "Connection": "keep-alive",
+                                            "X-Accel-Buffering": "no"  # Disable nginx buffering
+                                        }
+                                    )
+                                else:
+                                    # NON-STREAMING MODE: Wait for complete response
+                                    # Use a longer timeout (5 minutes) for AI processing
+                                    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
+                                        response = await client.post(
+                                            skill_url,
+                                            json=request_payload,
+                                            headers=headers
+                                        )
+                                        
+                                        if response.status_code != 200:
+                                            logger.error(f"AI skill error: {response.status_code} - {response.text}")
+                                            raise HTTPException(
+                                                status_code=response.status_code,
+                                                detail=f"AI skill error: {response.text}"
+                                            )
+                                        
+                                        # Parse the OpenAI-compatible response
+                                        result = response.json()
+                                        
+                                        # Return the result directly (it's already in OpenAI format)
+                                        return result
+                                        
+                            except HTTPException:
+                                raise
+                            except httpx.TimeoutException:
+                                logger.error("AI skill timeout")
+                                raise HTTPException(status_code=504, detail="AI processing timeout. Please try again.")
+                            except Exception as e:
+                                logger.error(f"Error executing AI ask skill: {e}", exc_info=True)
+                                raise HTTPException(status_code=500, detail=f"AI skill error: {str(e)}")
+                        
+                        return ai_ask_skill_handler
+                    
+                    # Standard handler for other skills with models but no tool_schema
+                    class WrappedSkillResponse(BaseModel):
+                        """Response wrapper for skill execution"""
+                        success: bool
+                        data: Optional[SkillResponseModel] = Field(None, description="The skill execution result (only present when success=True)")
+                        error: Optional[str] = Field(None, description="Error message if execution failed")
+                        credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
+                    
+                    async def post_skill_handler(
+                        request_body: SkillRequestModel,
+                        request: Request = None,
+                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        cache_service: CacheService = Depends(get_cache_service),
+                        directus_service: DirectusService = Depends(get_directus_service)
+                    ) -> WrappedSkillResponse:
+                        """
+                        Execute a skill from a specific app.
+                        
+                        Requires API key authentication.
+                        The skill will be executed, billed, and a usage entry will be created automatically.
+                        Rate limited to 30 requests per minute per API key.
+                        
+                        The request body should match the skill's Pydantic model structure directly.
+                        """
+                        try:
+                            logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id} (direct model)")
+                            
+                            # Convert Pydantic model to dict for skill execution
+                            request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                            
+                            # Execute the skill - pass request_dict directly
+                            result = await call_app_skill(
+                                app_id=captured_app_id,
+                                skill_id=captured_skill.id,
+                                input_data=request_dict,
+                                parameters={},
+                                user_info=user_info
+                            )
+                            
+                            # Check if skill execution was successful before charging credits
+                            execution_successful = is_skill_execution_successful(result)
+                            
+                            if not execution_successful:
+                                logger.info(f"Skill execution failed for {captured_app_id}/{captured_skill.id}, not charging credits")
+                                credits_charged = 0
+                            else:
+                                # Calculate credits to charge based on pricing
+                                credits_charged = await calculate_skill_credits(
+                                    app_metadata=captured_app_metadata,
+                                    skill_id=captured_skill.id,
+                                    input_data=request_dict,
+                                    result_data=result
+                                )
+                                
+                                if credits_charged > 0:
+                                    user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    usage_details = {
+                                        "api_key_name": user_info.get('api_key_name'),
+                                        "external_request": True,
+                                        "units_processed": 1
+                                    }
+                                    await charge_credits_via_internal_api(
+                                        user_id=user_info['user_id'],
+                                        user_id_hash=user_id_hash,
+                                        credits=credits_charged,
+                                        app_id=captured_app_id,
+                                        skill_id=captured_skill.id,
+                                        usage_details=usage_details,
+                                        api_key_hash=user_info.get('api_key_hash'),
+                                        device_hash=user_info.get('device_hash'),
+                                    )
+                            
+                            # Parse result into response model if possible
+                            skill_response = None
+                            if result and execution_successful:
+                                try:
+                                    skill_response = SkillResponseModel(**result) if isinstance(result, dict) else result
+                                except Exception as e:
+                                    logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
+                                    skill_response = result
                             
                             return WrappedSkillResponse(
                                 success=True,

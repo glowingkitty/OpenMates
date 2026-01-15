@@ -258,6 +258,10 @@ step_4_top_content_svelte:
 
     function toggleQrCode() {
         showQrCode = !showQrCode;
+        // Hide secret code when showing QR code (mutually exclusive to avoid overlap)
+        if (showQrCode) {
+            showSecretCode = false;
+        }
         dispatch('actionClicked'); // Dispatch event
     }
 
@@ -269,6 +273,8 @@ step_4_top_content_svelte:
     async function copySecret() {
         if (!secret) return;
         
+        // Hide QR code when showing secret code (mutually exclusive to avoid overlap)
+        showQrCode = false;
         // Always show the secret code so user can manually copy if needed
         showSecretCode = true;
         dispatch('actionClicked'); // Dispatch event
@@ -314,11 +320,13 @@ step_4_top_content_svelte:
     </div>
     
     {#if !setupComplete}
-    <div class="prevent-access-text">
+    <!-- Hide prevent-access-text when showing secret code so user can see the key for manual copying -->
+    <div class="prevent-access-text" class:fade-out={showSecretCode}>
         {$text('signup.prevent_access.text')}
     </div>
     
-    <div class="features">
+    <!-- Hide features when showing secret code so user can see the key for manual copying -->
+    <div class="features" class:fade-out={showSecretCode}>
         <div class="feature">
             <div class="check-icon"></div>
             <span>{@html $text('signup.free.text')}</span>
@@ -334,11 +342,13 @@ step_4_top_content_svelte:
     </div>
     {:else} 
     <!-- This block executes when setup IS complete -->
-    <div class="prevent-access-text" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
+    <!-- Hide prevent-access-text when showing QR code OR secret code so user can see the relevant content -->
+    <div class="prevent-access-text" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
         {$text('signup.prevent_access.text')}
     </div>
     
-    <div class="features" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
+    <!-- Hide features when showing QR code OR secret code so user can see the relevant content -->
+    <div class="features" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
         <div class="feature">
             <div class="check-icon"></div>
             <span>{@html $text('signup.free.text')}</span>
@@ -451,12 +461,20 @@ step_4_top_content_svelte:
     .prevent-access-text {
         margin: 20px 0 20px 0;
         text-align: center;
-        transition: opacity 0.3s ease;
+        /* Transition all properties for smooth collapse animation */
+        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease;
+        max-height: 100px; /* Enough height for the text */
+        overflow: hidden;
     }
 
     .fade-out {
         opacity: 0;
         pointer-events: none;
+        /* Collapse the element so content below moves up */
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden;
     }
 
     .features {
@@ -464,7 +482,10 @@ step_4_top_content_svelte:
         gap: 32px;
         justify-content: center;
         align-items: flex-start;
-        transition: opacity 0.3s ease;
+        /* Transition all properties for smooth collapse animation */
+        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease, gap 0.3s ease;
+        max-height: 200px; /* Enough height for the features */
+        overflow: hidden;
     }
 
     .feature {
@@ -553,9 +574,7 @@ step_4_top_content_svelte:
     .qr-code {
         width: var(--qr-code-size);
         height: var(--qr-code-size);
-        position: absolute;
-        top: 50%;
-        transform: translateY(-28px);
+        transform: translateY(calc(var(--qr-code-size) * 0.53));
         z-index: 1;
         display: flex;
         justify-content: center;
@@ -605,7 +624,6 @@ step_4_top_content_svelte:
         gap: 8px;
         margin-top: 16px;
         padding: 16px;
-        background: var(--color-bg-secondary, #f5f5f5);
         border-radius: 8px;
         width: 100%;
         max-width: 320px;
@@ -626,10 +644,10 @@ step_4_top_content_svelte:
         font-weight: bold;
         letter-spacing: 1px;
         text-align: center;
-        background: var(--color-bg-primary, #fff);
-        border: 2px dashed var(--color-border, #ccc);
+        background: var(--color-grey-10);
+        border: 2px dashed var(--color-grey-50, #ccc);
         border-radius: 6px;
-        color: var(--color-text-primary, #333);
+        color: var(--color-grey-100);
         cursor: text;
         /* Allow text selection for manual copying */
         user-select: all;

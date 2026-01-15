@@ -1125,6 +1125,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # This flag is critical for determining if metadata (title, category, icon) should be generated
         logger.debug(f"Chat {chat_id} has_title flag from client: {chat_has_title_from_client}")
         
+        # Parse app settings/memories metadata from client
+        # Format: ["code-preferred_technologies", "travel-trips", ...]
+        # Client is the source of truth since only the client can decrypt this data
+        app_settings_memories_metadata_from_client = payload.get("app_settings_memories_metadata")
+        if app_settings_memories_metadata_from_client:
+            if isinstance(app_settings_memories_metadata_from_client, list):
+                logger.info(f"Received {len(app_settings_memories_metadata_from_client)} app settings/memories metadata keys from client: {app_settings_memories_metadata_from_client}")
+            else:
+                logger.warning(f"app_settings_memories_metadata is not a list: {type(app_settings_memories_metadata_from_client)}, ignoring")
+                app_settings_memories_metadata_from_client = None
+        
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
@@ -1139,7 +1150,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
-            user_preferences={}
+            user_preferences={},
+            app_settings_memories_metadata=app_settings_memories_metadata_from_client  # Client-provided metadata (source of truth)
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 

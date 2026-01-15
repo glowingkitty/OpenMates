@@ -64,12 +64,20 @@ async def handle_encrypted_chat_metadata(
         encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
         encrypted_chat_tags = payload.get("encrypted_chat_tags")
         encrypted_chat_key = payload.get("encrypted_chat_key")
+        # Explicit opt-in for key rotation (e.g., hidden chat hide/unhide flows).
+        # This prevents accidental chat key overwrites from misconfigured devices.
+        allow_chat_key_rotation = payload.get("allow_chat_key_rotation", False)
+        chat_key_rotation_reason = payload.get("chat_key_rotation_reason")
         created_at = payload.get("created_at")
         versions = payload.get("versions", {})
 
         # Log encrypted_chat_key status for debugging
         if encrypted_chat_key:
-            logger.info(f"✅ Received encrypted_chat_key for chat {chat_id}: {encrypted_chat_key[:20]}... (length: {len(encrypted_chat_key)})")
+            logger.info(
+                f"✅ Received encrypted_chat_key for chat {chat_id}: {encrypted_chat_key[:20]}... "
+                f"(length: {len(encrypted_chat_key)}), allow_rotation={allow_chat_key_rotation}, "
+                f"reason={chat_key_rotation_reason}"
+            )
         else:
             logger.warning(f"⚠️ No encrypted_chat_key in payload for chat {chat_id} - this will prevent decryption on other devices!")
 
@@ -94,11 +102,77 @@ async def handle_encrypted_chat_metadata(
             logger.warning("Removing plaintext content from encrypted metadata to enforce zero-knowledge architecture")
             payload = {k: v for k, v in payload.items() if k != "content"}
 
+        # ---------------------------------------------------------------------
+        # Chat key conflict detection (server-side guardrail)
+        # ---------------------------------------------------------------------
+        # If the chat already has an encrypted_chat_key, we must NOT broadcast a
+        # different key unless rotation is explicitly requested. This prevents
+        # a single device from corrupting the chat key across other devices.
+        existing_chat_key = None
+        if encrypted_chat_key and not allow_chat_key_rotation:
+            try:
+                cached_chat = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                if cached_chat and getattr(cached_chat, "encrypted_chat_key", None):
+                    existing_chat_key = cached_chat.encrypted_chat_key
+            except Exception as cache_error:
+                logger.warning(
+                    f"Failed to read cached chat key for chat {chat_id} (will fall back to Directus): {cache_error}",
+                    exc_info=True
+                )
+
+            if not existing_chat_key:
+                try:
+                    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                    if chat_metadata:
+                        existing_chat_key = chat_metadata.get("encrypted_chat_key")
+                except Exception as directus_error:
+                    logger.warning(
+                        f"Failed to read Directus chat key for chat {chat_id}: {directus_error}",
+                        exc_info=True
+                    )
+
+            if existing_chat_key and existing_chat_key != encrypted_chat_key:
+                logger.warning(
+                    f"[CHAT_KEY_GUARD] ⚠️ Incoming encrypted_chat_key for chat {chat_id} does not match existing key. "
+                    f"Blocking key broadcast to protect other devices. "
+                    f"(allow_chat_key_rotation=False)"
+                )
+                # Drop the incoming key from further processing to avoid broadcast corruption.
+                encrypted_chat_key = None
+
         # Store encrypted user message if provided
         # CRITICAL: Check if we have both message_id and encrypted_content
         if message_id:
             if encrypted_content:
-                logger.info(f"Storing encrypted user message {message_id} for chat {chat_id}")
+                # DIAGNOSTIC: Log encrypted content details for debugging sync/encryption issues
+                # This helps identify if the client is sending correctly encrypted content
+                import base64
+                is_valid_base64 = False
+                try:
+                    # Check if it's valid base64
+                    decoded = base64.b64decode(encrypted_content)
+                    is_valid_base64 = True
+                    # Client-encrypted content should have: 12-byte IV + ciphertext + 16-byte auth tag
+                    # Minimum length: 12 + 1 + 16 = 29 bytes (for 1-char plaintext)
+                    # Base64 of 29 bytes = ~40 chars minimum
+                    decoded_len = len(decoded)
+                    if decoded_len < 29:
+                        logger.warning(
+                            f"⚠️ [ENCRYPTION_VALIDATION] Message {message_id} encrypted_content is suspiciously short: "
+                            f"decoded_len={decoded_len} bytes (expected >= 29 bytes for AES-GCM). "
+                            f"This may indicate malformed encryption or wrong encryption method!"
+                        )
+                except Exception as decode_err:
+                    logger.error(
+                        f"❌ [ENCRYPTION_VALIDATION] Message {message_id} encrypted_content is NOT valid base64: {decode_err}. "
+                        f"Content preview: {encrypted_content[:50]}..."
+                    )
+                
+                logger.info(
+                    f"Storing encrypted user message {message_id} for chat {chat_id}. "
+                    f"encrypted_content_length={len(encrypted_content)}, is_valid_base64={is_valid_base64}, "
+                    f"content_preview={encrypted_content[:30]}..."
+                )
             else:
                 logger.warning(f"⚠️ Message ID {message_id} provided but encrypted_content is missing/null for chat {chat_id}! "
                              f"This means the user message will NOT be stored in Directus. Payload keys: {list(payload.keys())}")
@@ -147,6 +221,11 @@ async def handle_encrypted_chat_metadata(
             chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
         if encrypted_chat_key:
             chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
+            # Pass rotation intent to persistence task (these flags are stripped before Directus update).
+            if allow_chat_key_rotation:
+                chat_update_fields["allow_chat_key_rotation"] = True
+            if chat_key_rotation_reason:
+                chat_update_fields["chat_key_rotation_reason"] = chat_key_rotation_reason
         
         if chat_update_fields:
             logger.info(f"Storing encrypted chat metadata for chat {chat_id}: {list(chat_update_fields.keys())}")

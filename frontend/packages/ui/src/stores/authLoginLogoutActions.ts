@@ -16,6 +16,7 @@ import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId';
 import { phasedSyncState } from './phasedSyncStateStore';
+import { aiTypingStore } from './aiTypingStore';
 
 // Import core auth state and related flags
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
@@ -252,6 +253,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         isResettingTFA.set(false);
         needsDeviceVerification.set(false);
         phasedSyncState.reset(); // Reset phased sync state on logout
+        aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
         authStore.set({
             ...authInitialState,
             isInitialized: true

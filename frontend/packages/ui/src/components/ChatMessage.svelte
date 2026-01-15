@@ -2,11 +2,15 @@
   import type { SvelteComponent } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
+  import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text } from '@repo/ui'; // For translations
+  import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { appSkillsStore } from '../stores/appSkillsStore';
   
   // Define types for message content parts
   type AppCardData = {
@@ -29,6 +33,7 @@
 
   // All props using Svelte 5 runes mode (single $props() call)
   let { 
+    messageId = undefined,
     role = 'user',
     category = undefined,
     sender_name = undefined,
@@ -43,8 +48,13 @@
     full_content_length = 0,
     original_message = null,
     containerWidth = 0,
-    _embedUpdateTimestamp = 0
+    _embedUpdateTimestamp = 0,
+    appSettingsMemoriesResponse = undefined,
+    // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
+    thinkingContent = undefined,
+    isThinkingStreaming = false
   }: {
+    messageId?: string; // Message ID for loading app settings/memories action data
     role?: MessageRole;
     category?: string;
     sender_name?: string;
@@ -60,7 +70,35 @@
     original_message?: any;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
+    appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
+    // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
+    thinkingContent?: string; // Decrypted thinking content
+    isThinkingStreaming?: boolean; // Whether thinking is currently streaming
   } = $props();
+  
+  // State for thinking section expansion
+  let thinkingExpanded = $state(false);
+  
+  /**
+   * Get display name for an app settings/memories category.
+   * Loads from app metadata using appId and itemType.
+   * Returns the translated name if available, otherwise a formatted fallback.
+   */
+  function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
+    const app = appSkillsStore.apps[cat.appId];
+    if (app?.settings_and_memories) {
+      const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
+      if (category?.name_translation_key) {
+        // Use the translation key to get localized name
+        const translated = $text(category.name_translation_key);
+        if (translated && translated !== category.name_translation_key) {
+          return translated;
+        }
+      }
+    }
+    // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
+    return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
 
   // State for truncated message handling
   let showFullMessage = $state(false);
@@ -626,6 +664,15 @@
       {/if}
 
       <div class="chat-message-text">
+        <!-- Thinking Section: Displayed above message content for thinking models -->
+        {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
+          <ThinkingSection
+            thinkingContent={thinkingContent || ''}
+            isStreaming={isThinkingStreaming}
+            bind:isExpanded={thinkingExpanded}
+          />
+        {/if}
+        
         {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
               content={fullContent}
@@ -702,6 +749,31 @@
     {#if messageStatusText}
       <div class="message-status">
         {messageStatusText}
+      </div>
+    {/if}
+    
+    <!-- App Settings & Memories action summary (only for user messages) -->
+    <!-- This data comes from system messages stored in chat history and synced across devices -->
+    <!-- Display name and icon are loaded client-side from app metadata (not stored in message) -->
+    {#if role === 'user' && appSettingsMemoriesResponse}
+      <div class="app-settings-memories-summary">
+        {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
+          <span class="summary-label">{$text('chat.permissions.included_summary.text') || 'Included App settings & memories'}:</span>
+          <div class="summary-categories">
+            {#each appSettingsMemoriesResponse.categories as cat}
+              <span class="category-badge">
+                <Icon 
+                  name={cat.appId} 
+                  type="app" 
+                  size="22px"
+                />
+                <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
+              </span>
+            {/each}
+          </div>
+        {:else if appSettingsMemoriesResponse.action === 'rejected'}
+          <span class="summary-rejected">{$text('chat.permissions.rejected_summary.text') || 'Rejected App settings & memories request.'}</span>
+        {/if}
       </div>
     {/if}
   </div>
@@ -804,5 +876,58 @@
   .show-full-message-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+  
+  /* App Settings & Memories Summary Styles */
+  .app-settings-memories-summary {
+    margin-top: 8px;
+    padding: 0;
+    text-align: right;
+    font-size: 13px;
+    color: var(--color-grey-60);
+  }
+  
+  .summary-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  
+  .summary-categories {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  
+  .category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-grey-15, #f5f5f5);
+    border-radius: 12px;
+    padding: 4px 10px 4px 4px;
+  }
+  
+  .badge-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-font-primary, #000);
+  }
+  
+  .summary-rejected {
+    color: var(--color-grey-50);
+    font-style: italic;
+  }
+  
+  /* Dark mode support for app settings summary */
+  @media (prefers-color-scheme: dark) {
+    .category-badge {
+      background: var(--color-grey-25, #2a2a2a);
+    }
+    
+    .badge-text {
+      color: var(--color-font-primary, #fff);
+    }
   }
 </style>

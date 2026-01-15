@@ -20,6 +20,7 @@ from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, 
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
+from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -479,6 +480,67 @@ async def _charge_skill_credits(
         # Don't raise - billing failure shouldn't break skill execution
 
 
+def _convert_timestamps_to_human_readable(value: Any) -> Any:
+    """
+    Recursively converts Unix timestamps in app settings/memories data to human-readable date strings.
+    
+    CRITICAL: LLMs cannot reliably interpret raw Unix timestamps (e.g., 1768390180).
+    They may hallucinate incorrect years, especially for dates outside their training data.
+    Converting timestamps to human-readable format (e.g., "January 14, 2026") ensures
+    the LLM correctly understands when settings/memories were created.
+    
+    Detects timestamps by:
+    1. Looking for keys containing 'date', 'time', 'created', 'updated', 'added', '_at' (case-insensitive)
+    2. Checking if the value is an integer in a reasonable Unix timestamp range (2010-2100)
+    
+    Args:
+        value: The value to process (can be dict, list, or primitive)
+    
+    Returns:
+        The processed value with timestamps converted to readable strings
+    """
+    # Define timestamp field name patterns (case-insensitive)
+    TIMESTAMP_PATTERNS = ('date', 'time', 'created', 'updated', 'added', '_at')
+    
+    # Unix timestamp range: 2010-01-01 to 2100-01-01 (to avoid false positives)
+    MIN_TIMESTAMP = 1262304000  # 2010-01-01 00:00:00 UTC
+    MAX_TIMESTAMP = 4102444800  # 2100-01-01 00:00:00 UTC
+    
+    def is_likely_timestamp(key: str, val: Any) -> bool:
+        """Check if a field is likely a Unix timestamp based on key name and value."""
+        if not isinstance(val, (int, float)):
+            return False
+        key_lower = key.lower()
+        # Check if key matches any timestamp pattern
+        if any(pattern in key_lower for pattern in TIMESTAMP_PATTERNS):
+            # Check if value is in valid Unix timestamp range
+            return MIN_TIMESTAMP <= val <= MAX_TIMESTAMP
+        return False
+    
+    def timestamp_to_readable(timestamp: int) -> str:
+        """Convert Unix timestamp to human-readable date string."""
+        try:
+            dt = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+            # Format: "January 14, 2026" - clear and unambiguous
+            return dt.strftime("%B %d, %Y")
+        except Exception:
+            # If conversion fails, return original value as string
+            return str(timestamp)
+    
+    if isinstance(value, dict):
+        processed = {}
+        for k, v in value.items():
+            if is_likely_timestamp(k, v):
+                processed[k] = timestamp_to_readable(int(v))
+            else:
+                processed[k] = _convert_timestamps_to_human_readable(v)
+        return processed
+    elif isinstance(value, list):
+        return [_convert_timestamps_to_human_readable(item) for item in value]
+    else:
+        return value
+
+
 async def handle_main_processing(
     task_id: str,
     request_data: AskSkillRequest,
@@ -500,11 +562,59 @@ async def handle_main_processing(
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
     
+    # --- Auto-reject any pending app settings/memories request for this chat ---
+    # If user sends a new message without responding to the permission dialog,
+    # we auto-interpret this as a rejection of the previous request.
+    # This ensures we only process the NEW message, not both.
+    if cache_service:
+        try:
+            pending_context = await cache_service.get_pending_app_settings_memories_request(request_data.chat_id)
+            if pending_context:
+                old_request_id = pending_context.get("request_id", "unknown")
+                old_message_id = pending_context.get("message_id", "unknown")
+                logger.info(
+                    f"{log_prefix} Found pending app settings/memories request {old_request_id} for message {old_message_id}. "
+                    f"User sent new message - auto-rejecting previous request."
+                )
+                
+                # Delete the pending context (auto-reject)
+                await cache_service.delete_pending_app_settings_memories_request(request_data.chat_id)
+                
+                # Notify client to dismiss the permission dialog
+                # Use Redis pub/sub to send to WebSocket
+                try:
+                    # Note: json is imported at module level, don't re-import locally as it shadows the global import
+                    redis_client = await cache_service.client
+                    if redis_client:
+                        channel = f"user_cache_events:{request_data.user_id}"
+                        pubsub_message = {
+                            "event_type": "dismiss_app_settings_memories_dialog",
+                            "payload": {
+                                "chat_id": request_data.chat_id,
+                                "request_id": old_request_id,
+                                "reason": "new_message_sent",
+                                "message_id": old_message_id  # The original message that triggered the request
+                            }
+                        }
+                        await redis_client.publish(channel, json.dumps(pubsub_message))
+                        logger.info(f"{log_prefix} Sent dismiss_app_settings_memories_dialog event to client")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to notify client about auto-rejection: {e}")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error checking/auto-rejecting pending request: {e}", exc_info=True)
+    
     # --- Request app settings/memories from client (zero-knowledge architecture) ---
     # The server NEVER decrypts app settings/memories - client decrypts using crypto API
     # App settings/memories are stored in cache (similar to embeds) when client confirms
     # Cache key format: app_settings_memories:{user_id}:{app_id}:{item_key}
     # This is more efficient than extracting from YAML in chat history
+    #
+    # IMPORTANT: If app settings/memories are needed but not in cache:
+    # - Server sends request to client via WebSocket
+    # - Task COMPLETES immediately (no LLM processing)
+    # - Client shows permission dialog to user
+    # - Once user confirms/rejects, client sends data back
+    # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         try:
@@ -526,7 +636,34 @@ async def handle_main_processing(
             
             if cached_data:
                 logger.info(f"{log_prefix} Found {len(cached_data)} app settings/memories entries in cache")
-                loaded_app_settings_and_memories_content = cached_data
+                
+                # IMPORTANT: Decrypt the vault-encrypted content before passing to LLM
+                # The cache stores: {"app_id": ..., "item_key": ..., "content": "<encrypted>", "cached_at": ...}
+                # We need to decrypt "content" and pass only the decrypted content to the LLM
+                for key, cache_entry in cached_data.items():
+                    try:
+                        encrypted_content = cache_entry.get("content")
+                        if encrypted_content and user_vault_key_id and encryption_service:
+                            # Decrypt the vault-encrypted content
+                            decrypted_content = await encryption_service.decrypt_with_user_key(
+                                ciphertext=encrypted_content,
+                                key_id=user_vault_key_id
+                            )
+                            if decrypted_content:
+                                # Try to parse as JSON (content might be serialized JSON)
+                                try:
+                                    loaded_app_settings_and_memories_content[key] = json.loads(decrypted_content)
+                                except json.JSONDecodeError:
+                                    # If not JSON, use as plain string
+                                    loaded_app_settings_and_memories_content[key] = decrypted_content
+                                logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key}")
+                            else:
+                                logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
+                        else:
+                            # If no encryption service or vault key, log warning
+                            logger.warning(f"{log_prefix} Cannot decrypt app settings/memories for {key} - missing encryption_service or user_vault_key_id")
+                    except Exception as decrypt_error:
+                        logger.error(f"{log_prefix} Error decrypting app settings/memories for {key}: {decrypt_error}", exc_info=True)
             
             # Check if we need to create a new request for missing keys
             missing_keys = [key for key in requested_keys if key not in cached_data]
@@ -543,19 +680,63 @@ async def handle_main_processing(
                     cache_service=cache_service,
                     connection_manager=None,  # Celery tasks run in separate processes, can't access WebSocket manager directly
                     user_id=request_data.user_id,
-                    device_fingerprint_hash=None  # Will use first available device connection
+                    device_fingerprint_hash=None,  # Will use first available device connection
+                    message_id=request_data.message_id  # User message that triggered this request (for UI display)
                 )
                 
                 if request_id:
-                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - client will respond when ready (may be hours/days later)")
+                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - storing pending context and returning")
+                    # IMPORTANT: Store the pending request context so we can re-trigger processing
+                    # when user confirms or rejects. The confirmation/rejection acts as a trigger
+                    # for a NEW AI processing pass - not a continuation of this task.
+                    #
+                    # Flow:
+                    # 1. This task completes (no LLM response)
+                    # 2. Client shows permission dialog
+                    # 3. User confirms/rejects (could be seconds or hours later)
+                    # 4. Server receives confirmation → triggers NEW ask_skill task
+                    # 5. New task finds data in cache (if confirmed) → normal LLM response
+                    #
+                    # NOTE: We only store minimal context here - NOT the message_history!
+                    # The chat history is already cached on the server (recent chat).
+                    # When continuing, we retrieve the chat from cache.
+                    try:
+                        # Store MINIMAL context needed to re-trigger processing
+                        # Do NOT store message_history - it's already in the chat cache
+                        pending_context = {
+                            "request_id": request_id,
+                            "chat_id": request_data.chat_id,
+                            "message_id": request_data.message_id,
+                            "user_id": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "mate_id": request_data.mate_id,
+                            "active_focus_id": request_data.active_focus_id,
+                            "chat_has_title": request_data.chat_has_title,
+                            "is_incognito": request_data.is_incognito,
+                            "requested_keys": missing_keys,  # Keys that were requested
+                            "task_id": task_id,
+                        }
+                        await cache_service.store_pending_app_settings_memories_request(
+                            chat_id=request_data.chat_id,
+                            context=pending_context,
+                            ttl=86400 * 7  # 7 days - user can confirm/reject within a week
+                        )
+                        logger.info(f"{log_prefix} Stored pending context for request {request_id}")
+                    except Exception as e:
+                        logger.error(f"{log_prefix} Failed to store pending context: {e}", exc_info=True)
+                        # Continue without storing - user will need to send a new message
+                    
+                    # CRITICAL: Yield a special marker to signal that we're awaiting user permission.
+                    # The stream_consumer.py will detect this marker and NOT send an error message.
+                    # Without this marker, the empty stream would be treated as an error.
+                    yield {"__awaiting_app_settings_memories_permission__": True, "request_id": request_id}
+                    
+                    # Return early - task complete, no LLM response
+                    return
                 else:
-                    logger.warning(f"{log_prefix} Failed to create app settings/memories request message")
+                    logger.warning(f"{log_prefix} Failed to create app settings/memories request message - continuing without app settings/memories")
             else:
                 logger.info(f"{log_prefix} All requested app settings/memories keys found in cache")
-            
-            # Continue processing immediately (no waiting)
-            # If data is missing, the conversation continues without it
-            # User can respond hours/days later, and the data will be available for the next message
             
         except Exception as e:
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
@@ -674,7 +855,11 @@ async def handle_main_processing(
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
-            value_str = json.dumps(value) if not isinstance(value, str) else value
+            # CRITICAL: Convert Unix timestamps to human-readable date strings
+            # LLMs hallucinate dates when given raw timestamps (e.g., may say "added in 2024" for 2026 timestamps)
+            # This ensures dates like "added_date" are formatted as "January 14, 2026" instead of 1768390180
+            processed_value = _convert_timestamps_to_human_readable(value)
+            value_str = json.dumps(processed_value) if not isinstance(processed_value, str) else processed_value
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 
@@ -747,6 +932,69 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     )
+    
+    # --- Add focus mode tools if relevant ---
+    # Focus modes are treated as special system tools that change the AI's behavior
+    # activate_focus_mode: only when relevant focus modes exist AND no focus mode is active
+    # deactivate_focus_mode: only when a focus mode is currently active
+    
+    relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
+    has_active_focus_mode = bool(request_data.active_focus_id)
+    
+    if relevant_focus_modes and not has_active_focus_mode:
+        # Build enum and descriptions for activate_focus_mode tool
+        focus_mode_descriptions = []
+        for focus_id in relevant_focus_modes:
+            try:
+                app_id, mode_id = focus_id.split('-', 1)
+                app_metadata = discovered_apps_metadata.get(app_id)
+                if app_metadata and app_metadata.focuses:
+                    for focus in app_metadata.focuses:
+                        if focus.id == mode_id:
+                            # Get translated description
+                            description = translation_service.get_translation(focus.description_translation_key) or focus.description_translation_key
+                            focus_mode_descriptions.append(f"- {focus_id}: {description}")
+                            break
+            except Exception as e:
+                logger.warning(f"{log_prefix} Error building description for focus mode {focus_id}: {e}")
+        
+        activate_tool = {
+            "type": "function",
+            "function": {
+                "name": "system-activate_focus_mode",
+                "description": "Activate a focus mode to specialize the assistant's behavior for a specific task. Focus modes provide specialized instructions that help with particular types of requests.\n\nAvailable focus modes:\n" + "\n".join(focus_mode_descriptions) if focus_mode_descriptions else "Activate a focus mode to specialize the assistant's behavior.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "focus_id": {
+                            "type": "string",
+                            "description": "The focus mode to activate (format: app_id-focus_id)",
+                            "enum": relevant_focus_modes
+                        }
+                    },
+                    "required": ["focus_id"]
+                }
+            }
+        }
+        available_tools_for_llm.append(activate_tool)
+        logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
+    
+    if has_active_focus_mode:
+        # Add deactivate tool when a focus mode is active
+        deactivate_tool = {
+            "type": "function",
+            "function": {
+                "name": "system-deactivate_focus_mode",
+                "description": f"Deactivate the current focus mode ({request_data.active_focus_id}) and return to normal assistant behavior. Use this when the user no longer needs the specialized focus mode or asks to exit it.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        }
+        available_tools_for_llm.append(deactivate_tool)
+        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
@@ -911,8 +1159,16 @@ async def handle_main_processing(
                                     else:
                                         request_metadata["provider"] = "Brave Search"
                                 
-                                # Add request ID for later matching (use id if present, otherwise use index)
-                                request_id = request.get("id", request_idx)
+                                # Add request ID for later matching
+                                # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
+                                # This ensures consistency between placeholder creation here and
+                                # skill execution in base_skill.py which respects provided IDs
+                                # LLMs may provide 0-indexed or arbitrary IDs despite schema instructions,
+                                # so we enforce our own ID scheme for reliable matching
+                                request_id = request_idx + 1
+                                # SET the ID in the request dict so skill receives our auto-generated ID
+                                # This overwrites any LLM-provided ID in the request
+                                request["id"] = request_id
                                 # Normalize to string for consistent matching (handles int/str mismatches)
                                 request_id_normalized = str(request_id)
                                 request_metadata["request_id"] = request_id
@@ -1066,6 +1322,27 @@ async def handle_main_processing(
                     # Don't fail the stream processing if inline placeholder creation fails
                     logger.error(f"{log_prefix} INLINE: Error creating placeholder during stream: {e}", exc_info=True)
                 
+            elif isinstance(chunk, UnifiedStreamChunk):
+                # Handle thinking/reasoning content from models like Gemini 3 Pro
+                # These chunks contain the model's internal reasoning process
+                # Pass them through to stream_consumer which will publish to thinking Redis channel
+                if chunk.type == StreamChunkType.THINKING:
+                    # Thinking content - yield through for stream_consumer to handle
+                    logger.debug(f"{log_prefix} Yielding thinking chunk ({len(chunk.content or '')} chars)")
+                    yield chunk
+                elif chunk.type == StreamChunkType.THINKING_SIGNATURE:
+                    # Thinking signature - yield through for storage
+                    logger.debug(f"{log_prefix} Yielding thinking signature")
+                    yield chunk
+                elif chunk.type == StreamChunkType.TEXT:
+                    # Text content wrapped in UnifiedStreamChunk - extract and yield as string
+                    llm_turn_had_content = True
+                    if chunk.content:
+                        yield chunk.content
+                        if tool_calls_for_this_turn:
+                            current_turn_text_buffer.append(chunk.content)
+                else:
+                    logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
                 llm_turn_had_content = True
                 # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
@@ -1086,7 +1363,18 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
         assistant_message_content_for_history = final_buffered_text_for_turn
-        assistant_message_tool_calls_formatted = [{"id": tc.tool_call_id, "type": "function", "function": {"name": tc.function_name, "arguments": tc.function_arguments_raw}} for tc in tool_calls_for_this_turn]
+        # Format tool calls for message history
+        # CRITICAL: Include thought_signature for Gemini 3 thinking models - required for multi-turn function calling
+        assistant_message_tool_calls_formatted = [
+            {
+                "id": tc.tool_call_id,
+                "type": "function",
+                "function": {"name": tc.function_name, "arguments": tc.function_arguments_raw},
+                # Include thought_signature if present (for Gemini 3 thinking models)
+                **({"thought_signature": tc.thought_signature} if hasattr(tc, 'thought_signature') and tc.thought_signature else {})
+            }
+            for tc in tool_calls_for_this_turn
+        ]
         assistant_message: Dict[str, Any] = {"role": "assistant", "content": assistant_message_content_for_history or None, "tool_calls": assistant_message_tool_calls_formatted}
         current_message_history.append(assistant_message)
 
@@ -1137,6 +1425,147 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                
+                # --- Handle system tools (focus mode activation/deactivation) ---
+                # System tools are special tools that modify the chat state rather than executing skills
+                # They use app_id="system" to distinguish from regular app skills
+                if app_id == "system":
+                    if skill_id == "activate_focus_mode":
+                        focus_id = parsed_args.get("focus_id")
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Activating focus mode: {focus_id}")
+                        
+                        # Update active_focus_id in request_data for this processing session
+                        request_data.active_focus_id = focus_id
+                        
+                        # Update cache with encrypted focus_id
+                        # The focus_id needs to be encrypted with the server-side encryption (vault key)
+                        encrypted_focus_id = None
+                        if cache_service and encryption_service:
+                            try:
+                                encrypted_focus_id = encryption_service.encrypt(focus_id)
+                                await cache_service.update_chat_active_focus_id(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                    encrypted_focus_id=encrypted_focus_id
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Updated cache with encrypted focus_id")
+                                
+                                # Dispatch Celery task to persist to Directus
+                                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                                celery_app_instance.send_task(
+                                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                                    kwargs={
+                                        "chat_id": request_data.chat_id,
+                                        "encrypted_active_focus_id": encrypted_focus_id
+                                    },
+                                    queue='persistence'
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to persist focus_id to Directus")
+                            except Exception as cache_error:
+                                logger.error(f"{log_prefix} [FOCUS_MODE] Error updating cache: {cache_error}", exc_info=True)
+                        
+                        tool_result_content_str = json.dumps({
+                            "status": "activated",
+                            "focus_id": focus_id,
+                            "message": f"Focus mode '{focus_id}' has been activated. The system will now restart with specialized instructions for this focus mode."
+                        })
+                        
+                        # Add tool response to history
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        
+                        # Signal restart needed - break out of tool processing and restart main loop
+                        # The restart will rebuild the system prompt with the focus mode instructions
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Restart required - will rebuild system prompt with focus mode '{focus_id}'")
+                        
+                        # Update the full_system_prompt with focus mode for restart
+                        # Find and load the focus mode prompt
+                        try:
+                            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+                            app_metadata_for_focus = discovered_apps_metadata.get(focus_app_id)
+                            if app_metadata_for_focus and app_metadata_for_focus.focuses:
+                                for focus_def in app_metadata_for_focus.focuses:
+                                    if focus_def.id == focus_mode_id:
+                                        focus_prompt = focus_def.systemprompt
+                                        if focus_prompt:
+                                            # Prepend focus mode prompt to system prompt
+                                            full_system_prompt = f"--- Active Focus: {focus_id} ---\n{focus_prompt}\n--- End Active Focus ---\n\n{full_system_prompt}"
+                                            logger.info(f"{log_prefix} [FOCUS_MODE] Injected focus mode prompt ({len(focus_prompt)} chars) into system prompt")
+                                        break
+                        except Exception as e:
+                            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus mode prompt: {e}", exc_info=True)
+                        
+                        # Continue to next iteration with updated system prompt
+                        # The tool call was handled, continue processing
+                        continue
+                        
+                    elif skill_id == "deactivate_focus_mode":
+                        previous_focus_id = request_data.active_focus_id
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
+                        
+                        # Clear active_focus_id
+                        request_data.active_focus_id = None
+                        
+                        # Clear focus_id in cache and Directus
+                        if cache_service:
+                            try:
+                                await cache_service.update_chat_active_focus_id(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                    encrypted_focus_id=None  # Clear the field
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Cleared focus_id from cache")
+                                
+                                # Dispatch Celery task to clear in Directus
+                                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                                celery_app_instance.send_task(
+                                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                                    kwargs={
+                                        "chat_id": request_data.chat_id,
+                                        "encrypted_active_focus_id": None  # Clear the field
+                                    },
+                                    queue='persistence'
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to clear focus_id in Directus")
+                            except Exception as cache_error:
+                                logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
+                        
+                        tool_result_content_str = json.dumps({
+                            "status": "deactivated",
+                            "previous_focus_id": previous_focus_id,
+                            "message": f"Focus mode '{previous_focus_id}' has been deactivated. Returning to normal assistant behavior."
+                        })
+                        
+                        # Add tool response to history
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        
+                        # Remove focus mode from system prompt by rebuilding without it
+                        # For simplicity, we'll continue with the current prompt
+                        # The focus mode instructions will no longer apply to this response
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
+                        continue
+                    else:
+                        logger.warning(f"{log_prefix} Unknown system tool: {skill_id}")
+                        tool_result_content_str = json.dumps({"error": f"Unknown system tool: {skill_id}"})
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        continue
                 
                 # Validate arguments against original schema (with min/max constraints)
                 # The schema sent to LLM providers has min/max removed, but we validate against the original
@@ -1319,6 +1748,58 @@ async def handle_main_processing(
                                 )
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error publishing cancelled status: {status_error}")
+                except Exception as skill_error:
+                    # CRITICAL: Handle skill execution failures gracefully
+                    # When a skill fails (HTTP error, timeout, rate limit, etc.), we:
+                    # 1. Create an error result that tells the LLM the skill failed
+                    # 2. Update the embed status to "error" so frontend shows failure
+                    # 3. Continue processing - don't crash the entire AI response
+                    # This allows the LLM to interpret results from successful skills
+                    # and provide a meaningful response even when some skills fail.
+                    error_message = str(skill_error)
+                    logger.warning(
+                        f"{log_prefix} Skill '{app_id}.{skill_id}' failed with error: {error_message}. "
+                        f"Main processing will continue with error result for LLM."
+                    )
+                    
+                    # Create error result that tells the LLM the skill failed
+                    # This allows the LLM to acknowledge the failure and continue with other results
+                    results = [{
+                        "status": "error",
+                        "error": error_message,
+                        "message": f"The {skill_id} skill failed: {error_message}. Please continue with any other available information.",
+                        "app_id": app_id,
+                        "skill_id": skill_id
+                    }]
+                    
+                    # Update embed status to "error" so frontend shows failure state
+                    if cache_service and placeholder_embed_data:
+                        try:
+                            embed_id = placeholder_embed_data.get("embed_id")
+                            if embed_id:
+                                # Use embed_service to properly update the embed status
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service
+                                )
+                                await embed_service.update_embed_status_to_error(
+                                    embed_id=embed_id,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    error_message=error_message,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
+                        except Exception as status_error:
+                            logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
 
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return
@@ -1595,6 +2076,13 @@ async def handle_main_processing(
                                 if isinstance(req, dict) and "id" in req:
                                     request_metadata_map[req["id"]] = req
                             
+                            # Log all grouped_result request_ids for debugging ID mismatches
+                            grouped_result_ids = [str(gr.get("id")) for gr in grouped_results]
+                            logger.info(
+                                f"{log_prefix} Processing {len(grouped_results)} grouped results. "
+                                f"Result request IDs: {grouped_result_ids}, Placeholder request IDs: {list(placeholder_embeds_map.keys())}"
+                            )
+                            
                             for grouped_result in grouped_results:
                                 request_id = grouped_result.get("id")
                                 request_results = grouped_result.get("results", [])
@@ -1604,7 +2092,7 @@ async def handle_main_processing(
                                 
                                 logger.debug(
                                     f"{log_prefix} Processing grouped result: request_id={request_id} (key={request_id_key}), "
-                                    f"result_count={len(request_results)}"
+                                    f"result_count={len(request_results)}, has_error={bool(grouped_result.get('error'))}"
                                 )
                                 
                                 # Get request metadata (query, url, etc.) for this specific request
@@ -1630,7 +2118,8 @@ async def handle_main_processing(
                                         # Update existing placeholder to error status
                                         placeholder_embed_id = matching_placeholder.get("embed_id")
                                         logger.info(
-                                            f"{log_prefix} Updating placeholder {placeholder_embed_id} to error status for failed request {request_id}"
+                                            f"{log_prefix} Found matching placeholder for failed request {request_id}: "
+                                            f"embed_id={placeholder_embed_id}, key={request_id_key}"
                                         )
                                         try:
                                             updated_error_embed = await embed_service.update_embed_status_to_error(
@@ -1649,9 +2138,13 @@ async def handle_main_processing(
                                             
                                             if updated_error_embed:
                                                 # Generate embed_reference for the error embed
+                                                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                                                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                                                 updated_error_embed["embed_reference"] = json.dumps({
                                                     "type": "app_skill_use",
-                                                    "embed_id": placeholder_embed_id
+                                                    "embed_id": placeholder_embed_id,
+                                                    "app_id": app_id,
+                                                    "skill_id": skill_id
                                                 })
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -1665,8 +2158,10 @@ async def handle_main_processing(
                                             )
                                     else:
                                         # No placeholder found - create new error embed
+                                        # This may indicate a request_id mismatch between placeholder creation and skill result
                                         logger.warning(
-                                            f"{log_prefix} No placeholder found for request {request_id}, creating new error embed"
+                                            f"{log_prefix} No placeholder found for failed request {request_id} (key={request_id_key}). "
+                                            f"Available placeholder keys: {list(placeholder_embeds_map.keys())}. Creating new error embed."
                                         )
                                         error_embed_data = await embed_service.create_processing_embed_placeholder(
                                             app_id=app_id,
@@ -1731,9 +2226,13 @@ async def handle_main_processing(
                                         # Generate embed_reference for the updated embed (same embed_id, so same reference)
                                         # Note: Placeholder embeds were already yielded at creation time (line ~949)
                                         # Mark as "from_placeholder" so we don't yield duplicates later
+                                        # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                                        # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                                         updated_embed_data["embed_reference"] = json.dumps({
                                             "type": "app_skill_use",
-                                            "embed_id": placeholder_embed_id
+                                            "embed_id": placeholder_embed_id,
+                                            "app_id": app_id,
+                                            "skill_id": skill_id
                                         })
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata
@@ -1798,57 +2297,106 @@ async def handle_main_processing(
                         else:
                             # Single request: Update the existing placeholder embed
                             if placeholder_embed_data:
-                                # Extract metadata from parsed_args for single request
-                                # This preserves input parameters (query, url, provider, etc.) in the embed
-                                single_request_metadata = {}
-                                if parsed_args and isinstance(parsed_args, dict):
-                                    # Copy all input parameters except internal fields
-                                    for key, value in parsed_args.items():
-                                        if key not in ['requests']:  # Skip requests array for single request
-                                            single_request_metadata[key] = value
-                                    
-                                    # If we have a requests array with one item, extract from that
-                                    if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
-                                        first_request = parsed_args["requests"][0]
-                                        if isinstance(first_request, dict):
-                                            # Copy all fields from the first request
-                                            for key, value in first_request.items():
-                                                if key != "id":  # Skip id field
-                                                    single_request_metadata[key] = value
-                                
-                                # Add provider fallback for search skills
-                                if "provider" not in single_request_metadata and skill_id == "search":
-                                    if app_id == "maps":
-                                        single_request_metadata["provider"] = "Google Maps"
-                                    else:
-                                        single_request_metadata["provider"] = "Brave Search"
-                                
-                                # DEBUG: Log what's being passed to update_embed_with_results
-                                if results and len(results) > 0:
-                                    first_result = results[0]
-                                    logger.info(
-                                        f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
-                                        f"results[0] keys: {list(first_result.keys())}, "
-                                        f"has_thumbnail={'thumbnail' in first_result}, "
-                                        f"has_meta_url={'meta_url' in first_result}, "
-                                        f"thumbnail={first_result.get('thumbnail')}, "
-                                        f"meta_url={first_result.get('meta_url')}"
+                                # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
+                                # because is_multiple_requests was False (e.g., skill returned non-grouped results)
+                                # In this case, we need to update each placeholder with the same results
+                                if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple"):
+                                    # Multiple placeholders exist but results aren't grouped - update all with combined results
+                                    placeholders_list = placeholder_embed_data.get("placeholders", [])
+                                    logger.warning(
+                                        f"{log_prefix} Multiple placeholders ({len(placeholders_list)}) but results not grouped. "
+                                        f"Will update each placeholder with combined results."
                                     )
-                                
-                                updated_embed_data = await embed_service.update_embed_with_results(
-                                    embed_id=placeholder_embed_data.get('embed_id'),
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    results=results,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix,
-                                    request_metadata=single_request_metadata
-                                )
+                                    
+                                    for idx, placeholder in enumerate(placeholders_list):
+                                        embed_id = placeholder.get("embed_id")
+                                        if not embed_id:
+                                            continue
+                                        
+                                        # Use placeholder's request_metadata if available
+                                        placeholder_metadata = {
+                                            "query": placeholder.get("query"),
+                                            "provider": placeholder.get("provider", "Brave Search" if skill_id == "search" and app_id != "maps" else None)
+                                        }
+                                        # Filter out None values
+                                        placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
+                                        
+                                        updated_embed_data = await embed_service.update_embed_with_results(
+                                            embed_id=embed_id,
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            results=results,  # Same results for all placeholders
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            log_prefix=f"{log_prefix}[placeholder_{idx}]",
+                                            request_metadata=placeholder_metadata
+                                        )
+                                        
+                                        if updated_embed_data:
+                                            updated_embed_data_list.append(updated_embed_data)
+                                            logger.info(
+                                                f"{log_prefix} Updated placeholder {idx}/{len(placeholders_list)} "
+                                                f"(embed_id={embed_id}) with combined results"
+                                            )
+                                else:
+                                    # Standard single placeholder - extract its embed_id directly
+                                    single_embed_id = placeholder_embed_data.get('embed_id')
+                                    
+                                    # Extract metadata from parsed_args for single request
+                                    # This preserves input parameters (query, url, provider, etc.) in the embed
+                                    single_request_metadata = {}
+                                    if parsed_args and isinstance(parsed_args, dict):
+                                        # Copy all input parameters except internal fields
+                                        for key, value in parsed_args.items():
+                                            if key not in ['requests']:  # Skip requests array for single request
+                                                single_request_metadata[key] = value
+                                        
+                                        # If we have a requests array with one item, extract from that
+                                        if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                                            first_request = parsed_args["requests"][0]
+                                            if isinstance(first_request, dict):
+                                                # Copy all fields from the first request
+                                                for key, value in first_request.items():
+                                                    if key != "id":  # Skip id field
+                                                        single_request_metadata[key] = value
+                                    
+                                    # Add provider fallback for search skills
+                                    if "provider" not in single_request_metadata and skill_id == "search":
+                                        if app_id == "maps":
+                                            single_request_metadata["provider"] = "Google Maps"
+                                        else:
+                                            single_request_metadata["provider"] = "Brave Search"
+                                    
+                                    # DEBUG: Log what's being passed to update_embed_with_results
+                                    if results and len(results) > 0:
+                                        first_result = results[0]
+                                        logger.info(
+                                            f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                            f"results[0] keys: {list(first_result.keys())}, "
+                                            f"has_thumbnail={'thumbnail' in first_result}, "
+                                            f"has_meta_url={'meta_url' in first_result}, "
+                                            f"thumbnail={first_result.get('thumbnail')}, "
+                                            f"meta_url={first_result.get('meta_url')}"
+                                        )
+                                    
+                                    updated_embed_data = await embed_service.update_embed_with_results(
+                                        embed_id=single_embed_id,
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        results=results,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix,
+                                        request_metadata=single_request_metadata
+                                    )
 
                                 if updated_embed_data:
                                     updated_embed_data_list.append(updated_embed_data)

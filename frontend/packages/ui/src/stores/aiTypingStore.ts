@@ -7,7 +7,7 @@ export interface AITypingStatus {
     providerName?: string | null; // Added field for the AI provider name
     chatId: string | null;
     userMessageId: string | null; // The user message that triggered the AI
-    aiMessageId: string | null; // The AI's message (task_id)
+    aiMessageId: string | null; // The AI's message UUID (set from payload.message_id in ai_typing_started)
     icon_names?: string[]; // Added field for Lucide icon names
 }
 
@@ -46,6 +46,21 @@ export const aiTypingStore = {
             }
             console.debug(`[aiTypingStore] NOT clearing typing - current: ${current.chatId}/${current.aiMessageId}, requested: ${chatId}/${aiMessageId}`);
             return current; // Don't clear if different chat or message
+        });
+    },
+    /**
+     * Clear typing for a specific chat ID regardless of aiMessageId.
+     * Used when cancelling tasks where we only have task_id, not message_id.
+     * @param chatId - The chat ID to clear typing for
+     */
+    clearTypingForChat: (chatId: string) => {
+        store.update(current => {
+            if (current.chatId === chatId) {
+                console.debug(`[aiTypingStore] Clearing typing for chat ${chatId} (any message)`);
+                return { ...initialTypingStatus };
+            }
+            console.debug(`[aiTypingStore] NOT clearing typing - current chatId: ${current.chatId}, requested: ${chatId}`);
+            return current; // Don't clear if different chat
         });
     },
     reset: () => {

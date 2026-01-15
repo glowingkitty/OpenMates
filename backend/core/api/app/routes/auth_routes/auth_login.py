@@ -417,6 +417,38 @@ async def login(
             
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
+            
+            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+            # This prevents users from getting stuck in signup flow after login when
+            # signupStore data (email, username) is no longer available.
+            # 
+            # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+            # - basics, confirm-email, secure-account, password
+            # 
+            # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+            # credits, payment, auto-top-up) as users may legitimately need to complete them.
+            early_signup_steps = [
+                "/signup/basics", "#signup/basics",
+                "/signup/confirm-email", "#signup/confirm-email",
+                "/signup/secure-account", "#signup/secure-account",
+                "/signup/password", "#signup/password",
+            ]
+            if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
+                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-welcome' after login.")
+                last_opened_path = "demo-welcome"
+                # Update Directus and cache with the new last_opened value
+                try:
+                    update_success = await directus_service.update_user(user_id, {"last_opened": last_opened_path})
+                    if update_success:
+                        await cache_service.update_user(user_id, {"last_opened": last_opened_path})
+                        user_profile["last_opened"] = last_opened_path
+                        logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                    else:
+                        logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                except Exception as e:
+                    logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                    # Don't fail the login - just log the error
+            
             if user_id:
                 cache_primed = await cache_service.is_user_cache_primed(user_id)
                 if not cache_primed:
@@ -601,6 +633,38 @@ async def login(
 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
+                
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # This prevents users from getting stuck in signup flow after OTP login when
+                # signupStore data (email, username) is no longer available.
+                # 
+                # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+                # - basics, confirm-email, secure-account, password
+                # 
+                # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+                # credits, payment, auto-top-up) as users may legitimately need to complete them.
+                early_signup_steps = [
+                    "/signup/basics", "#signup/basics",
+                    "/signup/confirm-email", "#signup/confirm-email",
+                    "/signup/secure-account", "#signup/secure-account",
+                    "/signup/password", "#signup/password",
+                ]
+                if last_opened_path_otp and any(last_opened_path_otp.startswith(step) for step in early_signup_steps):
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-welcome' after OTP login.")
+                    last_opened_path_otp = "demo-welcome"
+                    # Update Directus and cache with the new last_opened value
+                    try:
+                        update_success = await directus_service.update_user(user_id, {"last_opened": last_opened_path_otp})
+                        if update_success:
+                            await cache_service.update_user(user_id, {"last_opened": last_opened_path_otp})
+                            user_profile["last_opened"] = last_opened_path_otp
+                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                    except Exception as e:
+                        logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                        # Don't fail the login - just log the error
+                
                 if user_id:
                     cache_primed_otp = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_otp:
@@ -645,7 +709,8 @@ async def login(
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
-                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
@@ -873,6 +938,38 @@ async def login(
                 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
+                
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # This prevents users from getting stuck in signup flow after backup code login when
+                # signupStore data (email, username) is no longer available.
+                # 
+                # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+                # - basics, confirm-email, secure-account, password
+                # 
+                # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+                # credits, payment, auto-top-up) as users may legitimately need to complete them.
+                early_signup_steps = [
+                    "/signup/basics", "#signup/basics",
+                    "/signup/confirm-email", "#signup/confirm-email",
+                    "/signup/secure-account", "#signup/secure-account",
+                    "/signup/password", "#signup/password",
+                ]
+                if last_opened_path_backup and any(last_opened_path_backup.startswith(step) for step in early_signup_steps):
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-welcome' after backup code login.")
+                    last_opened_path_backup = "demo-welcome"
+                    # Update Directus and cache with the new last_opened value
+                    try:
+                        update_success = await directus_service.update_user(user_id, {"last_opened": last_opened_path_backup})
+                        if update_success:
+                            await cache_service.update_user(user_id, {"last_opened": last_opened_path_backup})
+                            user_profile["last_opened"] = last_opened_path_backup
+                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                    except Exception as e:
+                        logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                        # Don't fail the login - just log the error
+                
                 if user_id:
                     cache_primed_backup = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_backup:
@@ -917,7 +1014,8 @@ async def login(
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
-                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")

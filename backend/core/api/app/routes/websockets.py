@@ -31,6 +31,7 @@ from .handlers.websocket_handlers.store_app_settings_memories_handler import han
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
+from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +103,15 @@ async def listen_for_cache_events(app: FastAPI):
                     elif event_type == "send_app_settings_memories_request":
                         # Send app settings/memories request to client via WebSocket
                         # This is triggered from Celery tasks via Redis pub/sub
+                        # IMPORTANT: Forward ALL fields from the payload - client requires:
+                        # - request_id, chat_id, requested_keys, yaml_content, message_id
                         request_id = payload.get("request_id")
+                        chat_id = payload.get("chat_id")
                         requested_keys = payload.get("requested_keys", [])
-                        if request_id and requested_keys:
+                        yaml_content = payload.get("yaml_content", "")
+                        message_id = payload.get("message_id")
+                        
+                        if request_id and chat_id and requested_keys:
                             user_connections = manager.get_connections_for_user(user_id)
                             if user_connections:
                                 # Send to first available device
@@ -114,15 +121,47 @@ async def listen_for_cache_events(app: FastAPI):
                                         "type": "request_app_settings_memories",
                                         "payload": {
                                             "request_id": request_id,
-                                            "requested_keys": requested_keys
+                                            "chat_id": chat_id,
+                                            "requested_keys": requested_keys,
+                                            "yaml_content": yaml_content,
+                                            "message_id": message_id
                                         }
                                     },
                                     user_id,
                                     target_device
                                 )
-                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} via WebSocket")
+                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "dismiss_app_settings_memories_dialog":
+                        # User sent a new message without responding to the permission dialog
+                        # Auto-reject the previous request and tell client to dismiss the dialog
+                        chat_id = payload.get("chat_id")
+                        request_id = payload.get("request_id")
+                        reason = payload.get("reason", "unknown")
+                        message_id = payload.get("message_id")
+                        
+                        if chat_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                # Send to ALL connected devices (dialog may be shown on any)
+                                for device_id in user_connections.keys():
+                                    await manager.send_personal_message(
+                                        {
+                                            "type": "dismiss_app_settings_memories_dialog",
+                                            "payload": {
+                                                "chat_id": chat_id,
+                                                "request_id": request_id,
+                                                "reason": reason,
+                                                "message_id": message_id
+                                            }
+                                        },
+                                        user_id,
+                                        device_id
+                                    )
+                                logger.info(f"Redis Listener: Sent dismiss_app_settings_memories_dialog to user {user_id} for chat {chat_id} (reason: {reason})")
+                            else:
+                                logger.debug(f"Redis Listener: User {user_id} has no active connections for dismiss event")
                     else:
                         logger.warning(f"Redis Listener: Unknown event_type '{event_type}' for user {user_id}.")
                 else:
@@ -271,6 +310,106 @@ async def listen_for_ai_chat_streams(app: FastAPI):
             await asyncio.sleep(1) # Prevent tight loop on continuous errors
 
 
+async def listen_for_ai_thinking_streams(app: FastAPI):
+    """
+    Listens to Redis Pub/Sub for AI thinking/reasoning stream events from thinking models
+    (Gemini 2.5+, Anthropic Claude with extended thinking) and forwards them to relevant users.
+    
+    Thinking content is streamed to a separate channel (chat_stream_thinking::{chat_id})
+    from the main response channel. This allows the frontend to:
+    - Display a collapsible "Thinking..." section in the UI
+    - Store thinking content separately (encrypted)
+    - Show real-time thinking progress during streaming
+    
+    Event types:
+    - thinking_chunk: Partial thinking content (streamed paragraph by paragraph)
+    - thinking_complete: Thinking finished (includes signature and token count)
+    """
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. AI thinking stream listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.debug("Starting Redis Pub/Sub listener for AI thinking stream events (channel: chat_stream_thinking::*)...")
+
+    await cache_service.client  # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("chat_stream_thinking::*"):
+        logger.debug(f"AI Thinking Stream Listener: Raw message from pubsub channel chat_stream_thinking::*: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")  # e.g., "chat_stream_thinking::some_chat_id"
+                
+                # Validate payload structure
+                if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
+                    logger.warning(f"AI Thinking Stream Listener: Received malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+
+                event_type = redis_payload.get("type")
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                chat_id_from_payload = redis_payload.get("chat_id")
+                task_id = redis_payload.get("task_id")
+
+                if not user_id_uuid:
+                    logger.warning(f"AI Thinking Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.debug(f"AI Thinking Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload}")
+
+                if event_type == "thinking_chunk":
+                    # Broadcast thinking chunks to ALL devices for this user.
+                    # This ensures background tabs can persist thinking content for later viewing.
+                    user_connections = manager.get_connections_for_user(user_id_uuid)
+                    for device_hash, websocket_conn in user_connections.items():
+                        thinking_chunk_payload = {
+                            "task_id": task_id,
+                            "message_id": redis_payload.get("message_id"),
+                            "chat_id": chat_id_from_payload,
+                            "content": redis_payload.get("content", ""),
+                        }
+                        await manager.send_personal_message(
+                            message={"type": "thinking_chunk", "payload": thinking_chunk_payload},
+                            user_id=user_id_uuid,
+                            device_fingerprint_hash=device_hash
+                        )
+                        logger.debug(
+                            f"AI Thinking Stream Listener: Sent 'thinking_chunk' to {user_id_uuid}/{device_hash} "
+                            f"({len(thinking_chunk_payload.get('content', ''))} chars)"
+                        )
+                
+                elif event_type == "thinking_complete":
+                    # Broadcast thinking completion to ALL devices for this user.
+                    user_connections = manager.get_connections_for_user(user_id_uuid)
+                    for device_hash, websocket_conn in user_connections.items():
+                        thinking_complete_payload = {
+                            "task_id": task_id,
+                            "message_id": redis_payload.get("message_id"),
+                            "chat_id": chat_id_from_payload,
+                            "signature": redis_payload.get("signature"),
+                            "total_tokens": redis_payload.get("total_tokens"),
+                        }
+                        await manager.send_personal_message(
+                            message={"type": "thinking_complete", "payload": thinking_complete_payload},
+                            user_id=user_id_uuid,
+                            device_fingerprint_hash=device_hash
+                        )
+                        logger.debug(f"AI Thinking Stream Listener: Sent 'thinking_complete' to {user_id_uuid}/{device_hash}")
+                
+                else:
+                    logger.warning(f"AI Thinking Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
+            
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"AI Thinking Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"AI Thinking Stream Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"AI Thinking Stream Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)  # Prevent tight loop on continuous errors
+
+
 async def listen_for_ai_typing_indicator_events(app: FastAPI):
     """Listens to Redis Pub/Sub for AI processing started events to send typing indicators."""
     if not hasattr(app.state, 'cache_service'):
@@ -317,7 +456,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "category": category,
                         "model_name": model_name, # Include model_name in the client payload
                         "title": title, # Include title in the client payload
-                        "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
+                        "icon_names": redis_payload.get("icon_names", []), # Include icon names in the client payload
+                        # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                        # When True, this is a continuation after app settings/memories confirmation - user message already persisted
+                        "is_continuation": redis_payload.get("is_continuation", False)
                     }
 
                     # This event should go to all devices of the user, as it's a UI update.
@@ -806,6 +948,19 @@ async def websocket_endpoint(
                     manager=manager,
                     cache_service=cache_service,
                     directus_service=directus_service, # Pass DirectusService
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "chat_system_message_added":
+                # Handle system messages (app settings/memories response, focus mode, etc.)
+                await handle_chat_system_message_added(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,

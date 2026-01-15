@@ -4,6 +4,7 @@ import { loadUserProfileFromDB } from './stores/userProfile';
 import { authStore } from './stores/authStore';
 import { logCollector } from './services/logCollector'; 
 import { initDebugUtils } from './services/debugUtils';
+import { initPermissionDialogListener } from './stores/appSettingsMemoriesPermissionStore';
 
 /**
  * Initialize all application services
@@ -27,6 +28,10 @@ export async function initializeApp(options = { skipAuthInitialization: false })
 
     // First load user profile from IndexedDB for immediate display
     await loadUserProfileFromDB();
+
+    // Initialize app settings/memories permission dialog listener
+    // This listens for "showAppSettingsMemoriesPermissionDialog" events from the WebSocket handler
+    initPermissionDialogListener();
 
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {

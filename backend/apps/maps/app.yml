@@ -64,9 +64,10 @@ skills:
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
-            Example for single search: {"requests": [{"id": 1, "query": "restaurants in Berlin"}]}
-            Example for multiple searches: {"requests": [{"id": 1, "query": "restaurants in Berlin"}, {"id": 2, "query": "museums in Berlin"}]}
-            Each object must contain 'id' (unique identifier) and 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
+            Example for single search: {"requests": [{"query": "restaurants in Berlin"}]}
+            Example for multiple searches: {"requests": [{"query": "restaurants in Berlin"}, {"query": "museums in Berlin"}]}
+            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
+            Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
             properties:

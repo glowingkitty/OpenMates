@@ -46,6 +46,179 @@ As described in [message_processing.md](../message_processing.md), the client su
 - Faster retrieval for AI processing
 - Similar architecture to embeds for consistency
 
+## AI Processing Flow
+
+This section documents the end-to-end processing flow for app settings and memories during AI message handling. The client is the **source of truth** for metadata since only the client can decrypt the content.
+
+### Flow Overview
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 1. Client sends message with metadata (list of available app_id-item_key)       │
+│    → frontend/packages/ui/src/services/chatSyncServiceSenders.ts                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 2. WebSocket receives message and passes metadata to task                       │
+│    → backend/core/api/app/routes/handlers/websocket_handlers/                   │
+│      message_received_handler.py                                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 3. Ask Skill Task parses client-provided metadata into preprocessor format      │
+│    → backend/apps/ai/tasks/ask_skill_task.py                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 4. Preprocessor determines which settings/memories are relevant to user's task  │
+│    → backend/apps/ai/processing/preprocessor.py                                 │
+│    → backend/apps/ai/utils/llm_utils.py (injects metadata into tool desc)       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 5. Main Processor retrieves from cache or creates request for missing keys      │
+│    → backend/apps/ai/processing/main_processor.py                               │
+│    → backend/core/api/app/utils/app_settings_memories_request.py                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                              ┌─────────┴─────────┐
+                              │                   │
+                     (cache hit)            (cache miss)
+                              │                   │
+                              ▼                   ▼
+┌──────────────────────────────────┐  ┌──────────────────────────────────────────┐
+│ Use cached content immediately   │  │ 6. Request sent to client via WebSocket  │
+│ in LLM prompt                    │  │    → request_app_settings_memories event │
+└──────────────────────────────────┘  └──────────────────────────────────────────┘
+                                                  │
+                                                  ▼
+                              ┌─────────────────────────────────────────────────────┐
+                              │ 7. Client shows permission dialog to user           │
+                              │    → frontend/packages/ui/src/services/             │
+                              │      chatSyncServiceHandlersAppSettings.ts          │
+                              │    → frontend/packages/ui/src/components/           │
+                              │      AppSettingsMemoriesPermissionDialog.svelte     │
+                              └─────────────────────────────────────────────────────┘
+                                                  │
+                                                  ▼
+                              ┌─────────────────────────────────────────────────────┐
+                              │ 8. User confirms → Client decrypts and sends        │
+                              │    → app_settings_memories_confirmed WebSocket msg  │
+                              │    → frontend/packages/ui/src/services/             │
+                              │      chatSyncServiceSenders.ts                      │
+                              └─────────────────────────────────────────────────────┘
+                                                  │
+                                                  ▼
+                              ┌─────────────────────────────────────────────────────┐
+                              │ 9. Server encrypts with vault key, stores in cache  │
+                              │    → backend/core/api/app/routes/handlers/          │
+                              │      websocket_handlers/                            │
+                              │      app_settings_memories_confirmed_handler.py     │
+                              │    → backend/core/api/app/services/                 │
+                              │      cache_chat_mixin.py                            │
+                              └─────────────────────────────────────────────────────┘
+                                                  │
+                                                  ▼
+                              ┌─────────────────────────────────────────────────────┐
+                              │ 10. On next message, content is available for AI    │
+                              │     (injected into system prompt)                   │
+                              └─────────────────────────────────────────────────────┘
+```
+
+### Step-by-Step Details
+
+**Step 1: Client Includes Metadata in Message**
+
+When the client sends a message, it includes a list of all available app settings/memories on the device in `app_id-item_key` format (e.g., `code-preferred_technologies`, `travel-trips`). The client retrieves this from IndexedDB.
+
+- **Implementation**: [`frontend/packages/ui/src/services/chatSyncServiceSenders.ts`](../../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts) - `sendMessageImpl()` function
+- **Database Helper**: [`frontend/packages/ui/src/services/db/appSettingsMemories.ts`](../../../frontend/packages/ui/src/services/db/appSettingsMemories.ts) - `getAppSettingsMemoriesMetadataKeys()`
+
+**Step 2-3: Server Receives and Parses Metadata**
+
+The WebSocket handler receives the message and passes the metadata to the Celery task. The task parses the client-provided `app_id-item_key` strings into a structured format for the preprocessor.
+
+- **WebSocket Handler**: [`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`](../../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py)
+- **Task Processing**: [`backend/apps/ai/tasks/ask_skill_task.py`](../../../backend/apps/ai/tasks/ask_skill_task.py) - `_async_process_ai_skill_ask_task()`
+
+**Step 4: Preprocessing Determines Relevance**
+
+The preprocessing LLM receives the list of available app settings/memories metadata and determines which ones are relevant to the user's current task. It returns a list of keys in `app_id-item_key` format.
+
+- **Preprocessor**: [`backend/apps/ai/processing/preprocessor.py`](../../../backend/apps/ai/processing/preprocessor.py) - `handle_preprocessing()`
+- **LLM Tool Injection**: [`backend/apps/ai/utils/llm_utils.py`](../../../backend/apps/ai/utils/llm_utils.py) - `call_preprocessing_llm()`
+- **Validation**: Keys are validated against the client-provided metadata; invalid keys are logged and removed
+
+**Step 5: Main Processor Handles Request**
+
+The main processor checks if the requested app settings/memories are already in the chat-specific cache. If found, they're used immediately. If missing, a request is created for the client.
+
+- **Main Processor**: [`backend/apps/ai/processing/main_processor.py`](../../../backend/apps/ai/processing/main_processor.py) - `handle_main_processing()`
+- **Request Creation**: [`backend/core/api/app/utils/app_settings_memories_request.py`](../../../backend/core/api/app/utils/app_settings_memories_request.py) - `create_app_settings_memories_request_message()`
+
+**Step 6-7: Client Receives Request and Shows Dialog**
+
+The client receives the `request_app_settings_memories` WebSocket event, creates a system message in chat history (for persistence), and shows a permission dialog to the user.
+
+- **Client Handler**: [`frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts`](../../../frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts) - `handleRequestAppSettingsMemoriesImpl()`
+- **Permission Dialog**: [`frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte`](../../../frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte)
+- **Store**: [`frontend/packages/ui/src/stores/appSettingsMemoriesPermissionStore.ts`](../../../frontend/packages/ui/src/stores/appSettingsMemoriesPermissionStore.ts)
+
+**Step 8: User Confirms and Client Sends Decrypted Data**
+
+When the user clicks "Include selected" in the permission dialog, the client decrypts the requested entries and sends them via WebSocket. Only the confirmed entries are sent. If the user clicks "Reject all", no data is sent.
+
+The client also creates a **system message** in chat history to record the user's decision. This system message:
+- Is stored in IndexedDB and synced to Directus via the `chat_system_message_added` WebSocket event
+- Contains minimal JSON metadata: `type`, `user_message_id`, `action`, and `categories` (appId, itemType, entryCount only)
+- Display name and icon are loaded client-side from app metadata (not stored in message)
+- Is synced across all user devices for consistent display
+- Does NOT contain the actual app settings/memories content
+
+- **Confirmation Sender**: [`frontend/packages/ui/src/services/chatSyncServiceSenders.ts`](../../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts) - `sendAppSettingsMemoriesConfirmedImpl()`
+- **Response Message Creation**: [`frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts`](../../../frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts) - `saveAppSettingsMemoriesResponseMessage()`
+- **Backend Handler**: [`backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py`](../../../backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py) - `handle_chat_system_message_added()`
+- **UI Summary**: The action summary is displayed below the user's message in `ChatMessage.svelte`, which receives the response data from `ChatHistory.svelte` via the `appSettingsMemoriesResponseMap` lookup.
+
+**Step 9: Server Encrypts and Caches**
+
+The server receives the decrypted content, encrypts it with the user's vault key (so the server can decrypt it later for AI processing), and stores it in a chat-specific cache.
+
+- **Confirmation Handler**: [`backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py`](../../../backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py) - `handle_app_settings_memories_confirmed()`
+- **Cache Methods**: [`backend/core/api/app/services/cache_chat_mixin.py`](../../../backend/core/api/app/services/cache_chat_mixin.py) - App Settings and Memories Cache Methods section
+
+**Step 10: Content Used in AI Processing**
+
+On subsequent messages (or if this was a delayed response), the main processor retrieves the cached content and injects it into the system prompt for the LLM.
+
+### Cache Key Structure
+
+App settings/memories are stored in Redis with chat-specific keys:
+
+- **Entry Key**: `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}`
+- **Index Key**: `chat:{chat_id}:app_settings_memories_keys` (tracks all entries for a chat)
+- **TTL**: 24 hours (same as message cache)
+
+This ensures automatic cleanup when the chat is evicted from cache, preventing sensitive data from persisting unnecessarily.
+
+### Key Architectural Decisions
+
+1. **Client as Source of Truth**: The client provides the metadata list because only the client can decrypt the content. The server never fetches metadata from Directus for this purpose.
+
+2. **Zero-Knowledge for Permanent Storage**: Entries in Directus remain encrypted with the client's key (zero-knowledge). The server can only access decrypted content when the user explicitly confirms via the permission dialog.
+
+3. **Vault Encryption for Cache**: When content is cached server-side for AI processing, it's encrypted with the user's vault key. This allows the server to decrypt it for AI processing while maintaining security at rest.
+
+4. **Chat-Specific Caching**: Tying cached content to the chat ensures automatic cleanup and prevents sensitive data from accumulating.
+
+5. **Delayed Response Support**: Requests are stored as chat messages, allowing users to respond hours or days later.
+
+6. **Extensible System Messages**: The system message pattern used for app settings/memories responses can be extended for other chat events (e.g., focus mode activation/deactivation, shared embeds). All use the same infrastructure: `role: "system"`, JSON content with a `type` field, and sync via `chat_system_message_added` WebSocket event.
+
 ## Connected Accounts
 
 Some apps require connecting external accounts to access their services. These connected accounts are managed within the app's settings and memories section in the App Store.

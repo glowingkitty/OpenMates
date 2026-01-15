@@ -58,6 +58,65 @@ def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: i
             loop.close()
 
 
+async def _async_persist_chat_active_focus_id_task(
+    chat_id: str,
+    encrypted_active_focus_id: Optional[str],
+    task_id: str
+):
+    """
+    Async logic for persisting an updated chat active focus mode.
+    
+    Args:
+        chat_id: The chat ID
+        encrypted_active_focus_id: The encrypted focus mode ID, or None to clear it
+        task_id: The Celery task ID for logging
+    """
+    logger.info(f"Task _async_persist_chat_active_focus_id_task (task_id: {task_id}): Persisting active_focus_id for chat {chat_id}")
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    fields_to_update = {
+        "encrypted_active_focus_id": encrypted_active_focus_id,
+        "updated_at": int(datetime.now(timezone.utc).timestamp())
+    }
+
+    try:
+        updated = await directus_service.chat.update_chat_fields_in_directus(
+            chat_id=chat_id,
+            fields_to_update=fields_to_update
+        )
+        if updated:
+            logger.info(f"Successfully persisted active_focus_id for chat {chat_id} (task_id: {task_id}).")
+        else:
+            logger.error(f"Failed to persist active_focus_id for chat {chat_id} (task_id: {task_id}). Update operation returned false.")
+    except Exception as e:
+        logger.error(f"Error in _async_persist_chat_active_focus_id_task for chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_chat_active_focus_id", bind=True)
+def persist_chat_active_focus_id_task(self, chat_id: str, encrypted_active_focus_id: Optional[str]):
+    """
+    Celery task to persist the active focus mode ID for a chat.
+    
+    Args:
+        chat_id: The chat ID
+        encrypted_active_focus_id: The encrypted focus mode ID, or None to clear it
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(f"SYNC_WRAPPER: persist_chat_active_focus_id_task for chat {chat_id}, task_id: {task_id}")
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_chat_active_focus_id_task(chat_id, encrypted_active_focus_id, task_id))
+    except Exception as e:
+        logger.error(f"SYNC_WRAPPER_ERROR: persist_chat_active_focus_id_task for chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
+        raise
+    finally:
+        if loop:
+            loop.close()
+
+
 async def _async_persist_user_draft_task(
     hashed_user_id: str,
     chat_id: str,
@@ -213,7 +272,27 @@ async def _async_persist_new_chat_message_task(
             try:
                 from backend.core.api.app.services.cache import CacheService
                 import json
+                import base64
                 cache_service = CacheService()
+                
+                # VALIDATION: Log encrypted content details for debugging sync/encryption issues
+                # This helps identify if content is properly client-encrypted before syncing
+                encrypted_content_valid = False
+                if encrypted_content:
+                    try:
+                        decoded = base64.b64decode(encrypted_content)
+                        encrypted_content_valid = len(decoded) >= 29  # Minimum for AES-GCM
+                        if not encrypted_content_valid:
+                            logger.warning(
+                                f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} encrypted_content is suspiciously short: "
+                                f"decoded_len={len(decoded)} bytes (expected >= 29). May be incorrectly encrypted!"
+                            )
+                    except Exception as decode_err:
+                        logger.error(
+                            f"[SYNC_CACHE_VALIDATION] ❌ Message {message_id} encrypted_content is NOT valid base64: {decode_err}"
+                        )
+                else:
+                    logger.warning(f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} has no encrypted_content!")
                 
                 # Create the new message as a JSON string (matching Directus format)
                 new_message_dict = {
@@ -241,7 +320,9 @@ async def _async_persist_new_chat_message_task(
                 )
                 logger.info(
                     f"[SYNC_CACHE_UPDATE] ✅ Appended new message {message_id} (role={role}) to sync cache FIRST "
-                    f"for chat {chat_id} (task_id: {task_id})"
+                    f"for chat {chat_id} (task_id: {task_id}). "
+                    f"encrypted_content_length={len(encrypted_content) if encrypted_content else 0}, "
+                    f"encrypted_content_valid={encrypted_content_valid}"
                 )
             except Exception as sync_cache_error:
                 # Non-critical error - sync cache will be populated during cache warming
@@ -319,6 +400,28 @@ async def _async_persist_new_chat_message_task(
                 return  # Stop if chat creation fails - message won't work without it
 
         # 2. NOW: Persist the New Message to Directus (AFTER chat exists)
+        # =================================================================
+        # IDEMPOTENCY CHECK: Prevent duplicate messages from race conditions
+        # =================================================================
+        # This check prevents the same message from being persisted twice, which can happen when:
+        # - User has cached webapp on multiple devices (e.g., iPad with old webapp)
+        # - Network issues cause duplicate requests
+        # - Celery task retries
+        #
+        # The client_message_id is a unique identifier generated by the client for each message.
+        # If a message with this ID already exists, we skip creation and return early.
+        message_already_exists = await directus_service.chat.message_exists_by_client_message_id(message_id)
+        if message_already_exists:
+            logger.warning(
+                f"[IDEMPOTENCY] ⚠️ Message {message_id} already exists in Directus. "
+                f"Skipping duplicate persistence for chat {chat_id}. (task_id: {task_id}) "
+                f"This is likely due to a race condition (duplicate request from another device/cached webapp)."
+            )
+            # IMPORTANT: We still need to update chat metadata (messages_v, timestamps)
+            # But we skip creating the duplicate message
+            # The chat metadata update happens later in this function, so we continue there
+            return  # Exit early - message already persisted
+        
         # The 'created_at' parameter is the client's original timestamp.
         message_data_for_directus = {
             "id": message_id,  # This is the client_message_id for Directus
@@ -880,7 +983,12 @@ async def _async_persist_ai_response_to_directus(
                     "encrypted_category": message_data.get("encrypted_category"),
                     "encrypted_content": message_data.get("encrypted_content"),
                     "created_at": message_data.get("created_at"),
-                    "status": "synced"
+                    "status": "synced",
+                    # Thinking metadata (client-encrypted content + optional plaintext counters)
+                    "encrypted_thinking_content": message_data.get("encrypted_thinking_content"),
+                    "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
+                    "has_thinking": message_data.get("has_thinking"),
+                    "thinking_token_count": message_data.get("thinking_token_count")
                 }
                 # Only include encrypted_model_name for assistant messages
                 if message_data.get("encrypted_model_name"):
@@ -1099,6 +1207,40 @@ async def _async_persist_encrypted_chat_metadata(
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
             # These fields should be updated whenever provided, regardless of version
             update_fields = encrypted_metadata.copy()
+            # Rotation control flags are internal only - never persist to Directus.
+            allow_chat_key_rotation = bool(update_fields.pop("allow_chat_key_rotation", False))
+            chat_key_rotation_reason = update_fields.pop("chat_key_rotation_reason", None)
+            
+            # =================================================================
+            # CRITICAL FIX: Make encrypted_chat_key IMMUTABLE
+            # =================================================================
+            # The encrypted_chat_key is the symmetric key used to encrypt all messages
+            # in this chat. It MUST NOT be changed once set, otherwise existing messages
+            # become undecryptable.
+            #
+            # Bug scenario that this fixes:
+            # 1. Device A sends a message and creates the chat with chat_key_A
+            # 2. Device B (e.g., iPad with cached old webapp) sends duplicate request with chat_key_B
+            # 3. Device B's request arrives late and overwrites chat_key_A with chat_key_B
+            # 4. Messages encrypted with chat_key_A can no longer be decrypted
+            #
+            # Fix: Never allow encrypted_chat_key to be updated once set
+            existing_chat_key = chat_metadata.get("encrypted_chat_key")
+            incoming_chat_key = update_fields.get("encrypted_chat_key")
+            if existing_chat_key and incoming_chat_key:
+                if allow_chat_key_rotation:
+                    logger.warning(
+                        f"[CHAT_KEY_ROTATION] ⚠️ Allowing encrypted_chat_key rotation for chat {chat_id}. "
+                        f"Reason: {chat_key_rotation_reason or 'unspecified'}. (task_id: {task_id})"
+                    )
+                else:
+                    # Chat already has an encrypted_chat_key - NEVER overwrite it
+                    update_fields.pop("encrypted_chat_key", None)
+                    logger.warning(
+                        f"[CHAT_KEY_IMMUTABLE] ⚠️ Blocked attempt to overwrite encrypted_chat_key for chat {chat_id}. "
+                        f"Existing key is set, incoming key will be ignored to preserve message decryptability. "
+                        f"(task_id: {task_id})"
+                    )
             
             # Separate version fields from metadata fields
             metadata_fields = {

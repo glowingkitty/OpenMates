@@ -46,7 +46,7 @@ async def setup_password(
         # Get signup requirements based on server edition and configuration
         # For self-hosted: domain restriction OR invite code required
         # For non-self-hosted: use SIGNUP_LIMIT logic
-        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+        require_invite_code, require_domain_restriction, _allowed_domains = await get_signup_requirements(
             directus_service, cache_service
         )
         

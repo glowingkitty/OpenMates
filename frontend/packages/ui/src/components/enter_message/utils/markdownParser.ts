@@ -211,16 +211,32 @@ function convertNodeToTiptap(node: Node): any {
 
     case 'p':
       // Always create paragraphs, even if empty (for \n\n spacing)
-      // Filter out empty and whitespace-only text nodes from paragraph content
-      const paragraphContent = content.filter(item => {
+      // Filter out empty text nodes but PRESERVE whitespace-only text nodes
+      // that appear between other content (these are word separators, e.g., space between bold and link)
+      const paragraphContent = content.filter((item, index, arr) => {
         if (item && item.type === 'text') {
           // Remove empty text nodes - not allowed in ProseMirror
           if (item.text === '') {
             return false;
           }
-          // Remove whitespace-only text nodes from paragraph content
+          // For whitespace-only text nodes, only filter if they're at the start or end
+          // Whitespace BETWEEN inline elements (like bold and links) must be preserved
+          // Example: "**Bold:** [Link](url)" - the space between :</strong> and <a> is important
           if (item.text.trim() === '') {
-            return false;
+            // Check if this is leading or trailing whitespace
+            const isFirst = index === 0;
+            const isLast = index === arr.length - 1;
+            
+            // Check if there's actual content before/after this whitespace node
+            const hasContentBefore = arr.slice(0, index).some(i => i && (i.type !== 'text' || i.text?.trim() !== ''));
+            const hasContentAfter = arr.slice(index + 1).some(i => i && (i.type !== 'text' || i.text?.trim() !== ''));
+            
+            // Remove leading/trailing whitespace, but keep internal whitespace (word separators)
+            if (isFirst || isLast || !hasContentBefore || !hasContentAfter) {
+              return false;
+            }
+            // This is whitespace between content - preserve it
+            return true;
           }
         }
         return true;

@@ -168,11 +168,20 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('embed_update', (payload) => aiHandlers.handleEmbedUpdateImpl(this, payload as import('../types/chat').EmbedUpdatePayload));
         webSocketService.on('send_embed_data', (payload) => aiHandlers.handleSendEmbedDataImpl(this, payload as SendEmbedDataPayload));
         
+        // Thinking/Reasoning handlers for thinking models (Gemini, Anthropic Claude)
+        webSocketService.on('thinking_chunk', (payload) => aiHandlers.handleAIThinkingChunkImpl(this, payload as import('../types/chat').AIThinkingChunkPayload));
+        webSocketService.on('thinking_complete', (payload) => aiHandlers.handleAIThinkingCompleteImpl(this, payload as import('../types/chat').AIThinkingCompletePayload));
+        
         // Import and register app settings/memories handlers
         import('./chatSyncServiceHandlersAppSettings').then(module => {
             webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));
+            webSocketService.on('dismiss_app_settings_memories_dialog', (payload) => module.handleDismissAppSettingsMemoriesDialogImpl(this, payload));
             webSocketService.on('app_settings_memories_sync_ready', (payload) => module.handleAppSettingsMemoriesSyncReadyImpl(this, payload));
             webSocketService.on('app_settings_memories_entry_synced', (payload) => module.handleAppSettingsMemoriesEntrySyncedImpl(this, payload));
+            webSocketService.on('app_settings_memories_entry_stored', (payload) => module.handleAppSettingsMemoriesEntryStoredImpl(this, payload));
+            webSocketService.on('system_message_confirmed', (payload) => module.handleSystemMessageConfirmedImpl(this, payload));
+            // Handle system messages broadcast from other devices (cross-device sync)
+            webSocketService.on('new_system_message', (payload) => module.handleNewSystemMessageImpl(this, payload));
         });
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));

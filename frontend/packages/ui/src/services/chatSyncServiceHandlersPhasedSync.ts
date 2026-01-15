@@ -253,20 +253,53 @@ export async function handleSyncStatusResponseImpl(
 async function storeRecentChats(serviceInstance: ChatSynchronizationService, chats: any[]): Promise<void> {
     try {
         for (const chatItem of chats) {
-            const { chat_details, messages } = chatItem;
+            const { chat_details, messages, server_message_count } = chatItem;
             const chatId = chat_details.id;
             
             // Get existing local chat to compare versions
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            const mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
             
             // CRITICAL: Check if we should sync messages for Phase 2 chats
             // This prevents data inconsistency where messages_v is set but messages are missing
             const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
             const serverMessagesV = chat_details.messages_v || 0;
             const localMessagesV = existingChat?.messages_v || 0;
+            
+            // CRITICAL FIX: Validate message count when server skips sending messages
+            // If server sends server_message_count but no messages, validate local data
+            // This detects data inconsistency where version matches but messages are missing
+            if (!shouldSyncMessages && server_message_count !== undefined && server_message_count !== null && server_message_count > 0) {
+                const localMessages = await chatDB.getMessagesForChat(chatId);
+                const localMessageCount = localMessages?.length || 0;
+                
+                console.debug(`[ChatSyncService] Phase 2 - Message count validation for chat ${chatId}: ` +
+                    `server_count=${server_message_count}, local_count=${localMessageCount}`);
+                
+                // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
+                if (localMessageCount < server_message_count) {
+                    console.warn(
+                        `[ChatSyncService] Phase 2 - ⚠️ DATA INCONSISTENCY DETECTED for chat ${chatId}: ` +
+                        `Local has ${localMessageCount} messages but server has ${server_message_count}. ` +
+                        `Resetting messages_v to 0 to force re-sync.`
+                    );
+                    
+                    // Reset the chat's messages_v to 0 to force a full re-sync
+                    mergedChat = {
+                        ...mergedChat,
+                        messages_v: 0  // Reset to force re-sync on next load
+                    };
+                    await chatDB.addChat(mergedChat);
+                    
+                    // Dispatch event to notify about the inconsistency
+                    serviceInstance.dispatchEvent(new CustomEvent('chatDataInconsistency', {
+                        detail: { chatId, localCount: localMessageCount, serverCount: server_message_count, phase: 'phase2' }
+                    }));
+                    continue;
+                }
+            }
             
             let shouldSkipMessageSync = false;
             if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
@@ -340,7 +373,7 @@ async function storeAllChats(serviceInstance: ChatSynchronizationService, chats:
         console.debug(`[ChatSyncService] storeAllChats: Processing ${chats.length} chats from Phase 3`);
         
         for (const chatItem of chats) {
-            const { chat_details, messages } = chatItem;
+            const { chat_details, messages, server_message_count } = chatItem;
             const chatId = chat_details.id;
             
             console.debug(`[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`);
@@ -349,12 +382,45 @@ async function storeAllChats(serviceInstance: ChatSynchronizationService, chats:
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            const mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
             
             // Check if we should sync messages
             const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
             const serverMessagesV = chat_details.messages_v || 0;
             const localMessagesV = existingChat?.messages_v || 0;
+            
+            // CRITICAL FIX: Validate message count when server skips sending messages
+            // If server sends server_message_count but no messages, validate local data
+            // This detects data inconsistency where version matches but messages are missing
+            if (!shouldSyncMessages && server_message_count !== undefined && server_message_count !== null && server_message_count > 0) {
+                const localMessages = await chatDB.getMessagesForChat(chatId);
+                const localMessageCount = localMessages?.length || 0;
+                
+                console.debug(`[ChatSyncService] Phase 3 - Message count validation for chat ${chatId}: ` +
+                    `server_count=${server_message_count}, local_count=${localMessageCount}`);
+                
+                // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
+                if (localMessageCount < server_message_count) {
+                    console.warn(
+                        `[ChatSyncService] Phase 3 - ⚠️ DATA INCONSISTENCY DETECTED for chat ${chatId}: ` +
+                        `Local has ${localMessageCount} messages but server has ${server_message_count}. ` +
+                        `Resetting messages_v to 0 to force re-sync.`
+                    );
+                    
+                    // Reset the chat's messages_v to 0 to force a full re-sync
+                    mergedChat = {
+                        ...mergedChat,
+                        messages_v: 0  // Reset to force re-sync on next load
+                    };
+                    await chatDB.addChat(mergedChat);
+                    
+                    // Dispatch event to notify about the inconsistency
+                    serviceInstance.dispatchEvent(new CustomEvent('chatDataInconsistency', {
+                        detail: { chatId, localCount: localMessageCount, serverCount: server_message_count, phase: 'phase3' }
+                    }));
+                    continue;
+                }
+            }
             
             let shouldSkipMessageSync = false;
             if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {

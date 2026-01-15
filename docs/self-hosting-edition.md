@@ -79,13 +79,42 @@ If import was successful, replace actual keys in `.env` with `IMPORTED_TO_VAULT`
 SECRET__MAILJET__API_KEY=IMPORTED_TO_VAULT
 ```
 
-### 6. Start Frontend (Development Mode)
+### 6. Start Frontend
+
+You have two options for running the frontend:
+
+#### Option A: Development Mode (Recommended for Testing)
+
+For development/testing, run the frontend in dev mode with a custom API URL:
 
 ```bash
-pnpm --filter web_app dev --host 0.0.0.0 --port 5173
+VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0 --port 5173
 ```
 
+Replace `YOUR_SERVER_IP` with your actual server IP address (e.g., `192.168.1.100`).
+
 *Note: First load may take up to a minute while Svelte builds files.*
+
+#### Option B: Production Build (Recommended for Deployment)
+
+For production deployments, build the webapp with your API URL baked in:
+
+```bash
+# Build the webapp Docker image with your API URL
+docker compose --env-file .env -f backend/core/docker-compose.yml build webapp \
+  --build-arg VITE_API_URL=http://YOUR_SERVER_IP:8000
+
+# Or build directly with pnpm (without Docker)
+VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app build
+```
+
+**Important**: `VITE_API_URL` must be set at **build time** because Vite embeds environment variables into the JavaScript bundle during compilation.
+
+To enable the webapp service, uncomment it in `backend/core/docker-compose.yml` and run:
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml up -d webapp
+```
 
 ### 7. Get Your Invite Code
 
@@ -209,6 +238,24 @@ SECRET__MAILJET__API_KEY=your_production_mailjet_key
 SECRET__MAILJET__SECRET_KEY=your_production_mailjet_secret
 ```
 
+### Frontend API URL Configuration
+
+The frontend needs to know where to reach the backend API. For self-hosted deployments, you **must** set `VITE_API_URL` at build time:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_URL` | Full URL to your API server (for self-hosted) | `http://192.168.1.100:8000` |
+| `VITE_ENV` | Optional: Set to `production` for cloud deployments | `production` |
+
+**Why build time?** Vite is a build-time bundler that replaces `import.meta.env.VITE_*` with actual values during compilation. Unlike server-side environment variables, these cannot be changed at runtime.
+
+**Options for different setups:**
+
+1. **Direct IP access**: `VITE_API_URL=http://192.168.1.100:8000`
+2. **Hostname access**: `VITE_API_URL=http://myserver.local:8000`
+3. **Reverse proxy with same origin**: `VITE_API_URL=` (empty, uses relative URLs - requires proxy config)
+4. **Reverse proxy with different subdomain**: `VITE_API_URL=https://api.yourdomain.com`
+
 ## Management Commands
 
 ### Service Management
@@ -281,6 +328,13 @@ This will:
 - Ensure backend is running: `docker compose ps`
 - Check API health: `curl http://localhost:8000/health`
 - Verify pnpm dependencies: `pnpm install`
+
+**Frontend shows "localhost:8000" connection errors when accessing from network**:
+- The frontend API URL is baked in at build time
+- Rebuild with your server's IP: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app build`
+- Or for development: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0`
+- Check browser console for the actual API URLs being requested
+- Ensure CORS is configured on the backend to allow your frontend origin
 
 <!--
 **Admin token issues**:

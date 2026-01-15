@@ -329,4 +329,119 @@ export async function deleteAppSettingsMemoriesEntriesByApp(
     }
 }
 
+/**
+ * Get metadata about all app settings/memories entries.
+ * Returns a list of unique keys in format "app_id-item_type" for preprocessor.
+ * 
+ * This is used by the client to tell the server what app settings/memories are available
+ * WITHOUT sending the actual content. The server's preprocessor uses this to decide
+ * which settings/memories to request from the client.
+ * 
+ * Format: ["code-preferred_technologies", "travel-trips", ...]
+ * 
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @returns Array of unique keys in "app_id-item_type" format
+ */
+export async function getAppSettingsMemoriesMetadataKeys(
+    dbInstance: ChatDatabaseInstance
+): Promise<string[]> {
+    if (!dbInstance.db) throw new Error('[ChatDatabase] Database not initialized');
+
+    try {
+        const transaction = dbInstance.db.transaction([dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME], 'readonly');
+        const store = transaction.objectStore(dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME);
+        const request = store.getAll();
+
+        const entries = await new Promise<AppSettingsMemoriesEntry[]>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+
+        // Build unique set of "app_id-item_type" keys
+        // item_type represents the category ID (e.g., 'preferred_technologies', 'trips')
+        const keysSet = new Set<string>();
+        for (const entry of entries) {
+            if (entry.app_id && entry.item_type) {
+                keysSet.add(`${entry.app_id}-${entry.item_type}`);
+            }
+        }
+
+        const keys = Array.from(keysSet);
+        console.debug(`[ChatDatabase] Got ${keys.length} unique app settings/memories metadata keys from ${entries.length} entries`);
+        return keys;
+    } catch (error) {
+        console.error('[ChatDatabase] Error getting app settings/memories metadata keys:', error);
+        return [];
+    }
+}
+
+/**
+ * Get entries count per app_id-item_type combination.
+ * Used to show entry counts in the permission dialog (e.g., "Favorite tech (6 entries)").
+ * 
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @returns Map of "app_id-item_type" -> count
+ */
+export async function getAppSettingsMemoriesEntryCounts(
+    dbInstance: ChatDatabaseInstance
+): Promise<Map<string, number>> {
+    if (!dbInstance.db) throw new Error('[ChatDatabase] Database not initialized');
+
+    try {
+        const transaction = dbInstance.db.transaction([dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME], 'readonly');
+        const store = transaction.objectStore(dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME);
+        const request = store.getAll();
+
+        const entries = await new Promise<AppSettingsMemoriesEntry[]>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+
+        // Count entries per app_id-item_type combination
+        const counts = new Map<string, number>();
+        for (const entry of entries) {
+            if (entry.app_id && entry.item_type) {
+                const key = `${entry.app_id}-${entry.item_type}`;
+                counts.set(key, (counts.get(key) || 0) + 1);
+            }
+        }
+
+        return counts;
+    } catch (error) {
+        console.error('[ChatDatabase] Error getting app settings/memories entry counts:', error);
+        return new Map();
+    }
+}
+
+/**
+ * Get all entries for a specific app_id-item_type combination.
+ * Used to retrieve decrypted entries when user confirms sharing with AI.
+ * 
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param appId - The app ID
+ * @param itemType - The item type (category ID)
+ * @returns Array of entries matching the criteria
+ */
+export async function getAppSettingsMemoriesEntriesByAppAndType(
+    dbInstance: ChatDatabaseInstance,
+    appId: string,
+    itemType: string
+): Promise<AppSettingsMemoriesEntry[]> {
+    if (!dbInstance.db) throw new Error('[ChatDatabase] Database not initialized');
+
+    try {
+        // Get all entries for this app first (using index)
+        const allAppEntries = await getAppSettingsMemoriesEntriesByApp(dbInstance, appId);
+        
+        // Filter by item_type
+        const filteredEntries = allAppEntries.filter(entry => entry.item_type === itemType);
+        
+        console.debug(`[ChatDatabase] Found ${filteredEntries.length} entries for ${appId}-${itemType}`);
+        return filteredEntries;
+    } catch (error) {
+        console.error(`[ChatDatabase] Error getting entries for ${appId}-${itemType}:`, error);
+        return [];
+    }
+}
+
 

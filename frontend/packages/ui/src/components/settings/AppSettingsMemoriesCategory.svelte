@@ -60,8 +60,11 @@
     let isInitialLoad = $state(false);
     
     // Get entries for this app (grouped by settings_group)
+    // CRITICAL: Use $derived to maintain reactivity with the store
+    // Without $derived, the store value is only read once at initialization
+    // and won't update when loadEntriesForApp completes
     let appEntries: Readable<Record<string, unknown>> = appSettingsMemoriesForApp(appId);
-    let groupedEntries = $appEntries;
+    let groupedEntries = $derived($appEntries);
 
     /**
      * Get the translated category description.

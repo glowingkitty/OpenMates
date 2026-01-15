@@ -2,6 +2,16 @@
 # Stage 1: Build the application using pnpm
 FROM node:20-alpine AS builder
 
+# Build arguments for self-hosted deployments
+# VITE_API_URL: The full URL to your API server (e.g., http://192.168.1.100:8000)
+# These must be set at build time as Vite embeds them into the JavaScript bundle
+ARG VITE_API_URL
+ARG VITE_ENV
+
+# Set environment variables from build args for Vite to use during build
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_ENV=${VITE_ENV}
+
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
@@ -36,6 +46,7 @@ WORKDIR /app/frontend/apps/web_app
 RUN cp svelte.config.docker.js svelte.config.js
 
 # Build the webapp with the modified config
+# VITE_API_URL will be embedded into the JavaScript bundle during this step
 RUN pnpm build
 
 # Stage 2: Serve the built application with a simple HTTP server

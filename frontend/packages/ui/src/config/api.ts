@@ -1,4 +1,6 @@
 // API base URLs from environment
+// VITE_API_URL: Single URL for self-hosted deployments (takes precedence over all other settings)
+// VITE_API_URL_DEV/PROD: Environment-specific URLs for cloud deployments
 export const apiUrls = {
     development: import.meta.env.VITE_API_URL_DEV || 'http://localhost:8000',
     production: import.meta.env.VITE_API_URL_PROD || 'https://api.openmates.org'
@@ -6,6 +8,13 @@ export const apiUrls = {
 
 // Helper to get API URL
 export function getApiUrl(): string {
+    // VITE_API_URL takes precedence - used for self-hosted deployments
+    // This allows setting a single API URL at build time without needing VITE_ENV
+    // Example: VITE_API_URL=http://192.168.1.100:8000 pnpm build
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+
     // Use VITE_ENV to distinguish between environments.
     // This variable should be set in your deployment environment (e.g., Vercel).
     switch (import.meta.env.VITE_ENV) {

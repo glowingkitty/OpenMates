@@ -288,6 +288,8 @@
     
     // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
+        console.log('[Login] switchToSignup called - resetting login flow completely');
+        
         // Cancel any pending conditional UI passkey request
         cancelConditionalUIPasskey();
         
@@ -300,12 +302,55 @@
             isLoading = false;
         }
         
-        // Clear login and 2FA state before switching view
+        // COMPLETE RESET: Clear ALL login flow state before switching view
+        // This ensures a clean slate when user switches to signup and back to login
+        
+        // Clear form data
         email = '';
         password = '';
+        
+        // Reset login step to initial state
+        currentLoginStep = 'email';
+        
+        // Clear login method state from email lookup
+        availableLoginMethods = [];
+        preferredLoginMethod = 'password';
+        tfaAppName = null;
+        tfaEnabled = true; // Default to true for security (prevents user enumeration)
+        
+        // Clear 2FA and device verification views
         showTfaView = false;
         tfaErrorMessage = null;
-        loginFailedWarning = false; // Also clear general login errors
+        verifyDeviceErrorMessage = null;
+        needsDeviceVerification.set(false);
+        
+        // Clear general login errors and warnings
+        loginFailedWarning = false;
+        emailError = '';
+        showEmailWarning = false;
+        isEmailValidationPending = false;
+        
+        // Clear rate limiting state (don't clear actual rate limit, just UI state)
+        // Note: isRateLimited is preserved to respect actual rate limits
+        isPolicyViolationLockout = false;
+        isAccountDeleted = false;
+        accountJustDeleted = false;
+        
+        // Clear account recovery mode
+        isInAccountRecoveryMode = false;
+        
+        // Stop the inactivity timer since we're leaving the login flow
+        stopInactivityTimer();
+        
+        // PRIVACY: Clear pending draft when user switches from login to signup
+        // This ensures the saved message is deleted if user doesn't complete the flow
+        clearPendingDraft();
+        
+        // SECURITY: Clear email encryption data from cryptoService
+        // This ensures no sensitive data from login lookup persists
+        cryptoService.clearAllEmailData();
+        
+        console.log('[Login] Login flow state reset complete');
 
         // CRITICAL: Check invite code requirement when switching to signup
         // This ensures we have the latest requirement status even if user hasn't reloaded the page
@@ -354,12 +399,20 @@
         // This ensures sensitive data is removed if user switches views
         clearSignupData();
 
+        // Reset the signup step to alpha disclaimer for clean state when returning to signup later
+        // This ensures users will start fresh if they switch back to signup
+        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
 
         // PRIVACY: Clear pending draft when user switches from signup to login
         // This ensures the saved message is deleted if user doesn't complete the flow
         clearPendingDraft();
+        
+        // SECURITY: Clear any crypto data that may have been stored during signup
+        // This ensures sensitive data from signup doesn't persist when returning to login
+        cryptoService.clearAllEmailData();
 
         // Wait for the view change to take effect
         await tick();

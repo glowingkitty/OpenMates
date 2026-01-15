@@ -79,7 +79,25 @@ MESSAGE_ALL_FIELDS = (
     "encrypted_sender_name," # Added encrypted sender name
     "encrypted_category," # Added encrypted category
     "encrypted_model_name," # Added encrypted model name
+    "encrypted_thinking_content," # Added encrypted thinking content (assistant only)
+    "encrypted_thinking_signature," # Added encrypted thinking signature (assistant only)
+    "has_thinking," # Added thinking metadata flag
+    "thinking_token_count," # Added thinking token count
     # "sender_name," # Removed as per user feedback and to avoid permission issues
+    "created_at"
+)
+
+# Fallback message fields for environments where thinking metadata fields are not permitted.
+# This avoids hard failures during login sync if Directus roles have not been updated yet.
+MESSAGE_FIELDS_NO_THINKING = (
+    "id,"
+    "client_message_id,"
+    "chat_id,"
+    "encrypted_content,"
+    "role,"
+    "encrypted_sender_name,"
+    "encrypted_category,"
+    "encrypted_model_name,"
     "created_at"
 )
 
@@ -294,6 +312,50 @@ class ChatMethods:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
             return None, False
 
+    async def message_exists_by_client_message_id(self, client_message_id: str) -> bool:
+        """
+        Check if a message with the given client_message_id already exists in Directus.
+        
+        This is used for idempotency checking to prevent duplicate messages from being created
+        due to race conditions (e.g., duplicate requests from cached webapp on mobile devices).
+        
+        Args:
+            client_message_id: The client-generated unique message identifier
+            
+        Returns:
+            True if message already exists, False otherwise
+        """
+        try:
+            # CRITICAL FIX: Use get_items instead of fetch_items (which doesn't exist)
+            # get_items returns a list directly, not a (success, result) tuple
+            result = await self.directus_service.get_items(
+                collection='messages',
+                params={
+                    "filter": {"client_message_id": {"_eq": client_message_id}},
+                    "limit": 1,
+                    "fields": ["id", "client_message_id"]  # Only fetch minimal fields
+                }
+            )
+            
+            if result and len(result) > 0:
+                # Message already exists
+                logger.info(
+                    f"[IDEMPOTENCY_CHECK] Message with client_message_id={client_message_id} "
+                    f"already exists in Directus (id: {result[0].get('id')})"
+                )
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(
+                f"[IDEMPOTENCY_CHECK] Error checking for existing message {client_message_id}: {e}",
+                exc_info=True
+            )
+            # On error, return False to allow message creation to proceed
+            # (the unique constraint will catch duplicates if this check failed)
+            return False
+
     async def create_message_in_directus(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a message record in Directus.
@@ -344,6 +406,10 @@ class ChatMethods:
                 "encrypted_sender_name": message_data.get("encrypted_sender_name"),
                 "encrypted_category": message_data.get("encrypted_category"),
                 "encrypted_model_name": message_data.get("encrypted_model_name"),
+                "encrypted_thinking_content": message_data.get("encrypted_thinking_content"),
+                "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
+                "has_thinking": message_data.get("has_thinking"),
+                "thinking_token_count": message_data.get("thinking_token_count"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }
@@ -467,7 +533,32 @@ class ChatMethods:
             'limit': -1
         }
         try:
-            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            # First attempt includes thinking metadata fields. If Directus denies those fields,
+            # retry with a reduced field set to unblock login sync.
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                return_none_on_403=True,
+                # Messages include thinking metadata fields that require elevated permissions.
+                # Using admin token here ensures sync has access to the full message payload.
+                admin_required=True
+            )
+            if messages_from_db is None:
+                logger.warning(
+                    "Directus denied message thinking fields (403) even with admin access. "
+                    "Retrying message fetch without thinking metadata to keep sync alive."
+                )
+                fallback_params = {
+                    'filter[chat_id][_in]': ','.join(chat_ids),
+                    'fields': MESSAGE_FIELDS_NO_THINKING,
+                    'sort': 'created_at',
+                    'limit': -1
+                }
+                messages_from_db = await self.directus_service.get_items(
+                    'messages',
+                    params=fallback_params,
+                    admin_required=True
+                )
             if not messages_from_db or not isinstance(messages_from_db, list):
                 logger.info(f"No messages found for chat_ids: {chat_ids}")
                 return {}
@@ -476,8 +567,11 @@ class ChatMethods:
             
             messages_by_chat: Dict[str, List[Dict[str, Any]]] = {chat_id: [] for chat_id in chat_ids}
             for msg in messages_from_db:
-                # Alias 'id' to 'message_id' to match client-side expectations
-                msg['message_id'] = msg.get('id')
+                # CRITICAL: Use 'client_message_id' as 'message_id' to match client-side expectations
+                # The 'client_message_id' is the client-generated ID (format: {chat_id_suffix}-{uuid})
+                # which is used for matching user_message_id in app settings/memories system messages.
+                # Fall back to 'id' (Directus UUID) only if client_message_id is not available.
+                msg['message_id'] = msg.get('client_message_id') or msg.get('id')
                 messages_by_chat[msg['chat_id']].append(msg)
 
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}

@@ -53,6 +53,10 @@ async def handle_ai_response_completed(
         encrypted_sender_name = message_payload_from_client.get("encrypted_sender_name")
         encrypted_category = message_payload_from_client.get("encrypted_category")
         encrypted_model_name = message_payload_from_client.get("encrypted_model_name")
+        encrypted_thinking_content = message_payload_from_client.get("encrypted_thinking_content")
+        encrypted_thinking_signature = message_payload_from_client.get("encrypted_thinking_signature")
+        has_thinking = message_payload_from_client.get("has_thinking")
+        thinking_token_count = message_payload_from_client.get("thinking_token_count")
         created_at = message_payload_from_client.get("created_at")
         user_message_id = message_payload_from_client.get("user_message_id")
 
@@ -123,6 +127,14 @@ async def handle_ai_response_completed(
             message_data_for_directus["encrypted_category"] = encrypted_category
         if encrypted_model_name:
             message_data_for_directus["encrypted_model_name"] = encrypted_model_name
+        if encrypted_thinking_content:
+            message_data_for_directus["encrypted_thinking_content"] = encrypted_thinking_content
+        if encrypted_thinking_signature:
+            message_data_for_directus["encrypted_thinking_signature"] = encrypted_thinking_signature
+        if has_thinking is not None:
+            message_data_for_directus["has_thinking"] = bool(has_thinking)
+        if thinking_token_count is not None:
+            message_data_for_directus["thinking_token_count"] = thinking_token_count
         if user_message_id:
             message_data_for_directus["user_message_id"] = user_message_id
 

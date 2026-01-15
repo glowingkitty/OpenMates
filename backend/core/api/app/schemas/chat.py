@@ -16,6 +16,10 @@ class EncryptedMessageBase(BaseModel):
     encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
     encrypted_sender_name: Optional[str] = None # Encrypted sender name
     encrypted_model_name: Optional[str] = None # Encrypted model name (assistant only)
+    encrypted_thinking_content: Optional[str] = None # Encrypted thinking content (assistant only)
+    encrypted_thinking_signature: Optional[str] = None # Encrypted thinking signature (assistant only)
+    has_thinking: Optional[bool] = None # Non-encrypted metadata for UI rendering
+    thinking_token_count: Optional[int] = None # Non-encrypted metadata for cost tracking
 
 class AIHistoryMessage(MessageBase):
     """

@@ -56,6 +56,14 @@ async def handle_store_embed(
 
         logger.info(f"Processing store_embed for embed {embed_id} from user {user_id}")
 
+        # CRITICAL FIX: Convert camelCase timestamp fields to snake_case for Directus
+        # Frontend sends createdAt/updatedAt (camelCase) but Directus expects created_at/updated_at (snake_case)
+        # Without this conversion, timestamps are never stored and embeds show Jan 1970 dates
+        if "createdAt" in payload and "created_at" not in payload:
+            payload["created_at"] = payload.pop("createdAt")
+        if "updatedAt" in payload and "updated_at" not in payload:
+            payload["updated_at"] = payload.pop("updatedAt")
+
         # Check if embed already exists
         existing_embed = await directus_service.embed.get_embed_by_id(embed_id)
         

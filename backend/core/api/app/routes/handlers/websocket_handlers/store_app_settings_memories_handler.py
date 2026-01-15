@@ -9,6 +9,18 @@ When client creates a new app settings/memories entry in the App Store:
 4. Server broadcasts to other logged-in devices for multi-device sync
 
 This enables permanent storage in Directus while maintaining zero-knowledge architecture.
+
+**Field Naming Convention**:
+- id: UUID primary key (client-generated)
+- hashed_user_id: SHA256 hash of user_id for privacy
+- app_id: App identifier (e.g., 'code', 'travel', 'tv')
+- item_key: Entry identifier within a category
+- item_type: Category/type ID for filtering (e.g., 'preferred_technologies')
+- encrypted_item_json: Client-encrypted JSON data
+- encrypted_app_key: Encrypted app-specific key for device sync
+- created_at, updated_at: Unix timestamps
+- item_version: Version for conflict resolution
+- sequence_number: Optional ordering
 """
 
 import logging
@@ -58,7 +70,7 @@ async def handle_store_app_settings_memories_entry(
         entry = payload.get("entry")
         
         if not entry:
-            logger.warning(f"[StoreAppSettingsMemories] Invalid payload from user {user_id}: missing entry")
+            logger.warning(f"[StoreAppSettingsMemories] Invalid payload from user {user_id[:8]}...: missing entry")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing entry data"}},
                 user_id,
@@ -67,9 +79,11 @@ async def handle_store_app_settings_memories_entry(
             return
         
         # Validate required fields
+        # Field names must match frontend interface in chatSyncServiceSenders.ts
         entry_id = entry.get("id")
         app_id = entry.get("app_id")
         item_key = entry.get("item_key")
+        item_type = entry.get("item_type")  # Category ID for filtering (e.g., 'preferred_technologies')
         encrypted_item_json = entry.get("encrypted_item_json")
         encrypted_app_key = entry.get("encrypted_app_key", "")
         created_at = entry.get("created_at")
@@ -78,7 +92,7 @@ async def handle_store_app_settings_memories_entry(
         sequence_number = entry.get("sequence_number")
         
         if not all([entry_id, app_id, item_key, encrypted_item_json is not None]):
-            logger.warning(f"[StoreAppSettingsMemories] Invalid entry from user {user_id}: missing required fields")
+            logger.warning(f"[StoreAppSettingsMemories] Invalid entry from user {user_id[:8]}...: missing required fields (id={entry_id}, app_id={app_id}, item_key={item_key}, encrypted_item_json={'present' if encrypted_item_json else 'missing'})")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing required entry fields"}},
                 user_id,
@@ -89,11 +103,9 @@ async def handle_store_app_settings_memories_entry(
         # Hash user ID for Directus storage (zero-knowledge)
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         
-        logger.info(f"[StoreAppSettingsMemories] Processing entry {entry_id} for user {user_id[:8]}..., app {app_id}, key {item_key}")
+        logger.info(f"[StoreAppSettingsMemories] Processing entry {entry_id} for user {user_id[:8]}..., app {app_id}, type {item_type}, key {item_key}")
         
-        # Prepare Directus payload
-        # Note: Using encrypted_item_json field name for client-encrypted data
-        # The Directus collection field is encrypted_item_value_json for backwards compatibility
+        # Prepare Directus payload with consistent field names
         current_timestamp = int(time.time())
         
         directus_payload = {
@@ -101,6 +113,7 @@ async def handle_store_app_settings_memories_entry(
             "hashed_user_id": hashed_user_id,
             "app_id": app_id,
             "item_key": item_key,
+            "item_type": item_type,  # Category ID for filtering
             "encrypted_item_json": encrypted_item_json,  # Client-encrypted data
             "encrypted_app_key": encrypted_app_key,
             "created_at": created_at or current_timestamp,
@@ -111,7 +124,6 @@ async def handle_store_app_settings_memories_entry(
         
         try:
             # Check if entry already exists (by ID)
-            # Note: DirectusService uses get_items with filter, not get_item
             existing_entries = await directus_service.get_items(
                 "user_app_settings_and_memories",
                 params={
@@ -159,6 +171,7 @@ async def handle_store_app_settings_memories_entry(
                     "entry_id": entry_id,
                     "app_id": app_id,
                     "item_key": item_key,
+                    "item_type": item_type,
                     "success": True
                 }
             },
@@ -186,7 +199,7 @@ async def handle_store_app_settings_memories_entry(
         logger.info(f"[StoreAppSettingsMemories] Successfully stored and broadcasted entry {entry_id} for user {user_id[:8]}...")
         
     except Exception as e:
-        logger.error(f"[StoreAppSettingsMemories] Error handling entry for user {user_id}: {e}", exc_info=True)
+        logger.error(f"[StoreAppSettingsMemories] Error handling entry for user {user_id[:8]}...: {e}", exc_info=True)
         try:
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Failed to process app settings/memories entry"}},

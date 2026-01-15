@@ -308,14 +308,21 @@ async def handle_initial_sync(
                                     continue
                             
                             # Map encrypted message fields to EncryptedMessageResponse schema
+                            # CRITICAL: Use 'message_id' which is now set to 'client_message_id' by get_all_messages_for_chat.
+                            # This ensures the message ID matches what the frontend expects for matching
+                            # user_message_id references in system messages (e.g., app settings/memories response).
                             encrypted_msg = {
-                                'id': msg.get('id', ''),
+                                'message_id': msg.get('message_id') or msg.get('client_message_id') or msg.get('id', ''),
                                 'chat_id': server_chat_id,
                                 'encrypted_content': msg.get('encrypted_content', ''),
                                 'role': msg.get('role', 'user'),
                                 'encrypted_category': msg.get('encrypted_category'),
                                 'encrypted_sender_name': msg.get('encrypted_sender_name'),
                                 'encrypted_model_name': msg.get('encrypted_model_name'),
+                                'encrypted_thinking_content': msg.get('encrypted_thinking_content'),
+                                'encrypted_thinking_signature': msg.get('encrypted_thinking_signature'),
+                                'has_thinking': msg.get('has_thinking'),
+                                'thinking_token_count': msg.get('thinking_token_count'),
                                 'status': msg.get('status', 'delivered'),
                                 'created_at': msg.get('created_at', int(datetime.now(timezone.utc).timestamp()))
                             }
