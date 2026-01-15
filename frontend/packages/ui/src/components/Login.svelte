@@ -399,12 +399,20 @@
         // This ensures sensitive data is removed if user switches views
         clearSignupData();
 
+        // Reset the signup step to alpha disclaimer for clean state when returning to signup later
+        // This ensures users will start fresh if they switch back to signup
+        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
 
         // PRIVACY: Clear pending draft when user switches from signup to login
         // This ensures the saved message is deleted if user doesn't complete the flow
         clearPendingDraft();
+        
+        // SECURITY: Clear any crypto data that may have been stored during signup
+        // This ensures sensitive data from signup doesn't persist when returning to login
+        cryptoService.clearAllEmailData();
 
         // Wait for the view change to take effect
         await tick();
