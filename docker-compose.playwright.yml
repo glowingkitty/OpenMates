@@ -18,6 +18,9 @@ services:
         # Create an isolated, throwaway Playwright project inside the container.
         npm init -y >/dev/null 2>&1 &&
         npm install --silent @playwright/test@1.49.0 &&
-        npx playwright test --config=playwright.config.ts
+        # Allow targeted runs without overriding the container command.
+        # PLAYWRIGHT_TEST_FILE points at a single test file.
+        # PLAYWRIGHT_TEST_GREP filters tests by title (regex).
+        npx playwright test --config=playwright.config.ts ${PLAYWRIGHT_TEST_FILE:-} ${PLAYWRIGHT_TEST_GREP:+--grep "$PLAYWRIGHT_TEST_GREP"}
       "
 

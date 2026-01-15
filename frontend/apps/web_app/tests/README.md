@@ -23,11 +23,53 @@ across signup, 2FA enrollment, and payment.
 
 From the repo root:
 
+### Run All Tests
+
 ```bash
 docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
   -e PLAYWRIGHT_TEST_BASE_URL \
+  playwright
+```
+
+### Run a Specific Test File
+
+Provide a test file through `PLAYWRIGHT_TEST_FILE` to avoid overriding the
+container command:
+
+```bash
+docker compose -f docker-compose.playwright.yml run --rm \
+  -e SIGNUP_TEST_EMAIL_DOMAINS \
+  -e MAILOSAUR_API_KEY \
+  -e PLAYWRIGHT_TEST_BASE_URL \
+  -e PLAYWRIGHT_TEST_FILE="tests/signup-flow.spec.ts" \
+  playwright
+```
+
+### Run Tests Matching a Pattern
+
+Use `PLAYWRIGHT_TEST_GREP` to filter tests by name (case-insensitive regex):
+
+```bash
+docker compose -f docker-compose.playwright.yml run --rm \
+  -e SIGNUP_TEST_EMAIL_DOMAINS \
+  -e MAILOSAUR_API_KEY \
+  -e PLAYWRIGHT_TEST_BASE_URL \
+  -e PLAYWRIGHT_TEST_GREP="signup" \
+  playwright
+```
+
+### Run a Single Test by Title
+
+For an exact test match, provide the full test title:
+
+```bash
+docker compose -f docker-compose.playwright.yml run --rm \
+  -e SIGNUP_TEST_EMAIL_DOMAINS \
+  -e MAILOSAUR_API_KEY \
+  -e PLAYWRIGHT_TEST_BASE_URL \
+  -e PLAYWRIGHT_TEST_GREP="full signup flow" \
   playwright
 ```
 
