@@ -95,7 +95,14 @@ class DirectusService:
         await self._client.aclose()
         logger.info("DirectusService httpx client closed.")
 
-    async def get_items(self, collection, params=None, no_cache=True):
+    async def get_items(
+        self,
+        collection,
+        params=None,
+        no_cache=True,
+        return_none_on_403: bool = False,
+        admin_required: bool = False
+    ):
         """
         Fetch items from a Directus collection with optional query params.
         Returns the list of items directly.
@@ -110,14 +117,15 @@ class DirectusService:
         # directus_sessions is a system collection that requires admin permissions
         sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions']
         
-        if collection in sensitive_collections:
+        if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
             admin_token = await self.ensure_auth_token(admin_required=True)
             if not admin_token:
-                logger.error(f"Failed to get admin token for sensitive collection: {collection}")
+                # This is critical because callers explicitly requested admin access.
+                logger.error(f"Failed to get admin token for collection: {collection}")
                 return []
             headers = {"Authorization": f"Bearer {admin_token}"}
-            logger.info(f"Using admin token for sensitive collection: {collection}")
+            logger.info(f"Using admin token for collection: {collection}")
         else:
             # Use regular token for non-sensitive collections
             headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -181,6 +189,9 @@ class DirectusService:
                     logger.error(f"Directus get_items for '{collection}': Request URL would be: {url}?{chr(38).join(f'{k}={v}' for k, v in current_params.items())}")
                 except Exception:
                     logger.error(f"Directus get_items for '{collection}': Permission denied (403). Response text: {response_obj.text[:500]}")
+                # Returning None here allows callers to detect permission errors and retry with safer field sets.
+                if return_none_on_403:
+                    return None
                 return []
             else:
                 logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")

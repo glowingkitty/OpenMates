@@ -130,10 +130,10 @@ skills:
     skill_config:
       default_llms:
         preprocessing_model: mistral/mistral-small-latest
-        main_processing_simple: google/gemini-3-flash-preview
-        main_processing_simple_name: Gemini 3 Flash
-        # main_processing_simple: alibaba/qwen3-235b-a22b-2507
-        # main_processing_simple_name: Qwen3
+        # main_processing_simple: google/gemini-3-flash-preview
+        # main_processing_simple_name: Gemini 3 Flash
+        main_processing_simple: alibaba/qwen3-235b-a22b-2507
+        main_processing_simple_name: Qwen3
         main_processing_complex: google/gemini-3-pro-preview
         main_processing_complex_name: Gemini 3 Pro
         # main_processing_complex: alibaba/qwen3-235b-a22b-2507

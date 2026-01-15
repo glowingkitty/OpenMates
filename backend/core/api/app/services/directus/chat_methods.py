@@ -87,6 +87,20 @@ MESSAGE_ALL_FIELDS = (
     "created_at"
 )
 
+# Fallback message fields for environments where thinking metadata fields are not permitted.
+# This avoids hard failures during login sync if Directus roles have not been updated yet.
+MESSAGE_FIELDS_NO_THINKING = (
+    "id,"
+    "client_message_id,"
+    "chat_id,"
+    "encrypted_content,"
+    "role,"
+    "encrypted_sender_name,"
+    "encrypted_category,"
+    "encrypted_model_name,"
+    "created_at"
+)
+
 # Minimal fields for basic message existence checks (avoids permission issues with encrypted fields)
 MESSAGE_BASIC_FIELDS = (
     "id,"
@@ -519,7 +533,32 @@ class ChatMethods:
             'limit': -1
         }
         try:
-            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            # First attempt includes thinking metadata fields. If Directus denies those fields,
+            # retry with a reduced field set to unblock login sync.
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                return_none_on_403=True,
+                # Messages include thinking metadata fields that require elevated permissions.
+                # Using admin token here ensures sync has access to the full message payload.
+                admin_required=True
+            )
+            if messages_from_db is None:
+                logger.warning(
+                    "Directus denied message thinking fields (403) even with admin access. "
+                    "Retrying message fetch without thinking metadata to keep sync alive."
+                )
+                fallback_params = {
+                    'filter[chat_id][_in]': ','.join(chat_ids),
+                    'fields': MESSAGE_FIELDS_NO_THINKING,
+                    'sort': 'created_at',
+                    'limit': -1
+                }
+                messages_from_db = await self.directus_service.get_items(
+                    'messages',
+                    params=fallback_params,
+                    admin_required=True
+                )
             if not messages_from_db or not isinstance(messages_from_db, list):
                 logger.info(f"No messages found for chat_ids: {chat_ids}")
                 return {}
