@@ -9,56 +9,84 @@ check_svelte=false
 check_css=false
 check_html=false
 check_yml=false
+declare -a target_paths=()
 
-# Parse arguments
-for arg in "$@"; do
-  case "${arg}" in
+# Parse arguments (supports --path and positional file/dir targets)
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     full_repo)
       full_repo_mode=true
+      shift
       ;;
     --py)
       check_py=true
+      shift
       ;;
     --ts)
       check_ts=true
+      shift
       ;;
     --svelte)
       check_svelte=true
+      shift
       ;;
     --css)
       check_css=true
+      shift
       ;;
     --html)
       check_html=true
+      shift
       ;;
     --yml)
       check_yml=true
+      shift
+      ;;
+    --path)
+      if [[ -z "${2-}" ]]; then
+        echo "Missing value for --path" >&2
+        exit 1
+      fi
+      target_paths+=("$2")
+      shift 2
+      ;;
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do
+        target_paths+=("$1")
+        shift
+      done
       ;;
     --help|-h)
-      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml]"
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml] [--path <file|dir>] [-- <file|dir> ...]"
       echo ""
       echo "Options:"
-      echo "  full_repo    Check all files in the repository (default: only uncommitted changes)"
-      echo "  --py         Only check Python (.py) files"
-      echo "  --ts         Only check TypeScript (.ts, .tsx) files"
-      echo "  --svelte     Only check Svelte (.svelte) files"
-      echo "  --css        Only check CSS (.css) files"
-      echo "  --html       Only check HTML (.html) files"
-      echo "  --yml        Only check YAML (.yml, .yaml) files"
+      echo "  full_repo             Check all files in the repository (default: only uncommitted changes)"
+      echo "  --py                  Only check Python (.py) files"
+      echo "  --ts                  Only check TypeScript (.ts, .tsx) files"
+      echo "  --svelte              Only check Svelte (.svelte) files"
+      echo "  --css                 Only check CSS (.css) files"
+      echo "  --html                Only check HTML (.html) files"
+      echo "  --yml                 Only check YAML (.yml, .yaml) files"
+      echo "  --path <file|dir>     Only check files under this path (repeatable)"
+      echo "  -- <file|dir> ...     Treat remaining args as target paths"
       echo ""
       echo "Examples:"
-      echo "  $0                    # Check uncommitted changes, all file types"
-      echo "  $0 full_repo          # Check all files, all file types"
-      echo "  $0 --py               # Check uncommitted .py files only"
-      echo "  $0 full_repo --py     # Check all .py files"
-      echo "  $0 --ts --svelte      # Check uncommitted .ts and .svelte files"
-      echo "  $0 --yml              # Check uncommitted .yml and .yaml files"
+      echo "  $0                                         # Check uncommitted changes, all file types"
+      echo "  $0 full_repo                               # Check all files, all file types"
+      echo "  $0 --py --path backend/core/api            # Check Python changes under backend/core/api"
+      echo "  $0 --svelte --path frontend/packages/ui    # Check Svelte changes under UI package"
+      echo "  $0 --ts -- frontend/apps/web_app/tests     # Check TS changes under web_app tests"
       exit 0
       ;;
-    *)
-      echo "Unknown argument: ${arg}" >&2
+    -*)
+      echo "Unknown argument: $1" >&2
       echo "Use --help for usage information" >&2
       exit 1
+      ;;
+    *)
+      target_paths+=("$1")
+      shift
       ;;
   esac
 done
@@ -97,6 +125,51 @@ if [[ -n "${python_cmd}" ]] && ! command -v "${python_cmd}" >/dev/null 2>&1; the
 fi
 
 overall_status=0
+js_deps_ready=false
+eslint_ready=false
+eslint_missing=false
+
+# Normalize a user-provided path into a repo-relative path.
+normalize_target_path() {
+  local raw_path="$1"
+  local normalized="${raw_path}"
+
+  if [[ -z "${raw_path}" ]]; then
+    return 1
+  fi
+
+  if [[ "${raw_path}" = /* ]]; then
+    if [[ "${raw_path}" == "${repo_root}"* ]]; then
+      normalized="${raw_path#${repo_root}/}"
+    else
+      echo "Target path is outside repo: ${raw_path}" >&2
+      return 1
+    fi
+  fi
+
+  normalized="${normalized#./}"
+  if [[ -z "${normalized}" ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "${normalized}"
+}
+
+# Check if a file matches any target path (file or directory).
+matches_target_path() {
+  local file_path="$1"
+  local target_path="$2"
+
+  if [[ "${file_path}" == "${target_path}" ]]; then
+    return 0
+  fi
+
+  if [[ "${file_path}" == "${target_path}/"* ]]; then
+    return 0
+  fi
+
+  return 1
+}
 
 # Collect files based on mode
 if ${full_repo_mode}; then
@@ -121,6 +194,38 @@ if (( ${#changed_files[@]} == 0 )); then
   else
     echo "No uncommitted file changes."
   fi
+  exit 0
+fi
+
+# Filter changed files to the requested target paths when provided.
+if (( ${#target_paths[@]} > 0 )); then
+  declare -a normalized_targets=()
+  declare -a filtered_files=()
+
+  for target in "${target_paths[@]}"; do
+    normalized_target="$(normalize_target_path "${target}" || true)"
+    if [[ -n "${normalized_target}" ]]; then
+      normalized_targets+=("${normalized_target}")
+    else
+      echo "Skipping invalid target path: ${target}" >&2
+    fi
+  done
+
+  if (( ${#normalized_targets[@]} > 0 )); then
+    for file in "${changed_files[@]}"; do
+      for target in "${normalized_targets[@]}"; do
+        if matches_target_path "${file}" "${target}"; then
+          filtered_files+=("${file}")
+          break
+        fi
+      done
+    done
+    changed_files=("${filtered_files[@]}")
+  fi
+fi
+
+if (( ${#changed_files[@]} == 0 )); then
+  echo "No matching files found for the specified target paths."
   exit 0
 fi
 
@@ -198,6 +303,7 @@ run_python_lint() {
   else
     python_mode="compile"
     echo "Python: no supported linter found (tried: ruff/flake8/pylint); running syntax check instead." >&2
+    echo "Python: install dev linting deps with 'pip install -r backend/requirements-dev.txt'." >&2
   fi
 
   local file
@@ -270,8 +376,55 @@ run_eslint_file() {
   local rel_file="$3"
   local label="$4"
 
+  # Ensure ESLint exists before running lint checks.
+  # We keep dedicated flags so Svelte/TS checks don't mask missing ESLint installs.
+  if ${eslint_missing}; then
+    overall_status=1
+    return 0
+  fi
+
+  local eslint_root="${pkg_root}"
+  local eslint_cwd="${pkg_root}"
+  local eslint_target="${rel_file}"
+  local eslint_config_args=()
+  local eslint_bin_path=""
+
+  # Prefer a package-local ESLint install, but fall back to the workspace root
+  # so pnpm workspaces can still lint even when deps are hoisted.
+  if [[ -f "${pkg_root}/node_modules/eslint/bin/eslint.js" ]]; then
+    eslint_bin_path="${pkg_root}/node_modules/eslint/bin/eslint.js"
+    eslint_root="${pkg_root}"
+  elif [[ -f "${repo_root}/node_modules/eslint/bin/eslint.js" ]]; then
+    eslint_bin_path="${repo_root}/node_modules/eslint/bin/eslint.js"
+    eslint_root="${repo_root}"
+  fi
+
   if [[ "${pnpm_cmd}" == "pnpm" ]]; then
-    if pnpm -C "${pkg_root}" exec eslint --max-warnings=0 --no-ignore "${rel_file}"; then
+    # Keep pnpm exec in the directory where ESLint is installed.
+    # With ESLint flat config, plugin resolution happens relative to the config file,
+    # so we avoid legacy flags like --resolve-plugins-relative-to.
+    eslint_cwd="${eslint_root}"
+    eslint_target="${pkg_root}/${rel_file}"
+    if [[ -f "${pkg_root}/eslint.config.js" ]]; then
+      eslint_config_args=(--config "${pkg_root}/eslint.config.js")
+    fi
+  fi
+
+  if ! ${eslint_ready}; then
+    # We check the real eslint package entrypoint to avoid stale .bin entries.
+    if [[ -n "${eslint_bin_path}" ]]; then
+      eslint_ready=true
+    else
+      echo "ESLint: not installed or incomplete in ${pkg_root#${repo_root}/} or repo root." >&2
+      echo "ESLint: run 'pnpm install' from the repo root after fixing node_modules permissions." >&2
+      eslint_missing=true
+      overall_status=1
+      return 0
+    fi
+  fi
+
+  if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+    if pnpm -C "${eslint_cwd}" exec eslint --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
       echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
     else
       echo "${label}: error ${pkg_root#${repo_root}/}/${rel_file}" >&2
@@ -301,6 +454,31 @@ run_tsc_check() {
   else
     echo "TypeScript: no package manager found (pnpm/npm); skipping type check." >&2
     return 0
+  fi
+
+  # Ensure Node.js dependencies are installed before running tsc.
+  # This avoids failures when TypeScript isn't available in node_modules.
+  if ! ${js_deps_ready}; then
+    local first_pkg_root="${repo_root}"
+    if (( ${#ts_files[@]} > 0 )); then
+      first_pkg_root="$(find_pkg_root "$(dirname "${repo_root}/${ts_files[0]}")" || true)"
+      if [[ -z "${first_pkg_root}" ]]; then
+        first_pkg_root="${repo_root}"
+      fi
+    fi
+
+    # Only install if the TypeScript binary is missing in the target package.
+    if [[ -f "${first_pkg_root}/node_modules/.bin/tsc" ]]; then
+      js_deps_ready=true
+    else
+      echo "TypeScript: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
+      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+        pnpm -C "${repo_root}" install
+      else
+        npm --prefix "${first_pkg_root}" install
+      fi
+      js_deps_ready=true
+    fi
   fi
 
   # Group files by package to run tsc once per package
@@ -399,6 +577,31 @@ run_svelte_check() {
   else
     echo "Svelte: no package manager found (pnpm/npm); skipping type check." >&2
     return 0
+  fi
+
+  # Ensure Node.js dependencies are installed before running svelte-check.
+  # This avoids failures when svelte-check isn't available in node_modules.
+  if ! ${js_deps_ready}; then
+    local first_pkg_root="${repo_root}"
+    if (( ${#svelte_files[@]} > 0 )); then
+      first_pkg_root="$(find_pkg_root "$(dirname "${repo_root}/${svelte_files[0]}")" || true)"
+      if [[ -z "${first_pkg_root}" ]]; then
+        first_pkg_root="${repo_root}"
+      fi
+    fi
+
+    # Only install if the svelte-check binary is missing in the target package.
+    if [[ -f "${first_pkg_root}/node_modules/.bin/svelte-check" ]]; then
+      js_deps_ready=true
+    else
+      echo "Svelte: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
+      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+        pnpm -C "${repo_root}" install
+      else
+        npm --prefix "${first_pkg_root}" install
+      fi
+      js_deps_ready=true
+    fi
   fi
 
   # Group files by package
@@ -558,8 +761,10 @@ run_yml_lint() {
   elif [[ -n "${python_cmd}" ]] && "${python_cmd}" -c "import yaml" >/dev/null 2>&1; then
     yaml_linter="yaml_parse"
     echo "YAML: no yamllint found; running basic syntax check instead." >&2
+    echo "YAML: install dev linting deps with 'pip install -r backend/requirements-dev.txt'." >&2
   else
     echo "YAML: no YAML linter found (tried: yamllint); skipping." >&2
+    echo "YAML: install dev linting deps with 'pip install -r backend/requirements-dev.txt'." >&2
     return 0
   fi
 
