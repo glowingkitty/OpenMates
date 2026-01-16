@@ -82,8 +82,18 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// 7. Wait for redirect to chat
 	await page.waitForURL(/chat/);
-	await takeStepScreenshot(page, 'chat-loaded');
-	logChatCheckpoint('Arrived at chat page.');
+	
+	// Wait 5 seconds to ensure any demo/welcome chat is loaded
+	logChatCheckpoint('Waiting 5 seconds for initial chat to load...');
+	await page.waitForTimeout(5000);
+
+	// Check if "New Chat" button is visible and click it to ensure we're in a fresh chat
+	const newChatButton = page.locator('.icon_create');
+	if (await newChatButton.isVisible()) {
+		logChatCheckpoint('New Chat button visible, clicking it to start a fresh chat.');
+		await newChatButton.click();
+		await page.waitForTimeout(2000); // Wait for new chat to initialize
+	}
 
 	// 8. Send message "Capital of Germany?"
 	const messageEditor = page.locator('.editor-content.prose');
@@ -98,6 +108,14 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await sendButton.click();
 	logChatCheckpoint('Sent message: "Capital of Germany?"');
 	await takeStepScreenshot(page, 'message-sent');
+
+	// The chat ID is generated and added to URL after the first message is sent
+	logChatCheckpoint('Waiting for Chat ID to appear in URL...');
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const urlAfterSend = page.url();
+	const chatIdMatch = urlAfterSend.match(/chat-id=([a-zA-Z0-9-]+)/);
+	const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
+	logChatCheckpoint(`Chat ID detected: ${chatId}`, { chatId });
 
 	// 9. Wait for response containing "Berlin"
 	logChatCheckpoint('Waiting for assistant response...');
