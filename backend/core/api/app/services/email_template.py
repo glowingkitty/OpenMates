@@ -1,19 +1,8 @@
 import os
 import logging
 import re
-import base64
-import yaml
 from typing import Dict, Any, Optional, Tuple, Union
-import aiohttp
-import json
-from pathlib import Path
-from mjml import mjml2html
-from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
-from premailer import transform  # Add this import for CSS inlining
 import cssutils  # Add this import to configure cssutils logger
-import string
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import sys
 from html.parser import HTMLParser
 from urllib.parse import urlparse
@@ -405,6 +394,9 @@ class EmailTemplateService:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "account-recovery":
                     subject_key = "email.account_recovery_title.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "account-created":
+                    subject_key = "email.account_created.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"

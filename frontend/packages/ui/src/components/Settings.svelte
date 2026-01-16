@@ -322,7 +322,7 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
-                    key === 'report_issue') {
+                    key === 'report_issue' || key === 'account/delete') {
                     filtered[key] = component;
                 }
             } else {

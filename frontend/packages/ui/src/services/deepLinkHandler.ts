@@ -184,18 +184,24 @@ export function processSettingsDeepLink(
     handlers.openSettings();
     
     // Check for special deep links that need to keep hash in URL (like refund, newsletter confirm, etc.)
-    const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^\/]+\/refund$/);
+    const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^/]+\/refund$/);
     const newsletterConfirmMatch = settingsPath.match(/^\/newsletter\/confirm\/(.+)$/);
     const newsletterUnsubscribeMatch = settingsPath.match(/^\/newsletter\/unsubscribe\/(.+)$/);
     const emailBlockMatch = settingsPath.match(/^\/email\/block\/(.+)$/);
+    const accountDeleteMatch = settingsPath.match(/^\/account\/delete\/[^/]+$/);
     
-    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch) {
+    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch) {
         // These deep links keep the hash for component processing
         // Navigate to the base settings page
         if (refundMatch) {
             handlers.setSettingsDeepLink('billing/invoices');
         } else if (newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch) {
             handlers.setSettingsDeepLink('newsletter');
+        } else if (accountDeleteMatch) {
+            // Extract the path from the hash to include the ID
+            // This ensures Settings.svelte can extract the activeAccountId
+            const path = hash.startsWith('#settings/') ? hash.substring('#settings/'.length) : 'account/delete';
+            handlers.setSettingsDeepLink(path);
         }
         // Don't clear hash - component will process it
         return;

@@ -471,6 +471,13 @@
 		
 		// Check if path starts with any public setting
 		const normalizedPath = settingsPath.startsWith('/') ? settingsPath.substring(1) : settingsPath;
+
+		// Specific check for account deletion deep links from email
+		// These allow uncompleted accounts to be deleted without login
+		if (normalizedPath.startsWith('account/delete/')) {
+			return false;
+		}
+
 		const firstSegment = normalizedPath.split('/')[0];
 		
 		// Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)

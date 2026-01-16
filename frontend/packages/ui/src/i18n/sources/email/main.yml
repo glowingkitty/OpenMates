@@ -16,12 +16,12 @@ welcome_to_openmates:
   zh: 欢迎来到 OpenMates！
 complete_signup_info:
   context: Email body for account created confirmation
-  en: You're almost there! To start using OpenMates, please complete your signup process.
-  de: Du hast es fast geschafft! Um OpenMates nutzen zu können, schließe bitte deinen Registrierungsprozess ab.
-  es: ¡Ya casi estás allí! Para empezar a usar OpenMates, por favor completa tu proceso de registro.
-  fr: Vous y êtes presque ! Pour commencer à utiliser OpenMates, veuillez terminer votre processus d'inscription.
-  ja: あと少しです！OpenMatesを使い始めるには、サインアップを完了してください。
-  zh: 您快要完成了！要开始使用 OpenMates，请完成您的注册流程。
+  en: Once you completed the signup process by purchasing usage credits or redeeming a gift card, you can start using OpenMates!
+  de: Sobald du den Registrierungsprozess durch den Kauf von Nutzungsguthaben oder das Einlösen einer Geschenkkarte abgeschlossen hast, kannst du OpenMates nutzen!
+  es: Una vez que hayas completado el proceso de registro comprando créditos de uso o canjeando una tarjeta de regalo, ¡podrás empezar a usar OpenMates!
+  fr: Une fois que vous aurez terminé le processus d'inscription en achetant des crédits d'utilisation ou en utilisant une carte-cadeau, vous pourrez commencer à utiliser OpenMates !
+  ja: 利用クレジットの購入またはギフトカードの引き換えによりサインアッププロセスが完了すると、OpenMatesの使用を開始できます。
+  zh: 一旦您通过购买使用额度或兑换礼品卡完成了注册流程，您就可以开始使用 OpenMates 了！
 auto_delete_warning:
   context: Email body warning for account created confirmation
   en: 'Please note: Accounts that haven''t completed the signup process will be automatically deleted after 7 days.'
