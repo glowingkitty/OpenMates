@@ -68,6 +68,7 @@ class SecretsManager:
         # Shared httpx client for Vault requests - prevents "Event loop is closed" errors
         # by keeping a single client that can be explicitly closed with aclose()
         self._http_client: Optional[httpx.AsyncClient] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         
         self._initialized = True
             
@@ -450,9 +451,23 @@ class SecretsManager:
         Returns:
             httpx.AsyncClient: The shared HTTP client instance
         """
-        if self._http_client is None or self._http_client.is_closed:
+        current_loop = asyncio.get_event_loop()
+        
+        # Check if we need to create a new client:
+        # 1. No client exists
+        # 2. Client is already closed
+        # 3. Client was created in a different event loop (crucial for Celery tasks using asyncio.run())
+        if self._http_client is None or self._http_client.is_closed or self._loop != current_loop:
+            if self._http_client and not self._http_client.is_closed:
+                # If there's an existing client from a different loop, we can't easily close it 
+                # here as aclose() is async and tied to the old loop. We just drop the reference
+                # and let it be garbage collected.
+                logger.debug("Dropping stale httpx client from a different event loop")
+                
             self._http_client = httpx.AsyncClient(timeout=30.0)
-            logger.debug("Created new shared httpx client for Vault requests")
+            self._loop = current_loop
+            logger.debug(f"Created new shared httpx client for Vault requests (Loop: {id(current_loop)})")
+            
         return self._http_client
     
     async def aclose(self):
@@ -492,6 +507,7 @@ class SecretsManager:
                 logger.warning(f"Error closing httpx client: {e}")
             finally:
                 self._http_client = None
+                self._loop = None
     
     async def close(self):
         """
