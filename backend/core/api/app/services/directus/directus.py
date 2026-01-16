@@ -109,7 +109,15 @@ class DirectusService:
         
         For sensitive collections like 'directus_users', ensures admin token is used.
         """
-        url = f"{self.base_url}/items/{collection}"
+        # System collections are accessed directly, not via /items/
+        # mapping directus_users -> /users, directus_roles -> /roles, etc.
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users"
+        else:
+            url = f"{self.base_url}/items/{collection}"
         
         # For sensitive collections like directus_users, ensure we use admin token
         # user_passkeys contains user_id which requires admin permissions
@@ -841,7 +849,14 @@ class DirectusService:
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
         """
-        url = f"{self.base_url}/items/{collection}/{item_id}"
+        # System collections are accessed directly, not via /items/
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}/{item_id}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users/{item_id}"
+        else:
+            url = f"{self.base_url}/items/{collection}/{item_id}"
         
         response_obj = await self._make_api_request(
             "PATCH", url, json=data, params=params
@@ -885,7 +900,14 @@ class DirectusService:
         Handles authentication and retries.
         Returns True if deletion was successful (204 No Content), False otherwise.
         """
-        url = f"{self.base_url}/items/{collection}/{item_id}"
+        # System collections are accessed directly, not via /items/
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}/{item_id}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users/{item_id}"
+        else:
+            url = f"{self.base_url}/items/{collection}/{item_id}"
         
         response_obj = await self._make_api_request(
             "DELETE", url, params=params

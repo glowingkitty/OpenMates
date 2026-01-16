@@ -3136,12 +3136,9 @@ async def get_account_status(
     """
     try:
         # Find user by account_id
+        # Use bracket notation for filter which is more reliable for system endpoints
         params = {
-            "filter": {
-                "account_id": {
-                    "_eq": account_id
-                }
-            },
+            "filter[account_id][_eq]": account_id,
             "fields": "id,last_opened,signup_completed"
         }
         users = await directus_service.get_items("directus_users", params)

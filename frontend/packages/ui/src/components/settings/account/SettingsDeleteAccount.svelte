@@ -102,6 +102,43 @@ Uses SecurityAuth component for passkey/2FA verification.
         }
     }
 
+    async function handleDeletionSuccess(customMessage?: string) {
+        successMessage = customMessage || $text('settings.account.delete_account_success.text');
+        deletionScheduled = true;
+        
+        setTimeout(async () => {
+            // Close settings panel
+            settingsMenuVisible.set(false);
+            panelState.closeSettings();
+            
+            // Close signup flow if user was in signup process
+            isInSignupProcess.set(false);
+            currentSignupStep.set('');
+            
+            // Notify other components that user is logging out
+            window.dispatchEvent(new CustomEvent('userLoggingOut'));
+            
+            await new Promise(resolve => setTimeout(resolve, 50));
+            activeChatStore.setActiveChat('demo-welcome');
+            
+            // Reset URL to demo welcome page
+            if (typeof window !== 'undefined') {
+                window.location.hash = 'chat-id=demo-welcome';
+            }
+            
+            phasedSyncState.markSyncCompleted();
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // For authenticated users, perform full logout
+            // For guest users, the above cleanup is sufficient
+            if ($authStore.isAuthenticated) {
+                authStore.logout();
+            }
+            
+            console.log('[SettingsDeleteAccount] Account deleted, session cleaned up, signup flow closed');
+        }, 2000);
+    }
+
     async function handleDeleteUncompletedAccount() {
         if (!accountId || !canDeleteWithoutLogin) return;
         isLoadingDeletion = true;
@@ -112,8 +149,7 @@ Uses SecurityAuth component for passkey/2FA verification.
                 headers: { 'Content-Type': 'application/json' }
             });
             if (response.ok) {
-                successMessage = $text('settings.account.delete_account_success.text');
-                deletionScheduled = true;
+                await handleDeletionSuccess();
             } else {
                 const data = await response.json();
                 errorMessage = data.detail || 'Failed to delete account';
@@ -252,34 +288,7 @@ Uses SecurityAuth component for passkey/2FA verification.
 
             const data = await response.json();
             if (data.success) {
-                successMessage = data.message || $text('settings.account.delete_account_success.text');
-                
-                setTimeout(async () => {
-                    // Close settings panel
-                    settingsMenuVisible.set(false);
-                    panelState.closeSettings();
-                    
-                    // Close signup flow if user was in signup process
-                    isInSignupProcess.set(false);
-                    currentSignupStep.set('');
-                    
-                    // Notify other components that user is logging out
-                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
-                    
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    activeChatStore.setActiveChat('demo-welcome');
-                    
-                    // Reset URL to demo welcome page
-                    if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                    }
-                    
-                    phasedSyncState.markSyncCompleted();
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    authStore.logout();
-                    
-                    console.log('[SettingsDeleteAccount] Account deleted, user logged out, signup flow closed');
-                }, 2000);
+                await handleDeletionSuccess(data.message);
             } else {
                 throw new Error(data.message || 'Account deletion failed');
             }
