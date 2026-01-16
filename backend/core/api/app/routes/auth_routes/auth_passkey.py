@@ -17,6 +17,7 @@ import time
 import hashlib
 import os
 import base64
+from backend.core.api.app.tasks.celery_config import app as celery_app
 import json
 from typing import Dict, Any
 import cbor2
@@ -981,6 +982,26 @@ async def passkey_registration_complete(
                 )
             
             user_id = user_data.get("id")
+            # Send 'Account created' confirmation email
+            try:
+                # Fetch verification data from cache to get the plaintext email
+                verification_cache_key = f"email_verified:{complete_request.hashed_email}"
+                verification_data = await cache_service.get(verification_cache_key)
+                
+                if verification_data and verification_data.get("email"):
+                    celery_app.send_task(
+                        name="app.tasks.email_tasks.account_created_email_task.send_account_created_email",
+                        kwargs={
+                            "email": verification_data.get("email"),
+                            "account_id": user_data.get("account_id"),
+                            "language": complete_request.language,
+                            "darkmode": complete_request.darkmode
+                        },
+                        queue="email"
+                    )
+                    logger.info(f"Account created email task submitted for user {user_id}")
+            except Exception as email_err:
+                logger.error(f"Failed to submit account created email task for user {user_id}: {email_err}")
             vault_key_id = user_data.get("vault_key_id")
         
         # Verify WebAuthn attestation using py_webauthn

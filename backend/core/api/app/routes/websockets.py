@@ -1033,8 +1033,16 @@ async def websocket_endpoint(
                 if active_chat_id:
                     # Only update if a real chat is selected (not None/"new chat")
                     try:
-                        await directus_service.update_user(user_id, {"last_opened": active_chat_id})
-                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id}")
+                        update_payload = {"last_opened": active_chat_id}
+                        
+                        # Optimization: If the user is opening a chat, mark signup as completed
+                        import re
+                        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                        if active_chat_id.startswith("/chat/") or uuid_pattern.match(active_chat_id):
+                            update_payload["signup_completed"] = True
+                            
+                        await directus_service.update_user(user_id, update_payload)
+                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id} (signup_completed: {update_payload.get('signup_completed', False)})")
                     except Exception as e:
                         logger.error(f"User {user_id}: Failed to update last_opened: {str(e)}")
                         # Don't fail the whole operation if Directus update fails

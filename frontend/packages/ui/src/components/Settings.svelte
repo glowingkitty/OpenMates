@@ -533,6 +533,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // State to track active submenu view
     let activeSettingsView = $state('main');
+    let activeAccountId = $state<string | null>(null);
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
@@ -554,8 +555,21 @@ changes to the documentation (to keep the documentation up to date).
     // Function to set active settings view with transitions
     function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        const { settingsPath, direction: newDirection, icon } = detail;
+        let { settingsPath, direction: newDirection, icon } = detail;
         direction = newDirection;
+
+        // Reset active account ID
+        activeAccountId = null;
+
+        // Handle account deletion with account_id
+        if (settingsPath.startsWith('account/delete/')) {
+            const parts = settingsPath.split('/');
+            if (parts.length > 2) {
+                activeAccountId = parts[2];
+                settingsPath = 'account/delete';
+                icon = 'delete';
+            }
+        }
 
         // Check if this is a dynamic entry detail route that needs to be registered
         // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
@@ -1564,6 +1578,7 @@ changes to the documentation (to keep the documentation up to date).
         <CurrentSettingsPage
         	bind:this={currentPageInstance}
         	{activeSettingsView}
+            accountId={activeAccountId}
         	{direction}
         	{username}
             {isInSignupMode}

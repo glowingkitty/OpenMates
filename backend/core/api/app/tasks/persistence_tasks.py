@@ -3,6 +3,8 @@
 # including creating, updating, and deleting chat-related data in Directus and cache.
 import logging
 import asyncio
+import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Dict, Any
 from typing import Optional
@@ -1716,3 +1718,146 @@ def persist_new_chat_suggestions_task(
             loop.close()
         logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_new_chat_suggestions task_id: {task_id}")
 
+
+@app.task(name="app.tasks.persistence_tasks.cleanup_uncompleted_signups", bind=True)
+def cleanup_uncompleted_signups_task(self):
+    """
+    Task to clean up user accounts that haven't completed signup within 7 days.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(f"SYNC_WRAPPER: cleanup_uncompleted_signups_task, task_id: {task_id}")
+    
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_async_cleanup_uncompleted_signups_task(task_id))
+    except Exception as e:
+        logger.error(f"Error in cleanup_uncompleted_signups_task, task_id: {task_id}: {e}", exc_info=True)
+        raise
+    finally:
+        if loop:
+            loop.close()
+        logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for cleanup_uncompleted_signups_task, task_id: {task_id}")
+
+async def _async_cleanup_uncompleted_signups_task(task_id: str):
+    """
+    Async logic for cleaning up uncompleted signups.
+    """
+    logger.info(f"Task _async_cleanup_uncompleted_signups_task (task_id: {task_id}): Starting cleanup")
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+    
+    from datetime import datetime, timedelta, timezone
+    import json
+    
+    # Define "old" as created more than 7 days ago
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    iso_date = seven_days_ago.isoformat()
+    
+    # Filter for users who are still in signup process
+    # last_opened starts with '/signup/' and signup_completed is false
+    params = {
+        "filter": json.dumps({
+            "_and": [
+                {
+                    "signup_completed": {
+                        "_eq": False
+                    }
+                },
+                {
+                    "last_opened": {
+                        "_starts_with": "/signup/"
+                    }
+                },
+                {
+                    "created_at": {
+                        "_lt": iso_date
+                    }
+                },
+                {
+                    "is_admin": {
+                        "_eq": False
+                    }
+                }
+            ]
+        }),
+        "fields": "id,account_id,last_opened",
+        "limit": -1
+    }
+    
+    try:
+        url = f"{directus_service.base_url}/users"
+        response = await directus_service._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            users = response.json().get("data", [])
+            logger.info(f"Found {len(users)} potentially uncompleted signups older than 7 days")
+            
+            for user in users:
+                user_id = user.get("id")
+                account_id = user.get("account_id")
+                last_opened = user.get("last_opened")
+                
+                # Double check last_opened with the same logic as the API (Fallback 1)
+                if last_opened:
+                    import re
+                    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                    if last_opened.startswith("/chat/") or uuid_pattern.match(last_opened):
+                        logger.info(f"Skipping user {user_id} ({account_id}) as last_opened indicates completion. Updating flag.")
+                        await directus_service.update_user(user_id, {"signup_completed": True})
+                        continue
+
+                # Calculate hashed user_id for zero-knowledge collections (usage, invoices)
+                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+                async def check_usage():
+                    usage_params = {
+                        "filter": json.dumps({"user_id_hash": {"_eq": user_id_hash}}),
+                        "limit": 1,
+                        "meta": "filter_count"
+                    }
+                    resp = await directus_service._make_api_request("GET", f"{directus_service.base_url}/items/usage", params=usage_params)
+                    if resp.status_code == 200:
+                        return resp.json().get("meta", {}).get("filter_count", 0) > 0
+                    return False
+
+                async def check_invoices():
+                    payment_params = {
+                        "filter": json.dumps({
+                            "user_id_hash": {"_eq": user_id_hash}, 
+                            "status": {"_eq": "completed"}
+                        }),
+                        "limit": 1,
+                        "meta": "filter_count"
+                    }
+                    resp = await directus_service._make_api_request("GET", f"{directus_service.base_url}/items/invoices", params=payment_params)
+                    if resp.status_code == 200:
+                        return resp.json().get("meta", {}).get("filter_count", 0) > 0
+                    return False
+
+                # Run checks in parallel for this user (Fallback 2)
+                has_usage, has_credits = await asyncio.gather(check_usage(), check_invoices())
+                
+                if has_usage or has_credits:
+                    logger.info(f"Skipping user {user_id} ({account_id}) as they have usage or credits. Updating flag.")
+                    await directus_service.update_user(user_id, {"signup_completed": True})
+                    continue
+                
+                # All checks passed, schedule deletion
+                from backend.core.api.app.tasks.celery_config import app as celery_app
+                celery_app.send_task(
+                    "delete_user_account",
+                    kwargs={"user_id": user_id},
+                    queue="user_init"
+                )
+                logger.info(f"Scheduled deletion for uncompleted account: {account_id} (user_id: {user_id})")
+                
+            return True
+        else:
+            logger.error(f"Failed to fetch users for cleanup: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error in _async_cleanup_uncompleted_signups_task: {e}", exc_info=True)
+        return False

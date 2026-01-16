@@ -1184,7 +1184,7 @@ async def get_usage_summaries(
     request: Request,
     type: str,  # "chats", "apps", or "api_keys"
     months: int = 3,
-    current_user: User = Depends(get_current_user),  # Web app only - not in whitelist
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -1429,7 +1429,7 @@ async def get_usage_details(
 async def export_usage_csv(
     request: Request,
     months: int = 3,
-    current_user: User = Depends(get_current_user),  # Web app only - not in whitelist
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
@@ -3122,3 +3122,154 @@ async def update_password(
             success=False,
             message="An error occurred while updating password. Please try again."
         )
+
+
+# --- Account Status and Uncompleted Account Deletion ---
+@router.get("/account-status/{account_id}", include_in_schema=False)
+async def get_account_status(
+    account_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """
+    Check if an account can be deleted without login.
+    Returns can_delete_without_login: true if account is NOT completed AND has NO credits AND NO usage.
+    """
+    try:
+        # Find user by account_id
+        params = {
+            "filter": {
+                "account_id": {
+                    "_eq": account_id
+                }
+            },
+            "fields": "id,last_opened,signup_completed"
+        }
+        users = await directus_service.get_items("directus_users", params)
+        
+        if not users:
+            raise HTTPException(status_code=404, detail="Account not found")
+            
+        user = users[0]
+        user_id = user.get("id")
+        last_opened = user.get("last_opened")
+        signup_completed = user.get("signup_completed", False)
+
+        # 1. Primary Check: signup_completed flag (Denormalized Fast Path)
+        if signup_completed:
+            return {
+                "success": True,
+                "can_delete_without_login": False,
+                "account_id": account_id,
+                "user_id": user_id
+            }
+
+        # 2. Fallback Check: last_opened (Heuristic Fast Path)
+        # Completed means last_opened starts with '/chat/' or is a UUID
+        if last_opened:
+            import re
+            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+            if last_opened.startswith("/chat/") or uuid_pattern.match(last_opened):
+                # Update the flag for future requests
+                await directus_service.update_user(user_id, {"signup_completed": True})
+                return {
+                    "success": True,
+                    "can_delete_without_login": False,
+                    "account_id": account_id,
+                    "user_id": user_id
+                }
+        
+        # 3. Final Fallback: Usage and invoices (Thorough Parallel Path)
+        # Calculate hashed user_id for zero-knowledge collections (usage, invoices)
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+        async def check_usage():
+            usage_params = {
+                "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                "limit": 1,
+                "meta": "filter_count"
+            }
+            resp = await directus_service._make_api_request("GET", f"{directus_service.base_url}/items/usage", params=usage_params)
+            if resp.status_code == 200:
+                return resp.json().get("meta", {}).get("filter_count", 0) > 0
+            return False
+
+        async def check_invoices():
+            payment_params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "status": {"_eq": "completed"}
+                },
+                "limit": 1,
+                "meta": "filter_count"
+            }
+            resp = await directus_service._make_api_request("GET", f"{directus_service.base_url}/items/invoices", params=payment_params)
+            if resp.status_code == 200:
+                return resp.json().get("meta", {}).get("filter_count", 0) > 0
+            return False
+
+        # Run checks in parallel
+        import asyncio
+        has_usage, has_credits = await asyncio.gather(check_usage(), check_invoices())
+        
+        # If any thorough check passes, the account is completed
+        if has_usage or has_credits:
+            # Update the flag to avoid these expensive checks next time
+            await directus_service.update_user(user_id, {"signup_completed": True})
+            return {
+                "success": True,
+                "can_delete_without_login": False,
+                "account_id": account_id,
+                "user_id": user_id
+            }
+        
+        return {
+            "success": True,
+            "can_delete_without_login": True,
+            "account_id": account_id,
+            "user_id": user_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking account status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/delete-uncompleted-account/{account_id}", include_in_schema=False)
+async def delete_uncompleted_account(
+    account_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Delete an uncompleted account without requiring login.
+    """
+    try:
+        # Re-check status for security
+        status = await get_account_status(account_id, directus_service)
+        
+        if not status.get("can_delete_without_login"):
+            raise HTTPException(status_code=403, detail="Login required to delete this account")
+            
+        user_id = status.get("user_id")
+        
+        # Trigger account deletion task
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        celery_app.send_task(
+            "delete_user_account",
+            kwargs={"user_id": user_id},
+            queue="user_init"
+        )
+        
+        logger.info(f"Triggered deletion for uncompleted account: {account_id} (user_id: {user_id})")
+        
+        return {
+            "success": True,
+            "message": "Account deletion scheduled successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting uncompleted account: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
