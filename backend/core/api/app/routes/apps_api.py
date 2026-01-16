@@ -31,6 +31,15 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, P
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
+# Import AI models for documentation purposes
+# Use absolute imports to avoid circular dependencies
+try:
+    from backend.apps.ai.skills.ask_skill import OpenAICompletionResponse, OpenAIErrorResponse
+except ImportError:
+    # Fallback if not available yet
+    OpenAICompletionResponse = Any
+    OpenAIErrorResponse = Any
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/apps", tags=["Apps"])
@@ -1482,7 +1491,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     
                                     # Create usage details (matching format from main_processor.py)
                                     usage_details = {
-                                        "api_key_name": user_info.get('api_key_name'),
+                                        "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
                                         "units_processed": units_processed  # Number of requests processed
                                     }
@@ -1540,7 +1549,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             user_info: Dict[str, Any] = ApiKeyAuth,
                             cache_service: CacheService = Depends(get_cache_service),
                             directus_service: DirectusService = Depends(get_directus_service)
-                        ):
+                        ) -> Any:
                             """
                             Execute the AI Ask skill with full streaming and non-streaming support.
                             
@@ -1579,6 +1588,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 request_payload = sanitized_input.copy() if isinstance(sanitized_input, dict) else {}
                                 request_payload['_user_id'] = user_info['user_id']
                                 request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+                                request_payload['_api_key_hash'] = user_info.get('api_key_hash')
+                                request_payload['_device_hash'] = user_info.get('device_hash')
                                 request_payload['_external_request'] = True
                                 
                                 if is_streaming:
@@ -1646,6 +1657,17 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         result = response.json()
                                         
                                         # Return the result directly (it's already in OpenAI format)
+                                        # Clean up None fields if it's a dict
+                                        if isinstance(result, dict):
+                                            # Recursively remove None values to be fully compliant with OpenAI standard
+                                            def remove_none(obj):
+                                                if isinstance(obj, list):
+                                                    return [remove_none(x) for x in obj if x is not None]
+                                                elif isinstance(obj, dict):
+                                                    return {k: remove_none(v) for k, v in obj.items() if v is not None}
+                                                return obj
+                                            return remove_none(result)
+                                        
                                         return result
                                         
                             except HTTPException:
@@ -1716,7 +1738,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     usage_details = {
-                                        "api_key_name": user_info.get('api_key_name'),
+                                        "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
                                         "units_processed": 1
                                     }
@@ -1812,7 +1834,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     usage_details = {
-                                        "api_key_name": user_info.get('api_key_name'),
+                                        "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
                                         "units_processed": units_processed  # Number of requests processed
                                     }
@@ -1898,7 +1920,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     
                                     # Create usage details (matching format from main_processor.py)
                                     usage_details = {
-                                        "api_key_name": user_info.get('api_key_name'),
+                                        "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
                                         "units_processed": units_processed  # Number of requests processed
                                     }
@@ -1953,17 +1975,35 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             # by inspecting its return type annotation
             import inspect
             response_model = SkillResponse  # Default
-            sig = inspect.signature(post_handler)
-            if sig.return_annotation and sig.return_annotation != inspect.Signature.empty:
-                # Check if it's a custom model (not the default SkillResponse)
-                if hasattr(sig.return_annotation, '__name__') and sig.return_annotation.__name__ != 'SkillResponse':
-                    response_model = sig.return_annotation
+            
+            # SPECIAL CASE: AI Ask skill returns raw OpenAI response or stream
+            extra_responses = {}
+            if app_id == "ai" and skill.id == "ask":
+                response_model = None # Disable response validation for this dynamic union type (JSON or Stream)
+                # Document the possible responses for better auto-generated documentation
+                extra_responses = {
+                    200: {
+                        "model": OpenAICompletionResponse,
+                        "description": "Successful non-streaming response",
+                    },
+                    400: {"model": OpenAIErrorResponse, "description": "Invalid request"},
+                    401: {"model": OpenAIErrorResponse, "description": "Authentication error"},
+                    402: {"model": OpenAIErrorResponse, "description": "Insufficient credits"},
+                    429: {"model": OpenAIErrorResponse, "description": "Rate limit exceeded"},
+                }
+            else:
+                sig = inspect.signature(post_handler)
+                if sig.return_annotation and sig.return_annotation != inspect.Signature.empty:
+                    # Check if it's a custom model (not the default SkillResponse)
+                    if hasattr(sig.return_annotation, '__name__') and sig.return_annotation.__name__ != 'SkillResponse':
+                        response_model = sig.return_annotation
             
             app.add_api_route(
                 path=f"/v1/apps/{app_id}/skills/{skill.id}",
                 endpoint=limiter.limit("30/minute")(post_handler),
                 methods=["POST"],
                 response_model=response_model,
+                responses=extra_responses, # Add explicit documentation for AI responses
                 tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",

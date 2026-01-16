@@ -7,6 +7,69 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+# --- Token Calculation Helpers ---
+
+def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
+    """
+    Calculate the breakdown of tokens between system prompt and user input.
+    Provides estimates based on tiktoken encoding.
+    """
+    try:
+        import tiktoken
+        import json
+        encoding = None
+        try:
+            # Try to get encoding for the specific model
+            encoding = tiktoken.encoding_for_model(model_id)
+        except Exception:
+            # Fallback to common encodings
+            for enc_name in ["o200k_base", "cl100k_base", "p50k_base"]:
+                try:
+                    encoding = tiktoken.get_encoding(enc_name)
+                    break
+                except Exception:
+                    continue
+        
+        if not encoding:
+            logger.warning(f"Could not find any suitable tiktoken encoding for model {model_id}")
+            return {"system_prompt_tokens": 0, "user_input_tokens": 0}
+        
+        system_tokens = 0
+        user_tokens = 0
+        
+        for msg in messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if not content:
+                continue
+            
+            # Simple token count for content
+            tokens = len(encoding.encode(str(content)))
+            if role == "system":
+                system_tokens += tokens
+            else:
+                # user, assistant (history), or tool
+                user_tokens += tokens
+        
+        # Include tool definitions in system tokens if provided
+        if tools:
+            try:
+                tools_json = json.dumps(tools)
+                tool_tokens = len(encoding.encode(tools_json))
+                system_tokens += tool_tokens
+                logger.debug(f"Added {tool_tokens} tokens for tool definitions to system_prompt_tokens")
+            except Exception as tool_err:
+                logger.warning(f"Failed to calculate tool tokens: {tool_err}")
+                
+        logger.info(f"Token breakdown calculated for {model_id}: system={system_tokens}, user={user_tokens}")
+        return {
+            "system_prompt_tokens": system_tokens,
+            "user_input_tokens": user_tokens
+        }
+    except Exception as e:
+        logger.error(f"Error calculating token breakdown for {model_id}: {e}")
+        return {"system_prompt_tokens": 0, "user_input_tokens": 0}
+
 # --- Pydantic Models for Structured OpenAI Response ---
 
 class OpenAIUsageMetadata(BaseModel):
@@ -17,6 +80,8 @@ class OpenAIUsageMetadata(BaseModel):
     input_tokens: int
     output_tokens: int
     total_tokens: int
+    user_input_tokens: Optional[int] = None
+    system_prompt_tokens: Optional[int] = None
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """

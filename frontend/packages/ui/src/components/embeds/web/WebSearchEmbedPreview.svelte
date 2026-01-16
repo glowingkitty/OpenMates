@@ -110,6 +110,8 @@
   // NOTE: Must include 'cancelled' to match SkillExecutionStatus type from appSkills.ts
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<WebSearchResult[]>([]);
+  // Store a simplified error message for preview/fullscreen debugging
+  let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
   
@@ -124,6 +126,8 @@
       localTaskId = previewData.task_id;
       // skill_task_id might be in previewData for skill-level cancellation
       localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
+      // previewData does not formally include error, but some backend paths may attach it
+      localErrorMessage = (previewData as WebSearchSkillPreviewData & { error?: string }).error || '';
     } else {
       localQuery = queryProp || '';
       localProvider = providerProp || 'Brave Search';
@@ -131,6 +135,7 @@
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
     }
   });
   
@@ -141,6 +146,7 @@
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
+  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -165,6 +171,10 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (typeof content.error === 'string') {
+        // Preserve raw error for fullscreen diagnostics
+        localErrorMessage = content.error;
+      }
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as WebSearchResult[];
         console.debug(`[WebSearchEmbedPreview] Updated results from callback:`, localResults.length);
@@ -329,6 +339,25 @@
   function flattenResults(rawResults: unknown[]): WebSearchResult[] {
     if (!rawResults || rawResults.length === 0) return [];
     
+    const normalizeResult = (rawResult: Record<string, unknown>): WebSearchResult => {
+      const url = typeof rawResult.url === 'string' ? rawResult.url : '';
+      const title = typeof rawResult.title === 'string' ? rawResult.title : undefined;
+      const snippet = typeof rawResult.snippet === 'string' ? rawResult.snippet : undefined;
+      const previewImageUrl = typeof rawResult.preview_image_url === 'string' ? rawResult.preview_image_url : undefined;
+      const faviconUrl = extractFaviconFromRaw(rawResult);
+      const faviconFallback = typeof rawResult.favicon === 'string' ? rawResult.favicon : undefined;
+      const faviconUrlFallback = typeof rawResult.favicon_url === 'string' ? rawResult.favicon_url : undefined;
+      
+      return {
+        url,
+        title,
+        snippet,
+        preview_image_url: previewImageUrl,
+        favicon: faviconUrl || faviconFallback,
+        favicon_url: faviconUrlFallback
+      };
+    };
+    
     // Check if first item is nested structure (has 'results' array)
     const firstItem = rawResults[0] as Record<string, unknown>;
     if (firstItem && 'results' in firstItem && Array.isArray(firstItem.results)) {
@@ -338,12 +367,7 @@
         if (entry.results && Array.isArray(entry.results)) {
           // Normalize each result to ensure favicon is in standard format
           for (const rawResult of entry.results as Array<Record<string, unknown>>) {
-            const normalizedResult: WebSearchResult = {
-              ...(rawResult as WebSearchResult),
-              // Ensure favicon is set from any available source
-              favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
-            };
-            flattened.push(normalizedResult);
+            flattened.push(normalizeResult(rawResult));
           }
         }
       }
@@ -352,11 +376,7 @@
     }
     
     // Already flat structure - but still normalize favicons
-    return (rawResults as Array<Record<string, unknown>>).map(rawResult => ({
-      ...(rawResult as WebSearchResult),
-      // Ensure favicon is set from any available source
-      favicon: extractFaviconFromRaw(rawResult) || (rawResult as WebSearchResult).favicon
-    }));
+    return (rawResults as Array<Record<string, unknown>>).map(rawResult => normalizeResult(rawResult));
   }
   
   // Get flattened results (handles both nested and flat backend formats)
@@ -446,8 +466,14 @@
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show favicons and remaining count -->
-      {#if status === 'finished'}
+      <!-- Error state: show simplified error for debugging -->
+      {#if status === 'error'}
+        <div class="search-error">
+          <div class="search-error-title">Search failed</div>
+          <div class="search-error-message">{errorMessage}</div>
+        </div>
+      {:else if status === 'finished'}
+        <!-- Finished state: show favicons and remaining count -->
         <div class="search-results-info">
           <!-- Favicons row -->
           {#if faviconResults.length > 0}
@@ -555,6 +581,29 @@
   
   .web-search-details.mobile .search-results-info {
     margin-top: 2px;
+  }
+  
+  /* Error message styling for debugging (still privacy-safe) */
+  .search-error {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background-color: rgba(var(--color-error-rgb), 0.08);
+    border: 1px solid rgba(var(--color-error-rgb), 0.3);
+  }
+  
+  .search-error-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-error);
+  }
+  
+  .search-error-message {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--color-grey-70);
+    line-height: 1.4;
+    word-break: break-word;
   }
   
   /* Favicon row: overlapping circles */

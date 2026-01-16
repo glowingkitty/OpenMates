@@ -215,6 +215,23 @@ async def setup_password(
         # Log successful account creation
         event_logger.info(f"User account created successfully - ID: {user_id}")
 
+        # Send 'Account created' confirmation email
+        try:
+            if verification_data and verification_data.get("email"):
+                celery_app.send_task(
+                    name='app.tasks.email_tasks.account_created_email_task.send_account_created_email',
+                    kwargs={
+                        'email': verification_data.get("email"),
+                        'account_id': user_data.get("account_id"),
+                        'language': setup_request.language,
+                        'darkmode': setup_request.darkmode
+                    },
+                    queue='email'
+                )
+                logger.info(f"Account created email task submitted for user {user_id}")
+        except Exception as email_err:
+            logger.error(f"Failed to submit account created email task for user {user_id}: {email_err}")
+
         # Login the user to get cookies for authentication
         # We need to use the hashed email and lookup hash for authentication
         auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(

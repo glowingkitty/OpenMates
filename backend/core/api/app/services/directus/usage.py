@@ -36,6 +36,8 @@ class UsageMethods:
         cost_response_credits: Optional[int] = None,
         actual_input_tokens: Optional[int] = None,
         actual_output_tokens: Optional[int] = None,
+        user_input_tokens: Optional[int] = None,
+        system_prompt_tokens: Optional[int] = None,
         api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
     ) -> Optional[str]:
@@ -59,8 +61,10 @@ class UsageMethods:
             cost_system_prompt_credits: Optional system prompt credit cost
             cost_history_credits: Optional history credit cost
             cost_response_credits: Optional response credit cost
-            actual_input_tokens: Optional input token count (only saved for AI Ask skill)
+            actual_input_tokens: Optional TOTAL input token count (only saved for AI Ask skill)
             actual_output_tokens: Optional output token count (only saved for AI Ask skill)
+            user_input_tokens: Optional user query input token count (only saved for AI Ask skill)
+            system_prompt_tokens: Optional system prompt + history token count (only saved for AI Ask skill)
             api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
@@ -123,8 +127,33 @@ class UsageMethods:
                 key_id=encryption_key_id, plaintext=str(credits_charged)
             )
             
+            # Encrypt detailed credit costs if provided
+            encrypted_credits_costs_system_prompt = None
+            if cost_system_prompt_credits is not None:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=str(cost_system_prompt_credits)
+                )
+                encrypted_credits_costs_system_prompt = res[0] if res else None
+
+            encrypted_credits_costs_history = None
+            if cost_history_credits is not None:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=str(cost_history_credits)
+                )
+                encrypted_credits_costs_history = res[0] if res else None
+
+            encrypted_credits_costs_response = None
+            if cost_response_credits is not None:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=str(cost_response_credits)
+                )
+                encrypted_credits_costs_response = res[0] if res else None
+
             encrypted_input_tokens = None
             encrypted_output_tokens = None
+            encrypted_user_input_tokens = None
+            encrypted_system_prompt_tokens = None
+
             if should_save_tokens:
                 if actual_input_tokens is not None:
                     encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -137,6 +166,18 @@ class UsageMethods:
                         key_id=encryption_key_id, plaintext=str(actual_output_tokens)
                     )
                     encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
+
+                if user_input_tokens is not None:
+                    res = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(user_input_tokens)
+                    )
+                    encrypted_user_input_tokens = res[0] if res else None
+
+                if system_prompt_tokens is not None:
+                    res = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(system_prompt_tokens)
+                    )
+                    encrypted_system_prompt_tokens = res[0] if res else None
 
             encrypted_credits_costs_total = encrypted_credits_costs_total_tuple[0] if encrypted_credits_costs_total_tuple else None
 
@@ -175,6 +216,17 @@ class UsageMethods:
                 payload["encrypted_input_tokens"] = encrypted_input_tokens
             if encrypted_output_tokens:
                 payload["encrypted_output_tokens"] = encrypted_output_tokens
+            if encrypted_user_input_tokens:
+                payload["encrypted_user_input_tokens"] = encrypted_user_input_tokens
+            if encrypted_system_prompt_tokens:
+                payload["encrypted_system_prompt_tokens"] = encrypted_system_prompt_tokens
+            
+            if encrypted_credits_costs_system_prompt:
+                payload["encrypted_credits_costs_system_prompt"] = encrypted_credits_costs_system_prompt
+            if encrypted_credits_costs_history:
+                payload["encrypted_credits_costs_history"] = encrypted_credits_costs_history
+            if encrypted_credits_costs_response:
+                payload["encrypted_credits_costs_response"] = encrypted_credits_costs_response
 
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
@@ -234,8 +286,9 @@ class UsageMethods:
             dt = datetime.fromtimestamp(timestamp)
             year_month = dt.strftime("%Y-%m")
             
-            # Update chat summary if chat_id is provided
-            if chat_id:
+            # Update chat summary if chat_id is provided and it's not an API request
+            # API requests with chat_id should only show up under API usage, not chat usage
+            if chat_id and not api_key_hash:
                 await self._update_summary(
                     collection="usage_monthly_chat_summaries",
                     user_id_hash=user_id_hash,
@@ -468,6 +521,36 @@ class UsageMethods:
                         decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
                             encrypted_output_tokens, user_vault_key_id
                         )
+
+                    encrypted_user_input_tokens = entry.get("encrypted_user_input_tokens")
+                    if encrypted_user_input_tokens:
+                        decrypt_tasks["user_input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_user_input_tokens, user_vault_key_id
+                        )
+
+                    encrypted_system_prompt_tokens = entry.get("encrypted_system_prompt_tokens")
+                    if encrypted_system_prompt_tokens:
+                        decrypt_tasks["system_prompt_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_system_prompt_tokens, user_vault_key_id
+                        )
+                    
+                    encrypted_credits_system_prompt = entry.get("encrypted_credits_costs_system_prompt")
+                    if encrypted_credits_system_prompt:
+                        decrypt_tasks["credits_system_prompt"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits_system_prompt, user_vault_key_id
+                        )
+
+                    encrypted_credits_history = entry.get("encrypted_credits_costs_history")
+                    if encrypted_credits_history:
+                        decrypt_tasks["credits_history"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits_history, user_vault_key_id
+                        )
+
+                    encrypted_credits_response = entry.get("encrypted_credits_costs_response")
+                    if encrypted_credits_response:
+                        decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits_response, user_vault_key_id
+                        )
                     
                     # Execute all decryptions in parallel for this entry
                     if decrypt_tasks:
@@ -486,11 +569,16 @@ class UsageMethods:
                                     except ValueError:
                                         logger.warning(f"{log_prefix} Invalid credits value: {result}")
                                         processed_entry["credits"] = 0
-                                elif field_name in ["input_tokens", "output_tokens"]:
+                                elif field_name in ["input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens"]:
                                     try:
                                         processed_entry[field_name] = int(result) if result else None
                                     except ValueError:
                                         processed_entry[field_name] = None
+                                elif field_name in ["credits_system_prompt", "credits_history", "credits_response"]:
+                                    try:
+                                        processed_entry[field_name] = int(result) if result else 0
+                                    except ValueError:
+                                        processed_entry[field_name] = 0
                                 else:
                                     processed_entry[field_name] = result
                     
@@ -686,6 +774,9 @@ class UsageMethods:
                 
                 if summary_type == "chat":
                     filter_dict["chat_id"] = {"_eq": identifier}
+                    # Only include entries where source is 'chat' (web app usage)
+                    # This excludes API requests that might be associated with this chat
+                    filter_dict["source"] = {"_eq": "chat"}
                 elif summary_type == "app":
                     filter_dict["app_id"] = {"_eq": identifier}
                 elif summary_type == "api_key":
@@ -761,6 +852,36 @@ class UsageMethods:
                     decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
                         encrypted_output_tokens, user_vault_key_id
                     )
+
+                encrypted_user_input_tokens = entry.get("encrypted_user_input_tokens")
+                if encrypted_user_input_tokens:
+                    decrypt_tasks["user_input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_user_input_tokens, user_vault_key_id
+                    )
+
+                encrypted_system_prompt_tokens = entry.get("encrypted_system_prompt_tokens")
+                if encrypted_system_prompt_tokens:
+                    decrypt_tasks["system_prompt_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_system_prompt_tokens, user_vault_key_id
+                    )
+                
+                encrypted_credits_system_prompt = entry.get("encrypted_credits_costs_system_prompt")
+                if encrypted_credits_system_prompt:
+                    decrypt_tasks["credits_system_prompt"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_credits_system_prompt, user_vault_key_id
+                    )
+
+                encrypted_credits_history = entry.get("encrypted_credits_costs_history")
+                if encrypted_credits_history:
+                    decrypt_tasks["credits_history"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_credits_history, user_vault_key_id
+                    )
+
+                encrypted_credits_response = entry.get("encrypted_credits_costs_response")
+                if encrypted_credits_response:
+                    decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_credits_response, user_vault_key_id
+                    )
                 
                 if decrypt_tasks:
                     results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
@@ -776,11 +897,16 @@ class UsageMethods:
                                     processed_entry["credits"] = int(result)
                                 except ValueError:
                                     processed_entry["credits"] = 0
-                            elif field_name in ["input_tokens", "output_tokens"]:
+                            elif field_name in ["input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens"]:
                                 try:
                                     processed_entry[field_name] = int(result) if result else None
                                 except ValueError:
                                     processed_entry[field_name] = None
+                            elif field_name in ["credits_system_prompt", "credits_history", "credits_response"]:
+                                try:
+                                    processed_entry[field_name] = int(result) if result else 0
+                                except ValueError:
+                                    processed_entry[field_name] = 0
                             else:
                                 processed_entry[field_name] = result
                 

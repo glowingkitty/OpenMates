@@ -79,7 +79,7 @@
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
     /** Callback when embed data is updated - allows child components to update their specific data */
-    onEmbedDataUpdated?: (data: { status: string; decodedContent: any }) => void;
+    onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
   }
   
   let {
@@ -188,13 +188,13 @@
   }
   
   // Subscribe to embedUpdated events on mount
-  let embedUpdateListener: EventListener | null = null;
+  let embedUpdateListener: ((event: Event) => void) | null = null;
   
   onMount(() => {
     console.debug(`[UnifiedEmbedPreview] Mounted component for embed ${id}`);
     
     // Subscribe to embedUpdated events from chatSyncService
-    embedUpdateListener = handleEmbedUpdate as EventListener;
+    embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
     chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
     
     // Do an initial fetch to ensure we have the latest data
@@ -462,7 +462,7 @@
     touchTarget = null;
   }
   
-  // Handle click to open fullscreen (only when finished)
+  // Handle click to open fullscreen (finished or error - error enables debug view)
   // Store preview element position for transition animation
   // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
   // BUT: Don't stop context menu events - let them bubble up for proper context menu handling
@@ -488,7 +488,7 @@
     // NOTE: We don't call preventDefault() here because it might interfere with the click
     e.stopPropagation();
     
-    if (status === 'finished' && onFullscreen) {
+    if ((status === 'finished' || status === 'error') && onFullscreen) {
       console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
       
       // Store the preview element's position for transition
@@ -599,6 +599,7 @@
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
+  class:clickable={status === 'finished' || status === 'error'}
   class:hovering={isHovering && status === 'finished'}
   class:error={status === 'error'}
   data-embed-id={id}
@@ -606,7 +607,7 @@
   data-skill-id={skillId}
   data-status={status}
   style={tiltTransform ? `transform: ${tiltTransform};` : ''}
-  {...(status === 'finished' ? {
+  {...((status === 'finished' || status === 'error') ? {
     role: 'button',
     tabindex: 0,
     onclick: handleClick,
@@ -724,12 +725,11 @@
   /* Prevent image drag/callouts */
   .unified-embed-preview :global(img) {
     -webkit-user-drag: none;
-    user-drag: none;
   }
   
-  /* Finished embeds act like a single button: children shouldn't capture pointer events. */
-  .unified-embed-preview.finished .desktop-layout,
-  .unified-embed-preview.finished .mobile-layout {
+  /* Clickable embeds act like a single button: children shouldn't capture pointer events. */
+  .unified-embed-preview.clickable .desktop-layout,
+  .unified-embed-preview.clickable .mobile-layout {
     pointer-events: none;
   }
   
@@ -753,8 +753,8 @@
     max-height: 290px;
   }
   
-  /* Interactive state for finished previews */
-  .unified-embed-preview.finished {
+  /* Interactive state for clickable previews (finished + error) */
+  .unified-embed-preview.clickable {
     /* Ensure clickable cursor is always shown */
     cursor: pointer !important;
   }

@@ -67,6 +67,10 @@
     provider?: string;
     /** Pipe-separated embed IDs or array of embed IDs for child website embeds */
     embedIds?: string | string[];
+    /** Processing status (direct format) */
+    status?: 'processing' | 'finished' | 'error' | 'cancelled';
+    /** Optional error message for debugging */
+    errorMessage?: string;
     /** Legacy: Search results (direct format, used if embedIds not provided) */
     results?: WebSearchResult[];
     /** Legacy: Skill preview data (skill preview context) */
@@ -93,6 +97,8 @@
     query: queryProp,
     provider: providerProp,
     embedIds,
+    status: statusProp,
+    errorMessage: errorMessageProp,
     results: resultsProp,
     previewData,
     onClose,
@@ -115,6 +121,7 @@
       embedIds_isArray: Array.isArray(embedIds),
       embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
       embedIds_value: embedIds,
+      status: statusProp || previewData?.status,
       hasPreviewData: !!previewData,
       previewDataResultsCount: previewData?.results?.length || 0,
       resultsPropCount: resultsProp?.length || 0,
@@ -130,11 +137,35 @@
   /** Currently selected website for fullscreen view (null = show search results) */
   let selectedWebsite = $state<WebSearchResult | null>(null);
   
-  // Extract values from either previewData (skill preview context) or direct props (embed context)
-  let query = $derived(previewData?.query || queryProp || '');
-  let provider = $derived(previewData?.provider || providerProp || 'Brave Search');
+  // Local reactive state for embed data (allows updates via embedUpdated events)
+  let localQuery = $state<string>(previewData?.query || queryProp || '');
+  let localProvider = $state<string>(previewData?.provider || providerProp || 'Brave Search');
+  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
+  let localResults = $state<unknown[]>(previewData?.results || resultsProp || []);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(
+    (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished'
+  );
+  let localErrorMessage = $state<string>(errorMessageProp || '');
+  
+  // Keep local state in sync with prop changes (e.g., navigation)
+  $effect(() => {
+    localQuery = previewData?.query || queryProp || '';
+    localProvider = previewData?.provider || providerProp || 'Brave Search';
+    localEmbedIds = embedIds;
+    localResults = previewData?.results || resultsProp || [];
+    localStatus = (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished';
+    localErrorMessage = errorMessageProp || '';
+  });
+  
+  // Extract values from local state (single source of truth)
+  let query = $derived(localQuery);
+  let provider = $derived(localProvider);
+  let embedIdsValue = $derived(localEmbedIds);
   // Legacy results from previewData or direct results prop (used as fallback)
-  let legacyResults = $derived(previewData?.results || resultsProp || []);
+  let legacyResults = $derived(localResults);
+  let status = $derived(localStatus);
+  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
   
   // Get skill name from translations (matches preview)
   let skillName = $derived($text('embeds.search.text') || 'Search');
@@ -295,6 +326,31 @@
   }
   
   /**
+   * Handle embed data updates during streaming or error transitions.
+   * Updates local state so the fullscreen can render error details.
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+    if (!data.decodedContent) return;
+    
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
+      localStatus = data.status;
+    }
+    
+    const content = data.decodedContent;
+    if (typeof content.query === 'string') localQuery = content.query;
+    if (typeof content.provider === 'string') localProvider = content.provider;
+    if (content.embed_ids) {
+      localEmbedIds = content.embed_ids as string | string[];
+    }
+    if (Array.isArray(content.results)) {
+      localResults = content.results as unknown[];
+    }
+    if (typeof content.error === 'string') {
+      localErrorMessage = content.error;
+    }
+  }
+  
+  /**
    * Handle closing the entire search fullscreen
    * Called when user closes the main WebSearchEmbedFullscreen
    */
@@ -386,12 +442,14 @@
   onClose={handleMainClose}
   onShare={handleShare}
   skillIconName="search"
-  status="finished"
+  status={fullscreenStatus}
   {skillName}
   showStatus={true}
-  {embedIds}
+  embedIds={embedIdsValue}
   childEmbedTransformer={transformToWebResult}
   legacyResults={legacyResults}
+  currentEmbedId={embedId}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -408,40 +466,48 @@
       <div class="search-provider">{viaProvider}</div>
     </div>
     
-    <!-- 
-      Show results immediately if available (from children OR legacyResults).
-      Only show loading state if we have NO results at all and are still loading.
-      This ensures pre-loaded results from ActiveChat display immediately
-      without waiting for the (redundant) child embed reload.
-    -->
-    {#if webResults.length === 0}
-      {#if ctx.isLoadingChildren}
-        <div class="loading-state">
-          <p>{$text('embeds.loading.text') || 'Loading...'}</p>
-        </div>
+    <!-- Error state: show simplified error for debugging -->
+    {#if status === 'error'}
+      <div class="error-state">
+        <div class="error-title">Search failed</div>
+        <div class="error-message">{errorMessage}</div>
+      </div>
+    {:else}
+      <!-- 
+        Show results immediately if available (from children OR legacyResults).
+        Only show loading state if we have NO results at all and are still loading.
+        This ensures pre-loaded results from ActiveChat display immediately
+        without waiting for the (redundant) child embed reload.
+      -->
+      {#if webResults.length === 0}
+        {#if ctx.isLoadingChildren}
+          <div class="loading-state">
+            <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+          </div>
+        {:else}
+          <div class="no-results">
+            <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+          </div>
+        {/if}
       {:else}
-        <div class="no-results">
-          <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+        <!-- Website embeds grid - uses CSS container queries for responsive layout -->
+        <!-- No JavaScript-based mobile detection; CSS handles responsive columns automatically -->
+        <div class="website-embeds-grid">
+          {#each webResults as result}
+            <WebsiteEmbedPreview
+              id={result.embed_id}
+              url={result.url}
+              title={result.title}
+              description={result.snippet}
+              favicon={result.favicon_url}
+              image={result.preview_image_url}
+              status="finished"
+              isMobile={false}
+              onFullscreen={() => handleWebsiteFullscreen(result)}
+            />
+          {/each}
         </div>
       {/if}
-    {:else}
-      <!-- Website embeds grid - uses CSS container queries for responsive layout -->
-      <!-- No JavaScript-based mobile detection; CSS handles responsive columns automatically -->
-      <div class="website-embeds-grid">
-        {#each webResults as result}
-          <WebsiteEmbedPreview
-            id={result.embed_id}
-            url={result.url}
-            title={result.title}
-            description={result.snippet}
-            favicon={result.favicon_url}
-            image={result.preview_image_url}
-            status="finished"
-            isMobile={false}
-            onFullscreen={() => handleWebsiteFullscreen(result)}
-          />
-        {/each}
-      </div>
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
@@ -526,6 +592,31 @@
     height: 200px;
     color: var(--color-font-secondary);
     font-size: 16px;
+  }
+  
+  /* Error state for fullscreen debugging */
+  .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 24px 16px;
+    color: var(--color-font-secondary);
+    text-align: center;
+  }
+  
+  .error-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-error);
+  }
+  
+  .error-message {
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 520px;
+    word-break: break-word;
   }
   
   /* ===========================================

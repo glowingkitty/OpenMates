@@ -4,7 +4,7 @@
 
 **ALWAYS run the lint script after making code changes** to verify that your changes haven't introduced any errors.
 
-The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors. Use file type filters to only check the types of files you've modified:
+The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors. Use file type filters and path targeting to only check the files and folders you've modified:
 
 **Available file type options:**
 
@@ -15,17 +15,23 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 - `--html` - HTML files (.html)
 - `--yml` - YAML files (.yml, .yaml)
 
+**Targeting options (always use these):**
+
+- `--path <file|dir>` - Limit checks to a specific file or directory (repeatable)
+- `-- <file|dir> ...` - Treat remaining args as target paths
+
 **Examples:**
 
 ```bash
-./scripts/lint_changed.sh --py                    # Only Python changes
-./scripts/lint_changed.sh --ts --svelte          # Only frontend changes
-./scripts/lint_changed.sh --py --ts              # Mixed changes
-./scripts/lint_changed.sh                        # All file types
+./scripts/lint_changed.sh --py --path backend/core/api              # Only Python changes in API
+./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui # Only UI frontend changes
+./scripts/lint_changed.sh --py --ts --path backend --path frontend/apps/web_app # Mixed changes by path
+./scripts/lint_changed.sh -- backend/core/api                       # Path-only filtering
 ```
 
 **Best practices:**
 
+- Always limit checks to the specific files or folders you touched (use `--path` or `--`)
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
 - Always run the lint script before considering changes complete
 - Fix all errors before proceeding
@@ -103,6 +109,17 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-
 docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5m api task-worker | grep -E "ERROR|task_id=" | grep -B2 -A2 "ERROR"
 ```
 
+### Rebuilding and Restarting Services
+
+If a container might have outdated code after a simple restart, or if you need to ensure a clean state (including clearing the cache volume), use this full rebuild and restart command:
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
+docker volume rm openmates-cache-data && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+```
+
 **Best practices:**
 
 - Target specific services using service names (check `docker-compose.yml` for exact names)
@@ -146,7 +163,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5
 
 Use these scripts to inspect server state directly. Run from the repo root.
 
-### Chat and Embed Inspection
+### Chat, Embed and User Inspection
 
 ```bash
 # Inspect a specific chat (cache, storage, Directus)
@@ -154,6 +171,9 @@ docker exec api python /app/backend/scripts/inspect_chat.py <chat_id>
 
 # Inspect a specific embed
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
+
+# Inspect a specific user by email (metadata, decrypted fields, counts, activities, cache)
+docker exec api python /app/backend/scripts/inspect_user.py <email_address>
 ```
 
 ### AI Request Debugging
@@ -264,8 +284,19 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
   -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_FILE="tests/signup-flow.spec.ts" \
+  -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
   playwright
+```
+
+### REST API Testing
+**ALWAYS run the external REST API tests after modifying any backend endpoint code.** This ensures that public-facing endpoints remain functional and conform to the expected response structures.
+
+```bash
+# Run all external REST API tests
+/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
+
+# Run specific skill tests (e.g., ai/ask)
+/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py -k ask
 ```
 
 ## Debugging Complex Bugs

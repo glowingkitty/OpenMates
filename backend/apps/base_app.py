@@ -257,10 +257,10 @@ class BaseApp:
 
                 if request_model or union_types:
                     # Remove internal metadata fields before instantiating Pydantic model
-                    # EXCEPT for context fields (_user_id, _api_key_name, _external_request) which are
+                    # EXCEPT for context fields (_user_id, _api_key_name, _api_key_hash, _device_hash, _external_request) which are
                     # used by skills like AI ask to identify the authenticated user from external API requests
                     # These context fields are injected by the external API handler and need to be preserved
-                    context_fields = {'_user_id', '_api_key_name', '_external_request'}
+                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
                         if not k.startswith("_") or k in context_fields

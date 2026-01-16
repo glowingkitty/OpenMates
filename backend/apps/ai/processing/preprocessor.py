@@ -273,10 +273,10 @@ async def handle_preprocessing(
     payment_enabled = is_payment_enabled()
     
     if payment_enabled:
-        MINIMUM_REQUEST_COST = 1 # TODO: Make this configurable, perhaps in skill_config.preprocessing_thresholds
-        logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}") # Log actual user_id
+        MINIMUM_REQUEST_COST = 1
+        logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}")
         
-        if not request_data.user_id: # Check for actual user_id
+        if not request_data.user_id:
             logger.error(f"{log_prefix} user_id is missing in request_data. Cannot perform credit check.")
             return PreprocessingResult(
                 can_proceed=False,
@@ -284,14 +284,17 @@ async def handle_preprocessing(
                 error_message="User identification is missing. Cannot proceed."
             )
 
-        cached_user = await cache_service.get_user_by_id(request_data.user_id) # Use user_id
+        cached_user = await cache_service.get_user_by_id(request_data.user_id)
 
         if not cached_user:
-            logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.") # Log actual user_id
+            logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.")
+            
+            # For all billable requests (internal or external), we MUST have user data to proceed.
+            # External requests should have been warmed by the task worker before calling preprocessor.
             return PreprocessingResult(
                 can_proceed=False,
                 rejection_reason="internal_error_user_data_not_found",
-                error_message="Could not retrieve user information. Please try again later."
+                error_message="User information could not be retrieved for credit verification. Please ensure your account is valid."
             )
 
         user_credits = cached_user.get("credits", 0)

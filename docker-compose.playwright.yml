@@ -12,6 +12,19 @@ services:
     environment:
       # Target the deployed dev environment by default.
       PLAYWRIGHT_TEST_BASE_URL: "https://app.dev.openmates.org"
+      # Load test credentials from host environment (populated via .env)
+      OPENMATES_TEST_ACCOUNT_EMAIL:
+      OPENMATES_TEST_ACCOUNT_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_OTP_KEY:
+      # Load signup test vars
+      SIGNUP_TEST_EMAIL_DOMAINS:
+      MAILOSAUR_API_KEY:
+      MAILOSAUR_SERVER_ID:
+      # Allow targeting specific tests
+      PLAYWRIGHT_TEST_FILE:
+      PLAYWRIGHT_TEST_GREP:
+    # NOTE: Use $$ to escape $ so docker-compose passes the variable expansion
+    # to the shell inside the container, rather than evaluating it at parse time.
     command: >
       bash -lc "
         cd /workspace &&
@@ -21,6 +34,6 @@ services:
         # Allow targeted runs without overriding the container command.
         # PLAYWRIGHT_TEST_FILE points at a single test file.
         # PLAYWRIGHT_TEST_GREP filters tests by title (regex).
-        npx playwright test --config=playwright.config.ts ${PLAYWRIGHT_TEST_FILE:-} ${PLAYWRIGHT_TEST_GREP:+--grep "$PLAYWRIGHT_TEST_GREP"}
+        npx playwright test --config=playwright.config.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
       "
 

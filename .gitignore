@@ -234,3 +234,5 @@ suspicious_patterns.txt
 scripts/encrypt_domain_security.py
 
 .pnpm-store/
+
+.venv*

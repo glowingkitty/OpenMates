@@ -1,0 +1,68 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.account_created.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+    
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/user.png" align="center" alt="User icon" css-class="email-icon-50" />
+          <mj-text font-size="30px">
+            <mark>{{ t.email.account_created.text }}</mark>
+          </mj-text>
+          <mj-text font-size="22px" padding-bottom="30px">
+            {{ t.email.welcome_to_openmates.text }}
+          </mj-text>
+          <mj-text padding-bottom="20px">
+            {{ t.email.complete_signup_info.text }}
+          </mj-text>
+          <mj-text font-size="14px" color="#ff4d4d" padding-bottom="40px">
+            {{ t.email.auto_delete_warning.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      
+      <mj-section padding-top="10px">
+        <mj-column>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
+          {% else %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
+          {% endif %}
+            {{ on_domain_text }}
+          </mj-text>
+          
+          <mj-text font-size="14px" color="#808080" padding-bottom="40px">
+            {{ t.email.want_to_delete_account.text }} <a href="{{ delete_account_link }}">{{ t.email.click_here.text }}</a>
+          </mj-text>
+
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080">
+          {% else %}
+          <mj-text font-size="14px" color="#808080">
+          {% endif %}
+            {{ t.email.did_not_request_email.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

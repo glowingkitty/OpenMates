@@ -362,9 +362,22 @@ async def _async_process_ai_skill_ask_task(
 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Failed to initialize services: {e}", exc_info=True)
-        # The synchronous wrapper will handle updating Celery state.
-        # We raise RuntimeError to signal failure to the sync wrapper.
-        # The sync wrapper will call self.update_state.
+        
+        # Notify the API via Redis stream that a fatal error occurred
+        if cache_service_instance:
+            try:
+                error_payload = {
+                    "type": "ai_message_chunk",
+                    "task_id": task_id,
+                    "chat_id": request_data.chat_id,
+                    "full_content_so_far": f"Error: {str(e)}",
+                    "is_final_chunk": True,
+                    "error": True
+                }
+                await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
+            except Exception:
+                pass
+                
         raise RuntimeError(f"Service initialization failed: {e}")
 
 
@@ -492,62 +505,89 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e_cache_get:
         logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
-    # --- Fetch user_vault_key_id from cache (with on-demand warming from Directus if not cached) ---
-    # This supports API-only users who may not have logged in via web app to trigger cache warming
+    # --- Fetch user_vault_key_id and warm cache ---
+    # This supports internal users (Web App) who may not have logged in via web app to trigger cache warming.
+    # We ALWAYS need the user record and credits for the pre-processing credit check.
+    # Credits are encrypted, so the vault_key_id is mandatory for all billable requests.
     user_vault_key_id: Optional[str] = None
     if cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
         if not cached_user_data:
-            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache
-            # This is critical for API-only users who haven't logged in via web app
-            logger.info(f"[Task ID: {task_id}] User not in cache, attempting on-demand cache warming for user_id: {request_data.user_id}")
+            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache.
+            # This is required for both internal and external requests to check balance.
+            logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
             try:
                 if directus_service_instance:
-                    # Fetch minimal user data from Directus (just what we need for AI processing)
-                    user_data_from_db = await directus_service_instance.get_items(
-                        'users',
-                        params={
-                            'filter[id][_eq]': request_data.user_id,
-                            'fields': 'id,vault_key_id,encrypted_username,encrypted_credits',
-                            'limit': 1
-                        }
+                    # Fetch user data using /users/{id} endpoint (NOT /items/users which requires special permissions)
+                    # The get_user_fields_direct method correctly uses the /users/{id} endpoint
+                    # which the admin token can access for any user
+                    user_record = await directus_service_instance.get_user_fields_direct(
+                        request_data.user_id,
+                        fields=['id', 'vault_key_id', 'encrypted_username', 'encrypted_credit_balance']
                     )
                     
-                    if user_data_from_db and len(user_data_from_db) > 0:
-                        user_record = user_data_from_db[0]
-                        # Cache the user data for future requests
+                    if user_record:
                         cache_data = {
-                            'id': user_record.get('id'),
-                            'user_id': user_record.get('id'),
+                            'id': user_record.get('id') or request_data.user_id,
+                            'user_id': user_record.get('id') or request_data.user_id,
                             'vault_key_id': user_record.get('vault_key_id'),
                             'encrypted_username': user_record.get('encrypted_username'),
-                            'encrypted_credits': user_record.get('encrypted_credits'),
-                            '_api_warmed': True  # Flag to indicate this was warmed via API
+                            'encrypted_credit_balance': user_record.get('encrypted_credit_balance'),
+                            '_api_warmed': True
                         }
+                        
+                        # MANDATORY: Decrypt credits for the cache so preprocessor can check balance
+                        # Field name is 'encrypted_credit_balance' (not 'encrypted_credits')
+                        if user_record.get('encrypted_credit_balance') and user_record.get('vault_key_id'):
+                            try:
+                                decrypted_credits_str = await directus_service_instance.encryption_service.decrypt_with_user_key(
+                                    user_record.get('encrypted_credit_balance'), 
+                                    user_record.get('vault_key_id')
+                                )
+                                if decrypted_credits_str:
+                                    cache_data['credits'] = int(decrypted_credits_str)
+                                    logger.info(f"[Task ID: {task_id}] Successfully decrypted credits for user {request_data.user_id}: {cache_data['credits']}")
+                            except Exception as e_dec:
+                                logger.error(f"[Task ID: {task_id}] Failed to decrypt credits: {e_dec}")
+                                # If we can't decrypt credits, we can't safely proceed
+                                raise RuntimeError(f"Could not decrypt user credits: {e_dec}")
+                        
                         await cache_service_instance.set_user(cache_data, user_id=request_data.user_id)
                         cached_user_data = cache_data
-                        logger.info(f"[Task ID: {task_id}] On-demand cache warming successful for user_id: {request_data.user_id}")
                     else:
                         logger.error(f"[Task ID: {task_id}] User not found in Directus: {request_data.user_id}")
                         raise RuntimeError(f"User not found: {request_data.user_id}")
                 else:
-                    logger.error(f"[Task ID: {task_id}] DirectusService not available for on-demand cache warming")
                     raise RuntimeError("DirectusService not available for cache warming")
             except Exception as e:
-                logger.error(f"[Task ID: {task_id}] On-demand cache warming failed: {e}", exc_info=True)
-                raise RuntimeError(f"Failed to warm cache for user: {e}")
+                logger.error(f"[Task ID: {task_id}] Cache warming failed: {e}", exc_info=True)
+                # Notify the API via Redis stream so it doesn't hang
+                if cache_service_instance:
+                    try:
+                        error_payload = {
+                            "type": "ai_message_chunk",
+                            "task_id": task_id,
+                            "chat_id": request_data.chat_id,
+                            "full_content_so_far": "Error: User identification or credit check failed.",
+                            "is_final_chunk": True,
+                            "error": True
+                        }
+                        await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
+                    except Exception:
+                        pass
+                raise RuntimeError(f"Failed to identify user or check credits: {e}")
 
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
-            logger.error(f"[Task ID: {task_id}] vault_key_id not found in user data for user_id: {request_data.user_id}. Aborting task.")
+            logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
             raise RuntimeError("User vault key ID not found.")
-        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id for user_id: {request_data.user_id}.")
+            
     elif not cache_service_instance:
-        logger.error(f"[Task ID: {task_id}] CacheService instance not available. Cannot fetch user_vault_key_id. Aborting task.")
+        logger.error(f"[Task ID: {task_id}] CacheService not available.")
         raise RuntimeError("CacheService not available.")
     elif not request_data.user_id:
-        logger.error(f"[Task ID: {task_id}] user_id is missing in request_data. Cannot fetch user_vault_key_id. Aborting task.")
+        logger.error(f"[Task ID: {task_id}] user_id is missing.")
         raise RuntimeError("user_id is missing.")
 
     # Parse app settings/memories metadata from client
@@ -891,9 +931,15 @@ async def _async_process_ai_skill_ask_task(
                 logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
             else:
                 logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
-            typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-            await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+            
+            # CRITICAL: Skip WebSocket events for external requests (REST API)
+            # This prevents typing indicators from popping up in the web app when a user makes an API call.
+            if not request_data.is_external:
+                typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
+                await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
+                logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+            else:
+                logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
         except Exception as e_typing_pub:
             event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
             logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
@@ -1168,9 +1214,12 @@ async def _async_process_ai_skill_ask_task(
 
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
     # Post-processing continues even when revoked - we still have a partial response to process
-    # Only skip if there's no response content at all
+    # Only skip if there's no response content at all.
+    # CRITICAL: Skip post-processing for external requests (REST API)
+    # External requests only care about the main response content, not suggestions or summary.
+    # This also prevents 'post_processing_completed' events from being broadcasted to the web app.
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_soft_limited and aggregated_final_response:
+    if not task_was_soft_limited and aggregated_final_response and not request_data.is_external:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -1316,9 +1365,10 @@ async def _async_process_ai_skill_ask_task(
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache postprocessor debug data (non-fatal): {e_debug}")
 
-        logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
+            logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
     else:
-        logger.info(f"[Task ID: {task_id}] Skipping post-processing (task_was_revoked={task_was_revoked}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
+        reason = "request is external" if request_data.is_external else "no response content or soft-limited"
+        logger.info(f"[Task ID: {task_id}] Skipping post-processing (reason: {reason}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
 
     # Determine final status based on local flags
     final_status_message = "completed"

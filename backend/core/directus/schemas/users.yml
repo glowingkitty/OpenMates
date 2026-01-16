@@ -10,6 +10,11 @@ directus_users:
       length: 512
       note: "Last opened chat or signup step. Example: /chats/1234, /signup/step-3"
 
+    signup_completed:
+      type: boolean
+      default: false
+      note: "Is the signup process fully completed?"
+
     last_online_timestamp:
       type: string
       length: 256

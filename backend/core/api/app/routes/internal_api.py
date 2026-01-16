@@ -237,8 +237,13 @@ async def record_usage_route(
         # 1. Create usage entry (user-specific, private) - blocking
         # The directus_service.usage.create_usage_entry stores cleartext app_id/skill_id/chat_id/message_id
         # and encrypts sensitive fields (credits, tokens, model) using the user vault key
-        # Determine source: "chat" if chat_id is provided, otherwise "api_key" or "direct"
-        source = "chat" if payload.chat_id else "api_key"  # Default to "api_key" if no chat_id
+        # Determine source: "api_key" if api_key_hash is provided, otherwise "chat" if chat_id is provided, else "direct"
+        if payload.api_key_hash:
+            source = "api_key"
+        elif payload.chat_id:
+            source = "chat"
+        else:
+            source = "direct"
         
         usage_entry_id = await directus_service.usage.create_usage_entry(
             user_id_hash=payload.user_id_hash,
@@ -257,6 +262,8 @@ async def record_usage_route(
             cost_response_credits=payload.cost_details.get("response_credits") if payload.cost_details else None,
             actual_input_tokens=payload.cost_details.get("input_tokens") if payload.cost_details else None,
             actual_output_tokens=payload.cost_details.get("output_tokens") if payload.cost_details else None,
+            user_input_tokens=payload.cost_details.get("user_input_tokens") if payload.cost_details else None,
+            system_prompt_tokens=payload.cost_details.get("system_prompt_tokens") if payload.cost_details else None,
             api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )

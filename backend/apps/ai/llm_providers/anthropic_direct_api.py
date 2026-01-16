@@ -15,6 +15,7 @@ from .anthropic_shared import (
     _prepare_messages_for_anthropic,
     _map_tools_to_anthropic_format
 )
+from .openai_shared import calculate_token_breakdown
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ async def invoke_direct_api(
         if stream:
             return _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix)
         else:
-            return await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, log_prefix)
+            return await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix)
 
     except Exception as e:
         err_msg = f"Error during direct API request preparation: {e}"
@@ -82,6 +83,7 @@ async def _process_direct_api_response(
     model_id: str,
     request_kwargs: Dict[str, Any],
     anthropic_client: anthropic.Anthropic,
+    messages: List[Dict[str, str]],
     log_prefix: str
 ) -> UnifiedAnthropicResponse:
     """Process non-streaming response from Anthropic direct API"""
@@ -91,13 +93,18 @@ async def _process_direct_api_response(
         response = anthropic_client.messages.create(**request_kwargs)
         logger.info(f"{log_prefix} Received non-streamed response from Anthropic direct API.")
         
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         # Parse direct API response
         usage_metadata = AnthropicUsageMetadata(
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             total_tokens=response.usage.input_tokens + response.usage.output_tokens,
             cache_creation_input_tokens=getattr(response.usage, 'cache_creation_input_tokens', 0),
-            cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', 0)
+            cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', 0),
+            user_input_tokens=token_breakdown.get("user_input_tokens"),
+            system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
         )
         
         raw_response_pydantic = RawAnthropicChatCompletionResponse(
@@ -176,6 +183,9 @@ async def _iterate_direct_api_stream(
         request_kwargs["stream"] = True
         stream = anthropic_client.messages.create(**request_kwargs)
         
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         for event in stream:
             if event.type == "content_block_delta":
                 if event.delta.type == "text_delta":
@@ -215,7 +225,9 @@ async def _iterate_direct_api_stream(
                         output_tokens=usage_data.output_tokens,
                         total_tokens=usage_data.input_tokens + usage_data.output_tokens,
                         cache_creation_input_tokens=getattr(usage_data, 'cache_creation_input_tokens', 0),
-                        cache_read_input_tokens=getattr(usage_data, 'cache_read_input_tokens', 0)
+                        cache_read_input_tokens=getattr(usage_data, 'cache_read_input_tokens', 0),
+                        user_input_tokens=token_breakdown.get("user_input_tokens"),
+                        system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                     )
 
         # Yield final usage information
@@ -242,7 +254,9 @@ async def _iterate_direct_api_stream(
                     output_tokens=estimated_output_tokens,
                     total_tokens=estimated_input_tokens + estimated_output_tokens,
                     cache_creation_input_tokens=0,
-                    cache_read_input_tokens=0
+                    cache_read_input_tokens=0,
+                    user_input_tokens=token_breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                 )
                 yield usage
             except Exception as e:

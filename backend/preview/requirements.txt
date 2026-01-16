@@ -2,8 +2,8 @@
 # Handles image/favicon proxying and URL metadata extraction
 
 # Web framework
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
 
 # HTTP client for fetching external resources
 httpx==0.28.1

@@ -49,6 +49,12 @@ def _create_redis_payload(
     interrupted_soft: bool = False,
     interrupted_revoke: bool = False,
     model_name: Optional[str] = None,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    user_input_tokens: Optional[int] = None,
+    system_prompt_tokens: Optional[int] = None,
+    total_credits: Optional[int] = None,
+    category: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -61,11 +67,26 @@ def _create_redis_payload(
         "user_message_id": request_data.message_id,
         "full_content_so_far": content,
         "sequence": sequence,
-        "is_final_chunk": is_final
+        "is_final_chunk": is_final,
+        "external_request": request_data.is_external
     }
 
     if model_name:
         payload["model_name"] = model_name
+    
+    if category:
+        payload["category"] = category
+    
+    if prompt_tokens is not None:
+        payload["prompt_tokens"] = prompt_tokens
+    if completion_tokens is not None:
+        payload["completion_tokens"] = completion_tokens
+    if user_input_tokens is not None:
+        payload["user_input_tokens"] = user_input_tokens
+    if system_prompt_tokens is not None:
+        payload["system_prompt_tokens"] = system_prompt_tokens
+    if total_credits is not None:
+        payload["total_credits"] = total_credits
     
     if is_final:
         payload.update({
@@ -114,6 +135,7 @@ def _create_thinking_redis_payload(
             "message_id": task_id,
             "signature": signature,
             "total_tokens": total_tokens,
+            "external_request": request_data.is_external,
         }
     else:
         return {
@@ -124,6 +146,7 @@ def _create_thinking_redis_payload(
             "user_id_hash": request_data.user_id_hash,
             "message_id": task_id,
             "content": content,  # Just the new chunk, not accumulated
+            "external_request": request_data.is_external,
         }
 
 
@@ -150,10 +173,13 @@ async def _charge_credits(
     credits: int,
     usage_details: Dict[str, Any],
     log_prefix: str
-) -> None:
-    """Handle credit charging with error handling."""
+) -> Dict[str, Any]:
+    """
+    Handle credit charging with error handling.
+    Returns basic billing info.
+    """
     if credits <= 0:
-        return
+        return {}
         
     charge_payload = {
         "user_id": request_data.user_id,
@@ -161,7 +187,9 @@ async def _charge_credits(
         "credits": credits,
         "skill_id": "ask",
         "app_id": "ai",
-        "usage_details": usage_details
+        "usage_details": usage_details,
+        "api_key_hash": request_data.api_key_hash,
+        "device_hash": request_data.device_hash,
     }
     
     headers = {"Content-Type": "application/json"}
@@ -175,6 +203,12 @@ async def _charge_credits(
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
             logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
+            
+            return {
+                "prompt_tokens": usage_details.get("input_tokens", 0),
+                "completion_tokens": usage_details.get("output_tokens", 0),
+                "total_credits": credits
+            }
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
         raise
@@ -424,24 +458,41 @@ async def _handle_normal_billing(
     request_data: AskSkillRequest,
     task_id: str,
     log_prefix: str
-) -> None:
-    """Handle billing for normal processing flow."""
+) -> Dict[str, Any]:
+    """
+    Handle billing for normal processing flow.
+    Returns usage information for Redis publishing.
+    """
     # Extract token counts and provider name based on usage type
+    user_input_tokens = None
+    system_prompt_tokens = None
+    
+    logger.info(f"{log_prefix} Billing: Processing usage of type {type(usage)}")
+    
     if isinstance(usage, MistralUsage):
         input_tokens = usage.prompt_tokens
         output_tokens = usage.completion_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
         input_tokens = usage.prompt_token_count
         output_tokens = usage.candidates_token_count
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        logger.info(f"{log_prefix} Billing: OpenAI usage - user_input={user_input_tokens}, system_prompt={system_prompt_tokens}")
         # Determine billing provider from the selected model id prefix (e.g., "alibaba/...", "openai/...")
         try:
             selected_full_model = preprocessing_result.selected_main_llm_model_id or "openai/unknown"
@@ -501,10 +552,22 @@ async def _handle_normal_billing(
         "chat_id": request_data.chat_id,
         "message_id": request_data.message_id,
         "input_tokens": input_tokens,
-        "output_tokens": output_tokens
+        "output_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external
     }
 
     await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+    
+    return {
+        "prompt_tokens": input_tokens,
+        "completion_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
+        "total_credits": credits_charged
+    }
 
 async def _generate_fake_stream_for_harmful_content(
     task_id: str,
@@ -543,13 +606,6 @@ async def _generate_fake_stream_for_harmful_content(
     except Exception as e:
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
     
-    # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name)
-    await _publish_to_redis(
-        cache_service, redis_channel, final_payload, log_prefix,
-        f"Published final marker to '{redis_channel}'"
-    )
-    
     # Handle billing for harmful content
     usage_details = {
         "real_cost_usd": 0.001,
@@ -560,19 +616,35 @@ async def _generate_fake_stream_for_harmful_content(
         "message_id": request_data.message_id,
         "input_tokens": 0,
         "output_tokens": len(predefined_response.split()),
-        "rejection_reason": preprocessing_result.rejection_reason
+        "rejection_reason": preprocessing_result.rejection_reason,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external
     }
     
+    billing_info = {}
     try:
-        await _charge_credits(task_id, request_data, 1, usage_details, log_prefix)
+        billing_info = await _charge_credits(task_id, request_data, 1, usage_details, log_prefix)
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
+    # Publish final marker
+    final_payload = _create_redis_payload(
+        task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name,
+        prompt_tokens=billing_info.get("prompt_tokens"),
+        completion_tokens=billing_info.get("completion_tokens"),
+        total_credits=billing_info.get("total_credits")
+    )
+    await _publish_to_redis(
+        cache_service, redis_channel, final_payload, log_prefix,
+        f"Published final marker to '{redis_channel}'"
+    )
+    
     # Save assistant response to cache for follow-up message context
     # Even harmful content responses should be cached so follow-ups have context
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
-    if directus_service and cache_service and predefined_response:
+    # EXTERNAL REQUESTS skip this.
+    if not request_data.is_external and directus_service and cache_service and predefined_response:
         category = "general_knowledge"  # Default category for harmful content responses
         timestamp = int(time.time())
         content_tiptap = predefined_response  # Send as markdown
@@ -639,7 +711,33 @@ async def _generate_fake_stream_for_simple_message(
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
 
     # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, message_text, 2, is_final=True, model_name=model_name)
+    # Handle billing for simple messages (e.g. credit check failed messages are free but tracked)
+    usage_details = {
+        "real_cost_usd": 0,
+        "charged_cost_usd": 0,
+        "margin_usd": 0,
+        "model_used": "system_message",
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external
+    }
+    
+    # Billing for system messages is always 0, but we still call it to log the event
+    billing_info = {}
+    try:
+        billing_info = await _charge_credits(task_id, request_data, 0, usage_details, log_prefix)
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits for system message: {e}", exc_info=True)
+
+    final_payload = _create_redis_payload(
+        task_id, request_data, message_text, 2, is_final=True, model_name=model_name,
+        prompt_tokens=billing_info.get("prompt_tokens", 0),
+        completion_tokens=billing_info.get("completion_tokens", 0),
+        total_credits=billing_info.get("total_credits", 0)
+    )
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -648,7 +746,8 @@ async def _generate_fake_stream_for_simple_message(
     # Save assistant response to cache for follow-up message context
     # Even simple messages (like insufficient credits) should be cached
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
-    if directus_service and cache_service and message_text:
+    # EXTERNAL REQUESTS skip this.
+    if not request_data.is_external and directus_service and cache_service and message_text:
         category = "general_knowledge"  # Default category for simple messages
         timestamp = int(time.time())
         content_tiptap = message_text  # Send as markdown
@@ -855,9 +954,13 @@ async def _consume_main_processing_stream(
     thinking_signature: Optional[str] = None  # Thinking signature for verification
 
     # Persist model identifier in stream payloads so clients can store it encrypted with the message.
-    # Prefer the friendly model name from preprocessing, fallback to extracting from model_id, then safe default.
+    # CRITICAL: For external REST API requests (OpenAI-compatible), we MUST use the full model ID
+    # (e.g., "alibaba/qwen3-235b-a22b-2507") to be compliant with standard client expectations.
+    # For internal web app requests, we prefer the friendly model name (e.g., "Qwen3") for display.
     stream_model_name: Optional[str] = None
-    if preprocessing_result.selected_main_llm_model_name:
+    if request_data.is_external:
+        stream_model_name = preprocessing_result.selected_main_llm_model_id
+    elif preprocessing_result.selected_main_llm_model_name:
         stream_model_name = preprocessing_result.selected_main_llm_model_name
     else:
         # Fallback to extracting from model_id (for backward compatibility)
@@ -1386,22 +1489,25 @@ async def _consume_main_processing_stream(
                         remaining_content = '\n'.join(chunk.split('\n')[1:]) if '\n' in chunk else ""
                         
                         # Language pattern: single word like "python", "javascript", "c++", "c#", etc.
+                        # Also allow "language:filename" format
                         import re
-                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-]*$'
+                        # Modified to allow : and . for filename support
+                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-.]*(?::[^\s:]+)?$'
                         
-                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 20:
-                            # This looks like a language identifier
+                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 50:
+                            # This looks like a language identifier or language:filename
                             if ':' in first_line:
                                 # Has filename: language:filename
                                 parts = first_line.split(':', 1)
                                 current_code_language = parts[0].strip()
                                 current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language and filename from next chunk: {current_code_language}:{current_code_filename}")
                             else:
                                 current_code_language = first_line
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
                             
                             # Any remaining lines after the language are code content
                             current_code_content = remaining_content
-                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
                         else:
                             # Not a language - treat entire chunk as code content
                             current_code_content = chunk
@@ -1927,18 +2033,6 @@ async def _consume_main_processing_stream(
     except Exception as e_log_output:
         logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 
-    # Publish final marker to Redis
-    final_payload = _create_redis_payload(
-        task_id, request_data, aggregated_response, stream_chunk_count + 1,
-        is_final=True, interrupted_soft=was_soft_limited_during_stream,
-        interrupted_revoke=was_revoked_during_stream,
-        model_name=stream_model_name
-    )
-    await _publish_to_redis(
-        cache_service, redis_channel_name, final_payload, log_prefix,
-        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
-    )
-
     # Handle billing for normal processing
     # When revoked or soft-limited, we still bill for all tokens generated (usage metadata contains all generated tokens)
     # This ensures we charge for the compute that was performed, even if the response was cut short by the user
@@ -1967,8 +2061,9 @@ async def _consume_main_processing_stream(
         not is_server_error
     )
     
+    billing_info = {}
     if should_bill:
-        await _handle_normal_billing(
+        billing_info = await _handle_normal_billing(
             usage, preprocessing_result, request_data, task_id, log_prefix
         )
     elif usage and is_server_error:
@@ -1978,12 +2073,30 @@ async def _consume_main_processing_stream(
     elif not usage:
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
+    # Publish final marker to Redis - include usage and billing info if available
+    final_payload = _create_redis_payload(
+        task_id, request_data, aggregated_response, stream_chunk_count + 1,
+        is_final=True, interrupted_soft=was_soft_limited_during_stream,
+        interrupted_revoke=was_revoked_during_stream,
+        model_name=stream_model_name,
+        prompt_tokens=billing_info.get("prompt_tokens"),
+        completion_tokens=billing_info.get("completion_tokens"),
+        user_input_tokens=billing_info.get("user_input_tokens"),
+        system_prompt_tokens=billing_info.get("system_prompt_tokens"),
+        total_credits=billing_info.get("total_credits"),
+        category=preprocessing_result.category or "general_knowledge"
+    )
+    await _publish_to_redis(
+        cache_service, redis_channel_name, final_payload, log_prefix,
+        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
+    )
+
     # Save assistant response to cache for follow-up message context
     # This is CRITICAL for the architecture where last 3 chats are cached in memory
     # Even partial responses (due to revocation/soft limit) should be saved for context
     # CRITICAL: Always save to AI cache, even if response is empty or interrupted
-    # This ensures message history is complete for follow-up requests
-    if directus_service and cache_service and encryption_service and user_vault_key_id:
+    # EXTERNAL REQUESTS (REST API) skip this as they are stateless and don't use storage.
+    if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
         # Use actual category from preprocessing, fallback to general_knowledge
         category = preprocessing_result.category or "general_knowledge"
         if not preprocessing_result.category:
@@ -2025,7 +2138,7 @@ async def _consume_main_processing_stream(
                 f"Follow-up requests will NOT have this message in context!",
                 exc_info=True
             )
-    elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+    elif not request_data.is_external and not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
         logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Attempting to save anyway for context.")
         # Try to save even empty response if services are available
         if directus_service and cache_service and encryption_service and user_vault_key_id:
@@ -2048,6 +2161,8 @@ async def _consume_main_processing_stream(
                 logger.info(f"{log_prefix} Saved empty assistant response to AI cache for context.")
             except Exception as e_empty_save:
                 logger.error(f"{log_prefix} Failed to save empty assistant response: {e_empty_save}", exc_info=True)
+    elif request_data.is_external:
+        logger.info(f"{log_prefix} External API request - skipping storage and metadata updates.")
     elif not cache_service:
         logger.error(f"{log_prefix} CRITICAL: Cache service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
     elif not encryption_service:

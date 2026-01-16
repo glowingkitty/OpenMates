@@ -19,7 +19,8 @@ from .openai_shared import (
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
-    _map_tools_to_openai_format
+    _map_tools_to_openai_format,
+    calculate_token_breakdown
 )
 
 logger = logging.getLogger(__name__)
@@ -150,7 +151,7 @@ async def invoke_cerebras_api(
     logger.debug(f"{log_prefix} Request payload structure: {json.dumps(sanitized_payload, indent=2)}")
     # Log actual tools payload at info level for debugging Cerebras 400 errors
     if "tools" in payload:
-        logger.info(f"{log_prefix} Tools payload being sent to Cerebras: {json.dumps(payload['tools'], indent=2)}")
+        logger.info(f"{log_prefix} Tools payload being sent to Cerebras...")
     
     try:
         if stream:
@@ -224,10 +225,17 @@ async def _send_cerebras_request(
             
             # Extract usage information
             usage_data = response_data.get("usage", {})
+            
+            # Calculate token breakdown from input messages (estimate)
+            messages = payload.get("messages", [])
+            breakdown = calculate_token_breakdown(messages, model_id)
+            
             usage = OpenAIUsageMetadata(
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
-                total_tokens=usage_data.get("total_tokens", 0)
+                total_tokens=usage_data.get("total_tokens", 0),
+                user_input_tokens=breakdown.get("user_input_tokens"),
+                system_prompt_tokens=breakdown.get("system_prompt_tokens")
             )
             
             # Handle tool calls if present
@@ -471,10 +479,16 @@ async def _stream_cerebras_response(
                         
                         # Update usage if present
                         if "usage" in chunk:
-                            usage = chunk["usage"]
-                            cumulative_usage["input_tokens"] = usage.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
+                            usage_chunk = chunk["usage"]
+                            cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
+                            cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
+                            cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
+                            
+                            # Calculate token breakdown from input messages (estimate)
+                            messages = payload.get("messages", [])
+                            breakdown = calculate_token_breakdown(messages, model_id)
+                            cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")
+                            cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")
                     
                     except json.JSONDecodeError as e:
                         # Log with more context to help debug actual parsing issues
@@ -485,7 +499,9 @@ async def _stream_cerebras_response(
                 yield OpenAIUsageMetadata(
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
-                    total_tokens=cumulative_usage["total_tokens"]
+                    total_tokens=cumulative_usage["total_tokens"],
+                    user_input_tokens=cumulative_usage.get("user_input_tokens"),
+                    system_prompt_tokens=cumulative_usage.get("system_prompt_tokens")
                 )
                 
                 logger.info(f"{log_prefix} Stream completed")

@@ -322,7 +322,7 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
-                    key === 'report_issue') {
+                    key === 'report_issue' || key === 'account/delete') {
                     filtered[key] = component;
                 }
             } else {
@@ -533,6 +533,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // State to track active submenu view
     let activeSettingsView = $state('main');
+    let activeAccountId = $state<string | null>(null);
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
@@ -554,8 +555,21 @@ changes to the documentation (to keep the documentation up to date).
     // Function to set active settings view with transitions
     function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        const { settingsPath, direction: newDirection, icon } = detail;
+        let { settingsPath, direction: newDirection, icon } = detail;
         direction = newDirection;
+
+        // Reset active account ID
+        activeAccountId = null;
+
+        // Handle account deletion with account_id
+        if (settingsPath.startsWith('account/delete/')) {
+            const parts = settingsPath.split('/');
+            if (parts.length > 2) {
+                activeAccountId = parts[2];
+                settingsPath = 'account/delete';
+                icon = 'delete';
+            }
+        }
 
         // Check if this is a dynamic entry detail route that needs to be registered
         // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
@@ -1265,18 +1279,20 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, and report_issue
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, and account deletion
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
             // Report issue is allowed so anyone can report bugs/issues
+            // Account deletion is allowed for uncompleted accounts via email link
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
                                      settingsPath.startsWith('shared/share') ||
-                                     settingsPath.startsWith('support/');
+                                     settingsPath.startsWith('support/') ||
+                                     settingsPath.startsWith('account/delete/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
@@ -1564,6 +1580,7 @@ changes to the documentation (to keep the documentation up to date).
         <CurrentSettingsPage
         	bind:this={currentPageInstance}
         	{activeSettingsView}
+            accountId={activeAccountId}
         	{direction}
         	{username}
             {isInSignupMode}

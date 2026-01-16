@@ -1,0 +1,4 @@
+# Development-only Python dependencies for linting and tooling.
+# Keep versions pinned to ensure consistent lint results across machines.
+ruff==0.14.11
+yamllint==1.37.1

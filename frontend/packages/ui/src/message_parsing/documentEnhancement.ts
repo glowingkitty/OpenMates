@@ -403,17 +403,53 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
     return text;
   }
   
+  // First, remove entire fenced ```json blocks that contain rendered embed references.
+  // This prevents leaving stray fence markers (```json / ```) in the text when the
+  // embed was already rendered as a node, especially in indented list contexts.
+  const fencedJsonRegex = /```json[\s\S]*?```/gi;
+  let fencedResult = text;
+  let fencedMatch: RegExpExecArray | null;
+  const fencedMatches: { fullMatch: string; embedId: string; index: number }[] = [];
+  
+  while ((fencedMatch = fencedJsonRegex.exec(text)) !== null) {
+    const fencedBlock = fencedMatch[0];
+    const embedIdMatch = fencedBlock.match(/"embed_id"\s*:\s*"([a-f0-9-]+)"/i);
+    if (embedIdMatch && renderedEmbedIds.has(embedIdMatch[1])) {
+      fencedMatches.push({
+        fullMatch: fencedBlock,
+        embedId: embedIdMatch[1],
+        index: fencedMatch.index
+      });
+      console.debug('[removeRenderedJsonEmbedReferences] Removing fenced JSON embed block:', {
+        embedId: embedIdMatch[1],
+        matchLength: fencedBlock.length
+      });
+    }
+  }
+  
+  // Remove fenced matches in reverse order to preserve indices
+  for (let i = fencedMatches.length - 1; i >= 0; i--) {
+    const { fullMatch, index } = fencedMatches[i];
+    const before = fencedResult.substring(0, index);
+    const after = fencedResult.substring(index + fullMatch.length);
+    // Keep surrounding whitespace stable to avoid collapsing adjacent markdown
+    fencedResult = before.trimEnd() + (after ? '\n' + after.replace(/^[\s\n]*/, '') : '');
+  }
+  
+  // Continue cleanup on the possibly trimmed string
+  const jsonText = fencedResult;
+  
   // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
   // This regex matches JSON-like strings with type and embed_id fields
   // We use a non-greedy match to handle multiple references in the same text
   const jsonEmbedRefRegex = /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
   
-  let result = text;
+  let result = jsonText;
   let match;
   const matches: { fullMatch: string; embedId: string; index: number }[] = [];
   
   // Collect all matches first
-  while ((match = jsonEmbedRefRegex.exec(text)) !== null) {
+  while ((match = jsonEmbedRefRegex.exec(jsonText)) !== null) {
     const embedId = match[1];
     if (renderedEmbedIds.has(embedId)) {
       matches.push({
@@ -432,7 +468,8 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
   // Do NOT trim text that has no JSON embed references - this preserves spaces around
   // bold/italic/link formatting that is essential for proper rendering
   if (matches.length === 0) {
-    return text;
+    // Return the post-fenced cleanup string to preserve any removed fenced blocks.
+    return jsonText;
   }
   
   // Remove matches in reverse order to preserve indices

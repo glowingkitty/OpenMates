@@ -15,9 +15,16 @@ Uses SecurityAuth component for passkey/2FA verification.
     import Toggle from '../../Toggle.svelte';
     import SecurityAuth from '../security/SecurityAuth.svelte';
 
+    let { accountId = null }: { accountId?: string | null } = $props();
+
     // ========================================================================
     // STATE
     // ========================================================================
+    
+    // Account status state
+    let canDeleteWithoutLogin = $state(false);
+    let isCheckingStatus = $state(false);
+    let deletionScheduled = $state(false);
     
     // Preview data
     let previewData = $state<{
@@ -64,9 +71,96 @@ Uses SecurityAuth component for passkey/2FA verification.
     // ========================================================================
 
     onMount(async () => {
-        await fetchPreview();
-        await fetchAuthMethods();
+        if ($authStore.isAuthenticated) {
+            await fetchPreview();
+            await fetchAuthMethods();
+        } else if (accountId) {
+            await checkAccountStatus();
+        }
     });
+
+    async function checkAccountStatus() {
+        if (!accountId) return;
+        isCheckingStatus = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(getApiEndpoint(`/v1/settings/account-status/${accountId}`), {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                canDeleteWithoutLogin = data.can_delete_without_login;
+            } else {
+                errorMessage = $text('settings.account.delete_account_status_error.text');
+            }
+        } catch (error) {
+            console.error('[SettingsDeleteAccount] Error checking status:', error);
+            errorMessage = 'Failed to check account status';
+        } finally {
+            isCheckingStatus = false;
+        }
+    }
+
+    async function handleDeletionSuccess(customMessage?: string) {
+        successMessage = customMessage || $text('settings.account.delete_account_success.text');
+        deletionScheduled = true;
+        
+        setTimeout(async () => {
+            // Close settings panel
+            settingsMenuVisible.set(false);
+            panelState.closeSettings();
+            
+            // Close signup flow if user was in signup process
+            isInSignupProcess.set(false);
+            currentSignupStep.set('');
+            
+            // Notify other components that user is logging out
+            window.dispatchEvent(new CustomEvent('userLoggingOut'));
+            
+            await new Promise(resolve => setTimeout(resolve, 50));
+            activeChatStore.setActiveChat('demo-welcome');
+            
+            // Reset URL to demo welcome page
+            if (typeof window !== 'undefined') {
+                window.location.hash = 'chat-id=demo-welcome';
+            }
+            
+            phasedSyncState.markSyncCompleted();
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // For authenticated users, perform full logout
+            // For guest users, the above cleanup is sufficient
+            if ($authStore.isAuthenticated) {
+                authStore.logout();
+            }
+            
+            console.log('[SettingsDeleteAccount] Account deleted, session cleaned up, signup flow closed');
+        }, 2000);
+    }
+
+    async function handleDeleteUncompletedAccount() {
+        if (!accountId || !canDeleteWithoutLogin) return;
+        isLoadingDeletion = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(getApiEndpoint(`/v1/settings/delete-uncompleted-account/${accountId}`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                await handleDeletionSuccess();
+            } else {
+                const data = await response.json();
+                errorMessage = data.detail || 'Failed to delete account';
+            }
+        } catch (error) {
+            console.error('[SettingsDeleteAccount] Error deleting uncompleted account:', error);
+            errorMessage = 'An error occurred during account deletion';
+        } finally {
+            isLoadingDeletion = false;
+        }
+    }
 
     // ========================================================================
     // DATA FETCHING
@@ -194,34 +288,7 @@ Uses SecurityAuth component for passkey/2FA verification.
 
             const data = await response.json();
             if (data.success) {
-                successMessage = data.message || $text('settings.account.delete_account_success.text');
-                
-                setTimeout(async () => {
-                    // Close settings panel
-                    settingsMenuVisible.set(false);
-                    panelState.closeSettings();
-                    
-                    // Close signup flow if user was in signup process
-                    isInSignupProcess.set(false);
-                    currentSignupStep.set('');
-                    
-                    // Notify other components that user is logging out
-                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
-                    
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    activeChatStore.setActiveChat('demo-welcome');
-                    
-                    // Reset URL to demo welcome page
-                    if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                    }
-                    
-                    phasedSyncState.markSyncCompleted();
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    authStore.logout();
-                    
-                    console.log('[SettingsDeleteAccount] Account deleted, user logged out, signup flow closed');
-                }, 2000);
+                await handleDeletionSuccess(data.message);
             } else {
                 throw new Error(data.message || 'Account deletion failed');
             }
@@ -235,9 +302,48 @@ Uses SecurityAuth component for passkey/2FA verification.
 </script>
 
 <div class="delete-account-container">
-    {#if isLoadingPreview}
+    {#if isCheckingStatus || isLoadingPreview}
         <div class="loading-message">
             <p>{$text('settings.account.delete_account_loading_preview.text')}</p>
+        </div>
+    {:else if !$authStore.isAuthenticated && canDeleteWithoutLogin}
+        <div class="warning-box">
+            <h3>{$text('settings.account.delete_account_uncompleted_title.text')}</h3>
+            <p>{$text('settings.account.delete_account_uncompleted_message.text')}</p>
+        </div>
+
+        {#if errorMessage}
+            <div class="error-message">{errorMessage}</div>
+        {/if}
+
+        {#if successMessage}
+            <div class="success-message">{successMessage}</div>
+        {/if}
+
+        {#if !deletionScheduled}
+            <div class="action-buttons">
+                <button
+                    class="delete-button"
+                    onclick={handleDeleteUncompletedAccount}
+                    disabled={isLoadingDeletion}
+                >
+                    {#if isLoadingDeletion}
+                        {$text('settings.account.delete_account_deleting.text')}
+                    {:else}
+                        {$text('settings.account.delete_account_delete_button.text')}
+                    {/if}
+                </button>
+            </div>
+        {/if}
+    {:else if !$authStore.isAuthenticated && !canDeleteWithoutLogin && accountId}
+        <div class="info-box">
+            <h3>{$text('settings.account.delete_account_login_required_title.text')}</h3>
+            <p>{$text('settings.account.delete_account_login_required_message.text')}</p>
+        </div>
+        <div class="action-buttons">
+            <button class="retry-button" onclick={() => window.location.hash = 'login'}>
+                {$text('login.login.text')}
+            </button>
         </div>
     {:else if previewData}
         {#if previewData.has_refundable_credits}

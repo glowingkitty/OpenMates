@@ -16,6 +16,7 @@
         activeSettingsView = 'main',
         direction = 'forward',
         username = '',
+        accountId = null,
         isInSignupMode = false,
         settingsViews = {},
         isIncognitoEnabled = $bindable(false),
@@ -29,6 +30,7 @@
         activeSettingsView?: string;
         direction?: string;
         username?: string;
+        accountId?: string | null;
         isInSignupMode?: boolean;
         settingsViews?: Record<string, typeof SvelteComponent>;
         isIncognitoEnabled?: boolean;
@@ -423,10 +425,8 @@
             >
                 <Component 
                     activeSettingsView={activeSettingsView}
-                    on:openSettings={event => {
-                        // Bubble up nested view change events
-                        dispatch('openSettings', event.detail);
-                    }}
+                    accountId={accountId}
+                    on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
                 />
             </div>
         {/if}

@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
+from .openai_shared import calculate_token_breakdown
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ class GoogleUsageMetadata(BaseModel):
     prompt_token_count: int
     candidates_token_count: int
     total_token_count: int
+    user_input_tokens: Optional[int] = None
+    system_prompt_tokens: Optional[int] = None
 
 class RawGoogleChatCompletionResponse(BaseModel):
     text: Optional[str] = None
@@ -399,7 +402,7 @@ async def invoke_google_ai_studio_chat_completions(
 
         tool_config_dict = {}
         if google_tools:
-            mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE"}
+            mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
@@ -425,7 +428,7 @@ async def invoke_google_ai_studio_chat_completions(
             raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
-    async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:
+    async def _process_non_stream_response(response: types.GenerateContentResponse, token_breakdown: Dict[str, int]) -> UnifiedGoogleResponse:
         logger.info(f"{log_prefix} Received non-streamed response from API.")
 
         usage_metadata_dict = None
@@ -435,6 +438,8 @@ async def invoke_google_ai_studio_chat_completions(
                     "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0),
                     "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0),
                     "total_token_count": getattr(response.usage_metadata, "total_token_count", 0),
+                    "user_input_tokens": token_breakdown.get("user_input_tokens"),
+                    "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
                 }
             except Exception as e:
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
@@ -496,6 +501,10 @@ async def invoke_google_ai_studio_chat_completions(
         - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
         """
         logger.info(f"{log_prefix} Stream connection initiated.")
+        
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""
@@ -595,7 +604,11 @@ async def invoke_google_ai_studio_chat_completions(
                         except Exception as e_tok:
                             logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
 
-                    usage = GoogleUsageMetadata.model_validate(usage_dict)
+                    usage = GoogleUsageMetadata.model_validate({
+                        **usage_dict,
+                        "user_input_tokens": token_breakdown.get("user_input_tokens"),
+                        "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
+                    })
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
@@ -631,6 +644,8 @@ async def invoke_google_ai_studio_chat_completions(
                         prompt_token_count=prompt_tokens,
                         candidates_token_count=completion_tokens,
                         total_token_count=prompt_tokens + completion_tokens,
+                        user_input_tokens=token_breakdown.get("user_input_tokens"),
+                        system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                     )
                     yield usage
                 except Exception as e:
@@ -642,12 +657,15 @@ async def invoke_google_ai_studio_chat_completions(
         return _iterate_stream_response()
     else:
         try:
+            # Calculate token breakdown from input messages (estimate)
+            token_breakdown = calculate_token_breakdown(messages, model_id)
+            
             response = await google_genai_client.aio.models.generate_content(
                 model=normalized_model_id,
                 contents=contents,
                 config=generation_config,
             )
-            return await _process_non_stream_response(response)
+            return await _process_non_stream_response(response, token_breakdown)
         except google_errors.APIError as e_api:
             err_msg = f"Google API error calling API: {e_api}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
@@ -715,7 +733,7 @@ async def invoke_google_chat_completions(
         
         tool_config_dict = {}
         if google_tools:
-            mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE"}
+            mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
@@ -814,6 +832,10 @@ async def invoke_google_chat_completions(
         - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
         """
         logger.info(f"{log_prefix} Stream connection initiated.")
+        
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""
@@ -910,7 +932,11 @@ async def invoke_google_chat_completions(
                         except Exception as e_tok:
                             logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
 
-                    usage = GoogleUsageMetadata.model_validate(usage_dict)
+                    usage = GoogleUsageMetadata.model_validate({
+                        **usage_dict,
+                        "user_input_tokens": token_breakdown.get("user_input_tokens"),
+                        "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
+                    })
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")

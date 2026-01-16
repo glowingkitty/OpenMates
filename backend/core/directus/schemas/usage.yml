@@ -67,12 +67,37 @@ usage:
     encrypted_input_tokens:
       type: string
       length: 512
-      note: "Encrypted input tokens (all systemprompt + chat history) used. Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+      note: "Encrypted TOTAL input tokens (system + history + user). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+
+    encrypted_user_input_tokens:
+      type: string
+      length: 512
+      note: "Encrypted user input tokens (only the specific new user query). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+
+    encrypted_system_prompt_tokens:
+      type: string
+      length: 512
+      note: "Encrypted system prompt tokens (base instructions + history + tool schemas). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
 
     encrypted_output_tokens:
       type: string
       length: 512
       note: "Encrypted output tokens used for the response. Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+
+    encrypted_credits_costs_system_prompt:
+      type: string
+      length: 512
+      note: "Encrypted credit cost for system prompt tokens."
+
+    encrypted_credits_costs_history:
+      type: string
+      length: 512
+      note: "Encrypted credit cost for chat history tokens."
+
+    encrypted_credits_costs_response:
+      type: string
+      length: 512
+      note: "Encrypted credit cost for response tokens."
       
     created_at:
       type: integer 

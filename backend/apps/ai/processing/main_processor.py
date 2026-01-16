@@ -288,6 +288,12 @@ async def _publish_skill_status(
     if not cache_service:
         logger.debug(f"[Task ID: {task_id}] Cache service not available, skipping skill status publish")
         return
+
+    # CRITICAL: Skip WebSocket events for external requests (REST API)
+    # This prevents skill status updates from popping up in the web app when a user makes an API call.
+    if request_data.is_external:
+        logger.debug(f"[Task ID: {task_id}] External request detected. Skipping skill status publish for Web App.")
+        return
     
     try:
         # Construct the skill status payload matching frontend expectations
@@ -2104,6 +2110,16 @@ async def handle_main_processing(
                                 if first_response and isinstance(first_response, dict) and "provider" in first_response:
                                     request_metadata_with_provider["provider"] = first_response["provider"]
                                 
+                                # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
+                                # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
+                                if isinstance(grouped_result, dict):
+                                    if "query" not in request_metadata_with_provider:
+                                        for fallback_key in ["query", "search_query", "q", "input", "url"]:
+                                            fallback_value = grouped_result.get(fallback_key)
+                                            if isinstance(fallback_value, str) and fallback_value.strip():
+                                                request_metadata_with_provider["query"] = fallback_value
+                                                break
+                                
                                 # Check if this request failed (no results)
                                 if not request_results:
                                     # Request failed - update placeholder to error or create error embed
@@ -2139,13 +2155,16 @@ async def handle_main_processing(
                                             if updated_error_embed:
                                                 # Generate embed_reference for the error embed
                                                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
-                                                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
-                                                updated_error_embed["embed_reference"] = json.dumps({
+                                                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+                                                # ALSO include query/provider when available so the UI can render the query
+                                                # even when the embed is in error status.
+                                                embed_reference_payload = {
                                                     "type": "app_skill_use",
                                                     "embed_id": placeholder_embed_id,
                                                     "app_id": app_id,
                                                     "skill_id": skill_id
-                                                })
+                                                }
+                                                updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
                                                 updated_embed_data_list.append(updated_error_embed)
@@ -2227,13 +2246,16 @@ async def handle_main_processing(
                                         # Note: Placeholder embeds were already yielded at creation time (line ~949)
                                         # Mark as "from_placeholder" so we don't yield duplicates later
                                         # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
-                                        # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
-                                        updated_embed_data["embed_reference"] = json.dumps({
+                                        # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+                                        # ALSO include query/provider when available so the UI can render the query
+                                        # even if the parent embed content is missing metadata.
+                                        embed_reference_payload = {
                                             "type": "app_skill_use",
                                             "embed_id": placeholder_embed_id,
                                             "app_id": app_id,
                                             "skill_id": skill_id
-                                        })
+                                        }
+                                        updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata
                                         updated_embed_data["from_placeholder"] = True  # Flag: already yielded

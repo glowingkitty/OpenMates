@@ -50,6 +50,29 @@ docker exec -it api python /app/backend/scripts/show_user_stats.py
 
 ---
 
+### Server Statistics Overview
+
+**Purpose:** Display comprehensive server-wide statistics including growth, engagement, financial metrics, and detailed usage breakdown.
+
+**Command:**
+```bash
+docker exec -it api python /app/backend/scripts/server_stats.py
+
+# Show custom timeframe (e.g., last 8 weeks and 12 months)
+docker exec -it api python /app/backend/scripts/server_stats.py --weeks 8 --months 12
+```
+
+**What it shows:**
+- **User Growth & Engagement:** Total users, finished signups (based on actual purchases), conversion funnel status, and subscription/auto top-up counts.
+- **Financial Overview:** Total income (last 6 months), ARPU (Average Revenue Per User), and outstanding credit liability (User + Creator).
+- **Usage by Skill (Current Month):** Detailed breakdown of credits and request counts for every app skill (e.g., `ai.ask`, `web.search`).
+- **Monthly Development:** 6-month trend of Income, Credits Sold, Credits Used, and total Request counts.
+- **Weekly Development:** 4-week trend of Income and Credits Sold.
+
+**Use case:** Business monitoring, tracking feature popularity, financial reporting, and estimating profit margins.
+
+---
+
 ### Show User Chats
 
 **Purpose:** Display chat information for a specific user.
@@ -174,6 +197,40 @@ docker exec -it api python /app/backend/scripts/send_newsletter.py --limit 5
 **Use case:** Sending monthly newsletters, announcements, or updates to all newsletter subscribers.
 
 **Note:** The script uses the `newsletter.mjml` template by default. You can customize the template or create new templates in `/backend/core/api/templates/email/`. The template receives context variables including `unsubscribe_url`, `darkmode`, and any custom variables you add to the script.
+
+---
+
+### Inspect User
+
+**Purpose:** Display detailed information about a specific user based on their email address, including metadata, decrypted sensitive fields, related item counts, recent activities, and cache status.
+
+**Command:**
+```bash
+docker exec -it api python /app/backend/scripts/inspect_user.py <email_address>
+
+# With options
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --recent-limit 10
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --json
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --no-cache
+```
+
+**What it shows:**
+- **User Metadata (Directus):** ID, Account ID, status, admin status, signup completion, last online (relative time), last opened page, and Vault key information.
+- **Decrypted Fields (Vault):** Username, credit balance, 2FA secret (masked), 2FA app name, invoice counter, and other sensitive fields decrypted using the user's specific Vault key.
+- **Item Counts (Directus):** Total counts for chats, embeds, usage entries, invoices, API keys, passkeys, and gift cards.
+- **Recent Activities (Directus):**
+  - Most recent chats with IDs and update timestamps.
+  - Most recent embeds with IDs and status.
+  - Most recent usage entries with IDs, app/skill info, and associated Chat ID (clearly marks REST API calls).
+  - Most recent invoices with Order IDs.
+- **Cache Status (Redis):** Primed status, chat list count, active LRU chats, and a sample of related cache keys.
+
+**Options:**
+- `--recent-limit N`: Limit number of recent activities to display (default: 5).
+- `--json`: Output as JSON instead of formatted text.
+- `--no-cache`: Skip cache checks (faster if Redis is unavailable).
+
+**Use case:** Comprehensive user debugging, investigating account status, verifying credit balances, checking recent user activity across different services, and identifying cache inconsistencies.
 
 ---
 

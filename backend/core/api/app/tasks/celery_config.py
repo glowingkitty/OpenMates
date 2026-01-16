@@ -318,29 +318,37 @@ async def initialize_services():
     # Since SecretsManager is now a singleton, this will be reused by all tasks
     logger.info("Initializing SecretsManager for invoice services...")
     secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    logger.info("SecretsManager initialized successfully.")
+    try:
+        await secrets_manager.initialize()
+        logger.info("SecretsManager initialized successfully.")
 
-    # Now initialize services that depend on SecretsManager
-    if invoice_ninja_service is None:
-        logger.info("Initializing InvoiceNinjaService for worker process...")
-        try:
-            invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
-            logger.info("InvoiceNinjaService initialized successfully.")
-        except Exception as e:
-            logger.exception("Failed to initialize InvoiceNinjaService.")
-    else:
-        logger.info("InvoiceNinjaService already initialized for this worker process.")
+        # Now initialize services that depend on SecretsManager
+        if invoice_ninja_service is None:
+            logger.info("Initializing InvoiceNinjaService for worker process...")
+            try:
+                invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
+                logger.info("InvoiceNinjaService initialized successfully.")
+            except Exception as e:
+                logger.exception("Failed to initialize InvoiceNinjaService.")
+        else:
+            logger.info("InvoiceNinjaService already initialized for this worker process.")
 
-    if invoice_template_service is None:
-        logger.info("Initializing InvoiceTemplateService for worker process...")
-        try:
-            invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
-            logger.info("InvoiceTemplateService initialized successfully.")
-        except Exception as e:
-            logger.exception("Failed to initialize InvoiceTemplateService.")
-    else:
-        logger.info("InvoiceTemplateService already initialized for this worker process.")
+        if invoice_template_service is None:
+            logger.info("Initializing InvoiceTemplateService for worker process...")
+            try:
+                invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
+                logger.info("InvoiceTemplateService initialized successfully.")
+            except Exception as e:
+                logger.exception("Failed to initialize InvoiceTemplateService.")
+        else:
+            logger.info("InvoiceTemplateService already initialized for this worker process.")
+    finally:
+        # CRITICAL: Close the httpx client after initialization is complete.
+        # This prevents the singleton SecretsManager from holding a stale client
+        # tied to the event loop created by asyncio.run(initialize_services()).
+        # Subsequent tasks will create a new client for their own event loops.
+        await secrets_manager.aclose()
+        logger.info("SecretsManager httpx client closed after worker service initialization.")
 
 
 # ===========================================================================
@@ -645,6 +653,7 @@ _EXPLICIT_TASK_ROUTES = {
     
     # Email tasks (custom names starting with app.tasks.email_tasks.*)
     "app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email": "email",
+    "app.tasks.email_tasks.account_created_email_task.send_account_created_email": "email",
     "app.tasks.email_tasks.new_device_email_task.send_new_device_email": "email",
     "app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email": "email",
     "app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email": "email",
@@ -785,5 +794,10 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
         'options': {'queue': 'persistence'},  # Route to persistence queue
     },
+    # 'cleanup-uncompleted-signups': {
+    #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
+    #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
+    #     'options': {'queue': 'persistence'},  # Route to persistence queue
+    # },
 }
 app.conf.timezone = 'UTC'

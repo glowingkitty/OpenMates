@@ -19,6 +19,8 @@ class AnthropicUsageMetadata(BaseModel):
     total_tokens: int
     cache_creation_input_tokens: Optional[int] = 0
     cache_read_input_tokens: Optional[int] = 0
+    user_input_tokens: Optional[int] = None
+    system_prompt_tokens: Optional[int] = None
 
 class RawAnthropicChatCompletionResponse(BaseModel):
     text: Optional[str] = None

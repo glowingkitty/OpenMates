@@ -1,3 +1,51 @@
+account_created:
+  context: Email subject & header for account created confirmation
+  en: Account created
+  de: Konto erstellt
+  es: Cuenta creada
+  fr: Compte créé
+  ja: アカウントが作成されました
+  zh: 账户已创建
+welcome_to_openmates:
+  context: Email subheader for account created confirmation
+  en: Welcome to OpenMates!
+  de: Willkommen bei OpenMates!
+  es: ¡Bienvenido a OpenMates!
+  fr: Bienvenue sur OpenMates !
+  ja: OpenMatesへようこそ！
+  zh: 欢迎来到 OpenMates！
+complete_signup_info:
+  context: Email body for account created confirmation
+  en: Once you completed the signup process by purchasing usage credits or redeeming a gift card, you can start using OpenMates!
+  de: Sobald du den Registrierungsprozess durch den Kauf von Nutzungsguthaben oder das Einlösen einer Geschenkkarte abgeschlossen hast, kannst du OpenMates nutzen!
+  es: Una vez que hayas completado el proceso de registro comprando créditos de uso o canjeando una tarjeta de regalo, ¡podrás empezar a usar OpenMates!
+  fr: Une fois que vous aurez terminé le processus d'inscription en achetant des crédits d'utilisation ou en utilisant une carte-cadeau, vous pourrez commencer à utiliser OpenMates !
+  ja: 利用クレジットの購入またはギフトカードの引き換えによりサインアッププロセスが完了すると、OpenMatesの使用を開始できます。
+  zh: 一旦您通过购买使用额度或兑换礼品卡完成了注册流程，您就可以开始使用 OpenMates 了！
+auto_delete_warning:
+  context: Email body warning for account created confirmation
+  en: 'Please note: Accounts that haven''t completed the signup process will be automatically deleted after 7 days.'
+  de: 'Bitte beachte: Konten, die den Registrierungsprozess nicht abgeschlossen haben, werden nach 7 Tagen automatisch gelöscht.'
+  es: 'Ten en cuenta: Las cuentas que no hayan completado el process de registro se eliminarán automáticamente después de 7 días.'
+  fr: 'Remarque : les comptes qui n''ont pas terminé le processus d''inscription seront automatiquement supprimés après 7 jours.'
+  ja: '注意：サインアップが完了していないアカウントは、7日後に自動的に削除されます。'
+  zh: '请注意：未完成注册流程的账户将在 7 天后自动删除。'
+want_to_delete_account:
+  context: Email body link text for account deletion
+  en: Want to delete your account?
+  de: Möchtest du dein Konto löschen?
+  es: ¿Quieres eliminar tu cuenta?
+  fr: Vous souhaitez supprimer votre compte ?
+  ja: アカウントを削除しますか？
+  zh: 想要删除您的账户吗？
+click_here:
+  context: Email body link text
+  en: Click here
+  de: Hier klicken
+  es: Haz clic aquí
+  fr: Cliquez ici
+  ja: ここをクリック
+  zh: 点击这里
 confirm_your_email_address:
   context: Email subject & header for email address confirmation
   en: Confirm your email address
