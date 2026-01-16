@@ -1279,18 +1279,20 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, and report_issue
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, and account deletion
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
             // Report issue is allowed so anyone can report bugs/issues
+            // Account deletion is allowed for uncompleted accounts via email link
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
                                      settingsPath.startsWith('shared/share') ||
-                                     settingsPath.startsWith('support/');
+                                     settingsPath.startsWith('support/') ||
+                                     settingsPath.startsWith('account/delete/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
