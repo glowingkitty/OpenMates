@@ -4,7 +4,7 @@
 
 **ALWAYS run the lint script after making code changes** to verify that your changes haven't introduced any errors.
 
-The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors. Use file type filters to only check the types of files you've modified:
+The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors. Use file type filters and path targeting to only check the files and folders you've modified:
 
 **Available file type options:**
 
@@ -15,17 +15,23 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 - `--html` - HTML files (.html)
 - `--yml` - YAML files (.yml, .yaml)
 
+**Targeting options (always use these):**
+
+- `--path <file|dir>` - Limit checks to a specific file or directory (repeatable)
+- `-- <file|dir> ...` - Treat remaining args as target paths
+
 **Examples:**
 
 ```bash
-./scripts/lint_changed.sh --py                    # Only Python changes
-./scripts/lint_changed.sh --ts --svelte          # Only frontend changes
-./scripts/lint_changed.sh --py --ts              # Mixed changes
-./scripts/lint_changed.sh                        # All file types
+./scripts/lint_changed.sh --py --path backend/core/api              # Only Python changes in API
+./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui # Only UI frontend changes
+./scripts/lint_changed.sh --py --ts --path backend --path frontend/apps/web_app # Mixed changes by path
+./scripts/lint_changed.sh -- backend/core/api                       # Path-only filtering
 ```
 
 **Best practices:**
 
+- Always limit checks to the specific files or folders you touched (use `--path` or `--`)
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
 - Always run the lint script before considering changes complete
 - Fix all errors before proceeding
