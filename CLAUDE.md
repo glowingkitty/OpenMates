@@ -109,6 +109,17 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-
 docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5m api task-worker | grep -E "ERROR|task_id=" | grep -B2 -A2 "ERROR"
 ```
 
+### Rebuilding and Restarting Services
+
+If a container might have outdated code after a simple restart, or if you need to ensure a clean state (including clearing the cache volume), use this full rebuild and restart command:
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
+docker volume rm openmates-cache-data && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+```
+
 **Best practices:**
 
 - Target specific services using service names (check `docker-compose.yml` for exact names)
@@ -272,6 +283,17 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e PLAYWRIGHT_TEST_BASE_URL \
   -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
   playwright
+```
+
+### REST API Testing
+**ALWAYS run the external REST API tests after modifying any backend endpoint code.** This ensures that public-facing endpoints remain functional and conform to the expected response structures.
+
+```bash
+# Run all external REST API tests
+/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
+
+# Run specific skill tests (e.g., ai/ask)
+/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py -k ask
 ```
 
 ## Debugging Complex Bugs

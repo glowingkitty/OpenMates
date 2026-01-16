@@ -13,7 +13,8 @@ from .openai_shared import (
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
-    _map_tools_to_openai_format
+    _map_tools_to_openai_format,
+    calculate_token_breakdown,
 )
 
 logger = logging.getLogger(__name__)
@@ -206,10 +207,18 @@ async def _send_openrouter_request(
             
             # Extract usage information
             usage_data = response_data.get("usage", {})
+            
+            # Get breakdown from input messages (estimate)
+            messages = payload.get("messages", [])
+            # Include tools in the breakdown estimate to ensure system_prompt_tokens matches prompt_tokens
+            breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
+            
             usage = OpenAIUsageMetadata(
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
-                total_tokens=usage_data.get("total_tokens", 0)
+                total_tokens=usage_data.get("total_tokens", 0),
+                user_input_tokens=breakdown.get("user_input_tokens"),
+                system_prompt_tokens=breakdown.get("system_prompt_tokens")
             )
             
             # Handle tool calls if present
@@ -320,6 +329,11 @@ async def _stream_openrouter_response(
     
     # Track tool calls across chunks
     tool_calls_buffer = {}
+    
+    # Calculate token breakdown from input messages (estimate)
+    # Include tools in the breakdown estimate to ensure system_prompt_tokens matches prompt_tokens
+    messages = payload.get("messages", [])
+    token_breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
     
     try:
         async with httpx.AsyncClient() as client:
@@ -472,7 +486,9 @@ async def _stream_openrouter_response(
                 yield OpenAIUsageMetadata(
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
-                    total_tokens=cumulative_usage["total_tokens"]
+                    total_tokens=cumulative_usage["total_tokens"],
+                    user_input_tokens=token_breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                 )
                 
                 logger.info(f"{log_prefix} Stream completed")

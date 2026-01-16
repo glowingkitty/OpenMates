@@ -12,6 +12,7 @@ from .openai_shared import (
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
     _map_tools_to_openai_format,
+    calculate_token_breakdown,
 )
 
 logger = logging.getLogger(__name__)
@@ -273,10 +274,14 @@ async def _invoke_groq_direct_api(
                         
                         # Handle usage metadata (usually in final chunk)
                         if hasattr(chunk, 'usage') and chunk.usage:
+                            # Calculate token breakdown from input messages (estimate)
+                            breakdown = calculate_token_breakdown(messages, model_id)
                             usage_info = {
                                 "prompt_tokens": chunk.usage.prompt_tokens if hasattr(chunk.usage, 'prompt_tokens') else 0,
                                 "completion_tokens": chunk.usage.completion_tokens if hasattr(chunk.usage, 'completion_tokens') else 0,
                                 "total_tokens": chunk.usage.total_tokens if hasattr(chunk.usage, 'total_tokens') else 0,
+                                "user_input_tokens": breakdown.get("user_input_tokens"),
+                                "system_prompt_tokens": breakdown.get("system_prompt_tokens")
                             }
                     
                     # Yield final usage metadata if available
@@ -285,6 +290,8 @@ async def _invoke_groq_direct_api(
                             input_tokens=usage_info.get("prompt_tokens", 0),
                             output_tokens=usage_info.get("completion_tokens", 0),
                             total_tokens=usage_info.get("total_tokens", 0),
+                            user_input_tokens=usage_info.get("user_input_tokens"),
+                            system_prompt_tokens=usage_info.get("system_prompt_tokens")
                         )
                 except Exception as e:
                     logger.error(f"{log_prefix} Error during streaming: {e}", exc_info=True)
@@ -307,10 +314,14 @@ async def _invoke_groq_direct_api(
             # Extract usage metadata
             usage_metadata = None
             if hasattr(response, 'usage') and response.usage:
+                # Calculate token breakdown from input messages (estimate)
+                breakdown = calculate_token_breakdown(messages, model_id)
                 usage_metadata = OpenAIUsageMetadata(
                     input_tokens=response.usage.prompt_tokens if hasattr(response.usage, 'prompt_tokens') else 0,
                     output_tokens=response.usage.completion_tokens if hasattr(response.usage, 'completion_tokens') else 0,
                     total_tokens=response.usage.total_tokens if hasattr(response.usage, 'total_tokens') else 0,
+                    user_input_tokens=breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=breakdown.get("system_prompt_tokens")
                 )
             
             # Check for tool calls

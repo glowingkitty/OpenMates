@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
@@ -87,12 +87,12 @@ def get_creator_revenue_service(
 
 # API Endpoints
 
-@router.post("/tip", response_model=TipCreatorResponse, include_in_schema=False)  # Exclude from OpenAPI docs for now
+@router.post("/tip", response_model=TipCreatorResponse, include_in_schema=True)  # Include in OpenAPI docs
 @limiter.limit("30/minute")  # Rate limit: 30 tips per minute per user
 async def tip_creator(
     request: Request,
     tip_data: TipCreatorRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     billing_service: BillingService = Depends(get_billing_service),
     revenue_service: CreatorRevenueService = Depends(get_creator_revenue_service),
     cache_service: CacheService = Depends(get_cache_service)

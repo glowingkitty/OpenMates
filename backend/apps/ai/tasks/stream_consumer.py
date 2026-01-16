@@ -51,7 +51,10 @@ def _create_redis_payload(
     model_name: Optional[str] = None,
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
+    user_input_tokens: Optional[int] = None,
+    system_prompt_tokens: Optional[int] = None,
     total_credits: Optional[int] = None,
+    category: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -70,10 +73,17 @@ def _create_redis_payload(
     if model_name:
         payload["model_name"] = model_name
     
+    if category:
+        payload["category"] = category
+    
     if prompt_tokens is not None:
         payload["prompt_tokens"] = prompt_tokens
     if completion_tokens is not None:
         payload["completion_tokens"] = completion_tokens
+    if user_input_tokens is not None:
+        payload["user_input_tokens"] = user_input_tokens
+    if system_prompt_tokens is not None:
+        payload["system_prompt_tokens"] = system_prompt_tokens
     if total_credits is not None:
         payload["total_credits"] = total_credits
     
@@ -451,21 +461,35 @@ async def _handle_normal_billing(
     Returns usage information for Redis publishing.
     """
     # Extract token counts and provider name based on usage type
+    user_input_tokens = None
+    system_prompt_tokens = None
+    
+    logger.info(f"{log_prefix} Billing: Processing usage of type {type(usage)}")
+    
     if isinstance(usage, MistralUsage):
         input_tokens = usage.prompt_tokens
         output_tokens = usage.completion_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
         input_tokens = usage.prompt_token_count
         output_tokens = usage.candidates_token_count
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        logger.info(f"{log_prefix} Billing: OpenAI usage - user_input={user_input_tokens}, system_prompt={system_prompt_tokens}")
         # Determine billing provider from the selected model id prefix (e.g., "alibaba/...", "openai/...")
         try:
             selected_full_model = preprocessing_result.selected_main_llm_model_id or "openai/unknown"
@@ -535,6 +559,8 @@ async def _handle_normal_billing(
     return {
         "prompt_tokens": input_tokens,
         "completion_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
         "total_credits": credits_charged
     }
 
@@ -1458,22 +1484,25 @@ async def _consume_main_processing_stream(
                         remaining_content = '\n'.join(chunk.split('\n')[1:]) if '\n' in chunk else ""
                         
                         # Language pattern: single word like "python", "javascript", "c++", "c#", etc.
+                        # Also allow "language:filename" format
                         import re
-                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-]*$'
+                        # Modified to allow : and . for filename support
+                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-.]*(?::[^\s:]+)?$'
                         
-                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 20:
-                            # This looks like a language identifier
+                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 50:
+                            # This looks like a language identifier or language:filename
                             if ':' in first_line:
                                 # Has filename: language:filename
                                 parts = first_line.split(':', 1)
                                 current_code_language = parts[0].strip()
                                 current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language and filename from next chunk: {current_code_language}:{current_code_filename}")
                             else:
                                 current_code_language = first_line
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
                             
                             # Any remaining lines after the language are code content
                             current_code_content = remaining_content
-                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
                         else:
                             # Not a language - treat entire chunk as code content
                             current_code_content = chunk
@@ -2047,7 +2076,10 @@ async def _consume_main_processing_stream(
         model_name=stream_model_name,
         prompt_tokens=billing_info.get("prompt_tokens"),
         completion_tokens=billing_info.get("completion_tokens"),
-        total_credits=billing_info.get("total_credits")
+        user_input_tokens=billing_info.get("user_input_tokens"),
+        system_prompt_tokens=billing_info.get("system_prompt_tokens"),
+        total_credits=billing_info.get("total_credits"),
+        category=preprocessing_result.category or "general_knowledge"
     )
     await _publish_to_redis(
         cache_service, redis_channel_name, final_payload, log_prefix,

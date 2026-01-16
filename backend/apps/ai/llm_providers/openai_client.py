@@ -17,6 +17,7 @@ from .openai_shared import (
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
     _map_tools_to_openai_format,
+    calculate_token_breakdown,
 )
 from .openai_openrouter import invoke_openrouter_chat_completions
 
@@ -128,7 +129,13 @@ def _parse_tool_calls_from_choice(choice: Dict[str, Any]) -> Optional[List[Parse
         return None
 
 
-def _build_unified_response(task_id: str, model_id: str, response_json: Dict[str, Any]) -> UnifiedOpenAIResponse:
+def _build_unified_response(
+    task_id: str, 
+    model_id: str, 
+    response_json: Dict[str, Any], 
+    messages: Optional[List[Dict[str, Any]]] = None,
+    tools: Optional[List[Dict[str, Any]]] = None
+) -> UnifiedOpenAIResponse:
     try:
         choices = response_json.get("choices") or []
         first = choices[0] if choices else {}
@@ -140,10 +147,16 @@ def _build_unified_response(task_id: str, model_id: str, response_json: Dict[str
         usage = None
         if usage_raw:
             try:
+                # Get breakdown if messages provided
+                # Include tools in the breakdown to ensure system_prompt_tokens matches prompt_tokens
+                breakdown = calculate_token_breakdown(messages, model_id, tools=tools) if messages else {}
+                
                 usage = OpenAIUsageMetadata(
                     input_tokens=int(usage_raw.get("prompt_tokens") or 0),
                     output_tokens=int(usage_raw.get("completion_tokens") or 0),
                     total_tokens=int(usage_raw.get("total_tokens") or 0),
+                    user_input_tokens=breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=breakdown.get("system_prompt_tokens")
                 )
             except Exception:
                 usage = None
@@ -249,6 +262,10 @@ async def _invoke_openai_direct_api(
         try:
             # Create the streaming request
             stream_resp = await _openai_direct_client.chat.completions.create(**stream_payload)  # type: ignore
+
+            # Calculate token breakdown from input messages (estimate)
+            # Include tools in the estimate to ensure it matches the actual prompt_tokens from API
+            token_breakdown = calculate_token_breakdown(messages, model_id, tools=mapped_tools if tools else None)
 
             # Iterate over streamed ChatCompletionChunk objects
             async for chunk in stream_resp:  # type: ignore
@@ -384,6 +401,8 @@ async def _invoke_openai_direct_api(
                 input_tokens=cumulative_usage["input_tokens"],
                 output_tokens=cumulative_usage["output_tokens"],
                 total_tokens=cumulative_usage["total_tokens"],
+                user_input_tokens=token_breakdown.get("user_input_tokens"),
+                system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
             )
 
             logger.info(f"{log_prefix} Stream completed for model '{model_id}'")
@@ -421,7 +440,8 @@ async def _invoke_openai_direct_api(
         resp = await _openai_direct_client.chat.completions.create(**payload)  # type: ignore
         response_json: Dict[str, Any] = resp.model_dump() if hasattr(resp, "model_dump") else resp  # type: ignore
         logger.info("[%s] OpenAI Direct API success for model '%s'", task_id, model_id)
-        return _build_unified_response(task_id, model_id, response_json)
+        # Pass mapped tools to ensure correct token breakdown calculation
+        return _build_unified_response(task_id, model_id, response_json, messages=messages, tools=payload.get("tools"))
     except Exception as exc:
         logger.error("[%s] OpenAI Direct API error: %s", task_id, exc, exc_info=True)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(exc))

@@ -234,8 +234,9 @@ class UsageMethods:
             dt = datetime.fromtimestamp(timestamp)
             year_month = dt.strftime("%Y-%m")
             
-            # Update chat summary if chat_id is provided
-            if chat_id:
+            # Update chat summary if chat_id is provided and it's not an API request
+            # API requests with chat_id should only show up under API usage, not chat usage
+            if chat_id and not api_key_hash:
                 await self._update_summary(
                     collection="usage_monthly_chat_summaries",
                     user_id_hash=user_id_hash,
@@ -686,6 +687,9 @@ class UsageMethods:
                 
                 if summary_type == "chat":
                     filter_dict["chat_id"] = {"_eq": identifier}
+                    # Only include entries where source is 'chat' (web app usage)
+                    # This excludes API requests that might be associated with this chat
+                    filter_dict["source"] = {"_eq": "chat"}
                 elif summary_type == "app":
                     filter_dict["app_id"] = {"_eq": identifier}
                 elif summary_type == "api_key":

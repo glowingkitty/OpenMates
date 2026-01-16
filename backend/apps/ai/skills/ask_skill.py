@@ -127,6 +127,8 @@ class OpenAIUsage(BaseModel):
     prompt_tokens: int = Field(..., description="Number of tokens in the prompt.")
     completion_tokens: int = Field(..., description="Number of tokens in the completion.")
     total_tokens: int = Field(..., description="Total number of tokens used.")
+    user_input_tokens: int = Field(default=0, description="Number of tokens from user messages (OpenMates extension).")
+    system_prompt_tokens: int = Field(default=0, description="Number of tokens from system prompts (OpenMates extension).")
     total_credits: Optional[int] = Field(default=None, description="Total credits charged for the request (OpenMates extension).")
     
     # Exclude null fields from JSON output
@@ -137,6 +139,7 @@ class OpenAICompletionResponse(BaseModel):
     object: str = Field(default="chat.completion", description="The object type.")
     created: int = Field(..., description="The Unix timestamp when the completion was created.")
     model: str = Field(..., description="The model used for completion.")
+    category: Optional[str] = Field(default=None, description="The category of the request (OpenMates extension).")
     choices: List[OpenAIChoice] = Field(..., description="A list of completion choices.")
     usage: Optional[OpenAIUsage] = Field(default=None, description="Usage statistics for the completion request.")
     
@@ -450,6 +453,11 @@ class AskSkill(BaseSkill):
             from backend.core.api.app.services.cache import CacheService
             cache_service = CacheService()
 
+            # Pre-fetch user_vault_key_id for embed resolution later
+            user_vault_key_id = await cache_service.get_user_vault_key_id(internal_request.user_id)
+            if not user_vault_key_id:
+                logger.warning(f"Could not fetch vault_key_id for user {internal_request.user_id} during stream. Embeds will be unresolved.")
+
             # Collect all content to extract embeds at the end
             full_response_content = ""
 
@@ -481,7 +489,7 @@ class AskSkill(BaseSkill):
                     actual_model_name = chunk_info.get("model_name") or model_name
 
                     # Extract embeds after streaming is complete
-                    embeds_content = await self._extract_and_resolve_embeds(full_response_content, internal_request.chat_id)
+                    embeds_content = await self._extract_and_resolve_embeds(full_response_content, internal_request.chat_id, user_vault_key_id)
 
                     # Send embeds as additional data if found
                     if embeds_content:
@@ -502,14 +510,26 @@ class AskSkill(BaseSkill):
                     # Send final chunk with stop reason and usage
                     prompt_tokens = chunk_info.get("prompt_tokens")
                     completion_tokens = chunk_info.get("completion_tokens")
+                    user_input_tokens = chunk_info.get("user_input_tokens") or 0
+                    system_prompt_tokens = chunk_info.get("system_prompt_tokens") or 0
                     total_credits = chunk_info.get("total_credits")
                     
                     usage_data = None
                     if prompt_tokens is not None and completion_tokens is not None:
+                        # CRITICAL: Ensure consistency between prompt_tokens and breakdown
+                        if prompt_tokens > 0:
+                            calculated_sum = user_input_tokens + system_prompt_tokens
+                            if calculated_sum != prompt_tokens:
+                                old_user_input = user_input_tokens
+                                user_input_tokens = max(0, prompt_tokens - system_prompt_tokens)
+                                logger.info(f"OPENAI_STREAM: Adjusted user_input_tokens from {old_user_input} to {user_input_tokens} to match prompt_tokens {prompt_tokens}")
+
                         usage_data = OpenAIUsage(
                             prompt_tokens=prompt_tokens,
                             completion_tokens=completion_tokens,
                             total_tokens=prompt_tokens + completion_tokens,
+                            user_input_tokens=user_input_tokens,
+                            system_prompt_tokens=system_prompt_tokens,
                             total_credits=total_credits
                         )
 
@@ -623,7 +643,10 @@ class AskSkill(BaseSkill):
                                     "model_name": data.get("model_name"),
                                     "prompt_tokens": data.get("prompt_tokens"),
                                     "completion_tokens": data.get("completion_tokens"),
-                                    "total_credits": data.get("total_credits")
+                                    "user_input_tokens": data.get("user_input_tokens"),
+                                    "system_prompt_tokens": data.get("system_prompt_tokens"),
+                                    "total_credits": data.get("total_credits"),
+                                    "category": data.get("category")
                                 }
                                 task_completed = True
                                 break
@@ -690,6 +713,11 @@ class AskSkill(BaseSkill):
 
             logger.info(f"OPENAI_SYNC: Finished listening. Total content length: {len(response_content)}")
 
+            # Pre-fetch user_vault_key_id for embed resolution
+            user_vault_key_id = await cache_service.get_user_vault_key_id(internal_request.user_id)
+            if not user_vault_key_id:
+                logger.warning(f"OPENAI_SYNC: Could not fetch vault_key_id for user {internal_request.user_id}. Embeds will be unresolved.")
+
             # Use actual model name from worker if available
             actual_model_name = final_metadata.get("model_name") or model_name
 
@@ -745,7 +773,7 @@ class AskSkill(BaseSkill):
                 response_content = "I'm processing your request. Please try again or check the task status if this persists."
 
             # Extract and resolve embed content for CLI/API users
-            embeds_content = await self._extract_and_resolve_embeds(response_content, internal_request.chat_id)
+            embeds_content = await self._extract_and_resolve_embeds(response_content, internal_request.chat_id, user_vault_key_id)
 
             # Create the assistant message
             assistant_message = OpenAIMessage(
@@ -768,6 +796,22 @@ class AskSkill(BaseSkill):
                 completion_tokens = len(response_content.split())
             
             total_credits = final_metadata.get("total_credits")
+            user_input_tokens = final_metadata.get("user_input_tokens") or 0
+            system_prompt_tokens = final_metadata.get("system_prompt_tokens") or 0
+            category = final_metadata.get("category")
+
+            # CRITICAL: Ensure that prompt_tokens matches user_input_tokens + system_prompt_tokens
+            # Since prompt_tokens from the LLM provider is the absolute source of truth for total input,
+            # and system_prompt_tokens/user_input_tokens are estimates, we adjust user_input_tokens
+            # to account for any difference (like tool definitions or formatting overhead).
+            if prompt_tokens is not None and prompt_tokens > 0:
+                calculated_sum = user_input_tokens + system_prompt_tokens
+                if calculated_sum != prompt_tokens:
+                    # Adjust user_input_tokens to make the sum match prompt_tokens
+                    # This ensures consistency for API users who expect the sum to match
+                    old_user_input = user_input_tokens
+                    user_input_tokens = max(0, prompt_tokens - system_prompt_tokens)
+                    logger.info(f"OPENAI_SYNC: Adjusted user_input_tokens from {old_user_input} to {user_input_tokens} to match prompt_tokens {prompt_tokens} (system={system_prompt_tokens})")
 
             return OpenAICompletionResponse(
                 id=completion_id,
@@ -784,8 +828,11 @@ class AskSkill(BaseSkill):
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     total_tokens=prompt_tokens + completion_tokens,
+                    user_input_tokens=user_input_tokens,
+                    system_prompt_tokens=system_prompt_tokens,
                     total_credits=total_credits
-                )
+                ),
+                category=category
             )
 
         except HTTPException:
@@ -806,7 +853,7 @@ class AskSkill(BaseSkill):
                 }
             )
 
-    async def _extract_and_resolve_embeds(self, response_content: str, chat_id: str) -> List[Dict[str, Any]]:
+    async def _extract_and_resolve_embeds(self, response_content: str, chat_id: str, user_vault_key_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Extract and resolve embed content from response text.
         For API users, we need to provide the actual embed content, not just JSON references.
@@ -818,66 +865,155 @@ class AskSkill(BaseSkill):
 
         try:
             # Pattern to match JSON code blocks with embed references
-            # This matches ```json\n{"type": "...", "embed_id": "..."}\n```
-            json_block_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"[^"]*"\s*,\s*"embed_id"\s*:\s*"([^"]+)"\s*\}\s*\n\s*```'
-            embed_matches = re.findall(json_block_pattern, response_content, re.MULTILINE | re.DOTALL)
+            # Matches ```json\n{ ... "embed_id": "..." ... }\n```
+            # This version is more flexible to handle extra fields like app_id, skill_id, query, etc.
+            json_block_pattern = r'```json\s*\n\s*(.*?)\s*\n\s*```'
+            json_matches = re.findall(json_block_pattern, response_content, re.MULTILINE | re.DOTALL)
 
-            if not embed_matches:
+            if not json_matches:
+                return embeds_list
+
+            embed_ids = []
+            for json_str in json_matches:
+                try:
+                    data = json.loads(json_str)
+                    if isinstance(data, dict):
+                        embed_id = data.get("embed_id")
+                        if embed_id:
+                            embed_ids.append(embed_id)
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                embed_id = item.get("embed_id")
+                                if embed_id:
+                                    embed_ids.append(embed_id)
+                except json.JSONDecodeError:
+                    continue
+
+            if not embed_ids:
                 return embeds_list
 
             # Import necessary services for embed resolution
             from backend.core.api.app.services.cache import CacheService
+            from backend.core.api.app.utils.encryption import EncryptionService
+            from toon_format import decode
+            
             cache_service = CacheService()
+            encryption_service = EncryptionService()
 
-            for embed_id in embed_matches:
+            for embed_id in embed_ids:
                 try:
-                    # Retrieve embed content from cache/storage
-                    # Use the correct cache key pattern as used by the existing embed system
+                    # Retrieve embed metadata from cache
                     embed_key = f"embed:{embed_id}"
-                    embed_data = await cache_service.get(embed_key)
+                    embed_json = await cache_service.get(embed_key)
 
-                    if embed_data:
-                        # The embed_data from cache is TOON-encoded content
-                        # We need to decode it to get the actual content
-                        try:
-                            from toon_format import decode
-                            # Decode the TOON-encoded content
-                            if isinstance(embed_data, str):
-                                embed_content = decode(embed_data)
-                            else:
-                                # Fallback to JSON parsing if not a string
-                                embed_content = json.loads(embed_data) if isinstance(embed_data, str) else embed_data
-                        except ImportError:
-                            logger.warning("TOON decoder not available, using JSON fallback")
-                            # Fallback to JSON parsing if TOON decoder not available
-                            if isinstance(embed_data, str):
-                                try:
-                                    embed_content = json.loads(embed_data)
-                                except json.JSONDecodeError:
-                                    embed_content = {"content": embed_data, "type": "unknown"}
-                            else:
-                                embed_content = embed_data
-                        except Exception as decode_error:
-                            logger.warning(f"TOON decode failed for embed {embed_id}, trying JSON fallback: {decode_error}")
-                            # Fallback to JSON if TOON decode fails
-                            if isinstance(embed_data, str):
-                                try:
-                                    embed_content = json.loads(embed_data)
-                                except json.JSONDecodeError:
-                                    embed_content = {"content": embed_data, "type": "unknown"}
-                            else:
-                                embed_content = embed_data
+                    if embed_json:
+                        # Parse the outer embed metadata
+                        if isinstance(embed_json, bytes):
+                            embed_json = embed_json.decode('utf-8')
+                        
+                        embed_data = json.loads(embed_json) if isinstance(embed_json, str) else embed_json
+                        
+                        # Decrypt content if vault key is available
+                        embed_content = {}
+                        if user_vault_key_id and embed_data.get("encrypted_content"):
+                            try:
+                                # Decrypt the content
+                                plaintext_toon = await encryption_service.decrypt_with_user_key(
+                                    embed_data["encrypted_content"],
+                                    user_vault_key_id
+                                )
+                                
+                                if plaintext_toon:
+                                    # Decode the TOON-encoded content
+                                    embed_content = decode(plaintext_toon)
+                                else:
+                                    logger.warning(f"Failed to decrypt content for embed {embed_id}")
+                            except Exception as decrypt_err:
+                                logger.error(f"Error decrypting embed {embed_id}: {decrypt_err}")
+                        else:
+                            if not user_vault_key_id:
+                                logger.warning(f"No vault_key_id provided for resolving embed {embed_id}")
+                            elif not embed_data.get("encrypted_content"):
+                                logger.warning(f"No encrypted_content found for embed {embed_id}")
 
                         # Format embed for API response
+                        # Use structure from EmbedService and handle different types
+                        embed_type = embed_data.get("type") or embed_content.get("type", "unknown")
+                        
                         resolved_embed = {
                             "id": embed_id,
-                            "type": embed_content.get("type", "unknown"),
-                            "content": embed_content.get("content", ""),
-                            "metadata": embed_content.get("metadata", {}),
-                            "url": embed_content.get("url"),
-                            "thumbnail": embed_content.get("thumbnail"),
-                            "title": embed_content.get("title", "Embedded Content")
+                            "type": embed_type,
+                            "content": "",
+                            "metadata": {},
+                            "title": embed_content.get("title") or embed_data.get("title", "Embedded Content")
                         }
+                        
+                        # Handle different embed types to populate content and metadata
+                        if embed_type == "code":
+                            # For code embeds, the actual code is in the "code" field
+                            code_content = embed_content.get("code", "")
+                            language = embed_content.get("language")
+                            filename = embed_content.get("filename")
+                            
+                            # Handle cases where language and filename are stuck in the code content
+                            # Format: "language:filename\nCODE" or "language\nCODE" or "filename\nCODE"
+                            if code_content and "\n" in code_content and (not language or not filename):
+                                first_line, rest = code_content.split("\n", 1)
+                                if ":" in first_line:
+                                    parsed_lang, parsed_filename = first_line.split(":", 1)
+                                    # Simple validation: language shouldn't have spaces and should be reasonably short
+                                    if parsed_lang and " " not in parsed_lang and len(parsed_lang) < 20:
+                                        language = parsed_lang.strip()
+                                        filename = parsed_filename.strip()
+                                        code_content = rest
+                                elif not language and "." in first_line and " " not in first_line:
+                                    # Might be just a filename
+                                    filename = first_line.strip()
+                                    code_content = rest
+                            
+                            resolved_embed["content"] = code_content
+                            resolved_embed["metadata"] = {
+                                "language": language or "",
+                                "filename": filename or "",
+                                "line_count": embed_content.get("line_count") or (len(code_content.splitlines()) if code_content else 0),
+                                "status": embed_content.get("status") or embed_data.get("status")
+                            }
+                        elif embed_type == "app_skill_use":
+                            # For skill results, we might have multiple results
+                            # If there's a single clear text-like result, use it as content
+                            # Otherwise put everything into metadata
+                            results = embed_content.get("results", [])
+                            if results and isinstance(results, list) and len(results) == 1:
+                                result = results[0]
+                                # Try to find a sensible content field in the result
+                                resolved_embed["content"] = result.get("content") or result.get("text") or ""
+                            
+                            # Put all skill-related data into metadata
+                            resolved_embed["metadata"] = {
+                                "app_id": embed_content.get("app_id"),
+                                "skill_id": embed_content.get("skill_id"),
+                                "status": embed_content.get("status") or embed_data.get("status"),
+                                "result_count": embed_content.get("result_count"),
+                                "query": embed_content.get("query"),
+                                "provider": embed_content.get("provider"),
+                                "url": embed_content.get("url")
+                            }
+                            # Include the actual results in metadata if not too large
+                            if results:
+                                resolved_embed["metadata"]["results"] = results
+                        else:
+                            # Fallback for other types
+                            resolved_embed["content"] = embed_content.get("content", "")
+                            resolved_embed["metadata"] = {k: v for k, v in embed_content.items() if k not in ["content", "type", "title"]}
+                            if not resolved_embed["metadata"]:
+                                resolved_embed["metadata"] = embed_content.get("metadata", {})
+
+                        # Add common fields if present
+                        if "url" in embed_content or "url" in embed_data:
+                            resolved_embed["url"] = embed_content.get("url") or embed_data.get("url")
+                        if "thumbnail" in embed_content or "thumbnail" in embed_data:
+                            resolved_embed["thumbnail"] = embed_content.get("thumbnail") or embed_data.get("thumbnail")
 
                         embeds_list.append(resolved_embed)
 

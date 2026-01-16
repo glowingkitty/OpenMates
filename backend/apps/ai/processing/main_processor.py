@@ -2158,11 +2158,6 @@ async def handle_main_processing(
                                                     "app_id": app_id,
                                                     "skill_id": skill_id
                                                 }
-                                                if request_metadata_with_provider:
-                                                    if "query" in request_metadata_with_provider:
-                                                        embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                                    if "provider" in request_metadata_with_provider:
-                                                        embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -2254,11 +2249,6 @@ async def handle_main_processing(
                                             "app_id": app_id,
                                             "skill_id": skill_id
                                         }
-                                        if request_metadata_with_provider:
-                                            if "query" in request_metadata_with_provider:
-                                                embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                            if "provider" in request_metadata_with_provider:
-                                                embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

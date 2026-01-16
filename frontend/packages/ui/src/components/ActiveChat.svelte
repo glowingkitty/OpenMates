@@ -731,6 +731,17 @@
         return status === 'cancelled' ? 'error' : status;
     }
 
+    /**
+     * Normalize unknown status values into a supported embed status.
+     * This guards against loosely typed decodedContent fields.
+     */
+    function normalizeEmbedStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+        if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') {
+            return value;
+        }
+        return 'finished';
+    }
+
     // Normalize unknown values from embed payloads into the primitive types UI components expect.
     function coerceString(value: unknown, fallback: string = ''): string {
         return typeof value === 'string' ? value : fallback;
@@ -4398,6 +4409,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getWebSearchResults(embedFullscreenData.decodedContent?.results)}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}

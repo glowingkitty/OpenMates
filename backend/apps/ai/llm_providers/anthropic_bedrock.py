@@ -16,6 +16,7 @@ from .anthropic_shared import (
     _prepare_messages_for_anthropic,
     _map_tools_to_anthropic_format
 )
+from .openai_shared import calculate_token_breakdown
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ async def invoke_bedrock_api(
         if stream:
             return _iterate_bedrock_stream_response(task_id, model_id, bedrock_model_id, request_body, bedrock_client, messages, log_prefix)
         else:
-            return await _process_bedrock_non_stream_response(task_id, model_id, bedrock_model_id, request_body, bedrock_client, log_prefix)
+            return await _process_bedrock_non_stream_response(task_id, model_id, bedrock_model_id, request_body, bedrock_client, messages, log_prefix)
 
     except Exception as e:
         err_msg = f"Error during AWS Bedrock request preparation: {e}"
@@ -133,6 +134,7 @@ async def _process_bedrock_non_stream_response(
     bedrock_model_id: str,
     request_body: Dict[str, Any],
     bedrock_client: boto3.client,
+    messages: List[Dict[str, str]],
     log_prefix: str
 ) -> UnifiedAnthropicResponse:
     """Process non-streaming response from AWS Bedrock"""
@@ -144,6 +146,9 @@ async def _process_bedrock_non_stream_response(
         response_body = json.loads(response.get('body').read())
         logger.info(f"{log_prefix} Received non-streamed response from AWS Bedrock.")
         
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         # Parse AWS Bedrock response
         content = response_body.get("content", [])
         usage = response_body.get("usage", {})
@@ -153,7 +158,9 @@ async def _process_bedrock_non_stream_response(
             output_tokens=usage.get("output_tokens", 0),
             total_tokens=usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
             cache_creation_input_tokens=usage.get("cache_creation_input_tokens", 0),
-            cache_read_input_tokens=usage.get("cache_read_input_tokens", 0)
+            cache_read_input_tokens=usage.get("cache_read_input_tokens", 0),
+            user_input_tokens=token_breakdown.get("user_input_tokens"),
+            system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
         )
         
         raw_response_pydantic = RawAnthropicChatCompletionResponse(
@@ -251,6 +258,9 @@ async def _iterate_bedrock_stream_response(
             body=json.dumps(request_body)
         )
         
+        # Calculate token breakdown from input messages (estimate)
+        token_breakdown = calculate_token_breakdown(messages, model_id)
+        
         stream = response.get('body')
         if stream:
             for event in stream:
@@ -299,7 +309,9 @@ async def _iterate_bedrock_stream_response(
                                 output_tokens=usage_data.get("output_tokens", 0),
                                 total_tokens=usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0),
                                 cache_creation_input_tokens=usage_data.get("cache_creation_input_tokens", 0),
-                                cache_read_input_tokens=usage_data.get("cache_read_input_tokens", 0)
+                                cache_read_input_tokens=usage_data.get("cache_read_input_tokens", 0),
+                                user_input_tokens=token_breakdown.get("user_input_tokens"),
+                                system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                             )
 
         # Yield final usage information
@@ -326,7 +338,9 @@ async def _iterate_bedrock_stream_response(
                     output_tokens=estimated_output_tokens,
                     total_tokens=estimated_input_tokens + estimated_output_tokens,
                     cache_creation_input_tokens=0,
-                    cache_read_input_tokens=0
+                    cache_read_input_tokens=0,
+                    user_input_tokens=token_breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                 )
                 yield usage
             except Exception as e:

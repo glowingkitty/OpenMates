@@ -216,14 +216,16 @@ class EmbedService:
 
             # Generate embed reference JSON
             # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
-            # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
-            # Without these, undefined === undefined comparisons incorrectly group different skills
-            embed_reference = json.dumps({
+            # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+            # ALSO include query/provider when available so the UI can render the query
+            # immediately (even before the finished embed content arrives).
+            embed_reference_payload = {
                 "type": "app_skill_use",
                 "embed_id": embed_id,
                 "app_id": app_id,
                 "skill_id": skill_id
-            })
+            }
+            embed_reference = json.dumps(embed_reference_payload)
 
             return {
                 "embed_id": embed_id,
@@ -1798,14 +1800,16 @@ class EmbedService:
                 
                 # Generate embed reference JSON
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
-                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
-                # Without these, undefined === undefined comparisons incorrectly group different skills
-                embed_reference = json.dumps({
+                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+                # ALSO include query/provider when available so the UI can render the query
+                # even if the parent embed content is delayed or missing metadata.
+                embed_reference_payload = {
                     "type": "app_skill_use",
                     "embed_id": parent_embed_id,
                     "app_id": app_id,
                     "skill_id": skill_id
-                })
+                }
+                embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
                     "parent_embed_id": parent_embed_id,

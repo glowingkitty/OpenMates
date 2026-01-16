@@ -1406,3 +1406,43 @@ change_password:
   sv: Ändra lösenord
   verified_by_human: []
 
+delete_account_uncompleted_title:
+  context: Title for uncompleted account deletion
+  en: Delete uncompleted account
+  de: Unvollständiges Konto löschen
+  es: Eliminar cuenta no completada
+  fr: Supprimer le compte non terminé
+  ja: 未完了のアカウントを削除
+  zh: 删除未完成的账户
+delete_account_uncompleted_message:
+  context: Message for uncompleted account deletion
+  en: This account hasn't completed the signup process yet. You can delete it now without logging in.
+  de: Dieses Konto hat den Registrierungsprozess noch nicht abgeschlossen. Du kannst es jetzt ohne Anmeldung löschen.
+  es: Esta cuenta aún no ha completado el proceso de registro. Puedes eliminarla ahora sin iniciar sesión.
+  fr: Ce compte n'a pas encore terminé le processus d'inscription. Vous pouvez le supprimer maintenant sans vous connecter.
+  ja: このアカウントはまだサインアッププロセスを完了していません。ログインせずに今すぐ削除できます。
+  zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
+delete_account_login_required_title:
+  context: Title when login is required for account deletion
+  en: Login required
+  de: Anmeldung erforderlich
+  es: Inicio de sesión requerido
+  fr: Connexion requise
+  ja: ログインが必要です
+  zh: 需要登录
+delete_account_login_required_message:
+  context: Message when login is required for account deletion
+  en: This account has completed signup or has credits/usage. Please log in to delete it using the regular interface.
+  de: Dieses Konto hat die Registrierung abgeschlossen oder verfügt über Guthaben/Nutzung. Bitte melde dich an, um es über die reguläre Oberfläche zu löschen.
+  es: Esta cuenta ha completado el registro o tiene créditos/uso. Por favor, inicia sesión para eliminarla usando la interfaz normal.
+  fr: Ce compte a terminé son inscription ou possède des crédits/utilisations. Veuillez vous connecter pour le supprimer via l'interface habituelle.
+  ja: このアカウントはサインアップを完了しているか、クレジットまたは使用履歴があります。通常のインターフェースを使用して削除するには、ログインしてください。
+  zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
+delete_account_status_error:
+  context: Error message when checking account status fails
+  en: Failed to check account status. Please try again later.
+  de: Kontostatus konnte nicht überprüft werden. Bitte versuche es später erneut.
+  es: No se pudo verificar el estado de la cuenta. Por favor, inténtalo de nuevo más tarde.
+  fr: Échec de la vérification de l'état du compte. Veuillez réessayer plus tard.
+  ja: アカウントステータスの確認に失敗しました。後でもう一度お試しください。
+  zh: 无法检查账户状态。请稍后再试。

@@ -39,7 +39,7 @@ def log_response(response: httpx.Response):
 # It validates that the REST API endpoints are functional and return expected structures.
 #
 # Execution command:
-# /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
+# /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
 #
 # Note: Ensure the root .env file contains OPENMATES_TEST_ACCOUNT_API_KEY.
 
