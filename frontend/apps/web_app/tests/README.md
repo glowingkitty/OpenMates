@@ -9,8 +9,23 @@ across signup, 2FA enrollment, and payment.
 - `signup-flow.spec.ts`
   - Full signup flow: email verification, password setup, 2FA enrollment, credit
     purchase, and entry into the chat experience.
-  - Captures step-by-step screenshots in `frontend/apps/web_app/tests/artifacts/`.
+  - Captures step-by-step screenshots in `playwright-artifacts/`.
   - Emits `[SIGNUP_FLOW]` log checkpoints to make test progress obvious in CI logs.
+
+- `signup-flow-passkey.spec.ts`
+  - Passkey signup flow: email verification, passkey registration (WebAuthn PRF),
+    credit purchase, and entry into the chat experience.
+  - Uses Playwright virtual authenticator via CDP to handle WebAuthn prompts.
+  - Emits `[SIGNUP_PASSKEY]` log checkpoints.
+
+## Shared Helpers
+
+Common functionality used across signup tests is extracted into `signup-flow-helpers.ts` to ensure consistency and reduce code duplication. This includes:
+- Screenshot and logging helpers
+- Mailosaur client for email polling
+- Stripe card detail filling
+- TOTP generation for 2FA
+- Signup domain and email generation logic
 
 ## Required Environment Variables
 
@@ -43,7 +58,7 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
   -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_FILE="tests/signup-flow.spec.ts" \
+  -e PLAYWRIGHT_TEST_FILE="tests/signup-flow-passkey.spec.ts" \
   playwright
 ```
 
@@ -56,26 +71,13 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
   -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_GREP="signup" \
-  playwright
-```
-
-### Run a Single Test by Title
-
-For an exact test match, provide the full test title:
-
-```bash
-docker compose -f docker-compose.playwright.yml run --rm \
-  -e SIGNUP_TEST_EMAIL_DOMAINS \
-  -e MAILOSAUR_API_KEY \
-  -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_GREP="full signup flow" \
+  -e PLAYWRIGHT_TEST_GREP="passkey" \
   playwright
 ```
 
 ## Artifacts
 
-- Current run screenshots: `frontend/apps/web_app/tests/artifacts/*.png`
-- Previous run screenshots: `frontend/apps/web_app/tests/artifacts/previous_run/*.png`
+- Current run screenshots: `playwright-artifacts/*.png`
+- Previous run screenshots: `playwright-artifacts/previous_run/*.png`
   - On each run, any existing screenshots are moved into `previous_run/`.
   - Existing screenshots inside `previous_run/` are removed first.
