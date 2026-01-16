@@ -130,6 +130,8 @@ async def get_signup_stats(directus_service: DirectusService) -> Dict[str, Any]:
 async def get_financial_stats(
     directus_service: DirectusService, 
     encryption_service: EncryptionService,
+    hash_to_vault_key: Dict[str, str],
+    user_balances: List[Tuple[str, str]],
     weeks: int = 4,
     months: int = 6,
     finished_signup_count: int = 0
@@ -151,30 +153,8 @@ async def get_financial_stats(
         }
         invoices = await directus_service.get_items('invoices', params=params_inv, admin_required=True)
         
-        # 2. Optimization: Fetch only needed fields for all users to map hashes and get balances
-        admin_token = await directus_service.ensure_auth_token(admin_required=True)
-        headers = {"Authorization": f"Bearer {admin_token}"}
-        url = f"{directus_service.base_url}/users"
-        params_users = {'fields': 'id,vault_key_id,encrypted_credit_balance', 'limit': -1, 'filter[is_admin][_eq]': False}
-        
-        resp_users = await directus_service._make_api_request("GET", url, params=params_users, headers=headers)
-        all_users = resp_users.json().get('data', []) if resp_users.status_code == 200 else []
-        
-        hash_to_vault_key = {}
-        balance_tasks = []
-        for u in all_users:
-            u_id = u.get('id')
-            v_key_id = u.get('vault_key_id')
-            enc_balance = u.get('encrypted_credit_balance')
-            
-            if u_id:
-                u_hash = hashlib.sha256(u_id.encode()).hexdigest()
-                hash_to_vault_key[u_hash] = v_key_id
-                
-                if v_key_id and enc_balance:
-                    balance_tasks.append(encryption_service.decrypt_with_user_key(enc_balance, v_key_id))
-        
-        # Calculate Outstanding Liability (Liability)
+        # 2. Calculate Outstanding Liability (decrypted balances)
+        balance_tasks = [encryption_service.decrypt_with_user_key(bal, v_id) for bal, v_id in user_balances]
         balances = await asyncio.gather(*balance_tasks)
         total_outstanding_credits = sum(int(b) for b in balances if b and b.isdigit())
         
@@ -251,46 +231,80 @@ async def process_invoice(inv: Dict[str, Any], vault_key_id: str, encryption_ser
     except Exception:
         return None
 
-async def get_usage_stats(directus_service: DirectusService, months: int = 6) -> Dict[str, Any]:
-    """Get usage statistics including app breakdown."""
+async def get_usage_stats(
+    directus_service: DirectusService, 
+    encryption_service: EncryptionService,
+    hash_to_vault_key: Dict[str, str],
+    months: int = 6
+) -> Dict[str, Any]:
+    """Get usage statistics including detailed skill breakdown for current month."""
     stats = {
-        "monthly": defaultdict(int),
-        "app_breakdown": defaultdict(int), # For last 30 days
-        "total_used": 0
+        "monthly": defaultdict(lambda: {"credits": 0, "requests": 0}),
+        "skill_breakdown": defaultdict(lambda: {"credits": 0, "requests": 0}),
+        "total_used": 0,
+        "total_requests": 0
     }
     
-    # Calculate year-month list
+    today = date.today()
+    month_start = datetime(today.year, today.month, 1)
+    month_start_ts = int(month_start.timestamp())
+    
+    # 1. Fetch Monthly Summaries for historical data
     year_months = []
     for i in range(months):
-        month_date = date.today() - timedelta(days=i * 30)
+        month_date = today - timedelta(days=i * 30)
         year_months.append(month_date.strftime("%Y-%m"))
         
-    current_month = year_months[0]
-        
     try:
-        # 1. Fetch Monthly Summaries
-        params = {
+        params_sum = {
             'filter[year_month][_in]': year_months,
-            'fields': 'year_month,app_id,total_credits',
+            'fields': 'year_month,total_credits,entry_count',
             'limit': -1
         }
-        summaries = await directus_service.get_items('usage_monthly_app_summaries', params=params, admin_required=True)
-        
+        summaries = await directus_service.get_items('usage_monthly_app_summaries', params=params_sum, admin_required=True)
         for s in summaries:
             ym = s.get('year_month')
-            app = s.get('app_id', 'unknown')
-            credits = s.get('total_credits', 0)
+            stats["monthly"][ym]["credits"] += s.get('total_credits', 0)
+            stats["monthly"][ym]["requests"] += s.get('entry_count', 0)
             
-            stats["monthly"][ym] += credits
-            if ym == current_month:
-                stats["app_breakdown"][app] += credits
-            
-        # 2. Total all-time usage
-        all_summaries = await directus_service.get_items('usage_monthly_app_summaries', params={'fields': 'total_credits', 'limit': -1}, admin_required=True)
+        all_summaries = await directus_service.get_items('usage_monthly_app_summaries', params={'fields': 'total_credits,entry_count', 'limit': -1}, admin_required=True)
         stats["total_used"] = sum(s.get('total_credits', 0) for s in all_summaries)
+        stats["total_requests"] = sum(s.get('entry_count', 0) for s in all_summaries)
+
+        # 2. Fetch raw usage for CURRENT MONTH to get skill breakdown
+        params_raw = {
+            'filter[created_at][_gte]': month_start_ts,
+            'fields': 'user_id_hash,app_id,skill_id,encrypted_credits_costs_total',
+            'limit': -1
+        }
+        raw_usage = await directus_service.get_items('usage', params=params_raw, admin_required=True)
         
+        if raw_usage:
+            # Group by user to decrypt credits
+            decrypt_tasks = []
+            for entry in raw_usage:
+                u_hash = entry.get('user_id_hash')
+                v_key_id = hash_to_vault_key.get(u_hash)
+                enc_credits = entry.get('encrypted_credits_costs_total')
+                
+                if v_key_id and enc_credits:
+                    decrypt_tasks.append(encryption_service.decrypt_with_user_key(enc_credits, v_key_id))
+                else:
+                    decrypt_tasks.append(asyncio.sleep(0, result="0"))
+            
+            decrypted_credits = await asyncio.gather(*decrypt_tasks)
+            
+            for entry, credit_val in zip(raw_usage, decrypted_credits):
+                app = entry.get('app_id', 'unknown')
+                skill = entry.get('skill_id', 'unknown')
+                skill_key = f"{app}.{skill}"
+                
+                credits = int(credit_val) if credit_val and credit_val.isdigit() else 0
+                stats["skill_breakdown"][skill_key]["credits"] += credits
+                stats["skill_breakdown"][skill_key]["requests"] += 1
+                
     except Exception as e:
-        logger.error(f"Error fetching usage stats: {e}")
+        logger.error(f"Error fetching usage stats: {e}", exc_info=True)
         
     return stats
 
@@ -375,36 +389,40 @@ def format_output(
     lines.append(f"FINANCIAL OVERVIEW")
     lines.append("-" * 100)
     lines.append(f"  Total Income (L6M):    {financial_stats.get('total_income', 0):>10.2f} EUR")
-    lines.append(f"  ARPU (Lifetime):       {financial_stats.get('arpu', 0):>10.2f} EUR")
+    lines.append(f"  ARPU (Lifetime)*:      {financial_stats.get('arpu', 0):>10.2f} EUR")
     lines.append("")
-    lines.append(f"  User Credit Balance (Liability): {financial_stats.get('liability_credits', 0):>10,}")
-    lines.append(f"  Creator Reserved Credits:        {creator_stats.get('reserved_credits', 0):>10,}")
+    lines.append(f"  User Credit Balance (Liability): {financial_stats.get('liability_credits', 0):>10,} Credits")
+    lines.append(f"  Creator Reserved Credits:        {creator_stats.get('reserved_credits', 0):>10,} Credits")
+    lines.append("")
+    lines.append("  * ARPU: Average Revenue Per User (Total Income / Finished Signup Count)")
     lines.append("")
     
-    # App Breakdown Section
+    # Skill Breakdown Section
     lines.append("-" * 100)
-    lines.append("USAGE BY APP (Current Month)")
+    lines.append("USAGE BY SKILL (Current Month)")
     lines.append("-" * 100)
-    if not usage_stats["app_breakdown"]:
+    lines.append(f"  {'Skill':<25} | {'Credits Used':>15} | {'Requests':>12}")
+    lines.append("-" * 100)
+    if not usage_stats["skill_breakdown"]:
         lines.append("  No usage recorded this month.")
     else:
-        for app, credits in sorted(usage_stats["app_breakdown"].items(), key=lambda x: x[1], reverse=True):
-            lines.append(f"  {app:<20}: {credits:>10,}")
+        for skill, data in sorted(usage_stats["skill_breakdown"].items(), key=lambda x: x[1]['credits'], reverse=True):
+            lines.append(f"  {skill:<25} | {data['credits']:>15,} | {data['requests']:>12,}")
     lines.append("")
     
     # Comparison Section - Monthly
     lines.append("-" * 100)
     lines.append(f"MONTHLY DEVELOPMENT (Last {months} Months)")
     lines.append("-" * 100)
-    lines.append(f"  {'Month':<10} | {'Income (EUR)':>12} | {'Credits Sold':>15} | {'Credits Used':>15}")
+    lines.append(f"  {'Month':<10} | {'Income (EUR)':>12} | {'Credits Sold':>15} | {'Credits Used':>15} | {'Requests':>10}")
     lines.append("-" * 100)
     
     all_months = sorted(list(set(financial_stats["monthly"].keys()) | set(usage_stats["monthly"].keys())), reverse=True)[:months]
     
     for month in all_months:
         f_stat = financial_stats["monthly"].get(month, {"income": 0, "credits": 0})
-        u_credits = usage_stats["monthly"].get(month, 0)
-        lines.append(f"  {month:<10} | {f_stat['income']:>12.2f} | {f_stat['credits']:>15,} | {u_credits:>15,}")
+        u_stat = usage_stats["monthly"].get(month, {"credits": 0, "requests": 0})
+        lines.append(f"  {month:<10} | {f_stat['income']:>12.2f} | {f_stat['credits']:>15,} | {u_stat['credits']:>15,} | {u_stat['requests']:>10,}")
     
     lines.append("")
     
@@ -446,19 +464,41 @@ async def main():
         # 1. Signup stats
         signup_stats = await get_signup_stats(directus_service)
         
-        # 2. Financial stats (requires finished_signup for ARPU)
+        # 2. Get User Map (Needed for all decryption tasks)
+        admin_token = await directus_service.ensure_auth_token(admin_required=True)
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        url = f"{directus_service.base_url}/users"
+        params_users = {'fields': 'id,vault_key_id,encrypted_credit_balance', 'limit': -1, 'filter[is_admin][_eq]': False}
+        
+        resp_users = await directus_service._make_api_request("GET", url, params=params_users, headers=headers)
+        all_users = resp_users.json().get('data', []) if resp_users.status_code == 200 else []
+        
+        hash_to_vault_key = {}
+        user_balances = []
+        for u in all_users:
+            u_id = u.get('id')
+            v_key_id = u.get('vault_key_id')
+            if u_id:
+                u_hash = hashlib.sha256(u_id.encode()).hexdigest()
+                hash_to_vault_key[u_hash] = v_key_id
+                if v_key_id and u.get('encrypted_credit_balance'):
+                    user_balances.append((u.get('encrypted_credit_balance'), v_key_id))
+
+        # 3. Financial stats
         financial_stats = await get_financial_stats(
             directus_service, 
             encryption_service, 
+            hash_to_vault_key,
+            user_balances,
             weeks=args.weeks, 
             months=args.months,
             finished_signup_count=signup_stats.get('finished_signup', 0)
         )
         
-        # 3. Usage stats
-        usage_stats = await get_usage_stats(directus_service, months=args.months)
+        # 4. Usage stats
+        usage_stats = await get_usage_stats(directus_service, encryption_service, hash_to_vault_key, months=args.months)
         
-        # 4. Creator stats
+        # 5. Creator stats
         creator_stats = await get_creator_stats(directus_service, encryption_service)
         
         # 5. Output results

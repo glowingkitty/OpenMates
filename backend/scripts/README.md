@@ -50,6 +50,29 @@ docker exec -it api python /app/backend/scripts/show_user_stats.py
 
 ---
 
+### Server Statistics Overview
+
+**Purpose:** Display comprehensive server-wide statistics including growth, engagement, financial metrics, and detailed usage breakdown.
+
+**Command:**
+```bash
+docker exec -it api python /app/backend/scripts/server_stats.py
+
+# Show custom timeframe (e.g., last 8 weeks and 12 months)
+docker exec -it api python /app/backend/scripts/server_stats.py --weeks 8 --months 12
+```
+
+**What it shows:**
+- **User Growth & Engagement:** Total users, finished signups (based on actual purchases), conversion funnel status, and subscription/auto top-up counts.
+- **Financial Overview:** Total income (last 6 months), ARPU (Average Revenue Per User), and outstanding credit liability (User + Creator).
+- **Usage by Skill (Current Month):** Detailed breakdown of credits and request counts for every app skill (e.g., `ai.ask`, `web.search`).
+- **Monthly Development:** 6-month trend of Income, Credits Sold, Credits Used, and total Request counts.
+- **Weekly Development:** 4-week trend of Income and Credits Sold.
+
+**Use case:** Business monitoring, tracking feature popularity, financial reporting, and estimating profit margins.
+
+---
+
 ### Show User Chats
 
 **Purpose:** Display chat information for a specific user.

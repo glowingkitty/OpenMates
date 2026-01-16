@@ -40,8 +40,9 @@ Lint only the files that have been changed (uncommitted or staged). Automaticall
 
 - Automatically detects changed files from git
 - Runs appropriate linters based on file type:
-  - Python: ruff, mypy
+  - Python: ruff (install via `pip install -r backend/requirements-dev.txt`)
   - TypeScript/Svelte: ESLint, Svelte Check
+  - YAML: yamllint (install via `pip install -r backend/requirements-dev.txt`)
 - Only processes files that have been modified
 
 ### `docker-cleanup.sh`
