@@ -141,7 +141,6 @@ def test_usage_summary_authenticated(api_client):
     assert "summaries" in data
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="Skill execution for ai/ask is currently not working as expected in this environment")
 def test_execute_skill_ask(api_client):
     """
     Test executing the 'ai/ask' skill.
@@ -149,18 +148,29 @@ def test_execute_skill_ask(api_client):
     """
     payload = {
         "messages": [
-            {"role": "user", "content": "Hello, this is an automated test request. Please respond with 'Test successful'."}
+            {"role": "user", "content": "Capital city of Germany?"}
         ],
         "stream": False
     }
     # Dynamic route is /v1/apps/{app_id}/skills/{skill_id}
-    response = api_client.post("/v1/apps/ai/skills/ask", json=payload)
-    
-    assert response.status_code == 200, f"Skill execution failed: {response.text}"
-    
-    data = response.json()
-    # ai/ask returns OpenAI-compatible response or custom depending on how it's wrapped
-    assert "choices" in data or "results" in data
+    # Use 20 second timeout - AI processing includes preprocessing, LLM inference, and post-processing
+    try:
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=20.0)
+        assert response.status_code == 200, f"Skill execution failed: {response.text}"
+        data = response.json()
+        # Check for successful OpenAI-compatible response format
+        assert "choices" in data, "Response should have 'choices' field for OpenAI-compatible format"
+        assert len(data["choices"]) > 0, "Response should have at least one choice"
+        # Verify the response contains actual content
+        content = data["choices"][0].get("message", {}).get("content", "")
+        assert content, "Response content should not be empty"
+        # Ensure the correct answer is in the response
+        assert "Berlin" in content, f"Expected 'Berlin' to be in response, but got: {content}"
+        # Ensure no error message was returned as content (errors should be HTTP 4xx/5xx)
+        assert not content.startswith("Error:"), f"Response contains error message: {content}"
+    except httpx.TimeoutException:
+        print("\n[TIMEOUT] Request to ai/ask timed out after 20 seconds.")
+        pytest.fail("Request timed out after 20 seconds")
 
 @pytest.mark.integration
 def test_execute_skill_web_search(api_client):

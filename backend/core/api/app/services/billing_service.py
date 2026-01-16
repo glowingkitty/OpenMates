@@ -205,8 +205,14 @@ class BillingService:
                 if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():
                     message_id = message_id_val.strip()
             
-            # Determine source: "chat" if chat_id is provided, otherwise "api_key"
-            source = "chat" if chat_id else "api_key"
+            # Determine source: "api_key" if api_key_hash is provided (external API), 
+            # otherwise "chat" if chat_id is provided (web app), else "direct"
+            if api_key_hash:
+                source = "api_key"
+            elif chat_id:
+                source = "chat"
+            else:
+                source = "direct"
             
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,

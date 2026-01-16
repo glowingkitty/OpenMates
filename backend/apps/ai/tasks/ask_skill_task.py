@@ -362,9 +362,22 @@ async def _async_process_ai_skill_ask_task(
 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Failed to initialize services: {e}", exc_info=True)
-        # The synchronous wrapper will handle updating Celery state.
-        # We raise RuntimeError to signal failure to the sync wrapper.
-        # The sync wrapper will call self.update_state.
+        
+        # Notify the API via Redis stream that a fatal error occurred
+        if cache_service_instance:
+            try:
+                error_payload = {
+                    "type": "ai_message_chunk",
+                    "task_id": task_id,
+                    "chat_id": request_data.chat_id,
+                    "full_content_so_far": f"Error: {str(e)}",
+                    "is_final_chunk": True,
+                    "error": True
+                }
+                await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
+            except:
+                pass
+                
         raise RuntimeError(f"Service initialization failed: {e}")
 
 
@@ -492,62 +505,88 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e_cache_get:
         logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
-    # --- Fetch user_vault_key_id from cache (with on-demand warming from Directus if not cached) ---
-    # This supports API-only users who may not have logged in via web app to trigger cache warming
+    # --- Fetch user_vault_key_id and warm cache ---
+    # This supports internal users (Web App) who may not have logged in via web app to trigger cache warming.
+    # We ALWAYS need the user record and credits for the pre-processing credit check.
+    # Credits are encrypted, so the vault_key_id is mandatory for all billable requests.
     user_vault_key_id: Optional[str] = None
     if cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
         if not cached_user_data:
-            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache
-            # This is critical for API-only users who haven't logged in via web app
-            logger.info(f"[Task ID: {task_id}] User not in cache, attempting on-demand cache warming for user_id: {request_data.user_id}")
+            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache.
+            # This is required for both internal and external requests to check balance.
+            logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
             try:
                 if directus_service_instance:
-                    # Fetch minimal user data from Directus (just what we need for AI processing)
-                    user_data_from_db = await directus_service_instance.get_items(
-                        'users',
-                        params={
-                            'filter[id][_eq]': request_data.user_id,
-                            'fields': 'id,vault_key_id,encrypted_username,encrypted_credits',
-                            'limit': 1
-                        }
+                    # Fetch user data using /users/{id} endpoint (NOT /items/users which requires special permissions)
+                    # The get_user_fields_direct method correctly uses the /users/{id} endpoint
+                    # which the admin token can access for any user
+                    user_record = await directus_service_instance.get_user_fields_direct(
+                        request_data.user_id,
+                        fields=['id', 'vault_key_id', 'encrypted_username', 'encrypted_credit_balance']
                     )
                     
-                    if user_data_from_db and len(user_data_from_db) > 0:
-                        user_record = user_data_from_db[0]
-                        # Cache the user data for future requests
+                    if user_record:
                         cache_data = {
-                            'id': user_record.get('id'),
-                            'user_id': user_record.get('id'),
+                            'id': user_record.get('id') or request_data.user_id,
+                            'user_id': user_record.get('id') or request_data.user_id,
                             'vault_key_id': user_record.get('vault_key_id'),
                             'encrypted_username': user_record.get('encrypted_username'),
-                            'encrypted_credits': user_record.get('encrypted_credits'),
-                            '_api_warmed': True  # Flag to indicate this was warmed via API
+                            'encrypted_credit_balance': user_record.get('encrypted_credit_balance'),
+                            '_api_warmed': True
                         }
+                        
+                        # MANDATORY: Decrypt credits for the cache so preprocessor can check balance
+                        # Field name is 'encrypted_credit_balance' (not 'encrypted_credits')
+                        if user_record.get('encrypted_credit_balance') and user_record.get('vault_key_id'):
+                            try:
+                                decrypted_credits_str = await directus_service_instance.encryption_service.decrypt_with_user_key(
+                                    user_record.get('encrypted_credit_balance'), 
+                                    user_record.get('vault_key_id')
+                                )
+                                if decrypted_credits_str:
+                                    cache_data['credits'] = int(decrypted_credits_str)
+                                    logger.info(f"[Task ID: {task_id}] Successfully decrypted credits for user {request_data.user_id}: {cache_data['credits']}")
+                            except Exception as e_dec:
+                                logger.error(f"[Task ID: {task_id}] Failed to decrypt credits: {e_dec}")
+                                # If we can't decrypt credits, we can't safely proceed
+                                raise RuntimeError(f"Could not decrypt user credits: {e_dec}")
+                        
                         await cache_service_instance.set_user(cache_data, user_id=request_data.user_id)
                         cached_user_data = cache_data
-                        logger.info(f"[Task ID: {task_id}] On-demand cache warming successful for user_id: {request_data.user_id}")
                     else:
                         logger.error(f"[Task ID: {task_id}] User not found in Directus: {request_data.user_id}")
                         raise RuntimeError(f"User not found: {request_data.user_id}")
                 else:
-                    logger.error(f"[Task ID: {task_id}] DirectusService not available for on-demand cache warming")
                     raise RuntimeError("DirectusService not available for cache warming")
             except Exception as e:
-                logger.error(f"[Task ID: {task_id}] On-demand cache warming failed: {e}", exc_info=True)
-                raise RuntimeError(f"Failed to warm cache for user: {e}")
+                logger.error(f"[Task ID: {task_id}] Cache warming failed: {e}", exc_info=True)
+                # Notify the API via Redis stream so it doesn't hang
+                if cache_service_instance:
+                    try:
+                        error_payload = {
+                            "type": "ai_message_chunk",
+                            "task_id": task_id,
+                            "chat_id": request_data.chat_id,
+                            "full_content_so_far": f"Error: User identification or credit check failed.",
+                            "is_final_chunk": True,
+                            "error": True
+                        }
+                        await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
+                    except: pass
+                raise RuntimeError(f"Failed to identify user or check credits: {e}")
 
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
-            logger.error(f"[Task ID: {task_id}] vault_key_id not found in user data for user_id: {request_data.user_id}. Aborting task.")
+            logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
             raise RuntimeError("User vault key ID not found.")
-        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id for user_id: {request_data.user_id}.")
+            
     elif not cache_service_instance:
-        logger.error(f"[Task ID: {task_id}] CacheService instance not available. Cannot fetch user_vault_key_id. Aborting task.")
+        logger.error(f"[Task ID: {task_id}] CacheService not available.")
         raise RuntimeError("CacheService not available.")
     elif not request_data.user_id:
-        logger.error(f"[Task ID: {task_id}] user_id is missing in request_data. Cannot fetch user_vault_key_id. Aborting task.")
+        logger.error(f"[Task ID: {task_id}] user_id is missing.")
         raise RuntimeError("user_id is missing.")
 
     # Parse app settings/memories metadata from client
