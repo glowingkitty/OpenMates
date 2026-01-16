@@ -163,7 +163,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 Use these scripts to inspect server state directly. Run from the repo root.
 
-### Chat and Embed Inspection
+### Chat, Embed and User Inspection
 
 ```bash
 # Inspect a specific chat (cache, storage, Directus)
@@ -171,6 +171,9 @@ docker exec api python /app/backend/scripts/inspect_chat.py <chat_id>
 
 # Inspect a specific embed
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
+
+# Inspect a specific user by email (metadata, decrypted fields, counts, activities, cache)
+docker exec api python /app/backend/scripts/inspect_user.py <email_address>
 ```
 
 ### AI Request Debugging

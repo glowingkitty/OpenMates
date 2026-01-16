@@ -151,7 +151,7 @@ async def invoke_cerebras_api(
     logger.debug(f"{log_prefix} Request payload structure: {json.dumps(sanitized_payload, indent=2)}")
     # Log actual tools payload at info level for debugging Cerebras 400 errors
     if "tools" in payload:
-        logger.info(f"{log_prefix} Tools payload being sent to Cerebras: {json.dumps(payload['tools'], indent=2)}")
+        logger.info(f"{log_prefix} Tools payload being sent to Cerebras...")
     
     try:
         if stream:
@@ -175,8 +175,7 @@ async def _send_cerebras_request(
     task_id: str,
     model_id: str,
     payload: Dict[str, Any],
-    headers: Dict[str, str],
-    messages: List[Dict[str, Any]]
+    headers: Dict[str, str]
 ) -> UnifiedOpenAIResponse:
     """
     Sends a non-streaming request to the Cerebras API.

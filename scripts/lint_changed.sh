@@ -111,12 +111,27 @@ cd "${repo_root}"
 
 python_cmd="${PYTHON:-}"
 if [[ -z "${python_cmd}" ]]; then
-  if [[ -n "${VIRTUAL_ENV-}" ]] && command -v python >/dev/null 2>&1; then
-    python_cmd="python"
-  elif command -v python3 >/dev/null 2>&1; then
-    python_cmd="python3"
-  elif command -v python >/dev/null 2>&1; then
-    python_cmd="python"
+  # List of potential virtual environment locations
+  venv_paths=(".venv_lint" ".venv" "backend/.venv" "venv" "backend/venv")
+  
+  for venv_path in "${venv_paths[@]}"; do
+    if [[ -f "${repo_root}/${venv_path}/bin/python" ]]; then
+      python_cmd="${repo_root}/${venv_path}/bin/python"
+      # Export VIRTUAL_ENV to match the path if we found one
+      export VIRTUAL_ENV="${repo_root}/${venv_path}"
+      break
+    fi
+  done
+  
+  # Fallback to system python if no venv found
+  if [[ -z "${python_cmd}" ]]; then
+    if [[ -n "${VIRTUAL_ENV-}" ]] && command -v python >/dev/null 2>&1; then
+      python_cmd="python"
+    elif command -v python3 >/dev/null 2>&1; then
+      python_cmd="python3"
+    elif command -v python >/dev/null 2>&1; then
+      python_cmd="python"
+    fi
   fi
 fi
 if [[ -n "${python_cmd}" ]] && ! command -v "${python_cmd}" >/dev/null 2>&1; then
