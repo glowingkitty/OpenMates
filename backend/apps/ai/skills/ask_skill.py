@@ -517,12 +517,15 @@ class AskSkill(BaseSkill):
                     usage_data = None
                     if prompt_tokens is not None and completion_tokens is not None:
                         # CRITICAL: Ensure consistency between prompt_tokens and breakdown
+                        # We adjust system_prompt_tokens (not user_input_tokens) to absorb overhead
+                        # because users can see their input but not the system prompt, so keeping
+                        # user_input_tokens close to what they typed is more intuitive.
                         if prompt_tokens > 0:
                             calculated_sum = user_input_tokens + system_prompt_tokens
                             if calculated_sum != prompt_tokens:
-                                old_user_input = user_input_tokens
-                                user_input_tokens = max(0, prompt_tokens - system_prompt_tokens)
-                                logger.info(f"OPENAI_STREAM: Adjusted user_input_tokens from {old_user_input} to {user_input_tokens} to match prompt_tokens {prompt_tokens}")
+                                old_system_prompt = system_prompt_tokens
+                                system_prompt_tokens = max(0, prompt_tokens - user_input_tokens)
+                                logger.info(f"OPENAI_STREAM: Adjusted system_prompt_tokens from {old_system_prompt} to {system_prompt_tokens} to match prompt_tokens {prompt_tokens} (user_input={user_input_tokens})")
 
                         usage_data = OpenAIUsage(
                             prompt_tokens=prompt_tokens,
@@ -611,7 +614,7 @@ class AskSkill(BaseSkill):
                     if not isinstance(data, dict):
                         try:
                             data = json.loads(data) if isinstance(data, str) else data
-                        except:
+                        except Exception:
                             pass
 
                     if isinstance(data, dict):
@@ -802,16 +805,18 @@ class AskSkill(BaseSkill):
 
             # CRITICAL: Ensure that prompt_tokens matches user_input_tokens + system_prompt_tokens
             # Since prompt_tokens from the LLM provider is the absolute source of truth for total input,
-            # and system_prompt_tokens/user_input_tokens are estimates, we adjust user_input_tokens
-            # to account for any difference (like tool definitions or formatting overhead).
+            # and system_prompt_tokens/user_input_tokens are estimates, we adjust system_prompt_tokens
+            # to absorb any difference (like tool definitions or formatting overhead).
+            # We keep user_input_tokens close to the actual user input because users can see what
+            # they typed but cannot see the system prompt, making this more intuitive.
             if prompt_tokens is not None and prompt_tokens > 0:
                 calculated_sum = user_input_tokens + system_prompt_tokens
                 if calculated_sum != prompt_tokens:
-                    # Adjust user_input_tokens to make the sum match prompt_tokens
-                    # This ensures consistency for API users who expect the sum to match
-                    old_user_input = user_input_tokens
-                    user_input_tokens = max(0, prompt_tokens - system_prompt_tokens)
-                    logger.info(f"OPENAI_SYNC: Adjusted user_input_tokens from {old_user_input} to {user_input_tokens} to match prompt_tokens {prompt_tokens} (system={system_prompt_tokens})")
+                    # Adjust system_prompt_tokens to absorb overhead (provider formatting, tool schemas, etc.)
+                    # This keeps user_input_tokens close to what the user actually typed
+                    old_system_prompt = system_prompt_tokens
+                    system_prompt_tokens = max(0, prompt_tokens - user_input_tokens)
+                    logger.info(f"OPENAI_SYNC: Adjusted system_prompt_tokens from {old_system_prompt} to {system_prompt_tokens} to match prompt_tokens {prompt_tokens} (user_input={user_input_tokens})")
 
             return OpenAICompletionResponse(
                 id=completion_id,

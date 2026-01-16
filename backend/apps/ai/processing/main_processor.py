@@ -288,6 +288,12 @@ async def _publish_skill_status(
     if not cache_service:
         logger.debug(f"[Task ID: {task_id}] Cache service not available, skipping skill status publish")
         return
+
+    # CRITICAL: Skip WebSocket events for external requests (REST API)
+    # This prevents skill status updates from popping up in the web app when a user makes an API call.
+    if request_data.is_external:
+        logger.debug(f"[Task ID: {task_id}] External request detected. Skipping skill status publish for Web App.")
+        return
     
     try:
         # Construct the skill status payload matching frontend expectations

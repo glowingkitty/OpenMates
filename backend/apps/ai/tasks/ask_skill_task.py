@@ -375,7 +375,7 @@ async def _async_process_ai_skill_ask_task(
                     "error": True
                 }
                 await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
-            except:
+            except Exception:
                 pass
                 
         raise RuntimeError(f"Service initialization failed: {e}")
@@ -569,12 +569,13 @@ async def _async_process_ai_skill_ask_task(
                             "type": "ai_message_chunk",
                             "task_id": task_id,
                             "chat_id": request_data.chat_id,
-                            "full_content_so_far": f"Error: User identification or credit check failed.",
+                            "full_content_so_far": "Error: User identification or credit check failed.",
                             "is_final_chunk": True,
                             "error": True
                         }
                         await cache_service_instance.publish_event(f"chat_stream::{request_data.chat_id}", error_payload)
-                    except: pass
+                    except Exception:
+                        pass
                 raise RuntimeError(f"Failed to identify user or check credits: {e}")
 
         user_vault_key_id = cached_user_data.get("vault_key_id")
@@ -930,9 +931,15 @@ async def _async_process_ai_skill_ask_task(
                 logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
             else:
                 logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
-            typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-            await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+            
+            # CRITICAL: Skip WebSocket events for external requests (REST API)
+            # This prevents typing indicators from popping up in the web app when a user makes an API call.
+            if not request_data.is_external:
+                typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
+                await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
+                logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+            else:
+                logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
         except Exception as e_typing_pub:
             event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
             logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
@@ -1207,9 +1214,12 @@ async def _async_process_ai_skill_ask_task(
 
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
     # Post-processing continues even when revoked - we still have a partial response to process
-    # Only skip if there's no response content at all
+    # Only skip if there's no response content at all.
+    # CRITICAL: Skip post-processing for external requests (REST API)
+    # External requests only care about the main response content, not suggestions or summary.
+    # This also prevents 'post_processing_completed' events from being broadcasted to the web app.
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_soft_limited and aggregated_final_response:
+    if not task_was_soft_limited and aggregated_final_response and not request_data.is_external:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -1355,9 +1365,10 @@ async def _async_process_ai_skill_ask_task(
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache postprocessor debug data (non-fatal): {e_debug}")
 
-        logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
+            logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
     else:
-        logger.info(f"[Task ID: {task_id}] Skipping post-processing (task_was_revoked={task_was_revoked}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
+        reason = "request is external" if request_data.is_external else "no response content or soft-limited"
+        logger.info(f"[Task ID: {task_id}] Skipping post-processing (reason: {reason}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
 
     # Determine final status based on local flags
     final_status_message = "completed"

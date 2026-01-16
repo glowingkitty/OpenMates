@@ -211,6 +211,13 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         logger.warning(f"AI Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
                         continue
                     
+                    # CRITICAL: Skip WebSocket forwarding for external requests (REST API)
+                    # These requests use the Redis stream for their own response, but we don't
+                    # want them broadcasted to the web app's WebSockets.
+                    if redis_payload.get("external_request"):
+                        logger.debug(f"AI Stream Listener: External request detected for chat {chat_id_from_payload}. Skipping WebSocket broadcast.")
+                        continue
+                    
                     logger.debug(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
                     logger.debug(f"AI Stream Listener: Full Redis Payload: {json.dumps(redis_payload, indent=2)}")
 
@@ -356,6 +363,11 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
                     logger.warning(f"AI Thinking Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
                     continue
                 
+                # CRITICAL: Skip WebSocket forwarding for external requests (REST API)
+                if redis_payload.get("external_request"):
+                    logger.debug(f"AI Thinking Stream Listener: External request detected for chat {chat_id_from_payload}. Skipping WebSocket broadcast.")
+                    continue
+                
                 logger.debug(f"AI Thinking Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload}")
 
                 if event_type == "thinking_chunk":
@@ -427,6 +439,11 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
                 redis_channel_name = message.get("channel", "")
+                
+                # CRITICAL: Skip WebSocket forwarding for external requests (REST API)
+                if redis_payload.get("external_request"):
+                    logger.debug("AI Typing Indicator Listener: External request detected. Skipping WebSocket broadcast.")
+                    continue
                 
                 internal_event_type = redis_payload.get("type")
 

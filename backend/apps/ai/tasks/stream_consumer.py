@@ -67,7 +67,8 @@ def _create_redis_payload(
         "user_message_id": request_data.message_id,
         "full_content_so_far": content,
         "sequence": sequence,
-        "is_final_chunk": is_final
+        "is_final_chunk": is_final,
+        "external_request": request_data.is_external
     }
 
     if model_name:
@@ -134,6 +135,7 @@ def _create_thinking_redis_payload(
             "message_id": task_id,
             "signature": signature,
             "total_tokens": total_tokens,
+            "external_request": request_data.is_external,
         }
     else:
         return {
@@ -144,6 +146,7 @@ def _create_thinking_redis_payload(
             "user_id_hash": request_data.user_id_hash,
             "message_id": task_id,
             "content": content,  # Just the new chunk, not accumulated
+            "external_request": request_data.is_external,
         }
 
 
@@ -550,6 +553,8 @@ async def _handle_normal_billing(
         "message_id": request_data.message_id,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
         "api_key_name": request_data.api_key_name,
         "external_request": request_data.is_external
     }
