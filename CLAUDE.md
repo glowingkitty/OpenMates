@@ -270,7 +270,7 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
   -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_FILE="tests/signup-flow.spec.ts" \
+  -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
   playwright
 ```
 
