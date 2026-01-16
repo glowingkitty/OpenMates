@@ -6,6 +6,28 @@ export {};
 // provides the @playwright/test module at runtime. We avoid extra dependencies
 // and keep the flow aligned with the existing password-based signup test.
 const { test, expect } = require('@playwright/test');
+
+const consoleLogs: string[] = [];
+const networkActivities: string[] = [];
+
+test.beforeEach(async () => {
+	consoleLogs.length = 0;
+	networkActivities.length = 0;
+});
+
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo: any) => {
+	if (testInfo.status !== 'passed') {
+		console.log('\n--- DEBUG INFO ON FAILURE ---');
+		console.log('\n[RECENT CONSOLE LOGS]');
+		consoleLogs.slice(-20).forEach((log) => console.log(log));
+
+		console.log('\n[RECENT NETWORK ACTIVITIES]');
+		networkActivities.slice(-20).forEach((activity) => console.log(activity));
+		console.log('\n--- END DEBUG INFO ---\n');
+	}
+});
+
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -85,6 +107,24 @@ async function teardownVirtualPasskeyAuthenticator(client: any, authenticatorId:
  */
 
 test('completes passkey signup flow with email + purchase', async ({ page, context }: { page: any; context: any }) => {
+	// Listen for console logs
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+	});
+
+	// Listen for network requests
+	page.on('request', (request: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+	});
+
+	// Listen for network responses
+	page.on('response', (response: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+	});
+
 	test.slow();
 	// Allow extra time for passkey registration + purchase confirmation email.
 	test.setTimeout(240000);

@@ -3,6 +3,28 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+
+const consoleLogs: string[] = [];
+const networkActivities: string[] = [];
+
+test.beforeEach(async () => {
+	consoleLogs.length = 0;
+	networkActivities.length = 0;
+});
+
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo: any) => {
+	if (testInfo.status !== 'passed') {
+		console.log('\n--- DEBUG INFO ON FAILURE ---');
+		console.log('\n[RECENT CONSOLE LOGS]');
+		consoleLogs.slice(-20).forEach(log => console.log(log));
+		
+		console.log('\n[RECENT NETWORK ACTIVITIES]');
+		networkActivities.slice(-20).forEach(activity => console.log(activity));
+		console.log('\n--- END DEBUG INFO ---\n');
+	}
+});
+
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -25,6 +47,24 @@ const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
 const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
 
 test('logs in and sends a chat message', async ({ page }: { page: any }) => {
+	// Listen for console logs
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+	});
+
+	// Listen for network requests
+	page.on('request', (request: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+	});
+
+	// Listen for network responses
+	page.on('response', (response: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+	});
+
 	test.slow();
 	// Basic login + message shouldn't take long, but we allow time for AI response.
 	test.setTimeout(120000);

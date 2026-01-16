@@ -7,6 +7,28 @@ export {};
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
 const { test, expect } = require('@playwright/test');
+
+const consoleLogs: string[] = [];
+const networkActivities: string[] = [];
+
+test.beforeEach(async () => {
+	consoleLogs.length = 0;
+	networkActivities.length = 0;
+});
+
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo: any) => {
+	if (testInfo.status !== 'passed') {
+		console.log('\n--- DEBUG INFO ON FAILURE ---');
+		console.log('\n[RECENT CONSOLE LOGS]');
+		consoleLogs.slice(-20).forEach((log) => console.log(log));
+
+		console.log('\n[RECENT NETWORK ACTIVITIES]');
+		networkActivities.slice(-20).forEach((activity) => console.log(activity));
+		console.log('\n--- END DEBUG INFO ---\n');
+	}
+});
+
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -43,6 +65,24 @@ const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
 test('completes full signup flow with email + 2FA + purchase', async ({ page, context }: { page: any; context: any }) => {
+	// Listen for console logs
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+	});
+
+	// Listen for network requests
+	page.on('request', (request: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+	});
+
+	// Listen for network responses
+	page.on('response', (response: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+	});
+
 	test.slow();
 	// Allow extra time for purchase confirmation email + account deletion cleanup.
 	test.setTimeout(240000);
