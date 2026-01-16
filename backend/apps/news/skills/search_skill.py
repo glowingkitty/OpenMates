@@ -586,7 +586,8 @@ class SearchSkill(BaseSkill):
     async def execute(
         self,
         request: SearchRequest,
-        secrets_manager: Optional[SecretsManager] = None
+        secrets_manager: Optional[SecretsManager] = None,
+        **kwargs
     ) -> SearchResponse:
         """
         Execute news search skill.

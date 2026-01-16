@@ -638,7 +638,8 @@ class GetDocsSkill(BaseSkill):
         self,
         library: str,
         question: str,
-        secrets_manager: Optional[SecretsManager] = None
+        secrets_manager: Optional[SecretsManager] = None,
+        **kwargs
     ) -> GetDocsResponse:
         """
         Execute get_docs skill.

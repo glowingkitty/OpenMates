@@ -599,7 +599,8 @@ class ReadSkill(BaseSkill):
     async def execute(
         self,
         requests: List[Dict[str, Any]],
-        secrets_manager: Optional[SecretsManager] = None
+        secrets_manager: Optional[SecretsManager] = None,
+        **kwargs
     ) -> ReadResponse:
         """
         Execute web read skill.
