@@ -774,6 +774,9 @@ export async function createNewChatWithCurrentUserDraft(
 
 /**
  * Clear a draft from a chat
+ * NOTE: This function does NOT update last_edited_overall_timestamp for the chat.
+ * This is intentional to prevent old chats from jumping to the top of the list
+ * when a draft is cleared (e.g. after message send or manual clear).
  */
 export async function clearCurrentUserChatDraft(
     dbInstance: ChatDatabaseInstance,
@@ -783,13 +786,16 @@ export async function clearCurrentUserChatDraft(
     try {
         const chat = await getChat(dbInstance, chat_id);
         if (chat) {
+            console.debug(`[ChatDatabase] Clearing draft for chat ${chat_id}. Current draft_v: ${chat.draft_v}`);
+            
             // When clearing a draft, the content becomes null and version should be 0.
             chat.encrypted_draft_md = null;
             chat.encrypted_draft_preview = null; // Clear preview as well
             chat.draft_v = 0; // Reset draft version to 0
-            // CRITICAL: Don't update last_edited_overall_timestamp when clearing drafts
-            // Only messages should update this timestamp for proper sorting
-            // The chat should revert to its position based on last message timestamp
+            
+            // CRITICAL: Don't update last_edited_overall_timestamp when clearing drafts.
+            // Only messages should update this timestamp for proper sorting.
+            // The chat should revert to its position based on last message timestamp.
             const nowTimestamp = Math.floor(Date.now() / 1000);
             chat.updated_at = nowTimestamp; // Keep updated_at for internal tracking
             
