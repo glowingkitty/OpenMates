@@ -177,6 +177,40 @@ docker exec -it api python /app/backend/scripts/send_newsletter.py --limit 5
 
 ---
 
+### Inspect User
+
+**Purpose:** Display detailed information about a specific user based on their email address, including metadata, decrypted sensitive fields, related item counts, recent activities, and cache status.
+
+**Command:**
+```bash
+docker exec -it api python /app/backend/scripts/inspect_user.py <email_address>
+
+# With options
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --recent-limit 10
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --json
+docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com --no-cache
+```
+
+**What it shows:**
+- **User Metadata (Directus):** ID, Account ID, status, admin status, signup completion, last online (relative time), last opened page, and Vault key information.
+- **Decrypted Fields (Vault):** Username, credit balance, 2FA secret (masked), 2FA app name, invoice counter, and other sensitive fields decrypted using the user's specific Vault key.
+- **Item Counts (Directus):** Total counts for chats, embeds, usage entries, invoices, API keys, passkeys, and gift cards.
+- **Recent Activities (Directus):**
+  - Most recent chats with IDs and update timestamps.
+  - Most recent embeds with IDs and status.
+  - Most recent usage entries with IDs, app/skill info, and associated Chat ID (clearly marks REST API calls).
+  - Most recent invoices with Order IDs.
+- **Cache Status (Redis):** Primed status, chat list count, active LRU chats, and a sample of related cache keys.
+
+**Options:**
+- `--recent-limit N`: Limit number of recent activities to display (default: 5).
+- `--json`: Output as JSON instead of formatted text.
+- `--no-cache`: Skip cache checks (faster if Redis is unavailable).
+
+**Use case:** Comprehensive user debugging, investigating account status, verifying credit balances, checking recent user activity across different services, and identifying cache inconsistencies.
+
+---
+
 ### Inspect Chat
 
 **Purpose:** Display detailed information about a specific chat including metadata, messages, embeds, usage entries, and cache status.

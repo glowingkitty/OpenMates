@@ -226,8 +226,13 @@ class BillingService:
                 chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
                 message_id=message_id,  # Cleartext - for client-side matching with IndexedDB
                 source=source,  # "chat" or "api_key"
+                cost_system_prompt_credits=usage_details.get("system_prompt_credits") if usage_details else None,
+                cost_history_credits=usage_details.get("history_credits") if usage_details else None,
+                cost_response_credits=usage_details.get("response_credits") if usage_details else None,
                 actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
                 actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
+                user_input_tokens=usage_details.get("user_input_tokens") if usage_details else None,
+                system_prompt_tokens=usage_details.get("system_prompt_tokens") if usage_details else None,
                 api_key_hash=api_key_hash,  # API key hash for tracking which API key created this usage
                 device_hash=device_hash,  # Device hash for tracking which device created this usage
             )

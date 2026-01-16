@@ -262,6 +262,8 @@ async def record_usage_route(
             cost_response_credits=payload.cost_details.get("response_credits") if payload.cost_details else None,
             actual_input_tokens=payload.cost_details.get("input_tokens") if payload.cost_details else None,
             actual_output_tokens=payload.cost_details.get("output_tokens") if payload.cost_details else None,
+            user_input_tokens=payload.cost_details.get("user_input_tokens") if payload.cost_details else None,
+            system_prompt_tokens=payload.cost_details.get("system_prompt_tokens") if payload.cost_details else None,
             api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )
