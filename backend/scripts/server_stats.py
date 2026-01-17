@@ -96,7 +96,8 @@ async def get_signup_stats(directus_service: DirectusService) -> Dict[str, Any]:
         
         for u in all_users:
             u_id = u.get('id')
-            if not u_id: continue
+            if not u_id:
+                continue
             u_hash = hashlib.sha256(u_id.encode()).hexdigest()
             
             # Subscriptions & Auto Top-up
@@ -353,10 +354,76 @@ async def get_creator_stats(directus_service: DirectusService, encryption_servic
         
     return stats
 
+async def get_engagement_stats(
+    directus_service: DirectusService,
+    months: int = 6
+) -> Dict[str, Any]:
+    """Get engagement statistics like chats, messages, and embeds over time."""
+    stats = {
+        "monthly": defaultdict(lambda: {"chats": 0, "messages": 0, "embeds": 0}),
+        "total_chats": 0,
+        "total_messages": 0,
+        "total_embeds": 0
+    }
+    
+    today = date.today()
+    cutoff = today - timedelta(days=months * 30)
+    cutoff_ts = int(datetime.combine(cutoff, datetime.min.time()).timestamp())
+    
+    try:
+        # 1. Total Counts (all time)
+        for coll in ['chats', 'messages', 'embeds']:
+            params = {'limit': 1, 'meta': 'filter_count'}
+            # We use _make_api_request directly since get_items doesn't return meta
+            admin_token = await directus_service.ensure_auth_token(admin_required=True)
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            url = f"{directus_service.base_url}/items/{coll}"
+            resp = await directus_service._make_api_request("GET", url, params=params, headers=headers)
+            if resp.status_code == 200:
+                stats[f"total_{coll}"] = resp.json().get('meta', {}).get('filter_count', 0)
+
+        # 2. Monthly breakdown
+        params = {
+            'filter[created_at][_gte]': cutoff_ts,
+            'fields': 'created_at',
+            'limit': -1
+        }
+        
+        # Fetch collections in parallel
+        chat_task = directus_service.get_items('chats', params=params, admin_required=True)
+        msg_task = directus_service.get_items('messages', params=params, admin_required=True)
+        emb_task = directus_service.get_items('embeds', params=params, admin_required=True)
+        
+        chats, messages, embeds = await asyncio.gather(chat_task, msg_task, emb_task)
+        
+        for c in (chats or []):
+            ts = c.get('created_at')
+            if ts:
+                month_id = datetime.fromtimestamp(ts).strftime("%Y-%m")
+                stats["monthly"][month_id]["chats"] += 1
+                
+        for m in (messages or []):
+            ts = m.get('created_at')
+            if ts:
+                month_id = datetime.fromtimestamp(ts).strftime("%Y-%m")
+                stats["monthly"][month_id]["messages"] += 1
+                
+        for e in (embeds or []):
+            ts = e.get('created_at')
+            if ts:
+                month_id = datetime.fromtimestamp(ts).strftime("%Y-%m")
+                stats["monthly"][month_id]["embeds"] += 1
+                
+    except Exception as e:
+        logger.error(f"Error fetching engagement stats: {e}")
+        
+    return stats
+
 def format_output(
     signup_stats: Dict[str, Any],
     financial_stats: Dict[str, Any],
     usage_stats: Dict[str, Any],
+    engagement_stats: Dict[str, Any],
     creator_stats: Dict[str, Any],
     weeks: int,
     months: int
@@ -378,6 +445,10 @@ def format_output(
     lines.append(f"  In Signup Flow:        {signup_stats.get('in_signup_flow', 0):>10,}")
     lines.append(f"  Just Registered:       {signup_stats.get('just_registered', 0):>10,}")
     lines.append("")
+    lines.append(f"  Total Chats:           {engagement_stats.get('total_chats', 0):>10,}")
+    lines.append(f"  Total Messages:        {engagement_stats.get('total_messages', 0):>10,}")
+    lines.append(f"  Total Embeds:          {engagement_stats.get('total_embeds', 0):>10,}")
+    lines.append("")
     lines.append(f"  Active Subscriptions:  {signup_stats.get('subscriptions_active', 0):>10,}")
     lines.append(f"  Auto Top-up Enabled:   {signup_stats.get('auto_topup_enabled', 0):>10,}")
     lines.append("")
@@ -386,7 +457,7 @@ def format_output(
     
     # Financial Section
     lines.append("-" * 100)
-    lines.append(f"FINANCIAL OVERVIEW")
+    lines.append("FINANCIAL OVERVIEW")
     lines.append("-" * 100)
     lines.append(f"  Total Income (L6M):    {financial_stats.get('total_income', 0):>10.2f} EUR")
     lines.append(f"  ARPU (Lifetime)*:      {financial_stats.get('arpu', 0):>10.2f} EUR")
@@ -414,15 +485,24 @@ def format_output(
     lines.append("-" * 100)
     lines.append(f"MONTHLY DEVELOPMENT (Last {months} Months)")
     lines.append("-" * 100)
-    lines.append(f"  {'Month':<10} | {'Income (EUR)':>12} | {'Credits Sold':>15} | {'Credits Used':>15} | {'Requests':>10}")
+    lines.append(f"  {'Month':<10} | {'Income':>10} | {'Cred.Sold':>10} | {'Cred.Used':>10} | {'Chats':>8} | {'Msgs':>10} | {'Embeds':>8}")
     lines.append("-" * 100)
     
-    all_months = sorted(list(set(financial_stats["monthly"].keys()) | set(usage_stats["monthly"].keys())), reverse=True)[:months]
+    all_months = sorted(list(
+        set(financial_stats["monthly"].keys()) | 
+        set(usage_stats["monthly"].keys()) | 
+        set(engagement_stats["monthly"].keys())
+    ), reverse=True)[:months]
     
     for month in all_months:
         f_stat = financial_stats["monthly"].get(month, {"income": 0, "credits": 0})
         u_stat = usage_stats["monthly"].get(month, {"credits": 0, "requests": 0})
-        lines.append(f"  {month:<10} | {f_stat['income']:>12.2f} | {f_stat['credits']:>15,} | {u_stat['credits']:>15,} | {u_stat['requests']:>10,}")
+        e_stat = engagement_stats["monthly"].get(month, {"chats": 0, "messages": 0, "embeds": 0})
+        
+        lines.append(
+            f"  {month:<10} | {f_stat['income']:>10.2f} | {f_stat['credits']:>10,} | {u_stat['credits']:>10,} | "
+            f"{e_stat['chats']:>8,} | {e_stat['messages']:>10,} | {e_stat['embeds']:>8,}"
+        )
     
     lines.append("")
     
@@ -498,21 +578,25 @@ async def main():
         # 4. Usage stats
         usage_stats = await get_usage_stats(directus_service, encryption_service, hash_to_vault_key, months=args.months)
         
-        # 5. Creator stats
+        # 5. Engagement stats
+        engagement_stats = await get_engagement_stats(directus_service, months=args.months)
+        
+        # 6. Creator stats
         creator_stats = await get_creator_stats(directus_service, encryption_service)
         
-        # 5. Output results
+        # 7. Output results
         if args.json:
             output = {
                 "signup_stats": signup_stats,
                 "financial_stats": financial_stats,
                 "usage_stats": usage_stats,
+                "engagement_stats": engagement_stats,
                 "creator_stats": creator_stats,
                 "generated_at": datetime.now().isoformat()
             }
             print(json.dumps(output, indent=2, default=str))
         else:
-            output = format_output(signup_stats, financial_stats, usage_stats, creator_stats, args.weeks, args.months)
+            output = format_output(signup_stats, financial_stats, usage_stats, engagement_stats, creator_stats, args.weeks, args.months)
             print(output)
             
     except Exception as e:
