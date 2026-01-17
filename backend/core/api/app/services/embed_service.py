@@ -181,6 +181,7 @@ class EmbedService:
                 "hashed_user_id": user_id_hash,
                 "is_private": False,
                 "is_shared": False,
+                "encryption_mode": "client",
                 "embed_ids": None,  # Will be populated when skill completes (for composite)
                 "encrypted_content": encrypted_content,
                 "created_at": int(datetime.now().timestamp()),
@@ -314,6 +315,7 @@ class EmbedService:
                 "hashed_user_id": user_id_hash,
                 "is_private": False,
                 "is_shared": False,
+                "encryption_mode": "client",
                 "embed_ids": None,  # Code embeds don't have child embeds
                 "encrypted_content": encrypted_content,
                 "created_at": int(datetime.now().timestamp()),
@@ -1068,6 +1070,7 @@ class EmbedService:
                         "hashed_user_id": user_id_hash,
                         "is_private": False,
                         "is_shared": False,
+                        "encryption_mode": "client",
                         "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
                         "text_length_chars": text_length_chars,
                         "created_at": created_at,
@@ -1156,6 +1159,7 @@ class EmbedService:
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
                     "is_shared": False,
+                    "encryption_mode": "client",
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "text_length_chars": parent_text_length_chars,
@@ -1443,6 +1447,7 @@ class EmbedService:
         text_length_chars: Optional[int] = None,
         is_private: bool = False,
         is_shared: bool = False,
+        encryption_mode: str = "client",  # New parameter
         created_at: Optional[int] = None,
         updated_at: Optional[int] = None,
         log_prefix: str = "",
@@ -1529,6 +1534,7 @@ class EmbedService:
                     "user_id": user_id,
                     "is_private": is_private,
                     "is_shared": is_shared,
+                    "encryption_mode": encryption_mode,
                     "text_length_chars": text_length_chars,  # Character count for LLM compression decision
                     "createdAt": created_at or int(datetime.now().timestamp()),
                     "updatedAt": updated_at or int(datetime.now().timestamp())
@@ -1766,6 +1772,7 @@ class EmbedService:
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
                     "is_shared": False,
+                    "encryption_mode": "client",
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "text_length_chars": parent_text_length_chars,

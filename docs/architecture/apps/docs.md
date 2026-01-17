@@ -124,11 +124,11 @@ If there is only one preview of the same type, no additional container with scro
 
 ### Search
 
-Searches text-based documents (Word documents, text files, Google Docs, OpenOffice documents) for patterns or specific content using grep-like functionality. For PDF searching, see [PDF App](./pdf.md).
+Searches text-based documents (Word documents, text files, Google Docs, OpenOffice documents) for patterns or specific content using high-performance `rg` (ripgrep) functionality. For PDF searching, see [PDF App](./pdf.md).
 
 **Features:**
 - Support for multiple documents and search queries in a single call (processed in parallel, up to 5 requests)
-- Regex pattern matching support (`grep` / `rg` style)
+- Regex pattern matching support via `rg` (ripgrep)
 - Case-sensitive and case-insensitive search options
 - Returns matched lines with context (surrounding lines) and line numbers
 - Efficient for long documents without re-parsing on every search
@@ -151,7 +151,7 @@ Searches text-based documents (Word documents, text files, Google Docs, OpenOffi
 
 **Processing:**
 - For each search request, caches extracted text from documents to avoid re-parsing
-- Celery-based processing with parallel requests
+- Celery-based processing with parallel requests using `rg` (ripgrep) for search
 - Returns results incrementally as searches complete
 
 ### Summarize

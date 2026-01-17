@@ -275,6 +275,10 @@ export class EmbedStore {
       
       // NOTE: encrypted_content is intentionally NOT set here
       // encrypted_content is only for embed-key encryption (used by putEncrypted)
+      
+      // Hybrid Encryption Mode
+      encryption_mode: data.encryption_mode || 'client',
+      vault_key_id: data.vault_key_id
     };
 
     // Store in memory cache
@@ -420,7 +424,11 @@ export class EmbedStore {
       content_hash: encryptedData.content_hash,
       text_length_chars: encryptedData.text_length_chars,
       is_private: encryptedData.is_private ?? false,
-      is_shared: encryptedData.is_shared ?? false
+      is_shared: encryptedData.is_shared ?? false,
+      
+      // Hybrid Encryption Mode
+      encryption_mode: (preExtractedMetadata as any)?.encryption_mode || 'client',
+      vault_key_id: (preExtractedMetadata as any)?.vault_key_id
     };
 
     // Store in memory cache

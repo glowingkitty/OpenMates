@@ -212,7 +212,7 @@ Content-Type: application/json
 
 ### Long-Running Skills
 
-Skills that take longer to execute return a task ID:
+Skills that take longer to execute (e.g., image generation) return a task ID and embed ID:
 
 **Request:**
 
@@ -233,6 +233,7 @@ Content-Type: application/json
 ```json
 {
   "task_id": "task_xyz789",
+  "embed_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "processing"
 }
 ```
@@ -251,15 +252,32 @@ Authorization: Bearer YOUR_API_TOKEN
   "task_id": "task_xyz789",
   "status": "completed",
   "result": {
-    "previews": [
-      {
-        "type": "image",
-        "url": "https://cdn.openmates.org/images/xyz789.png",
-        "hash": "def456..."
-      }
-    ]
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000",
+    "type": "image",
+    "files": {
+      "preview": { "width": 600, "height": 400, "format": "webp" },
+      "full": { "width": 1920, "height": 1080, "format": "webp" },
+      "original": { "width": 1920, "height": 1080, "format": "png" }
+    },
+    "prompt": "A futuristic cityscape at sunset",
+    "model": "google/gemini-3-pro-image-preview"
   }
 }
+```
+
+**Download Image:**
+
+```http
+GET /api/v1/embeds/550e8400-e29b-41d4-a716-446655440000/file?format=preview
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+**Response:** Binary image data with appropriate `Content-Type` header (`image/webp` or `image/png`).
+
+Available formats:
+- `preview` - Scaled-down version (600x400) for thumbnails
+- `full` - Full-resolution WEBP for web display
+- `original` - Original PNG from provider
 ```
 
 ## Error Handling

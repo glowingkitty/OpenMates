@@ -1910,6 +1910,42 @@ export async function handleSendEmbedDataImpl(
                 `Total processed embeds: ${processedFinalizedEmbeds.size}`
             );
             
+            // HYBRID ENCRYPTION: Check if this is a server-managed (Vault) embed
+            // If encryption_mode is "vault", we skip local encryption and key generation
+            // because the server already has the record and handles decryption via API.
+            const encryptionMode = (embedData as any).encryption_mode || 'client';
+            if (encryptionMode === 'vault') {
+                console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} uses Vault encryption - skipping local re-encryption`);
+                
+                const { embedStore } = await import('./embedStore');
+                const embedRef = `embed:${embedData.embed_id}`;
+                
+                // Store in local IndexedDB as-is (plaintext content, but marked as vault)
+                // We use put() instead of putEncrypted() because put() encrypts with the master key,
+                // which is safe for local storage of server-managed metadata.
+                await embedStore.put(embedRef, {
+                    ...embedData,
+                    encryption_mode: 'vault',
+                    vault_key_id: (embedData as any).vault_key_id
+                }, embedData.type as EmbedType);
+                
+                console.info(`[ChatSyncService:AI] ✅ Stored Vault-managed embed ${embedData.embed_id} locally`);
+                
+                // Dispatch event for UI refresh
+                serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                    detail: {
+                        embed_id: embedData.embed_id,
+                        chat_id: embedData.chat_id,
+                        message_id: embedData.message_id,
+                        status: embedData.status,
+                        child_embed_ids: embedData.embed_ids,
+                        isProcessing: false,
+                        encryption_mode: 'vault'
+                    }
+                }));
+                return;
+            }
+
             // Generate embed key, encrypt content, store locally, send to Directus
             console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`);
             

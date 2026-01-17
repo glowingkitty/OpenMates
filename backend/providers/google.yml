@@ -120,48 +120,26 @@ models:
     features:
       knowledge_cutoff: "2025-01"
 
-  - id: "imagen-4.0-generate-preview-06-06"
-    name: "Imagen 4.0"
-    description: "Advanced image generation capabilities"
+  - id: "gemini-3-pro-image-preview"
+    name: "Gemini 3 Pro Image Preview"
+    description: "High-end native image generation from Google, optimized for quality."
     input_types:
       - text
-      - image
     output_types:
       - image
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google AI Studio"
+        model_id: "gemini-3-pro-image-preview"
     pricing:
-      per_image:
-        costs_in_credits: 100 # 100 credits per image
+      per_unit:
+        credits: 200
+        unit_name: "image"
     costs:
       output_per_image:
-        price: 0.04
+        price: 0.134
         currency: USD
-
-  - id: "veo-3.0-generate-preview"
-    name: "Veo 3"
-    description: "Video generation model"
-    input_types:
-      - text
-      - image
-    output_types:
-      - video
-    pricing:
-      video_only:
-        per_second:
-          costs_in_credits: 1000
-      video_and_audio:
-        per_second:
-          costs_in_credits: 1500
-    costs:
-      video_only:
-        per_second:
-          price: 0.5
-          currency: USD
-      video_and_audio:
-        per_second:
-          price: 0.75
-          currency: USD
-  # Add other Google models here as needed
-
 
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
@@ -177,7 +155,7 @@ models:
 # Examples:
 # - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
 # - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
-
+#
 # FOR PER-UNIT PRICING (images, API calls, etc.):
 # 1. Your price to user = your_cost_per_unit * markup
 # 2. Credits per unit = your_price_to_user / credit_value_usd

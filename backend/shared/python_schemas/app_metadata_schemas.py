@@ -28,6 +28,7 @@ class AppSkillDefinition(BaseModel):
     stage: Optional[str] = Field(default="development", description="Stage of the skill: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
     pricing: Optional[AppPricing] = None
     providers: Optional[List[str]] = None  # Optional list of provider names (e.g., ["Brave"]) - used for provider-level pricing lookup
+    full_model_reference: Optional[str] = Field(default=None, description="Optional full model reference (e.g., 'google/gemini-3-pro-image-preview') used for model-specific pricing.")
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
     tool_schema: Optional[Dict[str, Any]] = None  # Optional: Tool schema in JSON Schema format for function calling (required for skills used as tools, optional for entry-point skills like ai.ask)
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)

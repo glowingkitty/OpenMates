@@ -7,6 +7,8 @@ import importlib
 from typing import Optional
 from urllib.parse import quote
 import asyncio
+from datetime import timedelta
+from celery.schedules import crontab
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
@@ -57,6 +59,7 @@ TASK_CONFIG = [
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
+    {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -328,7 +331,7 @@ async def initialize_services():
             try:
                 invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
                 logger.info("InvoiceNinjaService initialized successfully.")
-            except Exception as e:
+            except Exception:
                 logger.exception("Failed to initialize InvoiceNinjaService.")
         else:
             logger.info("InvoiceNinjaService already initialized for this worker process.")
@@ -338,7 +341,7 @@ async def initialize_services():
             try:
                 invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
                 logger.info("InvoiceTemplateService initialized successfully.")
-            except Exception as e:
+            except Exception:
                 logger.exception("Failed to initialize InvoiceTemplateService.")
         else:
             logger.info("InvoiceTemplateService already initialized for this worker process.")
@@ -617,8 +620,6 @@ task_routes.update({
 app.conf.task_routes = task_routes
 
 # Configure Celery Beat schedule for periodic tasks
-from celery.schedules import crontab
-from datetime import timedelta
 
 # Health check runs every 5 minutes (for providers without health endpoints)
 # Providers with health endpoints can be checked more frequently (1 minute) in the future

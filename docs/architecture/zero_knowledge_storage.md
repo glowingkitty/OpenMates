@@ -81,11 +81,18 @@ During user signup:
 - **Safety guarantee**: This prevents a single misconfigured device from corrupting the chat key across devices,
   which would make existing messages undecryptable.
 
-### Embed Content Security
-- Each embed generates unique key for content encryption
-- Parent embeds generate their own key with wrapped key storage
-- Child embeds inherit parent's key (no separate key generation)
-- Key wrappers stored for cross-chat access and sharing
+### Embed Content Security (Dual-Mode)
+OpenMates uses a hybrid approach for embed security depending on the source of the content:
+
+- **Client-Generated (Zero-Knowledge)**: 
+  - Used for: Uploaded files, pasted text, client-side code execution outputs.
+  - Encryption: Each embed generates a unique key for content encryption. Server cannot decrypt.
+  - Structure: Parent embeds generate their own key; child embeds inherit the parent's key. Key wrappers are stored for cross-chat access and sharing.
+- **Server-Generated (Vault-Managed Hybrid)**:
+  - Used for: AI-generated images, videos, PDF documents, server-side task outputs.
+  - Encryption: Content is encrypted with a unique AES key, which is then **wrapped by HashiCorp Vault** using a user-specific key ID.
+  - Purpose: Allows the server to process long-running tasks (like image generation) while the user is offline, and enables AI modification of previously generated content.
+  - Access: The server can "unwrap" the key for legitimate processing/download, but data remains encrypted at rest.
 
 ## Email Encryption
 

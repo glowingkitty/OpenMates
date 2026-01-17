@@ -3,8 +3,11 @@ Directus methods for embed operations.
 Handles CRUD operations for embeds collection in Directus.
 """
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import hashlib
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,8 @@ EMBED_ALL_FIELDS = (
     "encrypted_diff,"
     "file_path,"
     "content_hash,"
+    "encryption_mode,"
+    "vault_key_id,"
     "created_at,"
     "updated_at"
 )
@@ -267,7 +272,7 @@ class EmbedMethods:
         try:
             response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
             if response and isinstance(response, list) and len(response) > 0:
-                logger.debug(f"Found duplicate embed with content_hash")
+                logger.debug("Found duplicate embed with content_hash")
                 return response[0]
             else:
                 return None

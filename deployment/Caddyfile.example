@@ -59,7 +59,7 @@
 	# No Origin check required - external developers access from various clients/servers
 	# FastAPI enforces which settings endpoints support API key auth vs session-only
 	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* # Apps and Settings API endpoints (authentication enforced by FastAPI)
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* # Public API endpoints (authentication enforced by FastAPI)
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -106,7 +106,7 @@
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/*
 		method OPTIONS
 	}
 

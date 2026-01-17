@@ -2,7 +2,6 @@ import os
 import json
 import httpx
 import pytest
-from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables from the root .env file
@@ -189,6 +188,155 @@ def test_execute_skill_web_search(api_client):
     assert data["success"] is True
     assert "data" in data
     assert "results" in data["data"]
+
+@pytest.mark.integration
+def test_execute_skill_image_generation_draft(api_client):
+    """
+    Test executing the 'images/generate_draft' skill.
+    This is a long-running skill that returns a task ID and embed ID.
+    After completion, it downloads the decrypted image from the embeds endpoint.
+    """
+    import time
+    
+    prompt = "a cute cartoon cat wearing a tiny red hat"
+    
+    payload = {
+        "requests": [
+            {"prompt": prompt}
+        ]
+    }
+    
+    # 1. Execute skill
+    print(f"\n[IMAGE DRAFT] Generating image with prompt: '{prompt}'")
+    response = api_client.post("/v1/apps/images/skills/generate_draft", json=payload)
+    assert response.status_code == 200, f"Image generation failed: {response.text}"
+    
+    data = response.json()
+    assert data["success"] is True
+    assert "data" in data
+    assert "task_id" in data["data"]
+    assert "embed_id" in data["data"]
+    
+    task_id = data["data"]["task_id"]
+    embed_id = data["data"]["embed_id"]
+    print(f"[TASK] Dispatched image generation task: {task_id}")
+    print(f"[EMBED] Associated embed_id: {embed_id}")
+    
+    # 2. Poll for status
+    max_retries = 30
+    poll_interval = 2.0
+    
+    completed_result = None
+    for i in range(max_retries):
+        status_resp = api_client.get(f"/v1/tasks/{task_id}")
+        assert status_resp.status_code == 200
+        
+        status_data = status_resp.json()
+        status = status_data["status"]
+        
+        if status == "completed":
+            assert "result" in status_data
+            completed_result = status_data["result"]
+            assert completed_result["type"] == "image"
+            assert completed_result["embed_id"] == embed_id
+            assert "files" in completed_result
+            assert "preview" in completed_result["files"]
+            assert "full" in completed_result["files"]
+            assert "original" in completed_result["files"]
+            print("\n[SUCCESS] Image generation completed!")
+            break
+        elif status == "failed":
+            error_msg = status_data.get("error", "Unknown task error")
+            print(f"\n[FAILED] Task failed: {error_msg}")
+            pytest.fail(f"Task failed: {error_msg}")
+            
+        if (i + 1) % 5 == 0:
+            print(f"[POLL] Attempt {i+1}: status={status}...")
+            
+        time.sleep(poll_interval)
+    else:
+        pytest.fail(f"Task timed out after {max_retries * poll_interval} seconds")
+
+    # 3. Download and save the decrypted image from the embed endpoint
+    print(f"[DOWNLOAD] Requesting decrypted image from /v1/embeds/{embed_id}/file?format=preview")
+    
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=preview")
+    
+    if download_response.status_code == 200:
+        # Save to local file
+        filename = "test_generated_image_draft.webp"
+        with open(filename, "wb") as f:
+            f.write(download_response.content)
+        
+        file_size = len(download_response.content)
+        assert file_size > 0
+        assert download_response.headers["Content-Type"] == "image/webp"
+        print(f"\n[IMAGE SAVED] Decrypted draft image saved to: {os.path.abspath(filename)} ({file_size} bytes)")
+    else:
+        print(f"\n[DOWNLOAD FAILED] Status: {download_response.status_code}")
+        print(f"Response: {download_response.text}")
+        pytest.fail(f"Failed to download decrypted image: {download_response.text}")
+
+@pytest.mark.integration
+def test_execute_skill_image_generation_high_end(api_client):
+    """
+    Test executing the high-end 'images/generate' skill.
+    """
+    import time
+    
+    # Complex prompt for high-end generation
+    prompt = "A futuristic cyberpunk cityscape at sunset with neon signs and flying cars, high detail, 4k"
+    
+    payload = {
+        "requests": [
+            {"prompt": prompt, "aspect_ratio": "16:9"}
+        ]
+    }
+    
+    # 1. Execute skill
+    print(f"\n[IMAGE HIGH-END] Generating image with prompt: '{prompt}'")
+    response = api_client.post("/v1/apps/images/skills/generate", json=payload)
+    assert response.status_code == 200, f"Image generation failed: {response.text}"
+    
+    data = response.json()
+    assert data["success"] is True
+    task_id = data["data"]["task_id"]
+    embed_id = data["data"]["embed_id"]
+    print(f"[TASK] Dispatched high-end task: {task_id}")
+    
+    # 2. Poll for status (allow more time for high-end)
+    max_retries = 60
+    poll_interval = 2.0
+    
+    for i in range(max_retries):
+        status_resp = api_client.get(f"/v1/tasks/{task_id}")
+        status_data = status_resp.json()
+        status = status_data["status"]
+        
+        if status == "completed":
+            print("\n[SUCCESS] High-end image generation completed!")
+            break
+        elif status == "failed":
+            pytest.fail(f"Task failed: {status_data.get('error')}")
+            
+        if (i + 1) % 5 == 0:
+            print(f"[POLL] Attempt {i+1}: status={status}...")
+        time.sleep(poll_interval)
+    else:
+        pytest.fail("Task timed out")
+
+    # 3. Download original format
+    print(f"[DOWNLOAD] Requesting original format from /v1/embeds/{embed_id}/file?format=original")
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=original")
+    
+    if download_response.status_code == 200:
+        filename = "test_generated_image_high.png"
+        with open(filename, "wb") as f:
+            f.write(download_response.content)
+        print(f"[IMAGE SAVED] High-end image saved to: {os.path.abspath(filename)} ({len(download_response.content)} bytes)")
+    else:
+        pytest.fail(f"Download failed: {download_response.status_code}")
+
 
 @pytest.mark.integration
 def test_usage_summaries_authenticated(api_client):

@@ -228,11 +228,11 @@ Use Sentry or similar providers to get the error logs after an issue occured, fo
 
 ### Search
 
-Searches code repositories and uploaded code files for patterns, functions, variables, or specific content using grep-like functionality.
+Searches code repositories and uploaded code files for patterns, functions, variables, or specific content using high-performance `rg` (ripgrep) functionality.
 
 **Features:**
 - Support for searching within uploaded code files or connected repositories
-- Regex pattern matching support (`grep` / `rg` style)
+- Optimized regex pattern matching using `rg` (ripgrep)
 - Language-aware search (highlights syntax, respects language-specific patterns)
 - Case-sensitive and case-insensitive options
 - Returns matched lines with context (surrounding lines) and line numbers
@@ -257,7 +257,7 @@ Searches code repositories and uploaded code files for patterns, functions, vari
   - Match count per file
 
 **Implementation:**
-- Uses `rg` (ripgrep) as preferred tool for fast, efficient searching
+- Uses `rg` (ripgrep) as the core tool for fast, efficient searching (preferred over standard grep)
 - Supports incremental results for large codebases
 - Caches search results for repeated queries
 - Celery-based processing with parallel requests

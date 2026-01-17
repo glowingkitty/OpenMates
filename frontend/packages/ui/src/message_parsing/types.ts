@@ -105,6 +105,10 @@ export interface EmbedStoreEntry {
   is_private?: boolean; // Whether embed is private (not shared)
   is_shared?: boolean; // Whether embed has been shared (share link generated)
   
+  // Hybrid Encryption Mode
+  encryption_mode?: 'client' | 'vault'; // NEW: Encryption strategy: 'client' (zero-knowledge) or 'vault' (server-managed)
+  vault_key_id?: string; // NEW: Vault key ID for server-managed embeds
+  
   // For embeds stored via put() (encrypted with master key):
   // The encrypted_content field will contain master-key-encrypted JSON string
   // This is different from putEncrypted() which uses embed_key encryption

@@ -69,13 +69,13 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since "
 
 ```bash
 # Only errors and warnings
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 500 api | grep -E "ERROR|WARNING|CRITICAL"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 500 api | rg -E "ERROR|WARNING|CRITICAL"
 
 # Errors with 3 lines of context before (to see what caused the error)
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 1000 api | grep -B3 "ERROR"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 1000 api | rg -B3 "ERROR"
 
 # Errors with context before and after
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 10m api task-worker | grep -B3 -A3 "ERROR"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 10m api task-worker | rg -B3 -A3 "ERROR"
 ```
 
 ### Where to Look First (by Problem Type)
@@ -94,19 +94,19 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1
 
 ```bash
 # Check if AI response updated sync cache
-docker compose --env-file .env -f backend/core/docker-compose.yml logs task-worker --since 5m | grep "SYNC_CACHE_UPDATE.*AI response"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs task-worker --since 5m | rg "SYNC_CACHE_UPDATE.*AI response"
 
 # Monitor Phase 1 sync in real-time
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api | grep "PHASE1"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api | rg "PHASE1"
 
 # Check Phase 1 sync for encrypted_chat_key
-docker compose --env-file .env -f backend/core/docker-compose.yml logs api --tail 500 | grep -E "PHASE1_CHAT_METADATA.*encrypted_chat_key|PHASE1_SEND.*has_encrypted_chat_key"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs api --tail 500 | rg -E "PHASE1_CHAT_METADATA.*encrypted_chat_key|PHASE1_SEND.*has_encrypted_chat_key"
 
 # Trace full request lifecycle for a specific chat
-docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-worker --since 10m | grep -E "chat_id=<ID>|SYNC_CACHE|PHASE1" | head -100
+docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-worker --since 10m | rg -E "chat_id=<ID>|SYNC_CACHE|PHASE1" | head -100
 
 # Find all errors with task context
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5m api task-worker | grep -E "ERROR|task_id=" | grep -B2 -A2 "ERROR"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5m api task-worker | rg -E "ERROR|task_id=" | rg -B2 -A2 "ERROR"
 ```
 
 ### Rebuilding and Restarting Services
@@ -315,7 +315,7 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 
 **Trace across services:**
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-worker --tail 2000 | grep -E "chat_id=<ID>|message_id=<ID>|task_id=<TASK_ID>"
+docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-worker --tail 2000 | rg -E "chat_id=<ID>|message_id=<ID>|task_id=<TASK_ID>"
 ```
 
 ### Async/Celery Tasks
@@ -324,7 +324,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-
 - Use `exc_info=True` for full stack traces
 
 ### Distributed Systems
-- Monitor multiple services: `docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api task-worker | grep "pattern"`
+- Monitor multiple services: `docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api task-worker | rg "pattern"`
 - Verify queue routing (`persistence`, `app_web`)
 - Check cache updates BEFORE database writes
 - Use prefixes: `SYNC_CACHE_UPDATE`, `CACHE_HIT`, `CACHE_MISS`

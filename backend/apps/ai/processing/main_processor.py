@@ -368,7 +368,23 @@ async def _charge_skill_credits(
             # Skill has explicit pricing in app.yml - use it
             pricing_config = skill_def.pricing.model_dump(exclude_none=True)
             logger.debug(f"{log_prefix} Using skill-level pricing from app.yml for '{app_id}.{skill_id}'")
-        elif skill_def.providers and len(skill_def.providers) > 0:
+        elif skill_def.full_model_reference:
+            # Skill has a full model reference - try to get model-specific pricing
+            try:
+                # Parse provider and model from full_model_reference (e.g., "google/gemini-3-pro-image-preview")
+                if "/" in skill_def.full_model_reference:
+                    provider_id, model_suffix = skill_def.full_model_reference.split("/", 1)
+                    
+                    endpoint = f"internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+                    pricing_config = await _make_internal_api_request("GET", endpoint)
+                    if pricing_config:
+                        logger.debug(f"{log_prefix} Using model-specific pricing for '{skill_def.full_model_reference}': {pricing_config}")
+                else:
+                    logger.warning(f"{log_prefix} Invalid full_model_reference format: '{skill_def.full_model_reference}'. Expected 'provider/model'.")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Error fetching model-specific pricing for '{skill_def.full_model_reference}': {e}")
+                
+        if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
             # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
             # Use the first provider (most skills will have one primary provider)
             provider_name = skill_def.providers[0]
