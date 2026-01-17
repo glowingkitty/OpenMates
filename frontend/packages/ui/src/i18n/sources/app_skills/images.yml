@@ -49,3 +49,55 @@ generate.description:
     - en
     - de
 
+generate_draft:
+  context: Skill name for draft image generation
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草图
+  es: Generar borrador
+  fr: Générer un brouillon
+  pt: Gerar rascunho
+  ru: Генерировать черновик
+  ja: 下書きを生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: Tạo bản thảo
+  id: Hasilkan draf
+  pl: Generuj wersję roboczą
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट उत्पन्न करें
+  th: สร้างฉบับร่าง
+  cs: Generovat koncept
+  sv: Generera utkast
+  verified_by_human:
+    - en
+    - de
+
+generate_draft.description:
+  context: Description for draft image generation skill
+  en: Quickly generate a draft image.
+  de: Schnell ein Entwurfsbild generieren.
+  zh: 快速生成草图图像。
+  es: Generar rápidamente una imagen de borrador.
+  fr: Générez rapidement une image de brouillon.
+  pt: Gere rapidamente uma imagem de rascunho.
+  ru: Быстро сгенерируйте черновик изображения.
+  ja: 下書き画像を素早く生成する。
+  ko: 초안 이미지를 빠르게 생성합니다.
+  it: Genera rapidamente un'immagine bozza.
+  tr: Hızlı bir şekilde taslak görüntü oluşturun.
+  vi: Nhanh chóng tạo một hình ảnh bản thảo.
+  id: Hasilkan gambar draf dengan cepat.
+  pl: Szybko generuj obraz wersji roboczej.
+  nl: Snel een conceptafbeelding genereren.
+  ar: إنشاء صورة مسودة بسرعة.
+  hi: जल्दी से एक ड्राफ्ट छवि उत्पन्न करें।
+  th: สร้างภาพฉบับร่างอย่างรวดเร็ว
+  cs: Rychle generovat koncept obrázku.
+  sv: Generera snabbt en utkastbild.
+  verified_by_human:
+    - en
+    - de
+
