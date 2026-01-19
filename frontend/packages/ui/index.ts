@@ -55,6 +55,7 @@ export * from "./src/stores/notificationStore"; // Export notification store for
 export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
 export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
+export * from "./src/stores/appHealthStore"; // Export app health store for filtering apps by health status
 // loginOverlayStore removed - not needed
 
 // Demo Chats
