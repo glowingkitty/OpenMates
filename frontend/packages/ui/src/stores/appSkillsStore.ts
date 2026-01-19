@@ -75,9 +75,10 @@ class AppSkillsStore {
         const healthState = get(appHealthStore);
         const isHealthy = get(isAppHealthy);
         
-        // If health status is not initialized yet, return all apps (don't filter until we know health)
-        // This prevents apps from disappearing during initial load
-        if (!healthState.initialized) {
+        // CRITICAL: Only filter if health data was SUCCESSFULLY fetched
+        // If the request failed (e.g., CORS error) or is still in progress, return all apps
+        // This ensures apps don't disappear if the health endpoint is unreachable
+        if (!healthState.dataAvailable) {
             return this.state;
         }
         

@@ -47,8 +47,10 @@ interface HealthResponse {
 interface AppHealthState {
     /** Map of app_id to health status */
     appHealth: Record<string, AppHealthStatus>;
-    /** Whether health status has been fetched */
+    /** Whether health status has been fetched (even if it failed) */
     initialized: boolean;
+    /** Whether the health data is actually available from a successful request */
+    dataAvailable: boolean;
     /** Whether the fetch is in progress */
     loading: boolean;
     /** Error message if fetch failed */
@@ -62,6 +64,7 @@ interface AppHealthState {
 const initialState: AppHealthState = {
     appHealth: {},
     initialized: false,
+    dataAvailable: false,
     loading: false,
     error: null,
     lastFetch: null
@@ -157,6 +160,7 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
         const response = await fetch(getApiEndpoint('/v1/health'));
         
         if (!response.ok) {
+            console.error(`[AppHealthStore] Health endpoint returned non-OK status: ${response.status} ${response.statusText}`);
             throw new Error(`Failed to fetch health status: ${response.status}`);
         }
         
@@ -171,6 +175,7 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
         appHealthStore.set({
             appHealth: data.apps || {},
             initialized: true,
+            dataAvailable: true,
             loading: false,
             error: null,
             lastFetch: Date.now()
@@ -185,6 +190,7 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
         appHealthStore.update(state => ({
             ...state,
             initialized: true, // Mark as initialized even on error to prevent infinite retries
+            dataAvailable: false, // Data is not available on error
             loading: false,
             error: errorMessage,
             lastFetch: Date.now()
