@@ -666,6 +666,13 @@ export async function sendNewMessageImpl(
         }
     }
     
+    // Fetch encrypted_chat_key for server storage (zero-knowledge architecture)
+    // This is critical for device sync - other devices need the chat key to decrypt messages
+    let encryptedChatKey: string | null = null;
+    if (!isIncognitoChat) {
+        encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
+    }
+
     // Phase 1 payload: ONLY fields needed for AI processing
     interface SendMessagePayload {
         chat_id: string;
@@ -679,6 +686,7 @@ export async function sendNewMessageImpl(
             model_name?: string;
             chat_has_title?: boolean;
         };
+        encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
         is_incognito?: boolean;
         embeds?: EmbedForServer[];
         message_history?: Message[];
@@ -699,6 +707,7 @@ export async function sendNewMessageImpl(
             // NO category or encrypted fields - those go to Phase 2
             // NO message_history - server will request if cache is stale (unless incognito)
         },
+        encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
         is_incognito: isIncognitoChat // Flag for backend to skip persistence
     };
     
@@ -992,11 +1001,14 @@ export async function sendCompletedAIResponseImpl(
             return;
         }
         
-        // Increment messages_v for the AI response (client-side versioning, same as user messages)
-        const newMessagesV = (chat.messages_v || 1) + 1;
+        // MESSAGES_V HANDLING: For assistant responses, the server already incremented
+        // messages_v in the cache and sent the new version in the broadcast.
+        // We use the current local version (which was updated from the broadcast).
+        // DO NOT increment it again here, otherwise it will drift ahead of message count.
+        const newMessagesV = chat.messages_v || 1;
         const newLastEdited = aiMessage.created_at;
         
-        // Update chat in IndexedDB with new version
+        // Update chat in IndexedDB with current version and timestamp
         const updatedChat = {
             ...chat,
             messages_v: newMessagesV,
