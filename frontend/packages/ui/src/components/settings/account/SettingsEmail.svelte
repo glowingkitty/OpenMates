@@ -5,7 +5,7 @@
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
-    import SettingsItem from '../SettingsItem.svelte';
+    import SettingsItem from '../../SettingsItem.svelte';
 
     let email = $state<string | null>(null);
     let isLoading = $state(true);
@@ -26,7 +26,7 @@
         <div class="loading">{$text('settings.account.email.loading.text')}</div>
     {:else if email}
         <SettingsItem
-            type="info"
+            type="nested"
             icon="mail"
             title={$text('settings.account.email.current_email.text')}
             subtitleTop={email}
