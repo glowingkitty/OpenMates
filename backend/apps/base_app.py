@@ -400,16 +400,27 @@ class BaseApp:
 
                         # If execute() expects a list (requests), extract it from the Pydantic model
                         # Otherwise pass the Pydantic model directly
+                        
+                        # Filter skill_kwargs to only include arguments that the execute method actually accepts
+                        # This avoids TypeErrors when passing extra context fields to skills that don't use them
+                        # (e.g. TypeError: execute() got an unexpected keyword argument 'external_request')
+                        import inspect
+                        execute_params = inspect.signature(skill_instance.execute).parameters
+                        supported_skill_kwargs = {
+                            k: v for k, v in skill_kwargs.items() 
+                            if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
+                        }
+
                         if first_param and 'List' in str(first_param.annotation):
                             # Execute method expects a list - extract requests from Pydantic model
                             if hasattr(request_obj, 'requests'):
-                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None, **skill_kwargs)
+                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None, **supported_skill_kwargs)
                             else:
                                 # Fallback: try to pass the model and let the skill handle it
-                                response = await skill_instance.execute(request_obj, **skill_kwargs)
+                                response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
                         else:
                             # Execute method expects the Pydantic model directly (or Union type)
-                            response = await skill_instance.execute(request_obj, **skill_kwargs)
+                            response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
                     except HTTPException:
                         raise
                     except Exception as validation_error:
@@ -433,8 +444,17 @@ class BaseApp:
                         if not k.startswith("_") or k in context_fields
                     }
                     logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
+                    
                     # Merge context fields into clean_request_body for non-Pydantic skills
-                    clean_request_body.update(skill_kwargs)
+                    # Filter skill_kwargs to only include arguments that the execute method actually accepts
+                    import inspect
+                    execute_params = inspect.signature(skill_instance.execute).parameters
+                    supported_skill_kwargs = {
+                        k: v for k, v in skill_kwargs.items() 
+                        if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
+                    }
+                    
+                    clean_request_body.update(supported_skill_kwargs)
                     response = await skill_instance.execute(**clean_request_body)
 
                 # Ensure response is properly serialized before returning
