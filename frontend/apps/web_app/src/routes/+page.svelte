@@ -969,11 +969,18 @@
 			}
 		}
 		
-		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
-		// This ensures data is available when App Store opens
-		mostUsedAppsStore.fetchMostUsedApps(0).catch(error => {
-			console.error('[+page.svelte] Error fetching most used apps:', error);
-		});
+        // Fetch most used apps on app load (non-blocking, cached for 1 hour)
+        // This ensures data is available when App Store opens
+        mostUsedAppsStore.fetchMostUsedApps(0).catch(error => {
+            console.error('[+page.svelte] Error fetching most used apps:', error);
+        });
+        
+        // Initialize app health status to filter apps based on health (non-blocking)
+        // This ensures only healthy apps are shown in the app store
+        const { initializeAppHealth } = await import('@repo/ui');
+        initializeAppHealth().catch(error => {
+            console.error('[+page.svelte] Error initializing app health:', error);
+        });
 		
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present

@@ -15,17 +15,36 @@
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
+    import { initializeAppHealth, appHealthStore } from '../../stores/appHealthStore';
     import SettingsItem from '../SettingsItem.svelte';
     import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata } from '../../types/apps';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
     
-    // Use $state() for reactive state (Svelte 5)
-    let storeState = $state(appSkillsStore.getState());
+    // Initialize app health on mount to filter apps based on health status
+    onMount(async () => {
+        // Fetch app health status to filter out unhealthy apps
+        await initializeAppHealth();
+    });
+    
+    // Subscribe to health store to trigger reactivity when health status changes
+    // This ensures apps are filtered when health status is fetched
+    let healthState = $appHealthStore;
+    
+    // Use $derived to make apps reactive to both appSkillsStore and healthStore changes
+    // This ensures apps are filtered when health status is updated
+    let apps = $derived.by(() => {
+        // Access health state to trigger reactivity
+        const _ = healthState;
+        // Get filtered apps from store (filtering happens in getState())
+        return appSkillsStore.getState().apps;
+    });
+    
+    let appsList = $derived(Object.values(apps));
     
     // Subscribe to most used apps store (fetched on app load in +page.svelte)
     // In Svelte 5, stores are reactive when using $ prefix
@@ -33,10 +52,6 @@
     
     // Check if user is authenticated (for read-only mode)
     let isAuthenticated = $derived($authStore.isAuthenticated);
-    
-    // Reactive derived values
-    let apps = $derived(storeState.apps);
-    let appsList = $derived(Object.values(apps));
     
     // State for random explore apps (persisted for a day)
     let cachedRandomApps = $state<AppMetadata[] | null>(null);

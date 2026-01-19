@@ -235,6 +235,9 @@
 			header Access-Control-Allow-Origin "*"
 			reverse_proxy <API_UPSTREAM> {
 				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
 			}
 		}
 
