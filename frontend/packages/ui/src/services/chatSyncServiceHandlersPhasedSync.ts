@@ -707,10 +707,18 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
         console.debug(`[ChatSyncService] Preserving local draft for chat ${merged.chat_id} (local v${localDraftV} >= server v${serverDraftV})`);
     }
     
-    // Always preserve local encrypted_chat_key if it exists
-    if (localChat.encrypted_chat_key) {
+    // Use server's encrypted_chat_key if available, otherwise keep local.
+    // This ensures we can decrypt messages synced from the server even if our local key was 
+    // incorrectly generated (e.g. during a race condition or stale session).
+    if (serverChat.encrypted_chat_key) {
+        if (localChat.encrypted_chat_key && localChat.encrypted_chat_key !== serverChat.encrypted_chat_key) {
+            console.warn(`[ChatSyncService] ⚠️ Chat key mismatch for chat ${merged.chat_id}! ` +
+                `Local key differs from server key. Overwriting local key with server's source of truth.`);
+        }
+        merged.encrypted_chat_key = serverChat.encrypted_chat_key;
+    } else if (localChat.encrypted_chat_key) {
         merged.encrypted_chat_key = localChat.encrypted_chat_key;
-        console.debug(`[ChatSyncService] Preserving local encrypted_chat_key for chat ${merged.chat_id}`);
+        console.debug(`[ChatSyncService] Preserving local encrypted_chat_key for chat ${merged.chat_id} (server key missing)`);
     }
     
     // Preserve local messages_v if higher
