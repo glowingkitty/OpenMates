@@ -25,8 +25,16 @@
     function extractToken() {
         if (!browser) return;
 
+        // Try search parameters first (e.g., ?token=...)
         const urlParams = new URLSearchParams(window.location.search);
-        const tokenParam = urlParams.get('token');
+        let tokenParam = urlParams.get('token');
+
+        // If not found in search, try the hash part (e.g., #settings/server/become-admin?token=...)
+        if (!tokenParam && window.location.hash.includes('?')) {
+            const hashQuery = window.location.hash.split('?')[1];
+            const hashParams = new URLSearchParams(hashQuery);
+            tokenParam = hashParams.get('token');
+        }
 
         if (tokenParam) {
             token = tokenParam;

@@ -189,8 +189,9 @@ export function processSettingsDeepLink(
     const newsletterUnsubscribeMatch = settingsPath.match(/^\/newsletter\/unsubscribe\/(.+)$/);
     const emailBlockMatch = settingsPath.match(/^\/email\/block\/(.+)$/);
     const accountDeleteMatch = settingsPath.match(/^\/account\/delete\/[^/]+$/);
+    const becomeAdminMatch = settingsPath.match(/^\/server\/become-admin(\?.*)?$/);
     
-    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch) {
+    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch || becomeAdminMatch) {
         // These deep links keep the hash for component processing
         // Navigate to the base settings page
         if (refundMatch) {
@@ -202,6 +203,8 @@ export function processSettingsDeepLink(
             // This ensures Settings.svelte can extract the activeAccountId
             const path = hash.startsWith('#settings/') ? hash.substring('#settings/'.length) : 'account/delete';
             handlers.setSettingsDeepLink(path);
+        } else if (becomeAdminMatch) {
+            handlers.setSettingsDeepLink('server/become-admin');
         }
         // Don't clear hash - component will process it
         return;
@@ -209,7 +212,10 @@ export function processSettingsDeepLink(
     
     // Regular settings paths
     if (settingsPath.startsWith('/')) {
-        let path = settingsPath.substring(1); // Remove leading slash
+        const pathWithParams = settingsPath.substring(1); // Remove leading slash
+        // Strip query parameters for path matching (they remain in window.location.hash)
+        let path = pathWithParams.split('?')[0];
+        
         // Map common aliases
         if (path === 'appstore') {
             path = 'app_store';
