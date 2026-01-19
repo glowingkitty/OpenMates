@@ -15,12 +15,8 @@ import { chatDB } from './db';
 import {
   encryptWithMasterKey,
   decryptWithMasterKey,
-  generateEmbedKey,
-  wrapEmbedKeyWithMasterKey,
-  wrapEmbedKeyWithChatKey,
   unwrapEmbedKeyWithMasterKey,
   unwrapEmbedKeyWithChatKey,
-  encryptWithEmbedKey,
   decryptWithEmbedKey
 } from './cryptoService';
 
@@ -752,7 +748,7 @@ export class EmbedStore {
             const embedId = parsed.embed_id || contentRef.replace('embed:', '');
             
             // Try to get the unwrapped embed key
-            let embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
+            const embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
             
             if (embedKey) {
               // Decrypt content with embed key
@@ -795,7 +791,7 @@ export class EmbedStore {
       if (parsed && parsed.encrypted_type && typeof parsed.encrypted_type === 'string') {
         try {
           const embedId = parsed.embed_id || contentRef.replace('embed:', '');
-          let embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
+          const embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
           
           if (embedKey) {
             const decryptedType = await decryptWithEmbedKey(parsed.encrypted_type, embedKey);
@@ -871,7 +867,7 @@ export class EmbedStore {
    * @param contentRef - The embed reference key to monitor
    * @param callback - Function to call when embed changes
    */
-  subscribe(contentRef: string, callback: (data: any) => void): () => void {
+  subscribe(contentRef: string, _callback: (data: any) => void): () => void {
     // TODO: Implement subscription mechanism
     // This will be filled in during later phases
     console.debug('[EmbedStore] Subscribe to embed:', contentRef);
@@ -1087,7 +1083,7 @@ export class EmbedStore {
           console.debug('[EmbedStore] Trying chat key unwrap with provided hashedChatId for:', embedId);
           const chatKeyEntry = keys.find(k => k.key_type === 'chat' && k.hashed_chat_id === hashedChatId);
           if (chatKeyEntry) {
-            const embedKey = await this.unwrapChatKeyEntry(chatKeyEntry, hashedChatId);
+            const embedKey = await this.unwrapChatKeyEntry(chatKeyEntry);
             if (embedKey) {
               embedKeyCache.set(cacheKey, embedKey);
               console.debug('[EmbedStore] ✅ Unwrapped embed key with chat key (matched hashedChatId):', embedId);
@@ -1104,7 +1100,7 @@ export class EmbedStore {
         const chatKeyEntries = keys.filter(k => k.key_type === 'chat');
         console.debug('[EmbedStore] Trying', chatKeyEntries.length, 'chat key entries as fallback for:', embedId);
         for (const entry of chatKeyEntries) {
-          const embedKey = await this.unwrapChatKeyEntry(entry, entry.hashed_chat_id);
+          const embedKey = await this.unwrapChatKeyEntry(entry);
           if (embedKey) {
             embedKeyCache.set(cacheKey, embedKey);
             console.debug('[EmbedStore] ✅ Unwrapped embed key with fallback chat key:', embedId, 
@@ -1132,7 +1128,7 @@ export class EmbedStore {
    * @param hashedChatId - Optional hashed chat ID
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
-  private async unwrapChatKeyEntry(entry: EmbedKeyEntry, hashedChatId?: string): Promise<Uint8Array | null> {
+  private async unwrapChatKeyEntry(entry: EmbedKeyEntry): Promise<Uint8Array | null> {
     if (!entry.hashed_chat_id) {
       return null;
     }
