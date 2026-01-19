@@ -22,8 +22,11 @@ const BACKEND_PROVIDERS_DIR = resolve(__dirname, '../../../../backend/providers'
 const OUTPUT_FILE = resolve(__dirname, '../src/data/appsMetadata.ts');
 
 // Check if we should include development items
-// Default to including development items unless explicitly set to production
-const INCLUDE_DEVELOPMENT = process.env.NODE_ENV !== 'production' || process.env.INCLUDE_DEV_APPS === 'true';
+// Use SERVER_ENVIRONMENT to match backend filtering logic (same as backend/core/api/main.py)
+// Default to including development items unless SERVER_ENVIRONMENT is explicitly set to 'production'
+// This ensures frontend static metadata matches what the backend API would return
+const SERVER_ENVIRONMENT = (process.env.SERVER_ENVIRONMENT || 'development').toLowerCase();
+const INCLUDE_DEVELOPMENT = SERVER_ENVIRONMENT !== 'production' || process.env.INCLUDE_DEV_APPS === 'true';
 
 /**
  * Recursively find all app.yml files in the backend/apps directory.
@@ -687,6 +690,8 @@ ${apps}
  */
 function main() {
     console.log('[generate-apps-metadata] Starting app metadata generation...');
+    console.log(`[generate-apps-metadata] Server environment: ${SERVER_ENVIRONMENT}`);
+    console.log(`[generate-apps-metadata] Including development apps: ${INCLUDE_DEVELOPMENT}`);
     console.log(`[generate-apps-metadata] Reading apps from: ${BACKEND_APPS_DIR}`);
     
     // Find all app.yml files
