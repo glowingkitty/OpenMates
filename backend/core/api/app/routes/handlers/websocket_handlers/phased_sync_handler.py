@@ -381,20 +381,29 @@ async def _handle_phase1_sync(
                     # This is a lightweight query that helps detect data corruption
                     try:
                         server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                        logger.info(
-                            f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                            f"(client: m={client_messages_v}, server: m={server_messages_v}, server_count={server_message_count}). "
-                            f"Client will use IndexedDB and validate count."
-                        )
+                        
+                        # CRITICAL FIX: If actual message count exceeds messages_v, force a full fetch
+                        # This handles cases where version tracking lagged behind actual message persistence
+                        if server_message_count is not None and server_message_count > server_messages_v:
+                            logger.warning(
+                                f"[PHASE1_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
+                                f"messages_v={server_messages_v}, actual_count={server_message_count}. "
+                                f"Forcing full message fetch to ensure consistency."
+                            )
+                            # Fall through to the fetch logic below by making the version check fail
+                            client_messages_v = -1 
+                        else:
+                            logger.info(
+                                f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                f"(client: m={client_messages_v}, server: m={server_messages_v}, server_count={server_message_count}). "
+                                f"Client will use IndexedDB and validate count."
+                            )
                     except Exception as count_err:
                         logger.warning(f"[PHASE1_MESSAGES] Failed to get message count for {chat_id}: {count_err}")
                         # Continue without count - client will have to trust version
                     
-                    # SAFETY NET: Even if client claims to be up-to-date, if this is the last_opened chat
-                    # and we have NO messages in messages_data yet (cache miss), let's fetch the last 5 messages
-                    # from Directus anyway as a fallback to ensure immediate visibility on reload.
-                    # The client will deduplicate them by message_id.
-                    if not messages_data:
+                    # SAFETY NET (only if we didn't force a fetch above)
+                    if not messages_data and client_messages_v != -1:
                         logger.info(f"[PHASE1_MESSAGES] 🛡️ Safety net: Fetching last 5 messages for last_opened chat {chat_id} regardless of version.")
                         try:
                             # Use get_messages_for_chats with a limit if possible, or just get all for this one chat

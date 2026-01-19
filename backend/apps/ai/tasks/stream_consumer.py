@@ -230,10 +230,9 @@ async def _update_chat_metadata(
 ) -> None:
     """Update chat metadata and save assistant response to cache.
     
-    IMPORTANT: This function does NOT update messages_v in Directus.
-    The client is the source of truth for messages_v - it increments when receiving
-    the AI response and sends the updated version via ai_response_completed event.
-    Updating messages_v here would cause double-counting.
+    CRITICAL: This function NOW updates messages_v in Directus.
+    This ensures Directus reflects the actual message count and prevents version drift
+    during multi-device race conditions.
     
     Args:
         request_data: The AI skill request data
@@ -249,13 +248,13 @@ async def _update_chat_metadata(
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
     """
-    # NOTE: We do NOT update messages_v in Directus here.
-    # The client handles messages_v increments for AI responses via ai_response_completed.
-    # Updating it here would cause double-counting (server + client both incrementing).
-    # The cache will track its own version for AI inference purposes.
-    
+    # 1. Fetch current metadata to get current messages_v
+    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+    current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
+    new_messages_v = current_messages_v + 1
+
     fields_to_update = {
-        # NO messages_v update - client handles this via ai_response_completed
+        "messages_v": new_messages_v,  # Increment messages_v in Directus directly!
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category,
@@ -265,7 +264,7 @@ async def _update_chat_metadata(
     logger.info(
         f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
         f"chat_id={request_data.chat_id}, "
-        f"NOT updating messages_v in Directus (client handles via ai_response_completed), "
+        f"updating messages_v in Directus: {current_messages_v} -> {new_messages_v}, "
         f"source=stream_consumer._update_chat_metadata"
     )
     
@@ -277,19 +276,15 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}.")
+    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}, messages_v {new_messages_v}.")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history
     # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
-        # Get current messages_v from cache or Directus for cache tracking only
-        chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-        current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
-        
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
-            current_messages_v, cache_service,  # Pass current version, cache will increment
+            new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
             encryption_service, user_vault_key_id,
             content_markdown, log_prefix,
             model_name=model_name
@@ -416,10 +411,11 @@ async def _save_to_cache_and_publish(
         await cache_service.save_chat_message_and_update_versions(
             user_id=request_data.user_id,
             chat_id=request_data.chat_id,
-            message_data=ai_message_for_cache
+            message_data=ai_message_for_cache,
+            explicit_messages_v=messages_version
         )
         
-        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id}.")
+        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
         
         # Publish persistence event
         persisted_event_payload = {
