@@ -271,7 +271,7 @@ export class EmbedStore {
       
       // Store app metadata unencrypted in IndexedDB only (for efficient querying)
       app_id: appMetadata.app_id,
-      skill_id: appMetadata.skill_id
+      skill_id: appMetadata.skill_id,
       
       // NOTE: encrypted_content is intentionally NOT set here
       // encrypted_content is only for embed-key encryption (used by putEncrypted)
