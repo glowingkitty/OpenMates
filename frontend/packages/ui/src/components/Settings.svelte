@@ -1085,6 +1085,16 @@ changes to the documentation (to keep the documentation up to date).
             }
         };
 
+        // Listen for admin status updates via WebSocket
+        // This handles cases where admin privileges are granted/revoked while user is on settings page
+        const handleAdminStatusUpdate = (payload: { is_admin: boolean }) => {
+            console.debug('[Settings] Received user_admin_status_updated notification via WebSocket:', payload);
+            if (typeof payload.is_admin === 'boolean') {
+                updateProfile({ is_admin: payload.is_admin });
+                console.debug(`[Settings] Updated user profile: is_admin = ${payload.is_admin}`);
+            }
+        };
+
         // Listen for payment completion notifications via WebSocket
         // This handles cases where payment completes after user has moved on from payment screen
         // NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
@@ -1122,6 +1132,7 @@ changes to the documentation (to keep the documentation up to date).
         };
 
         webSocketService.on('user_credits_updated', handleCreditUpdate);
+        webSocketService.on('user_admin_status_updated', handleAdminStatusUpdate);
         
         // Only register payment handlers if NOT in signup mode
         // During signup, Payment.svelte component already handles these events
@@ -1138,6 +1149,7 @@ changes to the documentation (to keep the documentation up to date).
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
+            webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
             // Only unregister payment handlers if they were registered
             if (!wasInSignupProcess) {
                 webSocketService.off('payment_completed', handlePaymentCompleted);

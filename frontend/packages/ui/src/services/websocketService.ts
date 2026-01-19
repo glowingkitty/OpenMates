@@ -84,6 +84,7 @@ type KnownMessageTypes =
     // Kept for potential future use (e.g., LLM message streaming)
     | 'message_update'                 // For streaming updates to a message content while it's being generated
     | 'user_credits_updated'
+    | 'user_admin_status_updated'      // Notification that user admin status has changed
     | 'credit_note_ready'               // Notification that credit note PDF is ready for download
     | 'message_queued'                  // Notification that a message was queued because an AI task is active
 

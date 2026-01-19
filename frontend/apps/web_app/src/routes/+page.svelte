@@ -445,6 +445,7 @@
 	// --- Lifecycle ---
 	// Define handlers outside onMount so they're accessible for cleanup
 	let handleWebSocketAuthError: (() => Promise<void>) | null = null;
+	let handleAdminStatusUpdate: ((payload: { is_admin: boolean }) => void) | null = null;
 	let handlePaymentCompleted: ((payload: { order_id: string, credits_purchased: number, current_credits: number }) => void) | null = null;
 	let handlePaymentFailed: ((payload: { order_id: string, message: string }) => void) | null = null;
 	let wasInSignupProcessAtMount = false;
@@ -851,11 +852,32 @@
 			);
 		};
 		
+		// Listen for admin status updates via WebSocket
+		// This handles cases where admin privileges are granted/revoked while user is logged in
+		handleAdminStatusUpdate = async (payload: { is_admin: boolean }) => {
+			console.debug('[+page.svelte] Received user_admin_status_updated notification via WebSocket:', payload);
+			
+			// Update user profile with new admin status
+			if (typeof payload.is_admin === 'boolean') {
+				// Import updateProfile dynamically (non-blocking)
+				import('@repo/ui').then(({ updateProfile }) => {
+					updateProfile({ is_admin: payload.is_admin });
+					console.debug(`[+page.svelte] Updated user profile: is_admin = ${payload.is_admin}`);
+				}).catch(error => {
+					console.warn('[+page.svelte] Failed to import updateProfile:', error);
+				});
+			}
+		};
+		
 		// Register WebSocket listeners for payment notifications
 		// NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
 		// This prevents duplicate handler registrations during signup flow
 		// Store the signup state at registration time for proper cleanup
 		wasInSignupProcessAtMount = get(isInSignupProcess);
+		
+		// Register admin status update listener (always register, not dependent on signup state)
+		webSocketService.on('user_admin_status_updated', handleAdminStatusUpdate);
+		console.debug('[+page.svelte] Registered WebSocket admin status update listener');
 		
 		if (!wasInSignupProcessAtMount) {
 			// CRITICAL FIX: Clean up any existing handlers before registering new ones
@@ -1267,6 +1289,10 @@
     onDestroy(() => {
         if (handleWebSocketAuthError) {
             webSocketService.removeEventListener('authError', handleWebSocketAuthError);
+        }
+        // Unregister admin status update handler
+        if (handleAdminStatusUpdate) {
+            webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
         }
         // Only unregister payment handlers if they were registered
         if (!wasInSignupProcessAtMount && handlePaymentCompleted && handlePaymentFailed) {

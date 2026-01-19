@@ -89,7 +89,8 @@ async def main():
         
         if success:
             logger.info(f"SUCCESS: User {email} is now a server administrator.")
-            logger.info("The user may need to refresh their browser to see the changes.")
+            logger.info("User profile cache has been invalidated - the Server settings section will appear")
+            logger.info("on the next authentication check (typically within a few seconds).")
         else:
             logger.error(f"FAILED to grant admin privileges to user {user_id}")
             
