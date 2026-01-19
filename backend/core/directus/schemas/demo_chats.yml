@@ -1,0 +1,48 @@
+demo_chats:
+  type: collection
+  fields:
+    demo_id:
+      type: string
+      length: 16
+      note: "Short identifier for the demo chat"
+      required: true
+      unique: true
+    original_chat_id:
+      type: string
+      length: 64
+      note: "The original chat identifier"
+      required: true
+    encrypted_key:
+      type: textfield
+      note: "The encryption key for the chat"
+      required: true
+    title:
+      type: string
+      length: 255
+      note: "Display title for the demo chat"
+      required: true
+    summary:
+      type: textfield
+      note: "Description of the demo chat"
+    category:
+      type: string
+      length: 100
+      note: "Category for grouping demo chats"
+    approved_by_admin:
+      type: boolean
+      default: false
+      note: "Whether this chat has been approved for display"
+    approved_at:
+      type: timestamp
+      note: "When the chat was approved"
+    is_active:
+      type: boolean
+      default: true
+      note: "Whether this demo chat is active"
+    deactivated_at:
+      type: timestamp
+      note: "When the chat was deactivated"
+    created_at:
+      type: timestamp
+      note: "When the demo chat entry was created"
+      required: true

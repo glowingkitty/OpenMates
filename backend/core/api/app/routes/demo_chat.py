@@ -8,7 +8,6 @@ import logging
 import hashlib
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
-from pydantic import BaseModel
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
@@ -47,12 +46,21 @@ async def get_demo_chats(
     Only returns approved demo chats.
     """
     try:
+        # 1. Try to get from cache first
+        cached_data = await directus_service.cache.get_demo_chats_list(category=category)
+        if cached_data:
+            # Check if this is the "public-ready" format (list of dicts with count)
+            if isinstance(cached_data, dict) and "demo_chats" in cached_data:
+                logger.debug(f"Cache HIT: Returning public-ready demo chats list (category: {category})")
+                return cached_data
+
+        # 2. Get from database (via service which also has internal caching)
         if category:
             demo_chats = await directus_service.demo_chat.get_demo_chats_by_category(category, approved_only=True)
         else:
             demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
 
-        # Remove sensitive information before returning
+        # 3. Remove sensitive information before returning
         public_demo_chats = []
         for demo_chat in demo_chats:
             public_demo_chat = {
@@ -64,10 +72,15 @@ async def get_demo_chats(
             }
             public_demo_chats.append(public_demo_chat)
 
-        return {
+        response_data = {
             "demo_chats": public_demo_chats,
             "count": len(public_demo_chats)
         }
+
+        # 4. Cache the final public-ready result
+        await directus_service.cache.set_demo_chats_list(response_data, category=category)
+
+        return response_data
 
     except Exception as e:
         logger.error(f"Error fetching demo chats: {e}", exc_info=True)
@@ -90,7 +103,13 @@ async def get_demo_chat(
     This is public but rate-limited to prevent abuse.
     """
     try:
-        # Get demo chat metadata
+        # 1. Try to get from cache first
+        cached_data = await directus_service.cache.get_demo_chat_data(demo_id)
+        if cached_data:
+            logger.debug(f"Cache HIT: Returning demo chat data for {demo_id}")
+            return cached_data
+
+        # 2. Get demo chat metadata
         demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(demo_id)
 
         if not demo_chat:
@@ -127,7 +146,7 @@ async def get_demo_chat(
         embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
 
         # Return the demo chat data including the encryption key
-        return {
+        response_data = {
             "demo_id": demo_id,
             "title": demo_chat.get("title"),
             "summary": demo_chat.get("summary"),
@@ -145,6 +164,11 @@ async def get_demo_chat(
                 "embed_keys": embed_keys or []
             }
         }
+
+        # Cache the response data
+        await directus_service.cache.set_demo_chat_data(demo_id, response_data)
+
+        return response_data
 
     except HTTPException:
         raise

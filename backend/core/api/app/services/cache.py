@@ -9,6 +9,7 @@ from .cache_chat_mixin import ChatCacheMixin
 from .cache_order_mixin import OrderCacheMixin
 from .cache_legacy_mixin import LegacyChatCacheMixin
 from .cache_debug_mixin import DebugCacheMixin
+from .cache_demo_chat_mixin import DemoChatCacheMixin
 
 # Import schemas used by mixins (if any are directly type hinted in method signatures)
 # For example, if ChatCacheMixin methods directly hint at CachedChatVersions, etc.
@@ -36,7 +37,8 @@ class CacheService(
     ChatCacheMixin,
     OrderCacheMixin,
     LegacyChatCacheMixin,
-    DebugCacheMixin
+    DebugCacheMixin,
+    DemoChatCacheMixin
 ):
     """
     Service for caching data using Dragonfly (Redis-compatible).
@@ -75,7 +77,7 @@ class CacheService(
                 await client.set(DISCOVERED_APPS_METADATA_CACHE_KEY, metadata_json)
                 logger.info(f"Successfully cached discovered_apps_metadata to Redis with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}' (no expiration).")
             else:
-                logger.error(f"Failed to cache discovered_apps_metadata: Redis client not available.")
+                logger.error("Failed to cache discovered_apps_metadata: Redis client not available.")
         except Exception as e:
             logger.error(f"Failed to set discovered_apps_metadata in cache: {e}", exc_info=True)
             # Optionally re-raise or handle as per application's error strategy
@@ -191,7 +193,7 @@ class CacheService(
                 return instructions_json
             else:
                 instructions = json.loads(instructions_json)
-                logger.info(f"Successfully retrieved base_instructions from cache.")
+                logger.info("Successfully retrieved base_instructions from cache.")
                 return instructions
         except json.JSONDecodeError as jde:
             logger.error(f"Failed to parse base_instructions from cache (JSONDecodeError) for key '{BASE_INSTRUCTIONS_CACHE_KEY}': {jde}", exc_info=True)
@@ -317,7 +319,7 @@ class CacheService(
             # Handle bytes response (Redis returns bytes when decode_responses=False)
             if isinstance(model_id, bytes):
                 model_id = model_id.decode('utf-8')
-                logger.debug(f"Decoded bytes response from cache to string")
+                logger.debug("Decoded bytes response from cache to string")
 
             if isinstance(model_id, str):
                 logger.debug(f"Successfully retrieved content_sanitization_model from cache: {model_id}")
@@ -371,7 +373,7 @@ class CacheService(
                 return config_json
             else:
                 config = json.loads(config_json)
-                logger.debug(f"Successfully retrieved prompt_injection_detection_config from cache.")
+                logger.debug("Successfully retrieved prompt_injection_detection_config from cache.")
                 return config
         except json.JSONDecodeError as jde:
             logger.error(f"Failed to parse prompt_injection_detection_config from cache (JSONDecodeError) for key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}': {jde}", exc_info=True)

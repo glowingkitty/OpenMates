@@ -62,6 +62,9 @@ class DemoChatMethods:
             # Create the demo chat entry
             result = await self.directus_service.create_item("demo_chats", demo_chat_data)
             if result:
+                # Invalidate cache if approved
+                if approved_by_admin:
+                    await self.directus_service.cache.clear_demo_chats_cache()
                 logger.info(f"Created demo chat {demo_id} for chat {chat_id}")
                 return result
             else:
@@ -111,6 +114,13 @@ class DemoChatMethods:
             List of demo chat entries
         """
         try:
+            # Check cache first if approved_only=True (public requests)
+            if approved_only:
+                cached_demos = await self.directus_service.cache.get_demo_chats_list()
+                if cached_demos is not None:
+                    logger.debug("Cache HIT: Returning all active demo chats from cache")
+                    return cached_demos
+
             filter_conditions = {
                 "is_active": {"_eq": True}
             }
@@ -124,6 +134,11 @@ class DemoChatMethods:
             }
 
             items = await self.directus_service.get_items("demo_chats", params)
+            
+            # Cache the result for public requests
+            if approved_only and items is not None:
+                await self.directus_service.cache.set_demo_chats_list(items)
+                
             return items or []
 
         except Exception as e:
@@ -148,6 +163,8 @@ class DemoChatMethods:
 
             result = await self.directus_service.update_item("demo_chats", demo_id, updates)
             if result:
+                # Invalidate cache
+                await self.directus_service.cache.clear_demo_chats_cache()
                 logger.info(f"Approved demo chat {demo_id}")
                 return True
             else:
@@ -176,6 +193,8 @@ class DemoChatMethods:
 
             result = await self.directus_service.update_item("demo_chats", demo_id, updates)
             if result:
+                # Invalidate cache
+                await self.directus_service.cache.clear_demo_chats_cache()
                 logger.info(f"Deactivated demo chat {demo_id}")
                 return True
             else:
@@ -198,6 +217,13 @@ class DemoChatMethods:
             List of demo chat entries in the specified category
         """
         try:
+            # Check cache first if approved_only=True (public requests)
+            if approved_only:
+                cached_demos = await self.directus_service.cache.get_demo_chats_list(category=category)
+                if cached_demos is not None:
+                    logger.debug(f"Cache HIT: Returning demo chats for category '{category}' from cache")
+                    return cached_demos
+
             filter_conditions = {
                 "is_active": {"_eq": True},
                 "category": {"_eq": category}
@@ -212,6 +238,11 @@ class DemoChatMethods:
             }
 
             items = await self.directus_service.get_items("demo_chats", params)
+            
+            # Cache the result for public requests
+            if approved_only and items is not None:
+                await self.directus_service.cache.set_demo_chats_list(items, category=category)
+                
             return items or []
 
         except Exception as e:
