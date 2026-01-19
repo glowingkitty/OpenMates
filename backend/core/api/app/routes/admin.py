@@ -107,13 +107,40 @@ async def get_community_suggestions(
     made into demo chats yet.
     """
     try:
-        # Get chats shared with community that aren't demo chats yet
-        # We'll need to query chats that have been shared with community
-        # but don't have corresponding demo_chats entries
+        # 1. Get all chats shared with community
+        params = {
+            "filter": {
+                "share_with_community": {"_eq": True}
+            },
+            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,updated_at,is_private,is_shared"
+        }
+        community_chats = await directus_service.get_items("chats", params)
 
-        # For now, return a simple structure - in a real implementation,
-        # you would query the database for community-shared chats
+        # 2. Get all existing demo chats to filter them out
+        active_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
+        existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
+
+        # 3. Filter and format suggestions
         suggestions = []
+        for chat in community_chats:
+            chat_id = str(chat.get("id"))
+            if chat_id in existing_demo_chat_ids:
+                continue
+
+            # Ensure chat is actually shared (double check)
+            if chat.get("is_private", True):
+                continue
+
+            # Get title and summary (fall back to encrypted_title if shared versions missing)
+            # Note: Server can decrypt shared_* fields using shared vault key
+            # but for the suggestion list we just need metadata
+            suggestions.append({
+                "chat_id": chat_id,
+                "title": chat.get("encrypted_title"), # This will be decrypted on client if needed
+                "summary": None, # Will be fetched/decrypted on client
+                "shared_at": chat.get("updated_at"),
+                "share_link": f"/share/chat/{chat_id}" # UI will add the key from the email or local store
+            })
 
         return {
             "suggestions": suggestions,

@@ -55,7 +55,11 @@ async def execute_skill_via_celery(
         # The task will be executed in the app's Celery worker container
         task_signature = celery_producer.send_task(
             name=task_name,
-            kwargs={"arguments": arguments},
+            kwargs={
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "arguments": arguments
+            },
             queue=queue_name
         )
         

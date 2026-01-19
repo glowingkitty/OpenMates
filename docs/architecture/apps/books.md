@@ -4,11 +4,11 @@
 
 ### Search
 
-Searches within uploaded ebooks (EPUB, MOBI) and book excerpts using grep-like pattern matching. For PDF searching, see [PDF App](./pdf.md).
+Searches within uploaded ebooks (EPUB, MOBI) and book excerpts using high-performance `rg` (ripgrep) functionality. For PDF searching, see [PDF App](./pdf.md).
 
 **Features:**
 - Support for multiple ebooks and search queries in a single call (processed in parallel, up to 5 requests)
-- Regex pattern matching support for finding passages, chapters, quotes
+- Regex pattern matching support using `rg` (ripgrep) for finding passages, chapters, quotes
 - Case-sensitive and case-insensitive search options
 - Returns matched passages with context (surrounding paragraphs/chapters) and page numbers
 - Preserves formatting for ebook readers (EPUB, MOBI)

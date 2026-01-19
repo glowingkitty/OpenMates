@@ -205,7 +205,7 @@ async def _handle_phase1_sync(
         
         # Handle "new" chat section - send only suggestions
         if chat_id == "new":
-            logger.info(f"Phase 1: Last opened was 'new' chat section, sending suggestions only")
+            logger.info("Phase 1: Last opened was 'new' chat section, sending suggestions only")
             await manager.send_personal_message(
                 {
                     "type": "phase_1_last_chat_ready",
@@ -229,38 +229,19 @@ async def _handle_phase1_sync(
         
         if not chat_is_missing:
             # Client has the chat - check if it's up-to-date
-            from backend.core.api.app.schemas.chat import CachedChatVersions
             cached_server_versions = await cache_service.get_chat_versions(user_id, chat_id)
             
             if cached_server_versions:
                 client_messages_v = client_versions.get("messages_v", 0)
-                client_title_v = client_versions.get("title_v", 0)
                 
-                # Check if client version matches or exceeds server version
-                if (client_messages_v >= cached_server_versions.messages_v and 
-                    client_title_v >= cached_server_versions.title_v):
-                    logger.info(f"Phase 1: Client already has up-to-date version of chat {chat_id} "
-                               f"(client: m={client_messages_v}, t={client_title_v}; "
-                               f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v}). "
-                               f"Skipping data transmission.")
-                    
-                    # Send empty phase 1 completion with suggestions
-                    await manager.send_personal_message(
-                        {
-                            "type": "phase_1_last_chat_ready",
-                            "payload": {
-                                "chat_id": chat_id,
-                                "chat_details": None,  # Client already has it
-                                "messages": None,  # Client already has them
-                                "new_chat_suggestions": new_chat_suggestions,  # Always send suggestions
-                                "phase": "phase1",
-                                "already_synced": True
-                            }
-                        },
-                        user_id,
-                        device_fingerprint_hash
-                    )
-                    return
+                # CRITICAL: For the last_opened chat in Phase 1, we always proceed to the full check 
+                # below to ensure absolute consistency on reload (safety net).
+                # We skip the "already_synced" optimization for this one critical chat.
+                # The client will deduplicate any messages we send.
+                pass 
+                
+                if False: # Optimization disabled for Phase 1 last_opened chat
+                    client_messages_v = client_versions.get("messages_v", 0)
         
         logger.info(f"Phase 1: Fetching and sending chat {chat_id} (missing: {chat_is_missing})")
         
@@ -379,10 +360,8 @@ async def _handle_phase1_sync(
             if not server_versions and chat_details:
                 # Cache miss - use versions from chat metadata that was just fetched
                 server_messages_v = chat_details.get("messages_v", 0)
-                server_title_v = chat_details.get("title_v", 0)
             elif server_versions:
                 server_messages_v = server_versions.messages_v
-                server_title_v = server_versions.title_v
             else:
                 # No version data available at all - fetch from Directus to be safe
                 server_messages_v = None
@@ -410,7 +389,25 @@ async def _handle_phase1_sync(
                     except Exception as count_err:
                         logger.warning(f"[PHASE1_MESSAGES] Failed to get message count for {chat_id}: {count_err}")
                         # Continue without count - client will have to trust version
-                    messages_data = []  # Empty list - client should use local data
+                    
+                    # SAFETY NET: Even if client claims to be up-to-date, if this is the last_opened chat
+                    # and we have NO messages in messages_data yet (cache miss), let's fetch the last 5 messages
+                    # from Directus anyway as a fallback to ensure immediate visibility on reload.
+                    # The client will deduplicate them by message_id.
+                    if not messages_data:
+                        logger.info(f"[PHASE1_MESSAGES] 🛡️ Safety net: Fetching last 5 messages for last_opened chat {chat_id} regardless of version.")
+                        try:
+                            # Use get_messages_for_chats with a limit if possible, or just get all for this one chat
+                            # since it's just one chat and we want to ensure immediate consistency
+                            messages_data = await directus_service.chat.get_all_messages_for_chat(
+                                    chat_id=chat_id, decrypt_content=False
+                            )
+                            if messages_data and len(messages_data) > 5:
+                                messages_data = messages_data[-5:]
+                            logger.info(f"[PHASE1_MESSAGES] ✅ Safety net fetched {len(messages_data) if messages_data else 0} messages.")
+                        except Exception as safety_err:
+                            logger.warning(f"[PHASE1_MESSAGES] Safety net fetch failed: {safety_err}")
+                            messages_data = []
                 else:
                     logger.info(
                         f"[PHASE1_MESSAGES] 📥 Fetching messages from Directus for {chat_id} "
@@ -649,7 +646,6 @@ async def _handle_phase2_sync(
             )
             return
         
-        from backend.core.api.app.schemas.chat import CachedChatVersions
         client_chat_ids_set = set(client_chat_ids)
         
         # Filter chats to only include missing or outdated ones
@@ -733,10 +729,8 @@ async def _handle_phase2_sync(
                     # Cache miss - use versions from chat metadata that was just fetched
                     chat_details = chat_wrapper.get("chat_details", {})
                     server_messages_v = chat_details.get("messages_v", 0)
-                    server_title_v = chat_details.get("title_v", 0)
                 else:
                     server_messages_v = server_versions.messages_v
-                    server_title_v = server_versions.title_v
                 
                 if client_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
@@ -1004,7 +998,6 @@ async def _handle_phase3_sync(
             logger.info(f"No chats found for Phase 3 sync: {user_id}")
             # Send empty phase 3 completion
         
-        from backend.core.api.app.schemas.chat import CachedChatVersions
         client_chat_ids_set = set(client_chat_ids)
         
         # Filter chats to only include missing or outdated ones
@@ -1088,10 +1081,8 @@ async def _handle_phase3_sync(
                         # Cache miss - use versions from chat metadata that was just fetched
                         chat_details = chat_wrapper.get("chat_details", {})
                         server_messages_v = chat_details.get("messages_v", 0)
-                        server_title_v = chat_details.get("title_v", 0)
                     else:
                         server_messages_v = server_versions.messages_v
-                        server_title_v = server_versions.title_v
                     
                     if client_versions:
                         client_messages_v = client_versions.get("messages_v", 0)

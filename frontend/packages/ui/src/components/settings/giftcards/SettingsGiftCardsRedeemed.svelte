@@ -3,13 +3,11 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
 -->
 
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import SettingsItem from '../../SettingsItem.svelte';
     import { notificationStore } from '../../../stores/notificationStore';
-
-    const dispatch = createEventDispatcher();
 
     interface RedeemedGiftCard {
         gift_card_code: string;
@@ -67,16 +65,6 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
         }
     }
 
-    // Navigate back to gift cards main
-    function goBack() {
-        dispatch('openSettings', {
-            settingsPath: 'gift_cards',
-            direction: 'backward',
-            icon: 'coins',
-            title: $text('settings.gift_cards.text')
-        });
-    }
-
     onMount(() => {
         fetchRedeemedCards();
     });
@@ -97,7 +85,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
     <!-- List of redeemed gift cards -->
     {#each redeemedCards as card}
         <SettingsItem
-            type="info"
+            type="nested"
             icon="subsetting_icon subsetting_icon_coins"
             title={card.gift_card_code}
             subtitle={`${formatCredits(card.credits_value)} ${$text('settings.gift_cards.credits.text')} - ${formatDate(card.redeemed_at)}`}

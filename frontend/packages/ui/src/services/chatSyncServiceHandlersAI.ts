@@ -317,6 +317,14 @@ export function handleAIMessageUpdateImpl(
         } else {
             // Task info missing or mismatched - still dispatch event but log warning
             console.warn(`[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : 'undefined'}, payload.task_id=${payload.task_id}`);
+            
+            // CRITICAL FIX: Clear the active task for this chat anyway to ensure the stop button disappears
+            // This handles cases where task IDs might be out of sync or mismatched due to websocket hiccups
+            if (taskInfo) {
+                serviceInstance.activeAITasks.delete(payload.chat_id);
+                console.info(`[ChatSyncService:AI] Cleared mismatched active task ${taskInfo.taskId} for chat ${payload.chat_id} because another task ended.`);
+            }
+            
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
         }
     }
@@ -1910,6 +1918,42 @@ export async function handleSendEmbedDataImpl(
                 `Total processed embeds: ${processedFinalizedEmbeds.size}`
             );
             
+            // HYBRID ENCRYPTION: Check if this is a server-managed (Vault) embed
+            // If encryption_mode is "vault", we skip local encryption and key generation
+            // because the server already has the record and handles decryption via API.
+            const encryptionMode = (embedData as any).encryption_mode || 'client';
+            if (encryptionMode === 'vault') {
+                console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} uses Vault encryption - skipping local re-encryption`);
+                
+                const { embedStore } = await import('./embedStore');
+                const embedRef = `embed:${embedData.embed_id}`;
+                
+                // Store in local IndexedDB as-is (plaintext content, but marked as vault)
+                // We use put() instead of putEncrypted() because put() encrypts with the master key,
+                // which is safe for local storage of server-managed metadata.
+                await embedStore.put(embedRef, {
+                    ...embedData,
+                    encryption_mode: 'vault',
+                    vault_key_id: (embedData as any).vault_key_id
+                }, embedData.type as EmbedType);
+                
+                console.info(`[ChatSyncService:AI] ✅ Stored Vault-managed embed ${embedData.embed_id} locally`);
+                
+                // Dispatch event for UI refresh
+                serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                    detail: {
+                        embed_id: embedData.embed_id,
+                        chat_id: embedData.chat_id,
+                        message_id: embedData.message_id,
+                        status: embedData.status,
+                        child_embed_ids: embedData.embed_ids,
+                        isProcessing: false,
+                        encryption_mode: 'vault'
+                    }
+                }));
+                return;
+            }
+
             // Generate embed key, encrypt content, store locally, send to Directus
             console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`);
             

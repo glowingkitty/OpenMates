@@ -15,7 +15,6 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
-    import SettingsBecomeAdmin from './server/SettingsBecomeAdmin.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -51,25 +50,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/community-suggestions',
             direction: 'forward',
             icon: 'users',
-            title: 'Community Suggestions',
+            title: $text('settings.server.community_suggestions.text'),
             translationKey: 'settings.server.community_suggestions'
-        });
-
-        scrollToTop();
-    }
-
-    function showBecomeAdmin(event = null) {
-        if (event) event.stopPropagation();
-
-        currentView = 'becomeAdmin';
-        childComponent = SettingsBecomeAdmin;
-
-        dispatch('openSettings', {
-            settingsPath: 'server/become-admin',
-            direction: 'forward',
-            icon: 'shield',
-            title: 'Become Admin',
-            translationKey: 'settings.server.become_admin'
         });
 
         scrollToTop();
@@ -104,15 +86,9 @@ changes to the documentation (to keep the documentation up to date).
     />
     <SettingsItem
         icon="users"
-        title="Community Suggestions"
+        title={$text('settings.server.community_suggestions.text')}
         subtitleTop="Manage demo chats from community-shared conversations"
         onClick={() => showCommunitySuggestions()}
-    />
-    <SettingsItem
-        icon="shield"
-        title="Become Admin"
-        subtitleTop="Use admin token to gain server admin privileges"
-        onClick={() => showBecomeAdmin()}
     />
 {:else if currentView === 'softwareUpdate' && childComponent}
     {@const Component = childComponent}
@@ -120,11 +96,6 @@ changes to the documentation (to keep the documentation up to date).
         on:back={handleBack}
     />
 {:else if currentView === 'communitySuggestions' && childComponent}
-    {@const Component = childComponent}
-    <Component
-        on:back={handleBack}
-    />
-{:else if currentView === 'becomeAdmin' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

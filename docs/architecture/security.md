@@ -4,8 +4,9 @@
 
 ## Core Security Principles
 
-- **Server = encrypted storage only**: Stores encrypted blobs it cannot decrypt
-- **Client-side encryption**: All sensitive data encrypted before leaving user's device
+- **Server = encrypted storage only**: Stores encrypted blobs it cannot decrypt by default
+- **Dual-Mode Encryption**: Standard user data is **Client-Side Encrypted** (Zero-Knowledge). Server-generated files (images, PDFs) use **Server-Managed Encryption** (Vault) for functionality.
+- **Client-side encryption**: Most sensitive data encrypted before leaving user's device
 - **Multiple login methods**: Password, passkey, recovery key support with individual wrapped keys
 - **Granular key isolation**: Separate encryption keys for chats, apps, emails, embeds
 - **Password requires 2FA**: Password authentication always requires two-factor authentication - they are set up together and cannot exist independently
@@ -15,10 +16,26 @@
 | Category | Status | Details | Documentation |
 |----------|--------|---------|---------------|
 | **Authentication** | ✅ 6/8 | Zero-knowledge login, 2FA mandatory | [Signup & Login](./signup_login.md) |
-| **Encryption** | ✅ 6/7 | AES-256-GCM, client-side keys | [Zero-Knowledge Storage](./zero_knowledge_storage.md) |
+| **Encryption** | ✅ 7/7 | AES-256-GCM, Client-Managed & Server-Managed | [Encryption Tiers](#encryption-tiers-dual-mode) |
 | **Email Privacy** | ✅ Implemented | Client-side encrypted storage | [Email Privacy](./email_privacy.md) |
 | **Device Management** | 🔄 Planned | QR login, remote logout | [Device Management](./device_session_management.md) |
 | **Passkey Support** | ✅ Implemented | WebAuthn with PRF extension | [Passkeys](./passkeys.md) |
+
+## Encryption Tiers (Dual-Mode)
+
+OpenMates implements a hybrid encryption model to balance maximum privacy with the practical needs of AI-powered features and long-running server tasks.
+
+### 1. Client-Managed (Zero-Knowledge)
+**Used for**: Chat messages, most app data, profile settings, email content.
+- **Key Location**: User's device (never sent to server).
+- **Security**: The server stores only encrypted blobs. Even with physical access to the database or a compromise of the backend, the server cannot read this data.
+- **Limitation**: The server cannot process this data in the background (e.g., AI cannot analyze a client-side encrypted chat history while the user is offline).
+
+### 2. Server-Managed (Vault-Hybrid)
+**Used for**: Server-generated files (Images, PDFs, Videos), long-running task outputs.
+- **Key Location**: Encrypted by a unique AES key, which is then **wrapped by HashiCorp Vault** using a user-specific key ID.
+- **Security**: Data is encrypted at rest in S3 and Directus. The server can temporarily "unwrap" the key to process the file (e.g., AI modifying a previously generated image, or generating a download stream).
+- **Reasoning**: Necessary for long-running tasks that complete while the user is offline. Without this, the user would need to stay online with an open browser to encrypt the final result of a 30-second image generation.
 
 ---
 
@@ -58,8 +75,9 @@ This ensures that password-based authentication is always protected by a second 
 
 **Implementation**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
 
-## Quick Architecture Diagram
+## Architecture Diagram
 
+### Client-Managed Flow (Default)
 ```
 User's Device (🔐 Encrypted)     |     Server (🔒 Encrypted Blobs Only)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -72,6 +90,19 @@ Email → Encrypts ─────────────→ │ Stores encrypt
                                   │
 Master Key → Encrypts Data ───→ │ Stores encrypted chats/apps (can't decrypt)
             (stays local)         │
+```
+
+### Server-Managed Flow (Generated Files)
+```
+User's Device (🔓 Plaintext)      |     Server (🔑 Vault Wrapped)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                  │
+Requests AI Generation ────────→ │ 1. Dispatches long-running task
+                                  │ 2. Task generates file (e.g. Image)
+                                  │ 3. Generates AES key
+                                  │ 4. Wraps AES key with Vault (User-ID)
+Downloads Decrypted File ←─────  │ 5. Stores encrypted file in S3
+                                  │
 ```
 
 ## Implementation Guide

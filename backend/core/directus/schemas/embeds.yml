@@ -97,3 +97,12 @@ embeds:
       type: integer
       note: "Unix timestamp (seconds) when the embed was last updated. Used for task completion updates and versioning."
 
+    encryption_mode:
+      type: string
+      default: "client"
+      note: "Encryption strategy: 'client' (zero-knowledge, default) or 'vault' (server-managed, for server-generated files like images/PDFs)."
+
+    vault_key_id:
+      type: string
+      note: "[Optional] For encryption_mode='vault': The user's Vault key ID used to encrypt the content. Allows server-side decryption for AI modification or download."
+

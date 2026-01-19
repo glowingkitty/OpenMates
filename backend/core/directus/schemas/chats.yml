@@ -101,6 +101,11 @@ chats:
       default: false
       note: "Whether this chat has been shared (share link generated). Set to true on client when share link is created, then synced to server. Used to track which chats appear in the 'Shared' menu. When unsharing, both is_private and is_shared are updated."
 
+    share_with_community:
+      type: boolean
+      default: false
+      note: "Whether the user has opted-in to share this chat with the community for potential selection as a demo chat. When true, the chat appears in the admin review queue."
+
     last_disclaimer_type:
       type: string
       nullable: true

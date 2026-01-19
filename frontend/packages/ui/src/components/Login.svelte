@@ -106,6 +106,7 @@
     let showEmailWarning = $state(false);
     let isEmailValidationPending = $state(false);
     let loginFailedWarning = $state(false);
+    let loginErrorMessage = $state<string | null>(null);
 
     // Add rate limiting state using $state (Svelte 5 runes mode)
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
@@ -256,6 +257,7 @@
     $effect(() => {
         if (email || password) {
             loginFailedWarning = false;
+            loginErrorMessage = null;
         }
     });
 
@@ -509,6 +511,7 @@
         try {
             isLoading = true;
             loginFailedWarning = false;
+            loginErrorMessage = null;
             
             const { getApiEndpoint, apiEndpoints } = await import('../config/api');
             const cryptoService = await import('../services/cryptoService');
@@ -757,6 +760,7 @@
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
                 console.error('Passkey assertion verification failed:', errorData);
+                loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
@@ -767,6 +771,7 @@
             
             if (!verifyData.success) {
                 console.error('Passkey verification failed:', verifyData.message);
+                loginErrorMessage = verifyData.message || null;
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
@@ -1287,6 +1292,7 @@
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
                 console.error('[Login] Passkey assertion verification failed:', errorData);
+                loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
@@ -1297,6 +1303,7 @@
             
             if (!verifyData.success) {
                 console.error('[Login] Passkey verification failed:', verifyData.message);
+                loginErrorMessage = verifyData.message || null;
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
@@ -2189,7 +2196,7 @@
                                             <PasswordAndTfaOtp
                                                 {email}
                                                 bind:isLoading
-                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
                                                 {stayLoggedIn}
                                                 {tfaAppName}
                                                 tfa_required={tfaEnabled}
@@ -2255,7 +2262,7 @@
                                                 {password}
                                                 {stayLoggedIn}
                                                 bind:isLoading
-                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
                                                 on:loginSuccess={async (e) => {
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
@@ -2297,7 +2304,7 @@
                                                 {email}
                                                 {stayLoggedIn}
                                                 bind:isLoading
-                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
                                                 on:loginSuccess={async (e) => {
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     

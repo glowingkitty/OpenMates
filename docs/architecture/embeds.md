@@ -221,6 +221,8 @@ interface EmbedStoreEntry {
   content_hash?: string; // SHA256 hash for deduplication
   text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
   share_mode: 'private' | 'shared_with_user' | 'public';
+  encryption_mode?: 'client' | 'vault'; // NEW: Encryption strategy
+  vault_key_id?: string; // NEW: Vault key ID for server-managed embeds
   createdAt: number;
   updatedAt: number;
 }

@@ -366,6 +366,10 @@ async def update_share_metadata(
             # When sharing (is_shared=true), ensure is_private=false
             if payload.is_shared:
                 updates["is_private"] = False
+
+        # Update community sharing preference
+        if payload.share_with_community is not None:
+            updates["share_with_community"] = payload.share_with_community
         
         # Update chat in database
         if updates:
@@ -522,6 +526,7 @@ async def unshare_chat(
         updates = {
             "is_private": True,
             "is_shared": False,
+            "share_with_community": False,
             "shared_encrypted_title": None,
             "shared_encrypted_summary": None
         }

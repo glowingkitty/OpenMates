@@ -6,11 +6,11 @@ The PDF app allows for viewing, searching, and analyzing PDF documents.
 
 ### Search
 
-Searches within PDF documents using grep-like pattern matching to find text, phrases, or patterns.
+Searches within PDF documents using high-performance `rg` (ripgrep) functionality to find text, phrases, or patterns.
 
 **Features:**
 - Support for searching multiple PDFs in parallel (up to 5 requests)
-- Regex pattern matching support (`grep` / `rg` style)
+- Regex pattern matching support using `rg` (ripgrep)
 - Case-sensitive and case-insensitive search options
 - Returns matched content with page numbers and context
 - Shows surrounding text before/after matches
@@ -34,7 +34,7 @@ Searches within PDF documents using grep-like pattern matching to find text, phr
 
 **Processing:**
 - Extracts text from PDFs on first search, caches for subsequent searches
-- Celery-based processing with parallel requests
+- Celery-based processing with parallel requests using `rg` (ripgrep) for search
 - Returns results incrementally as searches complete
 - Handles both text-based and scanned PDFs (with OCR support)
 

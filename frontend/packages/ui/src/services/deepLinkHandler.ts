@@ -209,7 +209,10 @@ export function processSettingsDeepLink(
     
     // Regular settings paths
     if (settingsPath.startsWith('/')) {
-        let path = settingsPath.substring(1); // Remove leading slash
+        const pathWithParams = settingsPath.substring(1); // Remove leading slash
+        // Strip query parameters for path matching (they remain in window.location.hash)
+        let path = pathWithParams.split('?')[0];
+        
         // Map common aliases
         if (path === 'appstore') {
             path = 'app_store';

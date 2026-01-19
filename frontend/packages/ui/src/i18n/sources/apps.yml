@@ -44,6 +44,52 @@ ai.description:
   cs: Pokládejte otázky, generujte nápady a další.
   sv: Ställ frågor, brainstorma idéer och mer.
   verified_by_human: [en,de]
+ai.skills.ask:
+  context: Skill name for AI ask skill
+  en: Ask
+  de: Fragen
+  zh: 提问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問する
+  ko: 질문하기
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  verified_by_human: [en,de]
+ai.skills.ask.description:
+  context: Description for AI ask skill
+  en: Ask a question, using text, images, and other media.
+  de: Stelle eine Frage mit Text, Bildern und anderen Medien.
+  zh: 使用文本、图像和其他媒体提问。
+  es: Haz una pregunta usando texto, imágenes y otros medios.
+  fr: Posez une question en utilisant du texte, des images et d'autres médias.
+  pt: Faça uma pergunta usando texto, imágenes y otros medios.
+  ru: Задайте вопрос, используя текст, изображения и другие медиа.
+  ja: テキスト、画像、その他のメディアを使用して質問する。
+  ko: 텍스트, 이미지 및 기타 미디어를 사용하여 질문하세요.
+  it: Fai una domanda usando testo, immagini e altri media.
+  tr: Metin, resimler ve diğer medya kullanarak soru sorun.
+  vi: Đặt câu hỏi bằng văn bản, hình ảnh và các phương tiện khác.
+  id: Ajukan pertanyaan menggunakan teks, gambar, dan media lainnya.
+  pl: Zadaj pytanie używając tekstu, obrazów i innych mediów.
+  nl: Stel een vraag met tekst, afbeeldingen en andere media.
+  ar: اطرح سؤالاً باستخدام النص والصور والوسائط الأخرى.
+  hi: पाठ, छवियों और अन्य मीडिया का उपयोग करके एक प्रश्न पूछें।
+  th: ถามคำถามโดยใช้ข้อความ รูปภาพ และสื่ออื่นๆ
+  cs: Položte otázku pomocí textu, obrázků a dalších médií.
+  sv: Ställ en fråga med text, bilder och annat media.
+  verified_by_human: [en,de]
 web:
   context: App name for the Web app
   en: Web
@@ -89,6 +135,52 @@ web.description:
   th: เรียกดูเว็บไซต์ วิจัยหัวข้อ และอื่นๆ
   cs: Procházejte webové stránky, zkoumejte témata a další.
   sv: Bläddra på webbplatser, forskning om ämnen och mer.
+  verified_by_human: [en,de]
+web.skills.search:
+  context: Skill name for web search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: [en,de]
+web.skills.search.description:
+  context: Description for web search skill
+  en: Search the web.
+  de: Im Web suchen.
+  zh: 搜索网络。
+  es: Buscar en la web.
+  fr: Rechercher sur le web.
+  pt: Pesquisar na web.
+  ru: Искать in internet.
+  ja: ウェブを検索する。
+  ko: 웹을 검색하세요.
+  it: Cerca sul web.
+  tr: Web'de ara.
+  vi: Tìm kiếm trên web.
+  id: Cari di web.
+  pl: Szukaj w internecie.
+  nl: Zoek op het web.
+  ar: ابحث على الويب.
+  hi: वेब पर खोजें।
+  th: ค้นหาเว็บ
+  cs: Hledat na webu.
+  sv: Sök på webben.
   verified_by_human: [en,de]
 mail:
   context: App name for the Mail app (handles both email and physical mail)
@@ -549,6 +641,98 @@ images.description:
   th: สร้างภาพ แก้ไขและปรับขนาด และอื่นๆ
   cs: Generujte obrázky, upravujte a měňte jejich velikost a další.
   sv: Generera bilder, modifiera och ändra storlek på dem och mer.
+  verified_by_human: [en,de]
+images.skills.generate:
+  context: Skill name for image generation
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  verified_by_human: [en,de]
+images.skills.generate.description:
+  context: Description for image generation skill
+  en: Generate an image based on a prompt and/or images.
+  de: Erstelle ein Bild basierend auf einer Eingabeaufforderung und/oder Bildern.
+  zh: 基于提示和/或图像生成图像。
+  es: Genera una imagen basada en un prompt y/o imágenes.
+  fr: Générez eine image basée sur une invite et/ou des images.
+  pt: Gere uma imagem com base em um prompt e/ou imagens.
+  ru: Сгенерируйте изображение на основе запроса и/или изображений.
+  ja: プロンプトや画像に基づいて画像を生成する。
+  ko: 프롬프트 및/또는 이미지를 기반으로 이미지를 생성합니다.
+  it: Genera un'immagine basata su un prompt e/o immagini.
+  tr: Bir prompt ve/veya görüntülere dayalı olarak bir görüntü oluşturun.
+  vi: Tạo hình ảnh dựa trên lời nhắc và/hoặc hình ảnh.
+  id: Hasilkan gambar berdasarkan prompt dan/atau gambar.
+  pl: Generuj obraz na podstawie promptu i/lub obrazów.
+  nl: Genereer een afbeelding op basis van een prompt en/of afbeeldingen.
+  ar: أنشئ صورة بناءً على مطالبة و/أو صور.
+  hi: एक प्रॉम्प्ट और/या छवियों के आधार पर एक छवि उत्पन्न करें।
+  th: สร้างภาพตามคำแนะนำและ/หรือภาพ
+  cs: Vygenerujte obrázek na základě výzvy a/nebo obrázků.
+  sv: Generera en bild baserat på en prompt och/eller bilder.
+  verified_by_human: [en,de]
+images.skills.generate_draft:
+  context: Skill name for draft image generation
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草图
+  es: Generar borrador
+  fr: Générer un brouillon
+  pt: Gerar rascunho
+  ru: Генерировать черновик
+  ja: 下書きを生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: Tạo bản thảo
+  id: Hasilkan draf
+  pl: Generuj wersję roboczą
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट उत्पन्न करें
+  th: สร้างฉบับร่าง
+  cs: Generovat koncept
+  sv: Generera utkast
+  verified_by_human: [en,de]
+images.skills.generate_draft.description:
+  context: Description for draft image generation skill
+  en: Quickly generate a draft image.
+  de: Schnell ein Entwurfsbild generieren.
+  zh: 快速生成草图图像。
+  es: Generar rápidamente una imagen de borrador.
+  fr: Générez rapidement une image de brouillon.
+  pt: Gere rapidamente uma imagem de rascunho.
+  ru: Быстро сгенерируйте черновик изображения.
+  ja: 下書き画像を素早く生成する。
+  ko: 초안 이미지를 빠르게 생성합니다.
+  it: Genera rapidamente un'immagine bozza.
+  tr: Hızlı bir şekilde taslak görüntü oluşturun.
+  vi: Nhanh chóng tạo một hình ảnh bản thảo.
+  id: Hasilkan gambar draf dengan cepat.
+  pl: Szybko generuj obraz wersji roboczej.
+  nl: Snel een conceptafbeelding genereren.
+  ar: إنشاء صورة مسودة بسرعة.
+  hi: जल्दी से एक ड्राफ्ट छवि उत्पन्न करें।
+  th: สร้างภาพฉบับร่างอย่างรวดเร็ว
+  cs: Rychle generovat koncept obrázku.
+  sv: Generera snabbt en utkastbild.
   verified_by_human: [en,de]
 health:
   context: App name for the Health app

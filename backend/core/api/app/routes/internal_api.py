@@ -110,28 +110,21 @@ async def get_provider_model_pricing_route(
     """
     logger.info(f"Internal API: Requesting pricing for provider '{provider_id}', model suffix '{model_id_suffix}'.")
     try:
-        provider_config = config_manager.get_provider_config(provider_id)
-        if not provider_config:
-            raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found.")
+        # Use config_manager's method to get model details
+        model_details = config_manager.get_model_pricing(provider_id, model_id_suffix)
         
-        # Attempt to get pricing using model_id_suffix directly
-        model_pricing = provider_config.get_model_pricing(model_id_suffix)
-        
-        if not model_pricing:
-            # If not found, try constructing full model_id (provider_id/model_id_suffix)
-            # This handles cases where model_id_suffix might be just the model name part
-            full_model_id_from_suffix = f"{provider_id}/{model_id_suffix}"
-            model_pricing = provider_config.get_model_pricing(full_model_id_from_suffix)
+        if not model_details:
+            # Try full model ID if suffix didn't work
+            full_model_id = f"{provider_id}/{model_id_suffix}"
+            model_details = config_manager.get_model_pricing(provider_id, full_model_id)
 
+        if not model_details:
+            raise HTTPException(status_code=404, detail=f"Model pricing for '{model_id_suffix}' (provider '{provider_id}') not found.")
+
+        # Extract the pricing block from the model details
+        model_pricing = model_details.get("pricing")
         if not model_pricing:
-            # Final fallback: iterate through models if get_model_pricing is too strict
-            # This is more robust if model IDs in YAML don't always match the exact lookup key.
-            for model_conf in provider_config.models:
-                if model_conf.id == model_id_suffix or model_conf.id == f"{provider_id}/{model_id_suffix}":
-                    model_pricing = model_conf.pricing.model_dump(exclude_none=True) if model_conf.pricing else None
-                    break
-            if not model_pricing:
-                 raise HTTPException(status_code=404, detail=f"Model pricing for '{model_id_suffix}' (provider '{provider_id}') not found after checking multiple forms.")
+            raise HTTPException(status_code=404, detail=f"Pricing not found for model '{model_id_suffix}' in provider '{provider_id}'.")
 
         return model_pricing
     except HTTPException:

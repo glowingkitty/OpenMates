@@ -10,6 +10,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     const dispatch = createEventDispatcher();
 
     /**
+     * Navigate to Email submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToEmail() {
+        dispatch('openSettings', {
+            settingsPath: 'account/email',
+            direction: 'forward',
+            icon: 'mail',
+            title: $text('settings.account.email.text')
+        });
+    }
+
+    /**
      * Navigate to Security submenu.
      * Dispatches navigation event to parent Settings component.
      */
@@ -49,6 +62,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 </script>
+
+<SettingsItem
+    type="submenu"
+    icon="mail"
+    title={$text('settings.account.email.text')}
+    onClick={navigateToEmail}
+/>
 
 <SettingsItem
     type="submenu"

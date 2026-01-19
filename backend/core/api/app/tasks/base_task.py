@@ -1,6 +1,6 @@
 import logging
 import os # Import os for environment variables
-from typing import Optional
+from typing import Optional, Dict, Any
 import asyncio # Keep asyncio import if initialize_services uses it
 
 from celery import Task # Import Task for context
@@ -135,6 +135,31 @@ class BaseServiceTask(Task):
             logger.debug(f"PaymentService initialized for task {self.request.id}")
         else:
             logger.debug(f"PaymentService already initialized for task {self.request.id}")
+
+
+    async def publish_websocket_event(self, user_id_hash: str, event: str, payload: Dict[str, Any]):
+        """
+        Publish a WebSocket event to a user via Redis.
+        """
+        if self._cache_service is None:
+            await self.initialize_services()
+            
+        client = await self._cache_service.client
+        if client:
+            import json as json_lib
+            channel_key = f"websocket:user:{user_id_hash}"
+            event_payload = {
+                "event": event,
+                "type": event,
+                "event_for_client": event,
+                "payload": payload
+            }
+            await client.publish(channel_key, json_lib.dumps(event_payload))
+            logger.info(f"Published WebSocket event '{event}' to user '{user_id_hash[:8]}...'")
+            return True
+        else:
+            logger.warning(f"Redis client not available, cannot publish WebSocket event '{event}'")
+            return False
 
 
     @property

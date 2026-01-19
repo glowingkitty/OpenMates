@@ -70,6 +70,7 @@ class BaseSkill:
     stage: str = Field(default="development", description="The deployment stage of the skill (e.g., 'development', 'production').")
     full_model_reference: Optional[str] = Field(None, description="Full reference to the model used by the skill, if applicable (e.g., 'google/gemini-2.5-pro').")
     pricing: Optional[SkillPricing] = Field(None, description="Specific pricing for this skill (from backend.core.api.app.yml), overrides provider model pricing if set.")
+    skill_operational_defaults: Optional[Dict[str, Any]] = Field(None, description="Operational defaults for the skill (from app.yml default_config).")
 
     # Dependencies like ConfigManager and DirectusService will be accessed via internal API calls.
     app: 'BaseApp' # Type hint for the parent BaseApp instance, resolved by TYPE_CHECKING import
@@ -94,7 +95,8 @@ class BaseSkill:
         stage: str = "development",
         full_model_reference: Optional[str] = None,
         pricing_config: Optional[Dict[str, Any]] = None, # This dict should match SkillPricing structure
-        celery_producer: Optional[Celery] = None
+        celery_producer: Optional[Celery] = None,
+        skill_operational_defaults: Optional[Dict[str, Any]] = None
     ):
         self.app = app # Store reference to the parent BaseApp instance
         self.app_id = app_id
@@ -104,6 +106,7 @@ class BaseSkill:
         self.stage = stage
         self.full_model_reference = full_model_reference
         self.celery_producer = celery_producer
+        self.skill_operational_defaults = skill_operational_defaults
         if pricing_config:
             self.pricing = SkillPricing(**pricing_config)
         else:

@@ -397,8 +397,18 @@ class ChatMethods:
                 )
                 return None  # Reject the message
             
-            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}, role: {role}")
+            # IDEMPOTENCY FIX: Generate a deterministic UUID for the Primary Key 'id' field
+            # based on the client_message_id. This ensures that even if the unique constraint 
+            # on client_message_id is missing in the database, the Primary Key constraint 
+            # will prevent duplicate messages.
+            import uuid
+            # Use namespace UUID for deterministic generation
+            NAMESPACE_OPENMATES_MESSAGE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8') # DNS namespace as base
+            deterministic_id = str(uuid.uuid5(NAMESPACE_OPENMATES_MESSAGE, message_id))
+
+            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}, role: {role}, id: {deterministic_id}")
             payload_to_directus = {
+                "id": deterministic_id, # Deterministic PK to prevent duplicates
                 "client_message_id": message_id,
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
@@ -422,6 +432,12 @@ class ChatMethods:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:messages")
                 return result_data
             else:
+                # Check for duplicate key error (RECORD_NOT_UNIQUE)
+                if isinstance(result_data, dict) and 'RECORD_NOT_UNIQUE' in str(result_data.get('text', '')):
+                    logger.warning(f"⚠️ Message {message_id} already exists in Directus (RECORD_NOT_UNIQUE). Treating as success.")
+                    # Return a dummy dict with the ID to indicate "success" (already exists)
+                    return {"id": deterministic_id, "client_message_id": message_id}
+                
                 logger.error(f"Failed to create message in Directus for chat {chat_id_val}. Details: {result_data}")
                 return None
         except Exception as e:

@@ -1,0 +1,37 @@
+# backend/providers/bfl.yml
+#
+# Configuration for Black Forest Labs (BFL) AI services (creators of FLUX).
+
+provider_id: "bfl"
+name: "Black Forest Labs"
+description: "High-performance image generation models including FLUX.1."
+logo_svg: "logos/bfl.svg"
+
+models:
+  - id: "flux-schnell"
+    name: "FLUX.1 Schnell"
+    description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency."
+    input_types:
+      - text
+    output_types:
+      - image
+    default_server: "fal"
+    servers:
+      - id: "fal"
+        name: "fal.ai"
+        model_id: "fal-ai/flux-2/klein/9b/base"
+      # - id: "bfl"
+      #   name: "BFL API"
+    pricing:
+      per_unit:
+        credits: 15
+        unit_name: "megapixel"
+    costs:
+      output_per_megapixel:
+        price: 0.011
+        currency: USD
+
+# Pricing Formula:
+# 1. Your price to user = your_cost_per_unit * markup
+# 2. Credits per unit = your_price_to_user / credit_value_usd (0.001)
+# Simplified: credits_per_unit = your_cost_per_unit * 3000

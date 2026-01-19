@@ -70,7 +70,6 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
-    import SettingsBecomeAdmin from './settings/server/SettingsBecomeAdmin.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -152,6 +151,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsPassword from './settings/security/SettingsPassword.svelte';
     import SettingsTwoFactorAuth from './settings/security/SettingsTwoFactorAuth.svelte';
     import SettingsRecoveryKey from './settings/security/SettingsRecoveryKey.svelte';
+    import SettingsEmail from './settings/account/SettingsEmail.svelte';
     import SettingsDeleteAccount from './settings/account/SettingsDeleteAccount.svelte';
     import SettingsExportAccount from './settings/account/SettingsExportAccount.svelte'; // GDPR Article 20 - Data Portability
     
@@ -189,10 +189,10 @@ changes to the documentation (to keep the documentation up to date).
         'server': SettingsServer,
         'server/software-update': SettingsSoftwareUpdate,
         'server/community-suggestions': SettingsCommunitySuggestions,
-        'server/become-admin': SettingsBecomeAdmin,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
+        'account/email': SettingsEmail,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
         'account/security/password': SettingsPassword,
@@ -327,10 +327,9 @@ changes to the documentation (to keep the documentation up to date).
                 }
             } else {
                 // For authenticated users, include all non-server settings, or include server settings if user is admin
-                // Exception: 'server/become-admin' is accessible to all authenticated users (via direct link)
                 // Shared settings (including nested share chat) are available for authenticated users
                 // Admin status is read from userProfile.is_admin (synced during login, no separate API call needed)
-                if (!key.startsWith('server') || $userProfile.is_admin || key === 'server/become-admin') {
+                if (!key.startsWith('server') || $userProfile.is_admin) {
                     filtered[key] = component;
                 }
             }

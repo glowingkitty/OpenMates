@@ -78,6 +78,61 @@ class BaseApp:
         self._register_default_routes()
         self._register_skill_routes()
 
+    def _get_skill_models(self, skill_def: AppSkillDefinition):
+        """
+        Determine the request and response models for a skill at registration time.
+        Looks for standard model names in the skill's module.
+        """
+        SkillRequestModel = None
+        SkillResponseModel = None
+        
+        if skill_def.class_path:
+            try:
+                # Import the skill module to get its models
+                module_path, class_name = skill_def.class_path.rsplit('.', 1)
+                # module_path might be 'backend.apps.ai.skills.ask_skill' or 'ai.skills.ask_skill'
+                # BaseApp handles it relative to backend.apps
+                if not module_path.startswith('backend.'):
+                    full_module_path = f"backend.apps.{module_path}"
+                else:
+                    full_module_path = module_path
+                    
+                skill_module = importlib.import_module(full_module_path)
+                
+                # Standard model names to look for
+                request_names = ['AskSkillRequest', 'OpenAICompletionRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']
+                response_names = ['AskSkillResponse', 'OpenAICompletionResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']
+                
+                found_requests = []
+                for name in request_names:
+                    if hasattr(skill_module, name):
+                        model = getattr(skill_module, name)
+                        if model not in found_requests:
+                            found_requests.append(model)
+                
+                if found_requests:
+                    if len(found_requests) > 1:
+                        SkillRequestModel = Union[tuple(found_requests)]
+                    else:
+                        SkillRequestModel = found_requests[0]
+
+                found_responses = []
+                for name in response_names:
+                    if hasattr(skill_module, name):
+                        model = getattr(skill_module, name)
+                        if model not in found_responses:
+                            found_responses.append(model)
+                
+                if found_responses:
+                    if len(found_responses) > 1:
+                        SkillResponseModel = Union[tuple(found_responses)]
+                    else:
+                        SkillResponseModel = found_responses[0]
+            except Exception as e:
+                logger.warning(f"Could not load models for skill '{skill_def.id}' from '{skill_def.class_path}': {e}")
+                
+        return SkillRequestModel, SkillResponseModel
+
     def _register_skill_routes(self):
         if not self.is_valid or not self.app_config or not self.app_config.skills:
             return
@@ -97,16 +152,50 @@ class BaseApp:
                     logger.error(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
                     continue
 
+                # Determine models for documentation
+                SkillRequestModel, SkillResponseModel = self._get_skill_models(skill_def)
+                
+                # If no request model found but tool_schema exists, create one from schema
+                if not SkillRequestModel and skill_def.tool_schema:
+                    try:
+                        # For simple documentation, we'll just use the tool_schema's example or a generic one
+                        # Generating a full model from JSON schema is complex, so let's use a simpler approach
+                        # using Body(..., example=...) in the handler
+                        pass
+                    except Exception:
+                        pass
+                
                 # CRITICAL: Capture all values as default parameters to avoid Python closure late-binding issues
-                # Python closures capture variables by reference, not by value. Using default parameters
-                # forces evaluation at function definition time, ensuring each route uses the correct skill.
                 skill_id_for_route = skill_def.id
                 captured_skill_def = skill_def
                 captured_skill_class = skill_class_attr
 
-                @self.fastapi_app.post(f"/skills/{skill_id_for_route}", tags=["Skills"], name=f"execute_skill_{skill_id_for_route}")
+                # Prepare the description for the endpoint
+                route_description = f"Execute the {skill_def.id} skill."
+                if skill_def.description_translation_key:
+                    route_description = self._resolve_translation_key(skill_def.description_translation_key)
+                
+                route_description += " The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication."
+
+                from fastapi import Body
+
+                # Use a dummy parameter with Body() to provide documentation
+                # FastAPI will ignore it if it's not used, but it will show up in Swagger
+                @self.fastapi_app.post(
+                    f"/skills/{skill_id_for_route}", 
+                    tags=["Skills"], 
+                    name=f"execute_skill_{skill_id_for_route}",
+                    response_model=SkillResponseModel,
+                    description=route_description
+                )
                 async def _dynamic_skill_executor(
                     request: Request,
+                    body: Any = Body(
+                        None, 
+                        alias="request_body",
+                        description=f"Request body for {skill_id_for_route} skill.",
+                        example=skill_def.tool_schema.get('example', {}) if skill_def.tool_schema else None
+                    ),
                     skill_definition=captured_skill_def,
                     captured_class=captured_skill_class
                 ):
@@ -115,6 +204,7 @@ class BaseApp:
                     Supports both internal format and OpenAI-compatible format.
                     Automatically detects the request format based on the skill's execute method signature.
                     """
+                    # We still use the manual parsing in _execute_skill_route
                     return await self._execute_skill_route(request, skill_definition, captured_class)
 
             except Exception as e:
@@ -151,11 +241,16 @@ class BaseApp:
 
             logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
 
-            # Extract metadata fields (_chat_id, _message_id) from request body if present
-            # These are used for linking usage entries to chat sessions
+            # Extract metadata fields (_chat_id, _message_id, _user_id) from request body if present
+            # These are used for linking usage entries to chat sessions and identifying the user
             # We'll remove them from request_body before passing to skill to avoid validation errors
             chat_id = request_body.get("_chat_id")
             message_id = request_body.get("_message_id")
+            user_id = request_body.get("_user_id")
+            api_key_name = request_body.get("_api_key_name")
+            api_key_hash = request_body.get("_api_key_hash")
+            device_hash = request_body.get("_device_hash")
+            external_request = request_body.get("_external_request", False)
 
             # Initialize skill instance
             # Extract full_model_reference from default_config if present, otherwise use None
@@ -182,13 +277,27 @@ class BaseApp:
                 celery_producer=self.celery_producer,
                 skill_operational_defaults=skill_definition.default_config
             )
-
-            # Set execution context (chat_id, message_id) on skill instance
+            
+            # (around line 186)
+            # Set execution context (chat_id, message_id, user_id) on skill instance
             # This allows skills to use these values when recording usage via record_skill_usage
             if chat_id:
                 skill_instance._current_chat_id = chat_id
             if message_id:
                 skill_instance._current_message_id = message_id
+            
+            # We'll collect all context fields to pass as kwargs to execute()
+            skill_kwargs = {
+                "user_id": user_id,
+                "api_key_name": api_key_name,
+                "api_key_hash": api_key_hash,
+                "device_hash": device_hash,
+                "external_request": external_request,
+                "chat_id": chat_id,
+                "message_id": message_id
+            }
+            # Remove None values
+            skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
         except HTTPException:
             raise
         except Exception as init_e:
@@ -213,10 +322,16 @@ class BaseApp:
                 # and the code would incorrectly try to validate the request body against SecretsManager.
                 request_model = None
                 union_types = None
+                first_param = None
                 for param_name, param in params.items():
                     if param_name == 'self':
                         continue
                     
+                    # Capture the first non-self parameter that doesn't have a default value
+                    # (These are typically the main request model or list of requests)
+                    if first_param is None and param.default is inspect.Parameter.empty:
+                        first_param = param
+
                     # Skip parameters with default values - these are not request body fields
                     # They are typically dependency-injected (e.g., secrets_manager, cache_service)
                     if param.default is not inspect.Parameter.empty:
@@ -299,27 +414,29 @@ class BaseApp:
                             logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
                             request_obj = request_model(**clean_request_body)
 
-                        # Check if the execute method expects the Pydantic model or just the requests list
-                        # Most skills expect requests: List[Dict[str, Any]] directly, not the Pydantic wrapper
-                        # Reuse the signature we already have
-                        first_param = None
-                        for param_name, param in params.items():
-                            if param_name != 'self' and param_name != 'secrets_manager':
-                                first_param = param
-                                break
-
                         # If execute() expects a list (requests), extract it from the Pydantic model
                         # Otherwise pass the Pydantic model directly
+                        
+                        # Filter skill_kwargs to only include arguments that the execute method actually accepts
+                        # This avoids TypeErrors when passing extra context fields to skills that don't use them
+                        # (e.g. TypeError: execute() got an unexpected keyword argument 'external_request')
+                        import inspect
+                        execute_params = inspect.signature(skill_instance.execute).parameters
+                        supported_skill_kwargs = {
+                            k: v for k, v in skill_kwargs.items() 
+                            if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
+                        }
+
                         if first_param and 'List' in str(first_param.annotation):
                             # Execute method expects a list - extract requests from Pydantic model
                             if hasattr(request_obj, 'requests'):
-                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None)
+                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None, **supported_skill_kwargs)
                             else:
                                 # Fallback: try to pass the model and let the skill handle it
-                                response = await skill_instance.execute(request_obj)
+                                response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
                         else:
                             # Execute method expects the Pydantic model directly (or Union type)
-                            response = await skill_instance.execute(request_obj)
+                            response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
                     except HTTPException:
                         raise
                     except Exception as validation_error:
@@ -337,12 +454,23 @@ class BaseApp:
                 else:
                     # No Pydantic model found - try unpacking as keyword arguments
                     # Remove internal metadata fields but preserve context fields for API authentication
-                    context_fields = {'_user_id', '_api_key_name', '_external_request'}
+                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
                         if not k.startswith("_") or k in context_fields
                     }
                     logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
+                    
+                    # Merge context fields into clean_request_body for non-Pydantic skills
+                    # Filter skill_kwargs to only include arguments that the execute method actually accepts
+                    import inspect
+                    execute_params = inspect.signature(skill_instance.execute).parameters
+                    supported_skill_kwargs = {
+                        k: v for k, v in skill_kwargs.items() 
+                        if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
+                    }
+                    
+                    clean_request_body.update(supported_skill_kwargs)
                     response = await skill_instance.execute(**clean_request_body)
 
                 # Ensure response is properly serialized before returning

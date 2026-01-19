@@ -1033,8 +1033,12 @@ def create_app() -> FastAPI:
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     
     # API routers - explicitly included in schema (support API key authentication)
+    from backend.core.api.app.routes import tasks_api
+    from backend.core.api.app.routes import embeds_api
     app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
+    app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
+    app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     

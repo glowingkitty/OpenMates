@@ -21,7 +21,7 @@ import sys
 import json
 import base64
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 
 # Add the backend directory to the Python path
 sys.path.insert(0, '/app/backend')
@@ -166,7 +166,15 @@ async def get_user_data(directus_service: DirectusService, email: str) -> Option
         if response.status_code == 200:
             data = response.json().get("data", [])
             if data:
-                return data[0]
+                user_record = data[0]
+                
+                # Check server_admins collection for formal admin record
+                user_id = user_record.get('id')
+                if user_id:
+                    is_server_admin = await directus_service.admin.is_user_admin(user_id)
+                    user_record['is_server_admin_record_exists'] = is_server_admin
+                
+                return user_record
         
         script_logger.warning(f"User not found in Directus: {email} (Status: {response.status_code})")
         return None
@@ -347,7 +355,12 @@ def format_output_text(
     lines.append(f"  ID:                {user_data.get('id')}")
     lines.append(f"  Account ID:        {user_data.get('account_id', 'N/A')}")
     lines.append(f"  Status:            {user_data.get('status', 'N/A')}")
-    lines.append(f"  Is Admin:          {user_data.get('is_admin', False)}")
+    
+    is_admin_flag = user_data.get('is_admin', False)
+    is_server_admin_record = user_data.get('is_server_admin_record_exists', False)
+    admin_status = f"{is_admin_flag} (Flag) | {is_server_admin_record} (Server Admin Record)"
+    lines.append(f"  Is Admin:          {admin_status}")
+    
     lines.append(f"  Signup Completed:  {user_data.get('signup_completed', False)}")
     lines.append(f"  Last Online:       {format_timestamp(user_data.get('last_online_timestamp'), relative=True)}")
     lines.append(f"  Last Opened:       {user_data.get('last_opened', 'N/A')}")

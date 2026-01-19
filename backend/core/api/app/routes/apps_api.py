@@ -12,7 +12,7 @@ import logging
 import httpx
 import hashlib
 import os
-import json
+
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI
 from pydantic import BaseModel, Field
@@ -25,7 +25,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
-from backend.shared.python_utils.billing_utils import calculate_total_credits, PricingConfig
+from backend.shared.python_utils.billing_utils import calculate_total_credits
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -226,7 +226,7 @@ def resolve_translation(translation_service, translation_key: str, namespace: st
         translations = translation_service.get_translations(lang="en")
         
         if not translations:
-            logger.warning(f"No translations loaded for language 'en'")
+            logger.warning("No translations loaded for language 'en'")
             return fallback or translation_key
         
         # Check if namespace exists
@@ -731,7 +731,32 @@ async def calculate_skill_credits(
         # Skill has explicit pricing in app.yml - use it
         pricing_config = skill_def.pricing.model_dump(exclude_none=True)
         logger.debug(f"Using skill-level pricing from app.yml for '{app_metadata.id}.{skill_id}'")
-    elif skill_def.providers and len(skill_def.providers) > 0:
+    elif skill_def.full_model_reference:
+        # Skill has a full model reference - try to get model-specific pricing
+        try:
+            # Parse provider and model from full_model_reference (e.g., "google/gemini-3-pro-image-preview")
+            if "/" in skill_def.full_model_reference:
+                provider_id, model_suffix = skill_def.full_model_reference.split("/", 1)
+                
+                # Fetch model-specific pricing via internal API
+                headers = {"Content-Type": "application/json"}
+                if INTERNAL_API_SHARED_TOKEN:
+                    headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+                
+                endpoint = f"internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+                url = f"{INTERNAL_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+                
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(url, headers=headers)
+                    response.raise_for_status()
+                    pricing_config = response.json()
+                    logger.debug(f"Using model-specific pricing for '{skill_def.full_model_reference}': {pricing_config}")
+            else:
+                logger.warning(f"Invalid full_model_reference format: '{skill_def.full_model_reference}'. Expected 'provider/model'.")
+        except Exception as e:
+            logger.warning(f"Error fetching model-specific pricing for '{skill_def.full_model_reference}': {e}")
+            
+    if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
         # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
         # Use the first provider (most skills will have one primary provider)
         provider_name = skill_def.providers[0]
@@ -1207,7 +1232,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
-            description=f"Get metadata for the {app_name} app including all available skills. Requires API key authentication.",
+            description=f"Get metadata for the {app_name} app. {app_description}".strip(),
             dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
         )
         
@@ -1282,20 +1307,23 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         # class_path is relative to backend/apps (e.g., "ai.skills.ask_skill.AskSkill")
                         # We need to convert to full module path: "backend.apps.ai.skills.ask_skill"
                         module_path, class_name = captured_skill.class_path.rsplit('.', 1)
-                        full_module_path = f"backend.apps.{module_path}"
+                        if not module_path.startswith('backend.'):
+                            full_module_path = f"backend.apps.{module_path}"
+                        else:
+                            full_module_path = module_path
                         skill_module = importlib.import_module(full_module_path)
                         
                         # Look for Request and Response models in the module
                         # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
                         # Include skill-specific names like GetDocsRequest for get_docs skill
                         # Also include AI-specific models: AskSkillRequest, OpenAICompletionRequest
-                        for model_name in ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'Request']:
+                        for model_name in ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']:
                             if hasattr(skill_module, model_name):
                                 SkillRequestModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
                                 break
                         
-                        for model_name in ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'Response']:
+                        for model_name in ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']:
                             if hasattr(skill_module, model_name):
                                 SkillResponseModel = getattr(skill_module, model_name)
                                 logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
@@ -1620,13 +1648,13 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                                             yield "\n"
                                         except httpx.TimeoutException:
                                             logger.error("AI skill streaming timeout")
-                                            yield f'data: {{"error": "Request timeout"}}\n\n'
+                                            yield 'data: {"error": "Request timeout"}\n\n'
                                             yield 'data: [DONE]\n\n'
                                         except Exception as e:
                                             logger.error(f"AI skill streaming error: {e}", exc_info=True)
                                             yield f'data: {{"error": "{str(e)}"}}\n\n'
                                             yield 'data: [DONE]\n\n'
-                                    
+
                                     return FastAPIStreamingResponse(
                                         stream_generator(),
                                         media_type="text/event-stream",

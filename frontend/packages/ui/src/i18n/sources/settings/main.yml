@@ -1866,6 +1866,10 @@ server:
   cs: ''
   sv: ''
   verified_by_human: []
+server.community_suggestions:
+  context: Community suggestions menu item
+  en: Community Suggestions
+  de: Community-Vorschläge
 software_updates:
   context: Software updates settings menu item
   en: Software updates
