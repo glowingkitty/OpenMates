@@ -92,6 +92,16 @@ if cp "$CADDYFILE_PATH" "$SYSTEM_CADDYFILE"; then
     chown root:root "$SYSTEM_CADDYFILE"
     chmod 644 "$SYSTEM_CADDYFILE"
     echo -e "${GREEN}✓ Permissions set correctly${NC}"
+
+    # Step 2.1: Fix potential log file permission issues created by 'caddy validate' run as root
+    if [ -d /var/log/caddy ]; then
+        echo -e "${BLUE}Ensuring /var/log/caddy/ permissions...${NC}"
+        chown -R caddy:caddy /var/log/caddy
+        chmod -R 755 /var/log/caddy
+        # Ensure log files themselves are not world-readable but writable by caddy
+        find /var/log/caddy -type f -exec chmod 640 {} +
+        echo -e "${GREEN}✓ Log permissions fixed${NC}"
+    fi
 else
     echo -e "${RED}✗ Failed to copy Caddyfile${NC}"
     exit 1
@@ -99,14 +109,29 @@ fi
 echo ""
 
 # Step 3: Reload Caddy to apply changes
-echo -e "${BLUE}[3/3] Reloading Caddy service...${NC}"
-if systemctl reload caddy; then
-    echo -e "${GREEN}✓ Caddy reloaded successfully${NC}"
+echo -e "${BLUE}[3/3] Applying Caddy configuration...${NC}"
+# Use restart instead of reload if service is already in a 'reloading' state or stuck
+if systemctl is-active --quiet caddy && [[ "$(systemctl show caddy --property=ActiveState)" != "ActiveState=reloading" ]]; then
+    echo -e "Attempting ${BLUE}reload${NC}..."
+    if timeout 10s systemctl reload caddy; then
+        echo -e "${GREEN}✓ Caddy reloaded successfully${NC}"
+    else
+        echo -e "${YELLOW}Reload timed out or failed. Attempting full restart...${NC}"
+        if systemctl restart caddy; then
+            echo -e "${GREEN}✓ Caddy restarted successfully${NC}"
+        else
+            echo -e "${RED}✗ Failed to restart Caddy${NC}"
+            exit 1
+        fi
+    fi
 else
-    echo -e "${RED}✗ Failed to reload Caddy${NC}"
-    echo -e "${YELLOW}Checking Caddy status...${NC}"
-    systemctl status caddy --no-pager -l | head -20
-    exit 1
+    echo -e "Service is stuck or inactive. Attempting ${BLUE}restart${NC}..."
+    if systemctl restart caddy; then
+        echo -e "${GREEN}✓ Caddy restarted successfully${NC}"
+    else
+        echo -e "${RED}✗ Failed to restart Caddy${NC}"
+        exit 1
+    fi
 fi
 echo ""
 
