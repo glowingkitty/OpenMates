@@ -189,9 +189,8 @@ export function processSettingsDeepLink(
     const newsletterUnsubscribeMatch = settingsPath.match(/^\/newsletter\/unsubscribe\/(.+)$/);
     const emailBlockMatch = settingsPath.match(/^\/email\/block\/(.+)$/);
     const accountDeleteMatch = settingsPath.match(/^\/account\/delete\/[^/]+$/);
-    const becomeAdminMatch = settingsPath.match(/^\/server\/become-admin(\?.*)?$/);
     
-    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch || becomeAdminMatch) {
+    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch) {
         // These deep links keep the hash for component processing
         // Navigate to the base settings page
         if (refundMatch) {
@@ -203,8 +202,6 @@ export function processSettingsDeepLink(
             // This ensures Settings.svelte can extract the activeAccountId
             const path = hash.startsWith('#settings/') ? hash.substring('#settings/'.length) : 'account/delete';
             handlers.setSettingsDeepLink(path);
-        } else if (becomeAdminMatch) {
-            handlers.setSettingsDeepLink('server/become-admin');
         }
         // Don't clear hash - component will process it
         return;

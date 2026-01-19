@@ -21,6 +21,30 @@ account:
   cs: Účet
   sv: Konto
   verified_by_human: []
+email:
+  context: Email submenu item
+  en: E-mail
+  de: E-Mail
+email.loading:
+  context: Loading message for email decryption
+  en: Decrypting e-mail address...
+  de: E-Mail-Adresse wird entschlüsselt...
+email.current_email:
+  context: Header for current email address
+  en: Current E-mail Address
+  de: Aktuelle E-Mail-Adresse
+email.privacy_info:
+  context: Privacy information about email storage
+  en: >-
+    Your e-mail address is stored encrypted on your device and the server.
+    Only you can decrypt it using your master key.
+  de: >-
+    Ihre E-Mail-Adresse wird verschlüsselt auf Ihrem Gerät und dem Server gespeichert.
+    Nur Sie können sie mit Ihrem Hauptschlüssel entschlüsseln.
+email.error_decrypting:
+  context: Error message when email decryption fails
+  en: Failed to decrypt e-mail address.
+  de: E-Mail-Adresse konnte nicht entschlüsselt werden.
 security:
   context: Security submenu under Account settings
   en: Security
