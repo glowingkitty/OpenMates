@@ -141,7 +141,6 @@ class BaseApp:
                 
                 # If no request model found but tool_schema exists, create one from schema
                 if not SkillRequestModel and skill_def.tool_schema:
-                    from pydantic import create_model
                     try:
                         # For simple documentation, we'll just use the tool_schema's example or a generic one
                         # Generating a full model from JSON schema is complex, so let's use a simpler approach
@@ -154,7 +153,6 @@ class BaseApp:
                 skill_id_for_route = skill_def.id
                 captured_skill_def = skill_def
                 captured_skill_class = skill_class_attr
-                captured_request_model = SkillRequestModel
 
                 # Prepare the description for the endpoint
                 route_description = f"Execute the {skill_def.id} skill."
@@ -308,10 +306,16 @@ class BaseApp:
                 # and the code would incorrectly try to validate the request body against SecretsManager.
                 request_model = None
                 union_types = None
+                first_param = None
                 for param_name, param in params.items():
                     if param_name == 'self':
                         continue
                     
+                    # Capture the first non-self parameter that doesn't have a default value
+                    # (These are typically the main request model or list of requests)
+                    if first_param is None and param.default is inspect.Parameter.empty:
+                        first_param = param
+
                     # Skip parameters with default values - these are not request body fields
                     # They are typically dependency-injected (e.g., secrets_manager, cache_service)
                     if param.default is not inspect.Parameter.empty:
@@ -423,7 +427,7 @@ class BaseApp:
                 else:
                     # No Pydantic model found - try unpacking as keyword arguments
                     # Remove internal metadata fields but preserve context fields for API authentication
-                    context_fields = {'_user_id', '_api_key_name', '_external_request'}
+                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
                         if not k.startswith("_") or k in context_fields
