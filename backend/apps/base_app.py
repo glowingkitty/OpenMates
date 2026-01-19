@@ -100,18 +100,34 @@ class BaseApp:
                 skill_module = importlib.import_module(full_module_path)
                 
                 # Standard model names to look for
-                request_names = ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']
-                response_names = ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']
+                request_names = ['AskSkillRequest', 'OpenAICompletionRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']
+                response_names = ['AskSkillResponse', 'OpenAICompletionResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']
                 
+                found_requests = []
                 for name in request_names:
                     if hasattr(skill_module, name):
-                        SkillRequestModel = getattr(skill_module, name)
-                        break
+                        model = getattr(skill_module, name)
+                        if model not in found_requests:
+                            found_requests.append(model)
                 
+                if found_requests:
+                    if len(found_requests) > 1:
+                        SkillRequestModel = Union[tuple(found_requests)]
+                    else:
+                        SkillRequestModel = found_requests[0]
+
+                found_responses = []
                 for name in response_names:
                     if hasattr(skill_module, name):
-                        SkillResponseModel = getattr(skill_module, name)
-                        break
+                        model = getattr(skill_module, name)
+                        if model not in found_responses:
+                            found_responses.append(model)
+                
+                if found_responses:
+                    if len(found_responses) > 1:
+                        SkillResponseModel = Union[tuple(found_responses)]
+                    else:
+                        SkillResponseModel = found_responses[0]
             except Exception as e:
                 logger.warning(f"Could not load models for skill '{skill_def.id}' from '{skill_def.class_path}': {e}")
                 

@@ -317,6 +317,14 @@ export function handleAIMessageUpdateImpl(
         } else {
             // Task info missing or mismatched - still dispatch event but log warning
             console.warn(`[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : 'undefined'}, payload.task_id=${payload.task_id}`);
+            
+            // CRITICAL FIX: Clear the active task for this chat anyway to ensure the stop button disappears
+            // This handles cases where task IDs might be out of sync or mismatched due to websocket hiccups
+            if (taskInfo) {
+                serviceInstance.activeAITasks.delete(payload.chat_id);
+                console.info(`[ChatSyncService:AI] Cleared mismatched active task ${taskInfo.taskId} for chat ${payload.chat_id} because another task ended.`);
+            }
+            
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
         }
     }
