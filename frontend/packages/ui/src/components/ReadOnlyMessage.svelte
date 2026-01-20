@@ -50,6 +50,60 @@
             }
         });
     }
+
+    /**
+     * Selects the word at the specified coordinates, or the whole message as fallback.
+     */
+    export function selectAt(x: number, y: number) {
+        if (!editorElement) return;
+
+        tick().then(() => {
+            const selection = window.getSelection();
+            if (!selection) return;
+
+            let range: Range | null = null;
+
+            // Standard method to get range from point
+            if (document.caretRangeFromPoint) {
+                range = document.caretRangeFromPoint(x, y);
+            } else if ((document as any).caretPositionFromPoint) {
+                const pos = (document as any).caretPositionFromPoint(x, y);
+                if (pos) {
+                    range = document.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                }
+            }
+
+            if (range && editorElement.contains(range.startContainer)) {
+                // Point is within our message
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                // Try to expand to the word at the position
+                try {
+                    // modify() is non-standard but widely supported in WebKit/Blink
+                    if ((selection as any).modify) {
+                        (selection as any).modify('extend', 'backward', 'word');
+                        (selection as any).modify('extend', 'forward', 'word');
+                    }
+                    
+                    // If we only selected whitespace or nothing substantial, fall back to select all
+                    if (selection.toString().trim().length === 0) {
+                        selectAll();
+                    } else {
+                        logger.debug('Word selected at point');
+                    }
+                } catch (e) {
+                    logger.debug('Failed to expand selection, falling back to select all', e);
+                    selectAll();
+                }
+            } else {
+                // Not on text or outside, select all
+                selectAll();
+            }
+        });
+    }
     
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport

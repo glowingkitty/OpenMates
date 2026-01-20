@@ -213,12 +213,11 @@
       return;
     }
 
-    // If selection mode is active and there is a selection, don't show menu
+    // CRITICAL: If selection mode is active, don't show custom menu on click.
+    // This allows users to tap around to adjust their selection or select different words
+    // without the menu interfering.
     if (selectable) {
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        return;
-      }
+      return;
     }
 
     // Only show if the menu isn't already showing (prevents double trigger)
@@ -273,17 +272,14 @@
 
     // Don't trigger if touching an embed
     const target = event.target as HTMLElement;
-    if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
       return;
     }
 
-    // CRITICAL: If selection mode is active and there is a selection, don't trigger context menu
-    // This allows users to interact with their selection (e.g. adjust handles) without the menu popping up
+    // CRITICAL: If selection mode is active, don't trigger our custom long-press context menu.
+    // This allows the native mobile selection handles and context menu to work normally.
     if (selectable) {
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        return;
-      }
+      return;
     }
 
     const touch = event.touches[0];
@@ -361,13 +357,13 @@
   }
 
   /**
-   * Enables text selection and auto-selects all text
+   * Enables text selection and selects the word at the tap position
    */
   function handleSelectMessage() {
     selectable = true;
-    // Call selectAll on the ReadOnlyMessage component
+    // Call selectAt on the ReadOnlyMessage component with the menu coordinates
     if (readOnlyMessageComponent) {
-      readOnlyMessageComponent.selectAll();
+      readOnlyMessageComponent.selectAt(messageMenuX, messageMenuY);
     }
   }
 
