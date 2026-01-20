@@ -177,7 +177,7 @@
   function handleMessageContextMenu(event: MouseEvent) {
     // Only show if not clicking on an embed (embeds have their own menu)
     const target = event.target as HTMLElement;
-    if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
       return;
     }
 
@@ -198,6 +198,63 @@
     messageMenuY = event.clientY;
     showMessageMenu = true;
     console.debug('[ChatMessage] Message context menu triggered (right-click)');
+  }
+
+  /**
+   * Handle left click for the entire message bubble
+   */
+  function handleMessageClick(event: MouseEvent) {
+    // Only handle primary button (left click)
+    if (event.button !== 0) return;
+
+    // Don't trigger if clicking on interactive elements
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention, button')) {
+      return;
+    }
+
+    // If selection mode is active and there is a selection, don't show menu
+    if (selectable) {
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        return;
+      }
+    }
+
+    // Only show if the menu isn't already showing (prevents double trigger)
+    if (!showMessageMenu) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      messageMenuX = event.clientX;
+      messageMenuY = event.clientY;
+      showMessageMenu = true;
+      console.debug('[ChatMessage] Message context menu triggered (left-click)');
+    }
+  }
+
+  /**
+   * Handle keyboard interaction for the message bubble
+   */
+  function handleMessageKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      // Don't trigger if already focusing an interactive element
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention, button')) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Show menu at the center of the element for keyboard users
+      if (messageContentElement) {
+        const rect = messageContentElement.getBoundingClientRect();
+        messageMenuX = rect.left + rect.width / 2;
+        messageMenuY = rect.top + rect.height / 2;
+        showMessageMenu = true;
+      }
+    }
   }
 
   // Touch handling for long-press on message bubble
@@ -318,9 +375,19 @@
     document.addEventListener('mousedown', handleGlobalClick);
     document.addEventListener('touchstart', handleGlobalClick);
     
+    const el = messageContentElement;
+    if (el) {
+      el.addEventListener('click', handleMessageClick as any);
+      el.addEventListener('keydown', handleMessageKeyDown as any);
+    }
+
     return () => {
       document.removeEventListener('mousedown', handleGlobalClick);
       document.removeEventListener('touchstart', handleGlobalClick);
+      if (el) {
+        el.removeEventListener('click', handleMessageClick as any);
+        el.removeEventListener('keydown', handleMessageKeyDown as any);
+      }
     };
   });
 
