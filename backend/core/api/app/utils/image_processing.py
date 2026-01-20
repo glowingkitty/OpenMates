@@ -7,10 +7,167 @@
 import logging
 import io
 import xml.etree.ElementTree as ET
+import json
+import os
 from typing import Tuple, Dict, Any, Optional
 from PIL import Image
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
+import datetime
+
+try:
+    import c2pa
+    HAS_C2PA = True
+except ImportError:
+    HAS_C2PA = False
 
 logger = logging.getLogger(__name__)
+
+# Cache for C2PA credentials to avoid re-generating
+_C2PA_CERTS: Optional[Tuple[bytes, bytes, Any]] = None
+
+def _ensure_c2pa_credentials() -> Tuple[bytes, bytes, Any]:
+    """
+    Ensures that we have a self-signed certificate and private key for C2PA signing.
+    In a production environment, these should be loaded from Vault or environment variables.
+    """
+    global _C2PA_CERTS
+    if _C2PA_CERTS:
+        return _C2PA_CERTS
+
+    # Generate EC key for ES256
+    key = ec.generate_private_key(ec.SECP256R1())
+
+    # Generate certificate
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"OpenMates"),
+        x509.NameAttribute(NameOID.COMMON_NAME, u"OpenMates AI Signer"),
+    ])
+    
+    cert = x509.CertificateBuilder().subject_name(
+        subject
+    ).issuer_name(
+        issuer
+    ).public_key(
+        key.public_key()
+    ).serial_number(
+        x509.random_serial_number()
+    ).not_valid_before(
+        datetime.datetime.utcnow() - datetime.timedelta(days=1)
+    ).not_valid_after(
+        # 10 years
+        datetime.datetime.utcnow() + datetime.timedelta(days=3650)
+    ).add_extension(
+        x509.BasicConstraints(ca=False, path_length=None), critical=True,
+    ).add_extension(
+        x509.KeyUsage(
+            digital_signature=True,
+            content_commitment=False,
+            key_encipherment=False,
+            data_encipherment=False,
+            key_agreement=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            encipher_only=False,
+            decipher_only=False
+        ), critical=True
+    ).add_extension(
+        x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+        critical=False
+    ).add_extension(
+        x509.AuthorityKeyIdentifier.from_issuer_public_key(key.public_key()),
+        critical=False
+    ).add_extension(
+        x509.ExtendedKeyUsage([
+            x509.oid.ExtendedKeyUsageOID.EMAIL_PROTECTION,
+            x509.ObjectIdentifier("1.3.6.1.4.1.597.11.1"), # c2pa signing
+        ]), critical=False
+    ).sign(key, hashes.SHA256())
+
+    cert_bytes = cert.public_bytes(serialization.Encoding.PEM)
+    key_bytes = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+
+    _C2PA_CERTS = (cert_bytes, key_bytes, key)
+    return _C2PA_CERTS
+
+def _apply_c2pa_signing(image_bytes: bytes, metadata: Dict[str, Any], img_format: str) -> bytes:
+    """
+    Apply C2PA manifest signing to the image bytes.
+    """
+    if not HAS_C2PA:
+        return image_bytes
+
+    try:
+        cert_bytes, key_bytes, key = _ensure_c2pa_credentials()
+        
+        # Build manifest
+        manifest = {
+            "claim_generator": f"OpenMates/{metadata.get('software', '1.0')}",
+            "assertions": [
+                {
+                    "label": "c2pa.training-mining",
+                    "data": {
+                        "entries": {
+                            "c2pa.ai_generative": {"status": "constrained"},
+                            "c2pa.ai_training": {"status": "constrained"}
+                        }
+                    }
+                },
+                {
+                    "label": "staxel.ai_metadata",
+                    "data": {
+                        "model": metadata.get("model", "Unknown AI"),
+                        "prompt": metadata.get("prompt", ""),
+                        "generated_at": metadata.get("generated_at", datetime.datetime.utcnow().isoformat())
+                    }
+                },
+                {
+                    "label": "c2pa.digital_source_type",
+                    "data": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+                }
+            ]
+        }
+        
+        # Sign using a callback to avoid ta_url issues and support ES256 properly
+        def signing_callback(data: bytes) -> bytes:
+            return key.sign(
+                data,
+                ec.ECDSA(hashes.SHA256())
+            )
+
+        signer = c2pa.Signer.from_callback(
+            signing_callback,
+            c2pa.C2paSigningAlg.ES256,
+            cert_bytes.decode('utf-8')
+        )
+        
+        # Create a builder
+        builder = c2pa.Builder(manifest)
+        
+        # Sign the bytes
+        mime_type = f"image/{img_format.lower()}"
+        if img_format.lower() == "webp":
+            mime_type = "image/webp"
+            
+        # sign(signer, format, source, dest)
+        source_stream = io.BytesIO(image_bytes)
+        dest_stream = io.BytesIO()
+        builder.sign(signer, mime_type, source_stream, dest_stream)
+        
+        return dest_stream.getvalue()
+        
+    except Exception as e:
+        logger.error(f"C2PA signing failed: {e}", exc_info=True)
+        return image_bytes
 
 def process_image_for_storage(
     image_bytes: bytes,
@@ -41,17 +198,27 @@ def process_image_for_storage(
     try:
         # Load image from bytes
         img = Image.open(io.BytesIO(image_bytes))
+        orig_format = img.format or "JPEG"
         
         # Prepare XMP metadata if provided
         xmp_data = None
         if metadata:
             xmp_data = _generate_ai_xmp(metadata)
+            
+            # Also apply C2PA to original if it's a supported format
+            if orig_format.upper() in ["JPEG", "JPG", "PNG", "WEBP"]:
+                results['original'] = _apply_c2pa_signing(image_bytes, metadata, orig_format)
         
         # 1. Generate Full-size WEBP
         full_webp_io = io.BytesIO()
         # Use higher quality (90+) for full WEBP to preserve pixel-level signals like SynthID
         img.save(full_webp_io, format="WEBP", quality=90, xmp=xmp_data)
-        results['full_webp'] = full_webp_io.getvalue()
+        full_webp_bytes = full_webp_io.getvalue()
+        
+        # Apply C2PA signing
+        if metadata:
+            full_webp_bytes = _apply_c2pa_signing(full_webp_bytes, metadata, "webp")
+        results['full_webp'] = full_webp_bytes
         
         # 2. Generate Preview WEBP
         # Logic: 
@@ -87,7 +254,12 @@ def process_image_for_storage(
         preview_webp_io = io.BytesIO()
         # Preview also gets metadata but can use lower quality
         preview_img.save(preview_webp_io, format="WEBP", quality=webp_quality, xmp=xmp_data)
-        results['preview_webp'] = preview_webp_io.getvalue()
+        preview_webp_bytes = preview_webp_io.getvalue()
+        
+        # Apply C2PA signing to preview
+        if metadata:
+            preview_webp_bytes = _apply_c2pa_signing(preview_webp_bytes, metadata, "webp")
+        results['preview_webp'] = preview_webp_bytes
         
         logger.info(f"Image processed successfully: original={len(image_bytes)}b, full_webp={len(results['full_webp'])}b, preview_webp={len(results['preview_webp'])}b")
         if metadata:
