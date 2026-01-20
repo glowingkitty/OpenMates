@@ -496,8 +496,9 @@ async def invoke_openai_chat_completions(
     server_choice = _select_server_for_model(model_id)
     logger.info("[%s] OpenAI Client: server=%s, stream=%s", task_id, server_choice, stream)
 
+    # Try the primary server choice first
     if server_choice == "openrouter":
-        return await invoke_openrouter_chat_completions(
+        response = await invoke_openrouter_chat_completions(
             task_id=task_id,
             model_id=model_id,
             messages=messages,
@@ -508,21 +509,80 @@ async def invoke_openai_chat_completions(
             tool_choice=tool_choice,
             stream=stream,
         )
-
-    if server_choice == "azure":
+    elif server_choice == "azure":
         error_msg = "Azure OpenAI selected by config, but not yet implemented in this client."
         logger.error("[%s] %s", task_id, error_msg)
         if stream:
             raise ValueError(error_msg)
-        return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+        response = UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+    else:
+        # Default to openai direct
+        response = await _invoke_openai_direct_api(
+            task_id=task_id,
+            model_id=model_id,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice=tool_choice,
+            stream=stream,
+        )
 
-    return await _invoke_openai_direct_api(
-        task_id=task_id,
-        model_id=model_id,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        tools=tools,
-        tool_choice=tool_choice,
-        stream=stream,
-    )
+    # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers
+    if not stream and isinstance(response, UnifiedOpenAIResponse) and not response.success:
+        logger.warning("[%s] OpenAI Client: Primary server '%s' failed: %s. Checking for fallback servers...", 
+                       task_id, server_choice, response.error_message)
+        
+        try:
+            provider_config = config_manager.get_provider_config("openai")
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_id:
+                        servers = model.get("servers") or []
+                        for server in servers:
+                            fallback_server = server.get("id")
+                            # Skip the one we already tried
+                            if fallback_server == server_choice:
+                                continue
+                            
+                            logger.info("[%s] OpenAI Client: Attempting fallback to server '%s' for model '%s'", 
+                                        task_id, fallback_server, model_id)
+                            
+                            if fallback_server == "openrouter":
+                                fallback_response = await invoke_openrouter_chat_completions(
+                                    task_id=task_id,
+                                    model_id=model_id,
+                                    messages=messages,
+                                    secrets_manager=secrets_manager,
+                                    temperature=temperature,
+                                    max_tokens=max_tokens,
+                                    tools=tools,
+                                    tool_choice=tool_choice,
+                                    stream=False,
+                                )
+                                if fallback_response.success:
+                                    logger.info("[%s] OpenAI Client: Fallback to OpenRouter successful.", task_id)
+                                    return fallback_response
+                                logger.warning("[%s] OpenAI Client: Fallback to OpenRouter failed: %s", 
+                                               task_id, fallback_response.error_message)
+                                
+                            elif fallback_server == "openai":
+                                fallback_response = await _invoke_openai_direct_api(
+                                    task_id=task_id,
+                                    model_id=model_id,
+                                    messages=messages,
+                                    temperature=temperature,
+                                    max_tokens=max_tokens,
+                                    tools=tools,
+                                    tool_choice=tool_choice,
+                                    stream=False,
+                                )
+                                if fallback_response.success:
+                                    logger.info("[%s] OpenAI Client: Fallback to OpenAI Direct successful.", task_id)
+                                    return fallback_response
+                                logger.warning("[%s] OpenAI Client: Fallback to OpenAI Direct failed: %s", 
+                                               task_id, fallback_response.error_message)
+        except Exception as fallback_exc:
+            logger.error("[%s] OpenAI Client: Error during fallback attempt: %s", task_id, fallback_exc, exc_info=True)
+
+    return response

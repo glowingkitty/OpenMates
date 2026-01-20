@@ -7,7 +7,6 @@
 import asyncio
 import sys
 import logging
-from typing import List, Dict, Any, Optional
 
 # Set up logging
 logging.basicConfig(
@@ -170,13 +169,50 @@ async def test_gpt5_2():
     except Exception as e:
         print(f"❌ Error during OpenRouter fallback test: {e}")
 
+    # 6. Test Automatic Fallback (OpenAI Direct -> OpenRouter)
+    print(f"\nTesting Automatic Fallback (OpenAI Direct -> OpenRouter) for {model_id}...")
+    try:
+        from unittest.mock import patch
+        
+        # We mock _invoke_openai_direct_api to fail, which should trigger automatic fallback in invoke_openai_chat_completions
+        # since gpt-5.2 is configured with both openai and openrouter servers.
+        from backend.apps.ai.llm_providers.openai_client import UnifiedOpenAIResponse
+        
+        async def mock_failed_direct_api(*args, **kwargs):
+            print("      (Simulating OpenAI Direct API failure...)")
+            return UnifiedOpenAIResponse(
+                task_id=kwargs.get("task_id", "test_fallback"),
+                model_id=kwargs.get("model_id", "gpt-5.2"),
+                success=False,
+                error_message="Simulated OpenAI Direct failure"
+            )
+            
+        with patch("backend.apps.ai.llm_providers.openai_client._invoke_openai_direct_api", side_effect=mock_failed_direct_api):
+            response = await invoke_openai_chat_completions(
+                task_id="test_gpt5_2_auto_fallback",
+                model_id=model_id,
+                messages=[{"role": "user", "content": "Hello. This request should automatically fallback to OpenRouter."}],
+                secrets_manager=secrets_manager,
+                temperature=0.7,
+                max_tokens=100,
+                stream=False
+            )
+            
+            if response.success:
+                print(f"✅ Automatic Fallback Success! Response: {response.direct_message_content}")
+                print("   (This confirms the client automatically tried OpenRouter when OpenAI Direct failed)")
+            else:
+                print(f"❌ Automatic Fallback Failed: {response.error_message}")
+                
+    except Exception as e:
+        print(f"❌ Error during automatic fallback test: {e}")
+
     print("\n" + "="*80)
     print("TESTS COMPLETED")
     print("="*80 + "\n")
     return 0
 
 if __name__ == "__main__":
-    import os
     # Ensure we can find the backend modules if running from script
     # The root of the project should be in the sys.path
     # In docker it's /app
