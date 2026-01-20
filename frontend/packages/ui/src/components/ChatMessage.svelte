@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
+  import { onMount } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
@@ -34,7 +35,6 @@
 
   // All props using Svelte 5 runes mode (single $props() call)
   let { 
-    messageId = undefined,
     role = 'user',
     category = undefined,
     sender_name = undefined,
@@ -46,7 +46,6 @@
     content,
     animated = false,
     is_truncated = false,
-    full_content_length = 0,
     original_message = null,
     containerWidth = 0,
     _embedUpdateTimestamp = 0,
@@ -55,7 +54,6 @@
     thinkingContent = undefined,
     isThinkingStreaming = false
   }: {
-    messageId?: string; // Message ID for loading app settings/memories action data
     role?: MessageRole;
     category?: string;
     sender_name?: string;
@@ -67,7 +65,6 @@
     content: any;
     animated?: boolean;
     is_truncated?: boolean;
-    full_content_length?: number;
     original_message?: any;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
@@ -146,6 +143,33 @@
   let messageMenuY = $state(0);
   let selectable = $state(false);
   let readOnlyMessageComponent = $state<ReturnType<typeof ReadOnlyMessage>>();
+  let messageContentElement = $state<HTMLElement>();
+
+  /**
+   * Deactivates selection mode and clears browser selection
+   */
+  function deactivateSelection() {
+    if (!selectable) return;
+    
+    selectable = false;
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+    }
+    console.debug('[ChatMessage] Selection mode deactivated');
+  }
+
+  /**
+   * Global click handler to detect clicks outside the selectable message
+   */
+  function handleGlobalClick(event: MouseEvent | TouchEvent) {
+    if (!selectable || !messageContentElement) return;
+
+    const target = event.target as Node;
+    if (!messageContentElement.contains(target)) {
+      deactivateSelection();
+    }
+  }
 
   /**
    * Handle context menu (right-click) for the entire message bubble
@@ -155,6 +179,16 @@
     const target = event.target as HTMLElement;
     if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
       return;
+    }
+
+    // CRITICAL: If selection mode is active and there is a selection, allow browser context menu
+    // This allows users to use browser's native Copy/Look up for selected text
+    if (selectable) {
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        // Selection exists, don't prevent default, don't show custom menu
+        return;
+      }
     }
 
     event.preventDefault();
@@ -184,6 +218,15 @@
     const target = event.target as HTMLElement;
     if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
       return;
+    }
+
+    // CRITICAL: If selection mode is active and there is a selection, don't trigger context menu
+    // This allows users to interact with their selection (e.g. adjust handles) without the menu popping up
+    if (selectable) {
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        return;
+      }
     }
 
     const touch = event.touches[0];
@@ -228,18 +271,33 @@
   }
 
   /**
-   * Copies the full message content to clipboard
+   * Copies the full message content to clipboard, or selected text if available
    */
   async function handleCopyMessage() {
     try {
-      const contentToCopy = typeof original_message?.content === 'string' 
-        ? original_message.content 
-        : JSON.stringify(content);
+      let contentToCopy: string;
+      const selection = window.getSelection();
+      
+      // If there's a selection and it's within this message, copy only the selection
+      if (selectable && selection && selection.toString().length > 0) {
+        contentToCopy = selection.toString();
+        console.debug('[ChatMessage] Copying selected text');
+      } else {
+        // Otherwise copy the full message content
+        contentToCopy = typeof original_message?.content === 'string' 
+          ? original_message.content 
+          : JSON.stringify(content);
+        console.debug('[ChatMessage] Copying full message content');
+      }
         
       await navigator.clipboard.writeText(contentToCopy);
       
       const { notificationStore } = await import('../stores/notificationStore');
-      notificationStore.success('Message copied to clipboard');
+      notificationStore.success(
+        selectable && selection && selection.toString().length > 0
+          ? 'Selected text copied to clipboard'
+          : 'Message copied to clipboard'
+      );
     } catch (error) {
       console.error('[ChatMessage] Failed to copy message:', error);
     }
@@ -255,6 +313,16 @@
       readOnlyMessageComponent.selectAll();
     }
   }
+
+  onMount(() => {
+    document.addEventListener('mousedown', handleGlobalClick);
+    document.addEventListener('touchstart', handleGlobalClick);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalClick);
+      document.removeEventListener('touchstart', handleGlobalClick);
+    };
+  });
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
   let showFullscreen = $state(false);
@@ -602,7 +670,6 @@
         const results = decodedContent.results || [];
         const firstResult = results[0] || {};
         const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
-        const videoUrl = firstResult.url || '';
 
         switch (action) {
           case 'copy':
@@ -776,6 +843,7 @@
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
     <div 
+      bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " 
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"

@@ -689,14 +689,12 @@
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
-                        messageId={msg.id}
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
                         content={msg.content}
                         status={msg.status}
                         is_truncated={msg.is_truncated}
-                        full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
