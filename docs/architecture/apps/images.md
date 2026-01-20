@@ -152,8 +152,12 @@ Users must be instructed to:
 - Review images for artifacts before publication.
 - Report inconsistencies for regeneration.
 
-**Metadata Removal**
-Before any external processing (AI detection, etc.), all EXIF metadata (GPS, camera model, etc.) is stripped to protect user privacy.
+**Metadata Removal & AI Labeling**
+Before any external processing, all privacy-sensitive EXIF metadata (GPS, etc.) is stripped. However, the system injects industry-standard AI content signals:
+- **IPTC 2025.1 Compliance**: Injects `DigitalSourceType: trainedAlgorithmicMedia`, `aiSystemUsed`, and `aiPromptInformation`.
+- **C2PA Compatibility**: Uses machine-readable XMP metadata to signal the generative origin.
+- **Invisible Watermarking**: Preserves provider-level signals (like Google SynthID) by using high-quality encoding (90+) for the full-resolution version.
+- **Transparency**: Includes `CreatorTool` (OpenMates) and `Credit` info in the metadata.
 
 #### Skill "Reverse image search"
 - Uses Google Image search API (via SerpApi) for high-quality visual discovery.

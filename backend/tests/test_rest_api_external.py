@@ -2,6 +2,8 @@ import os
 import json
 import httpx
 import pytest
+import io
+from PIL import Image
 from dotenv import load_dotenv
 
 # Load environment variables from the root .env file
@@ -33,6 +35,45 @@ def log_response(response: httpx.Response):
                 print("[RESPONSE] (empty body)")
         except Exception:
             print("[RESPONSE] (could not read body)")
+
+def verify_image_metadata(image_bytes: bytes, expected_prompt: str, expected_model: str):
+    """Verify that the generated image contains the expected AI metadata."""
+    print(f"[VERIFY] Checking metadata for image ({len(image_bytes)} bytes)...")
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        xmp = img.info.get("xmp")
+        
+        if not xmp:
+            print(f"[FAIL] No XMP metadata found. Available info: {list(img.info.keys())}")
+            # WebP often stores metadata in a different way in Pillow depending on version, 
+            # but our implementation explicitly saves it as 'xmp'.
+            pytest.fail("No XMP metadata found in generated image")
+            
+        xmp_str = xmp.decode("utf-8") if isinstance(xmp, bytes) else xmp
+        
+        # Core AI signal
+        assert "trainedAlgorithmicMedia" in xmp_str, "Missing 'trainedAlgorithmicMedia' marker"
+        
+        # Model info
+        # The test might pass a full reference, our implementation should have included it
+        if expected_model:
+            assert expected_model in xmp_str, f"Expected model '{expected_model}' not found in metadata"
+        else:
+            # Fallback if model is not known, we still expect the other markers
+            assert "trainedAlgorithmicMedia" in xmp_str
+        
+        # Prompt info (at least a part of it to avoid exact match issues with encoding)
+        prompt_snippet = expected_prompt[:30]
+        assert prompt_snippet in xmp_str, f"Prompt snippet '{prompt_snippet}' not found in metadata"
+        
+        # Software marker
+        assert "OpenMates" in xmp_str, "Missing 'OpenMates' software marker"
+        
+        print("[OK] All metadata markers found successfully!")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to verify metadata: {e}")
+        raise e
 
 # This test suite makes real requests to the dev API domain using a real API key.
 # It validates that the REST API endpoints are functional and return expected structures.
@@ -257,10 +298,11 @@ def test_execute_skill_image_generation_draft(api_client):
     else:
         pytest.fail(f"Task timed out after {max_retries * poll_interval} seconds")
 
-    # 3. Download and save the decrypted image from the embed endpoint
-    print(f"[DOWNLOAD] Requesting decrypted image from /v1/embeds/{embed_id}/file?format=preview")
+    # 3. Download and verify the decrypted image from the embed endpoint
+    # We test the 'full' format as it has higher quality and guaranteed metadata preservation
+    print(f"[DOWNLOAD] Requesting decrypted image from /v1/embeds/{embed_id}/file?format=full")
     
-    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=preview")
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=full")
     
     if download_response.status_code == 200:
         # Save to local file
@@ -272,6 +314,12 @@ def test_execute_skill_image_generation_draft(api_client):
         assert file_size > 0
         assert download_response.headers["Content-Type"] == "image/webp"
         print(f"\n[IMAGE SAVED] Decrypted draft image saved to: {os.path.abspath(filename)} ({file_size} bytes)")
+        
+        # Verify AI Metadata
+        # Draft model for generate_draft is typically bfl/flux-schnell
+        # We'll use the model reference returned in the result if available, or fallback
+        expected_model = completed_result.get("model", "bfl/flux-schnell")
+        verify_image_metadata(download_response.content, prompt, expected_model)
     else:
         print(f"\n[DOWNLOAD FAILED] Status: {download_response.status_code}")
         print(f"Response: {download_response.text}")
@@ -307,6 +355,7 @@ def test_execute_skill_image_generation_high_end(api_client):
     # 2. Poll for status (allow more time for high-end)
     max_retries = 60
     poll_interval = 2.0
+    completed_result = None
     
     for i in range(max_retries):
         status_resp = api_client.get(f"/v1/tasks/{task_id}")
@@ -314,6 +363,7 @@ def test_execute_skill_image_generation_high_end(api_client):
         status = status_data["status"]
         
         if status == "completed":
+            completed_result = status_data.get("result")
             print("\n[SUCCESS] High-end image generation completed!")
             break
         elif status == "failed":
@@ -325,15 +375,20 @@ def test_execute_skill_image_generation_high_end(api_client):
     else:
         pytest.fail("Task timed out")
 
-    # 3. Download original format
-    print(f"[DOWNLOAD] Requesting original format from /v1/embeds/{embed_id}/file?format=original")
-    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=original")
+    # 3. Download full format and verify metadata
+    # We test the 'full' format as it has higher quality and guaranteed metadata preservation
+    print(f"[DOWNLOAD] Requesting full format from /v1/embeds/{embed_id}/file?format=full")
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=full")
     
     if download_response.status_code == 200:
-        filename = "test_generated_image_high.png"
+        filename = "test_generated_image_high.webp"
         with open(filename, "wb") as f:
             f.write(download_response.content)
         print(f"[IMAGE SAVED] High-end image saved to: {os.path.abspath(filename)} ({len(download_response.content)} bytes)")
+        
+        # Verify AI Metadata
+        expected_model = completed_result.get("model", "google/gemini-3-pro-image-preview")
+        verify_image_metadata(download_response.content, prompt, expected_model)
     else:
         pytest.fail(f"Download failed: {download_response.status_code}")
 

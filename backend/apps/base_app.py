@@ -253,12 +253,8 @@ class BaseApp:
             external_request = request_body.get("_external_request", False)
 
             # Initialize skill instance
-            # Extract full_model_reference from default_config if present, otherwise use None
-            # Note: AppSkillDefinition doesn't have full_model_reference field,
-            # but BaseSkill.__init__ accepts it as an optional parameter
-            full_model_ref = None
-            if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
-                full_model_ref = skill_definition.default_config.get('full_model_reference')
+            # Extract full_model_reference from skill_definition
+            full_model_ref = skill_definition.full_model_reference
 
             # Resolve translation keys to actual translated strings for BaseSkill initialization
             # BaseSkill expects skill_name and skill_description as strings, not translation keys
