@@ -236,6 +236,11 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect registered
 docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled
 ```
 
+## Package and Dependency Management
+
+- **Verify Versions**: ALWAYS check for the latest stable version of a package (e.g., using `pip` or `npm` search/info commands, or web search) before installing or adding it to dependency files.
+- **No Hallucinations**: NEVER assume or hallucinate version numbers. If the version is not explicitly known, verify it using terminal tools or web search.
+
 ## Logging and Error Handling
 
 ### Backend (Python)
