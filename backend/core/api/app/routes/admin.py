@@ -4,7 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
@@ -51,6 +51,7 @@ class ApproveDemoChatRequest(BaseModel):
     title: str
     summary: str = ""
     category: str = ""
+    follow_up_suggestions: List[str] = []
 
 # --- Endpoints ---
 
@@ -112,7 +113,7 @@ async def get_community_suggestions(
             "filter": {
                 "share_with_community": {"_eq": True}
             },
-            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,updated_at,is_private,is_shared"
+            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,updated_at,is_private,is_shared"
         }
         community_chats = await directus_service.get_items("chats", params)
 
@@ -121,6 +122,10 @@ async def get_community_suggestions(
         existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
 
         # 3. Filter and format suggestions
+        from backend.core.api.app.services.encryption import EncryptionService
+        encryption_service: EncryptionService = request.app.state.encryption_service
+        shared_vault_key = "shared-content-metadata"
+
         suggestions = []
         for chat in community_chats:
             chat_id = str(chat.get("id"))
@@ -131,15 +136,53 @@ async def get_community_suggestions(
             if chat.get("is_private", True):
                 continue
 
-            # Get title and summary (fall back to encrypted_title if shared versions missing)
-            # Note: Server can decrypt shared_* fields using shared vault key
-            # but for the suggestion list we just need metadata
+            # Decrypt shared metadata using vault key
+            title = None
+            if chat.get("shared_encrypted_title"):
+                try:
+                    title, _ = await encryption_service.decrypt(chat.get("shared_encrypted_title"), key_name=shared_vault_key)
+                except Exception:
+                    logger.warning(f"Failed to decrypt shared title for chat {chat_id}")
+
+            summary = None
+            if chat.get("shared_encrypted_summary"):
+                try:
+                    summary, _ = await encryption_service.decrypt(chat.get("shared_encrypted_summary"), key_name=shared_vault_key)
+                except Exception:
+                    logger.warning(f"Failed to decrypt shared summary for chat {chat_id}")
+
+            category = None
+            if chat.get("shared_encrypted_category"):
+                try:
+                    category, _ = await encryption_service.decrypt(chat.get("shared_encrypted_category"), key_name=shared_vault_key)
+                except Exception:
+                    logger.warning(f"Failed to decrypt shared category for chat {chat_id}")
+
+            icon = None
+            if chat.get("shared_encrypted_icon"):
+                try:
+                    icon, _ = await encryption_service.decrypt(chat.get("shared_encrypted_icon"), key_name=shared_vault_key)
+                except Exception:
+                    logger.warning(f"Failed to decrypt shared icon for chat {chat_id}")
+
+            follow_up_suggestions = []
+            if chat.get("shared_encrypted_follow_up_suggestions"):
+                try:
+                    import json
+                    decrypted_follow_ups, _ = await encryption_service.decrypt(chat.get("shared_encrypted_follow_up_suggestions"), key_name=shared_vault_key)
+                    follow_up_suggestions = json.loads(decrypted_follow_ups)
+                except Exception:
+                    logger.warning(f"Failed to decrypt shared follow-up suggestions for chat {chat_id}")
+
             suggestions.append({
                 "chat_id": chat_id,
-                "title": chat.get("encrypted_title"), # This will be decrypted on client if needed
-                "summary": None, # Will be fetched/decrypted on client
+                "title": title or "Untitled Chat",
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": follow_up_suggestions,
                 "shared_at": chat.get("updated_at"),
-                "share_link": f"/share/chat/{chat_id}" # UI will add the key from the email or local store
+                "share_link": f"/share/chat/{chat_id}" # UI will add the key from local store if available
             })
 
         return {
@@ -197,6 +240,7 @@ async def approve_demo_chat(
             title=payload.title,
             summary=payload.summary,
             category=payload.category,
+            follow_up_suggestions=payload.follow_up_suggestions,
             approved_by_admin=True
         )
 

@@ -27,6 +27,7 @@ class DemoChatMethods:
         title: str,
         summary: Optional[str] = None,
         category: Optional[str] = None,
+        follow_up_suggestions: Optional[List[str]] = None,
         approved_by_admin: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
@@ -38,6 +39,7 @@ class DemoChatMethods:
             title: Display title for the demo chat
             summary: Optional description/summary
             category: Optional category for grouping
+            follow_up_suggestions: Optional follow-up suggestions
             approved_by_admin: Whether this demo chat has been approved by admin
 
         Returns:
@@ -54,6 +56,7 @@ class DemoChatMethods:
                 "title": title,
                 "summary": summary,
                 "category": category,
+                "follow_up_suggestions": follow_up_suggestions,
                 "approved_by_admin": approved_by_admin,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "is_active": True

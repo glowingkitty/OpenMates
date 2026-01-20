@@ -7,7 +7,7 @@ import logging
 import hashlib
 import time
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
@@ -52,6 +52,9 @@ class ShareChatMetadataUpdate(BaseModel):
     chat_id: str
     title: Optional[str] = None
     summary: Optional[str] = None
+    category: Optional[str] = None
+    icon: Optional[str] = None
+    follow_up_suggestions: Optional[List[str]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
     share_link: Optional[str] = None  # The share link URL (for community sharing notification)
@@ -360,6 +363,28 @@ async def update_share_metadata(
             )
             updates["shared_encrypted_summary"] = encrypted_summary
         
+        if payload.category is not None:
+            encrypted_category, _ = await encryption_service.encrypt(
+                payload.category,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_category"] = encrypted_category
+            
+        if payload.icon is not None:
+            encrypted_icon, _ = await encryption_service.encrypt(
+                payload.icon,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_icon"] = encrypted_icon
+
+        if payload.follow_up_suggestions is not None:
+            import json
+            encrypted_follow_ups, _ = await encryption_service.encrypt(
+                json.dumps(payload.follow_up_suggestions),
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_follow_up_suggestions"] = encrypted_follow_ups
+        
         # Update sharing status: set is_shared=true and is_private=false when sharing
         if payload.is_shared is not None:
             updates["is_shared"] = payload.is_shared
@@ -382,7 +407,7 @@ async def update_share_metadata(
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,is_shared,is_private'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private'
             }
             updated_item = await directus_service.update_item("chats", chat_id, updates, params=params)
             if updated_item is None:
@@ -474,6 +499,8 @@ async def update_share_metadata(
                         "admin_email": admin_email,
                         "chat_title": payload.title or "Untitled Chat",
                         "chat_summary": payload.summary or "",
+                        "category": payload.category,
+                        "icon": payload.icon,
                         "share_link": payload.share_link,
                         "chat_id": chat_id
                     },

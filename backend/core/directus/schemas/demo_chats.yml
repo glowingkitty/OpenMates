@@ -28,6 +28,9 @@ demo_chats:
       type: string
       length: 100
       note: "Category for grouping demo chats"
+    follow_up_suggestions:
+      type: json
+      note: "JSON array of follow-up suggestions for the demo chat"
     approved_by_admin:
       type: boolean
       default: false

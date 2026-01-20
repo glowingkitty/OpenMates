@@ -33,7 +33,9 @@ def send_community_share_notification(
     chat_title: str,
     chat_summary: Optional[str],
     share_link: str,
-    chat_id: Optional[str] = None
+    chat_id: Optional[str] = None,
+    category: Optional[str] = None,
+    icon: Optional[str] = None
 ) -> bool:
     """
     Celery task to send community share notification email to admin.
@@ -57,7 +59,7 @@ def send_community_share_notification(
         # Use asyncio.run() which handles loop creation and cleanup properly
         result = asyncio.run(
             _async_send_community_share_notification(
-                admin_email, chat_title, chat_summary, share_link, chat_id
+                admin_email, chat_title, chat_summary, share_link, chat_id, category, icon
             )
         )
         if result:
@@ -85,7 +87,9 @@ async def _async_send_community_share_notification(
     chat_title: str,
     chat_summary: Optional[str],
     share_link: str,
-    chat_id: Optional[str] = None
+    chat_id: Optional[str] = None,
+    category: Optional[str] = None,
+    icon: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending community share notification email.
@@ -131,11 +135,15 @@ async def _async_send_community_share_notification(
             # Create URL that deep links to the community suggestions settings page
             # This will be displayed as available for approval in the admin interface
             demo_chat_url = f"{base_url}/settings/server/community-suggestions?chat_id={chat_id}&key={encryption_key}"
+            import urllib.parse
             if sanitized_title:
-                import urllib.parse
                 demo_chat_url += f"&title={urllib.parse.quote(sanitized_title[:200])}"
             if sanitized_summary:
                 demo_chat_url += f"&summary={urllib.parse.quote(sanitized_summary[:200])}"
+            if category:
+                demo_chat_url += f"&category={urllib.parse.quote(category)}"
+            if icon:
+                demo_chat_url += f"&icon={urllib.parse.quote(icon)}"
 
         # Prepare email context with sanitized data
         email_context = {

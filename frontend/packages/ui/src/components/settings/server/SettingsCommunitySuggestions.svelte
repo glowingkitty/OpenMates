@@ -7,19 +7,41 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
+    import Chat from '../../chats/Chat.svelte';
+    import type { Chat as ChatType } from '../../../types/chat';
 
     const dispatch = createEventDispatcher();
 
     // State
     let isLoading = $state(true);
     let error = $state<string | null>(null);
-    let suggestions = $state<Array<{ chat_id: string; title?: string; summary?: string; category?: string; shared_at: string; share_link: string }>>([]);
+    let suggestions = $state<Array<{ 
+        chat_id: string; 
+        title: string; 
+        summary?: string; 
+        category?: string; 
+        icon?: string;
+        follow_up_suggestions?: string[];
+        shared_at: string; 
+        share_link: string;
+        encryption_key?: string;
+    }>>([]);
     let currentDemoChats = $state<Array<{ demo_id: string; title: string; summary?: string; category?: string; created_at: string }>>([]);
     let isSubmitting = $state(false);
-    let pendingSuggestion = $state<{ chat_id: string; encryption_key: string; title: string; summary: string; shared_at: string; share_link: string } | null>(null);
+    let pendingSuggestion = $state<{ 
+        chat_id: string; 
+        encryption_key: string; 
+        title: string; 
+        summary: string; 
+        category?: string;
+        icon?: string;
+        follow_up_suggestions?: string[];
+        shared_at: string; 
+        share_link: string 
+    } | null>(null);
 
     // URL parameters for email link
-    let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string }>({});
+    let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string; category?: string; icon?: string; follow_up_suggestions?: string }>({});
 
     /**
      * Extract URL parameters for email deep link
@@ -31,16 +53,31 @@
                 chat_id: searchParams.get('chat_id') || undefined,
                 key: searchParams.get('key') || undefined,
                 title: searchParams.get('title') || undefined,
-                summary: searchParams.get('summary') || undefined
+                summary: searchParams.get('summary') || undefined,
+                category: searchParams.get('category') || undefined,
+                icon: searchParams.get('icon') || undefined,
+                follow_up_suggestions: searchParams.get('follow_up_suggestions') || undefined
             };
 
             // If we have URL params, create a pending suggestion
             if (urlParams.chat_id && urlParams.key) {
+                let followUpSuggestions: string[] | undefined = undefined;
+                if (urlParams.follow_up_suggestions) {
+                    try {
+                        followUpSuggestions = JSON.parse(decodeURIComponent(urlParams.follow_up_suggestions));
+                    } catch (e) {
+                        console.warn('Failed to parse follow-up suggestions from URL:', e);
+                    }
+                }
+
                 pendingSuggestion = {
                     chat_id: urlParams.chat_id,
                     encryption_key: urlParams.key,
                     title: decodeURIComponent(urlParams.title || 'Community Shared Chat'),
                     summary: decodeURIComponent(urlParams.summary || ''),
+                    category: urlParams.category || undefined,
+                    icon: urlParams.icon || undefined,
+                    follow_up_suggestions: followUpSuggestions,
                     shared_at: new Date().toISOString(),
                     share_link: `${window.location.origin}/share/chat/${urlParams.chat_id}#key=${urlParams.key}`
                 };
@@ -102,7 +139,14 @@
     /**
      * Approve a chat as demo chat
      */
-    async function approveDemoChat(suggestion: { chat_id: string; encryption_key?: string; title?: string; summary?: string; category?: string }) {
+    async function approveDemoChat(suggestion: { 
+        chat_id: string; 
+        encryption_key?: string; 
+        title?: string; 
+        summary?: string; 
+        category?: string;
+        follow_up_suggestions?: string[];
+    }) {
         try {
             isSubmitting = true;
 
@@ -131,7 +175,8 @@
                     encryption_key: encryptionKey,  // Pass encryption key to backend
                     title: suggestion.title || 'Demo Chat',
                     summary: suggestion.summary || '',
-                    category: suggestion.category || 'General'
+                    category: suggestion.category || 'General',
+                    follow_up_suggestions: suggestion.follow_up_suggestions || []
                 })
             });
 
@@ -227,33 +272,96 @@
     }
 
     /**
-     * Handle back button
+     * Helper to create a virtual chat object for display in the Chat component
      */
-    function handleBack() {
-        dispatch('back');
+    function createVirtualChat(item: any): ChatType {
+        const now = Math.floor(Date.now() / 1000);
+        return {
+            chat_id: item.chat_id,
+            title: item.title || 'Untitled Chat',
+            encrypted_category: item.category, // Chat.svelte expects category in encrypted_category field for demos/previews
+            encrypted_icon: item.icon,
+            encrypted_follow_up_request_suggestions: item.follow_up_suggestions ? JSON.stringify(item.follow_up_suggestions) : undefined,
+            waiting_for_metadata: false,
+            messages_v: 1,
+            title_v: 1,
+            pinned: false,
+            is_incognito: false,
+            unread_count: 0,
+            encrypted_title: '',
+            last_edited_overall_timestamp: now,
+            created_at: now,
+            updated_at: now
+        };
+    }
+
+    /**
+     * Preview a chat in the main app view
+     */
+    async function previewChat(suggestion: any) {
+        let encryptionKey = suggestion.encryption_key;
+        if (!encryptionKey && suggestion.share_link) {
+            const shareLink = suggestion.share_link;
+            if (shareLink.includes('#key=')) {
+                encryptionKey = shareLink.split('#key=')[1];
+            }
+        }
+
+        if (!encryptionKey) {
+            dispatch('showToast', {
+                type: 'error',
+                message: 'No encryption key found for preview'
+            });
+            return;
+        }
+
+        // Store the key in sharedChatKeyStorage so it's available for decryption
+        const { saveSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+        
+        // Convert base64 key string to Uint8Array if needed
+        let keyBytes: Uint8Array;
+        try {
+            const binaryString = window.atob(encryptionKey);
+            keyBytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                keyBytes[i] = binaryString.charCodeAt(i);
+            }
+        } catch (e) {
+            console.error('Failed to decode encryption key:', e);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Invalid encryption key format'
+            });
+            return;
+        }
+
+        await saveSharedChatKey(suggestion.chat_id, keyBytes);
+
+        // Close settings and navigate to the chat
+        // We use the hash format that the app expects for deep links
+        window.location.hash = `chat_id=${suggestion.chat_id}`;
+        
+        // Dispatch event to ensure chat loads immediately
+        const event = new CustomEvent('globalChatSelected', {
+            detail: { 
+                chat: { chat_id: suggestion.chat_id },
+                is_shared: true
+            },
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(event);
+        
+        // Close the settings panel
+        dispatch('close');
     }
 
     /**
      * Open the chat in the main view when coming from email link
      */
     function openChatFromEmail() {
-        if (pendingSuggestion && pendingSuggestion.share_link) {
-            // Extract chat_id from share link (format: /share/chat/{chat_id}#key=...)
-            const shareLink = pendingSuggestion.share_link;
-            const match = shareLink.match(/\/share\/chat\/([^#]+)/);
-            if (match && match[1]) {
-                const chatId = match[1];
-                // Navigate to main app with chat loaded
-                // This will open the chat in the main view while keeping settings open
-                window.location.hash = `chat_id=${chatId}`;
-                // Also dispatch event to ensure chat loads
-                const event = new CustomEvent('globalChatSelected', {
-                    detail: { chat: { chat_id: chatId } },
-                    bubbles: true,
-                    composed: true
-                });
-                window.dispatchEvent(event);
-            }
+        if (pendingSuggestion) {
+            previewChat(pendingSuggestion);
         }
     }
 
@@ -276,9 +384,6 @@
 <div class="community-suggestions">
     <!-- Header -->
     <div class="header">
-        <button onclick={handleBack} class="back-button">
-            ← Back
-        </button>
         <h2>Community Chat Suggestions</h2>
         <p>Manage demo chats from community-shared conversations</p>
     </div>
@@ -335,9 +440,12 @@
             </div>
 
             <div class="email-suggestion-card">
-                <div class="suggestion-header">
-                    <h4>{pendingSuggestion.title}</h4>
-                    <span class="suggestion-date">Just now</span>
+                <div class="suggestion-chat-preview">
+                    <Chat 
+                        chat={createVirtualChat(pendingSuggestion)}
+                        activeChatId={undefined}
+                        selectMode={false}
+                    />
                 </div>
 
                 {#if pendingSuggestion.summary}
@@ -346,7 +454,7 @@
 
                 <div class="suggestion-actions">
                     <button
-                        onclick={() => window.open(pendingSuggestion.share_link, '_blank')}
+                        onclick={() => previewChat(pendingSuggestion)}
                         class="btn btn-secondary btn-small"
                     >
                         Preview Chat
@@ -397,9 +505,12 @@
             <div class="suggestions-grid">
                 {#each suggestions as suggestion}
                     <div class="suggestion-card">
-                        <div class="suggestion-header">
-                            <h4>{suggestion.title || 'Untitled Chat'}</h4>
-                            <span class="suggestion-date">{formatDate(suggestion.shared_at)}</span>
+                        <div class="suggestion-chat-preview">
+                            <Chat 
+                                chat={createVirtualChat(suggestion)}
+                                activeChatId={undefined}
+                                selectMode={false}
+                            />
                         </div>
 
                         {#if suggestion.summary}
@@ -408,7 +519,7 @@
 
                         <div class="suggestion-actions">
                             <button
-                                onclick={() => window.open(suggestion.share_link, '_blank')}
+                                onclick={() => previewChat(suggestion)}
                                 class="btn btn-secondary btn-small"
                             >
                                 Preview
@@ -457,24 +568,6 @@
         margin-bottom: 2rem;
         padding-bottom: 1rem;
         border-bottom: 1px solid var(--color-border);
-    }
-
-    .back-button {
-        background: none;
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
-        margin-bottom: 1rem;
-        font-size: 0.9rem;
-    }
-
-    .back-button:hover {
-        color: var(--color-primary);
-    }
-
-    .header h2 {
-        margin: 0 0 0.5rem 0;
-        color: var(--color-text-primary);
     }
 
     .header p {
@@ -554,8 +647,15 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .demo-header,
-    .suggestion-header {
+    .suggestion-chat-preview {
+        margin-bottom: 1rem;
+        background: var(--color-background-tertiary);
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+    }
+
+    .demo-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -563,8 +663,7 @@
         gap: 1rem;
     }
 
-    .demo-header h4,
-    .suggestion-header h4 {
+    .demo-header h4 {
         margin: 0;
         flex: 1;
         color: var(--color-text-primary);
@@ -581,7 +680,6 @@
         white-space: nowrap;
     }
 
-    .suggestion-date,
     .demo-date {
         font-size: 0.85rem;
         color: var(--color-text-secondary);
@@ -743,8 +841,7 @@
             gap: 0.5rem;
         }
 
-        .demo-header,
-        .suggestion-header {
+        .demo-header {
             flex-direction: column;
             gap: 0.5rem;
         }

@@ -973,6 +973,37 @@
                 }
             }
             
+            // Decrypt category
+            let category: string | null = null;
+            if (chat.encrypted_category) {
+                category = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                if (!category) {
+                    console.warn('[SettingsShare] Failed to decrypt category for metadata update');
+                }
+            }
+
+            // Decrypt icon
+            let icon: string | null = null;
+            if (chat.encrypted_icon) {
+                icon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                if (!icon) {
+                    console.warn('[SettingsShare] Failed to decrypt icon for metadata update');
+                }
+            }
+
+            // Decrypt follow-up suggestions
+            let followUpSuggestions: string[] | null = null;
+            if (chat.encrypted_follow_up_request_suggestions) {
+                const decryptedFollowUps = await decryptWithChatKey(chat.encrypted_follow_up_request_suggestions, chatKey);
+                if (decryptedFollowUps) {
+                    try {
+                        followUpSuggestions = JSON.parse(decryptedFollowUps);
+                    } catch (e) {
+                        console.warn('[SettingsShare] Failed to parse follow-up suggestions:', e);
+                    }
+                }
+            }
+            
             // Always send is_shared = true when sharing (even if no title/summary)
             // This ensures the server marks the chat as shared
             // Also send share_with_community flag and share link if community sharing is enabled
@@ -988,6 +1019,9 @@
                         chat_id: currentChatId,
                         title: title || null,
                         summary: summary || null,
+                        category: category || null,
+                        icon: icon || null,
+                        follow_up_suggestions: followUpSuggestions || null,
                         is_shared: true,  // Mark chat as shared on server
                         share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,  // Only for chats, not embeds
                         share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined  // Include share link for community sharing
