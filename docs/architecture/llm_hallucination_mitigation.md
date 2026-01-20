@@ -66,11 +66,17 @@ The system treats missing tool metadata as a critical reliability issue and incl
 
 For code-writing flows, enforce a “search current docs first” step (via skills / internal docs search) before generating final code, especially for framework/library APIs that change quickly.
 
-### 2) Post-generation lint/typecheck loop for code
+### 2) Post-generation lint/typecheck loop for code (TODO)
 
 After code generation completes:
-- Run linters/typecheck on produced files (likely via an isolated runner like e2b)
-- If errors are found, trigger a follow-up inference pass to fix the reported issues
+- **Automatic Trigger**: Automatically run linters/typecheck on produced files using **e2b (End-to-Box)** sandboxed environments.
+- **Full Context Approach**: Reconstruct the full project context in the sandbox by loading all code files from the chat history. This ensures cross-file dependencies (imports, types) are correctly resolved, preventing false positives.
+- **Targeted Reporting**: Filter results to only report and fix errors in the **newly generated or modified files** from the latest response.
+- **Autonomous Fix Loop**: If critical errors are found, trigger an automatic follow-up inference pass to fix the reported issues before final delivery or as a post-response correction.
+- **Expected Performance & Cost**:
+    - **Latency**: ~150ms startup (cold-start) + 1-5s execution (background processing).
+    - **Cost**: Extremely cost-effective (~$0.00003 - $0.0002 per check).
+- **Multi-language Support**: Support common linters across all major programming languages (Python, TS/JS, Svelte, Go, Rust, Java, C/C++, Ruby, PHP, etc.).
 
 ### 3) Stronger research strategies via focus modes
 
