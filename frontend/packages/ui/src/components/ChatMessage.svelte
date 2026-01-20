@@ -201,38 +201,6 @@
   }
 
   /**
-   * Handle left click for the entire message bubble
-   */
-  function handleMessageClick(event: MouseEvent) {
-    // Only handle primary button (left click)
-    if (event.button !== 0) return;
-
-    // Don't trigger if clicking on interactive elements
-    const target = event.target as HTMLElement;
-    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention, button')) {
-      return;
-    }
-
-    // CRITICAL: If selection mode is active, don't show custom menu on click.
-    // This allows users to tap around to adjust their selection or select different words
-    // without the menu interfering.
-    if (selectable) {
-      return;
-    }
-
-    // Only show if the menu isn't already showing (prevents double trigger)
-    if (!showMessageMenu) {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      messageMenuX = event.clientX;
-      messageMenuY = event.clientY;
-      showMessageMenu = true;
-      console.debug('[ChatMessage] Message context menu triggered (left-click)');
-    }
-  }
-
-  /**
    * Handle keyboard interaction for the message bubble
    */
   function handleMessageKeyDown(event: KeyboardEvent) {
@@ -323,6 +291,8 @@
     }
   }
 
+  // Removed handleMessageClick to avoid intrusive menu on tap
+
   /**
    * Copies the full message content to clipboard, or selected text if available
    */
@@ -356,9 +326,6 @@
     }
   }
 
-  /**
-   * Enables text selection and selects the word at the tap position
-   */
   function handleSelectMessage() {
     selectable = true;
     // Call selectAt on the ReadOnlyMessage component with the menu coordinates
@@ -367,13 +334,16 @@
     }
   }
 
+  // Final cleanup of any pre-existing handlers in template to avoid double calls
+  // The logic is now correctly attached programmatically in onMount
+
   onMount(() => {
     document.addEventListener('mousedown', handleGlobalClick);
     document.addEventListener('touchstart', handleGlobalClick);
     
     const el = messageContentElement;
     if (el) {
-      el.addEventListener('click', handleMessageClick as any);
+      // ONLY attach keydown, remove click to avoid intrusive menu on tap
       el.addEventListener('keydown', handleMessageKeyDown as any);
     }
 
@@ -381,7 +351,6 @@
       document.removeEventListener('mousedown', handleGlobalClick);
       document.removeEventListener('touchstart', handleGlobalClick);
       if (el) {
-        el.removeEventListener('click', handleMessageClick as any);
         el.removeEventListener('keydown', handleMessageKeyDown as any);
       }
     };

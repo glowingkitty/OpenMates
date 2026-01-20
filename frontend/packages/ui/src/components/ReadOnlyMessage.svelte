@@ -55,51 +55,55 @@
      * Selects the word at the specified coordinates, or the whole message as fallback.
      */
     export function selectAt(x: number, y: number) {
-        if (!editorElement) return;
+        if (!editor || !editor.view) return;
 
         tick().then(() => {
             const selection = window.getSelection();
             if (!selection) return;
 
-            let range: Range | null = null;
-
-            // Standard method to get range from point
-            if (document.caretRangeFromPoint) {
-                range = document.caretRangeFromPoint(x, y);
-            } else if ((document as any).caretPositionFromPoint) {
-                const pos = (document as any).caretPositionFromPoint(x, y);
-                if (pos) {
-                    range = document.createRange();
-                    range.setStart(pos.offsetNode, pos.offset);
-                    range.collapse(true);
-                }
-            }
-
-            if (range && editorElement.contains(range.startContainer)) {
-                // Point is within our message
-                selection.removeAllRanges();
-                selection.addRange(range);
-                
-                // Try to expand to the word at the position
+            // Use TipTap's posAtCoords for better accuracy with its internal DOM structure
+            const pos = editor.view.posAtCoords({ left: x, top: y });
+            
+            if (pos && pos.pos !== undefined) {
                 try {
-                    // modify() is non-standard but widely supported in WebKit/Blink
-                    if ((selection as any).modify) {
-                        (selection as any).modify('extend', 'backward', 'word');
-                        (selection as any).modify('extend', 'forward', 'word');
+                    // Focus editor first
+                    editor.commands.focus();
+                    
+                    // Get document and resolve position
+                    const { doc } = editor.state;
+                    const resolvedPos = doc.resolve(pos.pos);
+                    
+                    // Find word boundaries around the position
+                    // We look for the start and end of the word containing the position
+                    let start = pos.pos;
+                    let end = pos.pos;
+                    
+                    const textContent = resolvedPos.parent.textContent;
+                    
+                    // Find start of word
+                    while (start > resolvedPos.start() && /\w/.test(textContent[start - resolvedPos.start() - 1])) {
+                        start--;
                     }
                     
-                    // If we only selected whitespace or nothing substantial, fall back to select all
-                    if (selection.toString().trim().length === 0) {
-                        selectAll();
+                    // Find end of word
+                    while (end < resolvedPos.end() && /\w/.test(textContent[end - resolvedPos.start()])) {
+                        end++;
+                    }
+                    
+                    if (start < end) {
+                        // Select the word
+                        editor.commands.setTextSelection({ from: start, to: end });
+                        logger.debug(`Word selected at point: "${doc.textBetween(start, end)}"`);
                     } else {
-                        logger.debug('Word selected at point');
+                        // Fallback to select all if no word found
+                        selectAll();
                     }
                 } catch (e) {
-                    logger.debug('Failed to expand selection, falling back to select all', e);
+                    logger.debug('Failed to expand selection via TipTap, falling back to select all', e);
                     selectAll();
                 }
             } else {
-                // Not on text or outside, select all
+                // Coordinate lookup failed, select all
                 selectAll();
             }
         });
@@ -686,15 +690,17 @@
 <style>
     .read-only-message {
         width: 100%;
-        /* Default to no selection to prevent accidental highlights during long-press */
-        user-select: none !important;
-        -webkit-user-select: none !important;
-    }
-
-    .read-only-message.is-selectable {
-        /* Enable text selection only if selectable prop is true */
+        /* Enable text selection by default */
         user-select: text !important;
         -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+    }
+
+    /* Keep is-selectable class for potentially future explicit overrides */
+    .read-only-message.is-selectable {
+        user-select: text !important;
+        -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }
@@ -724,15 +730,17 @@
         outline: none;
         cursor: default;
         padding: 0;
-        /* Default to no selection */
-        user-select: none !important;
-        -webkit-user-select: none !important;
+        /* Enable text selection by default */
+        user-select: text !important;
+        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
 
     :global(.read-only-message.is-selectable .ProseMirror) {
-        /* Enable text selection on touch devices - override parent user-select: none */
+        /* Keep for consistency */
         user-select: text !important;
-        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }
