@@ -102,7 +102,8 @@ Since embeds are typically client-side encrypted (Zero-Knowledge), but generated
 ### Endpoints
 
 #### Download File
-```
+
+```http
 GET /v1/embeds/{embed_id}/file?format=preview|full|original
 Authorization: Bearer {api_key} OR Session Cookie
 
@@ -110,7 +111,8 @@ Response: image/webp or image/png (decrypted image bytes)
 ```
 
 #### Get Decrypted Metadata
-```
+
+```http
 GET /v1/embeds/{embed_id}/content
 Authorization: Bearer {api_key} OR Session Cookie
 
@@ -153,9 +155,17 @@ Users must be instructed to:
 - Report inconsistencies for regeneration.
 
 **Metadata Removal & AI Labeling**
+
 Before any external processing, all privacy-sensitive EXIF metadata (GPS, etc.) is stripped. However, the system injects industry-standard AI content signals:
+
 - **IPTC 2025.1 Compliance**: Injects `DigitalSourceType: trainedAlgorithmicMedia`, `aiSystemUsed`, and `aiPromptInformation`.
-- **C2PA Compatibility**: Uses machine-readable XMP metadata to signal the generative origin.
+- **Native C2PA Provenance**: Injects signed C2PA manifests using the `c2pa` library. This provides a cryptographically verifiable record of the image's origin.
+  - **Signing**: Images are signed using an ES256 digital certificate generated for the OpenMates instance.
+  - **Assertions**:
+    - `c2pa.training-mining`: Explicitly sets both `ai_generative` and `ai_training` to `constrained` status.
+    - `staxel.ai_metadata`: Stores the generation model, prompt, and timestamp.
+    - `digital_source_type`: Links to the IPTC `trainedAlgorithmicMedia` standard.
+  - **Coverage**: Applied to both the `original` provider output and the high-quality `full` WEBP version.
 - **Invisible Watermarking**: Preserves provider-level signals (like Google SynthID) by using high-quality encoding (90+) for the full-resolution version.
 - **Transparency**: Includes `CreatorTool` (OpenMates) and `Credit` info in the metadata.
 

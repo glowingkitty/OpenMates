@@ -522,4 +522,4 @@ When downloading processed files:
 - **Lifecycle Management**: Auto-cleanup of unreferenced files after X days
 - **Chunked Uploads**: Client-side chunking with progress tracking for large files
 - **Blockchain Provenance**: Store metadata hash on blockchain for immutable verification
-- **C2PA Integration**: Coalition for Content Provenance and Authenticity support
+- **C2PA Integration**: Integrated for AI-generated images (see [Images App Architecture](./apps/images.md)). Planned extension for all uploaded/processed content.
