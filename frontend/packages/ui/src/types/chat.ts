@@ -526,9 +526,13 @@ export interface SyncStatusResponsePayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
  */
 export interface Phase2RecentChatsPayload {
-    chats?: Partial<Chat>[];  // Optional - only present in direct sync response
+    chats?: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>;
     chat_count: number;
-    phase?: 'phase2';  // Optional - only present in direct sync response
+    phase?: 'phase2';
 }
 
 /**
@@ -539,10 +543,14 @@ export interface Phase2RecentChatsPayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
  */
 export interface Phase3FullSyncPayload {
-  chats?: Partial<Chat>[];  // Optional - only present in direct sync response
-  chat_count: number;
-  new_chat_suggestions?: NewChatSuggestion[];
-  phase?: 'phase3';  // Optional - only present in direct sync response
+    chats?: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>;
+    chat_count: number;
+    new_chat_suggestions?: NewChatSuggestion[];
+    phase?: 'phase3';
 }
 
 // Scroll position and read status payloads

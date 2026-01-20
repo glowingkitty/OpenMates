@@ -1326,6 +1326,15 @@ changes to the documentation (to keep the documentation up to date).
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
 
+                // Delay hiding the original profile until after transform animation (400ms)
+                // This ensures it moves to its position first, then hides, matching manual toggle
+                if (hideProfileTimeout) {
+                    clearTimeout(hideProfileTimeout);
+                }
+                hideProfileTimeout = setTimeout(() => {
+                    hideOriginalProfile = true;
+                }, 400);
+
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
                     const menuElement = document.querySelector('.settings-menu');
@@ -1460,6 +1469,15 @@ changes to the documentation (to keep the documentation up to date).
     		isMenuVisible = true;
     		settingsMenuVisible.set(true); // Also update the store for consistency
    
+            // Delay hiding the original profile until after transform animation (400ms)
+            // This ensures it moves to its position first, then hides, matching manual toggle
+            if (hideProfileTimeout) {
+                clearTimeout(hideProfileTimeout);
+            }
+            hideProfileTimeout = setTimeout(() => {
+                hideOriginalProfile = true;
+            }, 400);
+
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
     			const menuElement = document.querySelector('.settings-menu');

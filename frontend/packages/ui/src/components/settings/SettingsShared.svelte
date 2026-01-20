@@ -13,7 +13,6 @@
     import SettingsItem from '../SettingsItem.svelte';
     import { chatDB } from '../../services/db';
     import { userDB } from '../../services/userDB';
-    import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { get } from 'svelte/store';
@@ -21,13 +20,6 @@
 
     // Event dispatcher for navigation
     const dispatch = createEventDispatcher();
-    
-    // Props
-    let { 
-        activeSettingsView = 'shared'
-    }: {
-        activeSettingsView?: string;
-    } = $props();
     
     // State
     let ownedSharedChats = $state<Chat[]>([]);
@@ -50,7 +42,7 @@
         
         try {
             const profile = await userDB.getUserProfile();
-            currentUserId = (profile as any)?.user_id || null;
+            currentUserId = (profile as { user_id?: string } | null)?.user_id || null;
             console.debug('[SettingsShared] Loaded currentUserId:', currentUserId);
         } catch (error) {
             console.error('[SettingsShared] Error loading current user ID:', error);
@@ -77,19 +69,20 @@
             console.debug('[SettingsShared] Loaded', allChats.length, 'chats from IndexedDB');
             
             // Filter chats owned by current user that are shared
-            // A chat is "shared" if: is_shared === true AND is_private === false
+            // A chat is "shared" if: is_shared === true AND is_private is NOT true
             // This ensures we only show chats that are actively shared (not unshared)
             ownedSharedChats = allChats.filter(chat => 
                 chat.user_id === currentUserId && 
                 chat.is_shared === true && 
-                chat.is_private === false
+                chat.is_private !== true
             );
             
             // Filter chats owned by others (shared with me)
             // These are chats where the user is not the owner
             // These are chats that the user has opened from share links
             sharedWithMeChats = allChats.filter(chat => 
-                chat.user_id && chat.user_id !== currentUserId
+                chat.user_id && chat.user_id !== currentUserId &&
+                chat.is_shared === true
             );
             
             console.debug('[SettingsShared] Found', ownedSharedChats.length, 'owned shared chats');
@@ -186,8 +179,9 @@
     /**
      * Handle chatShared event - reload shared chats when a chat is shared
      */
-    function handleChatShared(event: CustomEvent) {
-        console.debug('[SettingsShared] Chat shared event received:', event.detail);
+    function handleChatShared(event: Event) {
+        const customEvent = event as CustomEvent;
+        console.debug('[SettingsShared] Chat shared event received:', customEvent.detail);
         // Reload shared chats to include the newly shared chat
         loadSharedChats();
     }
@@ -198,12 +192,12 @@
         await loadSharedChats();
         
         // Listen for chatShared events to reload the list
-        window.addEventListener('chatShared', handleChatShared as EventListener);
+        window.addEventListener('chatShared', handleChatShared);
     });
     
     // Clean up event listener on destroy
     onDestroy(() => {
-        window.removeEventListener('chatShared', handleChatShared as EventListener);
+        window.removeEventListener('chatShared', handleChatShared);
     });
     
     // Reload when authentication status changes
