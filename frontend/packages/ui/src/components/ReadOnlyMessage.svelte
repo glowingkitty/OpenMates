@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { text } from '@repo/ui';
@@ -15,11 +15,41 @@
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
-    let { content, isStreaming = false, _embedUpdateTimestamp = 0 }: { content: any; isStreaming?: boolean; _embedUpdateTimestamp?: number } = $props(); // The message content from Tiptap JSON
+    let { 
+        content, 
+        isStreaming = false, 
+        _embedUpdateTimestamp = 0,
+        selectable = false
+    }: { 
+        content: any; 
+        isStreaming?: boolean; 
+        _embedUpdateTimestamp?: number;
+        selectable?: boolean;
+    } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
+    
+    /**
+     * Auto-selects all text content within the message.
+     * Useful when 'Select' is chosen from the context menu.
+     */
+    export function selectAll() {
+        if (!editorElement) return;
+        
+        // Wait for next tick to ensure any state changes are reflected in DOM
+        tick().then(() => {
+            const range = document.createRange();
+            range.selectNodeContents(editorElement);
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+                logger.debug('Text auto-selected');
+            }
+        });
+    }
     
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport
@@ -592,7 +622,7 @@
     });
 </script>
 
-<div class="read-only-message" class:is-streaming={isStreaming}>
+<div class="read-only-message" class:is-streaming={isStreaming} class:is-selectable={selectable}>
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
@@ -602,7 +632,13 @@
 <style>
     .read-only-message {
         width: 100%;
-        /* Enable text selection on touch devices - override parent user-select: none */
+        /* Default to no selection to prevent accidental highlights during long-press */
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+
+    .read-only-message.is-selectable {
+        /* Enable text selection only if selectable prop is true */
         user-select: text !important;
         -webkit-user-select: text !important; /* Required for iOS Safari */
         -moz-user-select: text !important;
@@ -634,6 +670,12 @@
         outline: none;
         cursor: default;
         padding: 0;
+        /* Default to no selection */
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+
+    :global(.read-only-message.is-selectable .ProseMirror) {
         /* Enable text selection on touch devices - override parent user-select: none */
         user-select: text !important;
         -webkit-user-select: text !important; /* Required for iOS Safari */

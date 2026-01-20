@@ -4,6 +4,7 @@
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
+  import MessageContextMenu from './chats/MessageContextMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
@@ -138,6 +139,122 @@
   let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
   let selectedAppId = $state<string | null>(null);
   let selectedSkillId = $state<string | null>(null);
+
+  // Message context menu state
+  let showMessageMenu = $state(false);
+  let messageMenuX = $state(0);
+  let messageMenuY = $state(0);
+  let selectable = $state(false);
+  let readOnlyMessageComponent = $state<ReturnType<typeof ReadOnlyMessage>>();
+
+  /**
+   * Handle context menu (right-click) for the entire message bubble
+   */
+  function handleMessageContextMenu(event: MouseEvent) {
+    // Only show if not clicking on an embed (embeds have their own menu)
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    
+    messageMenuX = event.clientX;
+    messageMenuY = event.clientY;
+    showMessageMenu = true;
+    console.debug('[ChatMessage] Message context menu triggered (right-click)');
+  }
+
+  // Touch handling for long-press on message bubble
+  const LONG_PRESS_DURATION = 500;
+  const TOUCH_MOVE_THRESHOLD = 10;
+  let messageTouchTimer: ReturnType<typeof setTimeout> | null = null;
+  let messageTouchStartX = 0;
+  let messageTouchStartY = 0;
+
+  function handleMessageTouchStart(event: TouchEvent) {
+    // Only handle single touch
+    if (event.touches.length !== 1) {
+      clearMessageTouchTimer();
+      return;
+    }
+
+    // Don't trigger if touching an embed
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container')) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    messageTouchStartX = touch.clientX;
+    messageTouchStartY = touch.clientY;
+
+    messageTouchTimer = setTimeout(() => {
+      messageMenuX = messageTouchStartX;
+      messageMenuY = messageTouchStartY;
+      showMessageMenu = true;
+      
+      console.debug('[ChatMessage] Message long-pressed');
+      
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      messageTouchTimer = null;
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleMessageTouchMove(event: TouchEvent) {
+    if (!messageTouchTimer) return;
+    
+    const touch = event.touches[0];
+    const deltaX = Math.abs(touch.clientX - messageTouchStartX);
+    const deltaY = Math.abs(touch.clientY - messageTouchStartY);
+
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearMessageTouchTimer();
+    }
+  }
+
+  function handleMessageTouchEnd() {
+    clearMessageTouchTimer();
+  }
+
+  function clearMessageTouchTimer() {
+    if (messageTouchTimer) {
+      clearTimeout(messageTouchTimer);
+      messageTouchTimer = null;
+    }
+  }
+
+  /**
+   * Copies the full message content to clipboard
+   */
+  async function handleCopyMessage() {
+    try {
+      const contentToCopy = typeof original_message?.content === 'string' 
+        ? original_message.content 
+        : JSON.stringify(content);
+        
+      await navigator.clipboard.writeText(contentToCopy);
+      
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success('Message copied to clipboard');
+    } catch (error) {
+      console.error('[ChatMessage] Failed to copy message:', error);
+    }
+  }
+
+  /**
+   * Enables text selection and auto-selects all text
+   */
+  function handleSelectMessage() {
+    selectable = true;
+    // Call selectAll on the ReadOnlyMessage component
+    if (readOnlyMessageComponent) {
+      readOnlyMessageComponent.selectAll();
+    }
+  }
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
   let showFullscreen = $state(false);
@@ -658,7 +775,16 @@
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
+    <div 
+      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " 
+      style="opacity: {defaultHidden ? '0' : '1'};"
+      role="article"
+      oncontextmenu={handleMessageContextMenu}
+      ontouchstart={handleMessageTouchStart}
+      ontouchmove={handleMessageTouchMove}
+      ontouchend={handleMessageTouchEnd}
+      ontouchcancel={handleMessageTouchEnd}
+    >
       {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
@@ -675,16 +801,20 @@
         
         {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
+              bind:this={readOnlyMessageComponent}
               content={fullContent}
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
+              {selectable}
               on:message-embed-click={handleEmbedClick}
           />
         {:else}
           <ReadOnlyMessage 
+              bind:this={readOnlyMessageComponent}
               {content}
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
+              {selectable}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}
@@ -740,6 +870,17 @@
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
+        />
+      {/if}
+
+      {#if showMessageMenu}
+        <MessageContextMenu
+          x={messageMenuX}
+          y={messageMenuY}
+          show={showMessageMenu}
+          onClose={() => showMessageMenu = false}
+          onCopy={handleCopyMessage}
+          onSelect={handleSelectMessage}
         />
       {/if}
     </div>
