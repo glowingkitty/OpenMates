@@ -22,6 +22,7 @@ models:
         name: "OpenAI API"
       - id: "openrouter"
         name: "OpenRouter API"
+        model_id: "openai/gpt-5.2" # OpenRouter model identifier
     pricing: # Model-specific base pricing
       tokens: 
         input:

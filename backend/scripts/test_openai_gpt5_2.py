@@ -28,6 +28,7 @@ async def test_gpt5_2():
     # Import required modules
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     from backend.apps.ai.llm_providers.openai_client import invoke_openai_chat_completions
+    from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions
     from backend.core.api.app.utils.config_manager import config_manager
 
     # Initialize SecretsManager
@@ -145,6 +146,29 @@ async def test_gpt5_2():
             print(f"❌ Failed: {response.error_message}")
     except Exception as e:
         print(f"❌ Error during tool use test: {e}")
+
+    # 5. Test OpenRouter Fallback
+    print(f"\nTesting OpenRouter Fallback for {model_id}...")
+    try:
+        # We call the OpenRouter wrapper with the provider prefix to test resolution
+        response = await invoke_openrouter_chat_completions(
+            task_id="test_gpt5_2_openrouter",
+            model_id=f"openai/{model_id}",
+            messages=[{"role": "user", "content": "Hello via OpenRouter. Who are you?"}],
+            secrets_manager=secrets_manager,
+            temperature=0.7,
+            max_tokens=100,
+            stream=False
+        )
+        
+        if response.success:
+            print(f"✅ OpenRouter Success! Response: {response.direct_message_content}")
+            if response.usage:
+                print(f"   Usage: {response.usage.total_tokens} tokens")
+        else:
+            print(f"❌ OpenRouter Failed: {response.error_message}")
+    except Exception as e:
+        print(f"❌ Error during OpenRouter fallback test: {e}")
 
     print("\n" + "="*80)
     print("TESTS COMPLETED")

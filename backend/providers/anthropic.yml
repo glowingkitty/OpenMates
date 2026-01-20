@@ -87,6 +87,44 @@ models:
         price: 0.30
         currency: USD
 
+  - id: "claude-opus-4-5-20251101" # Official model ID
+    name: "Claude Opus 4.5"
+    description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "anthropic" # Default server for this model: anthropic or openrouter
+    servers:
+      - id: "anthropic"
+        name: "Anthropic API"
+        model_id: "claude-opus-4-5-20251101" # Direct API uses the model ID as-is
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "anthropic/claude-opus-4.5" # OpenRouter model identifier
+    pricing: # Model-specific base pricing
+      tokens: 
+        input:
+          per_credit_unit: 80 # 1 credit per 80 input tokens
+        output:
+          per_credit_unit: 12  # 1 credit per 12 output tokens
+    costs:
+      input_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 200000 # Max context window
+      output_per_million_token:
+        price: 25.00
+        currency: USD
+        max_context: 200000
+      cache_write_per_million_token:
+        price: 6.25
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.50
+        currency: USD
+
 
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
