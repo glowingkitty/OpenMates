@@ -37,6 +37,18 @@ _openai_organization: Optional[str] = None
 _openai_project: Optional[str] = None
 
 
+def _is_reasoning_model(model_id: str) -> bool:
+    """Check if model is a reasoning model based on config."""
+    try:
+        model_config = config_manager.get_model_pricing("openai", model_id)
+        if model_config and model_config.get("features", {}).get("reasoning_token_support"):
+            return True
+        # Fallback for known reasoning models if config is missing
+        return model_id.startswith(("o1", "o3", "gpt-5"))
+    except Exception:
+        return model_id.startswith(("o1", "o3", "gpt-5"))
+
+
 def _select_server_for_model(model_id: str) -> str:
     """Return one of: "openai", "openrouter", or "azure" (default "openai")."""
     try:
@@ -238,15 +250,25 @@ async def _invoke_openai_direct_api(
         # For fallback token estimation when usage is absent
         collected_output_text_parts: List[str] = []
 
+        is_reasoning = _is_reasoning_model(model_id)
+
         # Build payload with streaming enabled
         stream_payload: Dict[str, Any] = {
             "model": model_id,
             "messages": messages,
-            # "temperature": temperature, # NOTE: gpt-5 does not support temperature (and possible also other models)
             "stream": True,
         }
+        
+        # Add temperature if NOT a reasoning model (reasoning models usually don't support it or require 1.0)
+        if not is_reasoning:
+            stream_payload["temperature"] = temperature
+
         if max_tokens is not None:
-            stream_payload["max_tokens"] = max_tokens
+            # Reasoning models (like o1, gpt-5) use max_completion_tokens instead of max_tokens
+            if is_reasoning:
+                stream_payload["max_completion_tokens"] = max_tokens
+            else:
+                stream_payload["max_tokens"] = max_tokens
         if tools:
             mapped_tools = _map_tools_to_openai_format(tools)
             if mapped_tools:
@@ -417,13 +439,23 @@ async def _invoke_openai_direct_api(
         # Return the async generator for the calling pipeline to iterate over
         return _iterate_openai_direct_stream()
 
+    is_reasoning = _is_reasoning_model(model_id)
+
     payload: Dict[str, Any] = {
         "model": model_id,
         "messages": messages,
-        "temperature": temperature,
     }
+    
+    # Add temperature if NOT a reasoning model
+    if not is_reasoning:
+        payload["temperature"] = temperature
+        
     if max_tokens is not None:
-        payload["max_tokens"] = max_tokens
+        # Reasoning models (like o1, gpt-5) use max_completion_tokens instead of max_tokens
+        if is_reasoning:
+            payload["max_completion_tokens"] = max_tokens
+        else:
+            payload["max_tokens"] = max_tokens
     if tools:
         payload["tools"] = _map_tools_to_openai_format(tools)
         if tool_choice:

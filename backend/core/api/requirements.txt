@@ -31,7 +31,7 @@ stripe==12.2.0
 timezonefinder==8.2.0
 pytz==2025.2
 pynacl==1.6.2
-openai==1.99.3
+openai==2.15.0
 toon-format @ git+https://github.com/toon-format/toon-python.git
 groq==0.34.1
 youtube-transcript-api==1.2.3
