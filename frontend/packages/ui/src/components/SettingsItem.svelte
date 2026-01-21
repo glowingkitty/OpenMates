@@ -2,7 +2,7 @@
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
-    import { text } from '@repo/ui';
+    import { getCategoryGradientColors, getLucideIcon, getFallbackIconForCategory } from '../utils/categoryUtils';
 
     // Props using Svelte 5 runes
     let { 
@@ -24,6 +24,8 @@
         onClick = undefined,
         hasNestedItems = false,
         iconType = 'default',
+        category = undefined,
+        categoryIcon = undefined,
         children
     }: {
         icon: string;
@@ -43,7 +45,9 @@
         disabled?: boolean;
         onClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
-        iconType?: 'default' | 'app';
+        iconType?: 'default' | 'app' | 'category';
+        category?: string | undefined;
+        categoryIcon?: string | undefined;
         children?: any;
     } = $props();
 
@@ -144,6 +148,20 @@
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"
                     />
+                </div>
+            {:else if iconType === 'category' && category}
+                {@const gradientColors = getCategoryGradientColors(category)}
+                {@const iconName = categoryIcon || getFallbackIconForCategory(category)}
+                {@const IconComponent = getLucideIcon(iconName)}
+                <div class="category-circle-wrapper">
+                    <div 
+                        class="category-circle" 
+                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                    >
+                        <div class="category-icon">
+                            <IconComponent size={16} color="white" />
+                        </div>
+                    </div>
                 </div>
             {:else}
                 <div class="icon-container">
@@ -258,6 +276,20 @@
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"
                     />
+                </div>
+            {:else if iconType === 'category' && category}
+                {@const gradientColors = getCategoryGradientColors(category)}
+                {@const iconName = categoryIcon || getFallbackIconForCategory(category)}
+                {@const IconComponent = getLucideIcon(iconName)}
+                <div class="category-circle-wrapper">
+                    <div 
+                        class="category-circle" 
+                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                    >
+                        <div class="category-icon">
+                            <IconComponent size={16} color="white" />
+                        </div>
+                    </div>
                 </div>
             {:else}
                 <div class="icon-container">
@@ -403,6 +435,38 @@
         height: 44px;
         margin-right: 12px;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Category circle styles */
+    .category-circle-wrapper {
+        width: 44px;
+        height: 44px;
+        margin-right: 12px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .category-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+        transition: all 0.2s ease;
+    }
+
+    .category-icon {
+        width: 16px;
+        height: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
