@@ -98,6 +98,13 @@ export interface Chat {
 
   // Pin functionality
   pinned?: boolean; // Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync.
+
+  // Hidden chat fields (UI only, not persisted in this format)
+  is_hidden?: boolean; // True if this chat is hidden (unlocked with password)
+  is_hidden_candidate?: boolean; // True if this chat is a candidate for being hidden (decryption failed)
+
+  // Temporary messages field for sync/storage processing
+  messages?: Message[];
 }
 
 export interface ChatComponentVersions {
@@ -410,6 +417,7 @@ export interface InitialSyncResponsePayload {
         messages?: Message[];
         is_shared?: boolean; // Whether this chat has been shared (share link generated)
         is_private?: boolean; // Whether this chat is private (not shared)
+        user_id?: string; // Owner/creator of the chat
     }>;
     server_chat_order: string[];
     server_timestamp: number;

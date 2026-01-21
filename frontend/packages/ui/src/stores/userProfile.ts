@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { userDB } from '../services/userDB';
 
 export interface UserProfile {
+  user_id: string | null;
   username: string;
   profile_image_url: string | null;
   credits: number;
@@ -36,6 +37,7 @@ export interface UserProfile {
 
 // Default currency is now EUR
 export const defaultProfile: UserProfile = {
+  user_id: null,
   username: '',
   profile_image_url: null,
   credits: 0,

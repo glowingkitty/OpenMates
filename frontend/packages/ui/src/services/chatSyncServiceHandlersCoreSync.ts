@@ -95,6 +95,7 @@ export async function handleInitialSyncResponseImpl(
                 unread_count: serverChat.unread_count,
                 created_at: serverChat.created_at,
                 updated_at: serverChat.updated_at,
+                user_id: serverChat.user_id,
                 // Include sharing fields from server sync for cross-device consistency
                 is_shared: serverChat.is_shared !== undefined ? serverChat.is_shared : undefined,
                 is_private: serverChat.is_private !== undefined ? serverChat.is_private : undefined,
@@ -276,6 +277,7 @@ export async function handlePhase1LastChatImpl(
                 unread_count: payload.chat_details.unread_count ?? 0,
                 created_at: payload.chat_details.created_at ?? Math.floor(Date.now() / 1000),
                 updated_at: payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
+                user_id: payload.chat_details.user_id,
                 // Include optional fields
                 encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
                 encrypted_icon: payload.chat_details.encrypted_icon ?? null,

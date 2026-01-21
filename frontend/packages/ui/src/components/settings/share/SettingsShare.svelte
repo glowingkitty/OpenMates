@@ -12,15 +12,15 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, onMount } from 'svelte';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { onMount, type Component } from 'svelte';
     import Toggle from '../../Toggle.svelte';
     import { fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import QRCodeSVG from 'qrcode-svg';
-    import Chat from '../../chats/Chat.svelte';
+    import ChatComponent from '../../chats/Chat.svelte';
     import { activeChatStore } from '../../../stores/activeChatStore';
     import { authStore } from '../../../stores/authStore';
+    import type { Chat as ChatInterface, SyncEmbed } from '../../../types/chat';
     import { settingsDeepLink } from '../../../stores/settingsDeepLinkStore';
     import { generateShareKeyBlob, type ShareDuration } from '../../../services/shareEncryption';
     import { shareMetadataQueue } from '../../../services/shareMetadataQueue';
@@ -28,6 +28,22 @@
     import { userDB } from '../../../services/userDB';
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
+    
+    // Define interface for embed context to avoid 'any'
+    interface EmbedContext {
+        embed_id: string;
+        type?: string;
+        title?: string;
+        url?: string;
+        language?: string;
+        filename?: string;
+        lineCount?: number;
+    }
+
+    // Define custom window type for embed sharing context
+    interface EmbedWindow extends Window {
+        __embedShareContext?: EmbedContext | null;
+    }
     
     // Import embed preview components
     import WebSearchEmbedPreview from '../../embeds/web/WebSearchEmbedPreview.svelte';
@@ -56,9 +72,6 @@
             }
         };
     }
-    
-    // Event dispatcher for navigation and settings events
-    const dispatch = createEventDispatcher();
     
     // Props - the chat ID of the currently active chat
     let { 
@@ -101,26 +114,19 @@
     // Viewport dimensions for responsive QR code sizing
     let viewportWidth = $state(0);
     let viewportHeight = $state(0);
-    let smallerDimension = $derived(Math.min(viewportWidth, viewportHeight));
-    let isLandscape = $derived(viewportWidth > viewportHeight);
-    
     // Embed sharing context detection
     // Check if we're sharing an embed instead of a chat
-    let embedContext = $state<any>(null);
+    let embedContext = $state<EmbedContext | null>(null);
     let isEmbedSharing = $derived(embedContext !== null);
-    
-    // Embed preview state - for rendering the actual embed component
-    // Use a promise-based approach like AppEmbedsPanel to avoid infinite loops
-    let embedPreviewPromise = $state<Promise<{ component: any; props: any } | null> | null>(null);
     
     /**
      * Load and render embed preview component
      * Returns a promise that resolves to component and props, or null if not available
      * This matches the pattern used in AppEmbedsPanel.svelte
      */
-    async function loadEmbedPreview(): Promise<{ component: any; props: any } | null> {
+    async function loadEmbedPreview(): Promise<{ component: Component; props: Record<string, unknown> } | null> {
         if (!embedContext || !embedContext.embed_id) {
-            return;
+            return null;
         }
         
         try {
@@ -293,16 +299,16 @@
         return null;
     });
 
-    // Check for embed context on mount, when window.__embedShareContext changes, 
+    // Check for embed context on mount, when (window as EmbedWindow).__embedShareContext changes, 
     // when settingsDeepLink is set to 'shared/share' (Share button clicked),
     // and when component becomes active (activeSettingsView is 'share')
     $effect(() => {
-        const windowEmbedContext = (window as any).__embedShareContext;
+        const windowEmbedContext = (window as EmbedWindow).__embedShareContext;
         const deepLink = $settingsDeepLink;
         const isActive = activeSettingsView === 'share';
         
         // Check for embed context when:
-        // 1. window.__embedShareContext exists (embed share button clicked)
+        // 1. (window as EmbedWindow).__embedShareContext exists (embed share button clicked)
         // 2. settingsDeepLink is set to 'shared/share' (share settings opened)
         // 3. Component becomes active (activeSettingsView is 'share')
         if (windowEmbedContext) {
@@ -314,11 +320,11 @@
             embedContext = windowEmbedContext;
             console.debug('[SettingsShare] Embed sharing context detected:', embedContext);
             // Clear the global context to prevent reuse
-            (window as any).__embedShareContext = null;
+            (window as EmbedWindow).__embedShareContext = null;
         } else if (deepLink === 'shared/share' || isActive) {
             // When share settings are opened or component becomes active, check again for embed context
             // This handles timing issues where context might be set before component mounts
-            const contextCheck = (window as any).__embedShareContext;
+            const contextCheck = (window as EmbedWindow).__embedShareContext;
             if (contextCheck) {
                 // If we already have an embed context and it's different, reset share state
                 if (embedContext && embedContext.embed_id !== contextCheck.embed_id) {
@@ -328,7 +334,7 @@
                 embedContext = contextCheck;
                 console.debug('[SettingsShare] Embed sharing context detected via deep link or active view:', embedContext);
                 // Clear the global context to prevent reuse
-                (window as any).__embedShareContext = null;
+                (window as EmbedWindow).__embedShareContext = null;
             }
         }
     });
@@ -377,7 +383,7 @@
     });
     
     // Chat ownership and type detection
-    let currentChat = $state<any>(null);
+    let currentChat = $state<ChatInterface | null>(null);
     
     /**
      * Load currentChat for display
@@ -405,10 +411,8 @@
             }
         })();
     });
-    let isDemoChatType = $derived(currentChatId ? isDemoChat(currentChatId) : false);
     let isPublicChatType = $derived(currentChatId ? isPublicChat(currentChatId) : false);
     let isOwnedByUser = $state(true); // Default to true, will be checked asynchronously
-    let isSharedChatNotOwned = $derived(!isOwnedByUser && !isPublicChatType && $authStore.isAuthenticated);
     
     // ===============================
     // Duration Options
@@ -667,7 +671,7 @@
             
             // Get current user ID
             const profile = await userDB.getUserProfile();
-            const currentUserId = (profile as any)?.user_id;
+            const currentUserId = profile?.user_id;
             
             if (!currentUserId) {
                 // Can't determine ownership, default to owned (fail open for UX)
@@ -762,12 +766,12 @@
         // Check for embed context on mount (with a small delay to ensure it's set)
         // This handles cases where embed context is set just before component mounts
         setTimeout(() => {
-            const windowEmbedContext = (window as any).__embedShareContext;
+            const windowEmbedContext = (window as EmbedWindow).__embedShareContext;
             if (windowEmbedContext && !embedContext) {
                 embedContext = windowEmbedContext;
                 console.debug('[SettingsShare] Embed sharing context detected on mount:', embedContext);
                 // Clear the global context to prevent reuse
-                (window as any).__embedShareContext = null;
+                (window as EmbedWindow).__embedShareContext = null;
             }
         }, 100);
         
@@ -800,13 +804,18 @@
             const chat = await chatDB.getChat(chatId);
             
             if (chat) {
+                // Get current user ID to ensure ownership is recorded
+                const profile = await userDB.getUserProfile();
+                const currentUserId = profile?.user_id;
+
                 // Update chat with is_shared = true and is_private = false
                 await chatDB.updateChat({
                     ...chat,
                     is_shared: true,
-                    is_private: false
+                    is_private: false,
+                    user_id: chat.user_id || currentUserId || undefined
                 });
-                console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId);
+                console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId, 'user_id:', chat.user_id || currentUserId);
                 
                 // Dispatch event to notify other components (e.g., SettingsShared)
                 window.dispatchEvent(new CustomEvent('chatShared', { detail: { chat_id: chatId } }));
@@ -841,7 +850,7 @@
                 const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readonly');
                 const store = transaction.objectStore(EMBEDS_STORE_NAME);
                 
-                const entry = await new Promise<any>((resolve, reject) => {
+                const entry = await new Promise<SyncEmbed | null>((resolve, reject) => {
                     const request = store.get(contentRef);
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
@@ -1047,7 +1056,7 @@
                     // Queue for retry even if server returned success=false
                     await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
                 }
-            } catch (fetchError: any) {
+            } catch (fetchError) {
                 // Network error (offline, timeout, etc.) - queue for retry
                 console.debug('[SettingsShare] Network error sending OG metadata update, queueing for retry:', fetchError);
                 await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
@@ -1353,7 +1362,7 @@
                                     {/if}
                                 </div>
                             {/if}
-                        {:catch error}
+                        {:catch}
                             <!-- Error state -->
                             <div class="embed-info">
                                 <div class="embed-title">{embedContext.title || 'Embed'}</div>
@@ -1368,7 +1377,7 @@
                     <div class="chat-preview-header">
                         <span class="chat-preview-label">{$text('settings.share.sharing_chat.text', { default: 'Sharing:' })}</span>
                     </div>
-                    <Chat
+                    <ChatComponent
                         chat={currentChat}
                         activeChatId={displayChatId}
                         selectMode={false}
@@ -1544,7 +1553,7 @@
                                     {/if}
                                 </div>
                             {/if}
-                        {:catch error}
+                        {:catch}
                             <!-- Error state -->
                             <div class="embed-info">
                                 <div class="embed-title">{embedContext.title || 'Embed'}</div>
@@ -1559,7 +1568,7 @@
                     <div class="chat-preview-header">
                         <span class="chat-preview-label">{$text('settings.share.link_for_chat.text', { default: 'Link for:' })}</span>
                     </div>
-                    <Chat
+                    <ChatComponent
                         chat={currentChat}
                         activeChatId={displayChatId}
                         selectMode={false}

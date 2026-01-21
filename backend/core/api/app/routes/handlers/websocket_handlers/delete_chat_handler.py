@@ -1,6 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
-import datetime # For compliance log timestamp
+from typing import Dict, Any
 
 from fastapi import WebSocket
 
@@ -36,6 +35,24 @@ async def handle_delete_chat(
     logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
 
     try:
+        # 0. Verify chat ownership before processing deletion
+        # This prevents users from deleting chats they don't own
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to delete chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                message={
+                    "type": "error", 
+                    "payload": {
+                        "message": "You do not have permission to delete this chat.",
+                        "chat_id": chat_id
+                    }
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+            return
+
         # 1. Mark chat as deleted in general cache (tombstone)
         # Cached drafts will be allowed to expire naturally.
         # The Celery task is responsible for deleting all drafts from Directus.

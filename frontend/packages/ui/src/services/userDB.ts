@@ -238,6 +238,7 @@ class UserDatabaseService {
             const store = transaction.objectStore(this.STORE_NAME);
             
             // Get username
+            const idRequest = store.get('id');
             const usernameRequest = store.get('username');
             const profileImageRequest = store.get('profile_image_url');
             const creditsRequest = store.get('credits');
@@ -254,6 +255,7 @@ class UserDatabaseService {
             const darkmodeRequest = store.get('darkmode');
             
             const profile: UserProfile = {
+                user_id: null,
                 username: '',
                 profile_image_url: null,
                 credits: 0,
@@ -280,6 +282,11 @@ class UserDatabaseService {
             const autoTopupLowBalanceThresholdRequest = store.get('auto_topup_low_balance_threshold');
             const autoTopupLowBalanceAmountRequest = store.get('auto_topup_low_balance_amount');
             const autoTopupLowBalanceCurrencyRequest = store.get('auto_topup_low_balance_currency');
+
+            idRequest.onsuccess = () => {
+                profile.user_id = idRequest.result || null;
+                console.debug("[UserDatabase] idRequest success, result:", idRequest.result, "profile.user_id:", profile.user_id);
+            };
 
             usernameRequest.onsuccess = () => {
                 profile.username = usernameRequest.result || '';

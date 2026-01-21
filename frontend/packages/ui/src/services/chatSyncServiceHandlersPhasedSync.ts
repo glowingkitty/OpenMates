@@ -673,13 +673,16 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
             encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat,
             // Include sharing fields from server sync
             is_shared: serverChat.is_shared,
-            is_private: serverChat.is_private
+            is_private: serverChat.is_private,
+            // Include user_id (ownership)
+            user_id: serverChat.user_id
         };
     }
     
     // Start with server data as base, using defaults from local chat where server data is missing
     const merged: Chat = {
         chat_id: serverChat.id,
+        user_id: serverChat.user_id ?? localChat.user_id,
         encrypted_title: serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
         messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
         title_v: serverChat.title_v ?? localChat.title_v ?? 0,

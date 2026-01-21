@@ -338,6 +338,19 @@ async def lifespan(app: FastAPI):
         encryption_service=app.state.encryption_service
     )
     
+    # Initialize server stats service
+    from backend.core.api.app.services.server_stats_service import ServerStatsService
+    app.state.server_stats_service = ServerStatsService(
+        cache_service=app.state.cache_service,
+        directus_service=app.state.directus_service
+    )
+    
+    # Server stats service depends on cache and directus
+    app.state.server_stats_service = ServerStatsService(
+        cache_service=app.state.cache_service,
+        directus_service=app.state.directus_service
+    )
+    
     # Initialize EmailTemplateService (depends on SecretsManager)
     app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
     

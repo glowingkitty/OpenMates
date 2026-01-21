@@ -42,7 +42,8 @@
         
         try {
             const profile = await userDB.getUserProfile();
-            currentUserId = (profile as { user_id?: string } | null)?.user_id || null;
+            console.debug('[SettingsShared] Retrieved profile from userDB:', profile);
+            currentUserId = profile?.user_id || null;
             console.debug('[SettingsShared] Loaded currentUserId:', currentUserId);
         } catch (error) {
             console.error('[SettingsShared] Error loading current user ID:', error);

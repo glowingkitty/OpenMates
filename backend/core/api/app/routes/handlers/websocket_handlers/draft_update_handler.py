@@ -1,13 +1,10 @@
 import logging
-import json
-import time
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed for validation?
-from backend.core.api.app.services.directus import chat_methods
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 # No Celery task needed for immediate draft persistence
@@ -76,6 +73,17 @@ async def handle_update_draft(
         return
 
     logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
+
+    # Verify chat ownership
+    is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+    if not is_owner:
+        logger.warning(f"User {user_id} attempted to update draft for chat {chat_id} they don't own. Rejecting.")
+        await manager.send_personal_message(
+            message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash
+        )
+        return
 
     # Basic validation - check length limits for encrypted content
     if encrypted_draft_md and len(encrypted_draft_md) > MAX_DRAFT_CHARS:  # Use existing limit for encrypted content, NOTE: does this make sense? needs update?
