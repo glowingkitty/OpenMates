@@ -141,6 +141,11 @@ chats:
       nullable: true
       note: "[Vault-Encrypted] Follow-up suggestions for shared chat, encrypted with shared vault key (shared-content-metadata). Stored as JSON string. Only populated when is_private = false. Server can decrypt for discovery/previews without user context."
 
+    shared_encrypted_chat_key:
+      type: text
+      nullable: true
+      note: "[Vault-Encrypted] Chat encryption key for community-shared chats, encrypted with shared vault key (shared-content-metadata). Only populated when share_with_community = true. Server can decrypt for demo chat approval. This allows admins to approve demo chats without needing to open the chat first."
+
 # TODO: Create separate model for new_chat_request_suggestions
 # According to message_processing.md, new_chat_request_suggestions should be stored separately
 # (50 most recent suggestions stored in IndexedDB under separate key, not per chat)

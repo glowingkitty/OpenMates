@@ -110,15 +110,16 @@ async def get_community_suggestions(
     Get pending community chat suggestions for admin review.
 
     Returns chats that were shared with the community but haven't been
-    made into demo chats yet.
+    made into demo chats yet. Includes the decrypted encryption key so
+    admins can approve without needing to open the chat first.
     """
     try:
-        # 1. Get all chats shared with community
+        # 1. Get all chats shared with community (include shared_encrypted_chat_key for approval)
         params = {
             "filter": {
                 "share_with_community": {"_eq": True}
             },
-            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,updated_at,is_private,is_shared"
+            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_chat_key,updated_at,is_private,is_shared"
         }
         community_chats = await directus_service.get_items("chats", params)
 
@@ -180,6 +181,15 @@ async def get_community_suggestions(
                 except Exception as e:
                     logger.warning(f"Failed to decrypt shared follow-up suggestions for chat {chat_id}: {e}")
 
+            # Decrypt the chat encryption key (needed for demo chat approval)
+            # This key was stored when the user shared the chat with community
+            encryption_key = None
+            if chat.get("shared_encrypted_chat_key"):
+                try:
+                    encryption_key = await encryption_service.decrypt(chat.get("shared_encrypted_chat_key"), key_name=shared_vault_key)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared chat key for chat {chat_id}: {e}")
+
             suggestions.append({
                 "chat_id": chat_id,
                 "title": title or "Untitled Chat",
@@ -188,7 +198,8 @@ async def get_community_suggestions(
                 "icon": icon,
                 "follow_up_suggestions": follow_up_suggestions,
                 "shared_at": chat.get("updated_at"),
-                "share_link": f"/share/chat/{chat_id}" # UI will add the key from local store if available
+                "share_link": f"/share/chat/{chat_id}",
+                "encryption_key": encryption_key  # Decrypted key for immediate approval
             })
 
         return {

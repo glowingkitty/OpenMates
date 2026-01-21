@@ -137,6 +137,17 @@
 
             // Get encryption key from suggestion (for email links) or extract from share_link
             let encryptionKey = suggestion.encryption_key;
+            
+            // Try to get key from local storage if not in suggestion
+            if (!encryptionKey) {
+                const { getSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+                const storedKey = await getSharedChatKey(suggestion.chat_id);
+                if (storedKey) {
+                    // Convert Uint8Array to base64
+                    encryptionKey = window.btoa(String.fromCharCode(...storedKey));
+                }
+            }
+
             if (!encryptionKey && suggestion.share_link) {
                 // Extract key from share link if not provided directly
                 const shareLink = suggestion.share_link;
@@ -146,7 +157,7 @@
             }
 
             if (!encryptionKey) {
-                throw new Error('Encryption key is required to approve demo chat');
+                throw new Error('Encryption key is required to approve demo chat. Please click on the chat preview above to open it in a new window first. This will load the encryption key needed for approval.');
             }
 
             const response = await fetch(getApiEndpoint('/v1/admin/approve-demo-chat'), {
@@ -335,56 +346,35 @@
     }
 
     /**
-     * Preview a chat in the main app view
+     * Preview a shared chat in the main app view
+     * 
+     * The encryption key is provided by the server (decrypted from shared_encrypted_chat_key).
+     * Stores the key in IndexedDB, closes settings panel, and navigates to the chat in the current tab.
      */
-    async function previewChat(suggestion: Suggestion) {
-        let encryptionKey = suggestion.encryption_key;
-        
-        // Try to get key from URL params (for email links)
-        if (!encryptionKey && urlParams.chat_id === suggestion.chat_id && urlParams.key) {
-            encryptionKey = urlParams.key;
-        }
-        
-        // Try to extract from share_link if it has the key
-        if (!encryptionKey && suggestion.share_link) {
-            const shareLink = suggestion.share_link;
-            if (shareLink.includes('#key=')) {
-                encryptionKey = shareLink.split('#key=')[1];
-            }
-        }
+    async function openSharedChat(suggestion: Suggestion) {
+        const encryptionKey = suggestion.encryption_key;
 
+        // If no key is available, show error
         if (!encryptionKey) {
             dispatch('showToast', {
                 type: 'error',
-                message: 'Encryption key required for preview. Please access the chat via the share link first to load the key.'
+                message: 'Encryption key not available. This chat may have been shared before this feature was added.'
             });
             return;
         }
 
         // Store the key in sharedChatKeyStorage so it's available for decryption
-        const { saveSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
-        
-        // Convert base64 key string to Uint8Array if needed
-        let keyBytes: Uint8Array;
         try {
-            const binaryString = window.atob(encryptionKey);
-            keyBytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                keyBytes[i] = binaryString.charCodeAt(i);
-            }
+            const { saveSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+            // Convert base64 to Uint8Array
+            const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+            await saveSharedChatKey(suggestion.chat_id, keyBytes);
         } catch (e) {
-            console.error('Failed to decode encryption key:', e);
-            dispatch('showToast', {
-                type: 'error',
-                message: 'Invalid encryption key format'
-            });
-            return;
+            console.warn('Failed to save shared chat key to IndexedDB:', e);
         }
 
-        await saveSharedChatKey(suggestion.chat_id, keyBytes);
-
-        // Close settings and navigate to the chat
-        // We use the hash format that the app expects for deep links
+        // Close settings and navigate to the chat in the current tab
+        // Use the hash format that the app expects for deep links
         window.location.hash = `chat_id=${suggestion.chat_id}`;
         
         // Dispatch event to ensure chat loads immediately
@@ -407,7 +397,7 @@
      */
     function openChatFromEmail() {
         if (pendingSuggestion) {
-            previewChat(pendingSuggestion);
+            openSharedChat(pendingSuggestion);
         }
     }
 
@@ -486,7 +476,13 @@
             </div>
 
             <div class="email-suggestion-card">
-                <div class="suggestion-chat-preview">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                    class="suggestion-chat-preview clickable" 
+                    onclick={() => openSharedChat(pendingSuggestion!)}
+                    title="Click to open chat in new window"
+                >
                     <Chat 
                         chat={createVirtualChat(pendingSuggestion)}
                         activeChatId={undefined}
@@ -500,20 +496,14 @@
 
                 <div class="suggestion-actions">
                     <button
-                        onclick={() => previewChat(pendingSuggestion)}
-                        class="btn btn-secondary btn-small"
-                    >
-                        Preview Chat
-                    </button>
-                    <button
-                        onclick={() => rejectSuggestion(pendingSuggestion.chat_id)}
+                        onclick={() => rejectSuggestion(pendingSuggestion!.chat_id)}
                         class="btn btn-danger btn-small"
                         disabled={isSubmitting}
                     >
                         Reject
                     </button>
                     <button
-                        onclick={() => approveDemoChat(pendingSuggestion)}
+                        onclick={() => approveDemoChat(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
                         disabled={isSubmitting || currentDemoChats.length >= 5}
                     >
@@ -558,7 +548,13 @@
             <div class="suggestions-grid">
                 {#each suggestions as suggestion}
                     <div class="suggestion-card">
-                        <div class="suggestion-chat-preview">
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div 
+                            class="suggestion-chat-preview clickable"
+                            onclick={() => openSharedChat(suggestion)}
+                            title="Click to open chat in new window"
+                        >
                             <Chat 
                                 chat={createVirtualChat(suggestion)}
                                 activeChatId={undefined}
@@ -571,12 +567,6 @@
                         {/if}
 
                         <div class="suggestion-actions">
-                            <button
-                                onclick={() => previewChat(suggestion)}
-                                class="btn btn-secondary btn-small"
-                            >
-                                Preview
-                            </button>
                             <button
                                 onclick={() => rejectSuggestion(suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
@@ -611,7 +601,7 @@
                 <li>They showcase OpenMates capabilities to potential users</li>
                 <li>Maximum of 5 demo chats to keep selection curated</li>
                 <li>Oldest demos are automatically removed when approving new ones</li>
-                <li>Demo chats can be previewed before approval</li>
+                <li>Click a chat preview to view the conversation in a new window</li>
             </ul>
         </div>
     </div>
@@ -717,6 +707,17 @@
         border-radius: 8px;
         overflow: hidden;
         border: 1px solid var(--color-border);
+        transition: all 0.2s ease;
+    }
+
+    .suggestion-chat-preview.clickable {
+        cursor: pointer;
+    }
+
+    .suggestion-chat-preview.clickable:hover {
+        border-color: var(--color-primary);
+        background: var(--color-background-secondary);
+        transform: scale(1.02);
     }
 
     .demo-header {
@@ -805,17 +806,6 @@
 
     .btn-primary:hover:not(:disabled) {
         background: var(--color-primary-dark);
-    }
-
-    .btn-secondary {
-        background: var(--color-background-tertiary);
-        color: var(--color-text-secondary);
-        border: 1px solid var(--color-border);
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-        background: var(--color-background-secondary);
-        color: var(--color-text-primary);
     }
 
     .btn-danger {
