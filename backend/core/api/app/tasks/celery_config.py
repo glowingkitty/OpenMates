@@ -60,6 +60,7 @@ TASK_CONFIG = [
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -652,6 +653,9 @@ _EXPLICIT_TASK_ROUTES = {
     # Usage archive tasks
     "usage.archive_old_entries": "persistence",
     
+    # Server stats tasks
+    "server_stats.flush_to_directus": "server_stats",
+    
     # Email tasks (custom names starting with app.tasks.email_tasks.*)
     "app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email": "email",
     "app.tasks.email_tasks.account_created_email_task.send_account_created_email": "email",
@@ -794,6 +798,11 @@ app.conf.beat_schedule = {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
         'options': {'queue': 'persistence'},  # Route to persistence queue
+    },
+    'flush-server-stats': {
+        'task': 'server_stats.flush_to_directus',
+        'schedule': timedelta(seconds=600),  # Every 10 minutes
+        'options': {'queue': 'server_stats'},  # Route to server_stats queue
     },
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',

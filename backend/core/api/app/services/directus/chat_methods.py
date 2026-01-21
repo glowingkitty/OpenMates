@@ -175,6 +175,7 @@ class ChatMethods:
     async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
         """
         Checks if a user owns a chat by comparing hashed_user_id.
+        Optimized to use cache first, falling back to Directus only if necessary.
         
         Args:
             chat_id: The chat ID to check
@@ -184,6 +185,22 @@ class ChatMethods:
             True if the user owns the chat, False otherwise
         """
         try:
+            # 1. Try cache first (most efficient)
+            # If the chat_id is in the user's sorted set, they definitely own it.
+            cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)
+            if cache_exists:
+                logger.debug(f"Ownership check CACHE HIT for chat {chat_id}, user {user_id}: True")
+                return True
+            
+            # 2. If not in cache, check if cache is primed for this user.
+            # If primed and not in cache, the user does NOT own the chat (False).
+            is_primed = await self.directus_service.cache.is_user_cache_primed(user_id)
+            if is_primed:
+                logger.debug(f"Ownership check CACHE HIT (primed but missing) for chat {chat_id}, user {user_id}: False")
+                return False
+            
+            # 3. Cache miss or not primed: Fallback to Directus (DB hit)
+            logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
             chat_metadata = await self.get_chat_metadata(chat_id)
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
@@ -199,7 +216,7 @@ class ChatMethods:
             user_hashed_id = hashlib.sha256(user_id.encode()).hexdigest()
             is_owner = chat_hashed_user_id == user_hashed_id
             
-            logger.debug(f"Ownership check for chat {chat_id}, user {user_id}: {is_owner}")
+            logger.debug(f"Ownership check (DB fallback) for chat {chat_id}, user {user_id}: {is_owner}")
             return is_owner
             
         except Exception as e:
@@ -289,6 +306,13 @@ class ChatMethods:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
                 if chat_id_val: # Check if chat_id_val is not None
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache_service.increment_stat("chats_created")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after chat creation: {stats_err}")
+                    
                 return result_data, False
             else:
                 # Check if this is a duplicate key error (race condition - chat was created by another task)
@@ -430,6 +454,13 @@ class ChatMethods:
                 logger.info(f"✅ Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
                 if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:messages")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache_service.increment_stat("messages_sent")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after message creation: {stats_err}")
+                    
                 return result_data
             else:
                 # Check for duplicate key error (RECORD_NOT_UNIQUE)

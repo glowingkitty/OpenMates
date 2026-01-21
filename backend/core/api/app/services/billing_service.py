@@ -1,5 +1,4 @@
 import logging
-from decimal import Decimal, InvalidOperation
 from fastapi import HTTPException
 import time
 import asyncio
@@ -8,6 +7,7 @@ from typing import Dict, Any, Optional
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.routes.websockets import manager as websocket_manager
 
 logger = logging.getLogger(__name__)
@@ -18,10 +18,12 @@ class BillingService:
         cache_service: CacheService,
         directus_service: DirectusService,
         encryption_service: EncryptionService,
+        server_stats_service: Optional[ServerStatsService] = None,
     ):
         self.cache_service = cache_service
         self.directus_service = directus_service
         self.encryption_service = encryption_service
+        self.server_stats_service = server_stats_service
         self.websocket_manager = websocket_manager
 
     async def charge_user_credits(
@@ -118,6 +120,11 @@ class BillingService:
                 # Note: credits_to_deduct is still used for usage entry tracking, but not actually deducted
             user['credits'] = new_credits  # Store as integer in the dictionary for caching
 
+            # 2.5 Update server stats
+            if self.server_stats_service:
+                await self.server_stats_service.increment_stat("credits_used", credits_to_deduct)
+                await self.server_stats_service.update_liability(-credits_to_deduct)
+
             # 3. Update user in cache
             await self.cache_service.set_user(user, user_id=user_id)
 
@@ -167,6 +174,12 @@ class BillingService:
             
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
+            # 4.5. Update Server Global Stats (Incremental)
+            # Track credits used and decrease total liability
+            if payment_enabled:
+                await self.cache_service.increment_stat("credits_used", credits_to_deduct)
+                await self.cache_service.update_liability(-credits_to_deduct)
+
             # 5. Broadcast the new credit balance to all user devices
             await self.websocket_manager.broadcast_to_user(
                 user_id=user_id,
@@ -197,7 +210,7 @@ class BillingService:
                     if is_incognito:
                         # For incognito chats, use "incognito" as chat_id for aggregation
                         chat_id = "incognito"
-                        logger.debug(f"Using 'incognito' as chat_id for incognito chat usage tracking")
+                        logger.debug("Using 'incognito' as chat_id for incognito chat usage tracking")
                     else:
                         chat_id = chat_id_val.strip()
                 
@@ -620,7 +633,7 @@ class BillingService:
             )
 
             if not api_key:
-                raise ValueError(f"Stripe API key not found in vault")
+                raise ValueError("Stripe API key not found in vault")
 
             return api_key
 

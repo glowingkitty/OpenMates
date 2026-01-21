@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -122,7 +123,6 @@ async def get_community_suggestions(
         existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
 
         # 3. Filter and format suggestions
-        from backend.core.api.app.services.encryption import EncryptionService
         encryption_service: EncryptionService = request.app.state.encryption_service
         shared_vault_key = "shared-content-metadata"
 
@@ -312,3 +312,50 @@ async def delete_demo_chat(
     except Exception as e:
         logger.error(f"Error deleting demo chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete demo chat")
+
+@router.get("/server-stats")
+@limiter.limit("30/minute")
+async def get_server_stats(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get server statistics for the admin dashboard.
+    Returns daily stats for the last 30 days and monthly stats for the last 12 months.
+    """
+    try:
+        from datetime import datetime
+        
+        # 1. Fetch last 30 daily records
+        daily_stats = await directus_service.get_items(
+            "server_stats_global_daily",
+            params={
+                "sort": "-date",
+                "limit": 30
+            }
+        )
+
+        # 2. Fetch last 12 monthly records
+        monthly_stats = await directus_service.get_items(
+            "server_stats_global_monthly",
+            params={
+                "sort": "-year_month",
+                "limit": 12
+            }
+        )
+
+        # 3. Get current totals (from latest daily record or live from Directus if needed)
+        # We prefer the latest daily record as it's pre-aggregated
+        current_stats = daily_stats[0] if daily_stats else {}
+
+        return {
+            "current": current_stats,
+            "daily_history": daily_stats,
+            "monthly_history": monthly_stats,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching server stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch server statistics")

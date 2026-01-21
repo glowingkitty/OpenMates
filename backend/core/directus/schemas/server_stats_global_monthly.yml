@@ -1,0 +1,63 @@
+server_stats_global_monthly:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    year_month:
+      type: string
+      length: 7
+      note: "[Unique, Indexed] Month in format 'YYYY-MM'."
+      
+    # Aggregated Totals
+    new_users_registered:
+      type: integer
+      default: 0
+      
+    new_users_finished_signup:
+      type: integer
+      default: 0
+      
+    income_eur_cents:
+      type: bigint
+      default: 0
+      
+    credits_sold:
+      type: integer
+      default: 0
+      
+    credits_used:
+      type: integer
+      default: 0
+      
+    messages_sent:
+      type: integer
+      default: 0
+
+    chats_created:
+      type: integer
+      default: 0
+
+    embeds_created:
+      type: integer
+      default: 0
+
+    # End of Month Snapshots
+    liability_total:
+      type: bigint
+      default: 0
+      
+    active_subscriptions:
+      type: integer
+      default: 0
+      
+    total_regular_users:
+      type: integer
+      default: 0
+
+    created_at:
+      type: timestamp
+      
+    updated_at:
+      type: timestamp
