@@ -63,15 +63,16 @@ class DemoChatMethods:
             }
 
             # Create the demo chat entry
-            result = await self.directus_service.create_item("demo_chats", demo_chat_data)
-            if result:
+            # create_item returns a tuple (success: bool, data: dict)
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if success and created_item:
                 # Invalidate cache if approved
                 if approved_by_admin:
                     await self.directus_service.cache.clear_demo_chats_cache()
                 logger.info(f"Created demo chat {demo_id} for chat {chat_id}")
-                return result
+                return created_item
             else:
-                logger.error(f"Failed to create demo chat for chat {chat_id}")
+                logger.error(f"Failed to create demo chat for chat {chat_id}: {created_item}")
                 return None
 
         except Exception as e:
