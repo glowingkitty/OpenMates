@@ -89,6 +89,10 @@ class DirectusService:
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
         self.admin = AdminMethods(self) # Initialize AdminMethods
+        
+        # Initialize server stats service
+        from backend.core.api.app.services.server_stats_service import ServerStatsService
+        self.stats = ServerStatsService(self.cache, self)
 
     async def close(self):
         """Close the httpx client."""
