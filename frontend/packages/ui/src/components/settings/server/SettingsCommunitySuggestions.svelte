@@ -317,7 +317,7 @@
         const now = Math.floor(Date.now() / 1000);
         return {
             chat_id: item.chat_id,
-            title: item.title || 'Untitled Chat',
+            title: item.title || undefined, // Use title from backend (already decrypted), or undefined to let Chat component handle fallback
             encrypted_category: item.category, // Chat.svelte expects category in encrypted_category field for demos/previews
             encrypted_icon: item.icon,
             encrypted_follow_up_request_suggestions: item.follow_up_suggestions ? JSON.stringify(item.follow_up_suggestions) : undefined,
@@ -327,7 +327,7 @@
             pinned: false,
             is_incognito: false,
             unread_count: 0,
-            encrypted_title: '',
+            encrypted_title: '', // Empty for virtual chats - title is already decrypted from backend
             last_edited_overall_timestamp: now,
             created_at: now,
             updated_at: now
@@ -339,6 +339,13 @@
      */
     async function previewChat(suggestion: Suggestion) {
         let encryptionKey = suggestion.encryption_key;
+        
+        // Try to get key from URL params (for email links)
+        if (!encryptionKey && urlParams.chat_id === suggestion.chat_id && urlParams.key) {
+            encryptionKey = urlParams.key;
+        }
+        
+        // Try to extract from share_link if it has the key
         if (!encryptionKey && suggestion.share_link) {
             const shareLink = suggestion.share_link;
             if (shareLink.includes('#key=')) {
@@ -349,7 +356,7 @@
         if (!encryptionKey) {
             dispatch('showToast', {
                 type: 'error',
-                message: 'No encryption key found for preview'
+                message: 'Encryption key required for preview. Please access the chat via the share link first to load the key.'
             });
             return;
         }
@@ -692,6 +699,10 @@
         border-radius: 8px;
         padding: 1rem;
         transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Allow flex children to shrink */
+        overflow: visible; /* Ensure buttons are not clipped */
     }
 
     .demo-card:hover,
@@ -754,10 +765,17 @@
     .demo-footer,
     .suggestion-actions {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: center;
         margin-top: auto;
         gap: 0.5rem;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .suggestion-actions .btn {
+        flex: 0 0 auto;
+        min-width: fit-content;
     }
 
     .btn {
@@ -893,6 +911,11 @@
         .suggestion-actions {
             flex-direction: column;
             gap: 0.5rem;
+            width: 100%;
+        }
+        
+        .suggestion-actions .btn {
+            width: 100%;
         }
 
         .demo-header {

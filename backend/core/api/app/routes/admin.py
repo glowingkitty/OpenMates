@@ -141,42 +141,44 @@ async def get_community_suggestions(
                 continue
 
             # Decrypt shared metadata using vault key
+            # NOTE: decrypt() returns Optional[str], not a tuple
             title = None
             if chat.get("shared_encrypted_title"):
                 try:
-                    title, _ = await encryption_service.decrypt(chat.get("shared_encrypted_title"), key_name=shared_vault_key)
-                except Exception:
-                    logger.warning(f"Failed to decrypt shared title for chat {chat_id}")
+                    title = await encryption_service.decrypt(chat.get("shared_encrypted_title"), key_name=shared_vault_key)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared title for chat {chat_id}: {e}")
 
             summary = None
             if chat.get("shared_encrypted_summary"):
                 try:
-                    summary, _ = await encryption_service.decrypt(chat.get("shared_encrypted_summary"), key_name=shared_vault_key)
-                except Exception:
-                    logger.warning(f"Failed to decrypt shared summary for chat {chat_id}")
+                    summary = await encryption_service.decrypt(chat.get("shared_encrypted_summary"), key_name=shared_vault_key)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared summary for chat {chat_id}: {e}")
 
             category = None
             if chat.get("shared_encrypted_category"):
                 try:
-                    category, _ = await encryption_service.decrypt(chat.get("shared_encrypted_category"), key_name=shared_vault_key)
-                except Exception:
-                    logger.warning(f"Failed to decrypt shared category for chat {chat_id}")
+                    category = await encryption_service.decrypt(chat.get("shared_encrypted_category"), key_name=shared_vault_key)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared category for chat {chat_id}: {e}")
 
             icon = None
             if chat.get("shared_encrypted_icon"):
                 try:
-                    icon, _ = await encryption_service.decrypt(chat.get("shared_encrypted_icon"), key_name=shared_vault_key)
-                except Exception:
-                    logger.warning(f"Failed to decrypt shared icon for chat {chat_id}")
+                    icon = await encryption_service.decrypt(chat.get("shared_encrypted_icon"), key_name=shared_vault_key)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared icon for chat {chat_id}: {e}")
 
             follow_up_suggestions = []
             if chat.get("shared_encrypted_follow_up_suggestions"):
                 try:
                     import json
-                    decrypted_follow_ups, _ = await encryption_service.decrypt(chat.get("shared_encrypted_follow_up_suggestions"), key_name=shared_vault_key)
-                    follow_up_suggestions = json.loads(decrypted_follow_ups)
-                except Exception:
-                    logger.warning(f"Failed to decrypt shared follow-up suggestions for chat {chat_id}")
+                    decrypted_follow_ups = await encryption_service.decrypt(chat.get("shared_encrypted_follow_up_suggestions"), key_name=shared_vault_key)
+                    if decrypted_follow_ups:
+                        follow_up_suggestions = json.loads(decrypted_follow_ups)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt shared follow-up suggestions for chat {chat_id}: {e}")
 
             suggestions.append({
                 "chat_id": chat_id,
