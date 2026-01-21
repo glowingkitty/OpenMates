@@ -70,6 +70,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
+    import SettingsStats from './settings/server/SettingsStats.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -189,6 +190,7 @@ changes to the documentation (to keep the documentation up to date).
         'server': SettingsServer,
         'server/software-update': SettingsSoftwareUpdate,
         'server/community-suggestions': SettingsCommunitySuggestions,
+        'server/stats': SettingsStats,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,

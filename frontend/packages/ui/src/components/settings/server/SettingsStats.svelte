@@ -8,6 +8,7 @@
     import { onMount } from 'svelte';
     import { getApiEndpoint, text } from '@repo/ui';
     import { fade } from 'svelte/transition';
+    import SettingsItem from '../../SettingsItem.svelte';
 
     interface StatsRecord {
         id: string;
@@ -119,10 +120,12 @@
 </script>
 
 <div class="server-stats" in:fade={{ duration: 300 }}>
-    <div class="header">
-        <h2>{$text('settings.server_stats.title.text')}</h2>
-        <p>{$text('settings.server_stats.description.text')}</p>
-    </div>
+    <SettingsItem 
+        type="heading"
+        icon="usage"
+        subtitleTop={$text('settings.server_stats.description.text')}
+        title={$text('settings.server_stats.title.text')}
+    />
 
     {#if isLoading}
         <div class="loading">
@@ -272,22 +275,6 @@
         padding: 1.5rem;
         max-width: 1200px;
         margin: 0 auto;
-    }
-
-    .header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .header h2 {
-        margin: 0;
-        color: var(--color-text-primary);
-    }
-
-    .header p {
-        margin: 0.5rem 0 0;
-        color: var(--color-text-secondary);
     }
 
     .stats-grid {
