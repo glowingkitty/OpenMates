@@ -257,6 +257,29 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled
 - **Cache First**: Update server cache BEFORE Directus/disk to ensure data consistency.
 - **Directus models**: Define Directus models in YAML files under `backend/core/directus/schemas/`.
 
+## Internationalization (i18n)
+
+### Guidelines
+- **NEVER use hardcoded text** for user-facing strings in frontend or backend.
+- **ALWAYS use the translation system** for all user-facing content.
+- **Source of Truth**: The primary source for translations are the `.yml` files in `frontend/packages/ui/src/i18n/sources/`.
+- **Adding Translations**:
+  1. Add new keys and translations to the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`.
+  2. Follow the established format (use empty strings for missing translations):
+     ```yaml
+     key_name:
+       context: Description of how the text is used
+       en: English text
+       de: German translation
+       # ... other languages
+     ```
+  3. After modifying `.yml` files, run `npm run build:translations` in `frontend/packages/ui` to update the `.json` files in `locales/`.
+
+### Usage
+- **Frontend**: Use the `$text` store for translations: `$text('namespace.key.text')`.
+- **Backend**: Use the `TranslationService` to resolve translations from the same YAML sources.
+- **Metadata**: Application names and descriptions should use `name_translation_key` or `description_translation_key` instead of hardcoded strings.
+
 ## Testing Policy
 
 ### CRITICAL: No Tests Without Explicit Consent
