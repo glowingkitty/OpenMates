@@ -28,9 +28,9 @@ models:
     pricing: # Model-specific base pricing (example structure)
       tokens: 
         input:
-          per_credit_unit: 500 # 1 credit per 500 input tokens (cheaper than Sonnet)
+          per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
         output:
-          per_credit_unit: 100  # 1 credit per 100 output tokens (cheaper than Sonnet)
+          per_credit_unit: 70  # 1 credit per 70 output tokens (cheaper than Sonnet)
     costs:
       input_per_million_token:
         price: 1.00
@@ -68,7 +68,7 @@ models:
     pricing: # Model-specific base pricing (example structure)
       tokens: 
         input:
-          per_credit_unit: 150 # 1 credit per 150 input tokens
+          per_credit_unit: 110 # 1 credit per 110 input tokens
         output:
           per_credit_unit: 20  # 1 credit per 20 output tokens
     costs:
@@ -106,9 +106,9 @@ models:
     pricing: # Model-specific base pricing
       tokens: 
         input:
-          per_credit_unit: 80 # 1 credit per 80 input tokens
+          per_credit_unit: 70 # 1 credit per 70 input tokens
         output:
-          per_credit_unit: 12  # 1 credit per 12 output tokens
+          per_credit_unit: 15  # 1 credit per 15 output tokens
     costs:
       input_per_million_token:
         price: 5.00

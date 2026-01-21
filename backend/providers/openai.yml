@@ -26,9 +26,9 @@ models:
     pricing: # Model-specific base pricing
       tokens: 
         input:
-          per_credit_unit: 250
+          per_credit_unit: 190
         output:
-          per_credit_unit: 20
+          per_credit_unit: 25
     costs:
       input_per_million_token:
         price: 1.75
@@ -64,7 +64,7 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 1500 # 1 credit per 1500 input tokens (0.25 USD per 1M tokens)
+          per_credit_unit: 1300 # 1 credit per 1300 input tokens (0.25 USD per 1M tokens)
         output:
           per_credit_unit: 500  # 1 credit per 500 output tokens (0.69 USD per 1M tokens)
     costs:
@@ -99,7 +99,7 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 4500 # 1 credit per 4500 input tokens (0.075 USD per 1M tokens)
+          per_credit_unit: 4400 # 1 credit per 4400 input tokens (0.075 USD per 1M tokens)
         output:
           per_credit_unit: 1100  # 1 credit per 1100 output tokens (0.30 USD per 1M tokens)
     costs:
