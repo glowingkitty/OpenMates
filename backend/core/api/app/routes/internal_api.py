@@ -22,6 +22,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -64,12 +65,20 @@ def get_cache_service(request: Request) -> CacheService:
         raise HTTPException(status_code=500, detail="Internal configuration error: CacheService not available.")
     return request.app.state.cache_service
 
+def get_server_stats_service(request: Request) -> ServerStatsService:
+    if not hasattr(request.app.state, 'server_stats_service'):
+        logger.error("ServerStatsService not found in app.state during internal API call.")
+        # Optional: don't fail if not found, just return None
+        return None
+    return request.app.state.server_stats_service
+
 def get_billing_service(
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service)
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    server_stats_service: ServerStatsService = Depends(get_server_stats_service)
 ) -> BillingService:
-    return BillingService(cache_service, directus_service, encryption_service)
+    return BillingService(cache_service, directus_service, encryption_service, server_stats_service)
 
 def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, 's3_service'):

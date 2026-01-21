@@ -121,6 +121,17 @@ async def handle_app_settings_memories_confirmed(
             logger.warning(f"Invalid app_settings_memories payload from user {user_id}: missing chat_id")
             return
         
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to confirm app settings/memories for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         # app_settings_memories can be empty if user rejected all categories
         # We still need to continue processing (without the data)
         is_rejection = not app_settings_memories or not isinstance(app_settings_memories, list) or len(app_settings_memories) == 0

@@ -167,7 +167,10 @@ async def _warm_cache_phase_one(
             encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
             encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
             encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
-            last_message_timestamp=chat_details.get("last_message_timestamp")
+            last_message_timestamp=chat_details.get("last_message_timestamp"),
+            is_shared=chat_details.get("is_shared"),
+            is_private=chat_details.get("is_private"),
+            user_id=user_id  # Cache the owner ID
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -263,7 +266,10 @@ async def _warm_cache_phase_two_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
 
             # Prepare pipeline operations for this chat
@@ -306,7 +312,10 @@ async def _warm_cache_phase_two_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp")
+                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        is_shared=chat_data.get("is_shared"),
+                        is_private=chat_data.get("is_private"),
+                        user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -428,7 +437,10 @@ async def _warm_cache_phase_three_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
 
             # Prepare pipeline operations for this chat
@@ -471,7 +483,10 @@ async def _warm_cache_phase_three_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp")
+                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        is_shared=chat_data.get("is_shared"),
+                        is_private=chat_data.get("is_private"),
+                        user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -570,7 +585,10 @@ async def _warm_cache_phase_three(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 

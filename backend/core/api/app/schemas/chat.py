@@ -108,6 +108,11 @@ class CachedChatListItemData(BaseModel):
     # Disclaimer tracking for hardcoded advice disclaimers
     last_disclaimer_type: Optional[str] = None  # "financial", "medical", "legal", or "mental_health"
     last_disclaimer_timestamp: Optional[int] = None  # Unix timestamp when last disclaimer was injected
+    # Sharing fields
+    is_shared: Optional[bool] = None
+    is_private: Optional[bool] = None
+    # user_id is the owner of the chat
+    user_id: Optional[str] = None
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -198,6 +203,7 @@ class ClientChatComponentVersions(BaseModel):
 class ChatSyncData(BaseModel):
     """Data for a single chat in the initial_sync_response."""
     chat_id: str
+    user_id: Optional[str] = None # Owner/creator of the chat
     versions: ClientChatComponentVersions # Changed from CachedChatVersions
     draft_v: Optional[int] = None # User-specific draft version for THIS user, for the client (can be redundant if client uses versions.draft_v)
     last_edited_overall_timestamp: int

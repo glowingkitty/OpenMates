@@ -43,6 +43,17 @@ async def handle_delete_draft(
         f"User {user_id}, Device {device_fingerprint_hash}: Received delete_draft request for chat_id: {chat_id}."
     )
 
+    # Verify chat ownership
+    is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+    if not is_owner:
+        logger.warning(f"User {user_id} attempted to delete draft for chat {chat_id} they don't own. Rejecting.")
+        await manager.send_personal_message(
+            message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash
+        )
+        return
+
     # Attempt to delete from cache
     cache_delete_success = await cache_service.delete_user_draft_from_cache(
         user_id=user_id,

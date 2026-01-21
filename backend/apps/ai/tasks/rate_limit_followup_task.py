@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.encryption import EncryptionService
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.embed_service import EmbedService
 
 logger = logging.getLogger(__name__)
@@ -46,14 +46,14 @@ async def _async_process_rate_limit_followup(
     Returns:
         Dict with processing status
     """
-    log_prefix = f"[RATE_LIMIT_FOLLOWUP]"
+    log_prefix = "[RATE_LIMIT_FOLLOWUP]"
     logger.info(f"{log_prefix} Starting followup processing for skill '{app_id}.{skill_id}'")
     
     try:
         # skill_result is the result from the chained skill task
         skill_results = skill_result
         if not skill_results:
-            error_msg = f"No results from skill task"
+            error_msg = "No results from skill task"
             logger.error(f"{log_prefix} {error_msg}")
             return {"status": "error", "message": error_msg}
         
@@ -233,7 +233,7 @@ async def _async_process_rate_limit_followup(
         }
 
 
-@app.task(
+@celery_app.task(
     name="apps.ai.tasks.rate_limit_followup",
     bind=True,
     max_retries=3

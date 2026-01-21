@@ -578,6 +578,7 @@ async def _handle_phase2_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
+                        "user_id": user_id,  # Add user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -611,6 +612,7 @@ async def _handle_phase2_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
+                                    "user_id": user_id,  # Add user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),
@@ -943,6 +945,7 @@ async def _handle_phase3_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
+                        "user_id": user_id,  # Add user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -976,6 +979,7 @@ async def _handle_phase3_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
+                                    "user_id": user_id,  # Add user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),

@@ -88,6 +88,17 @@ async def handle_ai_response_completed(
 
         logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
 
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         # CRITICAL: Check if this specific response ID was already processed or is being processed
         # This prevents duplicate confirmations and redundant Celery tasks
         lock_key = f"lock:ai_response_processed:{message_id}"

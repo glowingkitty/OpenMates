@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Request, Response, Cookie, HTTPException, status
+from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
 import os
-from typing import Optional, Dict, Any # Added Dict, Any
+from typing import Optional # Added Dict, Any
 from backend.core.api.app.schemas.auth import SessionResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -126,6 +126,7 @@ async def get_session(
             logger.warning(f"New device detected for user {user_id[:6]} and 2FA is enabled. Triggering 2FA re-auth.")
             # Return minimal user info needed for the re-auth screen
             minimal_user_info = UserResponse(
+                id=user_id,
                 username=user_data.get("username"), # Send username if available
                 is_admin=user_data.get("is_admin", False),
                 credits=user_data.get("credits", 0),
@@ -283,6 +284,7 @@ async def get_session(
             success=True,
             message="Session valid",
             user=UserResponse( # Map from user_data dictionary
+                id=user_id,
                 username=user_data.get("username"),
                 is_admin=user_data.get("is_admin", False),
                 credits=user_data.get("credits", 0),
