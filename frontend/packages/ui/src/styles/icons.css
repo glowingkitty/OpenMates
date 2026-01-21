@@ -1088,7 +1088,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/task.svg');
+      background-image: url('@openmates/ui/static/icons/usage.svg');
   }
 }
 
