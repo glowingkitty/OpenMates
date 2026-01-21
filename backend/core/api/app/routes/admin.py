@@ -54,6 +54,10 @@ class ApproveDemoChatRequest(BaseModel):
     category: str = ""
     follow_up_suggestions: List[str] = []
 
+class RejectSuggestionRequest(BaseModel):
+    """Request model for rejecting a community suggestion"""
+    chat_id: str
+
 # --- Endpoints ---
 
 @router.post("/become-admin")
@@ -260,6 +264,47 @@ async def approve_demo_chat(
     except Exception as e:
         logger.error(f"Error approving demo chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to approve demo chat")
+
+@router.post("/reject-suggestion")
+@limiter.limit("30/minute")
+async def reject_suggestion(
+    request: Request,
+    payload: RejectSuggestionRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Reject a community suggestion.
+    This sets share_with_community to False for the specified chat.
+    """
+    try:
+        # Verify the chat exists
+        chat = await directus_service.chat.get_chat_metadata(payload.chat_id)
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+
+        # Update the chat to remove from community suggestions
+        success = await directus_service.update_item(
+            "chats", 
+            payload.chat_id, 
+            {"share_with_community": False}
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to reject suggestion")
+
+        logger.info(f"Admin {admin_user.id} rejected community suggestion for chat {payload.chat_id}")
+
+        return {
+            "success": True,
+            "message": "Suggestion rejected successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting community suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to reject suggestion")
 
 @router.get("/demo-chats")
 @limiter.limit("30/minute")

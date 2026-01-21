@@ -12,33 +12,25 @@
 
     const dispatch = createEventDispatcher();
 
-    // State
-    let isLoading = $state(true);
-    let error = $state<string | null>(null);
-    let suggestions = $state<Array<{ 
-        chat_id: string; 
-        title: string; 
-        summary?: string; 
-        category?: string; 
-        icon?: string;
-        follow_up_suggestions?: string[];
-        shared_at: string; 
-        share_link: string;
-        encryption_key?: string;
-    }>>([]);
-    let currentDemoChats = $state<Array<{ demo_id: string; title: string; summary?: string; category?: string; created_at: string }>>([]);
-    let isSubmitting = $state(false);
-    let pendingSuggestion = $state<{ 
-        chat_id: string; 
-        encryption_key: string; 
-        title: string; 
-        summary: string; 
+    interface Suggestion {
+        chat_id: string;
+        title: string;
+        summary?: string;
         category?: string;
         icon?: string;
         follow_up_suggestions?: string[];
-        shared_at: string; 
-        share_link: string 
-    } | null>(null);
+        shared_at: string;
+        share_link: string;
+        encryption_key?: string;
+    }
+
+    // State
+    let isLoading = $state(true);
+    let error = $state<string | null>(null);
+    let suggestions = $state<Suggestion[]>([]);
+    let currentDemoChats = $state<Array<{ demo_id: string; title: string; summary?: string; category?: string; created_at: string }>>([]);
+    let isSubmitting = $state(false);
+    let pendingSuggestion = $state<Suggestion | null>(null);
 
     // URL parameters for email link
     let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string; category?: string; icon?: string; follow_up_suggestions?: string }>({});
@@ -139,22 +131,15 @@
     /**
      * Approve a chat as demo chat
      */
-    async function approveDemoChat(suggestion: { 
-        chat_id: string; 
-        encryption_key?: string; 
-        title?: string; 
-        summary?: string; 
-        category?: string;
-        follow_up_suggestions?: string[];
-    }) {
+    async function approveDemoChat(suggestion: Suggestion) {
         try {
             isSubmitting = true;
 
             // Get encryption key from suggestion (for email links) or extract from share_link
             let encryptionKey = suggestion.encryption_key;
-            if (!encryptionKey && 'share_link' in suggestion) {
+            if (!encryptionKey && suggestion.share_link) {
                 // Extract key from share link if not provided directly
-                const shareLink = (suggestion as any).share_link;
+                const shareLink = suggestion.share_link;
                 if (shareLink && shareLink.includes('#key=')) {
                     encryptionKey = shareLink.split('#key=')[1];
                 }
@@ -208,6 +193,60 @@
             dispatch('showToast', {
                 type: 'error',
                 message: `Failed to approve demo chat: ${err.message}`
+            });
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    /**
+     * Reject a community suggestion
+     */
+    async function rejectSuggestion(chatId: string) {
+        if (!confirm('Are you sure you want to reject this suggestion? It will be removed from the review queue.')) {
+            return;
+        }
+
+        try {
+            isSubmitting = true;
+
+            const response = await fetch(getApiEndpoint('/v1/admin/reject-suggestion'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    chat_id: chatId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to reject suggestion');
+            }
+
+            // If this was a pending suggestion from email, clear it
+            if (pendingSuggestion && pendingSuggestion.chat_id === chatId) {
+                pendingSuggestion = null;
+                // Clear URL params using native History API (works in shared UI package)
+                const url = new URL(window.location.href);
+                url.search = '';
+                window.history.replaceState({}, '', url.toString());
+            }
+
+            // Reload data
+            await loadSuggestions();
+
+            dispatch('showToast', {
+                type: 'success',
+                message: 'Suggestion rejected successfully'
+            });
+
+        } catch (err) {
+            console.error('Error rejecting suggestion:', err);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Failed to reject suggestion'
             });
         } finally {
             isSubmitting = false;
@@ -274,7 +313,7 @@
     /**
      * Helper to create a virtual chat object for display in the Chat component
      */
-    function createVirtualChat(item: any): ChatType {
+    function createVirtualChat(item: Suggestion): ChatType {
         const now = Math.floor(Date.now() / 1000);
         return {
             chat_id: item.chat_id,
@@ -298,7 +337,7 @@
     /**
      * Preview a chat in the main app view
      */
-    async function previewChat(suggestion: any) {
+    async function previewChat(suggestion: Suggestion) {
         let encryptionKey = suggestion.encryption_key;
         if (!encryptionKey && suggestion.share_link) {
             const shareLink = suggestion.share_link;
@@ -460,6 +499,13 @@
                         Preview Chat
                     </button>
                     <button
+                        onclick={() => rejectSuggestion(pendingSuggestion.chat_id)}
+                        class="btn btn-danger btn-small"
+                        disabled={isSubmitting}
+                    >
+                        Reject
+                    </button>
+                    <button
                         onclick={() => approveDemoChat(pendingSuggestion)}
                         class="btn btn-primary btn-small"
                         disabled={isSubmitting || currentDemoChats.length >= 5}
@@ -523,6 +569,13 @@
                                 class="btn btn-secondary btn-small"
                             >
                                 Preview
+                            </button>
+                            <button
+                                onclick={() => rejectSuggestion(suggestion.chat_id)}
+                                class="btn btn-danger btn-small"
+                                disabled={isSubmitting}
+                            >
+                                Reject
                             </button>
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
@@ -704,6 +757,7 @@
         justify-content: space-between;
         align-items: center;
         margin-top: auto;
+        gap: 0.5rem;
     }
 
     .btn {
