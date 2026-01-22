@@ -1203,11 +1203,32 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				const demoId = demoChatMeta.demo_id;
 				if (!demoId) continue;
 
-				// Skip if already loaded (we use chat_id for storage, but we need to know if this demo_id was already processed)
-				// For now, let's keep it simple: if it's in sessionStorage, we've at least tried to load it
+				// CRITICAL FIX: Check if this demo was successfully loaded by verifying BOTH:
+				// 1. The demo_id is in sessionStorage
+				// 2. The corresponding chat_id exists in IndexedDB
+				// This prevents the bug where only demo_id is stored on partial failures,
+				// causing subsequent loads to skip the demo even though it's not in IndexedDB.
 				if (existingDemoChatIds.includes(demoId)) {
-					console.debug(`[Chats] Demo chat ${demoId} already processed, skipping`);
-					continue;
+					// Find the corresponding chat_id in sessionStorage (it should be stored alongside demo_id)
+					// We need to check if any ID in sessionStorage (other than demo_id) is a valid chat in IndexedDB
+					const potentialChatIds = existingDemoChatIds.filter((id: string) => id !== demoId && id.length > 16);
+					let foundInDb = false;
+					for (const possibleChatId of potentialChatIds) {
+						const existingChat = await chatDB.getChat(possibleChatId);
+						if (existingChat) {
+							foundInDb = true;
+							console.debug(`[Chats] Demo chat ${demoId} already loaded (chat_id: ${possibleChatId}), skipping`);
+							break;
+						}
+					}
+					
+					if (foundInDb) {
+						continue;
+					}
+					
+					// Demo_id is in sessionStorage but no corresponding chat found in IndexedDB
+					// This means a previous load failed - retry it
+					console.debug(`[Chats] Demo chat ${demoId} was partially processed (not in IndexedDB), retrying...`);
 				}
 
 				try {
@@ -1215,8 +1236,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
 					if (!chatResponse.ok) {
 						console.warn(`[Chats] Failed to fetch demo chat ${demoId}:`, chatResponse.status);
-						// Still mark as processed to avoid constant retries in this session
-						demoChatIds.push(demoId);
+						// DON'T mark as processed on error - allow retries
+						// The previous behavior of storing demo_id on failure caused the bug
+						// where subsequent loads would skip this demo even though it wasn't in IndexedDB
 						continue;
 					}
 
@@ -1225,8 +1247,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					
 					if (!chatDataObj || !chatDataObj.chat_id || !chatDataObj.encryption_key) {
 						console.warn(`[Chats] Invalid demo chat data for ${demoId}`);
-						// Mark as processed
-						demoChatIds.push(demoId);
+						// DON'T mark as processed - allow retries on next page load
 						continue;
 					}
 
@@ -1262,15 +1283,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 							} else {
 								console.error(`[Chats] Failed to decode demo chat key for ${demoId}: unexpected format`);
 								console.debug(`[Chats] Key preview: ${encryptionKey.substring(0, 10)}... length: ${encryptionKey.length}`);
-								// Mark as processed anyway
-								demoChatIds.push(demoId);
+								// DON'T mark as processed - allow retries
 								continue;
 							}
 						}
 					} else {
 						console.warn(`[Chats] Unexpected encryption key format for demo chat ${demoId}:`, typeof encryptionKey);
-						// Mark as processed
-						demoChatIds.push(demoId);
+						// DON'T mark as processed - allow retries
 						continue;
 					}
 
@@ -1659,7 +1678,7 @@ async function updateChatListFromDBInternal(force = false) {
 				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage) and demo chat IDs from sessionStorage
 				const { getStoredSharedChatIds } = await import('../../services/sharedChatKeyStorage');
 				const sharedChatIds = await getStoredSharedChatIds();
-				const demoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
+				const demoChatIds: string[] = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 				
 				// Combine shared and demo chat IDs
 				const allChatIds = [...sharedChatIds, ...demoChatIds];
@@ -1667,19 +1686,38 @@ async function updateChatListFromDBInternal(force = false) {
 				if (allChatIds.length > 0) {
 					// Load shared and demo chats from IndexedDB
 					const loadedChats: ChatType[] = [];
+					const validDemoChatIds: string[] = []; // Track which demo IDs have valid chats
+					
 					for (const chatId of allChatIds) {
 						try {
 							const chat = await chatDB.getChat(chatId);
 							if (chat) {
 								loadedChats.push(chat);
+								// If this chatId was from demoChatIds, mark it as valid
+								if (demoChatIds.includes(chatId)) {
+									validDemoChatIds.push(chatId);
+								}
 							}
 						} catch (error) {
 							console.warn(`[Chats] Error loading chat ${chatId}:`, error);
 						}
 					}
+					
+					// CRITICAL FIX: Clean up stale demo_ids from sessionStorage
+					// If demoChatIds has entries but none of them loaded, clear sessionStorage
+					// This allows loadDemoChatsFromServer to retry on next page load
+					if (demoChatIds.length > 0 && validDemoChatIds.length === 0) {
+						console.debug(`[Chats] No demo chats found in IndexedDB (stale sessionStorage), clearing demo_chats`);
+						sessionStorage.removeItem('demo_chats');
+					} else if (validDemoChatIds.length < demoChatIds.length) {
+						// Some demo IDs are stale, update sessionStorage to only keep valid ones
+						console.debug(`[Chats] Cleaning up ${demoChatIds.length - validDemoChatIds.length} stale demo chat ID(s) from sessionStorage`);
+						sessionStorage.setItem('demo_chats', JSON.stringify(validDemoChatIds));
+					}
+					
 				allChatsFromDB = loadedChats;
 				chatListCache.setCache(loadedChats);
-				console.debug(`[Chats] Loaded ${loadedChats.length} chat(s) from IndexedDB (${sharedChatIds.length} shared, ${demoChatIds.length} demo)`);
+				console.debug(`[Chats] Loaded ${loadedChats.length} chat(s) from IndexedDB (${sharedChatIds.length} shared, ${demoChatIds.length} demo IDs, ${validDemoChatIds.length} valid)`);
 			} else {
 				allChatsFromDB = [];
 				chatListCache.setCache([]);
