@@ -1,5 +1,9 @@
 <script lang="ts">
     import { defaultMeta } from '../config/meta';
+    import { serverEdition } from '../stores/serverStatusStore';
+
+    // Determine robots meta tag content based on server edition
+    let robotsContent = $derived($serverEdition === 'development' ? 'noindex, nofollow' : 'index, follow');
 
     // Props using Svelte 5 runes
     let { 
@@ -33,6 +37,47 @@
         logoWidth?: number;
         logoHeight?: number;
     } = $props();
+
+    // Generate JSON-LD structured data (after props are declared)
+    let jsonLd = $derived(JSON.stringify({
+        "@context": "http://schema.org",
+        "@type": type === 'article' ? 'Article' : 'WebSite',
+        "name": title,
+        "headline": title,
+        "description": description,
+        "author": {
+            "@type": "Organization",
+            "name": author,
+            "url": defaultMeta.url
+        },
+        "url": url,
+        "image": {
+            "@type": "ImageObject",
+            "url": image,
+            "width": imageWidth,
+            "height": imageHeight
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": siteName,
+            "logo": {
+                "@type": "ImageObject",
+                "url": logo,
+                "width": logoWidth,
+                "height": logoHeight
+            }
+        },
+        "datePublished": new Date().toISOString(),
+        "dateModified": new Date().toISOString(),
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": url
+        }
+    }));
+
+    // Generate the full script tag HTML for JSON-LD
+    // Use string concatenation to avoid Svelte parser confusion with <script> tag
+    let jsonLdScript = $derived('<script type="application/ld+json">' + jsonLd + '</scr' + 'ipt>');
 </script>
 
 <svelte:head>
@@ -46,7 +91,7 @@
     <meta name="description" content={description} />
     <meta name="keywords" content={keywords.join(', ')} />
     <meta name="author" content={author} />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={robotsContent} />
     <meta name="language" content={locale.split('_')[0]} />
 
     <!-- Open Graph / Facebook -->
@@ -72,43 +117,6 @@
     <link rel="canonical" href={url} />
 
     <!-- JSON-LD for rich snippets -->
-    {@html `
-        <script type="application/ld+json">
-        {
-            "@context": "http://schema.org",
-            "@type": "${type === 'article' ? 'Article' : 'WebSite'}",
-            "name": "${title}",
-            "headline": "${title}",
-            "description": "${description}",
-            "author": {
-                "@type": "Organization",
-                "name": "${author}",
-                "url": "${defaultMeta.url}"
-            },
-            "url": "${url}",
-            "image": {
-                "@type": "ImageObject",
-                "url": "${image}",
-                "width": "${imageWidth}",
-                "height": "${imageHeight}"
-            },
-            "publisher": {
-                "@type": "Organization",
-                "name": "${siteName}",
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": "${logo}",
-                    "width": "${logoWidth}",
-                    "height": "${logoHeight}"
-                }
-            },
-            "datePublished": "${new Date().toISOString()}",
-            "dateModified": "${new Date().toISOString()}",
-            "mainEntityOfPage": {
-                "@type": "WebPage",
-                "@id": "${url}"
-            }
-        }
-        </script>
-    `}
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+    {@html jsonLdScript}
 </svelte:head>
