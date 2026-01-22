@@ -120,6 +120,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 console.warn('[AuthSessionActions] No ws_token in session response - WebSocket connection may fail on Safari/iPad');
             }
 
+            // CRITICAL: Prevent duplicate forced logout triggers if already in progress
+            if (get(forcedLogoutInProgress)) {
+                console.debug("[AuthSessionActions] Forced logout already in progress, skipping duplicate trigger");
+                return false;
+            }
+
             const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
@@ -161,7 +167,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     skipServerLogout: false, // Explicitly send logout request to server
                     isSessionExpiredLogout: true, // Custom flag for this scenario
                     afterLocalLogout: async () => {
-                        // Clear IndexedDB data in background (non-blocking)
+                        // Reset logout flags IMMEDIATELY after navigation, not after DB cleanup
+                        isLoggingOut.set(false);
+                        forcedLogoutInProgress.set(false);
+                        console.debug("[AuthSessionActions] Reset logout flags after navigation");
+                        
+                        // Then do async DB cleanup (non-blocking)
                         setTimeout(async () => {
                             try {
                                 await userDB.deleteDatabase();
@@ -175,15 +186,6 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                             } catch (dbError) {
                                 console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked):", dbError);
                             }
-                            
-                            // CRITICAL: Reset logout flags after logout cleanup completes
-                            // This ensures the flags are reset even if logout was triggered by missing master key
-                            // Use a small delay to ensure all logout handlers have finished processing
-                            setTimeout(() => {
-                                isLoggingOut.set(false);
-                                forcedLogoutInProgress.set(false);
-                                console.debug("[AuthSessionActions] Reset isLoggingOut and forcedLogoutInProgress flags after missing master key logout cleanup");
-                            }, 500);
                         }, 100);
                     }
                 }).catch(err => {

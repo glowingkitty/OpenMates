@@ -15,6 +15,8 @@ import { chatListCache } from '../../../services/chatListCache';
 import { createEmbedFromUrl } from '../services/urlMetadataService'; // Import URL-to-embed creation
 import { authStore } from '../../../stores/authStore'; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from '../../../stores/appSettingsMemoriesPermissionStore'; // For auto-dismissing permission dialog
+import { forcedLogoutInProgress } from '../../../stores/signupState';
+import { notificationStore } from '../../../stores/notificationStore';
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -327,6 +329,12 @@ export async function handleSend(
         }
     } else {
         console.log('[handleSend] SUGGESTION DEBUG 1B: No suggestion was tracked for deletion (encryptedSuggestionToDelete is null/undefined)');
+    }
+
+    if (get(forcedLogoutInProgress)) {
+        console.error("[handleSend] Cannot send message - forced logout in progress");
+        notificationStore.error("Session expired. Please log in again.");
+        return;
     }
 
     let chatIdToUse = currentChatId;

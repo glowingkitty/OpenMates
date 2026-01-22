@@ -256,6 +256,15 @@ export async function addChat(
     transaction?: IDBTransaction
 ): Promise<void> {
     console.debug(`[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`);
+    
+    // CRITICAL: During forced logout (missing master key), only allow adding public chats (demo/legal)
+    // Refuse to save encrypted user chats since they cannot be decrypted later without the master key
+    const isPublicChat = chat.chat_id?.startsWith('demo-') || chat.chat_id?.startsWith('legal-');
+    if (get(forcedLogoutInProgress) && !isPublicChat) {
+        console.error(`[ChatDatabase] Refusing to addChat during forced logout - chat ${chat.chat_id}`);
+        throw new Error('Cannot create encrypted chat during forced logout');
+    }
+
     await dbInstance.init();
     
     // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
