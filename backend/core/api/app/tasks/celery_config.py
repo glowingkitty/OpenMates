@@ -610,6 +610,8 @@ task_routes = {
     # Persistence tasks use custom names like "app.tasks.persistence_tasks.*" instead of full module paths
     # This pattern ensures all persistence tasks (user messages, chat metadata, AI responses, etc.) route correctly
     "app.tasks.persistence_tasks.*": {'queue': 'persistence'},
+    # Demo tasks use custom names like "demo.*"
+    "demo.*": {'queue': 'demo'},
     # Add other explicitly named tasks here as needed
 }
 
