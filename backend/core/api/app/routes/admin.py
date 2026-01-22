@@ -47,7 +47,8 @@ class BecomeAdminRequest(BaseModel):
 
 class ApproveDemoChatRequest(BaseModel):
     """Request model for approving a demo chat"""
-    chat_id: str
+    demo_id: str  # The demo_id of the pending demo_chat entry
+    chat_id: str  # The original chat_id (for verification)
     encryption_key: str  # Encryption key from share link - required for non-auth users to decrypt
     title: str
     summary: str = ""
@@ -56,7 +57,8 @@ class ApproveDemoChatRequest(BaseModel):
 
 class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
-    chat_id: str
+    demo_id: str  # The demo_id of the pending demo_chat entry
+    chat_id: str  # The original chat_id (for updating the chats table)
 
 # --- Endpoints ---
 
@@ -109,104 +111,100 @@ async def get_community_suggestions(
     """
     Get pending community chat suggestions for admin review.
 
-    Returns chats that were shared with the community but haven't been
-    made into demo chats yet. Includes the decrypted encryption key so
-    admins can approve without needing to open the chat first.
+    Returns demo_chats entries with status='waiting_for_confirmation'.
+    These are chats that were shared with the community and are pending admin approval.
+    The metadata is decrypted using the demo_chats vault key for display.
     """
     try:
-        # 1. Get all chats shared with community (include shared_encrypted_chat_key for approval)
-        params = {
-            "filter": {
-                "share_with_community": {"_eq": True}
-            },
-            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_chat_key,updated_at,is_private,is_shared"
-        }
-        community_chats = await directus_service.get_items("chats", params)
-
-        # 2. Get all existing demo chats to filter them out
-        active_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
-        existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
-
-        # 3. Filter and format suggestions
+        import json
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        
+        # Get all pending demo chats (status='waiting_for_confirmation')
+        pending_demos = await directus_service.demo_chat.get_pending_demo_chats()
+        
         encryption_service: EncryptionService = request.app.state.encryption_service
-        shared_vault_key = "shared-content-metadata"
-
+        
         suggestions = []
-        for chat in community_chats:
-            chat_id = str(chat.get("id"))
-            if chat_id in existing_demo_chat_ids:
-                continue
-
-            # Ensure chat is actually shared (double check)
-            if chat.get("is_private", True):
-                continue
-
-            # Decrypt shared metadata using vault key
-            # NOTE: decrypt() returns Optional[str], not a tuple
+        for demo in pending_demos:
+            demo_id = demo.get("demo_id")
+            chat_id = demo.get("original_chat_id")
+            
+            # Decrypt metadata using demo_chats vault key
             title = None
-            if chat.get("shared_encrypted_title"):
+            if demo.get("encrypted_title"):
                 try:
-                    title = await encryption_service.decrypt(chat.get("shared_encrypted_title"), key_name=shared_vault_key)
+                    title = await encryption_service.decrypt(
+                        demo.get("encrypted_title"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt shared title for chat {chat_id}: {e}")
-
+                    logger.warning(f"Failed to decrypt title for pending demo {demo_id}: {e}")
+            
             summary = None
-            if chat.get("shared_encrypted_summary"):
+            if demo.get("encrypted_summary"):
                 try:
-                    summary = await encryption_service.decrypt(chat.get("shared_encrypted_summary"), key_name=shared_vault_key)
+                    summary = await encryption_service.decrypt(
+                        demo.get("encrypted_summary"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt shared summary for chat {chat_id}: {e}")
-
+                    logger.warning(f"Failed to decrypt summary for pending demo {demo_id}: {e}")
+            
             category = None
-            if chat.get("shared_encrypted_category"):
+            if demo.get("encrypted_category"):
                 try:
-                    category = await encryption_service.decrypt(chat.get("shared_encrypted_category"), key_name=shared_vault_key)
+                    category = await encryption_service.decrypt(
+                        demo.get("encrypted_category"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt shared category for chat {chat_id}: {e}")
-
+                    logger.warning(f"Failed to decrypt category for pending demo {demo_id}: {e}")
+            
             icon = None
-            if chat.get("shared_encrypted_icon"):
+            if demo.get("encrypted_icon"):
                 try:
-                    icon = await encryption_service.decrypt(chat.get("shared_encrypted_icon"), key_name=shared_vault_key)
+                    icon = await encryption_service.decrypt(
+                        demo.get("encrypted_icon"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt shared icon for chat {chat_id}: {e}")
-
+                    logger.warning(f"Failed to decrypt icon for pending demo {demo_id}: {e}")
+            
             follow_up_suggestions = []
-            if chat.get("shared_encrypted_follow_up_suggestions"):
+            if demo.get("encrypted_follow_up_suggestions"):
                 try:
-                    import json
-                    decrypted_follow_ups = await encryption_service.decrypt(chat.get("shared_encrypted_follow_up_suggestions"), key_name=shared_vault_key)
+                    decrypted_follow_ups = await encryption_service.decrypt(
+                        demo.get("encrypted_follow_up_suggestions"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                     if decrypted_follow_ups:
                         follow_up_suggestions = json.loads(decrypted_follow_ups)
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt shared follow-up suggestions for chat {chat_id}: {e}")
-
-            # Decrypt the chat encryption key (needed for demo chat approval)
-            # This key was stored when the user shared the chat with community
-            encryption_key = None
-            if chat.get("shared_encrypted_chat_key"):
-                try:
-                    encryption_key = await encryption_service.decrypt(chat.get("shared_encrypted_chat_key"), key_name=shared_vault_key)
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt shared chat key for chat {chat_id}: {e}")
-
+                    logger.warning(f"Failed to decrypt follow-up suggestions for pending demo {demo_id}: {e}")
+            
+            # The encryption key is stored directly (not encrypted with vault key)
+            # It's the chat encryption key needed for demo chat translation
+            encryption_key = demo.get("encrypted_key")
+            
             suggestions.append({
+                "demo_id": demo_id,
                 "chat_id": chat_id,
                 "title": title or "Untitled Chat",
                 "summary": summary,
                 "category": category,
                 "icon": icon,
                 "follow_up_suggestions": follow_up_suggestions,
-                "shared_at": chat.get("updated_at"),
+                "shared_at": demo.get("created_at"),
                 "share_link": f"/share/chat/{chat_id}",
-                "encryption_key": encryption_key  # Decrypted key for immediate approval
+                "encryption_key": encryption_key,  # The chat encryption key for approval
+                "status": demo.get("status")
             })
-
+        
         return {
             "suggestions": suggestions,
             "count": len(suggestions)
         }
-
+    
     except Exception as e:
         logger.error(f"Error getting community suggestions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get community suggestions")
@@ -220,62 +218,86 @@ async def approve_demo_chat(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Approve a community-shared chat to become a demo chat.
+    Approve a pending demo chat for translation and publication.
 
-    This creates a demo chat entry with a limit of 5 most recent demos.
+    Updates an existing demo_chat entry (status='waiting_for_confirmation') to
+    status='translating' and triggers the translation task.
+    
+    Enforces a limit of 5 published demo chats - if at limit, deactivates the oldest.
     """
     try:
-        # Verify the chat exists and is shared
+        from datetime import datetime, timezone
+        
+        # Verify the pending demo_chat exists
+        demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(payload.demo_id)
+        if not demo_chat:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        # Verify it's in pending status
+        if demo_chat.get("status") != "waiting_for_confirmation":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Demo chat is not pending approval (current status: {demo_chat.get('status')})"
+            )
+        
+        # Verify the chat_id matches
+        if demo_chat.get("original_chat_id") != payload.chat_id:
+            raise HTTPException(status_code=400, detail="Chat ID mismatch")
+        
+        # Verify the original chat exists and is shared
         chat = await directus_service.chat.get_chat_metadata(payload.chat_id)
         if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
-
+            raise HTTPException(status_code=404, detail="Original chat not found")
+        
         if chat.get("is_private", True):
             raise HTTPException(status_code=400, detail="Chat is not publicly shared")
-
-        # Use the encryption key provided in the request
-        # This key comes from the share link and allows non-authenticated users to decrypt the chat
-        # SECURITY: Each chat has its own encryption key, so storing it for demo chats is safe
-        # - The key only decrypts this specific chat
-        # - Even if compromised, it only affects this one demo chat
-        # - Demo chats are public content by design (admin-approved for public display)
-        encryption_key = payload.encryption_key
-
-        # Check current demo chat count and remove oldest if at limit
+        
+        # Check current published demo chat count and remove oldest if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
         if len(current_demos) >= 5:
-            # Sort by created_at and remove the oldest
-            current_demos.sort(key=lambda x: x.get("created_at", ""))
+            # Sort by approved_at (or created_at as fallback) and remove the oldest
+            current_demos.sort(key=lambda x: x.get("approved_at") or x.get("created_at", ""))
             oldest_demo = current_demos[0]
             await directus_service.demo_chat.deactivate_demo_chat(oldest_demo["demo_id"])
             logger.info(f"Deactivated oldest demo chat {oldest_demo['demo_id']} to make room for new demo")
-
-        # Create the demo chat
-        demo_chat = await directus_service.demo_chat.create_demo_chat(
-            chat_id=payload.chat_id,
-            encryption_key=encryption_key,
-            title=payload.title,
-            summary=payload.summary,
-            category=payload.category,
-            follow_up_suggestions=payload.follow_up_suggestions,
-            approved_by_admin=True
-        )
-
-        if not demo_chat:
-            raise HTTPException(status_code=500, detail="Failed to create demo chat")
-
+        
+        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> true
+        # Also store the title/summary for the translation table
+        demo_item_id = demo_chat.get("id")
+        updates = {
+            "status": "translating",
+            "approved_by_admin": True,
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "encrypted_key": payload.encryption_key  # Update in case it changed
+        }
+        
+        result = await directus_service.update_item("demo_chats", demo_item_id, updates)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to update demo chat status")
+        
+        # Create initial English translation entry for immediate display
+        # This will be overwritten by the translation task with all languages
+        initial_translation = {
+            "demo_id": payload.demo_id,
+            "language": "en",
+            "title": payload.title,
+            "summary": payload.summary,
+            "follow_up_suggestions": payload.follow_up_suggestions
+        }
+        await directus_service.create_item("demo_chat_translations", initial_translation)
+        
         # Trigger translation task
         from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
-        translate_demo_chat_task.delay(demo_chat["demo_id"])
-
-        logger.info(f"Admin {admin_user.id} approved demo chat for chat {payload.chat_id}. Translation task triggered.")
-
+        translate_demo_chat_task.delay(payload.demo_id)
+        
+        logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_id} for chat {payload.chat_id}. Translation task triggered.")
+        
         return {
             "success": True,
-            "demo_id": demo_chat.get("demo_id"),
-            "message": "Demo chat approved and creation/translation process started"
+            "demo_id": payload.demo_id,
+            "message": "Demo chat approved and translation process started"
         }
-
+    
     except HTTPException:
         raise
     except Exception as e:
@@ -291,32 +313,32 @@ async def reject_suggestion(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Reject a community suggestion.
-    This sets share_with_community to False for the specified chat.
+    Reject a pending community suggestion.
+    
+    This deactivates the pending demo_chat entry and sets share_with_community 
+    to False on the original chat so it won't be re-submitted.
     """
     try:
-        # Verify the chat exists
-        chat = await directus_service.chat.get_chat_metadata(payload.chat_id)
-        if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
-
-        # Update the chat to remove from community suggestions
-        success = await directus_service.update_item(
+        # Deactivate the pending demo_chat entry
+        success = await directus_service.demo_chat.deactivate_demo_chat(payload.demo_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Demo chat not found or already deactivated")
+        
+        # Also update the original chat to remove from community suggestions
+        # This prevents it from being re-submitted
+        await directus_service.update_item(
             "chats", 
             payload.chat_id, 
             {"share_with_community": False}
         )
         
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to reject suggestion")
-
-        logger.info(f"Admin {admin_user.id} rejected community suggestion for chat {payload.chat_id}")
-
+        logger.info(f"Admin {admin_user.id} rejected community suggestion demo_id={payload.demo_id} for chat {payload.chat_id}")
+        
         return {
             "success": True,
             "message": "Suggestion rejected successfully"
         }
-
+    
     except HTTPException:
         raise
     except Exception as e:

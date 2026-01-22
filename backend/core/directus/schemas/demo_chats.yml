@@ -16,15 +16,26 @@ demo_chats:
       type: textfield
       note: "The encryption key for the chat"
       required: true
-    category:
-      type: string
-      length: 100
-      note: "Category for grouping demo chats"
+    encrypted_category:
+      type: textfield
+      note: "[Vault-Encrypted] Category for grouping demo chats, encrypted with demo vault key (demo-chats-metadata)"
+    encrypted_title:
+      type: textfield
+      note: "[Vault-Encrypted] Title of the chat, encrypted with demo vault key (demo-chats-metadata)"
+    encrypted_summary:
+      type: textfield
+      note: "[Vault-Encrypted] Summary of the chat, encrypted with demo vault key (demo-chats-metadata)"
+    encrypted_icon:
+      type: textfield
+      note: "[Vault-Encrypted] Icon name for the chat, encrypted with demo vault key (demo-chats-metadata)"
+    encrypted_follow_up_suggestions:
+      type: textfield
+      note: "[Vault-Encrypted] Follow-up suggestions (JSON array), encrypted with demo vault key (demo-chats-metadata)"
     status:
       type: string
       length: 50
-      default: "translating"
-      note: "Status: 'translating' | 'published' | 'error'"
+      default: "waiting_for_confirmation"
+      note: "Status: 'waiting_for_confirmation' | 'translating' | 'published' | 'error'. waiting_for_confirmation = pending admin approval, translating = approved and being translated, published = ready for display, error = translation failed"
     approved_by_admin:
       type: boolean
       default: false

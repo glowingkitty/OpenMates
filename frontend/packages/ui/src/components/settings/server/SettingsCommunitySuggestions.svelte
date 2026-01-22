@@ -14,6 +14,7 @@
     const dispatch = createEventDispatcher();
 
     interface Suggestion {
+        demo_id?: string;  // The demo_id of the pending demo_chat entry (optional for email deep links)
         chat_id: string;
         title: string;
         summary?: string;
@@ -23,6 +24,7 @@
         shared_at: string;
         share_link: string;
         encryption_key?: string;
+        status?: string;  // Status of the demo_chat entry (waiting_for_confirmation)
     }
 
     interface DemoChat {
@@ -212,6 +214,7 @@
                 },
                 credentials: 'include',
                 body: JSON.stringify({
+                    demo_id: suggestion.demo_id,  // The demo_id of the pending entry
                     chat_id: suggestion.chat_id,
                     encryption_key: encryptionKey,  // Pass the actual plaintext key to backend
                     title: suggestion.title || 'Demo Chat',
@@ -257,8 +260,9 @@
 
     /**
      * Reject a community suggestion
+     * Deactivates the pending demo_chat entry and removes from community suggestions
      */
-    async function rejectSuggestion(chatId: string) {
+    async function rejectSuggestion(demoId: string, chatId: string) {
         if (!confirm('Are you sure you want to reject this suggestion? It will be removed from the review queue.')) {
             return;
         }
@@ -273,6 +277,7 @@
                 },
                 credentials: 'include',
                 body: JSON.stringify({
+                    demo_id: demoId,
                     chat_id: chatId
                 })
             });
@@ -306,6 +311,48 @@
             });
         } finally {
             isSubmitting = false;
+        }
+    }
+
+    /**
+     * Helper to reject a pending suggestion from email deep link
+     * Looks up the demo_id from loaded suggestions if not present in the pendingSuggestion
+     */
+    function rejectPendingSuggestion(suggestion: Suggestion) {
+        // For email deep-link pending suggestions, look up demo_id from loaded suggestions
+        const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
+        const demoId = suggestion.demo_id || matchingSuggestion?.demo_id || '';
+        
+        if (demoId) {
+            rejectSuggestion(demoId, suggestion.chat_id);
+        } else {
+            console.error('Cannot reject: demo_id not found for chat', suggestion.chat_id);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Cannot reject: suggestion not found in pending list'
+            });
+        }
+    }
+
+    /**
+     * Helper to approve a pending suggestion from email deep link
+     * Merges demo_id from loaded suggestions if not present in the pendingSuggestion
+     */
+    function approvePendingSuggestion(suggestion: Suggestion) {
+        // For email deep-link pending suggestions, merge with matching loaded suggestion to get demo_id
+        const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
+        const mergedSuggestion = matchingSuggestion 
+            ? { ...suggestion, demo_id: matchingSuggestion.demo_id }
+            : suggestion;
+        
+        if (mergedSuggestion.demo_id) {
+            approveDemoChat(mergedSuggestion);
+        } else {
+            console.error('Cannot approve: demo_id not found for chat', suggestion.chat_id);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Cannot approve: suggestion not found in pending list'
+            });
         }
     }
 
@@ -547,14 +594,14 @@
 
                 <div class="suggestion-actions">
                     <button
-                        onclick={() => rejectSuggestion(pendingSuggestion!.chat_id)}
+                        onclick={() => rejectPendingSuggestion(pendingSuggestion!)}
                         class="btn btn-danger btn-small"
                         disabled={isSubmitting}
                     >
                         Reject
                     </button>
                     <button
-                        onclick={() => approveDemoChat(pendingSuggestion!)}
+                        onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
                         disabled={isSubmitting || currentDemoChats.length >= 5}
                     >
@@ -619,7 +666,7 @@
 
                         <div class="suggestion-actions">
                             <button
-                                onclick={() => rejectSuggestion(suggestion.chat_id)}
+                                onclick={() => rejectSuggestion(suggestion.demo_id, suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
                                 disabled={isSubmitting}
                             >

@@ -103,6 +103,233 @@ class DemoChatMethods:
             logger.error(f"Error creating demo chat for chat {chat_id}: {e}", exc_info=True)
             return None
 
+    async def create_pending_demo_chat(
+        self,
+        chat_id: str,
+        encryption_key: str,
+        title: Optional[str] = None,
+        summary: Optional[str] = None,
+        category: Optional[str] = None,
+        icon: Optional[str] = None,
+        follow_up_suggestions: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a pending demo chat entry with status='waiting_for_confirmation'.
+        
+        This is called when a user shares a chat with community. The admin must
+        approve it before it becomes a published demo chat.
+        
+        If a demo_chat already exists for this chat:
+        - If status='waiting_for_confirmation': update it with new metadata
+        - If status is anything else: return None (already processed)
+        
+        Args:
+            chat_id: The original chat ID
+            encryption_key: The encryption key needed to decrypt the chat
+            title: Display title for the demo chat (will be vault-encrypted)
+            summary: Description/summary (will be vault-encrypted)
+            category: Category for grouping (will be vault-encrypted)
+            icon: Icon name (will be vault-encrypted)
+            follow_up_suggestions: Follow-up suggestions list (will be vault-encrypted as JSON)
+            
+        Returns:
+            Created/updated demo chat item or None if failed/already processed
+        """
+        try:
+            # Check if a demo_chat already exists for this chat
+            existing_demo = await self.get_demo_chat_by_original_chat_id(chat_id)
+            
+            if existing_demo:
+                # Demo chat already exists
+                existing_status = existing_demo.get("status", "")
+                if existing_status == "waiting_for_confirmation":
+                    # Update existing pending entry with new metadata
+                    logger.info(f"Updating existing pending demo chat {existing_demo.get('demo_id')} for chat {chat_id}")
+                    return await self._update_pending_demo_chat(
+                        existing_demo.get("id"),
+                        existing_demo.get("demo_id"),
+                        encryption_key, title, summary, category, icon, follow_up_suggestions
+                    )
+                else:
+                    # Already approved/processed - don't create duplicate
+                    logger.info(f"Demo chat for chat {chat_id} already exists with status '{existing_status}' - skipping")
+                    return None
+            
+            # Generate a sequential demo ID (demo-1, demo-2, demo-3, etc.)
+            existing_demos = await self.directus_service.get_items("demo_chats", {
+                "filter": {"is_active": {"_eq": True}},
+                "fields": ["demo_id"]
+            })
+            
+            max_number = 0
+            for demo in existing_demos or []:
+                demo_id_str = demo.get("demo_id", "")
+                match = re.match(r"^demo-(\d+)$", demo_id_str)
+                if match:
+                    number = int(match.group(1))
+                    max_number = max(max_number, number)
+            
+            next_number = max_number + 1
+            demo_id = f"demo-{next_number}"
+            
+            # Encrypt metadata with vault key
+            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+            encryption_service = self.directus_service.encryption_service
+            
+            encrypted_title = None
+            encrypted_summary = None
+            encrypted_category = None
+            encrypted_icon = None
+            encrypted_follow_up = None
+            
+            if title:
+                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if summary:
+                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if category:
+                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if icon:
+                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if follow_up_suggestions:
+                import json
+                encrypted_follow_up, _ = await encryption_service.encrypt(
+                    json.dumps(follow_up_suggestions), 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            
+            demo_chat_data = {
+                "demo_id": demo_id,
+                "original_chat_id": chat_id,
+                "encrypted_key": encryption_key,
+                "encrypted_title": encrypted_title,
+                "encrypted_summary": encrypted_summary,
+                "encrypted_category": encrypted_category,
+                "encrypted_icon": encrypted_icon,
+                "encrypted_follow_up_suggestions": encrypted_follow_up,
+                "status": "waiting_for_confirmation",
+                "approved_by_admin": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_active": True
+            }
+            
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if success and created_item:
+                logger.info(f"Created pending demo chat {demo_id} for chat {chat_id}")
+                return created_item
+            else:
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}: {created_item}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating pending demo chat for chat {chat_id}: {e}", exc_info=True)
+            return None
+
+    async def _update_pending_demo_chat(
+        self,
+        item_id: str,
+        demo_id: str,
+        encryption_key: str,
+        title: Optional[str],
+        summary: Optional[str],
+        category: Optional[str],
+        icon: Optional[str],
+        follow_up_suggestions: Optional[List[str]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing pending demo chat with new metadata.
+        Called when user re-shares a chat with community.
+        """
+        try:
+            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+            encryption_service = self.directus_service.encryption_service
+            
+            updates = {
+                "encrypted_key": encryption_key,  # Update encryption key in case it changed
+            }
+            
+            if title:
+                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+                updates["encrypted_title"] = encrypted_title
+            if summary:
+                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+                updates["encrypted_summary"] = encrypted_summary
+            if category:
+                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+                updates["encrypted_category"] = encrypted_category
+            if icon:
+                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+                updates["encrypted_icon"] = encrypted_icon
+            if follow_up_suggestions:
+                import json
+                encrypted_follow_up, _ = await encryption_service.encrypt(
+                    json.dumps(follow_up_suggestions), 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                updates["encrypted_follow_up_suggestions"] = encrypted_follow_up
+            
+            result = await self.directus_service.update_item("demo_chats", item_id, updates)
+            if result:
+                logger.info(f"Updated pending demo chat {demo_id}")
+                return result
+            else:
+                logger.error(f"Failed to update pending demo chat {demo_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error updating pending demo chat {demo_id}: {e}", exc_info=True)
+            return None
+
+    async def get_demo_chat_by_original_chat_id(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get demo chat by original chat ID.
+        
+        Args:
+            chat_id: The original chat identifier
+            
+        Returns:
+            Demo chat data or None if not found
+        """
+        try:
+            params = {
+                "filter": {
+                    "original_chat_id": {"_eq": chat_id},
+                    "is_active": {"_eq": True}
+                },
+                "limit": 1
+            }
+            
+            items = await self.directus_service.get_items("demo_chats", params)
+            if items and len(items) > 0:
+                return items[0]
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error fetching demo chat by original chat ID {chat_id}: {e}", exc_info=True)
+            return None
+
+    async def get_pending_demo_chats(self) -> List[Dict[str, Any]]:
+        """
+        Get all demo chats with status='waiting_for_confirmation'.
+        
+        Returns:
+            List of pending demo chat entries
+        """
+        try:
+            params = {
+                "filter": {
+                    "status": {"_eq": "waiting_for_confirmation"},
+                    "is_active": {"_eq": True}
+                },
+                "sort": ["-created_at"]
+            }
+            
+            items = await self.directus_service.get_items("demo_chats", params)
+            return items or []
+            
+        except Exception as e:
+            logger.error(f"Error fetching pending demo chats: {e}", exc_info=True)
+            return []
+
     async def get_demo_chat_translation(self, demo_id: str, language: str) -> Optional[Dict[str, Any]]:
         """Get translated metadata for a demo chat."""
         try:

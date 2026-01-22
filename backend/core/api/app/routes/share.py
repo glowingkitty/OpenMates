@@ -501,10 +501,40 @@ async def update_share_metadata(
             except Exception as e:
                 logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
         
-        # If chat is shared with community, send notification email to admin
+        # If chat is shared with community, create a pending demo_chat entry and send notification email
         if payload.share_with_community and payload.share_link:
+            demo_id = None
             try:
-                # Get admin email from environment variable
+                # Extract encryption key from share_link for demo_chat creation
+                encryption_key = None
+                if "#key=" in payload.share_link:
+                    encryption_key = payload.share_link.split("#key=")[1]
+                
+                if encryption_key:
+                    # Create a pending demo_chat entry with status='waiting_for_confirmation'
+                    # This allows the admin to see and approve it in the community suggestions UI
+                    demo_chat = await directus_service.demo_chat.create_pending_demo_chat(
+                        chat_id=chat_id,
+                        encryption_key=encryption_key,
+                        title=payload.title,
+                        summary=payload.summary,
+                        category=payload.category,
+                        icon=payload.icon,
+                        follow_up_suggestions=payload.follow_up_suggestions
+                    )
+                    if demo_chat:
+                        demo_id = demo_chat.get("demo_id")
+                        logger.info(f"Created pending demo chat {demo_id} for community-shared chat {chat_id}")
+                    else:
+                        logger.warning(f"Failed to create pending demo chat for chat {chat_id}")
+                else:
+                    logger.warning(f"No encryption key found in share link for chat {chat_id}")
+            except Exception as e:
+                # Log error but don't fail the request - demo chat creation is secondary
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}: {e}", exc_info=True)
+            
+            # Send notification email to admin
+            try:
                 admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
                 
                 # Dispatch email task to notify admin about community share
@@ -518,7 +548,8 @@ async def update_share_metadata(
                         "category": payload.category,
                         "icon": payload.icon,
                         "share_link": payload.share_link,
-                        "chat_id": chat_id
+                        "chat_id": chat_id,
+                        "demo_id": demo_id  # Include demo_id if created
                     },
                     queue='email'
                 )
