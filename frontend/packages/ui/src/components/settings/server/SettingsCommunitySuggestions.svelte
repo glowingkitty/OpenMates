@@ -9,6 +9,7 @@
     import { getApiEndpoint } from '@repo/ui';
     import Chat from '../../chats/Chat.svelte';
     import type { Chat as ChatType } from '../../../types/chat';
+    import { decryptShareKeyBlob } from '../../../services/shareEncryption';
 
     const dispatch = createEventDispatcher();
 
@@ -129,32 +130,64 @@
     }
 
     /**
+     * Helper to get the actual chat encryption key from a suggestion
+     * Handles both raw base64 keys and encrypted share blobs
+     */
+    async function getDecryptedChatKey(suggestion: Suggestion): Promise<string | null> {
+        let keyOrBlob = suggestion.encryption_key;
+        
+        // Try to get key from local storage if not in suggestion
+        if (!keyOrBlob) {
+            const { getSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+            const storedKey = await getSharedChatKey(suggestion.chat_id);
+            if (storedKey) {
+                // Convert Uint8Array to base64
+                keyOrBlob = window.btoa(String.fromCharCode(...storedKey));
+            }
+        }
+
+        if (!keyOrBlob && suggestion.share_link) {
+            // Extract key from share link if not provided directly
+            const shareLink = suggestion.share_link;
+            if (shareLink && shareLink.includes('#key=')) {
+                keyOrBlob = shareLink.split('#key=')[1];
+            }
+        }
+
+        if (!keyOrBlob) return null;
+
+        // If the key is short, it's likely already a raw base64 key
+        if (keyOrBlob.length < 100) {
+            return keyOrBlob;
+        }
+
+        // Otherwise, it's an encrypted share blob - decrypt it
+        try {
+            const serverTime = Math.floor(Date.now() / 1000);
+            const result = await decryptShareKeyBlob(suggestion.chat_id, keyOrBlob, serverTime);
+            
+            if (result.success && result.chatEncryptionKey) {
+                console.debug('[SettingsCommunitySuggestions] Decrypted share key blob successfully');
+                return result.chatEncryptionKey;
+            } else {
+                console.warn('[SettingsCommunitySuggestions] Failed to decrypt share key blob:', result.error);
+                return null;
+            }
+        } catch (e) {
+            console.error('[SettingsCommunitySuggestions] Error decrypting share key blob:', e);
+            return null;
+        }
+    }
+
+    /**
      * Approve a chat as demo chat
      */
     async function approveDemoChat(suggestion: Suggestion) {
         try {
             isSubmitting = true;
 
-            // Get encryption key from suggestion (for email links) or extract from share_link
-            let encryptionKey = suggestion.encryption_key;
-            
-            // Try to get key from local storage if not in suggestion
-            if (!encryptionKey) {
-                const { getSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
-                const storedKey = await getSharedChatKey(suggestion.chat_id);
-                if (storedKey) {
-                    // Convert Uint8Array to base64
-                    encryptionKey = window.btoa(String.fromCharCode(...storedKey));
-                }
-            }
-
-            if (!encryptionKey && suggestion.share_link) {
-                // Extract key from share link if not provided directly
-                const shareLink = suggestion.share_link;
-                if (shareLink && shareLink.includes('#key=')) {
-                    encryptionKey = shareLink.split('#key=')[1];
-                }
-            }
+            // Get the actual chat encryption key (decrypting if necessary)
+            const encryptionKey = await getDecryptedChatKey(suggestion);
 
             if (!encryptionKey) {
                 throw new Error('Encryption key is required to approve demo chat. Please click on the chat preview above to open it in a new window first. This will load the encryption key needed for approval.');
@@ -168,7 +201,7 @@
                 credentials: 'include',
                 body: JSON.stringify({
                     chat_id: suggestion.chat_id,
-                    encryption_key: encryptionKey,  // Pass encryption key to backend
+                    encryption_key: encryptionKey,  // Pass the actual plaintext key to backend
                     title: suggestion.title || 'Demo Chat',
                     summary: suggestion.summary || '',
                     category: suggestion.category || 'General',
@@ -352,7 +385,8 @@
      * Stores the key in IndexedDB, closes settings panel, and navigates to the chat in the current tab.
      */
     async function openSharedChat(suggestion: Suggestion) {
-        const encryptionKey = suggestion.encryption_key;
+        // Get the actual chat encryption key (decrypting if necessary)
+        const encryptionKey = await getDecryptedChatKey(suggestion);
 
         // If no key is available, show error
         if (!encryptionKey) {

@@ -33,6 +33,7 @@
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { getApiEndpoint } from '../../config/api'; // For API calls
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
+	import { decryptShareKeyBlob } from '../../services/shareEncryption'; // For decrypting demo chat keys
 
 	const dispatch = createEventDispatcher();
 
@@ -1261,8 +1262,26 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					if (Array.isArray(encryptionKey)) {
 						keyBytes = new Uint8Array(encryptionKey);
 					} 
-					// If it's a string, it could be base64 or hex
+					// If it's a string, it could be base64 or hex or an encrypted share blob
 					else if (typeof encryptionKey === 'string') {
+						// 1. Check if it's an encrypted share blob (long string)
+						if (encryptionKey.length > 100) {
+							try {
+								console.debug(`[Chats] Demo chat ${demoId} key looks like an encrypted blob, decrypting...`);
+								const serverTime = Math.floor(Date.now() / 1000);
+								const result = await decryptShareKeyBlob(chatId, encryptionKey, serverTime);
+								if (result.success && result.chatEncryptionKey) {
+									encryptionKey = result.chatEncryptionKey;
+									console.debug(`[Chats] Successfully decrypted share key blob for demo chat ${demoId}`);
+								} else {
+									console.warn(`[Chats] Failed to decrypt share key blob for demo chat ${demoId}:`, result.error);
+									// Continue and try standard decoding as fallback
+								}
+							} catch (e) {
+								console.error(`[Chats] Error decrypting share key blob for demo chat ${demoId}:`, e);
+							}
+						}
+
 						try {
 							// Try decoding as base64 (handle both standard and URL-safe base64)
 							const base64 = encryptionKey
