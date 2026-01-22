@@ -271,8 +271,7 @@ async def _handle_phase1_sync(
                     "last_message_timestamp": cached_list_item.last_message_timestamp,
                     # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                     "is_shared": cached_list_item.is_shared,
-                    "is_private": cached_list_item.is_private,
-                    "user_id": cached_list_item.user_id
+                    "is_private": cached_list_item.is_private
                 }
                 logger.info(
                     f"[PHASE1_CHAT_METADATA] ✅ Cache HIT for chat metadata {chat_id} for user {user_id[:8]}... "
@@ -582,7 +581,6 @@ async def _handle_phase2_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
-                        "user_id": cached_list_item.user_id or user_id,  # Use cached user_id if available, fallback to current user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -619,7 +617,6 @@ async def _handle_phase2_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
-                                    "user_id": chat_metadata.get("user_id") or user_id,  # Use metadata user_id if available, fallback to current user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),
@@ -955,7 +952,6 @@ async def _handle_phase3_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
-                        "user_id": cached_list_item.user_id or user_id,  # Use cached user_id if available, fallback to current user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -992,7 +988,6 @@ async def _handle_phase3_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
-                                    "user_id": chat_metadata.get("user_id") or user_id,  # Use metadata user_id if available, fallback to current user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),

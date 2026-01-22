@@ -21,10 +21,11 @@ CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
-    "user_id,"  # Owner/creator of the chat (needed for SettingsShared.svelte filtering)
     "encrypted_title,"
     "encrypted_chat_key,"
     "created_at,"
@@ -44,10 +45,11 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "hashed_user_id,"
-    "user_id,"  # Owner/creator of the chat (needed for SettingsShared.svelte filtering)
     "encrypted_title,"
     "encrypted_chat_key,"  # Needed for decryption
     "created_at,"
@@ -233,10 +235,13 @@ class ChatMethods:
     async def get_user_chats_metadata(self, user_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
+        Uses hashed_user_id for filtering (privacy by design - raw user_id is never stored in Directus).
         """
         logger.info(f"Fetching chat metadata list for user_id: {user_id}, limit: {limit}, offset: {offset}")
+        # Hash the user_id for privacy-preserving lookup
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[user_id][_eq]': user_id, # Assuming 'user_id' field exists in 'chats'
+            'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,

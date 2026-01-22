@@ -16,6 +16,7 @@ import type {
 import type { EmbedKeyEntry } from './embedStore';
 import type { EmbedType } from '../message_parsing/types';
 import { chatDB } from './db';
+import { userDB } from './userDB';
 
 /**
  * Handle Phase 2 completion (recent chats ready)
@@ -261,6 +262,11 @@ async function storeRecentChats(
     }>
 ): Promise<void> {
     try {
+        // Get current user's ID for ownership tracking
+        // All synced chats belong to the current user (server filters by hashed_user_id)
+        const userProfile = await userDB.getUserProfile();
+        const currentUserId = userProfile?.user_id;
+        
         for (const chatItem of chats) {
             const { chat_details, messages, server_message_count } = chatItem;
             const chatId = chat_details.id;
@@ -269,7 +275,7 @@ async function storeRecentChats(
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat, currentUserId);
             
             // CRITICAL: Check if we should sync messages for Phase 2 chats
             // This prevents data inconsistency where messages_v is set but messages are missing
@@ -388,6 +394,11 @@ async function storeAllChats(
     try {
         console.debug(`[ChatSyncService] storeAllChats: Processing ${chats.length} chats from Phase 3`);
         
+        // Get current user's ID for ownership tracking
+        // All synced chats belong to the current user (server filters by hashed_user_id)
+        const userProfile = await userDB.getUserProfile();
+        const currentUserId = userProfile?.user_id;
+        
         for (const chatItem of chats) {
             const { chat_details, messages, server_message_count } = chatItem;
             const chatId = chat_details.id;
@@ -398,7 +409,7 @@ async function storeAllChats(
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat, currentUserId);
             
             // Check if we should sync messages
             const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
@@ -640,9 +651,10 @@ async function storeEmbedKeysBatch(embed_keys: EmbedKeyEntry[], phaseName: strin
  * 
  * @param serverChat - Server chat data with at least the 'id' field
  * @param localChat - Existing local chat data (or null if not exists locally)
+ * @param currentUserId - Current user's ID (all synced chats belong to them - server filters by hashed_user_id)
  * @returns Merged chat data with required fields for Chat type
  */
-function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, localChat: Chat | null): Chat {
+function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, localChat: Chat | null, currentUserId?: string): Chat {
     const nowTimestamp = Math.floor(Date.now() / 1000);
     
     // If no local chat exists, use server data with defaults
@@ -674,15 +686,16 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
             // Include sharing fields from server sync
             is_shared: serverChat.is_shared,
             is_private: serverChat.is_private,
-            // Include user_id (ownership)
-            user_id: serverChat.user_id
+            // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
+            user_id: currentUserId
         };
     }
     
     // Start with server data as base, using defaults from local chat where server data is missing
     const merged: Chat = {
         chat_id: serverChat.id,
-        user_id: serverChat.user_id ?? localChat.user_id,
+        // Preserve local user_id (ownership doesn't change)
+        user_id: localChat.user_id ?? currentUserId,
         encrypted_title: serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
         messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
         title_v: serverChat.title_v ?? localChat.title_v ?? 0,
