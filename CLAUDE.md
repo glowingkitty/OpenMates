@@ -38,6 +38,47 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 - Always run the lint script before considering changes complete
 - Fix all errors before proceeding
 
+## Git Commit Best Practices
+
+### Commit Message Format
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+**Format:** `<type>: <description>`
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `build`: Changes that affect the build system or external dependencies
+- `ci`: Changes to CI configuration files and scripts
+- `chore`: Other changes that don't modify src or test files
+- `revert`: Reverts a previous commit
+
+**Rules:**
+- Use the imperative, present tense: "change" not "changed" nor "changes"
+- Don't capitalize the first letter of the description
+- No dot (.) at the end of the title
+- **Description/Body**: Use for complex changes. Explain the **why** and **what**, focusing on the reasoning behind the change.
+
+**Example:**
+```bash
+feat: add user authentication flow
+
+- Implement JWT token generation and validation
+- Add login and registration endpoints
+- Secure existing API routes with auth middleware
+```
+
+### Pre-commit Checklist
+- [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
+- [ ] Fix all linter and type errors
+- [ ] Remove temporary `console.log` or `print` statements (unless permanent)
+- [ ] Ensure all new files are added to git
+
 ## Debugging Backend Issues
 
 **ALWAYS use docker compose terminal commands to check logs** when debugging backend issues. This ensures you're viewing logs from the running containerized services.
