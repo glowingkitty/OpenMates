@@ -120,6 +120,16 @@ export async function login(
                     console.warn('[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
                 }
 
+                // CRITICAL: Reset forcedLogoutInProgress flag on successful login
+                // This handles the case where orphaned database cleanup was triggered on page load
+                // but the user successfully logs in, making the cleanup unnecessary
+                const { get } = await import('svelte/store');
+                const { forcedLogoutInProgress } = await import('./signupState');
+                if (get(forcedLogoutInProgress)) {
+                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key');
+                    forcedLogoutInProgress.set(false);
+                }
+
                 // Now it's safe to update auth state, which will trigger WebSocket connection
                 authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
 
