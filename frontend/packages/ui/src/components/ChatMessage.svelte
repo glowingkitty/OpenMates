@@ -91,8 +91,12 @@
       const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
       if (category?.name_translation_key) {
         // Use the translation key to get localized name
-        const translated = $text(category.name_translation_key);
-        if (translated && translated !== category.name_translation_key) {
+        // Ensure the key ends with .text as required
+        const translationKey = category.name_translation_key.endsWith('.text') 
+          ? category.name_translation_key 
+          : `${category.name_translation_key}.text`;
+        const translated = $text(translationKey);
+        if (translated && translated !== translationKey) {
           return translated;
         }
       }
@@ -177,7 +181,7 @@
     const messageId = original_message.message_id;
     const link = `${window.location.origin}/#chatid=${chatId}&messageid=${messageId}`;
     
-    const template = $text('chat.report_bad_answer.template', { values: { link } });
+    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
     
     reportIssueStore.set({
       description: template
@@ -1028,19 +1032,19 @@
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <div class="generated-by">{$text('chat.generated_by', { values: { model: model_name } })}</div>
+        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: model_name } })}</div>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
           onmouseenter={() => isReportHovered = true}
           onmouseleave={() => isReportHovered = false}
           onclick={handleReportBadAnswer}
-          aria-label={$text('chat.report_bad_answer.button_text')}
+          aria-label={$text('chat.report_bad_answer.button_text.text')}
         >
           <div class="clickable-icon icon_thumbsdown"></div>
           {#if isReportHovered}
             <span class="report-text" in:fade={{ duration: 150 }}>
-              {$text('chat.report_bad_answer.button_text')}
+              {$text('chat.report_bad_answer.button_text.text')}
             </span>
           {/if}
         </button>
