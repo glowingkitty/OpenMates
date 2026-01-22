@@ -454,12 +454,17 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             if (cleanupMarker) {
                 console.warn("[AuthSessionActions] ORPHANED DATABASE CLEANUP: Found cleanup marker - triggering database deletion");
 
+                // CRITICAL: Clear the cleanup marker immediately to prevent showing this notification again
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
+                    console.debug("[AuthSessionActions] Cleared cleanup marker to prevent repeated notifications");
+                }
+
                 // CRITICAL: Set isLoggingOut flag to true for orphaned database cleanup
                 isLoggingOut.set(true);
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for orphaned database cleanup");
 
-                // Show notification that data was cleared
-                notificationStore.info("Session data cleared. Please log in again.", 5000);
+                // No notification needed - this is automatic cleanup
 
                 // Clear IndexedDB databases asynchronously without blocking UI
                 setTimeout(async () => {
