@@ -2,7 +2,7 @@ import asyncio
 import logging
 import json
 import base64
-from typing import List, Dict, Any, Optional
+from typing import Optional
 from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
@@ -103,7 +103,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
                 if isinstance(follow_up, str):
                     try:
                         follow_up = json.loads(follow_up)
-                    except:
+                    except Exception:
                         follow_up = []
                 if isinstance(follow_up, list):
                     for suggestion in follow_up:
@@ -229,7 +229,7 @@ async def _translate_tiptap_json(task: BaseServiceTask, tiptap_json: str, target
     # Simple check if it's actually JSON
     try:
         json.loads(tiptap_json)
-    except:
+    except Exception:
         return await _translate_text(task, tiptap_json, target_lang)
 
     messages = [
@@ -263,7 +263,7 @@ Return only the valid JSON result."""},
             try:
                 json.loads(result)
                 return result
-            except:
+            except Exception:
                 logger.error(f"AI returned invalid JSON for translation to {target_lang}")
                 return tiptap_json
         else:

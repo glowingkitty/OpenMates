@@ -1,0 +1,1 @@
+> Outlines ethical principles, user commitments, and anti-enshittification stance.

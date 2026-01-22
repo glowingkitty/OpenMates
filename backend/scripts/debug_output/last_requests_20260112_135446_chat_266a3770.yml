@@ -1,0 +1,162 @@
+metadata:
+  generated_at: '2026-01-12T13:54:46.908889'
+  generated_at_readable: '2026-01-12 13:54:46'
+  chat_id_filter: 266a3770-befc-47df-bf98-3a1d6765cb64
+  total_entries: 1
+  note: This file contains FULL debug data for AI request processing. Entries are sorted chronologically (oldest first). Data auto-expires after 30 minutes in cache.
+requests:
+- request_number: 1
+  task_id: c44b7103-0396-4b49-9d18-098a23600c3e
+  chat_id: 266a3770-befc-47df-bf98-3a1d6765cb64
+  timestamp: 1768226024
+  timestamp_readable: '2026-01-12 13:53:44'
+  preprocessor:
+    input:
+      chat_id: 266a3770-befc-47df-bf98-3a1d6765cb64
+      message_id: 1d6765cb64-cc74390d-ed32-4a8b-b357-861ae1663e92
+      user_id: f21b15a5-a36a-4596-b014-0941b6882e96
+      user_id_hash: da984418e448fdbfe43250920ed964554c47720f19fd7c3bc1f22e038f4a522f
+      chat_has_title: false
+      mate_id: null
+      active_focus_id: null
+      user_preferences: {}
+      message_history:
+      - content: what are my preferred technologies?
+        role: user
+        category: null
+        created_at: 1768226014
+      message_history_count: 1
+      skill_config:
+        default_llms:
+          preprocessing_model: mistral/mistral-small-latest
+          main_processing_simple: alibaba/qwen3-235b-a22b-2507
+          main_processing_simple_name: Qwen3
+          main_processing_complex: alibaba/qwen3-235b-a22b-2507
+          main_processing_complex_name: Qwen3
+        preprocessing_thresholds:
+          harmful_content_score: 7
+          misuse_risk_score: 8
+        always_include_skills:
+        - web-search
+      discovered_apps_count: 6
+      discovered_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      base_instructions_keys:
+      - preprocess_request_tool
+      - base_ethics_instruction
+      - base_temporal_awareness_instruction
+      - base_code_block_instruction
+      - base_capabilities_instruction
+      - follow_up_instruction
+      - base_link_encouragement_instruction
+      - base_proactive_skill_usage_instruction
+      - creator_and_used_model_instruction
+      - postprocess_response_tool
+      - url_correction_tool
+      - url_correction_system_prompt
+      - base_url_sourcing_instruction
+    output:
+      can_proceed: true
+      rejection_reason: null
+      harmful_or_illegal_score: 0.0
+      category: general_knowledge
+      llm_response_temp: 0.4
+      complexity: simple
+      misuse_risk_score: 0.0
+      load_app_settings_and_memories: []
+      relevant_embedded_previews: []
+      title: User's Preferred Technologies
+      icon_names:
+      - code
+      chat_summary: User inquires about preferred technologies.
+      chat_tags:
+      - technologies
+      - preferences
+      - user settings
+      relevant_app_skills: []
+      selected_mate_id: george
+      selected_main_llm_model_id: alibaba/qwen3-235b-a22b-2507
+      selected_main_llm_model_name: Qwen3
+      requires_advice_disclaimer: null
+      raw_llm_response:
+        title: User's Preferred Technologies
+        harmful_or_illegal: 0.0
+        category: general_knowledge
+        llm_response_temp: 0.4
+        complexity: simple
+        misuse_risk: 0
+        load_app_settings_and_memories: []
+        relevant_app_skills: []
+        relevant_embedded_previews: []
+        icon_names:
+        - code
+        chat_summary: User inquires about preferred technologies.
+        chat_tags:
+        - technologies
+        - preferences
+        - user settings
+      error_message: null
+  main_processor:
+    input: null
+    output: null
+  postprocessor:
+    input:
+      chat_id: 266a3770-befc-47df-bf98-3a1d6765cb64
+      task_id: c44b7103-0396-4b49-9d18-098a23600c3e
+      last_user_message: what are my preferred technologies?
+      last_user_message_length: 35
+      assistant_response: 'I don''t have information about your preferred technologies. I''m George, an AI assistant, and I don''t have access to personal data about you unless you''ve shared it in our
+        conversation.
+
+
+        To help me understand your tech preferences, could you tell me:
+
+        - What programming languages or tools you enjoy working with?
+
+        - What kinds of projects you''re interested in (web development, data science, AI, etc.)?
+
+        - Any specific technologies you''ve been using or learning recently?
+
+
+        I''d be happy to help you explore or learn more about any technologies once I know what interests you!'
+      assistant_response_length: 571
+      chat_summary: User inquires about preferred technologies.
+      chat_summary_length: 43
+      chat_tags:
+      - technologies
+      - preferences
+      - user settings
+      available_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      available_app_ids_count: 6
+      is_incognito: false
+    output:
+      follow_up_request_suggestions:
+      - What programming languages should I learn?
+      - Tell me about web development.
+      - What are the best AI tools?
+      - How do I start with data science?
+      - Show me recent tech news.
+      - Test me on programming basics.
+      new_chat_request_suggestions:
+      - Explain machine learning basics.
+      - What's new in Python?
+      - How does blockchain technology work?
+      - Tell me about cybersecurity trends.
+      - What are the best coding practices?
+      - How can I improve my tech skills?
+      harmful_response: 0.0
+      top_recommended_apps_for_user:
+      - code
+      - web
+      - news

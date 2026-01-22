@@ -670,6 +670,9 @@ async def lifespan(app: FastAPI):
         ))
         logger.info("Started periodic metrics update task")
         
+    except Exception as e:
+        logger.error(f"Failed to preload codes or start metrics task: {e}", exc_info=True)
+
     # Trigger initial health check for all providers on startup
     # This ensures /health endpoint has data immediately instead of waiting up to 5 minutes
     logger.info("Triggering initial health check for all providers...")
@@ -795,28 +798,28 @@ async def lifespan(app: FastAPI):
         except Exception as demo_warm_err:
             logger.warning(f"Error during demo cache warming setup: {demo_warm_err}")
 
-            # Log task status after a short delay to verify it was accepted
-            async def check_task_status():
-                await asyncio.sleep(2)  # Wait 2 seconds for task to be picked up
-                try:
-                    # Check if task is in queue or being processed
-                    inspect = celery_app.control.inspect()
-                    active_tasks = inspect.active()
-                    scheduled_tasks = inspect.scheduled()
-                    reserved_tasks = inspect.reserved()
-                    
-                    if active_tasks or scheduled_tasks or reserved_tasks:
-                        logger.debug(f"Celery workers status - Active: {active_tasks}, Scheduled: {scheduled_tasks}, Reserved: {reserved_tasks}")
-                    else:
-                        logger.warning("No active Celery workers detected. Health check task may not execute until workers are available.")
-                except Exception as inspect_error:
-                    logger.warning(f"Could not inspect Celery worker status: {inspect_error}")
-            
-            # Check task status in background (non-blocking)
-            asyncio.create_task(check_task_status())
-        except Exception as e:
-            logger.error(f"Failed to trigger initial health check: {e}. Health checks will run on schedule.", exc_info=True)
+        # Log task status after a short delay to verify it was accepted
+        async def check_task_status():
+            await asyncio.sleep(2)  # Wait 2 seconds for task to be picked up
+            try:
+                # Check if task is in queue or being processed
+                inspect = celery_app.control.inspect()
+                active_tasks = inspect.active()
+                scheduled_tasks = inspect.scheduled()
+                reserved_tasks = inspect.reserved()
+                
+                if active_tasks or scheduled_tasks or reserved_tasks:
+                    logger.debug(f"Celery workers status - Active: {active_tasks}, Scheduled: {scheduled_tasks}, Reserved: {reserved_tasks}")
+                else:
+                    logger.warning("No active Celery workers detected. Health check task may not execute until workers are available.")
+            except Exception as inspect_error:
+                logger.warning(f"Could not inspect Celery worker status: {inspect_error}")
         
+        # Check task status in background (non-blocking)
+        asyncio.create_task(check_task_status())
+    except Exception as e:
+        logger.error(f"Failed to trigger initial health check: {e}. Health checks will run on schedule.", exc_info=True)
+
         # Trigger initial app health check on startup
         logger.info("Triggering initial app health check for all apps...")
         try:

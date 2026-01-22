@@ -1,0 +1,98 @@
+{
+  "category": "general",
+  "timestamp": "2026-01-14T11:09:42.727515+00:00",
+  "source": "https://openrouter.ai/rankings",
+  "count": 10,
+  "rankings": [
+    {
+      "rank": 1,
+      "model": "Claude Sonnet 4.5",
+      "provider": "anthropic",
+      "slug": "anthropic/claude-4.5-sonnet-20250929",
+      "tokens": "582B",
+      "share": null,
+      "url": "https://openrouter.ai/anthropic/claude-4.5-sonnet-20250929"
+    },
+    {
+      "rank": 2,
+      "model": "Mimo V2 Flash (free)",
+      "provider": "xiaomi",
+      "slug": "xiaomi/mimo-v2-flash-20251210:free",
+      "tokens": "443B",
+      "share": null,
+      "url": "https://openrouter.ai/xiaomi/mimo-v2-flash-20251210:free"
+    },
+    {
+      "rank": 3,
+      "model": "Claude Opus 4.5",
+      "provider": "anthropic",
+      "slug": "anthropic/claude-4.5-opus-20251124",
+      "tokens": "428B",
+      "share": null,
+      "url": "https://openrouter.ai/anthropic/claude-4.5-opus-20251124"
+    },
+    {
+      "rank": 4,
+      "model": "Grok Code Fast 1",
+      "provider": "x-ai",
+      "slug": "x-ai/grok-code-fast-1",
+      "tokens": "410B",
+      "share": null,
+      "url": "https://openrouter.ai/x-ai/grok-code-fast-1"
+    },
+    {
+      "rank": 5,
+      "model": "Gemini 3 Flash Preview",
+      "provider": "google",
+      "slug": "google/gemini-3-flash-preview-20251217",
+      "tokens": "402B",
+      "share": null,
+      "url": "https://openrouter.ai/google/gemini-3-flash-preview-20251217"
+    },
+    {
+      "rank": 6,
+      "model": "Gemini 2.5 Flash",
+      "provider": "google",
+      "slug": "google/gemini-2.5-flash",
+      "tokens": "368B",
+      "share": null,
+      "url": "https://openrouter.ai/google/gemini-2.5-flash"
+    },
+    {
+      "rank": 7,
+      "model": "Deepseek V3.2",
+      "provider": "deepseek",
+      "slug": "deepseek/deepseek-v3.2-20251201",
+      "tokens": "334B",
+      "share": null,
+      "url": "https://openrouter.ai/deepseek/deepseek-v3.2-20251201"
+    },
+    {
+      "rank": 8,
+      "model": "Gemini 2.5 Flash Lite",
+      "provider": "google",
+      "slug": "google/gemini-2.5-flash-lite",
+      "tokens": "268B",
+      "share": null,
+      "url": "https://openrouter.ai/google/gemini-2.5-flash-lite"
+    },
+    {
+      "rank": 9,
+      "model": "Grok 4.1 Fast",
+      "provider": "x-ai",
+      "slug": "x-ai/grok-4.1-fast",
+      "tokens": "245B",
+      "share": null,
+      "url": "https://openrouter.ai/x-ai/grok-4.1-fast"
+    },
+    {
+      "rank": 10,
+      "model": "GLM 4.7",
+      "provider": "z-ai",
+      "slug": "z-ai/glm-4.7-20251222",
+      "tokens": "162B",
+      "share": null,
+      "url": "https://openrouter.ai/z-ai/glm-4.7-20251222"
+    }
+  ]
+}

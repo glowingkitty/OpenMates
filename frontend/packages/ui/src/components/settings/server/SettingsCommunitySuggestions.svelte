@@ -25,11 +25,20 @@
         encryption_key?: string;
     }
 
+    interface DemoChat {
+        demo_id: string;
+        title?: string;
+        summary?: string;
+        category?: string;
+        status?: string;
+        created_at: string;
+    }
+
     // State
     let isLoading = $state(true);
     let error = $state<string | null>(null);
     let suggestions = $state<Suggestion[]>([]);
-    let currentDemoChats = $state<any[]>([]);
+    let currentDemoChats = $state<DemoChat[]>([]);
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
 

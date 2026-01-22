@@ -1,0 +1,1 @@
+> Defines structure (decision-making, veto rights, mission lock).

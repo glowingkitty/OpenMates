@@ -1,0 +1,1 @@
+> describe the planned transition from single person business to small business to steward / foundation model to ensure long term mission

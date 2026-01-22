@@ -127,9 +127,6 @@ async def get_community_suggestions(
         active_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
         existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
 
-        # Determine language for metadata enrichment
-        lang = request.query_params.get("lang", "en")
-
         # 3. Filter and format suggestions
         encryption_service: EncryptionService = request.app.state.encryption_service
         shared_vault_key = "shared-content-metadata"

@@ -1,0 +1,39 @@
+app: "TV"
+
+settings_memories:
+  # Favorite movies list with key identifiers
+  watched_movies:
+    - title: "Interstellar"
+      year: 2014
+      director: "Christopher Nolan"
+      rating: 10/10
+      notes: "one of my favorites"
+      # Optional: add a TMDb ID for reliable identification (e.g., 157336)
+      # The Movie Database (TMDb) provides a free and open API:
+      # https://www.themoviedb.org/documentation/api
+
+    - title: "Everything Everywhere All at Once"
+      year: 2022
+      director: "Daniel Kwan, Daniel Scheinert"
+
+    - title: "Soul"
+      year: 2020
+      director: "Pete Docter"
+
+    - title: "The Life of Chuck"
+      year: 2024
+      director: "Mike Flanagan"
+
+  # Movies you plan to watch
+  to_watch_list:
+    - title: "His Three Daughters"
+      year: 2024
+      director: "Azazel Jacobs"
+
+    - title: "Thelma"
+      year: 2024
+      director: "Josh Margolin"
+
+    - title: "All We Imagine as Light"
+      year: 2024
+      director: "Payal Kapadia"

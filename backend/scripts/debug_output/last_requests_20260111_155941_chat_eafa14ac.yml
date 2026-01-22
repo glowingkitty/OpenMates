@@ -1,0 +1,465 @@
+metadata:
+  generated_at: '2026-01-11T15:59:41.463290'
+  generated_at_readable: '2026-01-11 15:59:41'
+  chat_id_filter: eafa14ac-55c9-4580-9014-ec4246c1925b
+  total_entries: 2
+  note: This file contains FULL debug data for AI request processing. Data auto-expires after 30 minutes in cache.
+requests:
+- request_number: 1
+  task_id: f25e99b9-e49f-4024-8496-744dacaeddbe
+  chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+  timestamp: 1768147079
+  timestamp_readable: '2026-01-11 15:57:59'
+  preprocessor:
+    input:
+      chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+      message_id: 4246c1925b-12489884-be14-4dbd-8a16-6a090df5b6f3
+      user_id: f21b15a5-a36a-4596-b014-0941b6882e96
+      user_id_hash: da984418e448fdbfe43250920ed964554c47720f19fd7c3bc1f22e038f4a522f
+      chat_has_title: true
+      mate_id: null
+      active_focus_id: null
+      user_preferences: {}
+      message_history:
+      - content: how does the miro api work?
+        role: user
+        category: null
+        created_at: 1768147012
+      - content: "```toon\napp_id: code\nskill_id: get_docs\nresults[1]{library_id,library_title,library_description,documentation,word_count,source,error}:\n  /miroapp/api-clients,Miro API Clients,\"This\
+          \ repository provides Miro API clients, including Node.js and Python versions, generated from OpenAPI specifications to facilitate integration with the Miro platform.\",\"### Complete Miro API\
+          \ Client Example\\n\\nSource: https://github.com/miroapp/api-clients/blob/main/packages/miro-api/docs/quickstart-auth.md\\n\\nA full example of a Node.js Express application that integrates with\
+          \ the Miro API. It handles OAuth 2.0, displays a list of boards, and sets up the server to listen on port 4000.\\n\\n```javascript\\nconst express = require('express')\\nconst {Miro} = require('@mirohq/miro-api')\\\
+          nconst session = require('express-session')\\n\\nconst miro = new Miro()\\n\\nconst app = express()\\napp.use(\\n  session({\\n    secret: '<RANDOMLY-GENERATED-SECRET-STRING>',\\n    resave: false,\\\
+          n    saveUninitialized: true,\\n  }),\\n)\\n\\napp.get('/', async (req, res) => {\\n  if (!(await miro.isAuthorized(req.session.id))) {\\n    res.redirect(miro.getAuthUrl())\\n    return\\n  }\\\
+          n\\n  res.contentType('html')\\n  res.write('List of boards available to the team:')\\n  res.write('<ul>')\\n\\n  const api = miro.as(req.session.id)\\n\\n  for await (const board of api.getAllBoards())\
+          \ {\\n    res.write(`<li><a href=\\\"${board.viewLink}\\\">${board.name}</a></li>`)\\n  }\\n  res.write('</ul>')\\n  res.send()\\n})\\n\\napp.get('/auth/miro/callback', async (req, res) => {\\\
+          n  await miro.exchangeCodeForAccessToken(req.session.id, req.query.code)\\n  res.redirect('/')\\n})\\n\\napp.listen(4000, () => console.log('Started server on http://127.0.0.1:4000'))\\n```\\\
+          n\\n--------------------------------\\n\\n### Miro Node.js Client API Documentation\\n\\nSource: https://github.com/miroapp/api-clients/blob/main/packages/miro-api/docs/quickstart-auth.md\\n\\\
+          nProvides documentation for key methods of the Miro Node.js client library, including `isAuthorized`, `getAuthUrl`, and `exchangeCodeForAccessToken`.\\n\\n```APIDOC\\nMiro:\\n  isAuthorized(sessionId:\
+          \ string): Promise<boolean>\\n    Checks if a user associated with the given session ID is authorized.\\n    Parameters:\\n      sessionId: The unique identifier for the user's session.\\n   \
+          \ Returns:\\n      A promise that resolves to true if the user is authorized, false otherwise.\\n\\n  getAuthUrl(): string\\n    Generates the authorization URL for Miro OAuth.\\n    Returns:\\\
+          n      The authorization URL string.\\n\\n  exchangeCodeForAccessToken(sessionId: string, code: string): Promise<void>\\n    Exchanges a temporary OAuth code for an access token and associates\
+          \ it with a session.\\n    Parameters:\\n      sessionId: The unique identifier for the user's session.\\n      code: The temporary authorization code received from Miro.\\n    Returns:\\n   \
+          \   A promise that resolves when the token exchange and storage are complete.\\n```\\n\\n--------------------------------\\n\\n### Miro API Authorization Flow\\n\\nSource: https://github.com/miroapp/api-clients/blob/main/packages/miro-api/README.md\\\
+          n\\nDetails the steps involved in authorizing a user with the Miro API using the client library. This includes checking authorization status, obtaining an authorization URL, exchanging a code\
+          \ for an access token, and making API calls on behalf of a user.\\n\\n```APIDOC\\nMiro Client Authorization:\\n\\n1. Check authorization status:\\n   miro.isAuthorized(someUserId)\\n\\n2. Get\
+          \ authorization URL:\\n   miro.getAuthUrl()\\n\\n3. Exchange code for access token:\\n   await miro.exchangeCodeForAccessToken(someUserId, req.query.code)\\n\\n4. Make API calls as a specific\
+          \ user:\\n   await miro.as(someUserId).getBoard(boardId)\\n\\nRelated Interfaces:\\n- MiroOptions: https://miroapp.github.io/api-clients/node/interfaces/index.MiroOptions.html\\n```\\n\\n--------------------------------\\\
+          n\\n### Install Miro Node.js Client\\n\\nSource: https://github.com/miroapp/api-clients/blob/main/packages/miro-api/docs/quickstart.md\\n\\nInstalls the official Miro Node.js client library using\
+          \ npm. This library provides methods to interact with the Miro REST API.\\n\\n```bash\\nnpm install @mirohq/miro-api\\n```\\n\\n--------------------------------\\n\\n### Fastify App with Miro\
+          \ API Integration\\n\\nSource: https://github.com/miroapp/api-clients/blob/main/packages/miro-api/README.md\\n\\nThis JavaScript code snippet shows a Fastify application that integrates with the\
+          \ Miro API. It handles user session management using cookies, performs OAuth2 code exchange for access tokens, and retrieves Miro board details. Dependencies include '@mirohq/miro-api' and '@fastify/cookie'.\\\
+          n\\n```javascript\\nimport {Miro} from '@mirohq/miro-api'\\nimport Fastify from 'fastify'\\nimport fastifyCookie from '@fastify/cookie'\\n\\nconst miro = new Miro()\\n\\nconst app = Fastify()\\\
+          napp.register(fastifyCookie)\\n\\n// Generate user IDs for new sessions\\napp.addHook('preHandler', (request, reply, next) => {\\n  if (!request.cookies.userId) {\\n    const userId = Math.random()\\\
+          n    reply.setCookie('userId', userId)\\n    request.cookies.userId = userId\\n  }\\n  next()\\n})\\n\\n// Exchange the temp code for an access token in the OAuth2 redirect handler\\napp.get('/auth/miro/callback',\
+          \ async (req, reply) => {\\n  await miro.exchangeCodeForAccessToken(req.cookies.userId, req.query.code)\\n  reply.redirect('/')\\n})\\n\\napp.get('/', async (req, reply) => {\\n  // If user did\
+          \ not authorize the app, then redirect them to auth url\\n  if (!(await miro.isAuthorized(req.cookies.userId))) {\\n    reply.redirect(miro.getAuthUrl())\\n    return\\n  }\\n\\n  // Initialize\
+          \ the API for the current user\\n  const api = miro.as(req.cookies.userId)\\n\\n  // Print the detail about first returned board\\n  for await (const board of api.getAllBoards()) {\\n    return\
+          \ board\\n  }\\n})\\n\\nawait app.listen({port: 4000})\\n```\",568,context7,null\nresult_count: 1\nstatus: finished\nlibrary: Miro API\nquestion: How does the Miro API work and how do I get started\
+          \ with it?\n```\n\nThe Miro API allows developers to integrate with the Miro platform, enabling automation and interaction with Miro boards, items, users, and teams. It's built around REST principles\
+          \ and uses OAuth 2.0 for secure authentication. Here's how it works:\n\n### 1. **Authentication (OAuth 2.0)**\nTo use the Miro API, you need to authenticate users via OAuth 2.0:\n- **Check Authorization**:\
+          \ Use `miro.isAuthorized(sessionId)` to check if a user is already authorized.\n- **Get Auth URL**: If not authorized, redirect the user to `miro.getAuthUrl()` to initiate the OAuth flow.\n- **Exchange\
+          \ Code for Token**: After the user grants permission, Miro redirects back with an authorization code. Exchange this code for an access token using `miro.exchangeCodeForAccessToken(sessionId, code)`.\n\
+          \nOnce authenticated, the access token is stored and used for subsequent API calls on behalf of the user.\n\n---\n\n### 2. **Making API Calls**\nAfter authentication, you can make API calls as\
+          \ a specific user:\n```toon\ntype: code\nlanguage: javascript\ncode: \"const api = miro.as(sessionId);\\nconst boards = await api.getAllBoards();\\n\"\nfilename: null\nstatus: finished\nline_count:\
+          \ 3\n```\n\n\nThe `.as(sessionId)` method creates a client instance tied to a specific user session, allowing you to perform actions like:\n- List all boards (`getAllBoards()`)\n- Get board details\
+          \ (`getBoard(boardId)`)\n- Create or update items on a board\n- Manage team members or workspace settings\n\n---\n\n### 3. **Client Libraries**\nMiro provides official client libraries to simplify\
+          \ integration:\n- **Node.js**: Install with `npm install @mirohq/miro-api`\n- **Python**: Also available via the same [API clients repository](https://github.com/miroapp/api-clients)\n\nThese\
+          \ libraries abstract HTTP requests and handle token management, pagination, and error handling.\n\n---\n\n### 4. **Example Use Case**\nHere’s a simplified Express.js app flow:\n```toon\ntype:\
+          \ code\nlanguage: javascript\ncode: \"app.get('/', async (req, res) => {\\n  if (!(await miro.isAuthorized(req.session.id))) {\\n    res.redirect(miro.getAuthUrl());\\n    return;\\n  }\\n\\n\
+          \  const api = miro.as(req.session.id);\\n  for await (const board of api.getAllBoards()) {\\n    res.write(`<li><a href=\\\"${board.viewLink}\\\">${board.name}</a></li>`);\\n  }\\n});\\n\"\n\
+          filename: null\nstatus: finished\nline_count: 12\n```\n\n\n\nThis displays a list of boards accessible to the authenticated user.\n\n---\n\n### 5. **Best Practices**\n- **Session Management**:\
+          \ Use server-side sessions or secure cookies to store user IDs and tokens.\n- **Error Handling**: Handle cases where tokens expire or users revoke access.\n- **Rate Limits**: Be mindful of API\
+          \ rate limits—implement retry logic if needed.\n\nFor full details, see the [Miro API Clients GitHub repository](https://github.com/miroapp/api-clients).\n\nWould you like help setting up a basic\
+          \ integration or exploring specific endpoints?"
+        role: assistant
+        category: software_development
+        created_at: 1768147029
+      - content: how do I access boards via the rest api?
+        role: user
+        category: null
+        created_at: 1768147069
+      message_history_count: 3
+      skill_config:
+        default_llms:
+          preprocessing_model: mistral/mistral-small-latest
+          main_processing_simple: alibaba/qwen3-235b-a22b-2507
+          main_processing_simple_name: Qwen3
+          main_processing_complex: alibaba/qwen3-235b-a22b-2507
+          main_processing_complex_name: Qwen3
+        preprocessing_thresholds:
+          harmful_content_score: 7
+          misuse_risk_score: 8
+        always_include_skills:
+        - web-search
+      discovered_apps_count: 6
+      discovered_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      base_instructions_keys:
+      - preprocess_request_tool
+      - base_ethics_instruction
+      - base_temporal_awareness_instruction
+      - base_code_block_instruction
+      - base_capabilities_instruction
+      - follow_up_instruction
+      - base_link_encouragement_instruction
+      - base_proactive_skill_usage_instruction
+      - creator_and_used_model_instruction
+      - postprocess_response_tool
+      - url_correction_tool
+      - url_correction_system_prompt
+      - base_url_sourcing_instruction
+    output:
+      can_proceed: true
+      rejection_reason: null
+      harmful_or_illegal_score: 0.0
+      category: general_knowledge
+      llm_response_temp: 0.4
+      complexity: simple
+      misuse_risk_score: 0.0
+      load_app_settings_and_memories: []
+      relevant_embedded_previews: []
+      title: null
+      icon_names: []
+      chat_summary: Miro API integration and board access.
+      chat_tags:
+      - Miro API
+      - REST API
+      - board access
+      - integration
+      relevant_app_skills: []
+      selected_mate_id: george
+      selected_main_llm_model_id: alibaba/qwen3-235b-a22b-2507
+      selected_main_llm_model_name: Qwen3
+      requires_advice_disclaimer: null
+      raw_llm_response:
+        harmful_or_illegal: 0
+        llm_response_temp: 0.4
+        complexity: simple
+        misuse_risk: 0
+        load_app_settings_and_memories: []
+        relevant_app_skills: []
+        relevant_embedded_previews: []
+        chat_summary: Miro API integration and board access.
+        chat_tags:
+        - Miro API
+        - REST API
+        - board access
+        - integration
+        category: general_knowledge
+      error_message: null
+  main_processor:
+    input: null
+    output: null
+  postprocessor:
+    input:
+      chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+      task_id: f25e99b9-e49f-4024-8496-744dacaeddbe
+      last_user_message: how do I access boards via the rest api?
+      last_user_message_length: 40
+      assistant_response: "To access boards via the Miro REST API, you need to authenticate using OAuth 2.0 and then make HTTP requests to the appropriate endpoints. Here's how:\n\n### 1. **Authentication**\n\
+        Before accessing boards, you must authenticate with OAuth 2.0:\n- Register your app in the [Miro Developer Dashboard](https://developers.miro.com/) to get a **Client ID** and **Client Secret**.\n\
+        - Redirect users to the authorization URL:\n  ```json\n{\"type\": \"code\", \"embed_id\": \"96e51da7-b09d-44ad-908f-89ad03f0d8f5\"}\n```\n\n\n- After user consent, Miro redirects to your callback\
+        \ URL with a `code`.\n- Exchange this code for an access token:\n  ```json\n{\"type\": \"code\", \"embed_id\": \"e12ce453-d9f2-44ec-a43e-c14d1a847ee6\"}\n```\n\n\n\nYou’ll receive an `access_token`\
+        \ to use in subsequent API calls.\n\n---\n\n### 2. **List All Boards**\nUse the **List Boards** endpoint to retrieve boards the authenticated user has access to:\n\n```json\n{\"type\": \"code\"\
+        , \"embed_id\": \"28ce4603-934f-4524-bad6-6fdbba414001\"}\n```\n\n\n\n**Response Example:**\n```json\n{\"type\": \"code\", \"embed_id\": \"67abd8ad-bc19-4ce3-9bd4-f79c2cb1bf1f\"}\n```\n\n\n\n- Supports\
+        \ pagination via `limit` and `cursor` query parameters.\n- Only returns boards where the user has **edit or view permissions**.\n\n---\n\n### 3. **Get a Specific Board**\nTo retrieve details about\
+        \ a specific board:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"8b9f799a-7f08-4a12-9cae-fca5d8cc2e9f\"}\n```\n\n\n\nReplace `{board_id}` with the actual board ID (e.g., `uZTUeLRbnmY=`).\n\n\
+        ---\n\n### 4. **Using the Official Client (Recommended)**\nInstead of making raw HTTP calls, use the official [Miro Node.js client](https://github.com/miroapp/api-clients) for easier integration:\n\
+        \n```json\n{\"type\": \"code\", \"embed_id\": \"8f086fac-baa6-453e-b763-32d764b0e62f\"}\n```\n\n\n\nThis handles authentication, pagination, and error handling automatically.\n\n---\n\n### 5. **Permissions\
+        \ & Scopes**\nEnsure your app requests the correct OAuth scopes:\n- `boards:read` – to list and view boards\n- `boards:write` – to create or modify boards\n\nThese are defined during app registration\
+        \ and requested during authorization.\n\n---\n\n### 6. **Error Handling**\nCommon issues:\n- `401 Unauthorized`: Invalid or expired token — re-authenticate\n- `403 Forbidden`: User lacks permission\
+        \ to access the board\n- `429 Too Many Requests`: Rate-limited — wait before retrying\n\nFor full details, see the [Miro REST API documentation](https://developers.miro.com/reference/get-all-boards).\n\
+        \nWould you like help setting up OAuth or building a simple script to list boards?"
+      assistant_response_length: 2491
+      chat_summary: Miro API integration and board access.
+      chat_summary_length: 38
+      chat_tags:
+      - Miro API
+      - REST API
+      - board access
+      - integration
+      available_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      available_app_ids_count: 6
+      is_incognito: false
+    output:
+      follow_up_request_suggestions:
+      - What are the common errors?
+      - How do I fix 403 errors?
+      - Test me on Miro API
+      - How do I use the client?
+      - What permissions do I need?
+      - How do I refresh my token?
+      new_chat_request_suggestions:
+      - How do I create a board?
+      - What are the best practices?
+      - How do I integrate with Slack?
+      - How do I use webhooks?
+      - What are the rate limits?
+      - How do I use the Python client?
+      harmful_response: 0.0
+      top_recommended_apps_for_user:
+      - code
+- request_number: 2
+  task_id: 26268f17-64f9-4391-a7f2-cb3dddc25270
+  chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+  timestamp: 1768147030
+  timestamp_readable: '2026-01-11 15:57:10'
+  preprocessor:
+    input:
+      chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+      message_id: 4246c1925b-72d4049a-7a9c-4a56-94f0-e4da2f978fd1
+      user_id: f21b15a5-a36a-4596-b014-0941b6882e96
+      user_id_hash: da984418e448fdbfe43250920ed964554c47720f19fd7c3bc1f22e038f4a522f
+      chat_has_title: false
+      mate_id: null
+      active_focus_id: null
+      user_preferences: {}
+      message_history:
+      - content: how does the miro api work?
+        role: user
+        category: null
+        created_at: 1768147012
+      message_history_count: 1
+      skill_config:
+        default_llms:
+          preprocessing_model: mistral/mistral-small-latest
+          main_processing_simple: alibaba/qwen3-235b-a22b-2507
+          main_processing_simple_name: Qwen3
+          main_processing_complex: alibaba/qwen3-235b-a22b-2507
+          main_processing_complex_name: Qwen3
+        preprocessing_thresholds:
+          harmful_content_score: 7
+          misuse_risk_score: 8
+        always_include_skills:
+        - web-search
+      discovered_apps_count: 6
+      discovered_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      base_instructions_keys:
+      - preprocess_request_tool
+      - base_ethics_instruction
+      - base_temporal_awareness_instruction
+      - base_code_block_instruction
+      - base_capabilities_instruction
+      - follow_up_instruction
+      - base_link_encouragement_instruction
+      - base_proactive_skill_usage_instruction
+      - creator_and_used_model_instruction
+      - postprocess_response_tool
+      - url_correction_tool
+      - url_correction_system_prompt
+      - base_url_sourcing_instruction
+    output:
+      can_proceed: true
+      rejection_reason: null
+      harmful_or_illegal_score: 0.0
+      category: software_development
+      llm_response_temp: 0.4
+      complexity: complex
+      misuse_risk_score: 2.0
+      load_app_settings_and_memories: []
+      relevant_embedded_previews:
+      - code
+      title: How does the Miro API work?
+      icon_names:
+      - code
+      chat_summary: User inquiring about Miro API functionality.
+      chat_tags:
+      - Miro
+      - API
+      - software development
+      - integration
+      - documentation
+      relevant_app_skills:
+      - code-get_docs
+      selected_mate_id: sophia
+      selected_main_llm_model_id: alibaba/qwen3-235b-a22b-2507
+      selected_main_llm_model_name: Qwen3
+      requires_advice_disclaimer: null
+      raw_llm_response:
+        title: How does the Miro API work?
+        harmful_or_illegal: 0.0
+        category: software_development
+        llm_response_temp: 0.4
+        complexity: complex
+        misuse_risk: 2
+        load_app_settings_and_memories: []
+        relevant_app_skills:
+        - code-get_docs
+        relevant_embedded_previews:
+        - code
+        icon_names:
+        - code
+        chat_summary: User inquiring about Miro API functionality.
+        chat_tags:
+        - Miro
+        - API
+        - software development
+        - integration
+        - documentation
+      error_message: null
+  main_processor:
+    input: null
+    output: null
+  postprocessor:
+    input:
+      chat_id: eafa14ac-55c9-4580-9014-ec4246c1925b
+      task_id: 26268f17-64f9-4391-a7f2-cb3dddc25270
+      last_user_message: how does the miro api work?
+      last_user_message_length: 27
+      assistant_response: '```json
+
+        {"type": "app_skill_use", "embed_id": "e4e0cabf-d8b9-41c9-83b1-845fc6a18f46"}
+
+        ```
+
+
+        The Miro API allows developers to integrate with the Miro platform, enabling automation and interaction with Miro boards, items, users, and teams. It''s built around REST principles and uses OAuth
+        2.0 for secure authentication. Here''s how it works:
+
+
+        ### 1. **Authentication (OAuth 2.0)**
+
+        To use the Miro API, you need to authenticate users via OAuth 2.0:
+
+        - **Check Authorization**: Use `miro.isAuthorized(sessionId)` to check if a user is already authorized.
+
+        - **Get Auth URL**: If not authorized, redirect the user to `miro.getAuthUrl()` to initiate the OAuth flow.
+
+        - **Exchange Code for Token**: After the user grants permission, Miro redirects back with an authorization code. Exchange this code for an access token using `miro.exchangeCodeForAccessToken(sessionId,
+        code)`.
+
+
+        Once authenticated, the access token is stored and used for subsequent API calls on behalf of the user.
+
+
+        ---
+
+
+        ### 2. **Making API Calls**
+
+        After authentication, you can make API calls as a specific user:
+
+        ```json
+
+        {"type": "code", "embed_id": "d0e89e72-ed1c-46fb-977a-f6c60817521c"}
+
+        ```
+
+
+
+        The `.as(sessionId)` method creates a client instance tied to a specific user session, allowing you to perform actions like:
+
+        - List all boards (`getAllBoards()`)
+
+        - Get board details (`getBoard(boardId)`)
+
+        - Create or update items on a board
+
+        - Manage team members or workspace settings
+
+
+        ---
+
+
+        ### 3. **Client Libraries**
+
+        Miro provides official client libraries to simplify integration:
+
+        - **Node.js**: Install with `npm install @mirohq/miro-api`
+
+        - **Python**: Also available via the same [API clients repository](https://github.com/miroapp/api-clients)
+
+
+        These libraries abstract HTTP requests and handle token management, pagination, and error handling.
+
+
+        ---
+
+
+        ### 4. **Example Use Case**
+
+        Here’s a simplified Express.js app flow:
+
+        ```json
+
+        {"type": "code", "embed_id": "f275c8c6-6dca-48ec-bfe5-a7067b7e8326"}
+
+        ```
+
+
+
+
+        This displays a list of boards accessible to the authenticated user.
+
+
+        ---
+
+
+        ### 5. **Best Practices**
+
+        - **Session Management**: Use server-side sessions or secure cookies to store user IDs and tokens.
+
+        - **Error Handling**: Handle cases where tokens expire or users revoke access.
+
+        - **Rate Limits**: Be mindful of API rate limits—implement retry logic if needed.
+
+
+        For full details, see the [Miro API Clients GitHub repository](https://github.com/miroapp/api-clients).
+
+
+        Would you like help setting up a basic integration or exploring specific endpoints?'
+      assistant_response_length: 2513
+      chat_summary: User inquiring about Miro API functionality.
+      chat_summary_length: 44
+      chat_tags:
+      - Miro
+      - API
+      - software development
+      - integration
+      - documentation
+      available_app_ids:
+      - news
+      - code
+      - maps
+      - ai
+      - web
+      - videos
+      available_app_ids_count: 6
+      is_incognito: false
+    output:
+      follow_up_request_suggestions:
+      - How do I authenticate with Miro API?
+      - What are common Miro API use cases?
+      - Can you show me more examples?
+      - What are the rate limits for Miro API?
+      - How do I handle errors in Miro API?
+      - Test me on Miro API basics
+      new_chat_request_suggestions:
+      - How do I integrate with other tools?
+      - What are best practices for API security?
+      - Can you explain OAuth 2.0 in detail?
+      - What other collaboration tools have APIs?
+      - How do I automate workflows with APIs?
+      - What are the latest updates to Miro?
+      harmful_response: 0.0
+      top_recommended_apps_for_user:
+      - code
+      - web

@@ -6,8 +6,6 @@
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
 	import { embedStore } from '../../services/embedStore';
-	import { webSocketService } from '../../services/websocketService';
-	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
@@ -23,14 +21,13 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
+	import { DEMO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
-	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { getApiEndpoint } from '../../config/api'; // For API calls
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
@@ -39,7 +36,7 @@
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
-let updateChatListDebounceTimer: NodeJS.Timeout | null = null;
+let updateChatListDebounceTimer: any = null;
 const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Component State ---
