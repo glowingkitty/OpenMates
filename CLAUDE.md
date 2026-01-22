@@ -59,6 +59,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 - `revert`: Reverts a previous commit
 
 **Rules:**
+- **Scope**: NEVER add all files (e.g., `git add .`) to a commit. Only add files modified or created within the current chat session, unless explicitly instructed otherwise by the user.
 - Use the imperative, present tense: "change" not "changed" nor "changes"
 - Don't capitalize the first letter of the description
 - No dot (.) at the end of the title
@@ -77,7 +78,7 @@ feat: add user authentication flow
 - [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
 - [ ] Fix all linter and type errors
 - [ ] Remove temporary `console.log` or `print` statements (unless permanent)
-- [ ] Ensure all new files are added to git
+- [ ] Only add files changed/created in this chat (no `git add .`)
 
 ## Debugging Backend Issues
 
