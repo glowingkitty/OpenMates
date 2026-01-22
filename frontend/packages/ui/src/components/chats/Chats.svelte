@@ -5,6 +5,7 @@
 	import { panelState } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
+	import { embedStore } from '../../services/embedStore';
 	import { webSocketService } from '../../services/websocketService';
 	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
@@ -1368,11 +1369,48 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					}
 
 					// Store embeds if any
+					if (chatDataObj.embed_keys && chatDataObj.embed_keys.length > 0) {
+						console.debug(`[Chats] Storing ${chatDataObj.embed_keys.length} embed keys for demo chat ${demoId}`);
+						try {
+							await embedStore.storeEmbedKeys(chatDataObj.embed_keys);
+						} catch (e) {
+							console.error(`[Chats] Error storing embed keys for demo chat ${demoId}:`, e);
+						}
+					}
+
 					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
-						// Process embed_keys first - unwrap them with chat key
-						// const embedKeys = chatDataObj.embed_keys || [];
-						// Store embeds and embed keys (similar to shared chat logic)
-						// Note: Embed storage logic would go here if needed
+						console.debug(`[Chats] Storing ${chatDataObj.embeds.length} embeds for demo chat ${demoId}`);
+						for (const embed of chatDataObj.embeds) {
+							try {
+								// Each embed should have: embed_id, encrypted_content, encrypted_type, status, etc.
+								const contentRef = `embed:${embed.embed_id}`;
+								
+								// Use normalized type or fallback to app-skill-use if encrypted_type is present
+								const type = embed.embed_type || (embed.encrypted_type ? 'app-skill-use' : 'web-website');
+								
+								await embedStore.putEncrypted(contentRef, {
+									encrypted_content: embed.encrypted_content,
+									encrypted_type: embed.encrypted_type,
+									embed_id: embed.embed_id,
+									status: embed.status || 'finished',
+									hashed_chat_id: embed.hashed_chat_id,
+									hashed_user_id: embed.hashed_user_id,
+									embed_ids: embed.embed_ids,
+									parent_embed_id: embed.parent_embed_id,
+									version_number: embed.version_number,
+									encrypted_diff: embed.encrypted_diff,
+									file_path: embed.file_path,
+									content_hash: embed.content_hash,
+									text_length_chars: embed.text_length_chars,
+									is_private: embed.is_private ?? false,
+									is_shared: embed.is_shared ?? false,
+									createdAt: embed.createdAt || embed.created_at,
+									updatedAt: embed.updatedAt || embed.updated_at
+								}, type as any);
+							} catch (e) {
+								console.error(`[Chats] Error storing embed ${embed.embed_id} for demo chat ${demoId}:`, e);
+							}
+						}
 					}
 
 					// Track BOTH demo ID and real chat ID in sessionStorage
