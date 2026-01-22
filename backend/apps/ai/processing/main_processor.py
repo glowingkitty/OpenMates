@@ -48,6 +48,18 @@ logger = logging.getLogger(__name__)
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
 
+# === SKILL CALL BUDGET LIMITS ===
+# These limits prevent runaway research loops where the AI keeps requesting more and more searches.
+# Each "skill call" is counted per-request (e.g., a tool call with 3 requests counts as 3 skill calls).
+#
+# SOFT_LIMIT_SKILL_CALLS: When this limit is reached, inject a budget warning into the next LLM call,
+# instructing the AI to finish with gathered information or ask the user for follow-up.
+SOFT_LIMIT_SKILL_CALLS = 4
+#
+# HARD_LIMIT_SKILL_CALLS: When this limit is reached, stop executing further skills entirely.
+# Force the LLM to answer with gathered information by setting tool_choice="none".
+HARD_LIMIT_SKILL_CALLS = 6
+
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
     """
@@ -1070,18 +1082,63 @@ async def handle_main_processing(
 
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     
+    # === SKILL CALL BUDGET TRACKING ===
+    # Track total skill calls across all iterations to prevent runaway research loops.
+    # Each request within a tool call counts as one skill call.
+    total_skill_calls = 0
+    budget_warning_injected = False
+    force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}")
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
+        
+        # === LAST ITERATION SAFETY CHECK ===
+        # If we're on the last iteration, always force no tools to ensure we get an answer.
+        # This acts as a safety net in case the budget limits weren't reached.
+        if iteration == MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
+            force_no_tools = True
+            if not budget_warning_injected:
+                budget_warning_injected = True
+            logger.info(
+                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
+                f"forcing tool_choice='none' to ensure final answer is generated."
+            )
+        
+        # Determine tool_choice based on budget state
+        # If we've hit the hard limit or this is the last iteration, force the LLM to answer without tools
+        if force_no_tools:
+            current_tool_choice = "none"
+            logger.info(
+                f"{log_prefix} [SKILL_BUDGET] Forcing tool_choice='none' - LLM must answer with gathered information "
+                f"(total_skill_calls={total_skill_calls}, hard_limit={HARD_LIMIT_SKILL_CALLS})"
+            )
+        else:
+            current_tool_choice = "auto"
+        
+        # Build system prompt for this iteration
+        # Inject budget warning if we've exceeded the soft limit
+        iteration_system_prompt = full_system_prompt
+        if budget_warning_injected:
+            budget_warning = (
+                "\n\n--- IMPORTANT: Research Budget Limit ---\n"
+                "You have used most of your available research calls for this response. "
+                "Please provide the best possible answer using the information you have already gathered. "
+                "If you need more information to fully answer the user's question, suggest specific follow-up questions "
+                "the user could ask, rather than making additional research calls.\n"
+                "--- End Research Budget Warning ---\n"
+            )
+            iteration_system_prompt = full_system_prompt + budget_warning
+            logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
         llm_stream = call_main_llm_stream(
             task_id=task_id,
-            system_prompt=full_system_prompt,
+            system_prompt=iteration_system_prompt,
             message_history=current_message_history,
             model_id=preprocessing_results.selected_main_llm_model_id,
             temperature=preprocessing_results.llm_response_temp,
             secrets_manager=secrets_manager,
-            tools=available_tools_for_llm if available_tools_for_llm else None,
-            tool_choice="auto"
+            tools=available_tools_for_llm if not force_no_tools else None,
+            tool_choice=current_tool_choice
         )
 
         current_turn_text_buffer = []
@@ -1447,6 +1504,60 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                
+                # === SKILL CALL BUDGET CHECK ===
+                # Count requests in this tool call and check against hard limit.
+                # If we've already reached the limit, skip this tool call entirely.
+                # User won't see any indication that the tool call was skipped.
+                requests_in_this_call = 1  # Default: single request
+                requests_list_for_budget = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
+                    requests_in_this_call = len(requests_list_for_budget)
+                
+                # Skip this tool call if we've already reached the hard limit
+                # We don't count system tools (focus mode) against the budget
+                if app_id != "system" and total_skill_calls >= HARD_LIMIT_SKILL_CALLS:
+                    logger.info(
+                        f"{log_prefix} [SKILL_BUDGET] Skipping tool call '{tool_name}' with {requests_in_this_call} request(s) - "
+                        f"hard limit already reached (total_skill_calls={total_skill_calls}, limit={HARD_LIMIT_SKILL_CALLS})"
+                    )
+                    # Add a tool response to history so the LLM knows this tool was skipped
+                    # but the user won't see any placeholder or error
+                    tool_response_message = {
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped",
+                            "reason": "Research limit reached for this response. Use gathered information to answer."
+                        })
+                    }
+                    current_message_history.append(tool_response_message)
+                    continue  # Skip to next tool call
+                
+                # Update budget counters (only for non-system tools)
+                if app_id != "system":
+                    total_skill_calls += requests_in_this_call
+                    logger.info(
+                        f"{log_prefix} [SKILL_BUDGET] Executing '{tool_name}' with {requests_in_this_call} request(s), "
+                        f"total now: {total_skill_calls}/{HARD_LIMIT_SKILL_CALLS}"
+                    )
+                    
+                    # Check if we've reached the soft limit - inject warning for next iteration
+                    if total_skill_calls >= SOFT_LIMIT_SKILL_CALLS and not budget_warning_injected:
+                        budget_warning_injected = True
+                        logger.info(
+                            f"{log_prefix} [SKILL_BUDGET] Soft limit reached ({total_skill_calls} >= {SOFT_LIMIT_SKILL_CALLS}). "
+                            f"Budget warning will be injected in next iteration."
+                        )
+                    
+                    # Check if we've hit the hard limit - force no tools for next iteration
+                    if total_skill_calls >= HARD_LIMIT_SKILL_CALLS:
+                        force_no_tools = True
+                        logger.info(
+                            f"{log_prefix} [SKILL_BUDGET] Hard limit reached ({total_skill_calls} >= {HARD_LIMIT_SKILL_CALLS}). "
+                            f"Next iteration will force tool_choice='none' to generate final answer."
+                        )
                 
                 # --- Handle system tools (focus mode activation/deactivation) ---
                 # System tools are special tools that modify the chat state rather than executing skills
@@ -2750,8 +2861,27 @@ async def handle_main_processing(
             }
             current_message_history.append(tool_response_message)
 
-        if iteration == MAX_TOOL_CALL_ITERATIONS - 1:
-            yield "\n[Max tool call iterations reached.]"
+        # === MAX ITERATIONS HANDLING ===
+        # If we're on the second-to-last iteration and the LLM is still requesting tools,
+        # force the next (final) iteration to generate an answer without tools.
+        # This ensures the user ALWAYS gets an answer based on gathered information.
+        if iteration == MAX_TOOL_CALL_ITERATIONS - 2:
+            # We're on the second-to-last iteration - force the final iteration to answer
+            force_no_tools = True
+            if not budget_warning_injected:
+                budget_warning_injected = True  # Also inject budget warning
+            logger.info(
+                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
+                f"Next iteration will force tool_choice='none' to generate final answer."
+            )
+        elif iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+            # We're on the last iteration - if we still have tool calls, that's unexpected
+            # (because we should have forced no tools in the previous iteration)
+            # Log this as a warning but don't show error to user - we already have tool results
+            logger.warning(
+                f"{log_prefix} [MAX_ITERATIONS] Final iteration reached with tool calls still pending. "
+                f"This shouldn't happen if force_no_tools was set correctly. Breaking loop."
+            )
             break
 
     if usage:

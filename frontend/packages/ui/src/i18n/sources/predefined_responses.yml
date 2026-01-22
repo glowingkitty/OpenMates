@@ -44,6 +44,29 @@ misuse_detected:
   cs: Omlouvám se, nemohu pomoci s tímto požadavkem, protože by mohl být zneužit. Chceš si popovídat o něčem jiném?
   sv: Tyvärr kan jag inte hjälpa till med denna förfrågan eftersom den kan missbrukas för att orsaka skada. Vill du prata om något annat?
   verified_by_human: []
+processing_error_rephrase:
+  context: Shown when the AI had trouble processing a request (e.g., after filtering internal errors). Asks user to rephrase.
+  en: I had trouble processing your request. Could you rephrase what you'd like me to help with? The more specific details you can provide, the better I can assist you.
+  de: Ich hatte Schwierigkeiten, deine Anfrage zu bearbeiten. Könntest du anders formulieren, wie ich dir helfen kann? Je spezifischer die Details, desto besser kann ich dir helfen.
+  zh: 我在处理你的请求时遇到了问题。你能换一种方式描述你需要什么帮助吗？你提供的细节越具体，我就能更好地帮助你。
+  es: Tuve problemas para procesar tu solicitud. ¿Podrías reformular lo que te gustaría que te ayudara? Cuantos más detalles específicos puedas proporcionar, mejor podré asistirte.
+  fr: J'ai eu du mal à traiter votre demande. Pourriez-vous reformuler ce que vous aimeriez que je vous aide à faire? Plus vous fournissez de détails précis, mieux je peux vous aider.
+  pt: Tive problemas para processar seu pedido. Poderia reformular com o que gostaria de ajuda? Quanto mais detalhes específicos você puder fornecer, melhor posso ajudá-lo.
+  ru: У меня возникли проблемы с обработкой вашего запроса. Не могли бы вы перефразировать, чем я могу вам помочь? Чем больше конкретных деталей вы предоставите, тем лучше я смогу вам помочь.
+  ja: リクエストの処理に問題がありました。何をお手伝いすればよいか、言い換えていただけますか？具体的な詳細を教えていただければ、より良くお手伝いできます。
+  ko: 요청을 처리하는 데 문제가 있었습니다. 무엇을 도와드릴지 다시 말씀해 주시겠어요? 구체적인 세부 사항을 제공해 주시면 더 잘 도와드릴 수 있습니다.
+  it: Ho avuto problemi a elaborare la tua richiesta. Potresti riformulare come posso aiutarti? Più dettagli specifici puoi fornire, meglio posso assisterti.
+  tr: İsteğinizi işlerken sorun yaşadım. Size nasıl yardımcı olmamı istediğinizi yeniden ifade edebilir misiniz? Ne kadar spesifik detay verirseniz, o kadar iyi yardımcı olabilirim.
+  vi: Tôi gặp khó khăn khi xử lý yêu cầu của bạn. Bạn có thể diễn đạt lại những gì bạn muốn tôi giúp không? Bạn cung cấp càng nhiều chi tiết cụ thể, tôi càng có thể hỗ trợ bạn tốt hơn.
+  id: Saya mengalami kesulitan memproses permintaan Anda. Bisakah Anda mengutarakan ulang apa yang ingin Anda minta bantuan? Semakin spesifik detail yang Anda berikan, semakin baik saya dapat membantu Anda.
+  pl: Miałem problemy z przetworzeniem twojego zapytania. Czy mógłbyś przeformułować, w czym mogę ci pomóc? Im więcej szczegółów podasz, tym lepiej mogę ci pomóc.
+  nl: Ik had moeite met het verwerken van je verzoek. Kun je anders formuleren waar je hulp bij wilt? Hoe specifieker de details die je geeft, hoe beter ik je kan helpen.
+  ar: واجهت صعوبة في معالجة طلبك. هل يمكنك إعادة صياغة ما تريد مساعدتك فيه؟ كلما قدمت تفاصيل أكثر تحديدًا، كان بإمكاني مساعدتك بشكل أفضل.
+  hi: मुझे आपके अनुरोध को संसाधित करने में कठिनाई हुई। क्या आप दोबारा बता सकते हैं कि मैं आपकी किस तरह मदद कर सकता हूं? आप जितने अधिक विशिष्ट विवरण देंगे, मैं उतनी बेहतर सहायता कर सकता हूं।
+  th: ฉันมีปัญหาในการประมวลผลคำขอของคุณ คุณช่วยบอกใหม่ได้ไหมว่าต้องการให้ช่วยอะไร ยิ่งคุณให้รายละเอียดที่เฉพาะเจาะจงมากเท่าไหร่ ฉันก็ยิ่งช่วยคุณได้ดีขึ้นเท่านั้น
+  cs: Měl jsem problém zpracovat tvůj požadavek. Mohl bys přeformulovat, s čím bys chtěl pomoci? Čím více konkrétních detailů mi poskytneš, tím lépe ti mohu pomoci.
+  sv: Jag hade problem med att bearbeta din förfrågan. Kan du omformulera vad du vill ha hjälp med? Ju mer specifika detaljer du kan ge, desto bättre kan jag hjälpa dig.
+  verified_by_human: []
 skill_execution_failed:
   context: Shown when LLM tried to use a skill but it failed or was unavailable
   en: Hmm... I wasn't able to use {skill_name} properly. Could you clarify what you'd like me to do so I can try again?
