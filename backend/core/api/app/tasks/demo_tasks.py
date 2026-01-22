@@ -89,40 +89,52 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
                     "order": emb.get("created_at", 0)
                 })
 
-        # 3. Translate for each language
+        # 3. Translate using batch translation (one API call per text instead of per language)
+        logger.info(f"Translating demo {demo_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
+        
+        # Translate metadata in batches
+        title_translations = await _translate_text_batch(task, demo_chat.get("title", "Demo Chat"), TARGET_LANGUAGES)
+        summary_translations = await _translate_text_batch(task, demo_chat.get("summary", ""), TARGET_LANGUAGES)
+        
+        # Translate follow-up suggestions in batches
+        follow_up = demo_chat.get("follow_up_suggestions")
+        follow_up_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
+        if follow_up:
+            if isinstance(follow_up, str):
+                try:
+                    follow_up = json.loads(follow_up)
+                except Exception:
+                    follow_up = []
+            if isinstance(follow_up, list):
+                for suggestion in follow_up:
+                    suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES)
+                    for lang in TARGET_LANGUAGES:
+                        follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
+        
+        # Translate messages in batches
+        message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
+        for i, msg in enumerate(decrypted_messages):
+            logger.info(f"Translating message {i+1}/{len(decrypted_messages)} to all languages...")
+            msg_translations = await _translate_tiptap_json_batch(task, msg["content"], TARGET_LANGUAGES)
+            for lang in TARGET_LANGUAGES:
+                message_translations_by_lang[lang].append(msg_translations[lang])
+        
+        # 4. Store translations for each language
         for lang in TARGET_LANGUAGES:
-            logger.info(f"Translating demo {demo_id} to {lang}...")
+            logger.info(f"Storing translations for {lang}...")
             
-            # Translate metadata
-            translated_title = await _translate_text(task, demo_chat.get("title", "Demo Chat"), lang)
-            translated_summary = await _translate_text(task, demo_chat.get("summary", ""), lang)
-            
-            follow_up = demo_chat.get("follow_up_suggestions")
-            translated_follow_up = []
-            if follow_up:
-                if isinstance(follow_up, str):
-                    try:
-                        follow_up = json.loads(follow_up)
-                    except Exception:
-                        follow_up = []
-                if isinstance(follow_up, list):
-                    for suggestion in follow_up:
-                        translated_follow_up.append(await _translate_text(task, suggestion, lang))
-
-            # Store translation
+            # Store metadata translation
             translation_data = {
                 "demo_id": demo_id,
                 "language": lang,
-                "title": translated_title,
-                "summary": translated_summary,
-                "follow_up_suggestions": translated_follow_up
+                "title": title_translations[lang],
+                "summary": summary_translations[lang],
+                "follow_up_suggestions": follow_up_translations_by_lang[lang]
             }
             await task.directus_service.create_item("demo_chat_translations", translation_data)
 
-            # Translate and store messages
-            for i, msg in enumerate(decrypted_messages):
-                translated_content = await _translate_tiptap_json(task, msg["content"], lang)
-                
+            # Store translated messages
+            for i, translated_content in enumerate(message_translations_by_lang[lang]):
                 # Encrypt server-side
                 encrypted_content, _ = await task.encryption_service.encrypt(
                     translated_content, 
@@ -132,7 +144,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
                 message_data = {
                     "demo_id": demo_id,
                     "language": lang,
-                    "role": msg["role"],
+                    "role": decrypted_messages[i]["role"],
                     "encrypted_content": encrypted_content,
                     "message_order": i
                 }
@@ -191,84 +203,177 @@ def _decrypt_client_side(ciphertext_b64: str, key_b64: str) -> Optional[str]:
         logger.error(f"Client-side decryption failed: {e}")
         return None
 
-async def _translate_text(task: BaseServiceTask, text: str, target_lang: str) -> str:
-    """Translate a single string using Gemini 3 Flash."""
+async def _translate_text_batch(task: BaseServiceTask, text: str, target_languages: list) -> dict:
+    """
+    Translate a single string to multiple languages in one API call using function calling.
+    Returns a dictionary mapping language codes to translations.
+    """
     if not text:
-        return ""
+        return {lang: "" for lang in target_languages}
+    
+    # Build function schema with output fields for each target language
+    properties = {}
+    for lang in target_languages:
+        properties[lang] = {
+            "type": "string",
+            "description": f"Translation to {lang} language"
+        }
+    
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "return_translations",
+            "description": "Return translations of the provided text to all target languages. Translate the text naturally and accurately to each language.",
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": target_languages
+            }
+        }
+    }
     
     messages = [
-        {"role": "system", "content": f"You are a professional translator. Translate the following text to the language with code '{target_lang}'. Return only the translated text, no explanation or formatting."},
-        {"role": "user", "content": text}
+        {"role": "system", "content": "You are a professional translator. Translate the provided text to all requested languages accurately and naturally."},
+        {"role": "user", "content": f"Translate the following text to all target languages: {text}"}
     ]
     
     try:
         response = await invoke_google_ai_studio_chat_completions(
-            task_id=f"translate_{target_lang}",
+            task_id=f"translate_batch_{hash(text) % 10000}",
             model_id="gemini-3-flash-preview",
             messages=messages,
             secrets_manager=task.secrets_manager,
+            tools=[translation_tool],
+            tool_choice="required",
             temperature=0.3,
-            max_tokens=2000,
+            max_tokens=4000,
             stream=False
         )
         
-        if response.success and response.direct_message_content:
-            return response.direct_message_content.strip()
-        else:
-            logger.error(f"Translation failed for {target_lang}: {response.error_message}")
-            return text
+        if response.success and response.tool_calls_made:
+            # Extract translations from function call
+            for tool_call in response.tool_calls_made:
+                if tool_call.function_name == "return_translations":
+                    translations = tool_call.function_arguments_parsed
+                    # Ensure all languages are present, use original text as fallback
+                    result = {}
+                    for lang in target_languages:
+                        result[lang] = translations.get(lang, text)
+                    return result
+        
+        # Fallback: if function calling failed, return original text for all languages
+        logger.error(f"Batch translation failed: {response.error_message if hasattr(response, 'error_message') else 'No function call returned'}")
+        return {lang: text for lang in target_languages}
     except Exception as e:
-        logger.error(f"Error calling Gemini for translation: {e}")
-        return text
+        logger.error(f"Error calling Gemini for batch translation: {e}")
+        return {lang: text for lang in target_languages}
 
-async def _translate_tiptap_json(task: BaseServiceTask, tiptap_json: str, target_lang: str) -> str:
-    """Translate Tiptap JSON content using Gemini 3 Flash."""
-    if not tiptap_json:
+
+async def _translate_text(task: BaseServiceTask, text: str, target_lang: str) -> str:
+    """
+    Translate a single string to one language (legacy function, kept for backward compatibility).
+    For new code, use _translate_text_batch for efficiency.
+    """
+    if not text:
         return ""
+    
+    result = await _translate_text_batch(task, text, [target_lang])
+    return result.get(target_lang, text)
+
+async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, target_languages: list) -> dict:
+    """
+    Translate Tiptap JSON content to multiple languages in one API call using function calling.
+    Returns a dictionary mapping language codes to translated JSON strings.
+    """
+    if not tiptap_json:
+        return {lang: "" for lang in target_languages}
     
     # Simple check if it's actually JSON
     try:
         json.loads(tiptap_json)
     except Exception:
-        return await _translate_text(task, tiptap_json, target_lang)
-
+        # If not JSON, treat as plain text
+        return await _translate_text_batch(task, tiptap_json, target_languages)
+    
+    # Build function schema with output fields for each target language
+    properties = {}
+    for lang in target_languages:
+        properties[lang] = {
+            "type": "string",
+            "description": f"Translated Tiptap JSON for {lang} language. Must be valid JSON with the same structure as the input, only 'text' values translated."
+        }
+    
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "return_translated_json",
+            "description": "Return translated Tiptap JSON for all target languages. Translate only the 'text' values in the JSON structure. Keep all other JSON structure, keys, and non-text values exactly as they are. Each output must be valid JSON.",
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": target_languages
+            }
+        }
+    }
+    
     messages = [
-        {"role": "system", "content": f"""You are a professional translator. 
-Translate the 'text' values in the following Tiptap JSON to the language with code '{target_lang}'. 
-Keep all other JSON structure, keys, and non-text values exactly as they are. 
-Return only the valid JSON result."""},
-        {"role": "user", "content": tiptap_json}
+        {"role": "system", "content": "You are a professional translator. Translate the 'text' values in the provided Tiptap JSON to all requested languages. Keep all JSON structure, keys, and non-text values exactly as they are. Return valid JSON for each language."},
+        {"role": "user", "content": f"Translate the following Tiptap JSON to all target languages: {tiptap_json}"}
     ]
     
     try:
         response = await invoke_google_ai_studio_chat_completions(
-            task_id=f"translate_json_{target_lang}",
+            task_id=f"translate_json_batch_{hash(tiptap_json) % 10000}",
             model_id="gemini-3-flash-preview",
             messages=messages,
             secrets_manager=task.secrets_manager,
+            tools=[translation_tool],
+            tool_choice="required",
             temperature=0.1, # Lower temperature for structural integrity
-            max_tokens=4000,
+            max_tokens=8000, # Increased for multiple JSON outputs
             stream=False
         )
         
-        if response.success and response.direct_message_content:
-            result = response.direct_message_content.strip()
-            # Try to clean up markdown code blocks if AI included them
-            if result.startswith("```json"):
-                result = result.split("```json")[1].split("```")[0].strip()
-            elif result.startswith("```"):
-                result = result.split("```")[1].split("```")[0].strip()
-            
-            # Validate JSON
-            try:
-                json.loads(result)
-                return result
-            except Exception:
-                logger.error(f"AI returned invalid JSON for translation to {target_lang}")
-                return tiptap_json
-        else:
-            logger.error(f"JSON translation failed for {target_lang}: {response.error_message}")
-            return tiptap_json
+        if response.success and response.tool_calls_made:
+            # Extract translations from function call
+            for tool_call in response.tool_calls_made:
+                if tool_call.function_name == "return_translated_json":
+                    translations = tool_call.function_arguments_parsed
+                    # Validate each translation is valid JSON
+                    result = {}
+                    for lang in target_languages:
+                        translated_json = translations.get(lang, tiptap_json)
+                        # Try to clean up markdown code blocks if AI included them
+                        if isinstance(translated_json, str):
+                            if translated_json.startswith("```json"):
+                                translated_json = translated_json.split("```json")[1].split("```")[0].strip()
+                            elif translated_json.startswith("```"):
+                                translated_json = translated_json.split("```")[1].split("```")[0].strip()
+                        
+                        # Validate JSON
+                        try:
+                            json.loads(translated_json)
+                            result[lang] = translated_json
+                        except Exception:
+                            logger.error(f"AI returned invalid JSON for translation to {lang}")
+                            result[lang] = tiptap_json
+                    return result
+        
+        # Fallback: if function calling failed, return original JSON for all languages
+        logger.error(f"Batch JSON translation failed: {response.error_message if hasattr(response, 'error_message') else 'No function call returned'}")
+        return {lang: tiptap_json for lang in target_languages}
     except Exception as e:
-        logger.error(f"Error calling Gemini for JSON translation: {e}")
-        return tiptap_json
+        logger.error(f"Error calling Gemini for batch JSON translation: {e}")
+        return {lang: tiptap_json for lang in target_languages}
+
+
+async def _translate_tiptap_json(task: BaseServiceTask, tiptap_json: str, target_lang: str) -> str:
+    """
+    Translate Tiptap JSON content to one language (legacy function, kept for backward compatibility).
+    For new code, use _translate_tiptap_json_batch for efficiency.
+    """
+    if not tiptap_json:
+        return ""
+    
+    result = await _translate_tiptap_json_batch(task, tiptap_json, [target_lang])
+    return result.get(target_lang, tiptap_json)

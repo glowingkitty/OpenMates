@@ -162,7 +162,7 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats"  # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo"  # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
     command: >
@@ -172,7 +172,7 @@ services:
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence,health_check,server_stats \
+             --queues=email,user_init,persistence,health_check,server_stats,demo \
              --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \

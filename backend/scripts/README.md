@@ -318,6 +318,70 @@ docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./
 
 ---
 
+### Translate Text
+
+**Purpose:** Translate text to multiple languages using Gemini 3 Flash with efficient batch translation (all languages in one API call). Supports both plain text and Tiptap JSON format.
+
+**Command:**
+```bash
+# Translate simple text to all 20 supported languages
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello, world!"
+
+# Translate to specific languages
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello, world!" --languages de es fr
+
+# Translate Tiptap JSON (preserves structure, only translates text values)
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello"}]}]}' --json
+
+# Output as JSON format
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello" --json-output
+```
+
+**What it does:**
+- Uses Gemini 3 Flash with function calling for efficient batch translation
+- Translates to all 20 supported languages in a single API call (much faster than individual calls)
+- For Tiptap JSON: Preserves JSON structure, formatting marks, and keys - only translates `text` values
+- Validates JSON output for Tiptap translations
+- Supports both human-readable and JSON output formats
+
+**Supported languages (20 total):**
+`en`, `de`, `zh`, `es`, `fr`, `pt`, `ru`, `ja`, `ko`, `it`, `tr`, `vi`, `id`, `pl`, `nl`, `ar`, `hi`, `th`, `cs`, `sv`
+
+**Options:**
+- `--languages LANG [LANG ...]`: Target languages to translate to (default: all 20 languages)
+- `--json`: Treat input as Tiptap JSON instead of plain text
+- `--json-output`: Output results as JSON instead of human-readable format
+
+**Example output (plain text):**
+```
+Original text: Hello, how can I help you today?
+================================================================================
+de : Hallo, wie kann ich Ihnen heute helfen?
+es : Hola, ¿cómo puedo ayudarle hoy?
+fr : Bonjour, comment puis-je vous aider aujourd'hui ?
+================================================================================
+```
+
+**Example output (Tiptap JSON):**
+```
+Original text: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"This is a test"}]}]}
+================================================================================
+de : Dies ist ein Test
+es : Esta es una prueba
+fr : Ceci est un test
+================================================================================
+```
+
+**Use case:** 
+- Testing translation quality before approving community chat suggestions
+- Ad-hoc translation needs for content creation
+- Verifying Tiptap JSON translation preserves structure correctly
+- Quick translation checks during development
+
+**Performance:** Uses batch translation with function calling - translates all languages in one API call instead of 20 separate calls, resulting in ~20x faster translation and lower API costs.
+
+---
+
 ### Fetch OpenRouter Rankings
 
 **Purpose:** Fetch AI model rankings from OpenRouter.ai including the LLM Leaderboard, Top Apps, and Programming category leaderboard.
