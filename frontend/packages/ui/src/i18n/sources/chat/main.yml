@@ -414,28 +414,51 @@ report_bad_answer.button_text:
   cs: Nahlásit špatnou odpověď
   sv: Rapportera dåligt svar
   verified_by_human: []
+report_bad_answer.title:
+  context: Title for reporting a bad answer
+  en: Bad response quality
+  de: Schlechte Antwortqualität
+  zh: 响应质量差
+  es: Mala calidad de respuesta
+  fr: Mauvaise qualité de réponse
+  pt: Má qualidade de resposta
+  ru: Плохое качество ответа
+  ja: 回答の質が悪い
+  ko: 답변 품질 저하
+  it: Scarsa qualità della risposta
+  tr: Kötü yanıt kalitesi
+  vi: Chất lượng phản hồi kém
+  id: Kualitas respons buruk
+  pl: Zła jakość odpowiedzi
+  nl: Slechte antwoordkwaliteit
+  ar: جودة الرد سيئة
+  hi: खराब प्रतिक्रिया गुणवत्ता
+  th: คุณภาพการตอบกลับไม่ดี
+  cs: Špatná kvalita odpovědi
+  sv: Dålig svarskvalitet
+  verified_by_human: []
 report_bad_answer.template:
   context: Prefilled template for reporting a bad answer
-  en: "Bad answer. Reason:\n>>Enter a reason here<<\n\nMessage link:\n{link}"
-  de: "Schlechte Antwort. Grund:\n>>Hier Grund eingeben<<\n\nLink zur Nachricht:\n{link}"
-  zh: "错误答案。原因：\n>>在此输入原因<<\n\n消息链接：\n{link}"
-  es: "Mala respuesta. Razón:\n>>Ingrese una razón aquí<<\n\nEnlace del mensaje:\n{link}"
-  fr: "Mauvaise réponse. Raison :\n>>Entrez une raison ici<<\n\nLien du message :\n{link}"
-  pt: "Resposta ruim. Motivo:\n>>Insira um motivo aqui<<\n\nLink da mensagem:\n{link}"
-  ru: "Плохой ответ. Причина:\n>>Введите причину здесь<<\n\nСсылка на сообщение:\n{link}"
-  ja: "悪い回答。理由：\n>>ここに理由を入力してください<<\n\nメッセージリンク：\n{link}"
-  ko: "잘못된 답변. 사유:\n>>여기에 사유를 입력하세요<<\n\n메시지 링크:\n{link}"
-  it: "Risposta errata. Motivo:\n>>Inserisci un motivo qui<<\n\nLink al messaggio:\n{link}"
-  tr: "Kötü cevap. Neden:\n>>Buraya bir neden girin<<\n\nMesaj bağlantısı:\n{link}"
-  vi: "Câu trả lời tồi. Lý do:\n>>Nhập lý do vào đây<<\n\nLiên kết tin nhắn:\n{link}"
-  id: "Jawaban buruk. Alasan:\n>>Masukkan alasan di sini<<\n\nTautan pesan:\n{link}"
-  pl: "Zła odpowiedź. Powód:\n>>Wpisz tutaj powód<<\n\nLink do wiadomości:\n{link}"
-  nl: "Slecht antwoord. Reden:\n>>Voer hier een reden in<<\n\nBerichtlink:\n{link}"
-  ar: "إجابة سيئة. السبب:\n>>أدخل السبب هنا<<\n\nرابط الرسالة:\n{link}"
-  hi: "खराब उत्तर। कारण:\n>>यहाँ कारण दर्ज करें<<\n\nसंदेश लिंक:\n{link}"
-  th: "คำตอบที่ไม่ดี เหตุผล:\n>>ใส่เหตุผลที่นี่<<\n\nลิงก์ข้อความ:\n{link}"
-  cs: "Špatná odpověď. Důvod:\n>>Zde zadejte důvod<<\n\nOdkaz na zprávu:\n{link}"
-  sv: "Dåligt svar. Anledning:\n>>Ange en anledning här<<\n\nMeddelandelänk:\n{link}"
+  en: "\n\n\nMessage link:\n{link}"
+  de: "\n\n\nLink zur Nachricht:\n{link}"
+  zh: "\n\n\n消息链接：\n{link}"
+  es: "\n\n\nEnlace del mensaje:\n{link}"
+  fr: "\n\n\nLien du message :\n{link}"
+  pt: "\n\n\nLink da mensagem:\n{link}"
+  ru: "\n\n\nСсылка на сообщение:\n{link}"
+  ja: "\n\n\nメッセージリンク：\n{link}"
+  ko: "\n\n\n메시지 링크:\n{link}"
+  it: "\n\n\nLink al messaggio:\n{link}"
+  tr: "\n\n\nMesaj bağlantısı:\n{link}"
+  vi: "\n\n\nLiên kết tin nhắn:\n{link}"
+  id: "\n\n\nTautan pesan:\n{link}"
+  pl: "\n\n\nLink do wiadomości:\n{link}"
+  nl: "\n\n\nBerichtlink:\n{link}"
+  ar: "\n\n\nرابط الرسالة:\n{link}"
+  hi: "\n\n\nसंदेश लिंक:\n{link}"
+  th: "\n\n\nลิงก์ข้อความ:\n{link}"
+  cs: "\n\n\nOdkaz na zprávu:\n{link}"
+  sv: "\n\n\nMeddelandelänk:\n{link}"
   verified_by_human: []
 generated_by:
   context: Label indicating which AI model generated the response

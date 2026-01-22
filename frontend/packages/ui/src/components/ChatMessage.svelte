@@ -182,8 +182,10 @@
     const link = `${window.location.origin}/#chatid=${chatId}&messageid=${messageId}`;
     
     const template = $text('chat.report_bad_answer.template.text', { values: { link } });
+    const title = $text('chat.report_bad_answer.title.text');
     
     reportIssueStore.set({
+      title: title,
       description: template
     });
 
@@ -922,7 +924,8 @@
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
-      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " 
+      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
+      class:highlighted={isHighlighted}
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}
