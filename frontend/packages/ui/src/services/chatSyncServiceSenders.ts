@@ -708,7 +708,7 @@ export async function sendNewMessageImpl(
             // NO message_history - server will request if cache is stale (unless incognito)
         },
         encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
-        is_incognito: isIncognitoChat // Flag for backend to skip persistence
+        is_incognito: isIncognitoChat, // Flag for backend to skip persistence
     };
     
     // Include app settings/memories metadata (keys only, no content)
@@ -728,6 +728,26 @@ export async function sendNewMessageImpl(
             sender_name: msg.sender_name
         } as Message));
         console.debug(`[ChatSyncService:Senders] Including full message history for incognito chat: ${messageHistory.length} messages`);
+    }
+
+    // For duplicated demo chats or new chats with history, include full message history 
+    // This allows the server to persist history for a brand-new chat ID in one go.
+    // The server will use the cleartext 'content' for AI context and 'encrypted_content' for DB storage.
+    if (!isIncognitoChat && !chatHasMessages && messageHistory.length > 0) {
+        payload.message_history = messageHistory.map(msg => ({
+            message_id: msg.message_id,
+            chat_id: message.chat_id,
+            role: msg.role,
+            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+            encrypted_content: msg.encrypted_content,
+            encrypted_sender_name: msg.encrypted_sender_name,
+            encrypted_category: msg.encrypted_category,
+            encrypted_model_name: msg.encrypted_model_name,
+            created_at: msg.created_at,
+            sender_name: msg.sender_name
+        } as Message));
+        
+        console.info(`[ChatSyncService:Senders] Including full history for new chat ${message.chat_id} (duplication flow): ${messageHistory.length} messages`);
     }
     
     // Include embeds if any were found in the message

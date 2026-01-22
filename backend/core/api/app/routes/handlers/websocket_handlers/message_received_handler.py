@@ -768,29 +768,33 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         message_history_for_ai: List[AIHistoryMessage] = []
         
         # Check if client provided chat history (for cache miss or stale cache scenarios)
-        # For incognito chats, client MUST provide full history (no server-side caching)
-        client_provided_history = message_payload_from_client.get("message_history")
+        # For incognito chats OR duplicated demo chats, client MUST provide full history
+        # (no server-side caching for these new/temp chats)
+        client_provided_history = payload.get("message_history") or message_payload_from_client.get("message_history")
         
         history_start = time.time()
         try:
-            # For incognito chats, require client to provide full history
-            if is_incognito:
+            # For incognito or duplicated chats (new chats with history), require client to provide full history
+            # Detection: if it's a new chat (not existing) but has history messages, it's a duplication
+            is_duplication = not is_existing_chat and client_provided_history and len(client_provided_history) > 0
+            
+            if is_incognito or is_duplication:
                 if not client_provided_history or not isinstance(client_provided_history, list):
-                    logger.warning(f"Incognito chat {chat_id} missing message_history - requesting from client")
+                    logger.warning(f"Incognito/Duplicated chat {chat_id} missing message_history - requesting from client")
                     await manager.send_personal_message(
                         {
                             "type": "request_chat_history",
                             "payload": {
                                 "chat_id": chat_id,
-                                "reason": "incognito_requires_history",
-                                "message": "Incognito chats require full message history with each request"
+                                "reason": "temp_chat_requires_history",
+                                "message": "Incognito or duplicated chats require full message history with each request"
                             }
                         },
                         user_id,
                         device_fingerprint_hash
                     )
                     return  # Stop processing until client provides history
-                logger.info(f"Using client-provided history for incognito chat {chat_id}: {len(client_provided_history)} messages")
+                logger.info(f"Using client-provided history for temp chat {chat_id} (incognito={is_incognito}, duplication={is_duplication}): {len(client_provided_history)} messages")
             
             if client_provided_history and isinstance(client_provided_history, list):
                 # Client provided full history - use it directly and re-cache

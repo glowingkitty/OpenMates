@@ -27,6 +27,9 @@ ISSUE_REPORT_ENCRYPTION_KEY = "issue_report_emails"
 # This is a system-level key used to encrypt AI request debug data (last 10 requests)
 # for debugging purposes. Data auto-expires after 30 minutes.
 DEBUG_REQUESTS_ENCRYPTION_KEY = "debug_requests"
+# Vault transit key name for demo chat encryption
+# This is a system-level key used to encrypt approved demo chats for all users.
+DEMO_CHATS_ENCRYPTION_KEY = "demo_chats"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -603,6 +606,51 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure debug requests encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize debug requests encryption key: {str(e)}")
+
+        # --- Ensure DEMO_CHATS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting translated demo chats (system-level).
+        try:
+            logger.debug(f"Checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == DEMO_CHATS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize demo chats encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure demo chats encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize demo chats encryption key: {str(e)}")
 
     # Removed get_email_hash_key method
 

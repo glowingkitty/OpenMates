@@ -127,6 +127,9 @@ async def get_community_suggestions(
         active_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
         existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
 
+        # Determine language for metadata enrichment
+        lang = request.query_params.get("lang", "en")
+
         # 3. Filter and format suggestions
         encryption_service: EncryptionService = request.app.state.encryption_service
         shared_vault_key = "shared-content-metadata"
@@ -264,12 +267,16 @@ async def approve_demo_chat(
         if not demo_chat:
             raise HTTPException(status_code=500, detail="Failed to create demo chat")
 
-        logger.info(f"Admin {admin_user.id} approved demo chat for chat {payload.chat_id}")
+        # Trigger translation task
+        from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
+        translate_demo_chat_task.delay(demo_chat["demo_id"])
+
+        logger.info(f"Admin {admin_user.id} approved demo chat for chat {payload.chat_id}. Translation task triggered.")
 
         return {
             "success": True,
             "demo_id": demo_chat.get("demo_id"),
-            "message": "Demo chat approved and created successfully"
+            "message": "Demo chat approved and creation/translation process started"
         }
 
     except HTTPException:
@@ -330,11 +337,25 @@ async def get_admin_demo_chats(
     Get all demo chats for admin management.
     """
     try:
+        # Get language for enrichment
+        lang = request.query_params.get("lang", "en")
         demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
+        
+        # Enrich with language-specific metadata
+        enriched_demos = []
+        for demo in demo_chats:
+            translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], lang)
+            if not translation and lang != "en":
+                translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], "en")
+            
+            if translation:
+                demo["title"] = translation.get("title")
+                demo["summary"] = translation.get("summary")
+            enriched_demos.append(demo)
 
         return {
-            "demo_chats": demo_chats,
-            "count": len(demo_chats),
+            "demo_chats": enriched_demos,
+            "count": len(enriched_demos),
             "limit": 5
         }
 

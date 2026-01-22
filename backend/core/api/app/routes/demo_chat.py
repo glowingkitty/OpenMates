@@ -5,7 +5,6 @@ Handles creation, approval, and public access to demo chats.
 """
 
 import logging
-import hashlib
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 
@@ -35,50 +34,59 @@ def get_directus_service(request: Request) -> DirectusService:
 @limiter.limit("60/minute")  # Public endpoint, higher rate limit
 async def get_demo_chats(
     request: Request,
+    lang: str = Query("en", description="Language code"),
     category: Optional[str] = Query(None, description="Filter by category"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Get list of approved demo chats.
-
-    This endpoint is public and can be accessed by non-authenticated users.
-    Only returns approved demo chats.
+    Get list of approved and published demo chats.
     """
     try:
         # 1. Try to get from cache first
-        cached_data = await directus_service.cache.get_demo_chats_list(category=category)
+        cached_data = await directus_service.cache.get_demo_chats_list(lang, category=category)
         if cached_data:
-            # Check if this is the "public-ready" format (list of dicts with count)
-            if isinstance(cached_data, dict) and "demo_chats" in cached_data:
-                logger.debug(f"Cache HIT: Returning public-ready demo chats list (category: {category})")
-                return cached_data
+            logger.debug(f"Cache HIT: Returning demo chats list for {lang} (category: {category})")
+            return cached_data
 
-        # 2. Get from database (via service which also has internal caching)
+        # 2. Get from database
+        params = {
+            "filter": {
+                "status": {"_eq": "published"},
+                "is_active": {"_eq": True}
+            },
+            "sort": ["-created_at"]
+        }
         if category:
-            demo_chats = await directus_service.demo_chat.get_demo_chats_by_category(category, approved_only=True)
-        else:
-            demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
+            params["filter"]["category"] = {"_eq": category}
 
-        # 3. Remove sensitive information before returning
+        demo_chats = await directus_service.get_items("demo_chats", params)
+        
         public_demo_chats = []
-        for demo_chat in demo_chats:
-            public_demo_chat = {
-                "demo_id": demo_chat.get("demo_id"),
-                "title": demo_chat.get("title"),
-                "summary": demo_chat.get("summary"),
-                "category": demo_chat.get("category"),
-                "created_at": demo_chat.get("created_at")
-            }
-            public_demo_chats.append(public_demo_chat)
+        for demo in demo_chats:
+            # Get translation
+            translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], lang)
+            # Fallback to English if translation not found
+            if not translation and lang != "en":
+                translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], "en")
+            
+            if translation:
+                public_demo_chats.append({
+                    "demo_id": demo["demo_id"],
+                    "title": translation.get("title"),
+                    "summary": translation.get("summary"),
+                    "category": demo.get("category"),
+                    "created_at": demo.get("created_at"),
+                    "status": demo.get("status")
+                })
 
         response_data = {
             "demo_chats": public_demo_chats,
             "count": len(public_demo_chats)
         }
 
-        # 4. Cache the final public-ready result
-        await directus_service.cache.set_demo_chats_list(response_data, category=category)
+        # 3. Cache the result
+        await directus_service.cache.set_demo_chats_list(lang, response_data, category=category)
 
         return response_data
 
@@ -91,82 +99,89 @@ async def get_demo_chats(
 async def get_demo_chat(
     request: Request,
     demo_id: str,
+    lang: str = Query("en", description="Language code"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Get demo chat data for viewing.
-
-    This endpoint returns the encrypted chat data along with the encryption key,
-    allowing non-authenticated users to view the demo chat.
-
-    This is public but rate-limited to prevent abuse.
+    Get full demo chat data for viewing.
     """
     try:
         # 1. Try to get from cache first
-        cached_data = await directus_service.cache.get_demo_chat_data(demo_id)
+        cached_data = await directus_service.cache.get_demo_chat_data(demo_id, lang)
         if cached_data:
-            logger.debug(f"Cache HIT: Returning demo chat data for {demo_id}")
+            logger.debug(f"Cache HIT: Returning demo chat data for {demo_id} ({lang})")
             return cached_data
 
         # 2. Get demo chat metadata
         demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        if not demo_chat or demo_chat.get("status") != "published":
+            raise HTTPException(status_code=404, detail="Demo chat not found or not yet published")
 
-        if not demo_chat:
-            logger.debug(f"Demo chat {demo_id} not found")
-            raise HTTPException(status_code=404, detail="Demo chat not found")
+        # 3. Get translation
+        translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
+        if not translation and lang != "en":
+            translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
+        
+        if not translation:
+            raise HTTPException(status_code=404, detail="Translation not found")
 
-        if not demo_chat.get("approved_by_admin", False):
-            logger.debug(f"Demo chat {demo_id} not approved by admin")
-            raise HTTPException(status_code=404, detail="Demo chat not found")
+        # 4. Get messages and embeds
+        messages = await directus_service.demo_chat.get_demo_messages(demo_id, lang)
+        if not messages and lang != "en":
+            messages = await directus_service.demo_chat.get_demo_messages(demo_id, "en")
+            
+        embeds = await directus_service.demo_chat.get_demo_embeds(demo_id, lang)
+        if not embeds and lang != "en":
+            embeds = await directus_service.demo_chat.get_demo_embeds(demo_id, "en")
 
-        # Get the original chat data using the stored chat_id
-        original_chat_id = demo_chat.get("original_chat_id")
-        if not original_chat_id:
-            logger.error(f"Demo chat {demo_id} missing original_chat_id")
-            raise HTTPException(status_code=500, detail="Demo chat configuration error")
+        # 5. Decrypt content for client (No client-side decryption needed for demos)
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        encryption_service = request.app.state.encryption_service
+        
+        decrypted_messages = []
+        for msg in (messages or []):
+            decrypted_content = await encryption_service.decrypt(
+                msg.get("encrypted_content", ""), 
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            decrypted_messages.append({
+                "message_id": str(msg.get("id")),
+                "role": msg.get("role"),
+                "content": decrypted_content,
+                "created_at": msg.get("created_at")
+            })
 
-        # Fetch the shared chat data (this will be encrypted)
-        # We use the existing share endpoint logic but bypass the dummy data
-        original_chat = await directus_service.chat.get_chat_metadata(original_chat_id)
+        decrypted_embeds = []
+        for emb in (embeds or []):
+            decrypted_content = await encryption_service.decrypt(
+                emb.get("encrypted_content", ""), 
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            decrypted_embeds.append({
+                "embed_id": emb.get("embed_id"),
+                "type": emb.get("type"),
+                "content": decrypted_content,
+                "created_at": emb.get("created_at")
+            })
 
-        if not original_chat or original_chat.get("is_private", True):
-            logger.error(f"Original chat {original_chat_id} for demo {demo_id} is not available")
-            raise HTTPException(status_code=404, detail="Demo chat content not available")
-
-        # Get messages for the chat
-        messages = await directus_service.chat.get_all_messages_for_chat(
-            chat_id=original_chat_id,
-            decrypt_content=False  # Return encrypted messages
-        )
-
-        # Get embeds for the chat
-        hashed_chat_id = hashlib.sha256(original_chat_id.encode()).hexdigest()
-        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
-
-        # Return the demo chat data including the encryption key
+        # 6. Prepare response
         response_data = {
             "demo_id": demo_id,
-            "title": demo_chat.get("title"),
-            "summary": demo_chat.get("summary"),
+            "title": translation.get("title"),
+            "summary": translation.get("summary"),
             "category": demo_chat.get("category"),
+            "follow_up_suggestions": translation.get("follow_up_suggestions"),
             "chat_data": {
-                "chat_id": original_chat_id,
-                "encryption_key": demo_chat.get("encrypted_key"),  # Provide the key for decryption
-                "encrypted_title": original_chat.get("encrypted_title"),
-                "encrypted_chat_summary": original_chat.get("encrypted_chat_summary"),
-                "encrypted_follow_up_request_suggestions": original_chat.get("encrypted_follow_up_request_suggestions"),
-                "encrypted_icon": original_chat.get("encrypted_icon"),
-                "encrypted_category": original_chat.get("encrypted_category"),
-                "messages": messages or [],
-                "embeds": embeds or [],
-                "embed_keys": embed_keys or []
+                "chat_id": demo_chat.get("original_chat_id"),
+                "messages": decrypted_messages,
+                "embeds": decrypted_embeds,
+                "encryption_mode": "none" # Cleartext for client
             }
         }
 
-        # Cache the response data
-        await directus_service.cache.set_demo_chat_data(demo_id, response_data)
+        # 7. Cache the response data
+        await directus_service.cache.set_demo_chat_data(demo_id, lang, response_data)
 
         return response_data
 
@@ -190,8 +205,9 @@ async def deactivate_demo_chat(
     Requires admin authentication.
     """
     try:
-        # TODO: Add admin role check here
-
+        # Check if user is admin
+        # TODO: Implement proper admin check dependency
+        
         success = await directus_service.demo_chat.deactivate_demo_chat(demo_id)
 
         if not success:

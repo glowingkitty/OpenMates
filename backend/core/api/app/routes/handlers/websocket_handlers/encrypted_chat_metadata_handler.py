@@ -92,26 +92,88 @@ async def handle_encrypted_chat_metadata(
 
         # Verify chat ownership
         is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-        if not is_owner:
-            logger.warning(f"User {user_id} attempted to update metadata for chat {chat_id} they don't own. Rejecting.")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-
-        logger.info(f"Processing encrypted metadata for chat {chat_id} from {user_id}")
         
-        # DEBUG: Log what we received in the payload
-        logger.debug(f"Payload received for chat {chat_id}: message_id={message_id}, has_encrypted_content={bool(encrypted_content)}, "
-                    f"has_encrypted_title={bool(encrypted_title)}, has_encrypted_icon={bool(encrypted_icon)}, "
-                    f"has_encrypted_chat_category={bool(encrypted_chat_category)}, has_encrypted_chat_key={bool(encrypted_chat_key)}")
+        if not is_owner:
+            # For new chats (which don't have metadata yet), check if it exists in DB
+            existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
+            if existing_chat:
+                # Chat exists but belongs to someone else
+                logger.warning(f"User {user_id} attempted to update metadata for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+            else:
+                # Chat doesn't exist - this is a new chat creation
+                logger.info(f"New chat {chat_id} detected in encrypted_chat_metadata_handler")
+
+        # ---------------------------------------------------------------------
+        # Chat key conflict detection (server-side guardrail)
+        # ---------------------------------------------------------------------
 
         # Validate that we have encrypted content (zero-knowledge enforcement)
         if payload.get("content"):  # Plaintext content should not be present
             logger.warning("Removing plaintext content from encrypted metadata to enforce zero-knowledge architecture")
             payload = {k: v for k, v in payload.items() if k != "content"}
+
+        # Determine if this is an existing chat by checking Directus messages_v
+        # This is more reliable than client-provided chat_has_title, especially after server restarts
+        # NOTE: is_existing_chat must be defined before duplication check
+        is_existing_chat = False
+        chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
+        if chat_metadata_from_db:
+            messages_v_from_db = chat_metadata_from_db.get("messages_v", 0)
+            is_existing_chat = messages_v_from_db > 1  # > 1 means there are previous messages
+            logger.debug(f"Chat {chat_id} messages_v from DB: {messages_v_from_db}, is_existing_chat: {is_existing_chat}")
+        else:
+            # Fallback to client-provided flag if DB check failed
+            chat_has_title_from_client = payload.get("chat_has_title", False)
+            is_existing_chat = chat_has_title_from_client
+            logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
+
+        # ---------------------------------------------------------------------
+        # History Injection Flow (e.g. Duplication from Demo)
+        # ---------------------------------------------------------------------
+        # If the payload includes a message_history with encrypted content,
+        # we persist those messages. This allows cloning history into a new chat.
+        # Detection: if it's a new chat (is_owner is false) and history is provided.
+        history_messages = payload.get("message_history")
+        if not is_owner and history_messages and isinstance(history_messages, list):
+            logger.info(f"📜 History Injection: Persisting {len(history_messages)} messages for new chat {chat_id}")
+            for hist_msg in history_messages:
+                hist_msg_id = hist_msg.get("message_id")
+                hist_encrypted_content = hist_msg.get("encrypted_content")
+                
+                # Only persist if it actually has encrypted content (not just cleartext for AI)
+                if hist_msg_id and hist_encrypted_content:
+                    celery_app.send_task(
+                        "app.tasks.persistence_tasks.persist_new_chat_message",
+                        args=[
+                            hist_msg_id, 
+                            chat_id, 
+                            user_id_hash, 
+                            hist_msg.get("role", "user"),
+                            hist_msg.get("encrypted_sender_name"),
+                            hist_msg.get("encrypted_category"),
+                            hist_msg.get("encrypted_model_name"),
+                            hist_encrypted_content,
+                            hist_msg.get("created_at"),
+                            None, None, # messages_v, last_edited_overall_timestamp
+                            hist_msg.get("task_id"),
+                            encrypted_chat_key,
+                            user_id
+                        ]
+                    )
+
+        # ---------------------------------------------------------------------
+        # Chat key conflict detection (server-side guardrail)
+        # ---------------------------------------------------------------------
+
+        # ---------------------------------------------------------------------
+        # Chat key conflict detection (server-side guardrail)
+        # ---------------------------------------------------------------------
 
         # ---------------------------------------------------------------------
         # Chat key conflict detection (server-side guardrail)
@@ -190,6 +252,10 @@ async def handle_encrypted_chat_metadata(
         elif encrypted_content:
             logger.warning(f"⚠️ Encrypted content provided but message_id is missing for chat {chat_id}! Cannot store message without ID.")
         
+        # ---------------------------------------------------------------------
+        # Chat key conflict detection (server-side guardrail)
+        # ---------------------------------------------------------------------
+
         if message_id and encrypted_content:
             
             # Store encrypted user message in Directus
@@ -290,6 +356,57 @@ async def handle_encrypted_chat_metadata(
                     "chat_id": chat_id,
                     "message_id": message_id,
                     "status": "queued_for_storage"
+                }
+            },
+            user_id,
+            device_fingerprint_hash
+        )
+
+        logger.info(f"Confirmed encrypted metadata storage for chat {chat_id}")
+        
+        # CRITICAL: Broadcast encrypted_chat_metadata update to other devices
+        # This ensures that when a chat is hidden/unhidden, or when metadata (title, category, icon) is set
+        # on one device, other devices receive the update and keep their local state consistent.
+        # Broadcast if ANY metadata was updated
+        if chat_update_fields:
+            broadcast_payload = {
+                "type": "encrypted_chat_metadata",
+                "payload": {
+                    "chat_id": chat_id,
+                    "versions": versions if versions else {}
+                }
+            }
+            # Add all updated fields to broadcast
+            if encrypted_chat_key:
+                broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
+            if encrypted_title:
+                broadcast_payload["payload"]["encrypted_title"] = encrypted_title
+            if encrypted_icon:
+                broadcast_payload["payload"]["encrypted_icon"] = encrypted_icon
+            if encrypted_chat_category:
+                broadcast_payload["payload"]["encrypted_category"] = encrypted_chat_category
+            
+            try:
+                await manager.broadcast_to_user(
+                    message=broadcast_payload,
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash  # Exclude the sender's device
+                )
+                logger.info(f"Broadcasted encrypted_chat_metadata update for chat {chat_id} to other devices of user {user_id}")
+            except Exception as broadcast_error:
+                logger.error(f"Error broadcasting encrypted_chat_metadata update for chat {chat_id}: {broadcast_error}", exc_info=True)
+
+    except Exception as e:
+        logger.error(f"Error handling encrypted chat metadata from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
+        try:
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Failed to process encrypted chat metadata"}},
+                user_id,
+                device_fingerprint_hash
+            )
+        except Exception as send_err:
+            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+            "status": "queued_for_storage"
                 }
             },
             user_id,

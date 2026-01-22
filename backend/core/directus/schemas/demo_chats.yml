@@ -3,8 +3,8 @@ demo_chats:
   fields:
     demo_id:
       type: string
-      length: 16
-      note: "Short identifier for the demo chat"
+      length: 20
+      note: "Sequential identifier for the demo chat (e.g., demo-1, demo-2, demo-3)"
       required: true
       unique: true
     original_chat_id:
@@ -16,21 +16,15 @@ demo_chats:
       type: textfield
       note: "The encryption key for the chat"
       required: true
-    title:
-      type: string
-      length: 255
-      note: "Display title for the demo chat"
-      required: true
-    summary:
-      type: textfield
-      note: "Description of the demo chat"
     category:
       type: string
       length: 100
       note: "Category for grouping demo chats"
-    follow_up_suggestions:
-      type: json
-      note: "JSON array of follow-up suggestions for the demo chat"
+    status:
+      type: string
+      length: 50
+      default: "translating"
+      note: "Status: 'translating' | 'published' | 'error'"
     approved_by_admin:
       type: boolean
       default: false

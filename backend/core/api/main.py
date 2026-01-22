@@ -670,18 +670,131 @@ async def lifespan(app: FastAPI):
         ))
         logger.info("Started periodic metrics update task")
         
-        # Trigger initial health check for all providers on startup
-        # This ensures /health endpoint has data immediately instead of waiting up to 5 minutes
-        logger.info("Triggering initial health check for all providers...")
+    # Trigger initial health check for all providers on startup
+    # This ensures /health endpoint has data immediately instead of waiting up to 5 minutes
+    logger.info("Triggering initial health check for all providers...")
+    try:
+        # Trigger the health check task asynchronously (non-blocking)
+        # Use apply_async for better error handling and to get task result
+        task_result = celery_app.send_task(
+            "health_check.check_all_providers",
+            queue="health_check"
+        )
+        logger.info(f"Initial health check task queued successfully. Task ID: {task_result.id}")
+        
+        # --- NEW: Warm demo chats cache on startup ---
+        logger.info("Triggering demo chats cache warming...")
         try:
-            # Trigger the health check task asynchronously (non-blocking)
-            # Use apply_async for better error handling and to get task result
-            task_result = celery_app.send_task(
-                "health_check.check_all_providers",
-                queue="health_check"
-            )
-            logger.info(f"Initial health check task queued successfully. Task ID: {task_result.id}")
+            # We can't easily call demo methods from here without re-initializing everything
+            # but we can trigger a task or just wait for first request.
+            # Actually, let's just trigger a small async task to warm it.
+            async def warm_demo_cache():
+                try:
+                    await asyncio.sleep(5) # Wait for other services to settle
+                    # Fetch all active demo chats to warm the cache for all languages
+                    from backend.core.api.app.tasks.demo_tasks import TARGET_LANGUAGES
+                    for lang in TARGET_LANGUAGES:
+                        # Fetch the list of published demo chats for this language
+                        params = {
+                            "filter": {
+                                "status": {"_eq": "published"},
+                                "is_active": {"_eq": True}
+                            },
+                            "sort": ["-created_at"]
+                        }
+                        demo_chats = await app.state.directus_service.get_items("demo_chats", params)
+                        
+                        if demo_chats:
+                            # This warms both the list and individual chat data caches
+                            public_demo_chats = []
+                            for demo in demo_chats:
+                                demo_id = demo["demo_id"]
+                                # Warm translation cache
+                                translation = await app.state.directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
+                                if not translation and lang != "en":
+                                    translation = await app.state.directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
+                                
+                                if translation:
+                                    public_demo_chats.append({
+                                        "demo_id": demo_id,
+                                        "title": translation.get("title"),
+                                        "summary": translation.get("summary"),
+                                        "category": demo.get("category"),
+                                        "created_at": demo.get("created_at"),
+                                        "status": demo.get("status")
+                                    })
+                                    
+                                    # Warm individual chat data cache
+                                    messages = await app.state.directus_service.demo_chat.get_demo_messages(demo_id, lang)
+                                    if not messages and lang != "en":
+                                        messages = await app.state.directus_service.demo_chat.get_demo_messages(demo_id, "en")
+                                        
+                                    embeds = await app.state.directus_service.demo_chat.get_demo_embeds(demo_id, lang)
+                                    if not embeds and lang != "en":
+                                        embeds = await app.state.directus_service.demo_chat.get_demo_embeds(demo_id, "en")
+
+                                    # Prepare full chat data for cache (same format as API response)
+                                    from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+                                    encryption_service = app.state.encryption_service
+                                    
+                                    decrypted_messages = []
+                                    for msg in (messages or []):
+                                        decrypted_content = await encryption_service.decrypt(
+                                            msg.get("encrypted_content", ""), 
+                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                        )
+                                        decrypted_messages.append({
+                                            "message_id": str(msg.get("id")),
+                                            "role": msg.get("role"),
+                                            "content": decrypted_content,
+                                            "created_at": msg.get("created_at")
+                                        })
+
+                                    decrypted_embeds = []
+                                    for emb in (embeds or []):
+                                        decrypted_content = await encryption_service.decrypt(
+                                            emb.get("encrypted_content", ""), 
+                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                        )
+                                        decrypted_embeds.append({
+                                            "embed_id": emb.get("embed_id"),
+                                            "type": emb.get("type"),
+                                            "content": decrypted_content,
+                                            "created_at": emb.get("created_at")
+                                        })
+
+                                    full_chat_data = {
+                                        "demo_id": demo_id,
+                                        "title": translation.get("title"),
+                                        "summary": translation.get("summary"),
+                                        "category": demo.get("category"),
+                                        "follow_up_suggestions": translation.get("follow_up_suggestions"),
+                                        "chat_data": {
+                                            "chat_id": demo.get("original_chat_id"),
+                                            "messages": decrypted_messages,
+                                            "embeds": decrypted_embeds,
+                                            "encryption_mode": "none"
+                                        }
+                                    }
+                                    
+                                    # Store in cache
+                                    await app.state.directus_service.cache.set_demo_chat_data(demo_id, lang, full_chat_data)
+
+                            # Store list in cache
+                            response_data = {
+                                "demo_chats": public_demo_chats,
+                                "count": len(public_demo_chats)
+                            }
+                            await app.state.directus_service.cache.set_demo_chats_list(lang, response_data)
+
+                    logger.info(f"✅ Demo chats cache warmed for {len(TARGET_LANGUAGES)} languages")
+                except Exception as e:
+                    logger.warning(f"Failed to warm demo chats cache: {e}", exc_info=True)
             
+            asyncio.create_task(warm_demo_cache())
+        except Exception as demo_warm_err:
+            logger.warning(f"Error during demo cache warming setup: {demo_warm_err}")
+
             # Log task status after a short delay to verify it was accepted
             async def check_task_status():
                 await asyncio.sleep(2)  # Wait 2 seconds for task to be picked up

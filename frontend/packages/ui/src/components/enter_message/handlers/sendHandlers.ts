@@ -361,7 +361,9 @@ export async function handleSend(
         // This ensures:
         // 1. The chat can't be identified as demo/legal later
         // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-welcome}-{uuid_v4}
+        let sourceDemoId: string | null = null;
         if (chatIdToUse && isPublicChat(chatIdToUse)) {
+            sourceDemoId = chatIdToUse;
             const oldChatId = chatIdToUse;
             chatIdToUse = crypto.randomUUID();
             isNewChatCreation = true;
@@ -452,8 +454,48 @@ export async function handleSend(
                 updated_at: now,
                 processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
                 waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
-                is_incognito: isIncognitoEnabled
+                is_incognito: isIncognitoEnabled,
+                source_demo_id: sourceDemoId // Track source for duplication flow
             };
+
+            // Duplication Flow: If this chat is from a demo, copy history messages
+            if (sourceDemoId) {
+                try {
+                    const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } = await import('../../../demo_chats');
+                    const demoMessages = getDemoMessages(sourceDemoId, DEMO_CHATS, LEGAL_CHATS);
+                    
+                    if (demoMessages && demoMessages.length > 0) {
+                        console.info(`[handleSend] Duplicating ${demoMessages.length} demo messages to new chat ${chatIdToUse}`);
+                        
+                        // Ensure we have a chat key for encryption
+                        await chatDB.getOrGenerateChatKey(chatIdToUse);
+                        
+                        for (const demoMsg of demoMessages) {
+                            // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}
+                            const newMsgId = `${chatIdToUse.substring(chatIdToUse.length - 10)}-${crypto.randomUUID()}`;
+                            
+                            // Create message object (cleartext version)
+                            const messageToSave: import('../../../types/chat').Message = {
+                                ...demoMsg,
+                                message_id: newMsgId,
+                                chat_id: chatIdToUse,
+                                status: 'synced', // Mark as synced since it's from a demo
+                                created_at: demoMsg.created_at || now,
+                                content: typeof demoMsg.content === 'string' ? demoMsg.content : JSON.stringify(demoMsg.content)
+                            };
+                            
+                            // Save to DB (this will automatically encrypt fields using chat key)
+                            await chatDB.saveMessage(messageToSave);
+                        }
+                        
+                        // Update messages_v count (existing demo messages + the new message being sent)
+                        newChatData.messages_v = demoMessages.length + 1;
+                    }
+                } catch (dupError) {
+                    console.error('[handleSend] Error duplicating demo history:', dupError);
+                }
+            }
+
             console.debug(`[handleSend] Creating new ${isIncognitoEnabled ? 'incognito' : 'regular'} chat with waiting_for_metadata=${newChatData.waiting_for_metadata}:`, {
                 chatId: chatIdToUse,
                 waiting_for_metadata: newChatData.waiting_for_metadata

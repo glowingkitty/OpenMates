@@ -29,7 +29,7 @@
     let isLoading = $state(true);
     let error = $state<string | null>(null);
     let suggestions = $state<Suggestion[]>([]);
-    let currentDemoChats = $state<Array<{ demo_id: string; title: string; summary?: string; category?: string; created_at: string }>>([]);
+    let currentDemoChats = $state<any[]>([]);
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
 
@@ -86,7 +86,9 @@
             isLoading = true;
             error = null;
 
-            const response = await fetch(getApiEndpoint('/v1/admin/community-suggestions'), {
+            const { getApiEndpoint } = await import('@repo/ui');
+    const lang = document.documentElement.lang || 'en';
+    const response = await fetch(getApiEndpoint('/v1/admin/community-suggestions?lang=' + lang), {
                 credentials: 'include'
             });
 
@@ -115,7 +117,8 @@
      */
     async function loadCurrentDemoChats() {
         try {
-            const response = await fetch(getApiEndpoint('/v1/admin/demo-chats'), {
+            const lang = document.documentElement.lang || 'en';
+    const response = await fetch(getApiEndpoint('/v1/admin/demo-chats?lang=' + lang), {
                 credentials: 'include'
             });
 
@@ -475,10 +478,15 @@
                 {#each currentDemoChats as demo}
                     <div class="demo-card">
                         <div class="demo-header">
-                            <h4>{demo.title}</h4>
-                            {#if demo.category}
-                                <span class="category-tag">{demo.category}</span>
-                            {/if}
+                            <h4>{demo.title || 'Demo Chat'}</h4>
+                            <div class="header-tags">
+                                {#if demo.status}
+                                    <span class="status-tag status-{demo.status}">{demo.status}</span>
+                                {/if}
+                                {#if demo.category}
+                                    <span class="category-tag">{demo.category}</span>
+                                {/if}
+                            </div>
                         </div>
 
                         {#if demo.summary}
@@ -777,6 +785,35 @@
         font-size: 0.8rem;
         font-weight: 500;
         white-space: nowrap;
+    }
+
+    .header-tags {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .status-tag {
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-translating {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-published {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-error {
+        background: #FEE2E2;
+        color: #991B1B;
     }
 
     .demo-date {

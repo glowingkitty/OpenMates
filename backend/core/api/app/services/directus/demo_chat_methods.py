@@ -8,7 +8,7 @@ the admin can approve it to become a demo chat.
 """
 
 import logging
-import hashlib
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
@@ -46,29 +46,53 @@ class DemoChatMethods:
             Created demo chat item or None if failed
         """
         try:
-            # Generate a unique demo ID (different from the original chat_id)
-            demo_id = hashlib.sha256(f"demo_{chat_id}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
+            # Generate a sequential demo ID (demo-1, demo-2, demo-3, etc.)
+            # Query all existing demo chats to find the highest number
+            existing_demos = await self.directus_service.get_items("demo_chats", {
+                "filter": {"is_active": {"_eq": True}},
+                "fields": ["demo_id"]
+            })
+            
+            # Extract numbers from demo_ids that match the pattern demo-{number}
+            max_number = 0
+            for demo in existing_demos or []:
+                demo_id_str = demo.get("demo_id", "")
+                # Match pattern: demo-{number}
+                match = re.match(r"^demo-(\d+)$", demo_id_str)
+                if match:
+                    number = int(match.group(1))
+                    max_number = max(max_number, number)
+            
+            # Generate the next sequential ID
+            next_number = max_number + 1
+            demo_id = f"demo-{next_number}"
 
             demo_chat_data = {
                 "demo_id": demo_id,
                 "original_chat_id": chat_id,
                 "encrypted_key": encryption_key,  # Store the encryption key securely
-                "title": title,
-                "summary": summary,
                 "category": category,
-                "follow_up_suggestions": follow_up_suggestions,
+                "status": "translating",
                 "approved_by_admin": approved_by_admin,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "is_active": True
             }
 
             # Create the demo chat entry
-            # create_item returns a tuple (success: bool, data: dict)
             success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
             if success and created_item:
-                # Invalidate cache if approved
-                if approved_by_admin:
-                    await self.directus_service.cache.clear_demo_chats_cache()
+                # Store the original title/summary in the translation table for 'en' initially
+                # This will be overwritten by the translation task
+                # But we need it for immediate display if needed
+                initial_translation = {
+                    "demo_id": demo_id,
+                    "language": "en",
+                    "title": title,
+                    "summary": summary,
+                    "follow_up_suggestions": follow_up_suggestions
+                }
+                await self.directus_service.create_item("demo_chat_translations", initial_translation)
+
                 logger.info(f"Created demo chat {demo_id} for chat {chat_id}")
                 return created_item
             else:
@@ -78,6 +102,52 @@ class DemoChatMethods:
         except Exception as e:
             logger.error(f"Error creating demo chat for chat {chat_id}: {e}", exc_info=True)
             return None
+
+    async def get_demo_chat_translation(self, demo_id: str, language: str) -> Optional[Dict[str, Any]]:
+        """Get translated metadata for a demo chat."""
+        try:
+            params = {
+                "filter": {
+                    "demo_id": {"_eq": demo_id},
+                    "language": {"_eq": language}
+                },
+                "limit": 1
+            }
+            items = await self.directus_service.get_items("demo_chat_translations", params)
+            return items[0] if items else None
+        except Exception as e:
+            logger.error(f"Error fetching demo chat translation: {e}")
+            return None
+
+    async def get_demo_messages(self, demo_id: str, language: str) -> List[Dict[str, Any]]:
+        """Get translated and encrypted messages for a demo chat."""
+        try:
+            params = {
+                "filter": {
+                    "demo_id": {"_eq": demo_id},
+                    "language": {"_eq": language}
+                },
+                "sort": ["message_order"]
+            }
+            return await self.directus_service.get_items("demo_messages", params)
+        except Exception as e:
+            logger.error(f"Error fetching demo messages: {e}")
+            return []
+
+    async def get_demo_embeds(self, demo_id: str, language: str) -> List[Dict[str, Any]]:
+        """Get translated and encrypted embeds for a demo chat."""
+        try:
+            params = {
+                "filter": {
+                    "demo_id": {"_eq": demo_id},
+                    "language": {"_eq": language}
+                },
+                "sort": ["embed_order"]
+            }
+            return await self.directus_service.get_items("demo_embeds", params)
+        except Exception as e:
+            logger.error(f"Error fetching demo embeds: {e}")
+            return []
 
     async def get_demo_chat_by_id(self, demo_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -113,16 +183,14 @@ class DemoChatMethods:
 
         Args:
             approved_only: Whether to only return admin-approved demo chats
-
-        Returns:
-            List of demo chat entries
         """
         try:
             # Check cache first if approved_only=True (public requests)
             if approved_only:
-                cached_demos = await self.directus_service.cache.get_demo_chats_list()
+                # Public requests should use language-specific methods now
+                # This is a fallback
+                cached_demos = await self.directus_service.cache.get_demo_chats_list("en")
                 if cached_demos is not None:
-                    logger.debug("Cache HIT: Returning all active demo chats from cache")
                     return cached_demos
 
             filter_conditions = {
@@ -131,6 +199,7 @@ class DemoChatMethods:
 
             if approved_only:
                 filter_conditions["approved_by_admin"] = {"_eq": True}
+                filter_conditions["status"] = {"_eq": "published"}
 
             params = {
                 "filter": filter_conditions,
@@ -138,11 +207,6 @@ class DemoChatMethods:
             }
 
             items = await self.directus_service.get_items("demo_chats", params)
-            
-            # Cache the result for public requests
-            if approved_only and items is not None:
-                await self.directus_service.cache.set_demo_chats_list(items)
-                
             return items or []
 
         except Exception as e:

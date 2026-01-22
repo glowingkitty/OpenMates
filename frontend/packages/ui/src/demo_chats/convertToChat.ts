@@ -85,7 +85,8 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 }
 
 /**
- * Check if a chat is a demo chat (starts with 'demo-')
+ * Check if a chat is a demo chat (starts with 'demo-' prefix)
+ * Includes static demos (demo-welcome, demo-different, etc.) and community demos (demo-1, demo-2, etc.)
  */
 export function isDemoChat(chatId: string): boolean {
 	return chatId.startsWith('demo-');
@@ -99,7 +100,7 @@ export function isLegalChat(chatId: string): boolean {
 }
 
 /**
- * Check if a chat is a public chat (demo or legal) - these are loaded from static bundle
+ * Check if a chat is a public chat (demo, community demo, or legal) - these are loaded from static bundle or as frozen snapshots
  * Both demo chats and legal chats use the same infrastructure for loading messages
  */
 export function isPublicChat(chatId: string): boolean {

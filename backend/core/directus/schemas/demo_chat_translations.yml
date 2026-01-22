@@ -1,0 +1,23 @@
+demo_chat_translations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    demo_id:
+      type: string
+      length: 16
+      note: "Reference to demo_chats.demo_id"
+    language:
+      type: string
+      length: 10
+      note: "Language code (e.g., 'en', 'de')"
+    title:
+      type: string
+      length: 255
+      note: "Translated title"
+    summary:
+      type: textfield
+      note: "Translated summary"
+    follow_up_suggestions:
+      type: json
+      note: "JSON array of translated follow-up suggestions"

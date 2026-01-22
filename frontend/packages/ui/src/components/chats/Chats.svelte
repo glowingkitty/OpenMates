@@ -1213,7 +1213,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				if (existingDemoChatIds.includes(demoId)) {
 					// Find the corresponding chat_id in sessionStorage (it should be stored alongside demo_id)
 					// We need to check if any ID in sessionStorage (other than demo_id) is a valid chat in IndexedDB
-					const potentialChatIds = existingDemoChatIds.filter((id: string) => id !== demoId && id.length > 16);
+					// Filter for UUIDs (regular chat IDs are 36 characters, demo IDs are shorter like demo-1, demo-2, etc.)
+					const potentialChatIds = existingDemoChatIds.filter((id: string) => id !== demoId && id.length > demoId.length);
 					let foundInDb = false;
 					for (const possibleChatId of potentialChatIds) {
 						const existingChat = await chatDB.getChat(possibleChatId);

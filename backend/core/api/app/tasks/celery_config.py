@@ -61,6 +61,7 @@ TASK_CONFIG = [
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
+    {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -681,6 +682,9 @@ _EXPLICIT_TASK_ROUTES = {
     # User cache tasks
     "app.tasks.user_cache_tasks.warm_user_cache": "user_init",
     "delete_user_account": "user_init",
+
+    # Demo tasks
+    "demo.translate_chat": "demo",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
