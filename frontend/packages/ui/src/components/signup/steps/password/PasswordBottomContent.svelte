@@ -27,7 +27,6 @@
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
-    import { replace } from 'lodash-es';
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
     import { notificationStore } from '../../../../stores/notificationStore';
