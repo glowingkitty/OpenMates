@@ -444,7 +444,47 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             } else {
                 console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping cleanup.");
             }
-            
+
+            // CRITICAL: Check for orphaned database cleanup even if user was never authenticated
+            // This handles the case where the page was reloaded with stayLoggedIn=false but
+            // the databases were previously initialized and contain encrypted data that needs cleanup
+            const cleanupMarker = typeof localStorage !== 'undefined' &&
+                localStorage.getItem('openmates_needs_cleanup') === 'true';
+
+            if (cleanupMarker) {
+                console.warn("[AuthSessionActions] ORPHANED DATABASE CLEANUP: Found cleanup marker - triggering database deletion");
+
+                // CRITICAL: Set isLoggingOut flag to true for orphaned database cleanup
+                isLoggingOut.set(true);
+                console.debug("[AuthSessionActions] Set isLoggingOut to true for orphaned database cleanup");
+
+                // Show notification that data was cleared
+                notificationStore.info("Session data cleared. Please log in again.", 5000);
+
+                // Clear IndexedDB databases asynchronously without blocking UI
+                setTimeout(async () => {
+                    try {
+                        await userDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] UserDB database deleted during orphaned cleanup.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete userDB database during orphaned cleanup (may be blocked by open connections):", dbError);
+                    }
+
+                    try {
+                        await chatDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] ChatDB database deleted during orphaned cleanup.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete chatDB database during orphaned cleanup (may be blocked by open connections):", dbError);
+                    }
+
+                    // CRITICAL: Reset isLoggingOut flag after cleanup completes
+                    setTimeout(() => {
+                        isLoggingOut.set(false);
+                        console.debug("[AuthSessionActions] Reset isLoggingOut flag after orphaned database cleanup");
+                    }, 500);
+                }, 100); // Small delay to allow current operations to complete
+            }
+
             needsDeviceVerification.set(false);
             authStore.update(state => ({
                 ...state,
