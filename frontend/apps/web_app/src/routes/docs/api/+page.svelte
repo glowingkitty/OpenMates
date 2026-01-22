@@ -12,7 +12,7 @@
      */
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { authStore, getApiEndpoint } from '@repo/ui';
+    import { authStore, getApiUrl } from '@repo/ui';
     
     // State
     let swaggerContainer: HTMLDivElement | null = $state(null);
@@ -21,7 +21,7 @@
     let apiKey = $state<string | null>(null);
     
     // Get API base URL
-    const apiBaseUrl = getApiEndpoint();
+    const apiBaseUrl = getApiUrl();
     
     // Watch for auth changes to update API key
     $effect(() => {
