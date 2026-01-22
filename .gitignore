@@ -236,3 +236,6 @@ scripts/encrypt_domain_security.py
 .pnpm-store/
 
 .venv*
+playwright-artifacts*
+backend/scripts/debug_output*
+frontend/apps/web_app/test-results*
