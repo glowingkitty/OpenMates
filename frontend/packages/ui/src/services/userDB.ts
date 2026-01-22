@@ -1,6 +1,10 @@
 import type { User } from '../types/user';
 // Import UserProfile type which will include the new consent fields
-import type { UserProfile } from '../stores/userProfile'; 
+import type { UserProfile } from '../stores/userProfile';
+
+// Import logout state to prevent database re-initialization during logout
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
 
 class UserDatabaseService {
     public db: IDBDatabase | null = null;
@@ -13,13 +17,27 @@ class UserDatabaseService {
     private isDeleting: boolean = false;
     
     /**
-     * Initialize the database
+     * Initialize the database.
+     * 
+     * CRITICAL: This method prevents initialization during logout to avoid race conditions
+     * where the database is re-opened after deletion has started but before it completes.
      */
     async init(): Promise<void> {
         // Prevent initialization during deletion to avoid blocking the delete operation
         if (this.isDeleting) {
             console.debug("[UserDatabase] Skipping init - database is being deleted");
             throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
+        // CRITICAL: Prevent initialization during logout to avoid race conditions
+        // If forced logout is in progress (missing master key scenario), or if user is actively
+        // logging out, we should NOT re-initialize the database. This prevents a race condition
+        // where the database is re-opened after it was closed for deletion but before the
+        // actual deleteDatabase() call completes.
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[UserDatabase] Skipping init() - logout in progress (forcedLogout:', 
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut), ')');
+            throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
         console.debug("[UserDatabase] Initializing user database");

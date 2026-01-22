@@ -26,6 +26,10 @@ import * as messageOps from './db/messageOperations';
 import * as chatCrudOps from './db/chatCrudOperations';
 import * as offlineOps from './db/offlineChangesAndUpdates';
 
+// Import logout state to prevent database re-initialization during logout
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
+
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
 type ChatRecordWithMessages = Chat & { messages?: Message[] };
 type MessageRecordWithTimestamp = Message & { timestamp?: number };
@@ -87,12 +91,29 @@ class ChatDatabase {
     // ============================================================================
 
     /**
-     * Initialize the database
+     * Initialize the database.
+     * 
+     * CRITICAL: This method prevents initialization during logout to avoid race conditions
+     * where the database is re-opened after deletion has started but before it completes.
+     * The forcedLogoutInProgress and isLoggingOut flags are checked to ensure the database
+     * remains closed during the entire logout/deletion process.
      */
     async init(): Promise<void> {
         // Prevent initialization during deletion
         if (this.isDeleting) {
             throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
+        // CRITICAL: Prevent initialization during logout to avoid race conditions
+        // If forced logout is in progress (missing master key scenario), or if user is actively
+        // logging out, we should NOT re-initialize the database. This prevents a race condition
+        // where the database is re-opened after it was closed for deletion but before the
+        // actual deleteDatabase() call completes. Without this check, database deletion fails
+        // silently because there's a new open connection blocking it.
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[ChatDatabase] Skipping init() - logout in progress (forcedLogout:', 
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut), ')');
+            throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
         if (this.initializationPromise) {
