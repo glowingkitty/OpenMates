@@ -69,7 +69,6 @@
     "lodash-es": "^4.17.23",
     "lowlight": "^3.3.0",
     "markdown-it": "^14.1.0",
-    "markdown-it-katex": "^2.0.3",
     "pica": "^9.0.1",
     "prosemirror-state": "^1.4.3",
     "prosemirror-view": "^1.41.0",

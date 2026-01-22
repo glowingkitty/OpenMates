@@ -1,8 +1,9 @@
 // Markdown Parser for converting markdown text to TipTap JSON
 import MarkdownIt from 'markdown-it';
-// Note: We don't use markdown-it-katex for rendering because we extract math formulas
+// Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
+// This also avoids XSS vulnerabilities found in packages like markdown-it-katex.
 
 // Initialize markdown-it with options
 const md = new MarkdownIt({
@@ -158,7 +159,7 @@ function convertNodeToTiptap(node: Node): any {
 
   // Handle KaTeX-rendered math elements before processing children
   // This is a fallback in case comment nodes don't work
-  // markdown-it-katex renders math to <span class="katex"> or <div class="katex-display">
+  // Some renderers (like legacy markdown-it-katex) render math to <span class="katex"> or <div class="katex-display">
   if (tagName === 'span' && element.classList.contains('katex') && !element.classList.contains('katex-display')) {
     // Inline math - try to extract LaTeX from data attribute or aria-label
     const latex = element.getAttribute('data-latex') || 
