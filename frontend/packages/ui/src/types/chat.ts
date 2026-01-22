@@ -105,6 +105,9 @@ export interface Chat {
 
   // Temporary messages field for sync/storage processing
   messages?: Message[];
+
+  // Optional group key for manual UI grouping (e.g., 'intro', 'examples', 'legal')
+  group_key?: string;
 }
 
 export interface ChatComponentVersions {

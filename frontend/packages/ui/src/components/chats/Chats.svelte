@@ -108,8 +108,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let visiblePublicChats = $derived((() => {
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
-		const currentLocale = $svelteLocaleStore;
-		// Don't log every recalculation - only log when locale actually changes (handled elsewhere if needed)
+		void $svelteLocaleStore;
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -119,13 +118,21 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (!$authStore.isAuthenticated) {
 			demoChats = DEMO_CHATS
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
-				.map(demo => convertDemoChatToChat(demo));
+				.map(demo => {
+					const chat = convertDemoChatToChat(demo);
+					chat.group_key = 'intro';
+					return chat;
+				});
 		} else {
 			// For authenticated users, filter out hidden demo chats
 			demoChats = DEMO_CHATS
 				.filter(demo => !hiddenIds.includes(demo.chat_id))
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
-				.map(demo => convertDemoChatToChat(demo));
+				.map(demo => {
+					const chat = convertDemoChatToChat(demo);
+					chat.group_key = 'intro';
+					return chat;
+				});
 		}
 		
 		// Include legal chats ONLY for non-self-hosted instances
@@ -140,7 +147,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			legalChats = LEGAL_CHATS
 				.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
 				.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
-				.map(legal => convertDemoChatToChat(legal));
+				.map(legal => {
+					const chat = convertDemoChatToChat(legal);
+					chat.group_key = 'legal';
+					return chat;
+				});
 		}
 		
 		return [...demoChats, ...legalChats];
@@ -155,12 +166,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
 	
 	let allChats = $derived((() => {
-		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
+		void visiblePublicChats;
 		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
 		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
-		const _incognitoTrigger = incognitoChatsTrigger;
+		void incognitoChatsTrigger;
 		
 		// Load incognito chats (only if incognito mode is enabled)
 		// This is async, so we use the cached incognitoChats array which is updated via effect
@@ -169,7 +180,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// CRITICAL: For non-authenticated users, include sessionStorage-only chats (new chats with drafts)
 		// These are chats that have drafts in sessionStorage but don't exist in IndexedDB yet
 		// Reference sessionStorageDraftUpdateTrigger to make this reactive to draft changes
-		const _trigger = sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
+		void sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
 		let sessionStorageChats: ChatType[] = [];
 		let sharedChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
@@ -258,10 +269,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		return sorted.filter(chat => !(chat as any).is_hidden && !(chat as any).is_hidden_candidate);
 	})());
 
-	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
-	// Define the order of group keys (most recent first)
-	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
-
 	// Separate list for hidden chats (only shown when unlocked)
 	let hiddenChats = $derived((() => {
 		if (!hiddenChatState.isUnlocked) {
@@ -276,17 +283,26 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		const groups = groupedHiddenChats;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
-		// First, add groups in the defined order
-		for (const groupKey of GROUP_ORDER) {
+		// 1. First, add standard time groups in the defined order (Today, Yesterday, etc.)
+		const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+		for (const groupKey of timeGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
-		// Then, add any remaining groups
+		// 2. Then, add any remaining time groups (e.g., month groups) in their order
+		const staticGroups = ['intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+
+		// 3. Finally, add the static sections in the specified order
+		for (const groupKey of staticGroups) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
@@ -305,17 +321,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		const groups = groupedChatsForDisplay;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
-		// First, add groups in the defined order
-		for (const groupKey of GROUP_ORDER) {
+		// 1. First, add standard time groups in the defined order (Today, Yesterday, etc.)
+		const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+		for (const groupKey of timeGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
-		// Then, add any remaining groups (e.g., month groups) in their original order
+		// 2. Then, add any remaining time groups (e.g., month groups) in their order
+		// These are older real user chats, so they should come before the static sections
+		const staticGroups = ['intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+
+		// 3. Finally, add the static sections in the specified order
+		for (const groupKey of staticGroups) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
@@ -325,10 +351,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
 	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
-	
-	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
-	// Define the order of group keys (most recent first) - MOVED UP to avoid use-before-declaration
-	// Note: GROUP_ORDER is now defined above, before its first use
 	
 	// Locale for date formatting, updated reactively
 	let currentLocale = get(svelteLocaleStore);
@@ -1175,15 +1197,42 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const chatId = chatDataObj.chat_id;
 					const encryptionKey = chatDataObj.encryption_key;
 
-					// Convert encryption key from base64 string to Uint8Array
-					const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+					// CRITICAL: Handle encryption key format
+					let keyBytes: Uint8Array;
+					if (typeof encryptionKey === 'string') {
+						try {
+							// Try decoding as base64
+							keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+						} catch (e) {
+							console.warn(`[Chats] Failed to decode demo chat key for ${demoId} as base64, trying hex:`, e);
+							
+							// Try decoding as hex if it looks like hex (only 0-9, a-f, A-F)
+							if (/^[0-9a-fA-F]+$/.test(encryptionKey)) {
+								const hexBytes = [];
+								for (let i = 0; i < encryptionKey.length; i += 2) {
+									hexBytes.push(parseInt(encryptionKey.substring(i, i + 2), 16));
+								}
+								keyBytes = new Uint8Array(hexBytes);
+								console.debug(`[Chats] Successfully decoded demo chat key for ${demoId} as hex`);
+							} else {
+								console.error(`[Chats] Failed to decode demo chat key for ${demoId}: unexpected format`);
+								console.debug(`[Chats] Key preview: ${encryptionKey.substring(0, 10)}... length: ${encryptionKey.length}`);
+								continue; // Skip this chat if we can't get the key
+							}
+						}
+					} else if (Array.isArray(encryptionKey)) {
+						keyBytes = new Uint8Array(encryptionKey);
+					} else {
+						console.warn(`[Chats] Unexpected encryption key format for demo chat ${demoId}:`, typeof encryptionKey);
+						continue;
+					}
 
 					// Set the chat encryption key in the database cache
 					chatDB.setChatKey(chatId, keyBytes);
 
 					// Parse messages if needed (backend returns JSON strings when decrypt_content=False)
 					const rawMessages = chatDataObj.messages || [];
-					const parsedMessages = rawMessages.map((msg: any) => {
+					const parsedMessages = rawMessages.map((msg: string | Message) => {
 						if (typeof msg === 'string') {
 							try {
 								return JSON.parse(msg);
@@ -1193,11 +1242,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 							}
 						}
 						return msg;
-					}).filter((msg: any) => msg !== null);
+					}).filter((msg: Message | null) => msg !== null) as Message[];
 
 					// Calculate timestamps
 					const messageTimestamps = parsedMessages
-						.map((m: any) => m.created_at || 0)
+						.map((m: Message) => m.created_at || 0)
 						.filter((ts: number) => ts > 0);
 					const lastMessageTimestamp = messageTimestamps.length > 0
 						? Math.max(...messageTimestamps)
@@ -1221,7 +1270,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						created_at: lastMessageTimestamp,
 						updated_at: lastMessageTimestamp,
 						processing_metadata: false,
-						waiting_for_metadata: false
+						waiting_for_metadata: false,
+						group_key: 'examples'
 					};
 
 					// Store chat in IndexedDB
@@ -1235,7 +1285,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					// Store embeds if any
 					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
 						// Process embed_keys first - unwrap them with chat key
-						const embedKeys = chatDataObj.embed_keys || [];
+						// const embedKeys = chatDataObj.embed_keys || [];
 						// Store embeds and embed keys (similar to shared chat logic)
 						// Note: Embed storage logic would go here if needed
 					}
@@ -1298,9 +1348,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// If already initialized, this returns immediately
 			try {
 				await chatDB.init();
-			} catch (initError: any) {
+			} catch (initError) {
+				const error = initError as Error;
 				// If database is being deleted (e.g., during logout), skip database access
-				if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+				if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
 					console.debug("[Chats] Database is being deleted, skipping initialization - demo/legal chats will be shown");
 					allChatsFromDB = []; // Clear user chats, keep only demo/legal chats
 					return; // Exit early - demo/legal chats are already in visiblePublicChats
