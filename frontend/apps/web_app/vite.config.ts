@@ -2,10 +2,12 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import path from 'path';
+import { docsPlugin } from './scripts/vite-plugin-docs.js';
 
 export default defineConfig({
 	plugins: [
 		sveltekit(),
+		docsPlugin(),
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
@@ -38,8 +40,10 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+		workbox: {
+			// Precache app shell assets only - docs are cached at runtime when visited
+			// This keeps initial download small while still enabling offline access for visited pages
+			globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				// Increase limit to 8MB to accommodate large chunks for offline-first functionality
 				// The largest chunk is ~7.2MB (translations, TipTap editor, ProseMirror, UI library)
 				// This enables true offline capability at the cost of a larger initial download
@@ -184,7 +188,7 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		// Exclude problematic modules from pre-bundling
-		exclude: ['@fontsource-variable/lexend-deca']
+		exclude: ['@fontsource-variable/lexend-deca', 'jspdf']
 	},
 	define: {
 		// Define global variables to help with Svelte 5 build issues

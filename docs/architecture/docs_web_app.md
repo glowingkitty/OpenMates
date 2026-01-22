@@ -1,55 +1,123 @@
-# Docs web app architecture
+# Docs Architecture
 
-The documentation web app (`docs.openmates.org`) is a separate offline-first PWA that serves as the single source of truth for user-facing documentation.
+The documentation system is integrated into the main web app at `openmates.org/docs`, providing a unified experience for all OpenMates documentation including user guides, developer docs, and API reference.
 
-## Design principles
+## Design Principles
 
-- **Offline-first PWA**: All docs are loaded and cached on first visit, enabling full offline functionality thereafter
-- **Separate domain**: Keeps documentation independent from the main web app, with its own deployment pipeline and caching strategy
-- **Complete on first load**: Users don't encounter missing pages offline; all docs are available after the initial visit
-- **Docs-only search**: Internal search within the docs app indexes only documentation, not web app content
+- **Unified experience**: Documentation is part of the main web app, not a separate domain
+- **Authenticated by default**: Logged-in users have seamless access with their credentials
+- **Offline-first PWA**: Docs are cached for offline access via the web app's service worker
+- **Single source of truth**: All docs come from `/docs/**/*.md` in the repository
+- **API integration**: Interactive API docs with auto-authentication
 
-## Offline strategy
+## Content Structure
 
-### First visit
+### Markdown Documentation (`/docs/*`)
 
-When a user visits `docs.openmates.org` for the first time:
+Documentation organized by purpose:
 
-1. Service worker downloads and caches all documentation pages
-2. Search index for docs is built and cached locally
-3. Full offline functionality is enabled
+```
+/docs
+├── architecture/       # Technical architecture docs
+│   ├── apps/          # App-specific architecture
+│   └── ...
+├── features/          # Feature specifications
+├── business_plan/     # Business documentation
+├── designguidelines/  # Design system docs
+└── .docsignore        # Files to exclude from processing
+```
 
-### Subsequent visits
+### API Documentation (`/docs/api`)
 
-All documentation is served from cache, enabling offline access regardless of internet connectivity or which specific doc page is visited.
+Interactive API reference that:
+- Displays OpenAPI spec from FastAPI backend
+- Auto-injects logged-in user's API key
+- Provides "Try it" functionality for all endpoints
+- Shows real-time usage and rate limits
 
-## Search
+## Build Pipeline
 
-The docs web app includes its own search functionality that indexes only documentation content. This is separate from the main web app's unified search (which includes a compact docs index and can search chats, settings, etc.).
+### At Build Time
 
-### Docs search features
+1. **process-docs.js** scans `/docs/**/*.md`
+2. Respects `.docsignore` exclusion patterns
+3. Converts markdown to HTML with:
+   - Syntax highlighting (highlight.js)
+   - Heading IDs for anchor links
+   - Relative link resolution
+   - Image path fixing
+4. Generates `docs-data.json` with:
+   - Navigation tree structure
+   - HTML content for each page
+   - Original markdown (for copy functionality)
+   - Metadata (titles, slugs, paths)
+5. Generates search index for FlexSearch
 
-- Indexes all doc pages, titles, and content
-- Fast offline search with no network required
-- Returns results with snippets showing context
-- Links to relevant doc pages
+### In Dev Mode
 
-## PWA setup
+- Vite plugin watches `/docs` directory
+- Hot-reloads on markdown file changes
+- Same processing pipeline as build
 
-- **Service worker**: Pre-caches all documentation assets and pages
-- **Web app manifest**: Defines app metadata and icon
-- **Cache strategy**: Network-first for initial load (to check for updates), then cache-first for offline support
-- **Storage**: Uses IndexedDB for search index, browser cache for document pages
+## Frontend Components
 
-## Build integration
+### DocsSidebar.svelte
 
-Documentation is generated from markdown files in `/docs`. The build process:
+Tree navigation component:
+- Collapsible folder structure
+- Active page highlighting
+- Mobile-responsive (drawer on mobile)
+- Keyboard navigation support
 
-1. Converts markdown to web-optimized HTML/JSON
-2. Generates search index for internal docs search
-3. Bundles all assets for PWA distribution
-4. Creates compact search index snippet for main web app (via build pipeline)
+### DocsContent.svelte
 
-## Related
+Content renderer:
+- Displays processed HTML
+- Table of contents generation
+- Copy to clipboard button
+- PDF download button
+- Edit on GitHub link
 
-- [Search architecture](./search.md) - unified search in main web app that includes docs reference
+### DocsSearch.svelte
+
+Full-text search:
+- FlexSearch for fast offline search
+- Results with context snippets
+- Keyboard shortcuts (Cmd/Ctrl+K)
+
+## Offline Strategy
+
+Integrated with web app's existing PWA:
+
+1. **First visit**: Service worker caches docs-data.json and all doc pages
+2. **Subsequent visits**: Served from cache, network-first for updates
+3. **Search**: Index stored in IndexedDB for offline search
+
+## URL Structure
+
+```
+/docs                           → Documentation index
+/docs/architecture              → Architecture section index
+/docs/architecture/chats        → Specific doc page
+/docs/api                       → Interactive API reference
+/docs/api/endpoints/chats       → Specific API endpoint docs
+```
+
+## Authentication Integration
+
+When users are logged in:
+
+1. **API docs**: Automatically use user's API key for "Try it"
+2. **Developer docs**: Show personalized examples with their credentials
+3. **Usage display**: Show their current API usage and limits
+
+When users are not logged in:
+
+1. **Read-only access**: All docs are publicly readable
+2. **API testing**: Prompts to log in for "Try it" functionality
+3. **Sign-up links**: Contextual CTAs to create account
+
+## Related Documentation
+
+- [Search Architecture](./search.md) - Unified search including docs
+- [PWA Architecture](./web_app.md) - Service worker and offline support

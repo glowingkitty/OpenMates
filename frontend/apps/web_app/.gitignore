@@ -9,3 +9,6 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vercel
+
+# Generated documentation data (regenerated on build)
+src/lib/generated/docs-data.json
