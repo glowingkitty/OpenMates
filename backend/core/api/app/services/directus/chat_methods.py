@@ -24,6 +24,7 @@ CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
+    "user_id,"  # Owner/creator of the chat (needed for SettingsShared.svelte filtering)
     "encrypted_title,"
     "encrypted_chat_key,"
     "created_at,"
@@ -37,14 +38,18 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
-    "pinned"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
 CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "hashed_user_id,"
+    "user_id,"  # Owner/creator of the chat (needed for SettingsShared.svelte filtering)
     "encrypted_title,"
+    "encrypted_chat_key,"  # Needed for decryption
     "created_at,"
     "updated_at,"
     "title_v,"
@@ -56,7 +61,9 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
-    "pinned"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields for the new 'drafts' collection

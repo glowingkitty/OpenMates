@@ -268,7 +268,11 @@ async def _handle_phase1_sync(
                     "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
                     "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
                     "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                    "last_message_timestamp": cached_list_item.last_message_timestamp
+                    "last_message_timestamp": cached_list_item.last_message_timestamp,
+                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+                    "is_shared": cached_list_item.is_shared,
+                    "is_private": cached_list_item.is_private,
+                    "user_id": cached_list_item.user_id
                 }
                 logger.info(
                     f"[PHASE1_CHAT_METADATA] ✅ Cache HIT for chat metadata {chat_id} for user {user_id[:8]}... "
@@ -578,7 +582,7 @@ async def _handle_phase2_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
-                        "user_id": user_id,  # Add user_id
+                        "user_id": cached_list_item.user_id or user_id,  # Use cached user_id if available, fallback to current user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -592,7 +596,10 @@ async def _handle_phase2_sync(
                         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                         "last_message_timestamp": cached_list_item.last_message_timestamp,
                         "messages_v": cached_versions.messages_v,
-                        "title_v": cached_versions.title_v
+                        "title_v": cached_versions.title_v,
+                        # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+                        "is_shared": cached_list_item.is_shared,
+                        "is_private": cached_list_item.is_private
                     },
                     "user_encrypted_draft_content": None,  # Will be fetched if needed
                     "user_draft_version_db": 0,
@@ -612,7 +619,7 @@ async def _handle_phase2_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
-                                    "user_id": user_id,  # Add user_id
+                                    "user_id": chat_metadata.get("user_id") or user_id,  # Use metadata user_id if available, fallback to current user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),
@@ -626,7 +633,10 @@ async def _handle_phase2_sync(
                                     "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
                                     "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
                                     "messages_v": chat_metadata.get("messages_v", 0),
-                                    "title_v": chat_metadata.get("title_v", 0)
+                                    "title_v": chat_metadata.get("title_v", 0),
+                                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+                                    "is_shared": chat_metadata.get("is_shared"),
+                                    "is_private": chat_metadata.get("is_private")
                                 },
                                 "user_encrypted_draft_content": None,
                                 "user_draft_version_db": 0,
@@ -945,7 +955,7 @@ async def _handle_phase3_sync(
                 chat_wrapper = {
                     "chat_details": {
                         "id": chat_id,
-                        "user_id": user_id,  # Add user_id
+                        "user_id": cached_list_item.user_id or user_id,  # Use cached user_id if available, fallback to current user_id
                         "encrypted_title": cached_list_item.title,
                         "unread_count": cached_list_item.unread_count,
                         "created_at": cached_list_item.created_at,
@@ -959,7 +969,10 @@ async def _handle_phase3_sync(
                         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                         "last_message_timestamp": cached_list_item.last_message_timestamp,
                         "messages_v": cached_versions.messages_v,
-                        "title_v": cached_versions.title_v
+                        "title_v": cached_versions.title_v,
+                        # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+                        "is_shared": cached_list_item.is_shared,
+                        "is_private": cached_list_item.is_private
                     },
                     "user_encrypted_draft_content": None,  # Will be fetched if needed
                     "user_draft_version_db": 0,
@@ -979,7 +992,7 @@ async def _handle_phase3_sync(
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
-                                    "user_id": user_id,  # Add user_id
+                                    "user_id": chat_metadata.get("user_id") or user_id,  # Use metadata user_id if available, fallback to current user_id
                                     "encrypted_title": chat_metadata.get("encrypted_title"),
                                     "unread_count": chat_metadata.get("unread_count", 0),
                                     "created_at": chat_metadata.get("created_at"),
@@ -993,7 +1006,10 @@ async def _handle_phase3_sync(
                                     "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
                                     "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
                                     "messages_v": chat_metadata.get("messages_v", 0),
-                                    "title_v": chat_metadata.get("title_v", 0)
+                                    "title_v": chat_metadata.get("title_v", 0),
+                                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+                                    "is_shared": chat_metadata.get("is_shared"),
+                                    "is_private": chat_metadata.get("is_private")
                                 },
                                 "user_encrypted_draft_content": None,
                                 "user_draft_version_db": 0,
