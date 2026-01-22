@@ -130,6 +130,7 @@
                     encrypted_content: messageObj.encrypted_content || '',
                     encrypted_sender_name: messageObj.encrypted_sender_name,
                     encrypted_category: messageObj.encrypted_category,
+                    encrypted_model_name: messageObj.encrypted_model_name, // Model name for assistant messages
                     user_message_id: messageObj.user_message_id,
                     client_message_id: messageObj.client_message_id
                 };
