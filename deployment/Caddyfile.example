@@ -172,6 +172,9 @@
 			# For standalone: use 'localhost:8000' or actual IP:port
 			reverse_proxy <API_UPSTREAM> {
 				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
 			}
 		}
 
@@ -196,9 +199,14 @@
 		# Authentication is enforced by FastAPI - endpoints use get_current_user (session-only) or get_current_user_or_api_key (supports both)
 		# FastAPI will reject requests without proper authentication (401/403)
 		handle @public_api_paths {
+			# Add permissive CORS headers for API access
+			header Access-Control-Allow-Origin "*"
 			encode gzip zstd
 			reverse_proxy <API_UPSTREAM> {
 				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
 			}
 		}
 
