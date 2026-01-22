@@ -48,6 +48,7 @@ export * from "./src/stores/settingsDeepLinkStore"; // Export the settings deep 
 export * from "./src/stores/activeChatStore"; // Export the active chat store for URL-based navigation
 export * from "./src/stores/activeEmbedStore"; // Export the active embed store for URL-based embed navigation
 export * from "./src/stores/phasedSyncStateStore"; // Export the phased sync state store
+export * from "./src/stores/messageHighlightStore"; // Export the message highlight store for deep linking
 export * from "./src/stores/websocketStatusStore"; // Export the WebSocket status store
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
