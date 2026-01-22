@@ -167,8 +167,21 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	
 	let allChats = $derived((() => {
 		void visiblePublicChats;
+		
+		// Get dynamic demo chat IDs from sessionStorage
+		const dynamicDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
+		const isDynamicDemo = (chatId: string) => dynamicDemoChatIds.includes(chatId);
+
 		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
-		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
+		const realChatsFromDB = allChatsFromDB
+			.filter(chat => !isLegalChat(chat.chat_id))
+			.map(chat => {
+				// Assign group_key to dynamic demo chats so they appear in 'EXAMPLE CHATS'
+				if (isDynamicDemo(chat.chat_id)) {
+					chat.group_key = 'examples';
+				}
+				return chat;
+			});
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
 		void incognitoChatsTrigger;
@@ -1201,8 +1214,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					let keyBytes: Uint8Array;
 					if (typeof encryptionKey === 'string') {
 						try {
-							// Try decoding as base64
-							keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+							// Try decoding as base64 (handle both standard and URL-safe base64)
+							const base64 = encryptionKey
+								.replace(/-/g, '+')
+								.replace(/_/g, '/');
+							keyBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 						} catch (e) {
 							console.warn(`[Chats] Failed to decode demo chat key for ${demoId} as base64, trying hex:`, e);
 							
