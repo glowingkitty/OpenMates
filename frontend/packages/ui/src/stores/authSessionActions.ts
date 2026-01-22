@@ -162,31 +162,24 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for missing master key logout");
                 
                 // Trigger server logout and local data cleanup
-                // Database deletion happens asynchronously without blocking UI
+                // Database deletion is handled by the logout() function's background IIFE
+                // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
+                // This prevents race conditions where other code re-opens the database during logout
                 logout({
                     skipServerLogout: false, // Explicitly send logout request to server
                     isSessionExpiredLogout: true, // Custom flag for this scenario
                     afterLocalLogout: async () => {
-                        // Reset logout flags IMMEDIATELY after navigation, not after DB cleanup
+                        // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
+                        // and we need forcedLogoutInProgress to remain true until deletion completes
+                        // This prevents chatDB.init() from being called during the deletion window
+                        console.debug("[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)");
+                    },
+                    afterServerCleanup: async () => {
+                        // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
+                        // This ensures forcedLogoutInProgress stays true during the entire deletion process
                         isLoggingOut.set(false);
                         forcedLogoutInProgress.set(false);
-                        console.debug("[AuthSessionActions] Reset logout flags after navigation");
-                        
-                        // Then do async DB cleanup (non-blocking)
-                        setTimeout(async () => {
-                            try {
-                                await userDB.deleteDatabase();
-                                console.debug("[AuthSessionActions] UserDB database deleted due to missing master key.");
-                            } catch (dbError) {
-                                console.warn("[AuthSessionActions] Failed to delete userDB database (may be blocked):", dbError);
-                            }
-                            try {
-                                await chatDB.deleteDatabase();
-                                console.debug("[AuthSessionActions] ChatDB database deleted due to missing master key.");
-                            } catch (dbError) {
-                                console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked):", dbError);
-                            }
-                        }, 100);
+                        console.debug("[AuthSessionActions] Reset logout flags after server cleanup and DB deletion");
                     }
                 }).catch(err => {
                     console.error("[AuthSessionActions] Logout failed:", err);

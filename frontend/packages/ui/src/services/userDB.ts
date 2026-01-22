@@ -1,6 +1,10 @@
 import type { User } from '../types/user';
 // Import UserProfile type which will include the new consent fields
-import type { UserProfile } from '../stores/userProfile'; 
+import type { UserProfile } from '../stores/userProfile';
+
+// Import logout state to prevent database re-initialization during logout
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
 
 class UserDatabaseService {
     public db: IDBDatabase | null = null;
@@ -13,13 +17,67 @@ class UserDatabaseService {
     private isDeleting: boolean = false;
     
     /**
-     * Initialize the database
+     * Initialize the database.
+     * 
+     * CRITICAL: This method prevents initialization during logout to avoid race conditions
+     * where the database is re-opened after deletion has started but before it completes.
+     * 
+     * ORPHANED DATABASE DETECTION: On page reload, components may call database operations
+     * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
+     * detects the "orphaned database" scenario (profile exists but no master key) and sets
+     * the flag itself, ensuring cleanup happens even if this is the first database operation.
      */
     async init(): Promise<void> {
         // Prevent initialization during deletion to avoid blocking the delete operation
         if (this.isDeleting) {
             console.debug("[UserDatabase] Skipping init - database is being deleted");
             throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
+        // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
+        // This handles the race condition where components call database operations BEFORE
+        // +page.svelte's onMount can set the forcedLogoutInProgress flag.
+        // 
+        // We check for the cleanup marker set by chatDB.init() or +page.svelte, which indicates
+        // that the databases need to be deleted due to missing master key.
+        if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+            // Check if cleanup marker was already set by chatDB or +page.svelte
+            const needsCleanup = typeof localStorage !== 'undefined' && 
+                localStorage.getItem('openmates_needs_cleanup') === 'true';
+            
+            if (needsCleanup) {
+                console.warn('[UserDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress');
+                forcedLogoutInProgress.set(true);
+            } else {
+                // Check if master key is missing but database was previously initialized
+                const { getKeyFromStorage } = await import('./cryptoService');
+                const hasMasterKey = await getKeyFromStorage();
+                
+                if (!hasMasterKey) {
+                    const dbInitialized = typeof localStorage !== 'undefined' && 
+                        localStorage.getItem('openmates_user_db_initialized') === 'true';
+                    
+                    if (dbInitialized) {
+                        console.warn('[UserDatabase] ORPHANED DATABASE DETECTED: No master key but database was previously initialized');
+                        console.warn('[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
+                        if (typeof localStorage !== 'undefined') {
+                            localStorage.setItem('openmates_needs_cleanup', 'true');
+                        }
+                        forcedLogoutInProgress.set(true);
+                    }
+                }
+            }
+        }
+        
+        // CRITICAL: Prevent initialization during logout to avoid race conditions
+        // If forced logout is in progress (missing master key scenario), or if user is actively
+        // logging out, we should NOT re-initialize the database. This prevents a race condition
+        // where the database is re-opened after it was closed for deletion but before the
+        // actual deleteDatabase() call completes.
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[UserDatabase] Skipping init() - logout in progress (forcedLogout:', 
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut), ')');
+            throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
         console.debug("[UserDatabase] Initializing user database");
@@ -34,6 +92,13 @@ class UserDatabaseService {
             request.onsuccess = () => {
                 console.debug("[UserDatabase] Database opened successfully");
                 this.db = request.result;
+                
+                // Set marker in localStorage to indicate database has been initialized
+                // This is used by orphaned database detection to know if cleanup is needed
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('openmates_user_db_initialized', 'true');
+                }
+                
                 resolve();
             };
 
@@ -691,6 +756,16 @@ class UserDatabaseService {
                 request.onsuccess = () => {
                     console.debug(`[UserDatabase] Database ${this.DB_NAME} deleted successfully.`);
                     this.isDeleting = false;
+                    
+                    // Clear localStorage marker used for orphaned database detection
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.removeItem('openmates_user_db_initialized');
+                        // Also clear the cleanup marker if this is the last database being deleted
+                        // (chatDB will also try to clear it, but clearing twice is harmless)
+                        localStorage.removeItem('openmates_needs_cleanup');
+                        console.debug('[UserDatabase] Cleared localStorage markers after database deletion');
+                    }
+                    
                     resolve();
                 };
 

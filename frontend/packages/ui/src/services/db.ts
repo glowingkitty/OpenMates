@@ -26,6 +26,10 @@ import * as messageOps from './db/messageOperations';
 import * as chatCrudOps from './db/chatCrudOperations';
 import * as offlineOps from './db/offlineChangesAndUpdates';
 
+// Import logout state to prevent database re-initialization during logout
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
+
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
 type ChatRecordWithMessages = Chat & { messages?: Message[] };
 type MessageRecordWithTimestamp = Message & { timestamp?: number };
@@ -87,12 +91,93 @@ class ChatDatabase {
     // ============================================================================
 
     /**
-     * Initialize the database
+     * Initialize the database.
+     * 
+     * CRITICAL: This method prevents initialization during logout to avoid race conditions
+     * where the database is re-opened after deletion has started but before it completes.
+     * The forcedLogoutInProgress and isLoggingOut flags are checked to ensure the database
+     * remains closed during the entire logout/deletion process.
+     * 
+     * ORPHANED DATABASE DETECTION: On page reload, components may call database operations
+     * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
+     * detects the "orphaned database" scenario (profile exists but no master key) and sets
+     * the flag itself, ensuring cleanup happens even if this is the first database operation.
      */
     async init(): Promise<void> {
         // Prevent initialization during deletion
         if (this.isDeleting) {
             throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
+        // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
+        // This handles the race condition where components call database operations BEFORE
+        // +page.svelte's onMount can set the forcedLogoutInProgress flag.
+        // 
+        // Scenario: User reloads page with stayLoggedIn=false -> master key is gone but
+        // IndexedDB still has encrypted chats from the previous session.
+        // 
+        // Detection approach:
+        // 1. Check if we've already detected cleanup is needed (via localStorage marker)
+        // 2. If not, check if master key is missing AND database exists (contains encrypted data)
+        // 3. If so, set the flag to trigger cleanup
+        // 
+        // Note: We use localStorage 'openmates_needs_cleanup' as a marker because IndexedDB
+        // profile check would require opening the database (chicken-and-egg problem).
+        if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+            // Check if cleanup marker was already set by +page.svelte or a previous init() call
+            const needsCleanup = typeof localStorage !== 'undefined' && 
+                localStorage.getItem('openmates_needs_cleanup') === 'true';
+            
+            if (needsCleanup) {
+                console.warn('[ChatDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress');
+                forcedLogoutInProgress.set(true);
+            } else {
+                // Check if master key is missing - if so, we can't decrypt encrypted chats
+                // Dynamically import to avoid circular dependencies
+                const { getKeyFromStorage } = await import('./cryptoService');
+                const hasMasterKey = await getKeyFromStorage();
+                
+                if (!hasMasterKey) {
+                    // Check if database exists (indicates there might be encrypted data)
+                    // Use indexedDB.databases() if available, otherwise check for existence marker
+                    let databaseExists = false;
+                    
+                    if (typeof indexedDB !== 'undefined') {
+                        // Try to detect if database exists by attempting to open with version 1
+                        // If it exists with a higher version, the open will trigger onupgradeneeded
+                        // This is a non-destructive way to check existence
+                        try {
+                            // Check localStorage marker for faster detection
+                            const dbInitialized = typeof localStorage !== 'undefined' && 
+                                localStorage.getItem('openmates_chats_db_initialized') === 'true';
+                            databaseExists = dbInitialized;
+                        } catch {
+                            databaseExists = false;
+                        }
+                    }
+                    
+                    if (databaseExists) {
+                        console.warn('[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but database was previously initialized');
+                        console.warn('[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
+                        if (typeof localStorage !== 'undefined') {
+                            localStorage.setItem('openmates_needs_cleanup', 'true');
+                        }
+                        forcedLogoutInProgress.set(true);
+                    }
+                }
+            }
+        }
+        
+        // CRITICAL: Prevent initialization during logout to avoid race conditions
+        // If forced logout is in progress (missing master key scenario), or if user is actively
+        // logging out, we should NOT re-initialize the database. This prevents a race condition
+        // where the database is re-opened after it was closed for deletion but before the
+        // actual deleteDatabase() call completes. Without this check, database deletion fails
+        // silently because there's a new open connection blocking it.
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[ChatDatabase] Skipping init() - logout in progress (forcedLogout:', 
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut), ')');
+            throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
         if (this.initializationPromise) {
@@ -117,6 +202,12 @@ class ChatDatabase {
             request.onsuccess = async () => {
                 console.debug("[ChatDatabase] Database opened successfully");
                 this.db = request.result;
+                
+                // Set marker in localStorage to indicate database has been initialized
+                // This is used by orphaned database detection to know if cleanup is needed
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('openmates_chats_db_initialized', 'true');
+                }
                 
                 // Load chat keys from database into cache
                 try {
@@ -695,6 +786,14 @@ class ChatDatabase {
                 request.onsuccess = () => {
                     console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
                     this.isDeleting = false;
+                    
+                    // Clear localStorage markers used for orphaned database detection
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.removeItem('openmates_chats_db_initialized');
+                        localStorage.removeItem('openmates_needs_cleanup');
+                        console.debug('[ChatDatabase] Cleared localStorage markers after database deletion');
+                    }
+                    
                     resolve();
                 };
 
