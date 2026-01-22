@@ -15,6 +15,7 @@
         activeChatStore, // Import for deep linking
         activeEmbedStore, // Import for embed deep linking
         phasedSyncState, // Import phased sync state store
+        messageHighlightStore, // Import message highlight store for deep linking
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
         loadUserProfileFromDB, // Import loadUserProfileFromDB function
@@ -103,8 +104,13 @@
      * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
      * After loading, immediately clears the URL to prevent sharing chat history
      */
-    async function handleChatDeepLink(chatId: string) {
-        console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}`);
+    async function handleChatDeepLink(chatId: string, messageId?: string | null) {
+        console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}`);
+        
+        // If messageId is provided, set it in the highlight store
+        if (messageId) {
+            messageHighlightStore.set(messageId);
+        }
         
         // CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
         // After initial load, skip if chat is already active in store (prevents unnecessary processing)
@@ -1370,7 +1376,7 @@
      */
     function createDeepLinkHandlers(): DeepLinkHandlers {
         return {
-            onChat: async (chatId: string) => {
+            onChat: async (chatId: string, messageId?: string | null) => {
                 // Update originalHashChatId to reflect the new hash (important for sync completion handler)
                 originalHashChatId = chatId;
 
@@ -1378,7 +1384,7 @@
                 isProcessingInitialHash = true;
                 deepLinkProcessed = true; // Mark that a deep link was processed
 
-                await handleChatDeepLink(chatId);
+                await handleChatDeepLink(chatId, messageId);
 
                 // Reset flag after processing
                 isProcessingInitialHash = false;

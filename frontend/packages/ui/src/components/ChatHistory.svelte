@@ -16,6 +16,7 @@
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent
   } from '../services/chatSyncServiceHandlersAppSettings';
@@ -402,6 +403,37 @@
             isScrolling = false;
           }
         }, 350);
+      });
+    }
+  });
+
+  // Handle scrolling to highlighted message from deep link
+  $effect(() => {
+    if (container && $messageHighlightStore) {
+      const messageId = $messageHighlightStore;
+      
+      // Wait for messages to render
+      tick().then(() => {
+        const attemptScroll = (attempts = 0) => {
+          const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
+          
+          if (targetMessage) {
+            const messageTop = (targetMessage as HTMLElement).offsetTop;
+            // Scroll so the message has 100px offset from top
+            const scrollPosition = Math.max(0, messageTop - 100);
+            
+            container.scrollTo({
+              top: scrollPosition,
+              behavior: 'smooth'
+            });
+            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId}`);
+          } else if (attempts < 10) {
+            // Message not found yet, try again after a short delay
+            setTimeout(() => attemptScroll(attempts + 1), 100);
+          }
+        };
+        
+        attemptScroll();
       });
     }
   });

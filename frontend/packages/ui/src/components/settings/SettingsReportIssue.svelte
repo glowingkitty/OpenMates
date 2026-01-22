@@ -16,6 +16,7 @@
     import { onMount } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
+    import { reportIssueStore } from '../../stores/reportIssueStore';
     
     // Form state
     let issueTitle = $state('');
@@ -557,6 +558,16 @@
     
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
+        // Check for pre-filled data from store
+        if ($reportIssueStore) {
+            if ($reportIssueStore.title) issueTitle = $reportIssueStore.title;
+            if ($reportIssueStore.description) issueDescription = $reportIssueStore.description;
+            if ($reportIssueStore.url) chatOrEmbedUrl = $reportIssueStore.url;
+            
+            // Clear store after consuming
+            reportIssueStore.set(null);
+        }
+
         // Small delay to ensure stores are initialized
         setTimeout(() => {
             autoGenerateShareUrl();
