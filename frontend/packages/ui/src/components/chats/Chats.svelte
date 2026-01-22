@@ -169,19 +169,25 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		void visiblePublicChats;
 		
 		// Get dynamic demo chat IDs from sessionStorage
-		const dynamicDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
-		const isDynamicDemo = (chatId: string) => dynamicDemoChatIds.includes(chatId);
+		// Note: We store both demo_id and chat_id in this list to ensure categorization and skip-loading both work
+		const dynamicDemoRelatedIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
+		const isDynamicDemo = (chatId: string) => dynamicDemoRelatedIds.includes(chatId);
 
-		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
-		const realChatsFromDB = allChatsFromDB
+		// 1. Process real chats from IndexedDB and identify dynamic demo chats
+		const processedRealChats = allChatsFromDB
 			.filter(chat => !isLegalChat(chat.chat_id))
 			.map(chat => {
+				const chatCopy = { ...chat };
 				// Assign group_key to dynamic demo chats so they appear in 'EXAMPLE CHATS'
-				if (isDynamicDemo(chat.chat_id)) {
-					chat.group_key = 'examples';
+				if (isDynamicDemo(chatCopy.chat_id)) {
+					chatCopy.group_key = 'examples';
 				}
-				return chat;
+				return chatCopy;
 			});
+
+		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB as dynamic demos)
+		const realChatIds = new Set(processedRealChats.map(c => c.chat_id));
+		const filteredPublicChats = visiblePublicChats.filter(c => !realChatIds.has(c.chat_id));
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
 		void incognitoChatsTrigger;
@@ -201,8 +207,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Filter out demo/legal chat IDs (they're already in visiblePublicChats)
 			// and chat IDs that are already in IndexedDB
 			const existingChatIds = new Set([
-				...visiblePublicChats.map(c => c.chat_id),
-				...realChatsFromDB.map(c => c.chat_id),
+				...filteredPublicChats.map(c => c.chat_id),
+				...processedRealChats.map(c => c.chat_id),
 				..._incognitoChats.map(c => c.chat_id) // Also exclude incognito chats
 			]);
 			
@@ -238,7 +244,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Shared chat keys are now stored in IndexedDB (sharedChatKeyStorage) instead of sessionStorage
 			// The sharedChats array will be populated asynchronously via loadSharedChatsForNonAuth()
 			// For now, include any chats that have keys in the memory cache (chatDB.chatKeys)
-			for (const chat of realChatsFromDB) {
+			for (const chat of processedRealChats) {
 				if (!existingChatIds.has(chat.chat_id)) {
 					// Check if we have a key for this chat (indicating it's a shared chat we can decrypt)
 					const hasKey = chatDB.getChatKey(chat.chat_id) !== null;
@@ -251,8 +257,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// CRITICAL SAFEGUARD: Deduplicate the final array by chat_id
-		// This prevents duplicate chats from appearing in the sidebar, even if a bug elsewhere creates duplicates
-		const combinedChats = [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
+		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
+		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
+		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
 		const seenIds = new Set<string>();
 		const deduplicatedChats: ChatType[] = [];
 		for (const chat of combinedChats) {
@@ -260,9 +267,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				seenIds.add(chat.chat_id);
 				deduplicatedChats.push(chat);
 			} else {
-				console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
+				// Only log if it's not a expected overlap (like a dynamic demo already in public list)
+				if (!isDynamicDemo(chat.chat_id)) {
+					console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
+				}
 			}
 		}
+		
+		// Final log for debugging dynamic demo categorization
+		const dynamicDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
+		if (dynamicDemoCount > 0) {
+			console.debug(`[Chats] Categorized ${dynamicDemoCount} dynamic demo chat(s) as 'examples'`);
+		}
+		
 		return deduplicatedChats;
 	})());
 
@@ -1174,6 +1191,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			console.debug(`[Chats] Found ${demoChatsList.length} demo chats, loading individually...`);
 
 			// Get existing demo chat IDs from sessionStorage to avoid reloading
+			// We store chat_ids here, but we check against demo_ids from the list
 			const existingDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 			const demoChatIds: string[] = [];
 
@@ -1185,9 +1203,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				const demoId = demoChatMeta.demo_id;
 				if (!demoId) continue;
 
-				// Skip if already loaded
+				// Skip if already loaded (we use chat_id for storage, but we need to know if this demo_id was already processed)
+				// For now, let's keep it simple: if it's in sessionStorage, we've at least tried to load it
 				if (existingDemoChatIds.includes(demoId)) {
-					console.debug(`[Chats] Demo chat ${demoId} already loaded, skipping`);
+					console.debug(`[Chats] Demo chat ${demoId} already processed, skipping`);
 					continue;
 				}
 
@@ -1196,6 +1215,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
 					if (!chatResponse.ok) {
 						console.warn(`[Chats] Failed to fetch demo chat ${demoId}:`, chatResponse.status);
+						// Still mark as processed to avoid constant retries in this session
+						demoChatIds.push(demoId);
 						continue;
 					}
 
@@ -1204,15 +1225,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					
 					if (!chatDataObj || !chatDataObj.chat_id || !chatDataObj.encryption_key) {
 						console.warn(`[Chats] Invalid demo chat data for ${demoId}`);
+						// Mark as processed
+						demoChatIds.push(demoId);
 						continue;
 					}
 
 					const chatId = chatDataObj.chat_id;
-					const encryptionKey = chatDataObj.encryption_key;
+					let encryptionKey = chatDataObj.encryption_key;
 
 					// CRITICAL: Handle encryption key format
 					let keyBytes: Uint8Array;
-					if (typeof encryptionKey === 'string') {
+					
+					// If it's an array already (some backend paths might return this)
+					if (Array.isArray(encryptionKey)) {
+						keyBytes = new Uint8Array(encryptionKey);
+					} 
+					// If it's a string, it could be base64 or hex
+					else if (typeof encryptionKey === 'string') {
 						try {
 							// Try decoding as base64 (handle both standard and URL-safe base64)
 							const base64 = encryptionKey
@@ -1233,13 +1262,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 							} else {
 								console.error(`[Chats] Failed to decode demo chat key for ${demoId}: unexpected format`);
 								console.debug(`[Chats] Key preview: ${encryptionKey.substring(0, 10)}... length: ${encryptionKey.length}`);
-								continue; // Skip this chat if we can't get the key
+								// Mark as processed anyway
+								demoChatIds.push(demoId);
+								continue;
 							}
 						}
-					} else if (Array.isArray(encryptionKey)) {
-						keyBytes = new Uint8Array(encryptionKey);
 					} else {
 						console.warn(`[Chats] Unexpected encryption key format for demo chat ${demoId}:`, typeof encryptionKey);
+						// Mark as processed
+						demoChatIds.push(demoId);
 						continue;
 					}
 
@@ -1306,8 +1337,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						// Note: Embed storage logic would go here if needed
 					}
 
-					// Track demo chat ID in sessionStorage
+					// Track BOTH demo ID and real chat ID in sessionStorage
+					// demo_id: to skip loading again
+					// chat_id: to retrieve from IndexedDB in updateChatListFromDB
 					demoChatIds.push(demoId);
+					demoChatIds.push(chatId);
 					
 					console.debug(`[Chats] Successfully loaded demo chat ${demoId} (chat_id: ${chatId})`);
 				} catch (error) {
@@ -1317,9 +1351,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 			// Update sessionStorage with all demo chat IDs
 			if (demoChatIds.length > 0) {
-				const allDemoChatIds = [...existingDemoChatIds, ...demoChatIds];
+				const allDemoChatIds = Array.from(new Set([...existingDemoChatIds, ...demoChatIds]));
 				sessionStorage.setItem('demo_chats', JSON.stringify(allDemoChatIds));
-				console.debug(`[Chats] Stored ${demoChatIds.length} new demo chats in sessionStorage`);
+				console.debug(`[Chats] Stored ${demoChatIds.length} new demo related IDs in sessionStorage`);
 			}
 
 			// Refresh chat list to show newly loaded demo chats
