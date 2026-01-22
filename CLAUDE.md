@@ -33,6 +33,8 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 
 - Always limit checks to the specific files or folders you touched (use `--path` or `--`)
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
+- **CRITICAL**: Before every git commit, you MUST run the linter check script on all modified files and fix all remaining issues.
+- **CRITICAL**: Only once the linter check script shows NO errors for modified files shall you commit the changes.
 - Always run the lint script before considering changes complete
 - Fix all errors before proceeding
 
