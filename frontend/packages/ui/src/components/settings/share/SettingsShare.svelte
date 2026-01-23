@@ -1025,7 +1025,7 @@
                     // Import database services
                     const { getMessagesForChat } = await import('../../../services/db/messageOperations');
                     const { embedStore } = await import('../../../services/embedStore');
-                    const { computeSHA256 } = await import('../../../services/cryptoService');
+                    const { computeSHA256 } = await import('../../../message_parsing/utils');
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
@@ -1040,17 +1040,22 @@
                     
                     // Get all embeds for this chat
                     const hashedChatId = await computeSHA256(currentChatId);
-                    const embeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
-                    if (embeds && embeds.length > 0) {
+                    const embedEntries = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                    if (embedEntries && embedEntries.length > 0) {
                         decryptedEmbeds = [];
-                        for (const embed of embeds) {
-                            // Embeds are already decrypted by getEmbedsByHashedChatId
-                            decryptedEmbeds.push({
-                                embed_id: embed.embed_id,
-                                type: embed.type || 'unknown',
-                                content: embed.content || '',
-                                created_at: embed.createdAt || Date.now()
-                            });
+                        for (const embedEntry of embedEntries) {
+                            // Load full embed data (including decrypted content) using embedStore.get()
+                            const contentRef = `embed:${embedEntry.embed_id}`;
+                            const embedData = await embedStore.get(contentRef);
+                            
+                            if (embedData && embedData.content) {
+                                decryptedEmbeds.push({
+                                    embed_id: embedEntry.embed_id || '',
+                                    type: embedEntry.type || 'unknown',
+                                    content: embedData.content || '',
+                                    created_at: embedEntry.createdAt || Date.now()
+                                });
+                            }
                         }
                         console.debug(`[SettingsShare] Decrypted ${decryptedEmbeds.length} embeds for community sharing`);
                     }

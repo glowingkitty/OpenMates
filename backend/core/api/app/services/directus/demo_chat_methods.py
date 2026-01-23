@@ -28,7 +28,7 @@ class DemoChatMethods:
         summary: Optional[str] = None,
         category: Optional[str] = None,
         follow_up_suggestions: Optional[List[str]] = None,
-        approved_by_admin: bool = False
+        approved_by_admin: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Create a new demo chat entry.
@@ -40,7 +40,7 @@ class DemoChatMethods:
             summary: Optional description/summary
             category: Optional category for grouping
             follow_up_suggestions: Optional follow-up suggestions
-            approved_by_admin: Whether this demo chat has been approved by admin
+            approved_by_admin: UUID of admin who approved this demo chat (None if not approved)
 
         Returns:
             Created demo chat item or None if failed
@@ -207,7 +207,7 @@ class DemoChatMethods:
                 "encrypted_icon": encrypted_icon,
                 "encrypted_follow_up_suggestions": encrypted_follow_up,
                 "status": "waiting_for_confirmation",
-                "approved_by_admin": False,
+                "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "is_active": True
             }
@@ -307,7 +307,7 @@ class DemoChatMethods:
                 "encrypted_icon": encrypted_icon,
                 "encrypted_follow_up_suggestions": encrypted_follow_up,
                 "status": "pending_approval",
-                "approved_by_admin": False,
+                "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "is_active": True
             }
