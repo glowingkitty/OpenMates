@@ -190,44 +190,57 @@ async def get_demo_chat(
             # It's a display ID - need to fetch all demos and find the matching one by order
             try:
                 index = int(demo_id.split("-")[1]) - 1  # demo-1 -> index 0
-                
+
                 # Get published demos sorted by creation (same as list endpoint)
                 params = {
                     "filter": {
                         "status": {"_eq": "published"},
                         "is_active": {"_eq": True}
                     },
-                    "sort": ["-created_at"],
-                    "limit": index + 1  # Only fetch up to the one we need
+                    "sort": ["-created_at"]
                 }
                 demos = await directus_service.get_items("demo_chats", params)
-                
+
+                logger.info(f"Found {len(demos)} published demo chats for display ID {demo_id}, looking for index {index}")
+
                 if demos and len(demos) > index:
                     demo_chat_uuid = demos[index]["id"]
+                    logger.info(f"Mapped display ID {demo_id} to UUID {demo_chat_uuid}")
                 else:
+                    logger.error(f"No demo chat found at index {index} for display ID {demo_id}")
                     raise HTTPException(status_code=404, detail="Demo chat not found")
-            except (ValueError, IndexError):
+            except (ValueError, IndexError) as e:
+                logger.error(f"Invalid demo ID format {demo_id}: {e}")
                 raise HTTPException(status_code=404, detail="Invalid demo ID format")
         else:
             # Assume it's a UUID
             demo_chat_uuid = demo_id
 
         # Fetch the demo chat by UUID
+        logger.info(f"Fetching demo chat by UUID: {demo_chat_uuid}")
         demo_chats = await directus_service.get_items("demo_chats", {
             "filter": {"id": {"_eq": demo_chat_uuid}},
             "limit": 1
         })
         demo_chat = demo_chats[0] if demo_chats else None
-        
+        logger.info(f"Demo chat found: {demo_chat is not None}, status: {demo_chat.get('status') if demo_chat else 'None'}")
+
         if not demo_chat or demo_chat.get("status") != "published":
+            logger.error(f"Demo chat not found or not published: demo_chat={demo_chat is not None}, status={demo_chat.get('status') if demo_chat else 'None'}")
             raise HTTPException(status_code=404, detail="Demo chat not found or not yet published")
 
         # 3. Get translation by UUID
+        logger.info(f"Looking for translation for demo_chat_uuid {demo_chat_uuid} in language {lang}")
         translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, lang)
+        logger.info(f"Translation for {lang}: {translation is not None}")
+
         if not translation and lang != "en":
+            logger.info(f"No translation for {lang}, trying English")
             translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, "en")
-        
+            logger.info(f"English translation: {translation is not None}")
+
         if not translation:
+            logger.error(f"No translation found for demo chat {demo_chat_uuid}")
             raise HTTPException(status_code=404, detail="Translation not found")
         
         # Decrypt translation metadata
@@ -309,11 +322,23 @@ async def get_demo_chat(
                 msg.get("encrypted_content", ""), 
                 key_name=DEMO_CHATS_ENCRYPTION_KEY
             )
+            # Use original_created_at if available (preserves original timestamps), otherwise use created_at
+            created_at = msg.get("original_created_at") or msg.get("created_at")
+            if created_at:
+                # Convert ISO string to timestamp if needed
+                if isinstance(created_at, str):
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        created_at = int(dt.timestamp())
+                    except (ValueError, AttributeError):
+                        created_at = None
+
             decrypted_messages.append({
                 "message_id": str(msg.get("id")),
                 "role": msg.get("role"),
                 "content": decrypted_content,
-                "created_at": msg.get("created_at")
+                "created_at": created_at
             })
 
         decrypted_embeds = []
