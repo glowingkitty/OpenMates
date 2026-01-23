@@ -2,6 +2,7 @@ import type { Chat, Message } from '../types/chat';
 import type { DemoChat, DemoMessage } from './types';
 import { translateDemoChat } from './translateDemoChat';
 import { LEGAL_CHATS } from '../legal';
+import { getCommunityDemoMessages, isCommunityDemo } from './communityDemoStore';
 
 /**
  * Convert a demo chat to the Chat format used by the app
@@ -57,25 +58,51 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
 
 /**
  * Helper function to get messages for a public chat (demo or legal) by chat_id
- * Searches both DEMO_CHATS and LEGAL_CHATS arrays
+ * Searches in order:
+ * 1. Static demo chats (DEMO_CHATS array - in-memory)
+ * 2. Legal chats (LEGAL_CHATS array - in-memory)
+ * 3. Community demo chats (communityDemoStore - in-memory, fetched from server)
  * 
- * @param chatId - The chat ID to search for (e.g., 'demo-welcome', 'legal-privacy')
- * @param demoChats - Array of demo chats (from DEMO_CHATS)
+ * ARCHITECTURE: All demo/public chat data is stored in-memory, never in IndexedDB.
+ * This avoids database initialization issues during logout/cleanup.
+ * 
+ * @param chatId - The chat ID to search for (e.g., 'demo-welcome', 'legal-privacy', 'demo-1')
+ * @param demoChats - Array of static demo chats (from DEMO_CHATS)
  * @param legalChats - Array of legal chats (from LEGAL_CHATS) - optional, will import if not provided
  * @returns Array of messages for the chat, or empty array if not found
  */
 export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChats?: DemoChat[]): Message[] {
-	// Search in demo chats first
+	// 1. Search in static demo chats first (these are hardcoded in TypeScript)
 	let foundChat = demoChats.find(chat => chat.chat_id === chatId);
 	
-	// If not found, search in legal chats (use provided array or fallback to imported LEGAL_CHATS)
+	// 2. If not found, search in legal chats (use provided array or fallback to imported LEGAL_CHATS)
 	if (!foundChat) {
 		const legalChatsToSearch = legalChats || LEGAL_CHATS;
 		foundChat = legalChatsToSearch.find(chat => chat.chat_id === chatId);
 	}
 	
+	// 3. If still not found, check community demo store (fetched from server, stored in-memory)
+	// Offline support is provided by proactive cache loading in loadDemoChatsFromServer
+	if (!foundChat && isCommunityDemo(chatId)) {
+		const communityMessages = getCommunityDemoMessages(chatId);
+		if (communityMessages.length > 0) {
+			console.debug(`[convertToChat] Found ${communityMessages.length} messages in community demo store for: ${chatId}`);
+			return communityMessages;
+		}
+
+		// No messages in memory - this can happen if:
+		// 1. Cache hasn't loaded yet (should be rare, loaded on app start)
+		// 2. User is offline and cache was never populated
+		// In these cases, return empty array to avoid blocking the UI
+		console.debug(`[convertToChat] No messages found for community demo ${chatId} (cache may not be loaded yet)`);
+		return [];
+	}
+	
 	if (!foundChat) {
-		console.warn(`[convertToChat] No public chat found for ID: ${chatId}`);
+		// Only warn if this isn't a community demo (which might still be loading)
+		if (!isCommunityDemo(chatId)) {
+			console.warn(`[convertToChat] No public chat found for ID: ${chatId}`);
+		}
 		return [];
 	}
 	

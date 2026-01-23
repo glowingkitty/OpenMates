@@ -138,31 +138,52 @@ class ChatDatabase {
                 const hasMasterKey = await getKeyFromStorage();
                 
                 if (!hasMasterKey) {
-                    // Check if database exists (indicates there might be encrypted data)
-                    // Use indexedDB.databases() if available, otherwise check for existence marker
-                    let databaseExists = false;
-                    
+                    // Check if database exists and contains encrypted data
+                    // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
                     if (typeof indexedDB !== 'undefined') {
-                        // Try to detect if database exists by attempting to open with version 1
-                        // If it exists with a higher version, the open will trigger onupgradeneeded
-                        // This is a non-destructive way to check existence
+                        // Check if database exists and contains encrypted data
+                        // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
                         try {
                             // Check localStorage marker for faster detection
-                            const dbInitialized = typeof localStorage !== 'undefined' && 
+                            const dbInitialized = typeof localStorage !== 'undefined' &&
                                 localStorage.getItem('openmates_chats_db_initialized') === 'true';
-                            databaseExists = dbInitialized;
+
+                            if (dbInitialized) {
+                                // Try to open database and check if it contains encrypted chats
+                                // This is a more precise check than just checking if DB exists
+                                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+
+                                checkRequest.onsuccess = (event) => {
+                                    const db = (event.target as IDBOpenDBRequest).result;
+                                    const transaction = db.transaction([this.CHATS_STORE_NAME], 'readonly');
+                                    const store = transaction.objectStore(this.CHATS_STORE_NAME);
+                                    const countRequest = store.count();
+
+                                    countRequest.onsuccess = () => {
+                                        const chatCount = countRequest.result;
+                                        if (chatCount > 0) {
+                                            console.warn('[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found', chatCount, 'encrypted chats');
+                                            console.warn('[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
+                                            if (typeof localStorage !== 'undefined') {
+                                                localStorage.setItem('openmates_needs_cleanup', 'true');
+                                            }
+                                            forcedLogoutInProgress.set(true);
+                                        }
+                                        db.close();
+                                    };
+
+                                    countRequest.onerror = () => {
+                                        db.close();
+                                    };
+                                };
+
+                                checkRequest.onerror = () => {
+                                    // Database doesn't exist or can't be opened, no cleanup needed
+                                };
+                            }
                         } catch {
-                            databaseExists = false;
+                            // Error checking database, assume no cleanup needed
                         }
-                    }
-                    
-                    if (databaseExists) {
-                        console.warn('[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but database was previously initialized');
-                        console.warn('[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
-                        if (typeof localStorage !== 'undefined') {
-                            localStorage.setItem('openmates_needs_cleanup', 'true');
-                        }
-                        forcedLogoutInProgress.set(true);
                     }
                 }
             }

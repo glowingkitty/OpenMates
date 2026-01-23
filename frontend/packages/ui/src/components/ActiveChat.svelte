@@ -1541,6 +1541,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // in-memory (e.g., after post-processing completes but the event handler didn't fire)
     $effect(() => {
         if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
+            // CRITICAL: Skip suggestion reload if logout is in progress
+            // This prevents database access attempts during logout cleanup
+            if ($isLoggingOut) {
+                console.debug('[ActiveChat] Skipping suggestion reload - logout in progress');
+                return;
+            }
+
             // Only try to reload if we have encrypted suggestions in the chat
             if (currentChat.encrypted_follow_up_request_suggestions) {
                 console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
@@ -3403,6 +3410,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for event to load demo chat after logout from signup
         const handleLoadDemoChat = () => {
             console.debug("[ActiveChat] Loading demo chat after logout from signup");
+
             // Ensure login interface is closed
             loginInterfaceOpen.set(false);
             // Load default demo chat

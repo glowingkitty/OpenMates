@@ -54,16 +54,45 @@ class UserDatabaseService {
                 const hasMasterKey = await getKeyFromStorage();
                 
                 if (!hasMasterKey) {
-                    const dbInitialized = typeof localStorage !== 'undefined' && 
+                    const dbInitialized = typeof localStorage !== 'undefined' &&
                         localStorage.getItem('openmates_user_db_initialized') === 'true';
-                    
+
                     if (dbInitialized) {
-                        console.warn('[UserDatabase] ORPHANED DATABASE DETECTED: No master key but database was previously initialized');
-                        console.warn('[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
-                        if (typeof localStorage !== 'undefined') {
-                            localStorage.setItem('openmates_needs_cleanup', 'true');
+                        // Try to open database and check if it contains user data
+                        // Only trigger cleanup if there are actual user records
+                        try {
+                            const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+
+                            checkRequest.onsuccess = (event) => {
+                                const db = (event.target as IDBOpenDBRequest).result;
+                                const transaction = db.transaction([this.STORE_NAME], 'readonly');
+                                const store = transaction.objectStore(this.STORE_NAME);
+                                const countRequest = store.count();
+
+                                countRequest.onsuccess = () => {
+                                    const recordCount = countRequest.result;
+                                    if (recordCount > 0) {
+                                        console.warn('[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found', recordCount, 'user records');
+                                        console.warn('[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
+                                        if (typeof localStorage !== 'undefined') {
+                                            localStorage.setItem('openmates_needs_cleanup', 'true');
+                                        }
+                                        forcedLogoutInProgress.set(true);
+                                    }
+                                    db.close();
+                                };
+
+                                countRequest.onerror = () => {
+                                    db.close();
+                                };
+                            };
+
+                            checkRequest.onerror = () => {
+                                // Database doesn't exist or can't be opened, no cleanup needed
+                            };
+                        } catch {
+                            // Error checking database, assume no cleanup needed
                         }
-                        forcedLogoutInProgress.set(true);
                     }
                 }
             }

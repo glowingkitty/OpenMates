@@ -21,7 +21,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -99,7 +99,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Reactive Computations for Display ---
 
-	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
+	// Get filtered public chats (intro + community demos + legal) - exclude hidden ones for authenticated users
+	// 
+	// ARCHITECTURE:
+	// - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different)
+	// - Community demos: Dynamic demo chats fetched from server, stored in communityDemoStore (in-memory)
+	// - Legal chats: Legal documents (privacy, terms, imprint) - only for non-self-hosted
+	//
 	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
 	// For self-hosted instances, legal chats are excluded because operators should provide their own legal docs
 	// Translates demo chats to the user's locale before converting to Chat format
@@ -109,13 +115,16 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This triggers reactivity whenever the user changes the language
 		void $svelteLocaleStore;
 		
+		// Reference the communityDemoStore to trigger reactivity when community demos are loaded
+		void $communityDemoStore;
+		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
 		
-		// Filter demo chats
-		let demoChats: ChatType[] = [];
+		// 1. Static intro chats (bundled with app)
+		let introChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
-			demoChats = DEMO_CHATS
+			introChats = INTRO_CHATS
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
 				.map(demo => {
 					const chat = convertDemoChatToChat(demo);
@@ -123,8 +132,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					return chat;
 				});
 		} else {
-			// For authenticated users, filter out hidden demo chats
-			demoChats = DEMO_CHATS
+			// For authenticated users, filter out hidden intro chats
+			introChats = INTRO_CHATS
 				.filter(demo => !hiddenIds.includes(demo.chat_id))
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
 				.map(demo => {
@@ -134,7 +143,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				});
 		}
 		
-		// Include legal chats ONLY for non-self-hosted instances
+		// 2. Community demo chats (fetched from server, stored in-memory)
+		// These are only shown for non-authenticated users
+		let communityChats: ChatType[] = [];
+		if (!$authStore.isAuthenticated) {
+			communityChats = getAllCommunityDemoChats().map(chat => ({
+				...chat,
+				group_key: 'examples' // Community demos go in "Examples" group
+			}));
+		}
+		
+		// 3. Legal chats (ONLY for non-self-hosted instances)
 		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
 		// - No imprint: only required for commercial/public-facing websites
 		// - No privacy policy: GDPR "household exemption" applies to personal/private use
@@ -153,38 +172,33 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				});
 		}
 		
-		return [...demoChats, ...legalChats];
+		return [...introChats, ...communityChats, ...legalChats];
 	})());
 
-	// Combine public chats (demo + legal) with real chats from IndexedDB
+	// Combine public chats (intro + community demos + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
 	// Also include incognito chats (stored in sessionStorage, not IndexedDB)
 	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
+	//
+	// ARCHITECTURE:
+	// - Intro chats: Static, bundled with app, stored in INTRO_CHATS array (in-memory)
+	// - Community demos: Dynamic, fetched from server, stored in communityDemoStore (in-memory)
+	// - Legal chats: Static, bundled with app, stored in LEGAL_CHATS array (in-memory)
+	// - Real chats: User's actual chats, stored in IndexedDB
+	// - Shared chats: Chats shared with user, stored in IndexedDB (temporary for viewing)
+	// - Incognito chats: Ephemeral chats, stored in sessionStorage
 	let incognitoChatsTrigger = $state(0); // Trigger for reactivity when incognito chats change
 	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
 	
 	let allChats = $derived((() => {
 		void visiblePublicChats;
-		
-		// Get dynamic demo chat IDs from sessionStorage
-		// Note: We store both demo_id and chat_id in this list to ensure categorization and skip-loading both work
-		const dynamicDemoRelatedIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
-		const isDynamicDemo = (chatId: string) => dynamicDemoRelatedIds.includes(chatId);
 
-		// 1. Process real chats from IndexedDB and identify dynamic demo chats
+		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
 		const processedRealChats = allChatsFromDB
-			.filter(chat => !isLegalChat(chat.chat_id))
-			.map(chat => {
-				const chatCopy = { ...chat };
-				// Assign group_key to dynamic demo chats so they appear in 'EXAMPLE CHATS'
-				if (isDynamicDemo(chatCopy.chat_id)) {
-					chatCopy.group_key = 'examples';
-				}
-				return chatCopy;
-			});
+			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
 
-		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB as dynamic demos)
+		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
 		const realChatIds = new Set(processedRealChats.map(c => c.chat_id));
 		const filteredPublicChats = visiblePublicChats.filter(c => !realChatIds.has(c.chat_id));
 		
@@ -266,17 +280,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				seenIds.add(chat.chat_id);
 				deduplicatedChats.push(chat);
 			} else {
-				// Only log if it's not a expected overlap (like a dynamic demo already in public list)
-				if (!isDynamicDemo(chat.chat_id)) {
+				// Only log if it's not an expected overlap (like a public chat already in list)
+				if (!isPublicChat(chat.chat_id)) {
 					console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
 				}
 			}
 		}
 		
-		// Final log for debugging dynamic demo categorization
-		const dynamicDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
-		if (dynamicDemoCount > 0) {
-			console.debug(`[Chats] Categorized ${dynamicDemoCount} dynamic demo chat(s) as 'examples'`);
+		// Final log for debugging community demo categorization
+		const communityDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
+		if (communityDemoCount > 0) {
+			console.debug(`[Chats] Found ${communityDemoCount} community demo chat(s) in 'examples' group`);
 		}
 		
 		return deduplicatedChats;
@@ -1160,22 +1174,51 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	});
 	
 	/**
-	 * Load demo chats from server and store in IndexedDB
-	 * Similar to how shared chats are loaded - works in background
-	 * Only loads for non-authenticated users
+	 * Load community demo chats from server and store IN-MEMORY (not IndexedDB)
+	 * 
+	 * ARCHITECTURE DECISION:
+	 * Community demo chats are stored in the communityDemoStore (in-memory) instead of IndexedDB because:
+	 * 1. Demo chats should never block database operations during logout/cleanup
+	 * 2. Separates concerns: regular chats use IndexedDB, demo chats use memory
+	 * 3. Community demos are ephemeral - re-fetching on page load is acceptable
+	 * 4. Avoids all the "Database initialization blocked during logout" errors
+	 * 
+	 * Only loads for non-authenticated users.
 	 */
 	async function loadDemoChatsFromServer(): Promise<void> {
 		if ($authStore.isAuthenticated) {
 			return; // Only load for non-authenticated users
 		}
 
+		// Check if already loading or loaded in this session
+		if (communityDemoStore.isLoading()) {
+			console.debug('[Chats] Community demos already loading, skipping');
+			return;
+		}
+
 		try {
-			console.debug('[Chats] Loading demo chats from server...');
+			communityDemoStore.setLoading(true);
+			// STEP 1: Load from IndexedDB cache first (provides offline support)
+			if (!communityDemoStore.isCacheLoaded()) {
+				console.debug('[Chats] Loading community demos from IndexedDB cache...');
+				await communityDemoStore.loadFromCache();
+
+				// If we have cached demos, mark as loaded and return (no need to fetch)
+				if (getAllCommunityDemoChats().length > 0) {
+					console.debug(`[Chats] Using ${getAllCommunityDemoChats().length} cached community demos for offline support`);
+					communityDemoStore.markAsLoaded();
+					return;
+				}
+			}
+
+			// STEP 2: No cached demos, fetch from server
+			console.debug('[Chats] No cached community demos, fetching from server...');
 			
 			// Fetch demo chats list
 			const response = await fetch(getApiEndpoint('/v1/demo/chats'));
 			if (!response.ok) {
 				console.warn('[Chats] Failed to fetch demo chats list:', response.status);
+				communityDemoStore.markAsLoaded();
 				return;
 			}
 
@@ -1183,62 +1226,40 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			const demoChatsList = data.demo_chats || [];
 			
 			if (demoChatsList.length === 0) {
-				console.debug('[Chats] No demo chats available from server');
+				console.debug('[Chats] No community demo chats available from server');
+				communityDemoStore.markAsLoaded();
 				return;
 			}
 
-			console.debug(`[Chats] Found ${demoChatsList.length} demo chats, loading individually...`);
+			console.debug(`[Chats] Found ${demoChatsList.length} community demo chats, loading individually...`);
 
-			// Get existing demo chat IDs from sessionStorage to avoid reloading
-			// We store chat_ids here, but we check against demo_ids from the list
-			const existingDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
-			const demoChatIds: string[] = [];
-
-			// Ensure DB is initialized
-			await chatDB.init();
+			// Track loaded demo IDs in sessionStorage to avoid re-fetching on tab refresh
+			const loadedDemoIds = JSON.parse(sessionStorage.getItem('loaded_community_demos') || '[]');
+			const newlyLoadedIds: string[] = [];
 
 			// Load each demo chat
 			for (const demoChatMeta of demoChatsList) {
 				const demoId = demoChatMeta.demo_id;
 				if (!demoId) continue;
 
-				// CRITICAL FIX: Check if this demo was successfully loaded by verifying BOTH:
-				// 1. The demo_id is in sessionStorage
-				// 2. The corresponding chat_id exists in IndexedDB
-				// This prevents the bug where only demo_id is stored on partial failures,
-				// causing subsequent loads to skip the demo even though it's not in IndexedDB.
-				if (existingDemoChatIds.includes(demoId)) {
-					// Find the corresponding chat_id in sessionStorage (it should be stored alongside demo_id)
-					// We need to check if any ID in sessionStorage (other than demo_id) is a valid chat in IndexedDB
-					// Filter for UUIDs (regular chat IDs are 36 characters, demo IDs are shorter like demo-1, demo-2, etc.)
-					const potentialChatIds = existingDemoChatIds.filter((id: string) => id !== demoId && id.length > demoId.length);
-					let foundInDb = false;
-					for (const possibleChatId of potentialChatIds) {
-						const existingChat = await chatDB.getChat(possibleChatId);
-						if (existingChat) {
-							foundInDb = true;
-							console.debug(`[Chats] Demo chat ${demoId} already loaded (chat_id: ${possibleChatId}), skipping`);
-							break;
-						}
-					}
-					
-					if (foundInDb) {
-						continue;
-					}
-					
-					// Demo_id is in sessionStorage but no corresponding chat found in IndexedDB
-					// This means a previous load failed - retry it
-					console.debug(`[Chats] Demo chat ${demoId} was partially processed (not in IndexedDB), retrying...`);
+				// Skip if already loaded in this session (check in-memory store)
+				if (communityDemoStore.isDemo(demoId)) {
+					console.debug(`[Chats] Community demo ${demoId} already in memory, skipping`);
+					continue;
+				}
+
+				// Skip if loaded in a previous page view (check sessionStorage)
+				// Note: sessionStorage persists across tab refresh but not across new tabs
+				if (loadedDemoIds.includes(demoId)) {
+					console.debug(`[Chats] Community demo ${demoId} loaded in previous view, re-fetching...`);
+					// Don't skip - we need to reload since in-memory store is empty after refresh
 				}
 
 				try {
 					// Fetch individual demo chat data
 					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
 					if (!chatResponse.ok) {
-						console.warn(`[Chats] Failed to fetch demo chat ${demoId}:`, chatResponse.status);
-						// DON'T mark as processed on error - allow retries
-						// The previous behavior of storing demo_id on failure caused the bug
-						// where subsequent loads would skip this demo even though it wasn't in IndexedDB
+						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
 						continue;
 					}
 
@@ -1246,72 +1267,63 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const chatDataObj = chatData.chat_data;
 					
 					if (!chatDataObj || !chatDataObj.chat_id || !chatDataObj.encryption_key) {
-						console.warn(`[Chats] Invalid demo chat data for ${demoId}`);
-						// DON'T mark as processed - allow retries on next page load
+						console.warn(`[Chats] Invalid community demo chat data for ${demoId}`);
 						continue;
 					}
 
 					const chatId = chatDataObj.chat_id;
 					let encryptionKey = chatDataObj.encryption_key;
 
-					// CRITICAL: Handle encryption key format
+					// CRITICAL: Handle encryption key format and store in chatDB's in-memory key cache
+					// (This is separate from IndexedDB - it's just an in-memory Map for decryption)
 					let keyBytes: Uint8Array;
 					
-					// If it's an array already (some backend paths might return this)
 					if (Array.isArray(encryptionKey)) {
 						keyBytes = new Uint8Array(encryptionKey);
-					} 
-					// If it's a string, it could be base64 or hex or an encrypted share blob
-					else if (typeof encryptionKey === 'string') {
-						// 1. Check if it's an encrypted share blob (long string)
+					} else if (typeof encryptionKey === 'string') {
+						// Check if it's an encrypted share blob (long string)
 						if (encryptionKey.length > 100) {
 							try {
-								console.debug(`[Chats] Demo chat ${demoId} key looks like an encrypted blob, decrypting...`);
+								console.debug(`[Chats] Community demo ${demoId} key looks like an encrypted blob, decrypting...`);
 								const serverTime = Math.floor(Date.now() / 1000);
 								const result = await decryptShareKeyBlob(chatId, encryptionKey, serverTime);
 								if (result.success && result.chatEncryptionKey) {
 									encryptionKey = result.chatEncryptionKey;
-									console.debug(`[Chats] Successfully decrypted share key blob for demo chat ${demoId}`);
+									console.debug(`[Chats] Successfully decrypted share key blob for community demo ${demoId}`);
 								} else {
-									console.warn(`[Chats] Failed to decrypt share key blob for demo chat ${demoId}:`, result.error);
-									// Continue and try standard decoding as fallback
+									console.warn(`[Chats] Failed to decrypt share key blob for community demo ${demoId}:`, result.error);
 								}
 							} catch (e) {
-								console.error(`[Chats] Error decrypting share key blob for demo chat ${demoId}:`, e);
+								console.error(`[Chats] Error decrypting share key blob for community demo ${demoId}:`, e);
 							}
 						}
 
 						try {
 							// Try decoding as base64 (handle both standard and URL-safe base64)
-							const base64 = encryptionKey
-								.replace(/-/g, '+')
-								.replace(/_/g, '/');
+							const base64 = encryptionKey.replace(/-/g, '+').replace(/_/g, '/');
 							keyBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 						} catch (e) {
-							console.warn(`[Chats] Failed to decode demo chat key for ${demoId} as base64, trying hex:`, e);
+							console.warn(`[Chats] Failed to decode community demo key for ${demoId} as base64, trying hex:`, e);
 							
-							// Try decoding as hex if it looks like hex (only 0-9, a-f, A-F)
 							if (/^[0-9a-fA-F]+$/.test(encryptionKey)) {
 								const hexBytes = [];
 								for (let i = 0; i < encryptionKey.length; i += 2) {
 									hexBytes.push(parseInt(encryptionKey.substring(i, i + 2), 16));
 								}
 								keyBytes = new Uint8Array(hexBytes);
-								console.debug(`[Chats] Successfully decoded demo chat key for ${demoId} as hex`);
+								console.debug(`[Chats] Successfully decoded community demo key for ${demoId} as hex`);
 							} else {
-								console.error(`[Chats] Failed to decode demo chat key for ${demoId}: unexpected format`);
-								console.debug(`[Chats] Key preview: ${encryptionKey.substring(0, 10)}... length: ${encryptionKey.length}`);
-								// DON'T mark as processed - allow retries
+								console.error(`[Chats] Failed to decode community demo key for ${demoId}: unexpected format`);
 								continue;
 							}
 						}
 					} else {
-						console.warn(`[Chats] Unexpected encryption key format for demo chat ${demoId}:`, typeof encryptionKey);
-						// DON'T mark as processed - allow retries
+						console.warn(`[Chats] Unexpected encryption key format for community demo ${demoId}:`, typeof encryptionKey);
 						continue;
 					}
 
-					// Set the chat encryption key in the database cache
+					// Store encryption key in chatDB's in-memory cache (needed for message decryption)
+					// This does NOT require database initialization - it's just a Map
 					chatDB.setChatKey(chatId, keyBytes);
 
 					// Parse messages if needed (backend returns JSON strings when decrypt_content=False)
@@ -1358,32 +1370,24 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						group_key: 'examples'
 					};
 
-					// Store chat in IndexedDB
-					await chatDB.addChat(chat);
+					// Store chat and messages IN-MEMORY (not IndexedDB)
+					addCommunityDemo(chatId, chat, parsedMessages);
 
-					// Store messages if any
-					if (parsedMessages.length > 0) {
-						await chatDB.batchSaveMessages(parsedMessages);
-					}
-
-					// Store embeds if any
+					// Store embeds if any (embedStore is separate from chatDB)
 					if (chatDataObj.embed_keys && chatDataObj.embed_keys.length > 0) {
-						console.debug(`[Chats] Storing ${chatDataObj.embed_keys.length} embed keys for demo chat ${demoId}`);
+						console.debug(`[Chats] Storing ${chatDataObj.embed_keys.length} embed keys for community demo ${demoId}`);
 						try {
 							await embedStore.storeEmbedKeys(chatDataObj.embed_keys);
 						} catch (e) {
-							console.error(`[Chats] Error storing embed keys for demo chat ${demoId}:`, e);
+							console.error(`[Chats] Error storing embed keys for community demo ${demoId}:`, e);
 						}
 					}
 
 					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
-						console.debug(`[Chats] Storing ${chatDataObj.embeds.length} embeds for demo chat ${demoId}`);
+						console.debug(`[Chats] Storing ${chatDataObj.embeds.length} embeds for community demo ${demoId}`);
 						for (const embed of chatDataObj.embeds) {
 							try {
-								// Each embed should have: embed_id, encrypted_content, encrypted_type, status, etc.
 								const contentRef = `embed:${embed.embed_id}`;
-								
-								// Use normalized type or fallback to app-skill-use if encrypted_type is present
 								const type = embed.embed_type || (embed.encrypted_type ? 'app-skill-use' : 'web-website');
 								
 								await embedStore.putEncrypted(contentRef, {
@@ -1406,37 +1410,30 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 									updatedAt: embed.updatedAt || embed.updated_at
 								}, type as any);
 							} catch (e) {
-								console.error(`[Chats] Error storing embed ${embed.embed_id} for demo chat ${demoId}:`, e);
+								console.error(`[Chats] Error storing embed ${embed.embed_id} for community demo ${demoId}:`, e);
 							}
 						}
 					}
 
-					// Track BOTH demo ID and real chat ID in sessionStorage
-					// demo_id: to skip loading again
-					// chat_id: to retrieve from IndexedDB in updateChatListFromDB
-					demoChatIds.push(demoId);
-					demoChatIds.push(chatId);
-					
-					console.debug(`[Chats] Successfully loaded demo chat ${demoId} (chat_id: ${chatId})`);
+					newlyLoadedIds.push(demoId);
+					console.debug(`[Chats] Successfully loaded community demo ${demoId} (chat_id: ${chatId}) into memory and cache`);
 				} catch (error) {
-					console.error(`[Chats] Error loading demo chat ${demoId}:`, error);
+					console.error(`[Chats] Error loading community demo ${demoId}:`, error);
 				}
 			}
 
-			// Update sessionStorage with all demo chat IDs
-			if (demoChatIds.length > 0) {
-				const allDemoChatIds = Array.from(new Set([...existingDemoChatIds, ...demoChatIds]));
-				sessionStorage.setItem('demo_chats', JSON.stringify(allDemoChatIds));
-				console.debug(`[Chats] Stored ${demoChatIds.length} new demo related IDs in sessionStorage`);
+			// Update sessionStorage to track which demos we've loaded
+			if (newlyLoadedIds.length > 0) {
+				const allLoadedIds = Array.from(new Set([...loadedDemoIds, ...newlyLoadedIds]));
+				sessionStorage.setItem('loaded_community_demos', JSON.stringify(allLoadedIds));
+				console.debug(`[Chats] Stored ${newlyLoadedIds.length} new community demo IDs in sessionStorage`);
 			}
 
-			// Refresh chat list to show newly loaded demo chats
-			chatListCache.markDirty();
-			await updateChatListFromDB(true);
-
-			console.debug('[Chats] Finished loading demo chats from server');
+			communityDemoStore.markAsLoaded();
+			console.debug(`[Chats] Finished loading community demos (${getAllCommunityDemoChats().length} total in memory and cache)`);
 		} catch (error) {
-			console.error('[Chats] Error loading demo chats from server:', error);
+			console.error('[Chats] Error loading community demo chats from server:', error);
+			communityDemoStore.markAsLoaded();
 		}
 	}
 	
@@ -1716,13 +1713,15 @@ async function updateChatListFromDBInternal(force = false) {
 		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
+			// NOTE: Community demo chats are now stored in-memory (communityDemoStore), not IndexedDB
+			// They're included via visiblePublicChats derived, so we only need to load shared chats here
 			
 			try {
 				// Check if database is being deleted (e.g., during logout)
 				try {
 					await chatDB.init();
 				} catch (initError: any) {
-					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized') || initError?.message?.includes('Database initialization blocked')) {
 						console.debug("[Chats] Database unavailable, skipping shared chat load");
 						allChatsFromDB = [];
 						return;
@@ -1730,53 +1729,33 @@ async function updateChatListFromDBInternal(force = false) {
 					throw initError;
 				}
 				
-				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage) and demo chat IDs from sessionStorage
+				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage)
+				// Community demos are now in-memory, so we don't load them from here
 				const { getStoredSharedChatIds } = await import('../../services/sharedChatKeyStorage');
 				const sharedChatIds = await getStoredSharedChatIds();
-				const demoChatIds: string[] = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 				
-				// Combine shared and demo chat IDs
-				const allChatIds = [...sharedChatIds, ...demoChatIds];
-				
-				if (allChatIds.length > 0) {
-					// Load shared and demo chats from IndexedDB
+				if (sharedChatIds.length > 0) {
+					// Load shared chats from IndexedDB
 					const loadedChats: ChatType[] = [];
-					const validDemoChatIds: string[] = []; // Track which demo IDs have valid chats
 					
-					for (const chatId of allChatIds) {
+					for (const chatId of sharedChatIds) {
 						try {
 							const chat = await chatDB.getChat(chatId);
 							if (chat) {
 								loadedChats.push(chat);
-								// If this chatId was from demoChatIds, mark it as valid
-								if (demoChatIds.includes(chatId)) {
-									validDemoChatIds.push(chatId);
-								}
 							}
 						} catch (error) {
-							console.warn(`[Chats] Error loading chat ${chatId}:`, error);
+							console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
 						}
 					}
 					
-					// CRITICAL FIX: Clean up stale demo_ids from sessionStorage
-					// If demoChatIds has entries but none of them loaded, clear sessionStorage
-					// This allows loadDemoChatsFromServer to retry on next page load
-					if (demoChatIds.length > 0 && validDemoChatIds.length === 0) {
-						console.debug(`[Chats] No demo chats found in IndexedDB (stale sessionStorage), clearing demo_chats`);
-						sessionStorage.removeItem('demo_chats');
-					} else if (validDemoChatIds.length < demoChatIds.length) {
-						// Some demo IDs are stale, update sessionStorage to only keep valid ones
-						console.debug(`[Chats] Cleaning up ${demoChatIds.length - validDemoChatIds.length} stale demo chat ID(s) from sessionStorage`);
-						sessionStorage.setItem('demo_chats', JSON.stringify(validDemoChatIds));
-					}
-					
-				allChatsFromDB = loadedChats;
-				chatListCache.setCache(loadedChats);
-				console.debug(`[Chats] Loaded ${loadedChats.length} chat(s) from IndexedDB (${sharedChatIds.length} shared, ${demoChatIds.length} demo IDs, ${validDemoChatIds.length} valid)`);
-			} else {
-				allChatsFromDB = [];
-				chatListCache.setCache([]);
-			}
+					allChatsFromDB = loadedChats;
+					chatListCache.setCache(loadedChats);
+					console.debug(`[Chats] Loaded ${loadedChats.length} shared chat(s) from IndexedDB`);
+				} else {
+					allChatsFromDB = [];
+					chatListCache.setCache([]);
+				}
 			} catch (error) {
 				console.error("[Chats] Error loading shared chats from DB:", error);
 				allChatsFromDB = [];
@@ -2237,12 +2216,13 @@ async function updateChatListFromDBInternal(force = false) {
      * Handles public chats (demo/legal), regular chats, and incognito chats
      */
     async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
-        // Check if this is a public chat
+        // Check if this is a public chat (intro, community demo, or legal)
         if (isPublicChat(chatId)) {
             // Find the chat in visiblePublicChats
             const chat = visiblePublicChats.find(c => c.chat_id === chatId);
             if (chat) {
-                const messages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and communityDemoStore
+                const messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
                 return { chat, messages };
             }
             return { chat: null, messages: [] };
