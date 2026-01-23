@@ -21,17 +21,21 @@ export interface Message {
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
   
-  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB)
-  encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB for regular chats)
+  // ARCHITECTURE: These fields are ONLY used for regular (encrypted) chats
+  // Demo chats use cleartext fields (content, category) instead
+  encrypted_content?: string; // Encrypted markdown content, encrypted using chat-specific key (optional for demo chats)
   encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
   encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
   encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
   
-  // Decrypted fields (computed on-demand, never stored)
-  content?: string; // Decrypted markdown content (computed from encrypted_content)
-  category?: string; // Decrypted category (computed from encrypted_category)
-  sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
-  model_name?: string; // Decrypted model name (computed from encrypted_model_name)
+  // Cleartext/Decrypted fields
+  // For regular chats: computed on-demand from encrypted_* fields, never stored
+  // For demo chats: stored directly as cleartext (already decrypted server-side)
+  content?: string; // Cleartext markdown content
+  category?: string; // Cleartext category
+  sender_name?: string; // Cleartext sender name (not used for demo chats)
+  model_name?: string; // Cleartext model name
   
   // Truncation fields for performance optimization (only for user messages)
   is_truncated?: boolean; // Flag indicating if content is truncated for display
@@ -88,6 +92,13 @@ export interface Chat {
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
+  
+  // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
+  // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions
+  chat_summary?: string | null; // Cleartext summary for demo chats
+  follow_up_request_suggestions?: string | null; // Cleartext JSON array of follow-up suggestions for demo chats
+  icon?: string | null; // Cleartext icon name for demo chats
+  category?: string | null; // Cleartext category for demo chats
   
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.

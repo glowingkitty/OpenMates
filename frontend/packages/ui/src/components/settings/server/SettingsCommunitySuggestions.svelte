@@ -428,17 +428,18 @@
         const now = Math.floor(Date.now() / 1000);
         return {
             chat_id: item.chat_id,
-            title: item.title || undefined, // Use title from backend (already decrypted), or undefined to let Chat component handle fallback
-            encrypted_category: item.category, // Chat.svelte expects category in encrypted_category field for demos/previews
-            encrypted_icon: item.icon,
-            encrypted_follow_up_request_suggestions: item.follow_up_suggestions ? JSON.stringify(item.follow_up_suggestions) : undefined,
+            title: item.title || undefined, // Use title from backend (already decrypted)
+            // ARCHITECTURE: Use cleartext fields for demo/preview chats (already decrypted by server)
+            category: item.category,
+            icon: item.icon,
+            follow_up_request_suggestions: item.follow_up_suggestions ? JSON.stringify(item.follow_up_suggestions) : undefined,
             waiting_for_metadata: false,
             messages_v: 1,
             title_v: 1,
             pinned: false,
             is_incognito: false,
             unread_count: 0,
-            encrypted_title: '', // Empty for virtual chats - title is already decrypted from backend
+            encrypted_title: '', // Empty for virtual chats - title is in cleartext `title` field
             last_edited_overall_timestamp: now,
             created_at: now,
             updated_at: now

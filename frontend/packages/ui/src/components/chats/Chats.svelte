@@ -1323,20 +1323,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 					// ARCHITECTURE: Community demo messages are already decrypted server-side
 					// The API returns cleartext content directly (not encrypted)
+					// Store using CLEARTEXT field names (content, category) - NOT encrypted_* fields
 					const rawMessages = chatDataObj.messages || [];
-					const parsedMessages = rawMessages.map((msg: { role: string; content: string; created_at?: number }) => {
+					const parsedMessages = rawMessages.map((msg: { role: string; content: string; category?: string; created_at?: number }) => {
 						// Convert cleartext API format to Message format
-						// Server returns: { role, content (cleartext), created_at }
-						// Add category to assistant messages (same as static demos)
+						// Server returns: { role, content (cleartext), category (cleartext), created_at }
 						return {
 							message_id: `${demoId}-${rawMessages.indexOf(msg)}`,
 							chat_id: chatId,
 							role: msg.role || 'user',
-							content: msg.content || '',  // Already cleartext - no decryption needed
+							content: msg.content || '',  // Cleartext content
+							category: msg.role === 'assistant' ? (msg.category || category) : undefined,  // Cleartext category
 							created_at: msg.created_at || Math.floor(Date.now() / 1000),
-							encrypted_content: null,  // Not encrypted
-							encrypted_category: msg.role === 'assistant' ? category : undefined,  // Add category for assistant messages (as plaintext, same as static demos)
-							sender_name: msg.role === 'assistant' ? 'OpenMates' : undefined
+							status: 'synced' as const
 						} as Message;
 					});
 					
@@ -1351,22 +1350,20 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						: Math.floor(Date.now() / 1000);
 
 					// Create Chat object with cleartext metadata
-					// ARCHITECTURE: For demo chats, `title` is stored as cleartext (not encrypted)
-					// The Chat interface supports `title` as an optional plaintext field for demo chats
-					// Category, icon, and follow-up suggestions are stored in encrypted_* fields as plaintext (same as static demos)
+					// ARCHITECTURE: Demo chats use CLEARTEXT field names (category, icon, follow_up_request_suggestions)
+					// NOT encrypted_* field names - the data is already decrypted server-side
 					const chat: ChatType = {
 						chat_id: chatId,
+						title: title,  // Cleartext title
 						encrypted_title: null,  // Not encrypted - title is in `title` field
-						encrypted_chat_summary: summary || null,  // Store summary as plaintext
-						encrypted_follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
-						encrypted_icon: icon || null,  // Store icon as plaintext (same as static demos)
-						encrypted_category: category || null,  // Store category as plaintext (same as static demos)
-						title: title,  // Cleartext title (used for demo chats)
+						// CLEARTEXT fields - demo chats are already decrypted server-side
+						chat_summary: summary || null,
+						follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
+						icon: icon || null,
+						category: category || null,
 						messages_v: parsedMessages.length,
 						title_v: 0,
 						draft_v: 0,
-						encrypted_draft_md: null,
-						encrypted_draft_preview: null,
 						last_edited_overall_timestamp: lastMessageTimestamp,
 						unread_count: 0,
 						created_at: lastMessageTimestamp,

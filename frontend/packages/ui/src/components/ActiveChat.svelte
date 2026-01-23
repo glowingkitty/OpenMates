@@ -1330,7 +1330,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
                     
                     // Load follow-up suggestions from the database (source of truth)
-                    if (freshChat.encrypted_follow_up_request_suggestions) {
+                    // Check for cleartext suggestions first (demo chats - should be rare in post-processing)
+                    if (freshChat.follow_up_request_suggestions) {
+                        try {
+                            const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
+                            if (suggestions && suggestions.length > 0) {
+                                followUpSuggestions = suggestions;
+                                console.info('[ActiveChat] ✅ Loaded cleartext follow-up suggestions after post-processing:', suggestions.length);
+                            }
+                        } catch (parseError) {
+                            console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                        }
+                    } else if (freshChat.encrypted_follow_up_request_suggestions) {
                         const chatKey = chatDB.getOrGenerateChatKey(chatId);
                         const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                         const decryptedSuggestions = await decryptArrayWithChatKey(
@@ -1548,8 +1559,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
 
-            // Only try to reload if we have encrypted suggestions in the chat
-            if (currentChat.encrypted_follow_up_request_suggestions) {
+            // Check for cleartext suggestions first (demo chats)
+            if (currentChat.follow_up_request_suggestions) {
+                console.debug('[ActiveChat] Loading cleartext follow-up suggestions for demo chat');
+                try {
+                    const suggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                    if (suggestions && suggestions.length > 0) {
+                        followUpSuggestions = suggestions;
+                        console.info('[ActiveChat] Loaded cleartext follow-up suggestions on focus:', suggestions.length);
+                    }
+                } catch (error) {
+                    console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
+                }
+            } else if (currentChat.encrypted_follow_up_request_suggestions) {
+                // Try to reload encrypted suggestions for regular chats
                 console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
                 // Use an IIFE to handle async operations
                 (async () => {
@@ -1570,11 +1593,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 })();
             } else {
                 // Try to refresh chat from database in case it was updated
-                console.debug('[ActiveChat] No encrypted suggestions in currentChat - checking database');
+                console.debug('[ActiveChat] No suggestions in currentChat - checking database');
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        if (freshChat?.encrypted_follow_up_request_suggestions) {
+                        // Check for cleartext suggestions first (demo chats)
+                        if (freshChat?.follow_up_request_suggestions) {
+                            try {
+                                const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
+                                if (suggestions && suggestions.length > 0) {
+                                    followUpSuggestions = suggestions;
+                                    currentChat = { ...currentChat, ...freshChat };
+                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh database read:', suggestions.length);
+                                }
+                            } catch (parseError) {
+                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                            }
+                        } else if (freshChat?.encrypted_follow_up_request_suggestions) {
                             const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
@@ -3016,7 +3051,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const translatedChat = translateDemoChat(publicChatSource);
                 followUpSuggestions = translatedChat.follow_up_suggestions || [];
                 console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
+            } else if (currentChat.follow_up_request_suggestions) {
+                // For community demo chats (from server), use cleartext suggestions stored on chat object
+                // ARCHITECTURE: Community demo chats use cleartext fields (not encrypted_* fields)
+                try {
+                    followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                    console.debug('[ActiveChat] Loaded community demo chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
+                } catch (error) {
+                    console.error('[ActiveChat] Failed to parse community demo follow-up suggestions:', error);
+                    followUpSuggestions = [];
+                }
             } else {
+                followUpSuggestions = [];
+            }
+        } else if (currentChat.follow_up_request_suggestions) {
+            // For chats with cleartext follow-up suggestions (should be rare outside demo context)
+            try {
+                followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                console.debug('[ActiveChat] Loaded follow-up suggestions from cleartext field:', $state.snapshot(followUpSuggestions));
+            } catch (error) {
+                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
                 followUpSuggestions = [];
             }
         } else if (currentChat.encrypted_follow_up_request_suggestions) {

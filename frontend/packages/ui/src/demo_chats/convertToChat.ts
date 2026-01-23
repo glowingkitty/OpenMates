@@ -6,9 +6,11 @@ import { getCommunityDemoMessages, isCommunityDemo } from './communityDemoStore'
 
 /**
  * Convert a demo chat to the Chat format used by the app
- * Demo chats are stored as plaintext (not encrypted) since they're public template content
- * We add a plaintext `title` field so Chat.svelte can display it without decryption
- * Category and icon are stored in encrypted_* fields (as plaintext for demos) so the UI can access them
+ * Demo chats are stored as CLEARTEXT in IndexedDB since they're public template content
+ * (already decrypted by the server before being sent to the client)
+ * 
+ * ARCHITECTURE: Demo chats use cleartext field names (category, icon, follow_up_request_suggestions)
+ * NOT encrypted_* field names, because the data is already decrypted server-side.
  * 
  * IMPORTANT: Demo chats use timestamps from 7 days ago to group them under "Last 7 days"
  * and maintain consistent order based on metadata.order (lower order = newer timestamp = shows first)
@@ -21,12 +23,12 @@ export function convertDemoChatToChat(demoChat: DemoChat): Chat {
 
 	return {
 		chat_id: demoChat.chat_id,
-		title: demoChat.title, // Plaintext title for demo chats (not encrypted)
+		title: demoChat.title, // Plaintext title for demo chats
 		encrypted_title: null, // No encrypted title for demo chats
-		encrypted_category: demoChat.metadata.category, // Store category as plaintext (not actually encrypted for demos)
-		encrypted_icon: demoChat.metadata.icon_names.join(','), // Store icon_names as comma-separated string (plaintext for demos)
-		// Add follow-up suggestions as encrypted field (but store as plaintext JSON for demos)
-		encrypted_follow_up_request_suggestions: demoChat.follow_up_suggestions ? JSON.stringify(demoChat.follow_up_suggestions) : undefined,
+		// CLEARTEXT fields - demo chats are already decrypted server-side
+		category: demoChat.metadata.category,
+		icon: demoChat.metadata.icon_names.join(','),
+		follow_up_request_suggestions: demoChat.follow_up_suggestions ? JSON.stringify(demoChat.follow_up_suggestions) : undefined,
 		messages_v: 1,
 		title_v: 1,
 		last_edited_overall_timestamp: timestamp,
@@ -38,19 +40,20 @@ export function convertDemoChatToChat(demoChat: DemoChat): Chat {
 
 /**
  * Convert demo messages to Message format
- * Demo messages are stored as plaintext (not encrypted) since they're public template content
- * We store the content in both encrypted_content (as plaintext) and content fields
- * Category is added to assistant messages based on metadata (stored as plaintext for demos)
+ * Demo messages are stored as CLEARTEXT in IndexedDB since they're public template content
+ * (already decrypted by the server before being sent to the client)
+ * 
+ * ARCHITECTURE: Demo messages use cleartext field names (content, category)
+ * NOT encrypted_* field names, because the data is already decrypted server-side.
  */
 export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatId: string, category: string): Message[] {
 	return demoMessages.map(demoMsg => ({
 		message_id: demoMsg.id,
-		chat_id: chatId, // Set the chat_id for the messages
+		chat_id: chatId,
 		role: demoMsg.role === 'user' ? 'user' as const : 'assistant' as const,
-		encrypted_content: demoMsg.content, // Store as plaintext (not actually encrypted for demos)
-		content: demoMsg.content, // Also set decrypted content for immediate display
-		encrypted_category: demoMsg.role === 'assistant' ? category : undefined, // Add category for assistant messages (as plaintext)
-		category: demoMsg.role === 'assistant' ? category : undefined, // Also set decrypted category for immediate display
+		// CLEARTEXT fields - demo messages are already decrypted server-side
+		content: demoMsg.content,
+		category: demoMsg.role === 'assistant' ? category : undefined,
 		created_at: new Date(demoMsg.timestamp).getTime(),
 		status: 'synced' as const // Demo messages are always synced
 	}));

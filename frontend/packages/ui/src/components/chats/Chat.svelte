@@ -160,10 +160,26 @@
 
   /**
    * Decrypt chat data on-demand (icon and category)
+   * ARCHITECTURE: Demo chats use cleartext fields (icon, category), 
+   * regular chats use encrypted fields (encrypted_icon, encrypted_category)
    */
   async function decryptChatData(chat: Chat): Promise<DecryptedChatData> {
     const result: DecryptedChatData = {};
     
+    // Check for cleartext fields first (demo chats - already decrypted server-side)
+    if (chat.icon) {
+      result.icon = chat.icon;
+    }
+    if (chat.category) {
+      result.category = chat.category;
+    }
+    
+    // If we already have cleartext data, return it
+    if (result.icon || result.category) {
+      return result;
+    }
+    
+    // For regular chats, decrypt from encrypted fields
     // Get chat key for decryption
     const chatKey = chatDB.getChatKey(chat.chat_id);
     if (!chatKey) {
@@ -277,13 +293,15 @@
       const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
       lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
       
-      // Category is stored in encrypted_category field (as plaintext for demos)
-      chatCategory = currentChat.encrypted_category || null;
+      // ARCHITECTURE: Demo chats use cleartext fields (category, icon)
+      // Fallback to encrypted_* fields for backwards compatibility
+      chatCategory = currentChat.category || currentChat.encrypted_category || null;
       
-      // Icon names stored in encrypted_icon field (as comma-separated string for demos)
-      // Parse the first icon name from the list
-      if (currentChat.encrypted_icon) {
-        const iconNames = currentChat.encrypted_icon.split(',');
+      // Icon names stored in icon field (as comma-separated string for demos)
+      // Fallback to encrypted_icon for backwards compatibility
+      const iconField = currentChat.icon || currentChat.encrypted_icon;
+      if (iconField) {
+        const iconNames = iconField.split(',');
         chatIcon = iconNames.length > 0 ? iconNames[0] : null;
       } else {
         chatIcon = null;
@@ -581,8 +599,8 @@
             console.debug(`[Chat] Fetched fresh chat data after ${detail.type}:`, {
               chatId: chat.chat_id,
               hasEncryptedTitle: !!freshChat.encrypted_title,
-              hasEncryptedCategory: !!freshChat.encrypted_category,
-              hasEncryptedIcon: !!freshChat.encrypted_icon,
+              hasCategory: !!freshChat.category || !!freshChat.encrypted_category,
+              hasIcon: !!freshChat.icon || !!freshChat.encrypted_icon,
               waitingForMetadata: freshChat.waiting_for_metadata
             });
             await updateDisplayInfo(freshChat);
