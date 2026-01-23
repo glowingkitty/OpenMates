@@ -848,7 +848,7 @@ class DirectusService:
             logger.error(f"Exception updating API key last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)
             return False
 
-    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
+    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None, admin_required: bool = False) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
@@ -861,9 +861,21 @@ class DirectusService:
             url = f"{self.base_url}/users/{item_id}"
         else:
             url = f"{self.base_url}/items/{collection}/{item_id}"
-        
+
+        # For sensitive collections or when explicitly requested, use admin token
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions', 'demo_chats']
+        headers = {}
+        if admin_required or collection in sensitive_collections:
+            # Ensure we have a valid admin token for sensitive collections
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error(f"Failed to get admin token for updating item in collection: {collection}")
+                return None
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            logger.info(f"Using admin token for updating item in collection: {collection}")
+
         response_obj = await self._make_api_request(
-            "PATCH", url, json=data, params=params
+            "PATCH", url, headers=headers, json=data, params=params
         )
 
         # _make_api_request returns httpx.Response object or None on error

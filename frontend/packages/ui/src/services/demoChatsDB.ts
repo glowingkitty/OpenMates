@@ -23,6 +23,7 @@ interface DemoChatRecord {
     messages: Message[];
     created_at: number; // When this was cached
     demo_id: string; // Original server demo_id
+    content_hash: string; // SHA256 hash of content for change detection
 }
 
 // ============================================================================
@@ -119,8 +120,12 @@ class DemoChatsDB {
 
     /**
      * Store a demo chat and its messages
+     * @param demoId - The server demo ID (e.g., "demo-1")
+     * @param chat - The Chat object
+     * @param messages - Array of Message objects
+     * @param contentHash - SHA256 hash of content for change detection
      */
-    async storeDemoChat(demoId: string, chat: Chat, messages: Message[]): Promise<void> {
+    async storeDemoChat(demoId: string, chat: Chat, messages: Message[], contentHash: string = ''): Promise<void> {
         await this.init();
 
         const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
@@ -132,7 +137,8 @@ class DemoChatsDB {
                 chat,
                 messages: [], // We store messages separately
                 created_at: Date.now(),
-                demo_id: demoId
+                demo_id: demoId,
+                content_hash: contentHash
             };
 
             const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
@@ -152,11 +158,61 @@ class DemoChatsDB {
                 });
             }
 
-            console.debug(`[DemoChatsDB] Stored demo chat ${demoId} (${chat.chat_id}) with ${messages.length} messages`);
+            console.debug(`[DemoChatsDB] Stored demo chat ${demoId} (${chat.chat_id}) with ${messages.length} messages, hash: ${contentHash.slice(0, 16)}...`);
         } catch (error) {
             console.error('[DemoChatsDB] Error storing demo chat:', error);
             throw error;
         }
+    }
+
+    /**
+     * Get all content hashes for cached demo chats
+     * Used for change detection when fetching demo list from server
+     * @returns Map of demo_id to content_hash
+     */
+    async getAllContentHashes(): Promise<Map<string, string>> {
+        await this.init();
+
+        const transaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+        const store = transaction.objectStore(this.CHATS_STORE_NAME);
+
+        return new Promise<Map<string, string>>((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const records = request.result as DemoChatRecord[];
+                const hashes = new Map<string, string>();
+                for (const record of records) {
+                    if (record.content_hash) {
+                        hashes.set(record.demo_id, record.content_hash);
+                    }
+                }
+                console.debug(`[DemoChatsDB] Retrieved ${hashes.size} content hashes`);
+                resolve(hashes);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Get the content hash for a specific demo chat
+     * @param demoId - The demo ID to look up
+     * @returns The content hash or null if not found
+     */
+    async getContentHash(demoId: string): Promise<string | null> {
+        await this.init();
+
+        const transaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+        const store = transaction.objectStore(this.CHATS_STORE_NAME);
+        const index = store.index('demo_id');
+
+        return new Promise<string | null>((resolve, reject) => {
+            const request = index.get(demoId);
+            request.onsuccess = () => {
+                const record = request.result as DemoChatRecord | undefined;
+                resolve(record?.content_hash || null);
+            };
+            request.onerror = () => reject(request.error);
+        });
     }
 
     /**

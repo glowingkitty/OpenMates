@@ -16,7 +16,7 @@ export { translateDemoChat, translateDemoChats } from './translateDemoChat';
 export { LEGAL_CHATS, getLegalChatBySlug, getLegalChatById } from '../legal';
 
 // Export community demo store for in-memory storage of server-fetched demo chats
-// ARCHITECTURE: Community demos are stored in-memory (not IndexedDB) to avoid database issues during logout
+// ARCHITECTURE: Community demos are stored in-memory AND IndexedDB for offline support
 export { 
 	communityDemoStore,
 	addCommunityDemo,
@@ -24,7 +24,8 @@ export {
 	getCommunityDemoMessages,
 	getAllCommunityDemoChats,
 	isCommunityDemo,
-	clearCommunityDemos
+	clearCommunityDemos,
+	getLocalContentHashes
 } from './communityDemoStore';
 
 /**

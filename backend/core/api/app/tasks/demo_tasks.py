@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import json
 import base64
@@ -54,17 +55,56 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
             return
 
         original_chat_id = demo_chat["original_chat_id"]
-        encryption_key_b64 = demo_chat["encrypted_key"] # Original plaintext chat key (base64)
+        encrypted_key_blob = demo_chat["encrypted_key"]  # This is the encrypted share key blob
+        
+        if not encrypted_key_blob:
+            logger.error(f"Demo chat {demo_id} has no encrypted_key - cannot decrypt messages")
+            return
+        
+        # Decrypt the share key blob to get the actual chat encryption key
+        # The blob is encrypted with AES-GCM using a key derived from the chat_id
+        # When a user shares a chat with community, the frontend creates a share blob containing:
+        # - chat_encryption_key: The raw 32-byte NaCl key (base64 encoded)
+        # - generated_at: Unix timestamp
+        # - duration_seconds: Expiration duration
+        # - pwd: Password flag
+        # This blob is encrypted with AES-GCM and stored in demo_chats.encrypted_key
+        encryption_key_b64 = _decrypt_share_key_blob(encrypted_key_blob, original_chat_id)
+        if not encryption_key_b64:
+            logger.error(
+                f"Failed to decrypt share key blob for demo chat {demo_id}. "
+                f"This usually means the encrypted_key was corrupted or is not a valid share blob. "
+                f"The user may need to re-share the chat with community. "
+                f"encrypted_key length: {len(encrypted_key_blob) if encrypted_key_blob else 0}"
+            )
+            # Update status to indicate translation failed
+            demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+            if demo_chat_item and demo_chat_item.get("id"):
+                item_id = demo_chat_item["id"]
+                await task.directus_service.update_item("demo_chats", item_id, {
+                    "status": "translation_failed"
+                }, admin_required=True)
+            return
+        
+        logger.info(f"Successfully extracted encryption key for demo chat {demo_id}")
         
         # 2. Fetch and decrypt original messages and embeds
         # We need ALL fields for messages to recreate them correctly
         messages = await task.directus_service.chat.get_all_messages_for_chat(original_chat_id, decrypt_content=False)
         # Fetch embeds for the chat
-        hashed_chat_id = task.directus_service.chat._hash_id(original_chat_id)
+        hashed_chat_id = hashlib.sha256(original_chat_id.encode()).hexdigest()
         embeds = await task.directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
 
         decrypted_messages = []
         for msg in messages:
+            # Parse JSON string if needed
+            if isinstance(msg, str):
+                try:
+                    msg = json.loads(msg)
+                except Exception:
+                    logger.error(f"Failed to parse message JSON: {msg}")
+                    continue
+
             content = _decrypt_client_side(msg.get("encrypted_content", ""), encryption_key_b64)
             if content:
                 decrypted_messages.append({
@@ -80,6 +120,14 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
 
         decrypted_embeds = []
         for emb in embeds:
+            # Parse JSON string if needed
+            if isinstance(emb, str):
+                try:
+                    emb = json.loads(emb)
+                except Exception:
+                    logger.error(f"Failed to parse embed JSON: {emb}")
+                    continue
+
             content = _decrypt_client_side(emb.get("encrypted_content", ""), encryption_key_b64)
             if content:
                 decrypted_embeds.append({
@@ -168,11 +216,29 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
                 }
                 await task.directus_service.create_item("demo_embeds", embed_data)
 
-        # 4. Update status to published
-        await task.directus_service.update_item("demo_chats", demo_id, {
-            "status": "published",
-            "approved_at": datetime.now(timezone.utc).isoformat()
-        })
+        # 4. Generate content hash for change detection
+        # The hash is computed from all message contents and embed contents
+        # This allows clients to detect when demo content has changed
+        hash_content = ""
+        for msg in decrypted_messages:
+            hash_content += f"{msg['role']}:{msg['content']}\n"
+        for emb in decrypted_embeds:
+            hash_content += f"embed:{emb['embed_id']}:{emb['content']}\n"
+        content_hash = hashlib.sha256(hash_content.encode('utf-8')).hexdigest()
+        logger.info(f"Generated content hash for demo chat {demo_id}: {content_hash[:16]}...")
+        
+        # 5. Update status to published (requires admin privileges)
+        # First get the demo chat to find its actual Directus item ID
+        demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        if demo_chat_item and demo_chat_item.get("id"):
+            item_id = demo_chat_item["id"]  # This is the Directus item ID (UUID)
+            await task.directus_service.update_item("demo_chats", item_id, {
+                "status": "published",
+                "approved_at": datetime.now(timezone.utc).isoformat(),
+                "content_hash": content_hash
+            }, admin_required=True)
+        else:
+            logger.warning(f"Could not find demo chat {demo_id} to update status to published")
         
         # 5. Clear and reload cache
         await task.directus_service.cache.clear_demo_chats_cache()
@@ -183,6 +249,84 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
 
     finally:
         await task.cleanup_services()
+
+def _decrypt_share_key_blob(encrypted_blob: str, chat_id: str) -> Optional[str]:
+    """
+    Decrypt a share key blob to extract the raw chat encryption key.
+    
+    The share key blob is encrypted with AES-GCM using a key derived from the chat_id.
+    This mirrors the frontend's decryptShareKeyBlob function.
+    
+    Structure:
+    - Key derivation: PBKDF2 with chat_id, salt="openmates-share-v1", 100000 iterations, SHA-256
+    - Encryption: AES-GCM with 12-byte IV prepended to ciphertext
+    - Blob format: URL-encoded params (chat_encryption_key, generated_at, duration_seconds, pwd)
+    
+    Args:
+        encrypted_blob: Base64 URL-safe encoded encrypted blob
+        chat_id: The original chat ID used to derive the decryption key
+        
+    Returns:
+        The raw chat encryption key (base64 encoded) or None if decryption fails
+    """
+    if not encrypted_blob or not chat_id:
+        return None
+    
+    try:
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from urllib.parse import parse_qs
+        
+        # 1. Decode the base64 URL-safe blob
+        # Convert URL-safe base64 to standard base64
+        base64_standard = encrypted_blob.replace('-', '+').replace('_', '/')
+        # Add padding if needed
+        padding = 4 - (len(base64_standard) % 4)
+        if padding != 4:
+            base64_standard += '=' * padding
+        
+        combined = base64.b64decode(base64_standard)
+        
+        # 2. Extract IV (first 12 bytes) and ciphertext
+        if len(combined) <= 12:
+            logger.error(f"Share key blob too short: {len(combined)} bytes")
+            return None
+        
+        iv = combined[:12]
+        ciphertext = combined[12:]
+        
+        # 3. Derive the decryption key using PBKDF2
+        salt = b"openmates-share-v1"
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,  # 256 bits for AES-GCM
+            salt=salt,
+            iterations=100000,
+        )
+        derived_key = kdf.derive(chat_id.encode('utf-8'))
+        
+        # 4. Decrypt with AES-GCM
+        aesgcm = AESGCM(derived_key)
+        decrypted_bytes = aesgcm.decrypt(iv, ciphertext, None)
+        serialized = decrypted_bytes.decode('utf-8')
+        
+        # 5. Parse URL-encoded parameters to extract chat_encryption_key
+        # Format: chat_encryption_key=...&generated_at=...&duration_seconds=...&pwd=0|1
+        params = parse_qs(serialized)
+        
+        chat_encryption_key = params.get('chat_encryption_key', [None])[0]
+        if not chat_encryption_key:
+            logger.error("No chat_encryption_key found in decrypted share blob")
+            return None
+        
+        logger.info(f"Successfully decrypted share key blob for chat {chat_id[:8]}...")
+        return chat_encryption_key
+        
+    except Exception as e:
+        logger.error(f"Failed to decrypt share key blob: {e}", exc_info=True)
+        return None
+
 
 def _decrypt_client_side(ciphertext_b64: str, key_b64: str) -> Optional[str]:
     """Decrypt content encrypted with TweetNaCl (XSalsa20-Poly1305) on the client side."""

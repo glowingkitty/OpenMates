@@ -481,12 +481,23 @@ class DemoChatMethods:
             True if deactivation was successful
         """
         try:
+            # First, get the demo chat to find its actual Directus item ID
+            demo_chat = await self.get_demo_chat_by_id(demo_id)
+            if not demo_chat:
+                logger.error(f"Demo chat {demo_id} not found for deactivation")
+                return False
+
+            item_id = demo_chat.get("id")  # This is the Directus item ID (UUID)
+            if not item_id:
+                logger.error(f"Demo chat {demo_id} has no Directus item ID")
+                return False
+
             updates = {
                 "is_active": False,
                 "deactivated_at": datetime.now(timezone.utc).isoformat()
             }
 
-            result = await self.directus_service.update_item("demo_chats", demo_id, updates)
+            result = await self.directus_service.update_item("demo_chats", item_id, updates)
             if result:
                 # Invalidate cache
                 await self.directus_service.cache.clear_demo_chats_cache()

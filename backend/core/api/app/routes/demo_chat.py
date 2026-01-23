@@ -36,18 +36,33 @@ async def get_demo_chats(
     request: Request,
     lang: str = Query("en", description="Language code"),
     category: Optional[str] = Query(None, description="Filter by category"),
+    hashes: Optional[str] = Query(None, description="Comma-separated list of demo_id:hash pairs for change detection"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
     Get list of approved and published demo chats.
+    
+    Supports change detection via the `hashes` parameter:
+    - If provided, returns a list of demos with an `updated` flag indicating if content changed
+    - Format: "demo-1:abc123,demo-2:def456" (demo_id:content_hash pairs)
+    - This allows clients to only fetch full data for changed demos
     """
     try:
-        # 1. Try to get from cache first
-        cached_data = await directus_service.cache.get_demo_chats_list(lang, category=category)
-        if cached_data:
-            logger.debug(f"Cache HIT: Returning demo chats list for {lang} (category: {category})")
-            return cached_data
+        # Parse client hashes for change detection
+        client_hashes: Dict[str, str] = {}
+        if hashes:
+            for pair in hashes.split(","):
+                if ":" in pair:
+                    demo_id, hash_value = pair.split(":", 1)
+                    client_hashes[demo_id.strip()] = hash_value.strip()
+        
+        # 1. Try to get from cache first (only if not doing hash comparison)
+        if not client_hashes:
+            cached_data = await directus_service.cache.get_demo_chats_list(lang, category=category)
+            if cached_data:
+                logger.debug(f"Cache HIT: Returning demo chats list for {lang} (category: {category})")
+                return cached_data
 
         # 2. Get from database
         params = {
@@ -64,29 +79,41 @@ async def get_demo_chats(
         
         public_demo_chats = []
         for demo in demo_chats:
+            demo_id = demo["demo_id"]
+            content_hash = demo.get("content_hash", "")
+            
             # Get translation
-            translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], lang)
+            translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
             # Fallback to English if translation not found
             if not translation and lang != "en":
-                translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], "en")
+                translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
             
             if translation:
-                public_demo_chats.append({
-                    "demo_id": demo["demo_id"],
+                demo_data = {
+                    "demo_id": demo_id,
                     "title": translation.get("title"),
                     "summary": translation.get("summary"),
                     "category": demo.get("category"),
+                    "content_hash": content_hash,
                     "created_at": demo.get("created_at"),
                     "status": demo.get("status")
-                })
+                }
+                
+                # Add `updated` flag if client provided hashes for change detection
+                if client_hashes:
+                    client_hash = client_hashes.get(demo_id, "")
+                    demo_data["updated"] = (content_hash != client_hash) if content_hash else True
+                
+                public_demo_chats.append(demo_data)
 
         response_data = {
             "demo_chats": public_demo_chats,
             "count": len(public_demo_chats)
         }
 
-        # 3. Cache the result
-        await directus_service.cache.set_demo_chats_list(lang, response_data, category=category)
+        # 3. Cache the result (only if not doing hash comparison)
+        if not client_hashes:
+            await directus_service.cache.set_demo_chats_list(lang, response_data, category=category)
 
         return response_data
 
@@ -166,17 +193,22 @@ async def get_demo_chat(
             })
 
         # 6. Prepare response
+        # ARCHITECTURE: Demo chats use demo_id (e.g., "demo-1") as their chat_id
+        # Messages are already server-side decrypted, so no encryption_key is needed
+        # content_hash is included for client-side change detection
         response_data = {
             "demo_id": demo_id,
             "title": translation.get("title"),
             "summary": translation.get("summary"),
             "category": demo_chat.get("category"),
+            "icon": demo_chat.get("icon"),
+            "content_hash": demo_chat.get("content_hash", ""),
             "follow_up_suggestions": translation.get("follow_up_suggestions"),
             "chat_data": {
-                "chat_id": demo_chat.get("original_chat_id"),
-                "messages": decrypted_messages,
-                "embeds": decrypted_embeds,
-                "encryption_mode": "none" # Cleartext for client
+                "chat_id": demo_id,  # Use demo_id as the chat identifier (not original_chat_id)
+                "messages": decrypted_messages,  # Already decrypted server-side (cleartext)
+                "embeds": decrypted_embeds,  # Already decrypted server-side (cleartext)
+                "encryption_mode": "none"  # Cleartext - no client-side decryption needed
             }
         }
 

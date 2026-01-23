@@ -67,8 +67,9 @@ const store = writable<CommunityDemoStoreState>(initialState);
  * @param demoId - The server demo ID (e.g., "demo-1")
  * @param chat - The Chat object
  * @param messages - Array of Message objects for this chat
+ * @param contentHash - SHA256 hash of content for change detection (optional)
  */
-export async function addCommunityDemo(demoId: string, chat: Chat, messages: Message[]): Promise<void> {
+export async function addCommunityDemo(demoId: string, chat: Chat, messages: Message[], contentHash: string = ''): Promise<void> {
     // Add to in-memory store first
     store.update(state => {
         const newChats = new Map(state.chats);
@@ -79,11 +80,25 @@ export async function addCommunityDemo(demoId: string, chat: Chat, messages: Mes
 
     // Cache in IndexedDB for offline support (don't await to avoid blocking UI)
     try {
-        await demoChatsDB.storeDemoChat(demoId, chat, messages);
-        console.debug(`[CommunityDemoStore] Cached community demo ${demoId} in IndexedDB`);
+        await demoChatsDB.storeDemoChat(demoId, chat, messages, contentHash);
+        console.debug(`[CommunityDemoStore] Cached community demo ${demoId} in IndexedDB (hash: ${contentHash.slice(0, 16)}...)`);
     } catch (error) {
         console.error(`[CommunityDemoStore] Failed to cache community demo ${demoId}:`, error);
         // Don't throw - in-memory store is still working
+    }
+}
+
+/**
+ * Get all content hashes for cached demo chats
+ * Used for change detection when fetching demo list from server
+ * @returns Map of demo_id to content_hash
+ */
+export async function getLocalContentHashes(): Promise<Map<string, string>> {
+    try {
+        return await demoChatsDB.getAllContentHashes();
+    } catch (error) {
+        console.error('[CommunityDemoStore] Failed to get content hashes:', error);
+        return new Map();
     }
 }
 

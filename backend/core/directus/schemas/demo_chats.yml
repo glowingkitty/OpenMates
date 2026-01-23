@@ -43,6 +43,10 @@ demo_chats:
     approved_at:
       type: timestamp
       note: "When the chat was approved"
+    content_hash:
+      type: string
+      length: 64
+      note: "SHA256 hash of all demo content (messages + embeds) for change detection"
     is_active:
       type: boolean
       default: true
