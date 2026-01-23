@@ -448,15 +448,15 @@ class DemoChatMethods:
 
     async def get_pending_demo_chats(self) -> List[Dict[str, Any]]:
         """
-        Get all demo chats with status='waiting_for_confirmation'.
-        
+        Get all demo chats with status='pending_approval'.
+
         Returns:
             List of pending demo chat entries
         """
         try:
             params = {
                 "filter": {
-                    "status": {"_eq": "waiting_for_confirmation"},
+                    "status": {"_eq": "pending_approval"},
                     "is_active": {"_eq": True}
                 },
                 "sort": ["-created_at"]

@@ -4,7 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
@@ -106,7 +106,7 @@ async def get_community_suggestions(
     """
     Get pending community chat suggestions for admin review.
 
-    Returns demo_chats entries with status='waiting_for_confirmation'.
+    Returns demo_chats entries with status='pending_approval'.
     These are chats that were shared with the community and are pending admin approval.
     The metadata is decrypted using the demo_chats vault key for display.
     """
@@ -114,7 +114,7 @@ async def get_community_suggestions(
         import json
         from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
         
-        # Get all pending demo chats (status='waiting_for_confirmation')
+        # Get all pending demo chats (status='pending_approval')
         pending_demos = await directus_service.demo_chat.get_pending_demo_chats()
         
         encryption_service: EncryptionService = request.app.state.encryption_service
