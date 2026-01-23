@@ -85,3 +85,84 @@ async def create_item(self, collection: str, payload: dict):
        # Log any exception during the process
        logger.error(f"Exception during item creation in '{collection}': {str(e)}", exc_info=True)
        return False, {"error": str(e)}
+
+
+async def delete_item(self, collection: str, item_id: str, admin_required: bool = False):
+    """
+    Delete a single item from a Directus collection by ID.
+    
+    Args:
+        collection: The name of the collection
+        item_id: The ID of the item to delete
+        admin_required: Whether admin authentication is required
+        
+    Returns:
+        bool: True if deletion succeeded, False otherwise
+    """
+    url = f"{self.base_url}/items/{collection}/{item_id}"
+    
+    try:
+        headers = {}
+        if admin_required:
+            token = await self.login_admin()
+            headers["Authorization"] = f"Bearer {token}"
+        
+        response = await self._make_api_request("DELETE", url, headers=headers)
+        
+        if 200 <= response.status_code < 300:
+            logger.info(f"Successfully deleted item {item_id} from '{collection}'")
+            return True
+        else:
+            logger.error(f"Failed to delete item {item_id} from '{collection}'. Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Exception during item deletion from '{collection}': {str(e)}", exc_info=True)
+        return False
+
+
+async def delete_items(self, collection: str, filter_dict: dict, admin_required: bool = False):
+    """
+    Batch delete items from a Directus collection using a filter.
+    Uses Directus batch delete endpoint with filter query.
+    
+    Args:
+        collection: The name of the collection
+        filter_dict: Filter dictionary (e.g., {"demo_chat_id": {"_eq": "uuid"}})
+        admin_required: Whether admin authentication is required
+        
+    Returns:
+        int: Number of items deleted
+    """
+    import json
+    
+    # Directus batch delete: DELETE /items/:collection with filter query param
+    url = f"{self.base_url}/items/{collection}"
+    
+    try:
+        headers = {}
+        if admin_required:
+            token = await self.login_admin()
+            headers["Authorization"] = f"Bearer {token}"
+        
+        # Build query params with filter
+        params = {
+            "filter": json.dumps(filter_dict)
+        }
+        
+        response = await self._make_api_request("DELETE", url, headers=headers, params=params)
+        
+        if 200 <= response.status_code < 300:
+            # Directus returns deleted items in response.data (array)
+            deleted_data = response.json().get("data", [])
+            count = len(deleted_data) if isinstance(deleted_data, list) else 0
+            logger.info(f"Successfully batch deleted {count} items from '{collection}' with filter {filter_dict}")
+            return count
+        else:
+            logger.error(f"Failed to batch delete from '{collection}'. Status: {response.status_code}, Response: {response.text}")
+            return 0
+            
+    except Exception as e:
+        logger.error(f"Exception during batch deletion from '{collection}': {str(e)}", exc_info=True)
+        return 0
+

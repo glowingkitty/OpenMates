@@ -3,21 +3,26 @@ demo_chat_translations:
   fields:
     id:
       type: uuid
-    demo_id:
-      type: string
-      length: 16
-      note: "Reference to demo_chats.demo_id"
+    demo_chat_id:
+      type: uuid
+      note: "Foreign key to demo_chats.id"
+      required: true
     language:
       type: string
       length: 10
-      note: "Language code (e.g., 'en', 'de')"
-    title:
-      type: string
-      length: 255
-      note: "Translated title"
-    summary:
+      note: "Language code (e.g., 'en', 'de', 'zh')"
+      required: true
+    encrypted_title:
       type: textfield
-      note: "Translated summary"
-    follow_up_suggestions:
-      type: json
-      note: "JSON array of translated follow-up suggestions"
+      note: "[Vault-Encrypted] Translated title, encrypted with demo_chats vault key"
+      required: true
+    encrypted_summary:
+      type: textfield
+      note: "[Vault-Encrypted] Translated summary, encrypted with demo_chats vault key"
+    encrypted_follow_up_suggestions:
+      type: textfield
+      note: "[Vault-Encrypted] JSON array of translated follow-up suggestions, encrypted with demo_chats vault key"
+    created_at:
+      type: timestamp
+      note: "When this translation was created"
+  note: "Metadata translations for each language. All content is Vault-encrypted and cached server-side for performance."

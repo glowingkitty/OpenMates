@@ -3,21 +3,29 @@ demo_messages:
   fields:
     id:
       type: uuid
-    demo_id:
-      type: string
-      length: 16
-      note: "Reference to demo_chats.demo_id"
+    demo_chat_id:
+      type: uuid
+      note: "Foreign key to demo_chats.id"
+      required: true
     language:
       type: string
       length: 10
-      note: "Language code"
+      note: "Language code (e.g., 'en', 'de', 'original' for source language)"
+      required: true
     role:
       type: string
       length: 50
       note: "Role: 'user' | 'assistant' | 'system'"
+      required: true
     encrypted_content:
       type: textfield
-      note: "Server-side encrypted Tiptap JSON content"
-    message_order:
-      type: integer
-      note: "Order of the message in the chat"
+      note: "[Vault-Encrypted] Tiptap JSON content, encrypted with demo_chats vault key"
+      required: true
+    original_created_at:
+      type: timestamp
+      note: "Original message timestamp from user's chat (used for ordering messages)"
+      required: true
+    created_at:
+      type: timestamp
+      note: "When this demo message entry was created"
+  note: "Messages ordered by original_created_at to maintain conversation flow. Stored per-language after translation."

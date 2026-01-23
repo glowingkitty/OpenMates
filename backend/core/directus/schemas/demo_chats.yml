@@ -1,48 +1,37 @@
 demo_chats:
   type: collection
   fields:
-    demo_id:
-      type: string
-      length: 20
-      note: "Sequential identifier for the demo chat (e.g., demo-1, demo-2, demo-3)"
-      required: true
-      unique: true
     original_chat_id:
       type: string
       length: 64
-      note: "The original chat identifier"
-      required: true
-    encrypted_key:
-      type: textfield
-      note: "The encryption key for the chat"
+      note: "The original chat identifier (for reference only, not used for decryption)"
       required: true
     encrypted_category:
       type: textfield
-      note: "[Vault-Encrypted] Category for grouping demo chats, encrypted with demo vault key (demo-chats-metadata)"
+      note: "[Vault-Encrypted] Category for grouping demo chats, encrypted with demo_chats vault key"
     encrypted_title:
       type: textfield
-      note: "[Vault-Encrypted] Title of the chat, encrypted with demo vault key (demo-chats-metadata)"
+      note: "[Vault-Encrypted] Title of the chat, encrypted with demo_chats vault key"
     encrypted_summary:
       type: textfield
-      note: "[Vault-Encrypted] Summary of the chat, encrypted with demo vault key (demo-chats-metadata)"
+      note: "[Vault-Encrypted] Summary of the chat, encrypted with demo_chats vault key"
     encrypted_icon:
       type: textfield
-      note: "[Vault-Encrypted] Icon name for the chat, encrypted with demo vault key (demo-chats-metadata)"
+      note: "[Vault-Encrypted] Icon name for the chat, encrypted with demo_chats vault key"
     encrypted_follow_up_suggestions:
       type: textfield
-      note: "[Vault-Encrypted] Follow-up suggestions (JSON array), encrypted with demo vault key (demo-chats-metadata)"
+      note: "[Vault-Encrypted] Follow-up suggestions (JSON array), encrypted with demo_chats vault key"
     status:
       type: string
       length: 50
-      default: "waiting_for_confirmation"
-      note: "Status: 'waiting_for_confirmation' | 'translating' | 'published' | 'error'. waiting_for_confirmation = pending admin approval, translating = approved and being translated, published = ready for display, error = translation failed"
+      default: "pending_approval"
+      note: "Status: 'pending_approval' | 'translating' | 'published' | 'translation_failed'. pending_approval = waiting for admin, translating = being translated, published = ready for display, translation_failed = translation error"
     approved_by_admin:
-      type: boolean
-      default: false
-      note: "Whether this chat has been approved for display"
+      type: uuid
+      note: "UUID of the admin user who approved this chat"
     approved_at:
       type: timestamp
-      note: "When the chat was approved"
+      note: "When the chat was approved by admin"
     content_hash:
       type: string
       length: 64
@@ -50,11 +39,15 @@ demo_chats:
     is_active:
       type: boolean
       default: true
-      note: "Whether this demo chat is active"
+      note: "Whether this demo chat is active (soft delete)"
     deactivated_at:
       type: timestamp
       note: "When the chat was deactivated"
     created_at:
       type: timestamp
-      note: "When the demo chat entry was created"
+      note: "When the demo chat entry was created (used for ordering - newest first)"
       required: true
+    updated_at:
+      type: timestamp
+      note: "When the demo chat was last updated"
+  note: "Demo chats are ordered by created_at DESC. Client generates display IDs (demo-1 to demo-5) based on position. Maximum 5 published demos maintained automatically."

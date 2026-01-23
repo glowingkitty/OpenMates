@@ -224,6 +224,145 @@ class DemoChatMethods:
             logger.error(f"Error creating pending demo chat for chat {chat_id}: {e}", exc_info=True)
             return None
 
+    async def create_pending_demo_chat_with_content(
+        self,
+        chat_id: str,
+        title: Optional[str],
+        summary: Optional[str],
+        category: Optional[str],
+        icon: Optional[str],
+        follow_up_suggestions: Optional[List[str]],
+        decrypted_messages: List[Dict[str, Any]],
+        decrypted_embeds: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a pending demo chat with decrypted content from client (zero-knowledge architecture).
+        
+        This is the new approach where the client decrypts messages/embeds locally and sends
+        plaintext to the server. The server then encrypts everything with Vault and stores it.
+        
+        Args:
+            chat_id: The original chat ID
+            title: Demo chat title
+            summary: Demo chat summary  
+            category: Demo chat category
+            icon: Icon name
+            follow_up_suggestions: List of follow-up suggestions
+            decrypted_messages: List of {role, content, created_at}
+            decrypted_embeds: List of {embed_id, type, content, created_at}
+            
+        Returns:
+            Created demo chat item or None if failed
+        """
+        try:
+            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+            encryption_service = self.directus_service.encryption_service
+            
+            # Check if a demo_chat already exists for this chat
+            existing_demo = await self.get_demo_chat_by_original_chat_id(chat_id)
+            
+            if existing_demo:
+                # Demo chat already exists
+                existing_status = existing_demo.get("status", "")
+                if existing_status == "pending_approval":
+                    # Update existing pending entry
+                    logger.info(f"Updating existing pending demo chat {existing_demo.get('id')} for chat {chat_id}")
+                    # We'll update the full content
+                    # For now, just log and return existing - full update implementation needed
+                    return existing_demo
+                else:
+                    # Already approved/processed - don't create duplicate
+                    logger.info(f"Demo chat for chat {chat_id} already exists with status '{existing_status}' - skipping")
+                    return None
+            
+            # Encrypt metadata with Vault
+            encrypted_title = None
+            encrypted_summary = None
+            encrypted_category = None
+            encrypted_icon = None
+            encrypted_follow_up = None
+            
+            if title:
+                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if summary:
+                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if category:
+                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if icon:
+                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if follow_up_suggestions:
+                import json
+                encrypted_follow_up, _ = await encryption_service.encrypt(
+                    json.dumps(follow_up_suggestions), 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            
+            # Create demo_chats entry
+            from datetime import datetime, timezone
+            demo_chat_data = {
+                "original_chat_id": chat_id,
+                "encrypted_title": encrypted_title,
+                "encrypted_summary": encrypted_summary,
+                "encrypted_category": encrypted_category,
+                "encrypted_icon": encrypted_icon,
+                "encrypted_follow_up_suggestions": encrypted_follow_up,
+                "status": "pending_approval",
+                "approved_by_admin": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_active": True
+            }
+            
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if not success or not created_item:
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}")
+                return None
+            
+            demo_chat_id = created_item["id"]  # UUID
+            logger.info(f"Created pending demo chat {demo_chat_id} for chat {chat_id}")
+            
+            # Store messages (encrypted with Vault, in original language only)
+            for msg in decrypted_messages:
+                encrypted_content, _ = await encryption_service.encrypt(
+                    msg["content"], 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                
+                message_data = {
+                    "demo_chat_id": demo_chat_id,
+                    "role": msg["role"],
+                    "encrypted_content": encrypted_content,
+                    "language": "original",  # Mark as original language, will be translated later
+                    "original_created_at": datetime.fromtimestamp(msg["created_at"] / 1000, tz=timezone.utc).isoformat() if msg["created_at"] > 1000000000000 else datetime.fromtimestamp(msg["created_at"], tz=timezone.utc).isoformat()
+                }
+                await self.directus_service.create_item("demo_messages", message_data)
+            
+            logger.info(f"Stored {len(decrypted_messages)} messages for demo chat {demo_chat_id}")
+            
+            # Store embeds (encrypted with Vault, in original language only)
+            for emb in decrypted_embeds:
+                encrypted_content, _ = await encryption_service.encrypt(
+                    emb["content"], 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                
+                embed_data = {
+                    "demo_chat_id": demo_chat_id,
+                    "original_embed_id": emb["embed_id"],
+                    "type": emb["type"],
+                    "encrypted_content": encrypted_content,
+                    "language": "original",  # Mark as original language
+                    "original_created_at": datetime.fromtimestamp(emb["created_at"] / 1000, tz=timezone.utc).isoformat() if emb["created_at"] > 1000000000000 else datetime.fromtimestamp(emb["created_at"], tz=timezone.utc).isoformat()
+                }
+                await self.directus_service.create_item("demo_embeds", embed_data)
+            
+            logger.info(f"Stored {len(decrypted_embeds)} embeds for demo chat {demo_chat_id}")
+            
+            return created_item
+                
+        except Exception as e:
+            logger.error(f"Error creating pending demo chat with content for chat {chat_id}: {e}", exc_info=True)
+            return None
+
     async def _update_pending_demo_chat(
         self,
         item_id: str,

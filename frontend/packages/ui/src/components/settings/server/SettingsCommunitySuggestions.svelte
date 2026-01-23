@@ -14,7 +14,7 @@
     const dispatch = createEventDispatcher();
 
     interface Suggestion {
-        demo_id?: string;  // The demo_id of the pending demo_chat entry (optional for email deep links)
+        demo_chat_id?: string;  // UUID of the pending demo_chat entry (optional for email deep links)
         chat_id: string;
         title: string;
         summary?: string;
@@ -23,12 +23,12 @@
         follow_up_suggestions?: string[];
         shared_at: string;
         share_link: string;
-        encryption_key?: string;
-        status?: string;  // Status of the demo_chat entry (waiting_for_confirmation)
+        encryption_key?: string;  // No longer needed with zero-knowledge architecture, kept for backward compatibility
+        status?: string;  // Status of the demo_chat entry (pending_approval, translating, published, translation_failed)
     }
 
     interface DemoChat {
-        demo_id: string;
+        id: string;  // UUID of the demo_chat entry
         title?: string;
         summary?: string;
         category?: string;
@@ -135,7 +135,9 @@
 
             if (response.ok) {
                 const data = await response.json();
-                currentDemoChats = data.demo_chats || [];
+                // Only show published demo chats in the "Active Demo Chats" section
+                // Pending/translating demos should only appear in "Other Pending Suggestions"
+                currentDemoChats = (data.demo_chats || []).filter(demo => demo.status === 'published');
             }
 
         } catch (err) {
@@ -195,17 +197,12 @@
 
     /**
      * Approve a chat as demo chat
+     * With zero-knowledge architecture, we don't need to send the encryption key
+     * The server already has the decrypted content stored (Vault-encrypted)
      */
     async function approveDemoChat(suggestion: Suggestion) {
         try {
             isSubmitting = true;
-
-            // Get the actual chat encryption key (decrypting if necessary)
-            const encryptionKey = await getDecryptedChatKey(suggestion);
-
-            if (!encryptionKey) {
-                throw new Error('Encryption key is required to approve demo chat. Please click on the chat preview above to open it in a new window first. This will load the encryption key needed for approval.');
-            }
 
             const response = await fetch(getApiEndpoint('/v1/admin/approve-demo-chat'), {
                 method: 'POST',
@@ -214,13 +211,8 @@
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    demo_id: suggestion.demo_id,  // The demo_id of the pending entry
-                    chat_id: suggestion.chat_id,
-                    encryption_key: encryptionKey,  // Pass the actual plaintext key to backend
-                    title: suggestion.title || 'Demo Chat',
-                    summary: suggestion.summary || '',
-                    category: suggestion.category || 'General',
-                    follow_up_suggestions: suggestion.follow_up_suggestions || []
+                    demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
+                    chat_id: suggestion.chat_id
                 })
             });
 
@@ -262,7 +254,7 @@
      * Reject a community suggestion
      * Deactivates the pending demo_chat entry and removes from community suggestions
      */
-    async function rejectSuggestion(demoId: string, chatId: string) {
+    async function rejectSuggestion(demoChatId: string, chatId: string) {
         if (!confirm('Are you sure you want to reject this suggestion? It will be removed from the review queue.')) {
             return;
         }
@@ -277,7 +269,7 @@
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    demo_id: demoId,
+                    demo_chat_id: demoChatId,  // UUID
                     chat_id: chatId
                 })
             });
@@ -316,17 +308,17 @@
 
     /**
      * Helper to reject a pending suggestion from email deep link
-     * Looks up the demo_id from loaded suggestions if not present in the pendingSuggestion
+     * Looks up the demo_chat_id from loaded suggestions if not present in the pendingSuggestion
      */
     function rejectPendingSuggestion(suggestion: Suggestion) {
-        // For email deep-link pending suggestions, look up demo_id from loaded suggestions
+        // For email deep-link pending suggestions, look up demo_chat_id from loaded suggestions
         const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
-        const demoId = suggestion.demo_id || matchingSuggestion?.demo_id || '';
+        const demoChatId = suggestion.demo_chat_id || matchingSuggestion?.demo_chat_id || '';
         
-        if (demoId) {
-            rejectSuggestion(demoId, suggestion.chat_id);
+        if (demoChatId) {
+            rejectSuggestion(demoChatId, suggestion.chat_id);
         } else {
-            console.error('Cannot reject: demo_id not found for chat', suggestion.chat_id);
+            console.error('Cannot reject: demo_chat_id not found for chat', suggestion.chat_id);
             dispatch('showToast', {
                 type: 'error',
                 message: 'Cannot reject: suggestion not found in pending list'
@@ -336,19 +328,19 @@
 
     /**
      * Helper to approve a pending suggestion from email deep link
-     * Merges demo_id from loaded suggestions if not present in the pendingSuggestion
+     * Merges demo_chat_id from loaded suggestions if not present in the pendingSuggestion
      */
     function approvePendingSuggestion(suggestion: Suggestion) {
-        // For email deep-link pending suggestions, merge with matching loaded suggestion to get demo_id
+        // For email deep-link pending suggestions, merge with matching loaded suggestion to get demo_chat_id
         const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
         const mergedSuggestion = matchingSuggestion 
-            ? { ...suggestion, demo_id: matchingSuggestion.demo_id }
+            ? { ...suggestion, demo_chat_id: matchingSuggestion.demo_chat_id }
             : suggestion;
         
-        if (mergedSuggestion.demo_id) {
+        if (mergedSuggestion.demo_chat_id) {
             approveDemoChat(mergedSuggestion);
         } else {
-            console.error('Cannot approve: demo_id not found for chat', suggestion.chat_id);
+            console.error('Cannot approve: demo_chat_id not found for chat', suggestion.chat_id);
             dispatch('showToast', {
                 type: 'error',
                 message: 'Cannot approve: suggestion not found in pending list'
@@ -359,7 +351,7 @@
     /**
      * Remove a demo chat
      */
-    async function removeDemoChat(demoId: string) {
+    async function removeDemoChat(demoChatId: string) {
         if (!confirm('Are you sure you want to remove this demo chat? This action cannot be undone.')) {
             return;
         }
@@ -367,7 +359,7 @@
         try {
             isSubmitting = true;
 
-            const response = await fetch(getApiEndpoint(`/v1/admin/demo-chat/${demoId}`), {
+            const response = await fetch(getApiEndpoint(`/v1/admin/demo-chat/${demoChatId}`), {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -552,7 +544,7 @@
                         <div class="demo-footer">
                             <span class="demo-date">{formatDate(demo.created_at)}</span>
                             <button
-                                onclick={() => removeDemoChat(demo.demo_id)}
+                                onclick={() => removeDemoChat(demo.id)}
                                 class="btn btn-danger btn-small"
                                 disabled={isSubmitting}
                             >
@@ -666,7 +658,7 @@
 
                         <div class="suggestion-actions">
                             <button
-                                onclick={() => rejectSuggestion(suggestion.demo_id, suggestion.chat_id)}
+                                onclick={() => rejectSuggestion(suggestion.demo_chat_id, suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
                                 disabled={isSubmitting}
                             >

@@ -57,7 +57,9 @@ class ShareChatMetadataUpdate(BaseModel):
     follow_up_suggestions: Optional[List[str]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
-    share_link: Optional[str] = None  # The share link URL (for community sharing notification)
+    # For community sharing: client sends decrypted messages and embeds (zero-knowledge architecture)
+    decrypted_messages: Optional[List[Dict[str, Any]]] = None  # [{role, content, created_at}]
+    decrypted_embeds: Optional[List[Dict[str, Any]]] = None  # [{embed_id, type, content, created_at}]
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -501,34 +503,28 @@ async def update_share_metadata(
             except Exception as e:
                 logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
         
-        # If chat is shared with community, create a pending demo_chat entry and send notification email
-        if payload.share_with_community and payload.share_link:
-            demo_id = None
+        # If chat is shared with community, create a pending demo_chat entry with messages/embeds
+        # Zero-knowledge architecture: Client decrypts and sends plaintext, server stores encrypted with Vault
+        if payload.share_with_community and payload.decrypted_messages:
+            demo_chat_id = None
             try:
-                # Extract encryption key from share_link for demo_chat creation
-                encryption_key = None
-                if "#key=" in payload.share_link:
-                    encryption_key = payload.share_link.split("#key=")[1]
-                
-                if encryption_key:
-                    # Create a pending demo_chat entry with status='waiting_for_confirmation'
-                    # This allows the admin to see and approve it in the community suggestions UI
-                    demo_chat = await directus_service.demo_chat.create_pending_demo_chat(
-                        chat_id=chat_id,
-                        encryption_key=encryption_key,
-                        title=payload.title,
-                        summary=payload.summary,
-                        category=payload.category,
-                        icon=payload.icon,
-                        follow_up_suggestions=payload.follow_up_suggestions
-                    )
-                    if demo_chat:
-                        demo_id = demo_chat.get("demo_id")
-                        logger.info(f"Created pending demo chat {demo_id} for community-shared chat {chat_id}")
-                    else:
-                        logger.warning(f"Failed to create pending demo chat for chat {chat_id}")
+                # Create a pending demo_chat entry with status='pending_approval'
+                # Store messages and embeds encrypted with Vault (not the user's chat key)
+                demo_chat = await directus_service.demo_chat.create_pending_demo_chat_with_content(
+                    chat_id=chat_id,
+                    title=payload.title,
+                    summary=payload.summary,
+                    category=payload.category,
+                    icon=payload.icon,
+                    follow_up_suggestions=payload.follow_up_suggestions,
+                    decrypted_messages=payload.decrypted_messages,  # [{role, content, created_at}]
+                    decrypted_embeds=payload.decrypted_embeds or []  # [{embed_id, type, content, created_at}]
+                )
+                if demo_chat:
+                    demo_chat_id = demo_chat.get("id")  # UUID, not demo_id string
+                    logger.info(f"Created pending demo chat {demo_chat_id} for community-shared chat {chat_id}")
                 else:
-                    logger.warning(f"No encryption key found in share link for chat {chat_id}")
+                    logger.warning(f"Failed to create pending demo chat for chat {chat_id}")
             except Exception as e:
                 # Log error but don't fail the request - demo chat creation is secondary
                 logger.error(f"Failed to create pending demo chat for chat {chat_id}: {e}", exc_info=True)
@@ -547,9 +543,8 @@ async def update_share_metadata(
                         "chat_summary": payload.summary or "",
                         "category": payload.category,
                         "icon": payload.icon,
-                        "share_link": payload.share_link,
                         "chat_id": chat_id,
-                        "demo_id": demo_id  # Include demo_id if created
+                        "demo_chat_id": demo_chat_id  # UUID of the demo_chat entry
                     },
                     queue='email'
                 )

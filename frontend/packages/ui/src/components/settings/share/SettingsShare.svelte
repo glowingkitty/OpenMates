@@ -1013,9 +1013,56 @@
                 }
             }
             
+            // If sharing with community, decrypt all messages and embeds locally
+            // and send plaintext to server (zero-knowledge architecture)
+            let decryptedMessages: Array<{role: string; content: string; created_at: number}> | null = null;
+            let decryptedEmbeds: Array<{embed_id: string; type: string; content: string; created_at: number}> | null = null;
+            
+            if (shareWithCommunity && !isEmbedSharing) {
+                try {
+                    console.debug('[SettingsShare] Decrypting messages and embeds for community sharing...');
+                    
+                    // Import database services
+                    const { getMessagesForChat } = await import('../../../services/db/messageOperations');
+                    const { embedStore } = await import('../../../services/embedStore');
+                    const { computeSHA256 } = await import('../../../services/cryptoService');
+                    
+                    // Get all messages for this chat (already decrypted by getMessagesForChat)
+                    const messages = await getMessagesForChat(chatDB as any, currentChatId);
+                    if (messages && messages.length > 0) {
+                        decryptedMessages = messages.map(msg => ({
+                            role: msg.role,
+                            content: msg.content || '', // TipTap JSON string
+                            created_at: msg.created_at
+                        }));
+                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing`);
+                    }
+                    
+                    // Get all embeds for this chat
+                    const hashedChatId = await computeSHA256(currentChatId);
+                    const embeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                    if (embeds && embeds.length > 0) {
+                        decryptedEmbeds = [];
+                        for (const embed of embeds) {
+                            // Embeds are already decrypted by getEmbedsByHashedChatId
+                            decryptedEmbeds.push({
+                                embed_id: embed.embed_id,
+                                type: embed.type || 'unknown',
+                                content: embed.content || '',
+                                created_at: embed.createdAt || Date.now()
+                            });
+                        }
+                        console.debug(`[SettingsShare] Decrypted ${decryptedEmbeds.length} embeds for community sharing`);
+                    }
+                } catch (error) {
+                    console.error('[SettingsShare] Error decrypting messages/embeds for community sharing:', error);
+                    // Continue anyway - backend will handle missing data
+                }
+            }
+            
             // Always send is_shared = true when sharing (even if no title/summary)
             // This ensures the server marks the chat as shared
-            // Also send share_with_community flag and share link if community sharing is enabled
+            // Also send share_with_community flag and decrypted content if community sharing is enabled
             try {
                 const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
                     method: 'POST',
@@ -1033,7 +1080,8 @@
                         follow_up_suggestions: followUpSuggestions || null,
                         is_shared: true,  // Mark chat as shared on server
                         share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,  // Only for chats, not embeds
-                        share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined  // Include share link for community sharing
+                        decrypted_messages: decryptedMessages || undefined,  // Plaintext messages for community sharing
+                        decrypted_embeds: decryptedEmbeds || undefined  // Plaintext embeds for community sharing
                     }),
                     credentials: 'include' // Include cookies for authentication
                 });

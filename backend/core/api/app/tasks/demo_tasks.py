@@ -16,148 +16,152 @@ logger = logging.getLogger(__name__)
 TARGET_LANGUAGES = ["en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"]
 
 @app.task(name="demo.translate_chat", bind=True, base=BaseServiceTask)
-def translate_demo_chat_task(self, demo_id: str):
+def translate_demo_chat_task(self, demo_chat_id: str):
     """
     Celery task to translate a demo chat into all target languages.
+    
+    Args:
+        demo_chat_id: UUID of the demo_chats entry (not the old demo-1, demo-2 string IDs)
     """
     task_id = self.request.id
-    logger.info(f"Starting translation task for demo_id: {demo_id}, task_id: {task_id}")
+    logger.info(f"Starting translation task for demo_chat_id: {demo_chat_id}, task_id: {task_id}")
     
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_translate_demo_chat(self, demo_id, task_id))
+        loop.run_until_complete(_async_translate_demo_chat(self, demo_chat_id, task_id))
     except Exception as e:
         logger.error(f"Error in translate_demo_chat_task: {e}", exc_info=True)
         if loop:
-            loop.run_until_complete(_update_demo_status(self, demo_id, "error"))
+            loop.run_until_complete(_update_demo_status(self, demo_chat_id, "translation_failed"))
         raise
     finally:
         if loop:
             loop.close()
 
-async def _update_demo_status(task: BaseServiceTask, demo_id: str, status: str):
+async def _update_demo_status(task: BaseServiceTask, demo_chat_id: str, status: str):
+    """Update demo chat status by UUID."""
     try:
         await task.initialize_services()
-        await task.directus_service.update_item("demo_chats", demo_id, {"status": status})
+        # demo_chat_id is already the UUID, can update directly
+        await task.directus_service.update_item("demo_chats", demo_chat_id, {"status": status}, admin_required=True)
     except Exception as e:
         logger.error(f"Failed to update demo status to {status}: {e}")
 
-async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_id: str):
+async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, task_id: str):
+    """
+    Translate a demo chat to all target languages.
+    
+    The demo chat was created by the client sending decrypted messages/embeds.
+    We load the messages/embeds from demo_messages and demo_embeds tables (already encrypted with Vault).
+    Decrypt them, translate to all languages, then store the translations.
+    """
     await task.initialize_services()
     
     try:
         # 1. Fetch demo chat metadata
-        demo_chat = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        demo_chat = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_chat_id)
         if not demo_chat:
-            logger.error(f"Demo chat {demo_id} not found")
+            logger.error(f"Demo chat {demo_chat_id} not found")
             return
 
-        original_chat_id = demo_chat["original_chat_id"]
-        encrypted_key_blob = demo_chat["encrypted_key"]  # This is the encrypted share key blob
+        # 2. Fetch original messages from demo_messages table (language='original')
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
         
-        if not encrypted_key_blob:
-            logger.error(f"Demo chat {demo_id} has no encrypted_key - cannot decrypt messages")
-            return
+        messages_params = {
+            "filter": {
+                "demo_chat_id": {"_eq": demo_chat_id},
+                "language": {"_eq": "original"}
+            },
+            "sort": ["original_created_at"]  # Sort by original timestamp
+        }
+        demo_messages = await task.directus_service.get_items("demo_messages", messages_params)
         
-        # Decrypt the share key blob to get the actual chat encryption key
-        # The blob is encrypted with AES-GCM using a key derived from the chat_id
-        # When a user shares a chat with community, the frontend creates a share blob containing:
-        # - chat_encryption_key: The raw 32-byte NaCl key (base64 encoded)
-        # - generated_at: Unix timestamp
-        # - duration_seconds: Expiration duration
-        # - pwd: Password flag
-        # This blob is encrypted with AES-GCM and stored in demo_chats.encrypted_key
-        encryption_key_b64 = _decrypt_share_key_blob(encrypted_key_blob, original_chat_id)
-        if not encryption_key_b64:
-            logger.error(
-                f"Failed to decrypt share key blob for demo chat {demo_id}. "
-                f"This usually means the encrypted_key was corrupted or is not a valid share blob. "
-                f"The user may need to re-share the chat with community. "
-                f"encrypted_key length: {len(encrypted_key_blob) if encrypted_key_blob else 0}"
-            )
-            # Update status to indicate translation failed
-            demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        if not demo_messages:
+            logger.error(f"No original messages found for demo chat {demo_chat_id}")
+            demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_chat_id)
             if demo_chat_item and demo_chat_item.get("id"):
-                item_id = demo_chat_item["id"]
-                await task.directus_service.update_item("demo_chats", item_id, {
+                await task.directus_service.update_item("demo_chats", demo_chat_item["id"], {
                     "status": "translation_failed"
                 }, admin_required=True)
             return
         
-        logger.info(f"Successfully extracted encryption key for demo chat {demo_id}")
-        
-        # 2. Fetch and decrypt original messages and embeds
-        # We need ALL fields for messages to recreate them correctly
-        messages = await task.directus_service.chat.get_all_messages_for_chat(original_chat_id, decrypt_content=False)
-        # Fetch embeds for the chat
-        hashed_chat_id = hashlib.sha256(original_chat_id.encode()).hexdigest()
-        embeds = await task.directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-
+        # 3. Decrypt messages
         decrypted_messages = []
-        for msg in messages:
-            # Parse JSON string if needed
-            if isinstance(msg, str):
-                try:
-                    msg = json.loads(msg)
-                except Exception:
-                    logger.error(f"Failed to parse message JSON: {msg}")
-                    continue
-
-            content = _decrypt_client_side(msg.get("encrypted_content", ""), encryption_key_b64)
-            if content:
+        for msg in demo_messages:
+            decrypted_content = await task.encryption_service.decrypt(
+                msg["encrypted_content"],
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            if decrypted_content:
                 decrypted_messages.append({
                     "role": msg["role"],
-                    "content": content,
-                    "order": msg.get("created_at", 0) # Use created_at for order if message_order is not available
+                    "content": decrypted_content,
+                    "original_created_at": msg["original_created_at"]
                 })
         
-        # Sort messages by order
-        decrypted_messages.sort(key=lambda x: x["order"])
-        for i, msg in enumerate(decrypted_messages):
-            msg["order"] = i
-
+        logger.info(f"Loaded and decrypted {len(decrypted_messages)} messages for demo chat {demo_chat_id}")
+        
+        # 4. Fetch original embeds from demo_embeds table
+        embeds_params = {
+            "filter": {
+                "demo_chat_id": {"_eq": demo_chat_id},
+                "language": {"_eq": "original"}
+            },
+            "sort": ["original_created_at"]
+        }
+        demo_embeds = await task.directus_service.get_items("demo_embeds", embeds_params)
+        
+        # 5. Decrypt embeds
         decrypted_embeds = []
-        for emb in embeds:
-            # Parse JSON string if needed
-            if isinstance(emb, str):
-                try:
-                    emb = json.loads(emb)
-                except Exception:
-                    logger.error(f"Failed to parse embed JSON: {emb}")
-                    continue
-
-            content = _decrypt_client_side(emb.get("encrypted_content", ""), encryption_key_b64)
-            if content:
+        for emb in demo_embeds or []:
+            decrypted_content = await task.encryption_service.decrypt(
+                emb["encrypted_content"],
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            if decrypted_content:
                 decrypted_embeds.append({
-                    "embed_id": emb["embed_id"],
-                    "content": content,
-                    "type": _decrypt_client_side(emb.get("encrypted_type", ""), encryption_key_b64) or "unknown",
-                    "order": emb.get("created_at", 0)
+                    "original_embed_id": emb["original_embed_id"],
+                    "type": emb["type"],
+                    "content": decrypted_content,
+                    "original_created_at": emb["original_created_at"]
                 })
-
-        # 3. Translate using batch translation (one API call per text instead of per language)
-        logger.info(f"Translating demo {demo_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
+        
+        logger.info(f"Loaded and decrypted {len(decrypted_embeds)} embeds for demo chat {demo_chat_id}")
+        
+        # 6. Decrypt demo metadata
+        title = None
+        summary = None
+        follow_up_suggestions = []
+        
+        if demo_chat.get("encrypted_title"):
+            title = await task.encryption_service.decrypt(demo_chat["encrypted_title"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
+        if demo_chat.get("encrypted_summary"):
+            summary = await task.encryption_service.decrypt(demo_chat["encrypted_summary"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
+        if demo_chat.get("encrypted_follow_up_suggestions"):
+            import json
+            follow_up_json = await task.encryption_service.decrypt(demo_chat["encrypted_follow_up_suggestions"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
+            if follow_up_json:
+                try:
+                    follow_up_suggestions = json.loads(follow_up_json)
+                except Exception:
+                    pass
+        
+        # 7. Translate metadata and messages using batch translation
+        logger.info(f"Translating demo {demo_chat_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
         
         # Translate metadata in batches
-        title_translations = await _translate_text_batch(task, demo_chat.get("title", "Demo Chat"), TARGET_LANGUAGES)
-        summary_translations = await _translate_text_batch(task, demo_chat.get("summary", ""), TARGET_LANGUAGES)
+        title_translations = await _translate_text_batch(task, title or "Demo Chat", TARGET_LANGUAGES)
+        summary_translations = await _translate_text_batch(task, summary or "", TARGET_LANGUAGES)
         
         # Translate follow-up suggestions in batches
-        follow_up = demo_chat.get("follow_up_suggestions")
         follow_up_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
-        if follow_up:
-            if isinstance(follow_up, str):
-                try:
-                    follow_up = json.loads(follow_up)
-                except Exception:
-                    follow_up = []
-            if isinstance(follow_up, list):
-                for suggestion in follow_up:
-                    suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES)
-                    for lang in TARGET_LANGUAGES:
-                        follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
+        if follow_up_suggestions:
+            for suggestion in follow_up_suggestions:
+                suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES)
+                for lang in TARGET_LANGUAGES:
+                    follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
         
         # Translate messages in batches
         message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
@@ -167,185 +171,99 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_id: str, task_i
             for lang in TARGET_LANGUAGES:
                 message_translations_by_lang[lang].append(msg_translations[lang])
         
-        # 4. Store translations for each language
+        # 8. Store translations for each language
         for lang in TARGET_LANGUAGES:
             logger.info(f"Storing translations for {lang}...")
             
-            # Store metadata translation
+            # Store metadata translation (Vault-encrypted)
+            encrypted_title, _ = await task.encryption_service.encrypt(
+                title_translations[lang], 
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            encrypted_summary, _ = await task.encryption_service.encrypt(
+                summary_translations[lang], 
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            
+            import json
+            encrypted_follow_up, _ = await task.encryption_service.encrypt(
+                json.dumps(follow_up_translations_by_lang[lang]), 
+                key_name=DEMO_CHATS_ENCRYPTION_KEY
+            )
+            
             translation_data = {
-                "demo_id": demo_id,
+                "demo_chat_id": demo_chat_id,
                 "language": lang,
-                "title": title_translations[lang],
-                "summary": summary_translations[lang],
-                "follow_up_suggestions": follow_up_translations_by_lang[lang]
+                "encrypted_title": encrypted_title,
+                "encrypted_summary": encrypted_summary,
+                "encrypted_follow_up_suggestions": encrypted_follow_up
             }
             await task.directus_service.create_item("demo_chat_translations", translation_data)
 
             # Store translated messages
             for i, translated_content in enumerate(message_translations_by_lang[lang]):
-                # Encrypt server-side
+                # Encrypt translated content with Vault
                 encrypted_content, _ = await task.encryption_service.encrypt(
                     translated_content, 
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
                 
                 message_data = {
-                    "demo_id": demo_id,
+                    "demo_chat_id": demo_chat_id,
                     "language": lang,
                     "role": decrypted_messages[i]["role"],
                     "encrypted_content": encrypted_content,
-                    "message_order": i
+                    "original_created_at": decrypted_messages[i]["original_created_at"]
                 }
                 await task.directus_service.create_item("demo_messages", message_data)
 
-            # Store embeds (no translation for now as per user request)
-            for i, emb in enumerate(decrypted_embeds):
-                # Encrypt server-side
+            # Store embeds (no translation for now, just copy with language marker)
+            for emb in decrypted_embeds:
+                # Encrypt embed content with Vault
                 encrypted_content, _ = await task.encryption_service.encrypt(
                     emb["content"], 
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
                 
                 embed_data = {
-                    "demo_id": demo_id,
+                    "demo_chat_id": demo_chat_id,
                     "language": lang,
-                    "embed_id": emb["embed_id"],
+                    "original_embed_id": emb["original_embed_id"],
                     "encrypted_content": encrypted_content,
                     "type": emb["type"],
-                    "embed_order": i
+                    "original_created_at": emb["original_created_at"]
                 }
                 await task.directus_service.create_item("demo_embeds", embed_data)
 
-        # 4. Generate content hash for change detection
-        # The hash is computed from all message contents and embed contents
-        # This allows clients to detect when demo content has changed
+        # 9. Generate content hash for change detection
         hash_content = ""
         for msg in decrypted_messages:
             hash_content += f"{msg['role']}:{msg['content']}\n"
         for emb in decrypted_embeds:
-            hash_content += f"embed:{emb['embed_id']}:{emb['content']}\n"
+            hash_content += f"embed:{emb['original_embed_id']}:{emb['content']}\n"
+        import hashlib
         content_hash = hashlib.sha256(hash_content.encode('utf-8')).hexdigest()
-        logger.info(f"Generated content hash for demo chat {demo_id}: {content_hash[:16]}...")
+        logger.info(f"Generated content hash for demo chat {demo_chat_id}: {content_hash[:16]}...")
         
-        # 5. Update status to published (requires admin privileges)
-        # First get the demo chat to find its actual Directus item ID
-        demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        # 10. Update status to published
+        demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_chat_id)
         if demo_chat_item and demo_chat_item.get("id"):
-            item_id = demo_chat_item["id"]  # This is the Directus item ID (UUID)
-            await task.directus_service.update_item("demo_chats", item_id, {
+            from datetime import datetime, timezone
+            await task.directus_service.update_item("demo_chats", demo_chat_item["id"], {
                 "status": "published",
                 "approved_at": datetime.now(timezone.utc).isoformat(),
                 "content_hash": content_hash
             }, admin_required=True)
         else:
-            logger.warning(f"Could not find demo chat {demo_id} to update status to published")
+            logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
         
-        # 5. Clear and reload cache
+        # 11. Clear and reload cache
         await task.directus_service.cache.clear_demo_chats_cache()
-        # Trigger warming (optional, depends on if we have a warming task)
-        # await task.directus_service.cache.warm_demo_chats_cache()
 
-        logger.info(f"Successfully published demo chat {demo_id} in {len(TARGET_LANGUAGES)} languages")
+        logger.info(f"Successfully published demo chat {demo_chat_id} in {len(TARGET_LANGUAGES)} languages")
 
     finally:
         await task.cleanup_services()
-
-def _decrypt_share_key_blob(encrypted_blob: str, chat_id: str) -> Optional[str]:
-    """
-    Decrypt a share key blob to extract the raw chat encryption key.
-    
-    The share key blob is encrypted with AES-GCM using a key derived from the chat_id.
-    This mirrors the frontend's decryptShareKeyBlob function.
-    
-    Structure:
-    - Key derivation: PBKDF2 with chat_id, salt="openmates-share-v1", 100000 iterations, SHA-256
-    - Encryption: AES-GCM with 12-byte IV prepended to ciphertext
-    - Blob format: URL-encoded params (chat_encryption_key, generated_at, duration_seconds, pwd)
-    
-    Args:
-        encrypted_blob: Base64 URL-safe encoded encrypted blob
-        chat_id: The original chat ID used to derive the decryption key
-        
-    Returns:
-        The raw chat encryption key (base64 encoded) or None if decryption fails
-    """
-    if not encrypted_blob or not chat_id:
-        return None
-    
-    try:
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        from urllib.parse import parse_qs
-        
-        # 1. Decode the base64 URL-safe blob
-        # Convert URL-safe base64 to standard base64
-        base64_standard = encrypted_blob.replace('-', '+').replace('_', '/')
-        # Add padding if needed
-        padding = 4 - (len(base64_standard) % 4)
-        if padding != 4:
-            base64_standard += '=' * padding
-        
-        combined = base64.b64decode(base64_standard)
-        
-        # 2. Extract IV (first 12 bytes) and ciphertext
-        if len(combined) <= 12:
-            logger.error(f"Share key blob too short: {len(combined)} bytes")
-            return None
-        
-        iv = combined[:12]
-        ciphertext = combined[12:]
-        
-        # 3. Derive the decryption key using PBKDF2
-        salt = b"openmates-share-v1"
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,  # 256 bits for AES-GCM
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(chat_id.encode('utf-8'))
-        
-        # 4. Decrypt with AES-GCM
-        aesgcm = AESGCM(derived_key)
-        decrypted_bytes = aesgcm.decrypt(iv, ciphertext, None)
-        serialized = decrypted_bytes.decode('utf-8')
-        
-        # 5. Parse URL-encoded parameters to extract chat_encryption_key
-        # Format: chat_encryption_key=...&generated_at=...&duration_seconds=...&pwd=0|1
-        params = parse_qs(serialized)
-        
-        chat_encryption_key = params.get('chat_encryption_key', [None])[0]
-        if not chat_encryption_key:
-            logger.error("No chat_encryption_key found in decrypted share blob")
-            return None
-        
-        logger.info(f"Successfully decrypted share key blob for chat {chat_id[:8]}...")
-        return chat_encryption_key
-        
-    except Exception as e:
-        logger.error(f"Failed to decrypt share key blob: {e}", exc_info=True)
-        return None
-
-
-def _decrypt_client_side(ciphertext_b64: str, key_b64: str) -> Optional[str]:
-    """Decrypt content encrypted with TweetNaCl (XSalsa20-Poly1305) on the client side."""
-    if not ciphertext_b64:
-        return ""
-    try:
-        import nacl.secret
-        import nacl.utils
-        key = base64.b64decode(key_b64)
-        combined = base64.b64decode(ciphertext_b64)
-        if len(combined) <= 24:
-            return None
-        nonce = combined[:24]
-        ciphertext = combined[24:]
-        box = nacl.secret.SecretBox(key)
-        return box.decrypt(ciphertext, nonce).decode('utf-8')
-    except Exception as e:
-        logger.error(f"Client-side decryption failed: {e}")
-        return None
 
 async def _translate_text_batch(task: BaseServiceTask, text: str, target_languages: list) -> dict:
     """

@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from backend.core.api.app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
-from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
+from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item, delete_item, delete_items # Import delete methods
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
 from backend.core.api.app.services.directus.gift_card_methods import (
     get_gift_card_by_code, 

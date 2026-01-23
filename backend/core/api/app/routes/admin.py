@@ -47,17 +47,12 @@ class BecomeAdminRequest(BaseModel):
 
 class ApproveDemoChatRequest(BaseModel):
     """Request model for approving a demo chat"""
-    demo_id: str  # The demo_id of the pending demo_chat entry
+    demo_chat_id: str  # UUID of the demo_chats entry
     chat_id: str  # The original chat_id (for verification)
-    encryption_key: str  # Encryption key from share link - required for non-auth users to decrypt
-    title: str
-    summary: str = ""
-    category: str = ""
-    follow_up_suggestions: List[str] = []
 
 class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
-    demo_id: str  # The demo_id of the pending demo_chat entry
+    demo_chat_id: str  # UUID of the demo_chats entry
     chat_id: str  # The original chat_id (for updating the chats table)
 
 # --- Endpoints ---
@@ -126,7 +121,7 @@ async def get_community_suggestions(
         
         suggestions = []
         for demo in pending_demos:
-            demo_id = demo.get("demo_id")
+            demo_chat_item = demo  # demo is already the full item with 'id' field
             chat_id = demo.get("original_chat_id")
             
             # Decrypt metadata using demo_chats vault key
@@ -138,7 +133,7 @@ async def get_community_suggestions(
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt title for pending demo {demo_id}: {e}")
+                    logger.warning(f"Failed to decrypt title for pending demo {demo_chat_item['id']}: {e}")
             
             summary = None
             if demo.get("encrypted_summary"):
@@ -148,7 +143,7 @@ async def get_community_suggestions(
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt summary for pending demo {demo_id}: {e}")
+                    logger.warning(f"Failed to decrypt summary for pending demo {demo_chat_item['id']}: {e}")
             
             category = None
             if demo.get("encrypted_category"):
@@ -158,7 +153,7 @@ async def get_community_suggestions(
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt category for pending demo {demo_id}: {e}")
+                    logger.warning(f"Failed to decrypt category for pending demo {demo_chat_item['id']}: {e}")
             
             icon = None
             if demo.get("encrypted_icon"):
@@ -168,7 +163,7 @@ async def get_community_suggestions(
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt icon for pending demo {demo_id}: {e}")
+                    logger.warning(f"Failed to decrypt icon for pending demo {demo_chat_item['id']}: {e}")
             
             follow_up_suggestions = []
             if demo.get("encrypted_follow_up_suggestions"):
@@ -180,14 +175,13 @@ async def get_community_suggestions(
                     if decrypted_follow_ups:
                         follow_up_suggestions = json.loads(decrypted_follow_ups)
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt follow-up suggestions for pending demo {demo_id}: {e}")
+                    logger.warning(f"Failed to decrypt follow-up suggestions for pending demo {demo_chat_item['id']}: {e}")
             
-            # The encryption key is stored directly (not encrypted with vault key)
-            # It's the chat encryption key needed for demo chat translation
-            encryption_key = demo.get("encrypted_key")
+            # No encryption_key field anymore with zero-knowledge architecture
+            encryption_key = None
             
             suggestions.append({
-                "demo_id": demo_id,
+                "demo_chat_id": demo_chat_item["id"],  # UUID of the demo_chats entry
                 "chat_id": chat_id,
                 "title": title or "Untitled Chat",
                 "summary": summary,
@@ -220,7 +214,7 @@ async def approve_demo_chat(
     """
     Approve a pending demo chat for translation and publication.
 
-    Updates an existing demo_chat entry (status='waiting_for_confirmation') to
+    Updates an existing demo_chat entry (status='pending_approval') to
     status='translating' and triggers the translation task.
     
     Enforces a limit of 5 published demo chats - if at limit, deactivates the oldest.
@@ -228,13 +222,13 @@ async def approve_demo_chat(
     try:
         from datetime import datetime, timezone
         
-        # Verify the pending demo_chat exists
-        demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(payload.demo_id)
+        # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
+        demo_chat = await directus_service.get_item_by_id("demo_chats", payload.demo_chat_id)
         if not demo_chat:
             raise HTTPException(status_code=404, detail="Demo chat not found")
         
         # Verify it's in pending status
-        if demo_chat.get("status") != "waiting_for_confirmation":
+        if demo_chat.get("status") != "pending_approval":
             raise HTTPException(
                 status_code=400, 
                 detail=f"Demo chat is not pending approval (current status: {demo_chat.get('status')})"
@@ -255,46 +249,43 @@ async def approve_demo_chat(
         # Check current published demo chat count and remove oldest if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
         if len(current_demos) >= 5:
-            # Sort by approved_at (or created_at as fallback) and remove the oldest
-            current_demos.sort(key=lambda x: x.get("approved_at") or x.get("created_at", ""))
+            # Sort by created_at and delete the oldest (with all related data)
+            current_demos.sort(key=lambda x: x.get("created_at", ""))
             oldest_demo = current_demos[0]
-            await directus_service.demo_chat.deactivate_demo_chat(oldest_demo["demo_id"])
-            logger.info(f"Deactivated oldest demo chat {oldest_demo['demo_id']} to make room for new demo")
+            oldest_demo_id = oldest_demo["id"]
+            
+            logger.info(f"Deleting oldest demo chat {oldest_demo_id} to make room for new demo")
+            
+            # Batch delete all related data using filters
+            # Note: Directus batch delete uses filter parameters
+            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
+            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
+            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
+            
+            # Finally, delete the demo_chat entry itself
+            await directus_service.delete_item("demo_chats", oldest_demo_id, admin_required=True)
+            logger.info(f"Deleted oldest demo chat {oldest_demo_id} and all related data")
         
-        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> true
-        # Also store the title/summary for the translation table
-        demo_item_id = demo_chat.get("id")
+        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID
         updates = {
             "status": "translating",
-            "approved_by_admin": True,
-            "approved_at": datetime.now(timezone.utc).isoformat(),
-            "encrypted_key": payload.encryption_key  # Update in case it changed
+            "approved_by_admin": admin_user.id,  # Store admin UUID
+            "approved_at": datetime.now(timezone.utc).isoformat()
         }
         
-        result = await directus_service.update_item("demo_chats", demo_item_id, updates)
+        result = await directus_service.update_item("demo_chats", payload.demo_chat_id, updates, admin_required=True)
         if not result:
             raise HTTPException(status_code=500, detail="Failed to update demo chat status")
         
-        # Create initial English translation entry for immediate display
-        # This will be overwritten by the translation task with all languages
-        initial_translation = {
-            "demo_id": payload.demo_id,
-            "language": "en",
-            "title": payload.title,
-            "summary": payload.summary,
-            "follow_up_suggestions": payload.follow_up_suggestions
-        }
-        await directus_service.create_item("demo_chat_translations", initial_translation)
-        
-        # Trigger translation task
+        # Trigger translation task (pass UUID, not demo_id string)
         from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
-        translate_demo_chat_task.delay(payload.demo_id)
+        translate_demo_chat_task.delay(payload.demo_chat_id)
         
-        logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_id} for chat {payload.chat_id}. Translation task triggered.")
+        logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_chat_id} for chat {payload.chat_id}. Translation task triggered.")
         
         return {
             "success": True,
-            "demo_id": payload.demo_id,
+            "demo_chat_id": payload.demo_chat_id,
             "message": "Demo chat approved and translation process started"
         }
     
@@ -315,14 +306,23 @@ async def reject_suggestion(
     """
     Reject a pending community suggestion.
     
-    This deactivates the pending demo_chat entry and sets share_with_community 
-    to False on the original chat so it won't be re-submitted.
+    This deletes the pending demo_chat entry and all related data (messages, embeds, translations)
+    and sets share_with_community to False on the original chat so it won't be re-submitted.
     """
     try:
-        # Deactivate the pending demo_chat entry
-        success = await directus_service.demo_chat.deactivate_demo_chat(payload.demo_id)
+        demo_chat_id = payload.demo_chat_id
+        
+        # Batch delete all related data using filters
+        await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        
+        # Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
         if not success:
-            raise HTTPException(status_code=404, detail="Demo chat not found or already deactivated")
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
         
         # Also update the original chat to remove from community suggestions
         # This prevents it from being re-submitted
@@ -332,7 +332,7 @@ async def reject_suggestion(
             {"share_with_community": False}
         )
         
-        logger.info(f"Admin {admin_user.id} rejected community suggestion demo_id={payload.demo_id} for chat {payload.chat_id}")
+        logger.info(f"Admin {admin_user.id} rejected community suggestion demo_chat_id={payload.demo_chat_id} for chat {payload.chat_id}")
         
         return {
             "success": True,
@@ -362,14 +362,42 @@ async def get_admin_demo_chats(
         
         # Enrich with language-specific metadata
         enriched_demos = []
+        encryption_service = directus_service.encryption_service
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        
         for demo in demo_chats:
-            translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], lang)
-            if not translation and lang != "en":
-                translation = await directus_service.demo_chat.get_demo_chat_translation(demo["demo_id"], "en")
+            demo_chat_id = demo["id"]  # UUID
             
+            # Get translation for this language
+            translation_params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_id},
+                    "language": {"_eq": lang}
+                },
+                "limit": 1
+            }
+            translations = await directus_service.get_items("demo_chat_translations", translation_params)
+            translation = translations[0] if translations else None
+            
+            # Fallback to English if translation not found
+            if not translation and lang != "en":
+                translation_params["filter"]["language"] = {"_eq": "en"}
+                translations = await directus_service.get_items("demo_chat_translations", translation_params)
+                translation = translations[0] if translations else None
+            
+            # Decrypt translation metadata
             if translation:
-                demo["title"] = translation.get("title")
-                demo["summary"] = translation.get("summary")
+                title = await encryption_service.decrypt(
+                    translation.get("encrypted_title"), 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                summary = await encryption_service.decrypt(
+                    translation.get("encrypted_summary"), 
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                demo["title"] = title
+                demo["summary"] = summary
+            
             enriched_demos.append(demo)
 
         return {
@@ -382,27 +410,36 @@ async def get_admin_demo_chats(
         logger.error(f"Error getting admin demo chats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get demo chats")
 
-@router.delete("/demo-chat/{demo_id}")
+@router.delete("/demo-chat/{demo_chat_id}")
 @limiter.limit("10/hour")
 async def delete_demo_chat(
     request: Request,
-    demo_id: str,
+    demo_chat_id: str,  # UUID parameter
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Deactivate a demo chat.
+    Delete a demo chat and all related data (messages, embeds, translations).
     """
     try:
-        success = await directus_service.demo_chat.deactivate_demo_chat(demo_id)
+        # Batch delete all related data using filters
+        await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        
+        # Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
         if not success:
             raise HTTPException(status_code=404, detail="Demo chat not found")
 
-        logger.info(f"Admin {admin_user.id} deactivated demo chat {demo_id}")
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
+        
+        # Clear cache after deletion
+        await directus_service.cache.clear_demo_chats_cache()
 
         return {
             "success": True,
-            "message": "Demo chat deactivated successfully"
+            "message": "Demo chat deleted successfully"
         }
 
     except HTTPException:
