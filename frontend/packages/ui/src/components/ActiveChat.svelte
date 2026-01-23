@@ -3698,7 +3698,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
         window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked);
         
-        // Add language change listener to reload public chats (demo + legal) when language changes
+        // Add language change listener to reload public chats (demo + legal + community demos) when language changes
         const handleLanguageChange = async () => {
             try {
                 // CRITICAL: Use $state.snapshot to get current value in async context
@@ -3723,7 +3723,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const { _: translationStore } = await import('svelte-i18n');
                 get(translationStore); // Ensure translation store is updated
                 
-                // Find the public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
+                // Import community demo store functions
+                const { isCommunityDemo, getCommunityDemoMessages } = await import('../demo_chats');
+                
+                // Check if this is a community demo chat (demo-1, demo-2, etc.)
+                // Community demos are fetched from server with language-specific translations
+                if (isCommunityDemo(snapshotChat.chat_id)) {
+                    console.debug('[ActiveChat] Language changed - reloading community demo:', snapshotChat.chat_id);
+                    
+                    // ARCHITECTURE: Community demos are reloaded by Chats.svelte when language changes
+                    // The 'language-changed' event triggers loadDemoChatsFromServer(true) in Chats.svelte
+                    // which clears the cache and fetches demos in the new language
+                    // We need to wait for that reload to complete before we can get the new messages
+                    
+                    // Wait a bit for Chats.svelte to reload the community demos
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Get the reloaded messages from communityDemoStore
+                    const newMessages = getCommunityDemoMessages(snapshotChat.chat_id);
+                    
+                    if (newMessages.length > 0) {
+                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for community demo ${snapshotChat.chat_id}`);
+                        
+                        // CRITICAL: Force new array reference to ensure reactivity
+                        currentMessages = newMessages.map(msg => ({ ...msg }));
+                        
+                        // Update chat history display
+                        if (chatHistoryRef) {
+                            chatHistoryRef.updateMessages(currentMessages);
+                        } else {
+                            console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
+                        }
+                    } else {
+                        console.warn('[ActiveChat] No messages found for community demo after language change:', snapshotChat.chat_id);
+                        console.debug('[ActiveChat] Community demos may still be loading - messages will update when available');
+                    }
+                    
+                    return;
+                }
+                
+                // Find the static public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
                 // Use snapshotChat to ensure we have the current value
                 let publicChat = DEMO_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
                 if (!publicChat) {
