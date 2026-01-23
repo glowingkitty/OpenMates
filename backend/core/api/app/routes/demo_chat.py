@@ -78,22 +78,63 @@ async def get_demo_chats(
         demo_chats = await directus_service.get_items("demo_chats", params)
         
         public_demo_chats = []
-        for demo in demo_chats:
-            demo_id = demo["demo_id"]
+        encryption_service = request.app.state.encryption_service
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        
+        for idx, demo in enumerate(demo_chats):
+            # Use UUID as the ID instead of demo_id
+            demo_uuid = demo["id"]
             content_hash = demo.get("content_hash", "")
             
-            # Get translation
-            translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
+            # Generate client-side display ID based on order (demo-1, demo-2, etc.)
+            # The frontend will use this for display/routing
+            display_id = f"demo-{idx + 1}"
+            
+            # Decrypt category if present
+            category = None
+            if demo.get("encrypted_category"):
+                try:
+                    category = await encryption_service.decrypt(
+                        demo["encrypted_category"],
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {e}")
+            
+            # Get translation by UUID
+            translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
             # Fallback to English if translation not found
             if not translation and lang != "en":
-                translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
+                translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
             
             if translation:
+                # Decrypt translated fields
+                title = None
+                summary = None
+                if translation.get("encrypted_title"):
+                    try:
+                        title = await encryption_service.decrypt(
+                            translation["encrypted_title"],
+                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to decrypt title for demo {demo_uuid}: {e}")
+                
+                if translation.get("encrypted_summary"):
+                    try:
+                        summary = await encryption_service.decrypt(
+                            translation["encrypted_summary"],
+                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to decrypt summary for demo {demo_uuid}: {e}")
+                
                 demo_data = {
-                    "demo_id": demo_id,
-                    "title": translation.get("title"),
-                    "summary": translation.get("summary"),
-                    "category": demo.get("category"),
+                    "demo_id": display_id,  # Client-side display ID
+                    "uuid": demo_uuid,  # Server UUID for lookups
+                    "title": title or "Demo Chat",
+                    "summary": summary,
+                    "category": category,
                     "content_hash": content_hash,
                     "created_at": demo.get("created_at"),
                     "status": demo.get("status")
@@ -101,7 +142,7 @@ async def get_demo_chats(
                 
                 # Add `updated` flag if client provided hashes for change detection
                 if client_hashes:
-                    client_hash = client_hashes.get(demo_id, "")
+                    client_hash = client_hashes.get(display_id, "")
                     demo_data["updated"] = (content_hash != client_hash) if content_hash else True
                 
                 public_demo_chats.append(demo_data)

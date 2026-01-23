@@ -470,7 +470,7 @@ class DemoChatMethods:
             return []
 
     async def get_demo_chat_translation(self, demo_id: str, language: str) -> Optional[Dict[str, Any]]:
-        """Get translated metadata for a demo chat."""
+        """Get translated metadata for a demo chat by demo_id (deprecated - use UUID version)."""
         try:
             params = {
                 "filter": {
@@ -483,6 +483,22 @@ class DemoChatMethods:
             return items[0] if items else None
         except Exception as e:
             logger.error(f"Error fetching demo chat translation: {e}")
+            return None
+
+    async def get_demo_chat_translation_by_uuid(self, demo_chat_uuid: str, language: str) -> Optional[Dict[str, Any]]:
+        """Get translated metadata for a demo chat by UUID."""
+        try:
+            params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
+                    "language": {"_eq": language}
+                },
+                "limit": 1
+            }
+            items = await self.directus_service.get_items("demo_chat_translations", params)
+            return items[0] if items else None
+        except Exception as e:
+            logger.error(f"Error fetching demo chat translation by UUID: {e}")
             return None
 
     async def get_demo_messages(self, demo_id: str, language: str) -> List[Dict[str, Any]]:
