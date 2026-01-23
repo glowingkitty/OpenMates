@@ -5,11 +5,11 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES, isSignupPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, isSignupPath } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
 // Import defaultProfile directly for logout reset
-import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile';
+import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { resetTwoFAData } from './twoFAState';
 import { processedImageUrl } from './profileImage';
 import { locale } from 'svelte-i18n';
@@ -17,6 +17,7 @@ import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId';
 import { phasedSyncState } from './phasedSyncStateStore';
 import { aiTypingStore } from './aiTypingStore';
+import { webSocketService } from '../services/websocketService';
 
 // Import core auth state and related flags
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
@@ -234,6 +235,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         cryptoService.clearKeyFromStorage(); // Clear master key
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
+        // Disconnect WebSocket and clear handlers to prevent connection attempts during logout
+        console.debug('[AuthStore] Disconnecting WebSocket and clearing handlers...');
+        webSocketService.disconnectAndClearHandlers();
+
         // Clear WebSocket token from sessionStorage
         const { clearWebSocketToken } = await import('../utils/cookies');
         clearWebSocketToken();

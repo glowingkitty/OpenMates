@@ -16,6 +16,7 @@ import {
 } from '../cryptoService';
 import { get } from 'svelte/store';
 import { forcedLogoutInProgress } from '../../stores/signupState';
+import { websocketStatus } from '../../stores/websocketStatusStore';
 
 /**
  * Type for ChatDatabase instance to avoid circular import.
@@ -392,6 +393,14 @@ export async function decryptMessageFields(
         console.debug(`[ChatDatabase] Skipping message decryption during forced logout for chat: ${chatId}`);
         return { ...message };
     }
+
+    // Skip decryption when WebSocket is in error state (auth failures, etc.)
+    // This prevents unnecessary decryption attempts when the user is being logged out
+    const wsStatus = get(websocketStatus);
+    if (wsStatus.status === 'error') {
+        console.debug(`[ChatDatabase] Skipping message decryption due to WebSocket error state for chat: ${chatId}`);
+        return { ...message };
+    }
     
     // Skip decryption entirely for public chat messages (demo + legal) - they're stored as plaintext
     if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
@@ -448,13 +457,18 @@ export async function decryptMessageFields(
             }
         } catch (error) {
             // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
-            console.error(
-                `[CLIENT_DECRYPT] ❌ CRITICAL: Error decrypting content for message ${message.message_id} ` +
+            // Also handle database operation errors during logout (OperationError from IndexedDB)
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isOperationError = errorMessage.includes('OperationError') || errorMessage.includes('database');
+            const logLevel = isOperationError ? 'debug' : 'error'; // Reduce noise for expected logout-related errors
+
+            console[logLevel](
+                `[CLIENT_DECRYPT] ${isOperationError ? '⚠️' : '❌ CRITICAL:'} Error decrypting content for message ${message.message_id} ` +
                 `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
-                `${error instanceof Error ? error.message : String(error)}. ` +
+                `${errorMessage}. ` +
                 `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
                 `Has plaintext fallback: ${!!message.content}. ` +
-                `This may indicate vault-encrypted content was sent instead of client-encrypted!`
+                `${isOperationError ? 'This may be due to database operations during logout.' : 'This may indicate vault-encrypted content was sent instead of client-encrypted!'}`
             );
             // If message already has plaintext content, use it (common for status='sending')
             if (message.content) {
