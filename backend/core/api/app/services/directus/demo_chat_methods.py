@@ -320,17 +320,26 @@ class DemoChatMethods:
             demo_chat_id = created_item["id"]  # UUID
             logger.info(f"Created pending demo chat {demo_chat_id} for chat {chat_id}")
             
-            # Store messages (encrypted with Vault, in original language only)
+            # Store messages (Vault-encrypted content and category for demo chats)
             for msg in decrypted_messages:
                 encrypted_content, _ = await encryption_service.encrypt(
                     msg["content"], 
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
                 
+                encrypted_category = None
+                category = msg.get("category") or msg.get("encrypted_category")
+                if category:
+                    encrypted_category, _ = await encryption_service.encrypt(
+                        category,
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "role": msg["role"],
                     "encrypted_content": encrypted_content,
+                    "encrypted_category": encrypted_category,
                     "language": "original",  # Mark as original language, will be translated later
                     "original_created_at": datetime.fromtimestamp(msg["created_at"] / 1000, tz=timezone.utc).isoformat() if msg["created_at"] > 1000000000000 else datetime.fromtimestamp(msg["created_at"], tz=timezone.utc).isoformat()
                 }

@@ -1,8 +1,6 @@
 import asyncio
-import hashlib
 import logging
 import json
-from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -69,8 +67,6 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
             return
 
         # 2. Fetch original messages from demo_messages table (language='original')
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-        
         messages_params = {
             "filter": {
                 "demo_chat_id": {"_eq": demo_chat_id},
@@ -89,17 +85,26 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 }, admin_required=True)
             return
         
-        # 3. Decrypt messages
+        # 3. Decrypt original messages
         decrypted_messages = []
         for msg in demo_messages:
             decrypted_content = await task.encryption_service.decrypt(
                 msg["encrypted_content"],
                 key_name=DEMO_CHATS_ENCRYPTION_KEY
             )
+            
+            decrypted_category = None
+            if msg.get("encrypted_category"):
+                decrypted_category = await task.encryption_service.decrypt(
+                    msg["encrypted_category"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                
             if decrypted_content:
                 decrypted_messages.append({
                     "role": msg["role"],
                     "content": decrypted_content,
+                    "category": decrypted_category,
                     "original_created_at": msg["original_created_at"]
                 })
         
@@ -204,17 +209,26 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
 
             # Store translated messages
             for i, translated_content in enumerate(message_translations_by_lang[lang]):
-                # Encrypt translated content with Vault
+                # Encrypt translated content and category
                 encrypted_content, _ = await task.encryption_service.encrypt(
                     translated_content, 
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
+                
+                encrypted_category = None
+                category = decrypted_messages[i].get("category")
+                if category:
+                    encrypted_category, _ = await task.encryption_service.encrypt(
+                        category,
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "language": lang,
                     "role": decrypted_messages[i]["role"],
                     "encrypted_content": encrypted_content,
+                    "encrypted_category": encrypted_category,
                     "original_created_at": decrypted_messages[i]["original_created_at"]
                 }
                 await task.directus_service.create_item("demo_messages", message_data)

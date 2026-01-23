@@ -322,23 +322,23 @@ async def get_demo_chat(
                 msg.get("encrypted_content", ""), 
                 key_name=DEMO_CHATS_ENCRYPTION_KEY
             )
-            # Use original_created_at if available (preserves original timestamps), otherwise use created_at
-            created_at = msg.get("original_created_at") or msg.get("created_at")
-            if created_at:
-                # Convert ISO string to timestamp if needed
-                if isinstance(created_at, str):
-                    try:
-                        from datetime import datetime
-                        dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                        created_at = int(dt.timestamp())
-                    except (ValueError, AttributeError):
-                        created_at = None
+            
+            decrypted_category = None
+            if msg.get("encrypted_category"):
+                try:
+                    decrypted_category = await encryption_service.decrypt(
+                        msg["encrypted_category"],
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt message category: {e}")
 
             decrypted_messages.append({
                 "message_id": str(msg.get("id")),
                 "role": msg.get("role"),
                 "content": decrypted_content,
-                "created_at": created_at
+                "category": decrypted_category, # Return cleartext category
+                "created_at": msg.get("created_at")
             })
 
         decrypted_embeds = []

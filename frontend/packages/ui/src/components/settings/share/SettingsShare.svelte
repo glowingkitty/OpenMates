@@ -1033,6 +1033,7 @@
                         decryptedMessages = messages.map(msg => ({
                             role: msg.role,
                             content: msg.content || '', // TipTap JSON string
+                            category: msg.category, // Include category (already decrypted by getMessagesForChat)
                             created_at: msg.created_at
                         }));
                         console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing`);

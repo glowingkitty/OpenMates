@@ -21,6 +21,10 @@ demo_messages:
       type: textfield
       note: "[Vault-Encrypted] Tiptap JSON content, encrypted with demo_chats vault key"
       required: true
+    encrypted_category:
+      type: string
+      length: 100
+      note: "[Vault-Encrypted] Message category, encrypted with demo_chats vault key"
     original_created_at:
       type: timestamp
       note: "Original message timestamp from user's chat (used for ordering messages)"
