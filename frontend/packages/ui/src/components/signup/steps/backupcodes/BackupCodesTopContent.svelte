@@ -55,13 +55,14 @@ step_5_top_content_svelte:
 
     // Accept selected app name from parent using Svelte 5 runes
     let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
-    let loadingAppName = true; // Track loading state for app name
 
     // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
     let tfaAppIconClass = $derived(selectedAppName && selectedAppName in tfaAppIcons ? tfaAppIcons[selectedAppName] : undefined);
 
     // State variables using Svelte 5 runes
     let loading = $state(true);
+    let error = $state(false);
+    let errorMessage = $state('');
     let codesDownloaded = $state(false);
     let backupCodes = $state<string[]>([]);
 
@@ -77,8 +78,6 @@ step_5_top_content_svelte:
             }
         } catch (error) {
             console.error("Error loading TFA app name from DB:", error);
-        } finally {
-            loadingAppName = false;
         }
         
         await requestBackupCodes();
@@ -86,6 +85,8 @@ step_5_top_content_svelte:
     
     async function requestBackupCodes() {
         loading = true;
+        error = false;
+        errorMessage = '';
         // Reset backup codes loaded state
         setBackupCodesLoaded(false);
         
@@ -103,6 +104,7 @@ step_5_top_content_svelte:
             if (response.ok && data.success) {
                 backupCodes = data.backup_codes;
                 loading = false;
+                error = false;
                 
                 // Update backup codes loaded state
                 setBackupCodesLoaded(true);
@@ -115,16 +117,23 @@ step_5_top_content_svelte:
                 // Note: confirmCodesStored is now called from Step5BottomContent when user confirms
             } else {
                 console.error('Failed to get backup codes:', data.message);
-                // Still set loading to false to show the UI (user can retry by clicking download)
+                error = true;
+                errorMessage = data.message || 'Failed to generate backup codes. Please try again.';
                 loading = false;
             }
         } catch (err) {
             console.error('Error getting backup codes:', err);
+            error = true;
+            errorMessage = 'An error occurred while loading backup codes. Please try again.';
             loading = false;
         }
     }
     
     // confirmCodesStored function removed - now handled in Step5BottomContent.svelte
+
+    function handleRetry() {
+        requestBackupCodes();
+    }
 
     function downloadBackupCodes() {
         if (backupCodes.length === 0) {
@@ -150,41 +159,57 @@ step_5_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size text"></div>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <h2 class="signup-menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 
-    <div class="text-block">
-        {@html $text('signup.allows_you_to_log_in_without_tfa.text').replace('{tfa_app}', '')}
-        
-        <!-- App name container similar to Login2FA.svelte -->
-        <!-- <div class="app-name-container"> -->
-        {#if selectedAppName}
-            <p class="app-name">
-                <span class="app-name-content">
-                    {#if tfaAppIconClass}
-                        <span class="icon provider-{tfaAppIconClass} mini-icon"></span>
-                    {/if}
-                    <span>{selectedAppName}</span>
-                </span>
-            </p>
-        {:else}
-            <span>{$text('signup.your_tfa_app.text')}</span>
+    {#if loading}
+        <div class="loading-container" in:fade>
+            <div class="spinner"></div>
+            <p class="loading-text">{$text('signup.loading_backup_codes.text')}</p>
+        </div>
+    {:else if error}
+        <div class="error-container" in:fade>
+            <p class="error-text">{errorMessage}</p>
+            <button class="retry-button" onclick={handleRetry}>
+                {$text('login.retry.text')}
+            </button>
+        </div>
+    {:else}
+        <div class="text-block" in:fade>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html $text('signup.allows_you_to_log_in_without_tfa.text').replace('{tfa_app}', '')}
+            
+            <!-- App name container similar to Login2FA.svelte -->
+            <!-- <div class="app-name-container"> -->
+            {#if selectedAppName}
+                <p class="app-name">
+                    <span class="app-name-content">
+                        {#if tfaAppIconClass}
+                            <span class="icon provider-{tfaAppIconClass} mini-icon"></span>
+                        {/if}
+                        <span>{selectedAppName}</span>
+                    </span>
+                </p>
+            {:else}
+                <span>{$text('signup.your_tfa_app.text')}</span>
+            {/if}
+            <!-- </div> -->
+        </div>
+
+        <mark in:fade>
+            {$text('signup.store_backup_codes_safely.text')}
+        </mark>
+
+        {#if backupCodes.length > 0}
+        <button
+            class="clickable-icon icon_download download-button"
+            onclick={downloadBackupCodes}
+            aria-label={$text('enter_message.press_and_hold_menu.download.text')}
+            use:tooltip
+            transition:fade
+        ></button>
         {/if}
-        <!-- </div> -->
-    </div>
-
-    <mark>
-        {$text('signup.store_backup_codes_safely.text')}
-    </mark>
-
-    {#if !loading && backupCodes.length > 0}
-    <button
-        class="clickable-icon icon_download download-button"
-        onclick={downloadBackupCodes}
-        aria-label={$text('enter_message.press_and_hold_menu.download.text')}
-        use:tooltip
-        transition:fade
-    ></button>
     {/if}
 </div>
 
@@ -258,5 +283,59 @@ step_5_top_content_svelte:
         -webkit-mask: url(/icons/download.svg) no-repeat 50% 50%;
         -webkit-mask-size: contain;
         background-color: var(--color-white);
+    }
+
+    /* Loading and error states */
+    .loading-container, .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 40px 20px;
+        text-align: center;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--color-grey-20);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        color: var(--color-grey-60);
+        font-size: 16px;
+    }
+
+    .error-text {
+        color: var(--color-error, #ef4444);
+        font-size: 14px;
+        text-align: center;
+    }
+
+    .retry-button {
+        padding: 12px 24px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: transform 0.2s;
+    }
+
+    .retry-button:hover {
+        transform: scale(1.02);
+    }
+
+    .retry-button:active {
+        transform: scale(0.98);
     }
 </style>
