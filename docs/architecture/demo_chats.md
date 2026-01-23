@@ -2,11 +2,100 @@
 
 ## Overview
 
-Demo chats are curated example conversations that showcase OpenMates capabilities. They are displayed to **all users (authenticated and non-authenticated)** in the chat list sidebar under the "Examples" group.
+Demo chats are curated example conversations that showcase OpenMates capabilities. They are displayed to **all users (authenticated and non-authenticated)** in the chat list sidebar.
 
-The system maintains a maximum of **5 published demo chats**. When a new demo is published and the limit is exceeded, the oldest demo chat (by creation timestamp) is automatically deleted along with all its messages, embeds, and translations.
+There are **two types** of demo chats:
 
-**Client-side ID Generation:** The backend stores demos without fixed IDs. The client fetches the 5 most recent published demos and auto-generates display IDs (`demo-1` through `demo-5`) based on creation order.
+1. **Intro Chats** (Static/Bundled): Pre-defined chats bundled with the app, always available offline
+   - Examples: "Welcome to OpenMates!", "What makes OpenMates different?"
+   - Stored in: `frontend/packages/ui/src/demo_chats/data/`
+   - Translations: `frontend/packages/ui/src/i18n/sources/demo_chats/`
+   - Fixed chat IDs: `demo-welcome`, `demo-different`, etc.
+
+2. **Community Demos** (Dynamic/Server-fetched): User-submitted chats approved by admins
+   - Maximum of 5 published demos at a time
+   - Fetched from server, stored in-memory and IndexedDB
+   - Auto-generated IDs: `demo-1` through `demo-5` (based on creation order)
+   - When limit exceeded, oldest demo is automatically deleted
+
+**Client-side ID Generation:** Community demos use ephemeral IDs generated client-side. Intro chats use fixed IDs defined in code.
+
+## Adding Intro Chats
+
+Intro chats are static chats bundled with the application. They're perfect for onboarding, feature explanations, and always-available examples. Here's how to add a new intro chat:
+
+### Step 1: Create Translation Content
+
+Create a new YAML file in `frontend/packages/ui/src/i18n/sources/demo_chats/`.
+
+**Reference Examples:**
+- [`welcome.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml) - Welcome chat with assistant message
+- [`what_makes_different.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml) - Chat with user question and assistant answer
+
+**Translation Keys:** The YAML structure becomes translation keys like `demo_chats.example_chat.title.text` in the compiled JSON files. The file must include translations for all 22 supported languages: `en`, `de`, `zh`, `es`, `fr`, `pt`, `ru`, `ja`, `ko`, `it`, `tr`, `vi`, `id`, `pl`, `nl`, `ar`, `hi`, `th`, `cs`, `sv`.
+
+### Step 2: Create the Data File
+
+Create a TypeScript file in `frontend/packages/ui/src/demo_chats/data/`.
+
+**Type Definition:** See [`frontend/packages/ui/src/demo_chats/types.ts`](../../frontend/packages/ui/src/demo_chats/types.ts) for the `DemoChat` interface.
+
+**Reference Examples:**
+- [`welcome.ts`](../../frontend/packages/ui/src/demo_chats/data/welcome.ts) - Chat starting with assistant message
+- [`what-makes-different.ts`](../../frontend/packages/ui/src/demo_chats/data/what-makes-different.ts) - Chat with user question and assistant answer
+
+**Important Fields:**
+- `chat_id`: Must be unique and start with `demo-` (e.g., `demo-example`)
+- `slug`: URL-friendly identifier (used in routes)
+- `title`/`description`: Use translation keys (e.g., `demo_chats.example_chat.title.text`), not hardcoded text
+- `messages`: Array of user/assistant messages using translation keys
+- `metadata.order`: Controls display order in sidebar (1 = first, 2 = second, etc.)
+- `metadata.icon_names`: Array of Lucide icon names (see [Lucide Icons](https://lucide.dev/icons/))
+
+### Step 3: Add to Intro Chats Array
+
+Update [`frontend/packages/ui/src/demo_chats/index.ts`](../../frontend/packages/ui/src/demo_chats/index.ts):
+1. Import your new chat at the top
+2. Add it to the `INTRO_CHATS` array
+
+The array is automatically sorted by `metadata.order`, so ensure your new chat has the correct order value.
+
+### Step 4: Rebuild Translations
+
+After creating the YAML file, rebuild the compiled translation JSON files:
+
+```bash
+cd frontend/packages/ui
+npm run build:translations
+```
+
+This generates the `locales/{locale}.json` files that the app uses at runtime.
+
+### Step 5: Test
+
+1. **Access the chat**: Navigate to `/#chat-id=demo-example` in the browser
+2. **Check sidebar**: Verify it appears in the correct order
+3. **Test translations**: Change language and verify content translates correctly
+4. **Verify links**: Check that any internal links (like `/#chat-id=demo-different`) work correctly
+
+### Best Practices
+
+1. **Translation Keys**: Always use translation keys (e.g., `demo_chats.example_chat.title.text`) instead of hardcoded strings
+2. **All Languages**: Provide translations for all 22 supported languages (or at minimum, English)
+3. **Unique IDs**: Ensure `chat_id` is unique and follows the `demo-*` pattern
+4. **Order**: Set `metadata.order` to control display position (1 = first, higher = later)
+5. **Icons**: Use Lucide icon names for `icon_names` (see [Lucide Icons](https://lucide.dev/icons/))
+6. **Markdown**: Content supports Markdown formatting (headings, lists, links, etc.)
+7. **Internal Links**: Use hash links like `/#chat-id=demo-different` to link to other intro chats
+
+### Example: Existing Intro Chats
+
+- **Welcome Chat**: `demo-welcome` - First-time user introduction
+  - Data file: [`frontend/packages/ui/src/demo_chats/data/welcome.ts`](../../frontend/packages/ui/src/demo_chats/data/welcome.ts)
+  - Translations: [`frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml)
+- **What Makes Different**: `demo-different` - Feature comparison and differentiators
+  - Data file: [`frontend/packages/ui/src/demo_chats/data/what-makes-different.ts`](../../frontend/packages/ui/src/demo_chats/data/what-makes-different.ts)
+  - Translations: [`frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml)
 
 ## Zero-Knowledge Architecture
 
@@ -381,95 +470,28 @@ Soft-delete a demo chat (sets `is_active = false`).
 
 ### IndexedDB Schema (demo_chats_db)
 
-```typescript
-interface DemoChatDB {
-  // Object stores
-  demo_chats: {
-    key: number;  // Position (0-4)
-    value: {
-      position: number;  // 0 = newest, 4 = oldest
-      title: string;
-      summary: string;
-      category: string;
-      icon: string;
-      content_hash: string;
-      follow_up_suggestions: string[];
-      created_at: number;
-      updated_at: number;
-    }
-  };
-  
-  demo_messages: {
-    key: [number, number];  // [position, message_order]
-    value: {
-      position: number;
-      message_order: number;
-      role: 'user' | 'assistant';
-      content: string;  // TipTap JSON
-      created_at: number;
-    }
-  };
-  
-  demo_embeds: {
-    key: [number, number];  // [position, embed_order]
-    value: {
-      position: number;
-      embed_order: number;
-      original_embed_id: string;
-      type: string;
-      content: string;
-      created_at: number;
-    }
-  };
-}
-```
+See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the IndexedDB schema and implementation.
+
+**Key Points:**
+- Demos stored by position (0-4) not by fixed ID
+- Position 0 = newest, position 4 = oldest
+- Messages and embeds keyed by `[position, order]`
+- Content hash used for change detection
 
 ### Loading Flow
 
-```typescript
-async function loadDemoChats(): Promise<void> {
-  // 1. Get local hashes from IndexedDB (ordered by position)
-  const localHashes = await getLocalDemoHashes(); // Returns array: [hash0, hash1, hash2, hash3, hash4]
-  
-  // 2. Fetch demo list with hash comparison
-  const hashParam = localHashes.join(',');
-  
-  const response = await fetch(`/v1/demo/chats?hashes=${hashParam}`);
-  const { demos } = await response.json();
-  
-  // 3. For each changed demo, fetch full data and update local DB
-  for (let i = 0; i < demos.length; i++) {
-    if (demos[i].updated) {
-      const fullData = await fetch(`/v1/demo/chat/${i}`);
-      await updateLocalDemoChat(i, fullData);
-    }
-  }
-  
-  // 4. Load all demos into memory from IndexedDB and generate IDs
-  const demosFromDB = await getAllDemosFromIndexedDB();
-  demosFromDB.forEach((demo, index) => {
-    demo.demo_id = `demo-${index + 1}`;  // Generate ID client-side
-  });
-  
-  // 5. Store in communityDemoStore
-  communityDemoStore.set(demosFromDB);
-}
-```
+See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the complete loading flow implementation.
+
+**Process:**
+1. Get local hashes from IndexedDB (ordered by position)
+2. Fetch demo list with hash comparison via `/v1/demo/chats?hashes=...`
+3. For each changed demo, fetch full data and update local DB
+4. Load all demos into memory from IndexedDB and generate IDs
+5. Store in `communityDemoStore` for in-memory access
 
 ### Generating Display IDs
 
-```typescript
-function generateDemoId(position: number): string {
-  return `demo-${position + 1}`;  // 0 -> demo-1, 1 -> demo-2, etc.
-}
-
-// Usage
-const demos = await fetchPublishedDemos();
-demos.forEach((demo, index) => {
-  demo.demo_id = generateDemoId(index);
-  demo.chat_id = demo.demo_id;  // Used for rendering in Chat component
-});
-```
+Display IDs (`demo-1` through `demo-5`) are generated client-side based on position. See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the implementation.
 
 ## Security Considerations
 
