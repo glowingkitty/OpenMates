@@ -135,9 +135,11 @@
 
             if (response.ok) {
                 const data = await response.json();
-                // Only show published demo chats in the "Active Demo Chats" section
-                // Pending/translating demos should only appear in "Other Pending Suggestions"
-                currentDemoChats = (data.demo_chats || []).filter(demo => demo.status === 'published');
+                // Show published and translating demo chats in the "Active Demo Chats" section
+                // pending_approval demos appear in "Other Pending Suggestions"
+                currentDemoChats = (data.demo_chats || []).filter(demo => 
+                    demo.status === 'published' || demo.status === 'translating'
+                );
             }
 
         } catch (err) {
