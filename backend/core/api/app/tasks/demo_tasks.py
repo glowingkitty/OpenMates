@@ -2,8 +2,6 @@ import asyncio
 import hashlib
 import logging
 import json
-import base64
-from typing import Optional
 from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
@@ -60,8 +58,12 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
     await task.initialize_services()
     
     try:
-        # 1. Fetch demo chat metadata
-        demo_chat = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_chat_id)
+        # 1. Fetch demo chat metadata by UUID
+        demo_chats = await task.directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_id}},
+            "limit": 1
+        }, admin_required=True)
+        demo_chat = demo_chats[0] if demo_chats else None
         if not demo_chat:
             logger.error(f"Demo chat {demo_chat_id} not found")
             return
@@ -246,10 +248,9 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         logger.info(f"Generated content hash for demo chat {demo_chat_id}: {content_hash[:16]}...")
         
         # 10. Update status to published
-        demo_chat_item = await task.directus_service.demo_chat.get_demo_chat_by_id(demo_chat_id)
-        if demo_chat_item and demo_chat_item.get("id"):
+        if demo_chat and demo_chat.get("id"):
             from datetime import datetime, timezone
-            await task.directus_service.update_item("demo_chats", demo_chat_item["id"], {
+            await task.directus_service.update_item("demo_chats", demo_chat["id"], {
                 "status": "published",
                 "approved_at": datetime.now(timezone.utc).isoformat(),
                 "content_hash": content_hash
