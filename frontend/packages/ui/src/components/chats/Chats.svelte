@@ -1119,7 +1119,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						if (activityHistoryElement) {
 							// Force scroll to top using multiple methods for maximum compatibility
 							activityHistoryElement.scrollTop = 0;
-							currentScrollTop = 0;
 							// Also try scrollTo for better compatibility
 							activityHistoryElement.scrollTo({ top: 0, behavior: 'auto' });
 							// Force a reflow to ensure scroll position is applied
@@ -1131,7 +1130,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 								setTimeout(() => {
 									if (activityHistoryElement) {
 										activityHistoryElement.scrollTop = 0;
-										currentScrollTop = 0;
 									}
 								}, 50);
 							}
@@ -1927,9 +1925,8 @@ async function updateChatListFromDBInternal(force = false) {
     function handleScroll(event: Event) {
         if (!activityHistoryElement) return;
         
-        // Update reactive scroll position
+        // Update scroll position
         const newScrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = newScrollTop;
         
         // CRITICAL: Ensure scroll can reach 0 when hidden chats are unlocked
         // Sometimes scroll position can get stuck slightly above 0, preventing access to hidden chats section
@@ -1939,7 +1936,6 @@ async function updateChatListFromDBInternal(force = false) {
             requestAnimationFrame(() => {
                 if (activityHistoryElement && activityHistoryElement.scrollTop <= 2) {
                     activityHistoryElement.scrollTop = 0;
-                    currentScrollTop = 0;
                 }
             });
         }
@@ -1953,7 +1949,6 @@ async function updateChatListFromDBInternal(force = false) {
         if (!activityHistoryElement) return;
         
         const scrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = scrollTop; // Update reactive scroll position
         
         // CRITICAL: Also allow scrolling to top when hidden chats are already unlocked
         // This ensures users can scroll up to see the hidden chats section after unhiding
@@ -1980,7 +1975,6 @@ async function updateChatListFromDBInternal(force = false) {
         if (!activityHistoryElement) return;
         
         const scrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = scrollTop; // Update reactive scroll position
         
         const touchY = event.touches[0].clientY;
         const deltaY = touchY - touchStartY;
