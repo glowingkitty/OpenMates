@@ -223,7 +223,11 @@ async def approve_demo_chat(
         from datetime import datetime, timezone
         
         # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
-        demo_chat = await directus_service.get_item_by_id("demo_chats", payload.demo_chat_id)
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": payload.demo_chat_id}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
         if not demo_chat:
             raise HTTPException(status_code=404, detail="Demo chat not found")
         
