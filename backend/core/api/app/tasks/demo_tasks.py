@@ -12,40 +12,49 @@ logger = logging.getLogger(__name__)
 TARGET_LANGUAGES = ["en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"]
 
 @app.task(name="demo.translate_chat", bind=True, base=BaseServiceTask)
-def translate_demo_chat_task(self, demo_chat_id: str):
+def translate_demo_chat_task(self, demo_chat_id: str, admin_user_id: str = None):
     """
     Celery task to translate a demo chat into all target languages.
     
     Args:
-        demo_chat_id: UUID of the demo_chats entry (not the old demo-1, demo-2 string IDs)
+        demo_chat_id: UUID of the demo_chats entry
+        admin_user_id: ID of the admin who approved it (for WebSocket notification)
     """
     task_id = self.request.id
-    logger.info(f"Starting translation task for demo_chat_id: {demo_chat_id}, task_id: {task_id}")
+    logger.info(f"Starting translation task for demo_chat_id: {demo_chat_id}, admin: {admin_user_id}, task_id: {task_id}")
     
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_translate_demo_chat(self, demo_chat_id, task_id))
+        loop.run_until_complete(_async_translate_demo_chat(self, demo_chat_id, task_id, admin_user_id))
     except Exception as e:
         logger.error(f"Error in translate_demo_chat_task: {e}", exc_info=True)
         if loop:
-            loop.run_until_complete(_update_demo_status(self, demo_chat_id, "translation_failed"))
+            loop.run_until_complete(_update_demo_status(self, demo_chat_id, "translation_failed", admin_user_id))
         raise
     finally:
         if loop:
             loop.close()
 
-async def _update_demo_status(task: BaseServiceTask, demo_chat_id: str, status: str):
+async def _update_demo_status(task: BaseServiceTask, demo_chat_id: str, status: str, admin_user_id: str = None):
     """Update demo chat status by UUID."""
     try:
         await task.initialize_services()
         # demo_chat_id is already the UUID, can update directly
         await task.directus_service.update_item("demo_chats", demo_chat_id, {"status": status}, admin_required=True)
+        
+        # Notify admin via WebSocket if provided
+        if admin_user_id:
+            await task.publish_websocket_event(
+                admin_user_id,
+                "demo_chat_updated",
+                {"demo_chat_id": demo_chat_id, "status": status}
+            )
     except Exception as e:
         logger.error(f"Failed to update demo status to {status}: {e}")
 
-async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, task_id: str):
+async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, task_id: str, admin_user_id: str = None):
     """
     Translate a demo chat to all target languages.
     
@@ -269,6 +278,14 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 "approved_at": datetime.now(timezone.utc).isoformat(),
                 "content_hash": content_hash
             }, admin_required=True)
+            
+            # Notify admin via WebSocket if provided
+            if admin_user_id:
+                await task.publish_websocket_event(
+                    admin_user_id,
+                    "demo_chat_updated",
+                    {"demo_chat_id": demo_chat_id, "status": "published"}
+                )
         else:
             logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
         

@@ -5,11 +5,12 @@
     Allows admins to approve chats to become demo chats with a limit of 5.
 -->
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
     import Chat from '../../chats/Chat.svelte';
     import type { Chat as ChatType } from '../../../types/chat';
     import { decryptShareKeyBlob } from '../../../services/shareEncryption';
+    import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
 
@@ -32,6 +33,7 @@
         title?: string;
         summary?: string;
         category?: string;
+        icon?: string;
         status?: string;
         created_at: string;
     }
@@ -232,13 +234,25 @@
                 window.history.replaceState({}, '', url.toString());
             }
 
-            // Reload data
-            await Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
+            // Optimistically add to currentDemoChats with full metadata from suggestion
+            // This will be updated when the translation task completes
+            currentDemoChats = [...currentDemoChats, {
+                id: suggestion.demo_chat_id!,
+                title: suggestion.title,
+                summary: suggestion.summary,
+                category: suggestion.category,
+                icon: suggestion.icon,
+                status: 'translating',
+                created_at: new Date().toISOString()
+            }];
+
+            // Remove from suggestions list
+            suggestions = suggestions.filter(s => s.demo_chat_id !== suggestion.demo_chat_id);
 
             // Show success message
             dispatch('showToast', {
                 type: 'success',
-                message: 'Demo chat approved successfully!'
+                message: 'Demo chat approved! Translation in progress...'
             });
 
         } catch (err) {
@@ -501,7 +515,51 @@
                 openChatFromEmail();
             }, 500);
         }
+
+        // Register WebSocket handler for demo chat updates
+        webSocketService.on('demo_chat_updated', handleDemoChatUpdate);
     });
+
+    onDestroy(() => {
+        // Clean up WebSocket handler
+        webSocketService.off('demo_chat_updated', handleDemoChatUpdate);
+    });
+
+    /**
+     * Handle WebSocket updates for demo chats
+     * Updates the status and metadata when translation completes
+     */
+    function handleDemoChatUpdate(payload: any) {
+        console.log('[SettingsCommunitySuggestions] Received demo_chat_updated event:', payload);
+        
+        const { demo_chat_id, status } = payload;
+        
+        // Find and update the demo chat in currentDemoChats
+        const demoIndex = currentDemoChats.findIndex(d => d.id === demo_chat_id);
+        if (demoIndex !== -1) {
+            currentDemoChats[demoIndex] = {
+                ...currentDemoChats[demoIndex],
+                status
+            };
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+            
+            // If translation completed, reload to get full metadata
+            if (status === 'published') {
+                console.log('[SettingsCommunitySuggestions] Demo chat published, reloading data...');
+                loadCurrentDemoChats();
+                
+                dispatch('showToast', {
+                    type: 'success',
+                    message: 'Demo chat translation completed and published!'
+                });
+            } else if (status === 'translation_failed') {
+                dispatch('showToast', {
+                    type: 'error',
+                    message: 'Demo chat translation failed. Please try again.'
+                });
+            }
+        }
+    }
 </script>
 
 <div class="community-suggestions">
@@ -531,10 +589,22 @@
                             <h4>{demo.title || 'Demo Chat'}</h4>
                             <div class="header-tags">
                                 {#if demo.status}
-                                    <span class="status-tag status-{demo.status}">{demo.status}</span>
+                                    <span class="status-tag status-{demo.status}">
+                                        {#if demo.status === 'translating'}
+                                            ⏳ {demo.status}
+                                        {:else if demo.status === 'published'}
+                                            ✅ {demo.status}
+                                        {:else if demo.status === 'translation_failed'}
+                                            ❌ {demo.status}
+                                        {:else}
+                                            {demo.status}
+                                        {/if}
+                                    </span>
                                 {/if}
                                 {#if demo.category}
                                     <span class="category-tag">{demo.category}</span>
+                                {:else if demo.icon}
+                                    <span class="icon-tag">{demo.icon}</span>
                                 {/if}
                             </div>
                         </div>

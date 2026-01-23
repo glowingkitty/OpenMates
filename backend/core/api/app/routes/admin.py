@@ -283,7 +283,7 @@ async def approve_demo_chat(
         
         # Trigger translation task (pass UUID, not demo_id string)
         from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
-        translate_demo_chat_task.delay(payload.demo_chat_id)
+        translate_demo_chat_task.delay(payload.demo_chat_id, admin_user_id=admin_user.id)
         
         logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_chat_id} for chat {payload.chat_id}. Translation task triggered.")
         
@@ -390,6 +390,8 @@ async def get_admin_demo_chats(
                 translation = translations[0] if translations else None
             
             # Decrypt translation metadata
+            title = None
+            summary = None
             if translation:
                 title = await encryption_service.decrypt(
                     translation.get("encrypted_title"), 
@@ -399,8 +401,51 @@ async def get_admin_demo_chats(
                     translation.get("encrypted_summary"), 
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
-                demo["title"] = title
-                demo["summary"] = summary
+            
+            # Fallback to original metadata if translation not found or failed to decrypt
+            if not title and demo.get("encrypted_title"):
+                try:
+                    title = await encryption_service.decrypt(
+                        demo.get("encrypted_title"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception:
+                    pass
+            
+            if not summary and demo.get("encrypted_summary"):
+                try:
+                    summary = await encryption_service.decrypt(
+                        demo.get("encrypted_summary"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception:
+                    pass
+
+            # Always try to decrypt category and icon from original demo entry
+            category = None
+            if demo.get("encrypted_category"):
+                try:
+                    category = await encryption_service.decrypt(
+                        demo.get("encrypted_category"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception:
+                    pass
+
+            icon = None
+            if demo.get("encrypted_icon"):
+                try:
+                    icon = await encryption_service.decrypt(
+                        demo.get("encrypted_icon"), 
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception:
+                    pass
+            
+            demo["title"] = title or "Demo Chat"
+            demo["summary"] = summary
+            demo["category"] = category
+            demo["icon"] = icon
             
             enriched_demos.append(demo)
 

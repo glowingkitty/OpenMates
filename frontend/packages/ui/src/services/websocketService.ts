@@ -88,6 +88,7 @@ type KnownMessageTypes =
     | 'user_admin_status_updated'      // Notification that user admin status has changed
     | 'credit_note_ready'               // Notification that credit note PDF is ready for download
     | 'message_queued'                  // Notification that a message was queued because an AI task is active
+    | 'demo_chat_updated'               // Notification that a demo chat status has changed (for admins)
 
     ;
 

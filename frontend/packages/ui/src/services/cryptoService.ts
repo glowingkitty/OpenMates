@@ -1258,7 +1258,7 @@ export function generateSecureRecoveryKey(length = 24): string {
   const randomBytes = crypto.getRandomValues(new Uint8Array(length));
 
   // Ensure we have at least one character from each set by reserving positions
-  let result: string[] = new Array(length);
+  const result: string[] = new Array(length);
 
   // Reserve first 4 positions for mandatory character types
   const charSets = [

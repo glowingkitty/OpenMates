@@ -502,7 +502,7 @@ class DemoChatMethods:
                     "demo_chat_id": {"_eq": demo_chat_uuid},
                     "language": {"_eq": language}
                 },
-                "sort": ["message_order"]
+                "sort": ["original_created_at"]  # Sort by original timestamp to maintain conversation flow
             }
             return await self.directus_service.get_items("demo_messages", params)
         except Exception as e:
@@ -517,7 +517,7 @@ class DemoChatMethods:
                     "demo_chat_id": {"_eq": demo_chat_uuid},
                     "language": {"_eq": language}
                 },
-                "sort": ["embed_order"]
+                "sort": ["original_created_at"]  # Sort by original timestamp
             }
             return await self.directus_service.get_items("demo_embeds", params)
         except Exception as e:
