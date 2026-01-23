@@ -938,5 +938,149 @@ encryption_info_embed:
   sv: Embeden förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
   verified_by_human: []
 
+share_with_community:
+  context: Toggle label for sharing chat with the community (allows chat to be featured as example/demo)
+  en: Share with Community
+  de: Mit der Community teilen
+  zh: 与社区分享
+  es: Compartir con la comunidad
+  fr: Partager avec la communauté
+  pt: Compartilhar com a comunidade
+  ru: Поделиться с сообществом
+  ja: コミュニティで共有
+  ko: 커뮤니티와 공유
+  it: Condividi con la comunità
+  tr: Toplulukla paylaş
+  vi: Chia sẻ với cộng đồng
+  id: Bagikan dengan komunitas
+  pl: Udostępnij społeczności
+  nl: Delen met de gemeenschap
+  ar: مشاركة مع المجتمع
+  hi: समुदाय के साथ साझा करें
+  th: แชร์กับชุมชน
+  cs: Sdílet s komunitou
+  sv: Dela med gemenskapen
+  verified_by_human: []
+
+share_with_community_info:
+  context: Info text explaining what sharing with community means
+  en: 'If you select "Share with Community", your chat might also be selected to be shown to other users on the platform, as well as on social media and at events.'
+  de: 'Wenn Sie "Mit der Community teilen" auswählen, kann Ihr Chat auch ausgewählt werden, um anderen Nutzern auf der Plattform sowie in sozialen Medien und bei Veranstaltungen gezeigt zu werden.'
+  zh: '如果您选择"与社区分享"，您的聊天可能会被选中在平台上向其他用户展示，以及在社交媒体和活动中展示。'
+  es: 'Si selecciona "Compartir con la comunidad", su chat también puede ser seleccionado para mostrarse a otros usuarios en la plataforma, así como en las redes sociales y en eventos.'
+  fr: 'Si vous sélectionnez "Partager avec la communauté", votre chat peut également être sélectionné pour être montré à d''autres utilisateurs sur la plateforme, ainsi que sur les réseaux sociaux et lors d''événements.'
+  pt: 'Se você selecionar "Compartilhar com a comunidade", seu chat também pode ser selecionado para ser mostrado a outros usuários na plataforma, bem como nas redes sociais e em eventos.'
+  ru: 'Если вы выберете "Поделиться с сообществом", ваш чат также может быть выбран для показа другим пользователям на платформе, а также в социальных сетях и на мероприятиях.'
+  ja: '「コミュニティで共有」を選択すると、あなたのチャットはプラットフォーム上の他のユーザー、ソーシャルメディア、イベントで表示される可能性があります。'
+  ko: '"커뮤니티와 공유"를 선택하면 귀하의 채팅이 플랫폼의 다른 사용자, 소셜 미디어 및 이벤트에 표시될 수 있습니다.'
+  it: 'Se selezioni "Condividi con la comunità", la tua chat potrebbe anche essere selezionata per essere mostrata ad altri utenti sulla piattaforma, così come sui social media e agli eventi.'
+  tr: '"Toplulukla paylaş"ı seçerseniz, sohbetiniz platformdaki diğer kullanıcılara, sosyal medyada ve etkinliklerde gösterilmek üzere de seçilebilir.'
+  vi: 'Nếu bạn chọn "Chia sẻ với cộng đồng", cuộc trò chuyện của bạn cũng có thể được chọn để hiển thị cho người dùng khác trên nền tảng, cũng như trên mạng xã hội và tại các sự kiện.'
+  id: 'Jika Anda memilih "Bagikan dengan komunitas", obrolan Anda juga dapat dipilih untuk ditampilkan kepada pengguna lain di platform, serta di media sosial dan acara.'
+  pl: 'Jeśli wybierzesz "Udostępnij społeczności", Twój czat może również zostać wybrany do pokazania innym użytkownikom na platformie, a także w mediach społecznościowych i na wydarzeniach.'
+  nl: 'Als u "Delen met de gemeenschap" selecteert, kan uw chat ook worden geselecteerd om aan andere gebruikers op het platform te worden getoond, evenals op sociale media en bij evenementen.'
+  ar: 'إذا حددت "مشاركة مع المجتمع"، فقد يتم أيضًا اختيار محادثتك لعرضها على مستخدمين آخرين على المنصة، وكذلك على وسائل التواصل الاجتماعي وفي الأحداث.'
+  hi: 'यदि आप "समुदाय के साथ साझा करें" का चयन करते हैं, तो आपकी चैट को प्लेटफ़ॉर्म पर अन्य उपयोगकर्ताओं, सोशल मीडिया और इवेंट में दिखाने के लिए भी चुना जा सकता है।'
+  th: 'หากคุณเลือก "แชร์กับชุมชน" แชทของคุณอาจถูกเลือกให้แสดงแก่ผู้ใช้อื่นบนแพลตฟอร์ม รวมถึงบนโซเชียลมีเดียและในกิจกรรม'
+  cs: 'Pokud vyberete "Sdílet s komunitou", váš chat může být také vybrán k zobrazení jiným uživatelům na platformě, stejně jako na sociálních médiích a na akcích.'
+  sv: 'Om du väljer "Dela med gemenskapen", kan din chatt också väljas för att visas för andra användare på plattformen, samt på sociala medier och vid evenemang.'
+  verified_by_human: []
+
+optional_settings:
+  context: Header for optional share settings section
+  en: Optional Settings
+  de: Optionale Einstellungen
+  zh: 可选设置
+  es: Configuración opcional
+  fr: Paramètres facultatifs
+  pt: Configurações opcionais
+  ru: Дополнительные настройки
+  ja: オプション設定
+  ko: 선택적 설정
+  it: Impostazioni opzionali
+  tr: İsteğe bağlı ayarlar
+  vi: Cài đặt tùy chọn
+  id: Pengaturan opsional
+  pl: Ustawienia opcjonalne
+  nl: Optionele instellingen
+  ar: إعدادات اختيارية
+  hi: वैकल्पिक सेटिंग्स
+  th: การตั้งค่าเสริม
+  cs: Volitelná nastavení
+  sv: Valfria inställningar
+  verified_by_human: []
+
+sharing_chat:
+  context: Label shown when user is sharing a chat (before "Share" button is clicked)
+  en: Sharing
+  de: Teilen
+  zh: 分享
+  es: Compartiendo
+  fr: Partage
+  pt: Compartilhando
+  ru: Делюсь
+  ja: 共有中
+  ko: 공유 중
+  it: Condivisione
+  tr: Paylaşım
+  vi: Đang chia sẻ
+  id: Berbagi
+  pl: Udostępnianie
+  nl: Delen
+  ar: المشاركة
+  hi: साझा करना
+  th: การแชร์
+  cs: Sdílení
+  sv: Delar
+  verified_by_human: []
+
+link_for_chat:
+  context: Label shown for the link that has been generated (after "Share" button is clicked)
+  en: Link for
+  de: Link für
+  zh: 链接
+  es: Enlace para
+  fr: Lien pour
+  pt: Link para
+  ru: Ссылка на
+  ja: リンク
+  ko: 링크
+  it: Link per
+  tr: İçin bağlantı
+  vi: Liên kết cho
+  id: Tautan untuk
+  pl: Link do
+  nl: Link voor
+  ar: رابط ل
+  hi: के लिए लिंक
+  th: ลิงก์สำหรับ
+  cs: Odkaz pro
+  sv: Länk för
+  verified_by_human: []
+
+click_to_enlarge_qr:
+  context: Instruction text to click QR code to view it larger
+  en: Click QR code to enlarge
+  de: Klicken Sie auf den QR-Code, um ihn zu vergrößern
+  zh: 点击二维码放大
+  es: Haga clic en el código QR para ampliarlo
+  fr: Cliquez sur le code QR pour l'agrandir
+  pt: Clique no código QR para ampliar
+  ru: Нажмите на QR-код, чтобы увеличить
+  ja: QRコードをクリックして拡大
+  ko: QR 코드를 클릭하여 확대
+  it: Clicca sul codice QR per ingrandirlo
+  tr: Büyütmek için QR koduna tıklayın
+  vi: Nhấp vào mã QR để phóng to
+  id: Klik kode QR untuk memperbesar
+  pl: Kliknij kod QR, aby powiększyć
+  nl: Klik op de QR-code om te vergroten
+  ar: انقر على رمز QR للتكبير
+  hi: बड़ा करने के लिए QR कोड पर क्लिक करें
+  th: คลิกรหัส QR เพื่อขยาย
+  cs: Klikněte na QR kód pro zvětšení
+  sv: Klicka på QR-koden för att förstora
+  verified_by_human: []
+
 
 

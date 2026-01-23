@@ -398,21 +398,10 @@ async def update_share_metadata(
         if payload.share_with_community is not None:
             updates["share_with_community"] = payload.share_with_community
         
-        # When sharing with community, extract and store the encryption key
-        # This allows admins to approve demo chats without needing to open the chat first
-        if payload.share_with_community and payload.share_link:
-            # Extract encryption key from share_link fragment
-            # Share links have format: https://domain/share/chat/{chat_id}#key={encryption_key}
-            if "#key=" in payload.share_link:
-                encryption_key = payload.share_link.split("#key=")[1]
-                if encryption_key:
-                    # Encrypt the key with the shared vault key for secure storage
-                    encrypted_chat_key, _ = await encryption_service.encrypt(
-                        encryption_key,
-                        key_name=shared_vault_key
-                    )
-                    updates["shared_encrypted_chat_key"] = encrypted_chat_key
-                    logger.info(f"Stored encrypted chat key for community-shared chat {chat_id}")
+        # Note: When sharing with community, the client decrypts messages/embeds locally
+        # and sends plaintext to the server (zero-knowledge architecture).
+        # The share_link with encryption key is NOT sent to the server.
+        # The server creates a separate demo_chats entry encrypted with Vault.
         
         # Update chat in database
         if updates:
