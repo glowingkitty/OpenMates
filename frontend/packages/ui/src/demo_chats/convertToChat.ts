@@ -86,7 +86,7 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 	
 	// 3. If still not found, check community demo store (fetched from server, stored in-memory)
 	// Offline support is provided by proactive cache loading in loadDemoChatsFromServer
-	if (!foundChat && isCommunityDemo(chatId)) {
+	if (!foundChat && (isCommunityDemo(chatId) || chatId.startsWith('demo-'))) {
 		const communityMessages = getCommunityDemoMessages(chatId);
 		if (communityMessages.length > 0) {
 			console.debug(`[convertToChat] Found ${communityMessages.length} messages in community demo store for: ${chatId}`);
@@ -96,14 +96,17 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 		// No messages in memory - this can happen if:
 		// 1. Cache hasn't loaded yet (should be rare, loaded on app start)
 		// 2. User is offline and cache was never populated
+		// 3. Language reload is in progress (store was cleared)
 		// In these cases, return empty array to avoid blocking the UI
-		console.debug(`[convertToChat] No messages found for community demo ${chatId} (cache may not be loaded yet)`);
+		if (chatId.startsWith('demo-')) {
+			console.debug(`[convertToChat] Community demo ${chatId} messages not found in memory (may be loading or reloading)`);
+		}
 		return [];
 	}
 	
 	if (!foundChat) {
 		// Only warn if this isn't a community demo (which might still be loading)
-		if (!isCommunityDemo(chatId)) {
+		if (!chatId.startsWith('demo-')) {
 			console.warn(`[convertToChat] No public chat found for ID: ${chatId}`);
 		}
 		return [];

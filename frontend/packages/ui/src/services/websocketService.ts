@@ -691,6 +691,7 @@ class WebSocketService extends EventTarget {
         const handlerCount = Array.from(this.messageHandlers.values()).reduce((total, handlers) => total + handlers.length, 0);
         this.messageHandlers.clear();
         console.debug(`[WebSocketService] Cleared all handlers (${handlerCount} total)`);
+        this.dispatchEvent(new CustomEvent('handlers_cleared'));
     }
 }
 

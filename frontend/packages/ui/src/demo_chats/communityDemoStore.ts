@@ -244,6 +244,26 @@ export function getCommunityDemoCount(): number {
     return get(store).chats.size;
 }
 
+/**
+ * Returns a promise that resolves when the store has finished its current loading process.
+ * If not currently loading, resolves immediately.
+ */
+export async function waitForLoadingComplete(): Promise<void> {
+    const currentState = get(store);
+    if (!currentState.loading) {
+        return;
+    }
+
+    return new Promise(resolve => {
+        const unsubscribe = store.subscribe(state => {
+            if (!state.loading) {
+                unsubscribe();
+                resolve();
+            }
+        });
+    });
+}
+
 // ============================================================================
 // REACTIVE STORE EXPORT
 // ============================================================================
@@ -267,5 +287,6 @@ export const communityDemoStore = {
     setLoading,
     markAsLoaded,
     clear: clearCommunityDemos,
-    count: getCommunityDemoCount
+    count: getCommunityDemoCount,
+    waitForLoadingComplete
 };

@@ -735,14 +735,14 @@ export function createKeyboardHandlingExtension() {
                         const isAuthenticated = get(authStore).isAuthenticated;
                         
                         if (!isAuthenticated) {
-                            // Dispatch sign-in event instead of send event for unauthenticated users
-                            // This triggers the sign-in flow which saves the draft and opens login interface
-                            const signInEvent = new Event('custom-sign-in-click', {
+                            // Dispatch sign-up event instead of send event for unauthenticated users
+                            // This triggers the sign-up flow which saves the draft and opens signup interface
+                            const signUpEvent = new Event('custom-sign-up-click', {
                                 bubbles: true,
                                 cancelable: true
                             });
-                            editor.view.dom.dispatchEvent(signInEvent);
-                            console.debug('[KeyboardShortcuts] User not authenticated, triggering sign-in flow instead of send');
+                            editor.view.dom.dispatchEvent(signUpEvent);
+                            console.debug('[KeyboardShortcuts] User not authenticated, triggering sign-up flow instead of send');
                             return true; // We've handled the event.
                         }
                         

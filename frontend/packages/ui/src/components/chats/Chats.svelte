@@ -13,7 +13,7 @@
 	import { chatSyncService } from '../../services/chatSyncService';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
-	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
+	import { locale as svelteLocaleStore, waitLocale } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
@@ -72,7 +72,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
-	let currentScrollTop = $state(0); // Track current scroll position for reactivity
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -114,8 +113,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This triggers reactivity whenever the user changes the language
 		void $svelteLocaleStore;
 		
+		// Reference the text store to ensure reactivity when translations are loaded
+		void $text;
+		
 		// Reference the communityDemoStore to trigger reactivity when community demos are loaded
 		void $communityDemoStore;
+		
+		console.debug('[Chats] Recalculating visiblePublicChats. Community demos count:', getAllCommunityDemoChats().length);
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -143,14 +147,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// 2. Community demo chats (fetched from server, stored in-memory)
-		// These are only shown for non-authenticated users
+		// These are shown for all users (authenticated and non-authenticated)
 		let communityChats: ChatType[] = [];
-		if (!$authStore.isAuthenticated) {
-			communityChats = getAllCommunityDemoChats().map(chat => ({
+		communityChats = getAllCommunityDemoChats()
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.map(chat => ({
 				...chat,
 				group_key: 'examples' // Community demos go in "Examples" group
 			}));
-		}
 		
 		// 3. Legal chats (ONLY for non-self-hosted instances)
 		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
@@ -198,8 +202,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
-		const realChatIds = new Set(processedRealChats.map(c => c.chat_id));
-		const filteredPublicChats = visiblePublicChats.filter(c => !realChatIds.has(c.chat_id));
+		// CRITICAL: We don't filter out public chats from visiblePublicChats even if they are in the DB,
+		// because they are already filtered out of processedRealChats. This ensures they always show up.
+		const filteredPublicChats = visiblePublicChats;
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
 		void incognitoChatsTrigger;
@@ -394,14 +399,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
 	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
 	
-	// Locale for date formatting, updated reactively
-	let currentLocale = get(svelteLocaleStore);
-	svelteLocaleStore.subscribe(newLocale => {
-		currentLocale = newLocale;
-		// Re-trigger grouping if locale affects date strings used as keys (implicitly handled by reactivity of groupedChatsForDisplay)
-	});
-
-
 	// --- Event Handlers & Lifecycle ---
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
@@ -1149,13 +1146,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
-		// Load demo chats from server in background (for non-authenticated users)
+		// Load demo chats from server in background (for all users)
 		// Similar to how shared chats are loaded - stores in IndexedDB and displays in chat list
-		if (!$authStore.isAuthenticated) {
-			loadDemoChatsFromServer().catch(error => {
-				console.error('[Chats] Error loading demo chats from server:', error);
-			});
-		}
+		loadDemoChatsFromServer().catch(error => {
+			console.error('[Chats] Error loading demo chats from server:', error);
+		});
 
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
@@ -1209,6 +1204,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 
 		try {
+			// CRITICAL: Wait for translations to be fully loaded before fetching
+			// This ensures svelteLocaleStore has the correct language for the API call
+			await waitLocale();
+			
 			communityDemoStore.setLoading(true);
 			
 			// Get user's current language from svelte-i18n store
@@ -1292,7 +1291,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 				try {
 					// Fetch individual demo chat data
-					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
+					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`));
 					if (!chatResponse.ok) {
 						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
 						continue;
@@ -1341,13 +1340,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					
 					console.debug(`[Chats] Community demo ${demoId} has ${parsedMessages.length} messages`);
 
-					// Calculate timestamps
-					const messageTimestamps = parsedMessages
-						.map((m: Message) => m.created_at || 0)
-						.filter((ts: number) => ts > 0);
-					const lastMessageTimestamp = messageTimestamps.length > 0
-						? Math.max(...messageTimestamps)
-						: Math.floor(Date.now() / 1000);
+					// ARCHITECTURE: Use consistent timestamps for all demo chats (intro + community)
+					// This ensures they stay grouped correctly and have a stable order.
+					// Intro chats use '7 days ago' minus their order.
+					// Community demos use '7 days ago' minus 10000 minus their index.
+					const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+					const demoIndex = parseInt(demoId.split('-')[1] || '0');
+					const displayTimestamp = sevenDaysAgo - (demoIndex * 1000) - 10000;
 
 					// Create Chat object with cleartext metadata
 					// ARCHITECTURE: Demo chats use CLEARTEXT field names (category, icon, follow_up_request_suggestions)
@@ -1364,10 +1363,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						messages_v: parsedMessages.length,
 						title_v: 0,
 						draft_v: 0,
-						last_edited_overall_timestamp: lastMessageTimestamp,
+						last_edited_overall_timestamp: displayTimestamp,
 						unread_count: 0,
-						created_at: lastMessageTimestamp,
-						updated_at: lastMessageTimestamp,
+						created_at: displayTimestamp,
+						updated_at: displayTimestamp,
 						processing_metadata: false,
 						waiting_for_metadata: false,
 						group_key: 'examples'

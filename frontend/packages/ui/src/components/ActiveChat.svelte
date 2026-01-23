@@ -3352,6 +3352,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 panelState.toggleChats();
             }
         };
+
+        // Listen for event to open signup interface from message input button
+        const handleOpenSignupInterface = () => {
+            console.debug("[ActiveChat] Opening signup interface (alpha disclaimer) from message input button");
+            // Set signup state directly to alpha disclaimer
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            isInSignupProcess.set(true);
+            loginInterfaceOpen.set(true);
+            
+            // Close chats panel when opening signup
+            if ($panelState.isActivityHistoryOpen) {
+                panelState.toggleChats();
+            }
+        };
         
         // Listen for event to close login interface (e.g., from Demo button)
         const handleCloseLoginInterface = async () => {
@@ -3481,6 +3495,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
         // Add event listener for embed fullscreen events
         const embedFullscreenHandler = (event: CustomEvent) => {
@@ -3778,11 +3793,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 get(translationStore); // Ensure translation store is updated
                 
                 // Import community demo store functions
-                const { isCommunityDemo, getCommunityDemoMessages } = await import('../demo_chats');
+                const { getCommunityDemoMessages, communityDemoStore } = await import('../demo_chats');
                 
                 // Check if this is a community demo chat (demo-1, demo-2, etc.)
                 // Community demos are fetched from server with language-specific translations
-                if (isCommunityDemo(snapshotChat.chat_id)) {
+                // ARCHITECTURE: Community demos use a pattern-based ID check (startsWith 'demo-')
+                // but exclude static intro chats which are in DEMO_CHATS
+                const isStatic = DEMO_CHATS.some(c => c.chat_id === snapshotChat.chat_id);
+                if (snapshotChat.chat_id.startsWith('demo-') && !isStatic) {
                     console.debug('[ActiveChat] Language changed - reloading community demo:', snapshotChat.chat_id);
                     
                     // ARCHITECTURE: Community demos are reloaded by Chats.svelte when language changes
@@ -3790,8 +3808,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // which clears the cache and fetches demos in the new language
                     // We need to wait for that reload to complete before we can get the new messages
                     
-                    // Wait a bit for Chats.svelte to reload the community demos
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Wait for Chats.svelte to finish reloading the community demos
+                    // We use waitForLoadingComplete() which waits for the store's loading flag to clear
+                    await communityDemoStore.waitForLoadingComplete();
                     
                     // Get the reloaded messages from communityDemoStore
                     const newMessages = getCommunityDemoMessages(snapshotChat.chat_id);
@@ -4194,6 +4213,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListenerCallback);
+            window.removeEventListener('openSignupInterface', handleOpenSignupInterface as EventListenerCallback);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
