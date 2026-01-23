@@ -173,6 +173,7 @@ async def get_demo_chat(
 ) -> Dict[str, Any]:
     """
     Get full demo chat data for viewing.
+    Accepts display IDs (demo-1, demo-2) or UUIDs.
     """
     try:
         # 1. Try to get from cache first
@@ -181,27 +182,122 @@ async def get_demo_chat(
             logger.debug(f"Cache HIT: Returning demo chat data for {demo_id} ({lang})")
             return cached_data
 
-        # 2. Get demo chat metadata
-        demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        # 2. Get demo chat metadata - need to map display ID to UUID
+        demo_chat_uuid = None
+        
+        # Check if demo_id is a display ID (demo-1, demo-2, etc.) or UUID
+        if demo_id.startswith("demo-"):
+            # It's a display ID - need to fetch all demos and find the matching one by order
+            try:
+                index = int(demo_id.split("-")[1]) - 1  # demo-1 -> index 0
+                
+                # Get published demos sorted by creation (same as list endpoint)
+                params = {
+                    "filter": {
+                        "status": {"_eq": "published"},
+                        "is_active": {"_eq": True}
+                    },
+                    "sort": ["-created_at"],
+                    "limit": index + 1  # Only fetch up to the one we need
+                }
+                demos = await directus_service.get_items("demo_chats", params)
+                
+                if demos and len(demos) > index:
+                    demo_chat_uuid = demos[index]["id"]
+                else:
+                    raise HTTPException(status_code=404, detail="Demo chat not found")
+            except (ValueError, IndexError):
+                raise HTTPException(status_code=404, detail="Invalid demo ID format")
+        else:
+            # Assume it's a UUID
+            demo_chat_uuid = demo_id
+
+        # Fetch the demo chat by UUID
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_uuid}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        
         if not demo_chat or demo_chat.get("status") != "published":
             raise HTTPException(status_code=404, detail="Demo chat not found or not yet published")
 
-        # 3. Get translation
-        translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
+        # 3. Get translation by UUID
+        translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, lang)
         if not translation and lang != "en":
-            translation = await directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
+            translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, "en")
         
         if not translation:
             raise HTTPException(status_code=404, detail="Translation not found")
+        
+        # Decrypt translation metadata
+        encryption_service = request.app.state.encryption_service
+        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        
+        title = None
+        summary = None
+        follow_up_suggestions = []
+        
+        if translation.get("encrypted_title"):
+            try:
+                title = await encryption_service.decrypt(
+                    translation["encrypted_title"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt title: {e}")
+        
+        if translation.get("encrypted_summary"):
+            try:
+                summary = await encryption_service.decrypt(
+                    translation["encrypted_summary"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt summary: {e}")
+        
+        if translation.get("encrypted_follow_up_suggestions"):
+            try:
+                import json
+                decrypted_followup = await encryption_service.decrypt(
+                    translation["encrypted_follow_up_suggestions"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+                if decrypted_followup:
+                    follow_up_suggestions = json.loads(decrypted_followup)
+            except Exception as e:
+                logger.warning(f"Failed to decrypt follow-up suggestions: {e}")
+        
+        # Decrypt category and icon from demo_chat
+        category = None
+        icon = None
+        
+        if demo_chat.get("encrypted_category"):
+            try:
+                category = await encryption_service.decrypt(
+                    demo_chat["encrypted_category"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt category: {e}")
+        
+        if demo_chat.get("encrypted_icon"):
+            try:
+                icon = await encryption_service.decrypt(
+                    demo_chat["encrypted_icon"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt icon: {e}")
 
-        # 4. Get messages and embeds
-        messages = await directus_service.demo_chat.get_demo_messages(demo_id, lang)
+        # 4. Get messages and embeds by UUID
+        messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, lang)
         if not messages and lang != "en":
-            messages = await directus_service.demo_chat.get_demo_messages(demo_id, "en")
+            messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, "en")
             
-        embeds = await directus_service.demo_chat.get_demo_embeds(demo_id, lang)
+        embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_uuid, lang)
         if not embeds and lang != "en":
-            embeds = await directus_service.demo_chat.get_demo_embeds(demo_id, "en")
+            embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_uuid, "en")
 
         # 5. Decrypt content for client (No client-side decryption needed for demos)
         from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
@@ -239,12 +335,12 @@ async def get_demo_chat(
         # content_hash is included for client-side change detection
         response_data = {
             "demo_id": demo_id,
-            "title": translation.get("title"),
-            "summary": translation.get("summary"),
-            "category": demo_chat.get("category"),
-            "icon": demo_chat.get("icon"),
+            "title": title,
+            "summary": summary,
+            "category": category,
+            "icon": icon,
             "content_hash": demo_chat.get("content_hash", ""),
-            "follow_up_suggestions": translation.get("follow_up_suggestions"),
+            "follow_up_suggestions": follow_up_suggestions,
             "chat_data": {
                 "chat_id": demo_id,  # Use demo_id as the chat identifier (not original_chat_id)
                 "messages": decrypted_messages,  # Already decrypted server-side (cleartext)

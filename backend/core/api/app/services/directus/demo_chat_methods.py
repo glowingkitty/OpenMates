@@ -469,22 +469,6 @@ class DemoChatMethods:
             logger.error(f"Error fetching pending demo chats: {e}", exc_info=True)
             return []
 
-    async def get_demo_chat_translation(self, demo_id: str, language: str) -> Optional[Dict[str, Any]]:
-        """Get translated metadata for a demo chat by demo_id (deprecated - use UUID version)."""
-        try:
-            params = {
-                "filter": {
-                    "demo_id": {"_eq": demo_id},
-                    "language": {"_eq": language}
-                },
-                "limit": 1
-            }
-            items = await self.directus_service.get_items("demo_chat_translations", params)
-            return items[0] if items else None
-        except Exception as e:
-            logger.error(f"Error fetching demo chat translation: {e}")
-            return None
-
     async def get_demo_chat_translation_by_uuid(self, demo_chat_uuid: str, language: str) -> Optional[Dict[str, Any]]:
         """Get translated metadata for a demo chat by UUID."""
         try:
@@ -501,34 +485,34 @@ class DemoChatMethods:
             logger.error(f"Error fetching demo chat translation by UUID: {e}")
             return None
 
-    async def get_demo_messages(self, demo_id: str, language: str) -> List[Dict[str, Any]]:
-        """Get translated and encrypted messages for a demo chat."""
+    async def get_demo_messages_by_uuid(self, demo_chat_uuid: str, language: str) -> List[Dict[str, Any]]:
+        """Get translated and encrypted messages for a demo chat by UUID."""
         try:
             params = {
                 "filter": {
-                    "demo_id": {"_eq": demo_id},
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
                     "language": {"_eq": language}
                 },
                 "sort": ["message_order"]
             }
             return await self.directus_service.get_items("demo_messages", params)
         except Exception as e:
-            logger.error(f"Error fetching demo messages: {e}")
+            logger.error(f"Error fetching demo messages by UUID: {e}")
             return []
 
-    async def get_demo_embeds(self, demo_id: str, language: str) -> List[Dict[str, Any]]:
-        """Get translated and encrypted embeds for a demo chat."""
+    async def get_demo_embeds_by_uuid(self, demo_chat_uuid: str, language: str) -> List[Dict[str, Any]]:
+        """Get translated and encrypted embeds for a demo chat by UUID."""
         try:
             params = {
                 "filter": {
-                    "demo_id": {"_eq": demo_id},
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
                     "language": {"_eq": language}
                 },
                 "sort": ["embed_order"]
             }
             return await self.directus_service.get_items("demo_embeds", params)
         except Exception as e:
-            logger.error(f"Error fetching demo embeds: {e}")
+            logger.error(f"Error fetching demo embeds by UUID: {e}")
             return []
 
     async def get_demo_chat_by_id(self, demo_id: str) -> Optional[Dict[str, Any]]:
