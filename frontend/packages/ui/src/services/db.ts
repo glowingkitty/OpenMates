@@ -84,11 +84,11 @@ class ChatDatabase {
     private isDeleting: boolean = false;
     
     // Flag to skip orphan detection for shared chat sessions.
-    // Once set to true (by init({ skipOrphanDetection: true })), it remains true
-    // for all subsequent init() calls. This is needed because shared chats are
-    // stored without a master key (they use URL-embedded encryption keys), so the
+    // This is backed by sessionStorage to persist across page navigations within
+    // the same browser session. This is needed because shared chats are stored
+    // without a master key (they use URL-embedded encryption keys), so the
     // "no master key but has chats" condition is expected and NOT orphan data.
-    private skipOrphanDetectionPersistent: boolean = false;
+    private static readonly SKIP_ORPHAN_DETECTION_KEY = 'openmates_skip_orphan_detection';
     
     // Chat key cache for performance - public for chatKeyManagement module to access
     public chatKeys: Map<string, Uint8Array> = new Map();
@@ -96,6 +96,15 @@ class ChatDatabase {
     // ============================================================================
     // DATABASE INITIALIZATION
     // ============================================================================
+    
+    /**
+     * Check if skip orphan detection is enabled (via sessionStorage).
+     * This persists across page navigations within the same browser session.
+     */
+    private isSkipOrphanDetectionEnabled(): boolean {
+        if (typeof sessionStorage === 'undefined') return false;
+        return sessionStorage.getItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY) === 'true';
+    }
     
     /**
      * Enable skip orphan detection mode for shared chat sessions.
@@ -106,11 +115,25 @@ class ChatDatabase {
      * Shared chats are stored without a master key (they use URL-embedded encryption keys),
      * so the "no master key but has chats" condition is expected and NOT orphan data.
      * 
-     * Once enabled, this flag remains true for all subsequent init() calls.
+     * Once enabled, this flag persists in sessionStorage across page navigations
+     * within the same browser session (but clears when the tab is closed).
      */
     public enableSkipOrphanDetection(): void {
-        this.skipOrphanDetectionPersistent = true;
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY, 'true');
+        }
         console.debug('[ChatDatabase] Enabled skipOrphanDetection mode for shared chat session');
+    }
+    
+    /**
+     * Disable skip orphan detection mode.
+     * Called when user logs in (master key available) to restore normal orphan detection.
+     */
+    public disableSkipOrphanDetection(): void {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY);
+        }
+        console.debug('[ChatDatabase] Disabled skipOrphanDetection mode');
     }
 
     /**
@@ -133,14 +156,15 @@ class ChatDatabase {
     async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
         const { skipOrphanDetection = false } = options;
         
-        // Make skipOrphanDetection persistent - once set to true, it stays true for all
-        // subsequent init() calls. This handles the case where the initial init() is
-        // called with skipOrphanDetection: true (e.g., from share chat page), but later
-        // internal methods like getTransaction() call init() without the flag.
+        // Make skipOrphanDetection persistent via sessionStorage - once set to true, it
+        // stays true for all subsequent init() calls AND survives page navigations.
+        // This handles:
+        // 1. Internal methods like getTransaction() calling init() without the flag
+        // 2. Navigation from share chat page to main app (different page load)
         if (skipOrphanDetection) {
-            this.skipOrphanDetectionPersistent = true;
+            this.enableSkipOrphanDetection();
         }
-        const shouldSkipOrphanDetection = this.skipOrphanDetectionPersistent;
+        const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
         
         // Prevent initialization during deletion
         if (this.isDeleting) {
