@@ -430,7 +430,7 @@ export async function decryptMessageFields(
     if (message.encrypted_content) {
         try {
             // Enhanced logging for decryption attempts
-            console.log(
+            console.debug(
                 `[CLIENT_DECRYPT] 🔓 Attempting to decrypt message ${message.message_id} ` +
                 `(chat: ${chatId}, role: ${message.role}, status: ${message.status}, ` +
                 `encrypted_content length: ${message.encrypted_content.length})`
@@ -441,7 +441,7 @@ export async function decryptMessageFields(
                 decryptedMessage.content = decryptedContentString;
                 // Clear encrypted field
                 delete decryptedMessage.encrypted_content;
-                console.log(
+                console.debug(
                     `[CLIENT_DECRYPT] ✅ Successfully decrypted message ${message.message_id} ` +
                     `(content length: ${decryptedContentString.length} chars)`
                 );

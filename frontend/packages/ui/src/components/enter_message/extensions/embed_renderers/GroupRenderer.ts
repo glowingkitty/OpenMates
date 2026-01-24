@@ -31,8 +31,8 @@ export class GroupRenderer implements EmbedRenderer {
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
     
-    console.log('[GroupRenderer] RENDER CALLED with attrs:', attrs);
-    console.log('[GroupRenderer] RENDER CALLED with content element:', content);
+    console.debug('[GroupRenderer] RENDER CALLED with attrs:', attrs);
+    console.debug('[GroupRenderer] RENDER CALLED with content element:', content);
     
     // Load embed content from EmbedStore if contentRef is present
     let embedData = null;

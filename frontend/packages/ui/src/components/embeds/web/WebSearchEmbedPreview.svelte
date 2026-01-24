@@ -396,7 +396,7 @@
   // DEBUG: Log results data to understand what we're receiving
   $effect(() => {
     if (results?.length) {
-      console.log(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}:`, {
+      console.debug(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}:`, {
         rawResultsLength: results.length,
         flatResultsLength: flatResults.length,
         faviconResultsLength: faviconResults.length,
@@ -412,7 +412,7 @@
         extractedFaviconUrl: flatResults[0] ? getFaviconUrl(flatResults[0]) : undefined
       });
     } else {
-      console.log(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}: No results available`);
+      console.debug(`[WebSearchEmbedPreview] DEBUG id=${id} status=${status}: No results available`);
     }
   });
   

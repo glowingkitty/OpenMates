@@ -19,7 +19,6 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   
@@ -325,9 +324,9 @@
           // Normalize each result to ensure favicon is in standard format
           for (const rawResult of entry.results as Array<Record<string, unknown>>) {
             const normalizedResult: NewsSearchResult = {
-              ...(rawResult as NewsSearchResult),
+              ...(rawResult as unknown as NewsSearchResult),
               // Ensure favicon is set from any available source
-              favicon: extractFaviconFromRaw(rawResult) || (rawResult as NewsSearchResult).favicon
+              favicon: extractFaviconFromRaw(rawResult) || (rawResult as unknown as NewsSearchResult).favicon
             };
             flattened.push(normalizedResult);
           }
@@ -339,9 +338,9 @@
     
     // Already flat structure - but still normalize favicons
     return (rawResults as Array<Record<string, unknown>>).map(rawResult => ({
-      ...(rawResult as NewsSearchResult),
+      ...(rawResult as unknown as NewsSearchResult),
       // Ensure favicon is set from any available source
-      favicon: extractFaviconFromRaw(rawResult) || (rawResult as NewsSearchResult).favicon
+      favicon: extractFaviconFromRaw(rawResult) || (rawResult as unknown as NewsSearchResult).favicon
     }));
   }
   
@@ -362,7 +361,7 @@
   // DEBUG: Log results data to understand what we're receiving
   $effect(() => {
     if (results?.length) {
-      console.log(`[NewsSearchEmbedPreview] DEBUG id=${id} status=${status}:`, {
+      console.debug(`[NewsSearchEmbedPreview] DEBUG id=${id} status=${status}:`, {
         rawResultsLength: results.length,
         flatResultsLength: flatResults.length,
         faviconResultsLength: faviconResults.length,
@@ -378,7 +377,7 @@
         extractedFaviconUrl: flatResults[0] ? getFaviconUrl(flatResults[0]) : undefined
       });
     } else {
-      console.log(`[NewsSearchEmbedPreview] DEBUG id=${id} status=${status}: No results available`);
+      console.debug(`[NewsSearchEmbedPreview] DEBUG id=${id} status=${status}: No results available`);
     }
   });
   
