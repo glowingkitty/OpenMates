@@ -689,19 +689,27 @@ async def handle_main_processing(
                                 try:
                                     parsed_content = json.loads(decrypted_content)
                                     loaded_app_settings_and_memories_content[key] = parsed_content
-                                    # DEBUG: Log content type and preview for troubleshooting
-                                    content_type = type(parsed_content).__name__
-                                    if isinstance(parsed_content, list):
-                                        content_preview = f"list with {len(parsed_content)} items"
-                                    elif isinstance(parsed_content, dict):
-                                        content_preview = f"dict with keys: {list(parsed_content.keys())[:5]}"
+                                    # DEBUG: Log content type and preview for troubleshooting - NEVER log sensitive content on production
+                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
+                                    if server_environment == "development":
+                                        content_type = type(parsed_content).__name__
+                                        if isinstance(parsed_content, list):
+                                            content_preview = f"list with {len(parsed_content)} items"
+                                        elif isinstance(parsed_content, dict):
+                                            content_preview = f"dict with keys: {list(parsed_content.keys())[:5]}"
+                                        else:
+                                            content_preview = f"value: {str(parsed_content)[:100]}"
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: {content_type}, content: {content_preview})")
                                     else:
-                                        content_preview = f"value: {str(parsed_content)[:100]}"
-                                    logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: {content_type}, content: {content_preview})")
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
                                 except json.JSONDecodeError:
                                     # If not JSON, use as plain string
                                     loaded_app_settings_and_memories_content[key] = decrypted_content
-                                    logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: str, length: {len(decrypted_content)})")
+                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
+                                    if server_environment == "development":
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: str, length: {len(decrypted_content)})")
+                                    else:
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
                             else:
                                 logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
                         else:
@@ -900,8 +908,12 @@ async def handle_main_processing(
     
     # DEBUG: Log the app_settings_memories content before adding to prompt
     # This helps diagnose issues where data is found in cache but not injected into prompt
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
     if loaded_app_settings_and_memories_content:
-        logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt: {list(loaded_app_settings_and_memories_content.keys())}")
+        if server_environment == "development":
+            logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt: {list(loaded_app_settings_and_memories_content.keys())}")
+        else:
+            logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt (keys redacted - production environment)")
     else:
         logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] No app settings/memories content to add to system prompt (dict is empty)")
     
