@@ -651,6 +651,7 @@ async def handle_main_processing(
     # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
     if preprocessing_results.load_app_settings_and_memories and cache_service:
+        logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
             # Import helper function for creating requests
             from backend.core.api.app.utils.app_settings_memories_request import (
@@ -686,11 +687,21 @@ async def handle_main_processing(
                             if decrypted_content:
                                 # Try to parse as JSON (content might be serialized JSON)
                                 try:
-                                    loaded_app_settings_and_memories_content[key] = json.loads(decrypted_content)
+                                    parsed_content = json.loads(decrypted_content)
+                                    loaded_app_settings_and_memories_content[key] = parsed_content
+                                    # DEBUG: Log content type and preview for troubleshooting
+                                    content_type = type(parsed_content).__name__
+                                    if isinstance(parsed_content, list):
+                                        content_preview = f"list with {len(parsed_content)} items"
+                                    elif isinstance(parsed_content, dict):
+                                        content_preview = f"dict with keys: {list(parsed_content.keys())[:5]}"
+                                    else:
+                                        content_preview = f"value: {str(parsed_content)[:100]}"
+                                    logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: {content_type}, content: {content_preview})")
                                 except json.JSONDecodeError:
                                     # If not JSON, use as plain string
                                     loaded_app_settings_and_memories_content[key] = decrypted_content
-                                logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key}")
+                                    logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: str, length: {len(decrypted_content)})")
                             else:
                                 logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
                         else:
@@ -886,7 +897,23 @@ async def handle_main_processing(
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
+    
+    # DEBUG: Log the app_settings_memories content before adding to prompt
+    # This helps diagnose issues where data is found in cache but not injected into prompt
     if loaded_app_settings_and_memories_content:
+        logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt: {list(loaded_app_settings_and_memories_content.keys())}")
+    else:
+        logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] No app settings/memories content to add to system prompt (dict is empty)")
+    
+    if loaded_app_settings_and_memories_content:
+        # First, add the instruction telling the LLM how to use this data
+        # CRITICAL: This instruction is essential because without it, the LLM may ignore the data
+        # and respond with "I don't know anything about you" even when the data is present.
+        app_settings_usage_instruction = base_instructions.get("base_app_settings_memories_usage_instruction", "")
+        if app_settings_usage_instruction:
+            prompt_parts.append(app_settings_usage_instruction)
+        
+        # Then add the actual data
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
             # CRITICAL: Convert Unix timestamps to human-readable date strings
