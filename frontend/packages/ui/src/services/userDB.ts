@@ -103,9 +103,15 @@ class UserDatabaseService {
         // logging out, we should NOT re-initialize the database. This prevents a race condition
         // where the database is re-opened after it was closed for deletion but before the
         // actual deleteDatabase() call completes.
-        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
-            console.debug('[UserDatabase] Skipping init() - logout in progress (forcedLogout:', 
-                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut), ')');
+        //
+        // EXCEPTION: Allow initialization during login/auth attempts to prevent blocking
+        // legitimate authentication flows (e.g., after server restart WebSocket auth errors)
+        const { isCheckingAuth } = await import('../stores/authState');
+        const isAuthInProgress = get(isCheckingAuth);
+        if ((get(forcedLogoutInProgress) || get(isLoggingOut)) && !isAuthInProgress) {
+            console.debug('[UserDatabase] Skipping init() - logout in progress (forcedLogout:',
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut),
+                ', isCheckingAuth:', isAuthInProgress, ')');
             throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
