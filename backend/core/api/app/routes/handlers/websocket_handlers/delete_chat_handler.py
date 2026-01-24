@@ -33,25 +33,86 @@ async def handle_delete_chat(
         return
 
     logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
-
+    
     try:
         # 0. Verify chat ownership before processing deletion
-        # This prevents users from deleting chats they don't own
-        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-        if not is_owner:
-            logger.warning(f"User {user_id} attempted to delete chat {chat_id} they don't own. Rejecting.")
-            await manager.send_personal_message(
-                message={
-                    "type": "error", 
-                    "payload": {
-                        "message": "You do not have permission to delete this chat.",
-                        "chat_id": chat_id
-                    }
-                },
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
+        # This prevents users from deleting chats they don't own.
+        # CRITICAL: Allow deletion for chats that don't exist in Directus yet
+        # (e.g., new chats that only exist locally and have not been persisted).
+        try:
+            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            if not is_owner:
+                # Check if the chat exists at all - if not, treat as new/local chat (allowed).
+                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                if chat_metadata:
+                    # Chat exists but user doesn't own it - reject deletion.
+                    logger.warning(
+                        f"User {user_id} attempted to delete existing chat {chat_id} they don't own. Rejecting."
+                    )
+                    await manager.send_personal_message(
+                        message={
+                            "type": "error",
+                            "payload": {
+                                "message": "You do not have permission to delete this chat.",
+                                "chat_id": chat_id,
+                            },
+                        },
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                    )
+                    return
+                else:
+                    # Chat does not exist in Directus - treat as local-only chat.
+                    # We still proceed with cache tombstoning to ensure any residual cache state is cleaned up.
+                    logger.debug(
+                        f"Chat {chat_id} not found in Directus during delete_chat - treating as new/local chat (allowed)."
+                    )
+        except Exception as ownership_error:
+            # If ownership check fails, attempt to determine if chat exists.
+            # If it exists, fail closed; if not, allow deletion to proceed.
+            logger.error(
+                f"Error verifying ownership for chat {chat_id}, user {user_id} during delete_chat: {ownership_error}",
+                exc_info=True,
             )
-            return
+            try:
+                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                if chat_metadata:
+                    # Existing chat but we couldn't verify ownership - reject for security.
+                    await manager.send_personal_message(
+                        message={
+                            "type": "error",
+                            "payload": {
+                                "message": "Unable to verify chat permissions. Please try again.",
+                                "chat_id": chat_id,
+                            },
+                        },
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                    )
+                    return
+                else:
+                    # Chat doesn't exist in Directus - treat as local-only chat and continue deletion.
+                    logger.debug(
+                        f"Chat {chat_id} not found in Directus after ownership check error - treating as new/local chat for delete_chat."
+                    )
+            except Exception as metadata_error:
+                # Could not determine if chat exists - fail closed.
+                logger.error(
+                    f"Error checking existence of chat {chat_id} for user {user_id} during delete_chat: {metadata_error}",
+                    exc_info=True,
+                )
+                await manager.send_personal_message(
+                    message={
+                        "type": "error",
+                        "payload": {
+                            "message": "Unable to verify chat permissions. Please try again.",
+                            "chat_id": chat_id,
+                        },
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
 
         # 1. Mark chat as deleted in general cache (tombstone)
         # Cached drafts will be allowed to expire naturally.

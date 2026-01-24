@@ -42,17 +42,86 @@ async def handle_delete_draft(
     logger.info(
         f"User {user_id}, Device {device_fingerprint_hash}: Received delete_draft request for chat_id: {chat_id}."
     )
-
+    
     # Verify chat ownership
-    is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-    if not is_owner:
-        logger.warning(f"User {user_id} attempted to delete draft for chat {chat_id} they don't own. Rejecting.")
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
+    # CRITICAL: Allow draft deletion for chats that don't exist in Directus yet
+    # When a user starts typing in a new chat, the chat may only exist locally and not in Directus.
+    # The chat is only created in Directus when the first message is sent.
+    # This mirrors the behavior in message_received_handler.py where non-existent chats are treated
+    # as new chat creation instead of a permission error.
+    try:
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            # Check if the chat exists at all - if not, treat as new chat (allowed)
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Chat exists but user doesn't own it - reject
+                logger.warning(
+                    f"User {user_id} attempted to delete draft for existing chat {chat_id} they don't own. Rejecting."
+                )
+                await manager.send_personal_message(
+                    message={
+                        "type": "error",
+                        "payload": {
+                            "message": "You do not have permission to modify this chat.",
+                            "chat_id": chat_id,
+                        },
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+            else:
+                # Chat doesn't exist in Directus - treat as new/local chat, allow draft deletion
+                logger.debug(
+                    f"Chat {chat_id} not found in Directus during delete_draft - treating as new/local chat (allowed)."
+                )
+    except Exception as ownership_error:
+        # On error while checking ownership, attempt to see if chat exists
+        # If chat exists, fail closed and return an error. If it doesn't, allow delete to proceed.
+        logger.error(
+            f"Error verifying ownership for chat {chat_id}, user {user_id} during delete_draft: {ownership_error}",
+            exc_info=True,
         )
-        return
+        try:
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Existing chat but ownership check failed - reject for security
+                await manager.send_personal_message(
+                    message={
+                        "type": "error",
+                        "payload": {
+                            "message": "Unable to verify chat permissions. Please try again.",
+                            "chat_id": chat_id,
+                        },
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+            else:
+                # Chat doesn't exist in Directus - allow delete_draft to continue
+                logger.debug(
+                    f"Chat {chat_id} not found in Directus after ownership check error - treating as new/local chat for delete_draft."
+                )
+        except Exception as metadata_error:
+            # Could not determine if chat exists - fail closed
+            logger.error(
+                f"Error checking existence of chat {chat_id} for user {user_id} during delete_draft: {metadata_error}",
+                exc_info=True,
+            )
+            await manager.send_personal_message(
+                message={
+                    "type": "error",
+                    "payload": {
+                        "message": "Unable to verify chat permissions. Please try again.",
+                        "chat_id": chat_id,
+                    },
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
 
     # Attempt to delete from cache
     cache_delete_success = await cache_service.delete_user_draft_from_cache(

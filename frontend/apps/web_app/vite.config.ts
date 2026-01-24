@@ -51,11 +51,10 @@ export default defineConfig({
 				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB
 				// Add cleanup configuration to prevent quota exceeded errors
 				cleanupOutdatedCaches: true,
-				// Safari-specific: Force immediate service worker updates
-				// skipWaiting makes the new service worker activate immediately
-				// clientsClaim makes it take control of all pages immediately
-				skipWaiting: true,
-				clientsClaim: true,
+				// MODIFIED: Don't skip waiting to prevent page reload during sync completion
+				// Users will get updates on next page load instead of during active use
+				skipWaiting: false,
+				clientsClaim: false,
 				// Safari-specific: Ensure precached files use versioned URLs
 				// This ensures Safari detects file changes and updates properly
 				// Workbox automatically generates revision hashes for precached files

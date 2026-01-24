@@ -26,27 +26,25 @@ function isSafari() {
  * Forces service worker update on Safari/iOS
  * Safari is notorious for not updating service workers automatically.
  * This function explicitly checks for and installs service worker updates.
+ *
+ * MODIFIED: Only activate service worker during page load, not during sync completion
  */
 async function forceServiceWorkerUpdate() {
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.getRegistration();
-      
+
       if (registration) {
         console.log('[hooks.client] Checking for service worker update...');
-        
+
         // Force update check - Safari often ignores automatic updates
         await registration.update();
-        
+
         // If a new service worker is waiting, skip waiting
         if (registration.waiting) {
-          console.log('[hooks.client] New service worker waiting, activating...');
-          
-          // Send skip waiting message to activate immediately
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          
-          // Wait a moment for the service worker to activate
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log('[hooks.client] New service worker waiting, will activate on next page load (not immediately during sync)');
+          // REMOVED: Immediate activation that causes page reload during sync
+          // registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         } else if (registration.installing) {
           console.log('[hooks.client] Service worker is installing, will activate when ready...');
         } else {
@@ -83,14 +81,15 @@ if ('serviceWorker' in navigator) {
         }
         
         // For all browsers: Check for updates periodically (every 5 minutes)
-        // This helps ensure users get updates even if they keep the app open
+        // MODIFIED: Only check for updates, don't activate immediately to prevent reload during sync
         setInterval(() => {
           registration.update().catch(err => {
             console.debug('[hooks.client] Periodic service worker update check:', err);
           });
         }, 5 * 60 * 1000); // 5 minutes
-        
+
         // Check for updates on visibility change (when user returns to the app)
+        // MODIFIED: Only check for updates, don't activate immediately
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden) {
             console.debug('[hooks.client] App became visible - checking for service worker update');
