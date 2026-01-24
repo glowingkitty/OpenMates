@@ -36,7 +36,14 @@ preprocess_request_tool:
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
       6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
-          - Only include keys if the user's query explicitly or implicitly refers to information likely stored under those item keys.
+          - **PRINCIPLE: Data minimization - only load what's needed for the specific request.**
+          - Include keys when the user's query explicitly or implicitly refers to information likely stored under those item keys.
+          - **Load ALL available keys only for comprehensive requests** that clearly ask for broad personal knowledge:
+            - "what do you know about me?", "tell me about myself", etc.
+          - **Load targeted keys for specific requests**:
+            - "what's my favorite [topic]?", "do I like [thing]?" → load relevant keys only
+            - "remind me what [specific info]", "what have I told you about [specific topic]?" → load targeted keys
+          - **Never load data just because it's available** - maintain privacy through minimization.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
       7.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
           - Available skills (format: `app_id-skill_id`): {AVAILABLE_APP_SKILLS}
