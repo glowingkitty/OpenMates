@@ -941,8 +941,9 @@ class DirectusService:
             logger.error(f"API request to delete item {item_id} in collection {collection} failed (request layer).")
             return False
 
-    # Assign the internal helper to the class
-    delete_item = _delete_item
+    # Assign the API methods to the class
+    delete_item = delete_item
+    delete_items = delete_items
 
     async def bulk_delete_items(self, collection: str, item_ids: List[str], params: Optional[Dict] = None) -> bool:
         """

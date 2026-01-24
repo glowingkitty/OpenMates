@@ -124,36 +124,38 @@ async def delete_item(self, collection: str, item_id: str, admin_required: bool 
 async def delete_items(self, collection: str, filter_dict: dict, admin_required: bool = False):
     """
     Batch delete items from a Directus collection using a filter.
-    Uses Directus batch delete endpoint with filter query.
-    
+    Uses Directus batch delete endpoint with JSON payload containing query filter.
+
     Args:
         collection: The name of the collection
         filter_dict: Filter dictionary (e.g., {"demo_chat_id": {"_eq": "uuid"}})
         admin_required: Whether admin authentication is required
-        
+
     Returns:
         int: Number of items deleted
     """
     import json
-    
-    # Directus batch delete: DELETE /items/:collection with filter query param
+
+    # Directus batch delete: DELETE /items/:collection with JSON payload
     url = f"{self.base_url}/items/{collection}"
-    
+
     try:
-        headers = {}
+        headers = {
+            "Content-Type": "application/json"
+        }
         if admin_required:
             token = await self.login_admin()
             headers["Authorization"] = f"Bearer {token}"
-        
-        # Build query params with filter
-        params = {
-            "filter": json.dumps(filter_dict)
+
+        # Send filter as JSON payload with "query" key
+        payload = {
+            "query": filter_dict
         }
-        
-        response = await self._make_api_request("DELETE", url, headers=headers, params=params)
-        
+
+        response = await self._make_api_request("DELETE", url, headers=headers, data=json.dumps(payload))
+
         if 200 <= response.status_code < 300:
-            # Directus returns deleted items in response.data (array)
+            # Directus returns deleted item IDs in response.data (array)
             deleted_data = response.json().get("data", [])
             count = len(deleted_data) if isinstance(deleted_data, list) else 0
             logger.info(f"Successfully batch deleted {count} items from '{collection}' with filter {filter_dict}")
@@ -161,7 +163,7 @@ async def delete_items(self, collection: str, filter_dict: dict, admin_required:
         else:
             logger.error(f"Failed to batch delete from '{collection}'. Status: {response.status_code}, Response: {response.text}")
             return 0
-            
+
     except Exception as e:
         logger.error(f"Exception during batch deletion from '{collection}': {str(e)}", exc_info=True)
         return 0

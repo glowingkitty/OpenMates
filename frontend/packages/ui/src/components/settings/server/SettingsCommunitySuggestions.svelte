@@ -275,6 +275,15 @@
             return;
         }
 
+        // Optimistically remove the suggestion from the UI
+        const suggestionIndex = suggestions.findIndex(s => s.chat_id === chatId);
+        const removedSuggestion = suggestionIndex !== -1 ? suggestions[suggestionIndex] : null;
+
+        if (removedSuggestion) {
+            suggestions.splice(suggestionIndex, 1);
+            suggestions = [...suggestions]; // Trigger reactivity
+        }
+
         try {
             isSubmitting = true;
 
@@ -303,9 +312,6 @@
                 window.history.replaceState({}, '', url.toString());
             }
 
-            // Reload data
-            await loadSuggestions();
-
             dispatch('showToast', {
                 type: 'success',
                 message: 'Suggestion rejected successfully'
@@ -313,9 +319,15 @@
 
         } catch (err) {
             console.error('Error rejecting suggestion:', err);
+
+            // Restore the suggestion if the API call failed
+            if (removedSuggestion) {
+                suggestions = [removedSuggestion, ...suggestions];
+            }
+
             dispatch('showToast', {
                 type: 'error',
-                message: 'Failed to reject suggestion'
+                message: err instanceof Error ? err.message : 'Failed to reject suggestion'
             });
         } finally {
             isSubmitting = false;
