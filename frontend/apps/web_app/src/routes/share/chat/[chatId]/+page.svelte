@@ -322,8 +322,11 @@
             console.debug('[ShareChat] Persisted shared chat key to IndexedDB for chat:', chatId);
             
             // Store chat and messages in IndexedDB
+            // CRITICAL: Skip orphan detection for shared chats. Shared chats are stored
+            // without a master key (they use URL-embedded encryption keys), so the
+            // "no master key but has chats" condition is expected and NOT orphan data.
             console.debug('[ShareChat] Storing chat and messages in IndexedDB...');
-            await chatDB.init();
+            await chatDB.init({ skipOrphanDetection: true });
             
             // Store chat metadata first (addChat creates its own transaction)
             await chatDB.addChat(fetchedChat);

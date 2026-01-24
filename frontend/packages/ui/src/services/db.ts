@@ -102,8 +102,14 @@ class ChatDatabase {
      * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
      * detects the "orphaned database" scenario (profile exists but no master key) and sets
      * the flag itself, ensuring cleanup happens even if this is the first database operation.
+     * 
+     * @param options.skipOrphanDetection - If true, skip orphan detection. Use for shared chat
+     *        pages where chats are stored without a master key (they use URL-embedded keys).
+     *        Default: false
      */
-    async init(): Promise<void> {
+    async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
+        const { skipOrphanDetection = false } = options;
+        
         // Prevent initialization during deletion
         if (this.isDeleting) {
             throw new Error('Database is being deleted and cannot be initialized');
@@ -123,7 +129,11 @@ class ChatDatabase {
         // 
         // Note: We use localStorage 'openmates_needs_cleanup' as a marker because IndexedDB
         // profile check would require opening the database (chicken-and-egg problem).
-        if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+        //
+        // EXCEPTION: Skip orphan detection for shared chat pages. Shared chats are stored
+        // without a master key (they use URL-embedded encryption keys), so the "no master key
+        // but has chats" condition is expected and NOT an orphan scenario.
+        if (!skipOrphanDetection && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
             // Check if cleanup marker was already set by +page.svelte or a previous init() call
             const needsCleanup = typeof localStorage !== 'undefined' && 
                 localStorage.getItem('openmates_needs_cleanup') === 'true';
