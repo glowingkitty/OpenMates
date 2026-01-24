@@ -1044,21 +1044,48 @@
                     const embedEntries = await embedStore.getEmbedsByHashedChatId(hashedChatId);
                     if (embedEntries && embedEntries.length > 0) {
                         decryptedEmbeds = [];
+                        console.debug(`[SettingsShare] Found ${embedEntries.length} embeds for community sharing`);
+                        
+                        // Pre-load all embed keys into cache to avoid transaction issues during decryption
+                        console.debug('[SettingsShare] Pre-loading embed keys into cache...');
                         for (const embedEntry of embedEntries) {
-                            // Load full embed data (including decrypted content) using embedStore.get()
-                            const contentRef = `embed:${embedEntry.embed_id}`;
-                            const embedData = await embedStore.get(contentRef);
-                            
-                            if (embedData && embedData.content) {
-                                decryptedEmbeds.push({
-                                    embed_id: embedEntry.embed_id || '',
-                                    type: embedEntry.type || 'unknown',
-                                    content: embedData.content || '',
-                                    created_at: embedEntry.createdAt || Date.now()
-                                });
+                            try {
+                                const embedId = embedEntry.embed_id;
+                                if (!embedId) continue;
+                                
+                                // Pre-cache the embed key - this will load it from IndexedDB once
+                                await embedStore.getEmbedKey(embedId, embedEntry.hashed_chat_id);
+                            } catch (keyError) {
+                                console.warn(`[SettingsShare] Failed to pre-load key for embed ${embedEntry.embed_id}:`, keyError);
                             }
                         }
-                        console.debug(`[SettingsShare] Decrypted ${decryptedEmbeds.length} embeds for community sharing`);
+                        console.debug('[SettingsShare] Embed keys pre-loaded, now decrypting content...');
+                        
+                        // Now decrypt embed content (keys should be in cache now, avoiding repeated transactions)
+                        for (let i = 0; i < embedEntries.length; i++) {
+                            const embedEntry = embedEntries[i];
+                            try {
+                                const contentRef = `embed:${embedEntry.embed_id}`;
+                                console.debug(`[SettingsShare] Decrypting embed ${i + 1}/${embedEntries.length}: ${embedEntry.embed_id}`);
+                                const embedData = await embedStore.get(contentRef);
+                                
+                                if (embedData && embedData.content) {
+                                    decryptedEmbeds.push({
+                                        embed_id: embedEntry.embed_id || '',
+                                        type: embedEntry.type || 'unknown',
+                                        content: embedData.content || '',
+                                        created_at: embedEntry.createdAt || Date.now()
+                                    });
+                                    console.debug(`[SettingsShare] ✅ Successfully decrypted embed: ${embedEntry.embed_id}`);
+                                } else {
+                                    console.warn(`[SettingsShare] ⚠️ Embed ${embedEntry.embed_id} has no content or failed to decrypt`);
+                                }
+                            } catch (embedError) {
+                                console.error(`[SettingsShare] ❌ Failed to decrypt embed ${embedEntry.embed_id}:`, embedError);
+                                // Continue with other embeds - don't fail the entire process
+                            }
+                        }
+                        console.debug(`[SettingsShare] Successfully decrypted ${decryptedEmbeds.length}/${embedEntries.length} embeds for community sharing`);
                     }
                 } catch (error) {
                     console.error('[SettingsShare] Error decrypting messages/embeds for community sharing:', error);
