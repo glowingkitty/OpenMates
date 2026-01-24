@@ -124,7 +124,7 @@ async def delete_item(self, collection: str, item_id: str, admin_required: bool 
 async def delete_items(self, collection: str, filter_dict: dict, admin_required: bool = False):
     """
     Batch delete items from a Directus collection using a filter.
-    Uses Directus batch delete endpoint with JSON payload containing query filter.
+    Uses Directus batch delete endpoint with filter as query parameters.
 
     Args:
         collection: The name of the collection
@@ -136,23 +136,21 @@ async def delete_items(self, collection: str, filter_dict: dict, admin_required:
     """
     import json
 
-    # Directus batch delete: DELETE /items/:collection with JSON payload
+    # Directus batch delete: DELETE /items/:collection?filter=...
     url = f"{self.base_url}/items/{collection}"
 
     try:
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {}
         if admin_required:
             token = await self.login_admin()
             headers["Authorization"] = f"Bearer {token}"
 
-        # Send filter as JSON payload with "query" key
-        payload = {
-            "query": filter_dict
+        # Send filter as query parameter
+        params = {
+            "filter": json.dumps(filter_dict)
         }
 
-        response = await self._make_api_request("DELETE", url, headers=headers, data=json.dumps(payload))
+        response = await self._make_api_request("DELETE", url, headers=headers, params=params)
 
         if 200 <= response.status_code < 300:
             # Directus returns deleted item IDs in response.data (array)

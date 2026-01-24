@@ -384,6 +384,15 @@
             return;
         }
 
+        // Optimistically remove the demo chat from the UI
+        const demoChatIndex = currentDemoChats.findIndex(d => d.id === demoChatId);
+        const removedDemoChat = demoChatIndex !== -1 ? currentDemoChats[demoChatIndex] : null;
+
+        if (removedDemoChat) {
+            currentDemoChats.splice(demoChatIndex, 1);
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+        }
+
         try {
             isSubmitting = true;
 
@@ -396,9 +405,6 @@
                 throw new Error('Failed to remove demo chat');
             }
 
-            // Reload data
-            await Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
-
             dispatch('showToast', {
                 type: 'success',
                 message: 'Demo chat removed successfully!'
@@ -406,6 +412,12 @@
 
         } catch (err) {
             console.error('Error removing demo chat:', err);
+
+            // Restore the demo chat if the API call failed
+            if (removedDemoChat) {
+                currentDemoChats = [...currentDemoChats, removedDemoChat];
+            }
+
             dispatch('showToast', {
                 type: 'error',
                 message: 'Failed to remove demo chat'
