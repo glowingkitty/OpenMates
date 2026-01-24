@@ -231,13 +231,22 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                         category,
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
-                
+
+                encrypted_model_name = None
+                model_name = decrypted_messages[i].get("model_name")
+                if model_name:
+                    encrypted_model_name, _ = await task.encryption_service.encrypt(
+                        model_name,
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "language": lang,
                     "role": decrypted_messages[i]["role"],
                     "encrypted_content": encrypted_content,
                     "encrypted_category": encrypted_category,
+                    "encrypted_model_name": encrypted_model_name,
                     "original_created_at": decrypted_messages[i]["original_created_at"]
                 }
                 await task.directus_service.create_item("demo_messages", message_data)

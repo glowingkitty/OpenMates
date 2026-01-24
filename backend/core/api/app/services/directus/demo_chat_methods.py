@@ -334,12 +334,21 @@ class DemoChatMethods:
                         category,
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
+
+                encrypted_model_name = None
+                model_name = msg.get("model_name")
+                if model_name:
+                    encrypted_model_name, _ = await encryption_service.encrypt(
+                        model_name,
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
                 
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "role": msg["role"],
                     "encrypted_content": encrypted_content,
                     "encrypted_category": encrypted_category,
+                    "encrypted_model_name": encrypted_model_name,
                     "language": "original",  # Mark as original language, will be translated later
                     "original_created_at": datetime.fromtimestamp(msg["created_at"] / 1000, tz=timezone.utc).isoformat() if msg["created_at"] > 1000000000000 else datetime.fromtimestamp(msg["created_at"], tz=timezone.utc).isoformat()
                 }

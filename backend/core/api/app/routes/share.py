@@ -58,7 +58,7 @@ class ShareChatMetadataUpdate(BaseModel):
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
     # For community sharing: client sends decrypted messages and embeds (zero-knowledge architecture)
-    decrypted_messages: Optional[List[Dict[str, Any]]] = None  # [{role, content, created_at}]
+    decrypted_messages: Optional[List[Dict[str, Any]]] = None  # [{role, content, category?, model_name?, created_at}]
     decrypted_embeds: Optional[List[Dict[str, Any]]] = None  # [{embed_id, type, content, created_at}]
 
 class UnshareChatRequest(BaseModel):

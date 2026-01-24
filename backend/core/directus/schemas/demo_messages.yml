@@ -25,6 +25,10 @@ demo_messages:
       type: string
       length: 100
       note: "[Vault-Encrypted] Message category, encrypted with demo_chats vault key"
+    encrypted_model_name:
+      type: string
+      length: 100
+      note: "[Vault-Encrypted] Model name for assistant messages, encrypted with demo_chats vault key"
     original_created_at:
       type: timestamp
       note: "Original message timestamp from user's chat (used for ordering messages)"

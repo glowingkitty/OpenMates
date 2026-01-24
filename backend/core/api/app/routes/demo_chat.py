@@ -333,11 +333,22 @@ async def get_demo_chat(
                 except Exception as e:
                     logger.warning(f"Failed to decrypt message category: {e}")
 
+            decrypted_model_name = None
+            if msg.get("encrypted_model_name"):
+                try:
+                    decrypted_model_name = await encryption_service.decrypt(
+                        msg["encrypted_model_name"],
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt message model name: {e}")
+
             decrypted_messages.append({
                 "message_id": str(msg.get("id")),
                 "role": msg.get("role"),
                 "content": decrypted_content,
                 "category": decrypted_category, # Return cleartext category
+                "model_name": decrypted_model_name, # Return cleartext model name
                 "created_at": msg.get("created_at")
             })
 

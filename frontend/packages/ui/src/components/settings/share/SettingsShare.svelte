@@ -1015,7 +1015,7 @@
             
             // If sharing with community, decrypt all messages and embeds locally
             // and send plaintext to server (zero-knowledge architecture)
-            let decryptedMessages: Array<{role: string; content: string; created_at: number}> | null = null;
+            let decryptedMessages: Array<{role: string; content: string; category?: string; model_name?: string; created_at: number}> | null = null;
             let decryptedEmbeds: Array<{embed_id: string; type: string; content: string; created_at: number}> | null = null;
             
             if (shareWithCommunity && !isEmbedSharing) {
@@ -1034,6 +1034,7 @@
                             role: msg.role,
                             content: msg.content || '', // TipTap JSON string
                             category: msg.category, // Include category (already decrypted by getMessagesForChat)
+                            model_name: msg.model_name, // Include model name for assistant messages
                             created_at: msg.created_at
                         }));
                         console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing`);
