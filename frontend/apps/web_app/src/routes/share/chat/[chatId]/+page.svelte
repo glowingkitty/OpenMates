@@ -40,17 +40,26 @@
     let passwordError = $state<string | null>(null);
     
     /**
-     * Extract the encryption key from the URL fragment
-     * Format: #key={encrypted_blob}
+     * Extract the encryption key and message ID from the URL fragment
+     * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
+     * Or for public chats: #messageid={messageId}
      */
-    function extractKeyFromFragment(): string | null {
-        if (!browser) return null;
-        
+    function extractKeyAndMessageFromFragment(): { key: string | null; messageId: string | null } {
+        if (!browser) return { key: null, messageId: null };
+
         const hash = window.location.hash;
         if (hash.startsWith('#key=')) {
-            return hash.substring(5); // Remove '#key=' prefix
+            const keyPart = hash.substring(5); // Remove '#key=' prefix
+            const parts = keyPart.split('&messageid=');
+            const key = parts[0];
+            const messageId = parts.length > 1 ? parts[1] : null;
+            return { key, messageId };
+        } else if (hash.startsWith('#messageid=')) {
+            // Public chat with message ID only
+            const messageId = hash.substring(11); // Remove '#messageid=' prefix
+            return { key: null, messageId };
         }
-        return null;
+        return { key: null, messageId: null };
     }
     
     /**
@@ -209,8 +218,8 @@
             error = null;
             passwordError = null;
             
-            // Extract encryption key from URL fragment
-            const encryptedBlob = extractKeyFromFragment();
+            // Extract encryption key and message ID from URL fragment
+            const { key: encryptedBlob, messageId } = extractKeyAndMessageFromFragment();
             if (!encryptedBlob) {
                 error = 'Invalid share link: missing encryption key';
                 isLoading = false;
@@ -370,11 +379,13 @@
             
             // Set active chat in store
             activeChatStore.setActiveChat(chatId);
-            
+
             // Navigate to main app with the chat loaded
             // This allows the user to see the chat in the normal interface
             // The chat key is already set in the cache, so the chat will be decrypted when loaded
-            await goto(`/#chat_id=${chatId}`);
+            // Include message ID if provided for highlighting/scrolling
+            const hash = messageId ? `#chat_id=${chatId}&messageid=${messageId}` : `/#chat_id=${chatId}`;
+            await goto(hash);
             
             isLoading = false;
         } catch (err) {

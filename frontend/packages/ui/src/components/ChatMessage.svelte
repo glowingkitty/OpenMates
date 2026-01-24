@@ -182,26 +182,31 @@
 
     const chatId = original_message.chat_id;
     const messageId = original_message.message_id;
-    
-    // Construct the base link
-    let link = `${window.location.origin}/#chatid=${chatId}&messageid=${messageId}`;
-    
+
+    // Construct the share chat URL (not direct chat access)
+    let link = `${window.location.origin}/share/chat/${chatId}`;
+
     // For non-public chats (real user chats), we MUST include the encryption key
-    // so the server admin can decrypt the message to investigate the quality issue.
+    // so the server admin can decrypt the entire chat to investigate the quality issue.
     if (!isPublicChat(chatId)) {
       const chatKey = chatDB.getChatKey(chatId);
       if (chatKey) {
         const urlSafeKey = uint8ArrayToUrlSafeBase64(chatKey);
-        link += `&key=${urlSafeKey}`;
-        console.debug(`[ChatMessage] Included encryption key in report link for real user chat ${chatId}`);
+        // Include message ID for highlighting/scrolling to the reported message
+        link += `#key=${urlSafeKey}&messageid=${messageId}`;
+        console.debug(`[ChatMessage] Included encryption key and message ID in share chat report link for real user chat ${chatId}`);
       } else {
         console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
       }
+    } else {
+      // For public chats, still include message ID for highlighting
+      link += `#messageid=${messageId}`;
+      console.debug(`[ChatMessage] Included message ID in public chat report link for ${chatId}`);
     }
-    
+
     const template = $text('chat.report_bad_answer.template.text', { values: { link } });
     const title = $text('chat.report_bad_answer.title.text');
-    
+
     reportIssueStore.set({
       title: title,
       description: template
