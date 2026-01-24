@@ -17,6 +17,7 @@
   import { isPublicChat } from '../demo_chats/convertToChat';
   import { chatDB } from '../services/db';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
+  import { generateShareKeyBlob } from '../services/shareEncryption';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   
@@ -189,14 +190,30 @@
     // For non-public chats (real user chats), we MUST include the encryption key
     // so the server admin can decrypt the entire chat to investigate the quality issue.
     if (!isPublicChat(chatId)) {
-      const chatKey = chatDB.getChatKey(chatId);
-      if (chatKey) {
-        const urlSafeKey = uint8ArrayToUrlSafeBase64(chatKey);
-        // Include message ID for highlighting/scrolling to the reported message
-        link += `#key=${urlSafeKey}&messageid=${messageId}`;
-        console.debug(`[ChatMessage] Included encryption key and message ID in share chat report link for real user chat ${chatId}`);
-      } else {
-        console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
+      try {
+        // Get the chat key and convert to base64 format expected by generateShareKeyBlob
+        const chatKey = chatDB.getChatKey(chatId);
+        if (chatKey) {
+          let chatKeyBase64: string;
+          if (chatKey instanceof Uint8Array) {
+            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
+          } else if (typeof chatKey === 'string') {
+            chatKeyBase64 = chatKey;
+          } else {
+            throw new Error('Unexpected chat key format');
+          }
+
+          // Generate a proper share key blob (no expiration, no password for reporting)
+          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
+
+          // Include message ID for highlighting/scrolling to the reported message
+          link += `#key=${encryptedBlob}&messageid=${messageId}`;
+          console.debug(`[ChatMessage] Generated encrypted share blob and included message ID in report link for real user chat ${chatId}`);
+        } else {
+          console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
+        }
+      } catch (error) {
+        console.error(`[ChatMessage] Error generating share key blob for chat ${chatId}:`, error);
       }
     } else {
       // For public chats, still include message ID for highlighting
