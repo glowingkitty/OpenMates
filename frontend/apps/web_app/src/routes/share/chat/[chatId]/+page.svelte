@@ -433,8 +433,9 @@
             // This allows the user to see the chat in the normal interface
             // The chat key is already set in the cache, so the chat will be decrypted when loaded
             // Include message ID if provided for highlighting/scrolling
-            const hash = messageId ? `#chat_id=${chatId}&messageid=${messageId}` : `/#chat_id=${chatId}`;
-            await goto(hash);
+            // NOTE: Must include leading '/' to navigate to root, not just update hash on current page
+            const targetUrl = messageId ? `/#chat_id=${chatId}&messageid=${messageId}` : `/#chat_id=${chatId}`;
+            await goto(targetUrl);
             
             isLoading = false;
         } catch (err) {
