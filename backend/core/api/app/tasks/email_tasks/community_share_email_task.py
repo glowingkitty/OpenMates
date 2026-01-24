@@ -32,8 +32,8 @@ def send_community_share_notification(
     admin_email: str,
     chat_title: str,
     chat_summary: Optional[str],
-    share_link: str,
-    chat_id: Optional[str] = None,
+    chat_id: str,
+    demo_chat_id: str,
     category: Optional[str] = None,
     icon: Optional[str] = None
 ) -> bool:
@@ -42,11 +42,18 @@ def send_community_share_notification(
     
     Uses asyncio.run() which properly handles event loop creation and cleanup.
     
+    IMPORTANT: No share_link parameter - community shares follow zero-knowledge architecture.
+    The server never receives the user's chat encryption key. Admin accesses the demo
+    through the admin interface, not via the original user's share link.
+    
     Args:
         admin_email: The email address of the admin to notify
         chat_title: The title of the shared chat
         chat_summary: Optional summary/description of the chat
-        share_link: The share link URL for the chat
+        chat_id: The original chat ID (for reference only)
+        demo_chat_id: UUID of the pending demo_chat entry
+        category: Optional category
+        icon: Optional icon name
     
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -59,7 +66,7 @@ def send_community_share_notification(
         # Use asyncio.run() which handles loop creation and cleanup properly
         result = asyncio.run(
             _async_send_community_share_notification(
-                admin_email, chat_title, chat_summary, share_link, chat_id, category, icon
+                admin_email, chat_title, chat_summary, chat_id, demo_chat_id, category, icon
             )
         )
         if result:
@@ -86,8 +93,8 @@ async def _async_send_community_share_notification(
     admin_email: str,
     chat_title: str,
     chat_summary: Optional[str],
-    share_link: str,
-    chat_id: Optional[str] = None,
+    chat_id: str,
+    demo_chat_id: str,
     category: Optional[str] = None,
     icon: Optional[str] = None
 ) -> bool:
@@ -97,6 +104,10 @@ async def _async_send_community_share_notification(
     IMPORTANT: Uses try/finally to ensure SecretsManager's httpx client is
     properly closed before returning. This prevents "Event loop is closed" 
     errors when asyncio.run() closes the event loop in Celery tasks.
+    
+    ZERO-KNOWLEDGE ARCHITECTURE: No share_link parameter. The server never receives
+    the user's chat encryption key. Admin accesses the pending demo through the
+    admin interface at /settings/server/community-suggestions
     """
     # Create services outside try block so they're available in finally
     secrets_manager = SecretsManager()
@@ -115,42 +126,29 @@ async def _async_send_community_share_notification(
         # Convert newlines to <br/> tags for email display (after escaping)
         # This is safe because we've already escaped all HTML tags
         sanitized_summary = sanitized_summary.replace('\n', '<br/>')
+
+        # Generate demo chat approval URL for admin
+        # This deep-links to the community suggestions settings page where admin can approve/reject
+        import os
+        base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
+        demo_chat_url = f"{base_url}/settings/server/community-suggestions?demo_chat_id={demo_chat_id}"
         
-        # URL is already validated in route handler, but ensure it's safe for href attribute
-        sanitized_link = share_link if share_link else ""
-
-        # Generate demo chat creation URL if chat_id is provided
-        demo_chat_url = ""
-        if chat_id:
-            # Extract encryption key from share_link fragment
-            # Share links have format: https://domain/share/chat_id#key=encryption_key
-            encryption_key = ""
-            if "#key=" in sanitized_link:
-                encryption_key = sanitized_link.split("#key=")[1]
-
-            # Get base URL from environment or default
-            import os
-            base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
-
-            # Create URL that deep links to the community suggestions settings page
-            # This will be displayed as available for approval in the admin interface
-            demo_chat_url = f"{base_url}/settings/server/community-suggestions?chat_id={chat_id}&key={encryption_key}"
-            import urllib.parse
-            if sanitized_title:
-                demo_chat_url += f"&title={urllib.parse.quote(sanitized_title[:200])}"
-            if sanitized_summary:
-                demo_chat_url += f"&summary={urllib.parse.quote(sanitized_summary[:200])}"
-            if category:
-                demo_chat_url += f"&category={urllib.parse.quote(category)}"
-            if icon:
-                demo_chat_url += f"&icon={urllib.parse.quote(icon)}"
+        # Add metadata as URL parameters for preview in email
+        import urllib.parse
+        if sanitized_title:
+            demo_chat_url += f"&title={urllib.parse.quote(sanitized_title[:200])}"
+        if sanitized_summary:
+            demo_chat_url += f"&summary={urllib.parse.quote(sanitized_summary[:200])}"
+        if category:
+            demo_chat_url += f"&category={urllib.parse.quote(category)}"
+        if icon:
+            demo_chat_url += f"&icon={urllib.parse.quote(icon)}"
 
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for admin emails
             "chat_title": sanitized_title,
             "chat_summary": sanitized_summary,
-            "share_link": sanitized_link,
             "demo_chat_url": demo_chat_url
         }
         logger.info("Prepared email context for community share notification")

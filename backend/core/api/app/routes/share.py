@@ -523,6 +523,8 @@ async def update_share_metadata(
                 admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
                 
                 # Dispatch email task to notify admin about community share
+                # Note: We don't send share_link because it contains the encryption key (zero-knowledge)
+                # The admin will approve the demo chat and view it through the admin interface
                 from backend.core.api.app.tasks.celery_config import app
                 app.send_task(
                     name='app.tasks.email_tasks.community_share_email_task.send_community_share_notification',
