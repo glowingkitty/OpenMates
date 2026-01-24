@@ -472,8 +472,9 @@ async def _handle_normal_billing(
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
-        input_tokens = usage.prompt_token_count
-        output_tokens = usage.candidates_token_count
+        # Handle optional fields - Google API may return None for these in edge cases
+        input_tokens = usage.prompt_token_count or 0
+        output_tokens = usage.candidates_token_count or 0
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "google"

@@ -108,12 +108,21 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                     msg["encrypted_category"],
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
+            
+            # Decrypt model name for assistant messages
+            decrypted_model_name = None
+            if msg.get("encrypted_model_name"):
+                decrypted_model_name = await task.encryption_service.decrypt(
+                    msg["encrypted_model_name"],
+                    key_name=DEMO_CHATS_ENCRYPTION_KEY
+                )
                 
             if decrypted_content:
                 decrypted_messages.append({
                     "role": msg["role"],
                     "content": decrypted_content,
                     "category": decrypted_category,
+                    "model_name": decrypted_model_name,
                     "original_created_at": msg["original_created_at"]
                 })
         

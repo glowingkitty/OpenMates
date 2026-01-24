@@ -38,9 +38,13 @@ _google_ai_studio_api_key: Optional[str] = None
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
 
 class GoogleUsageMetadata(BaseModel):
-    prompt_token_count: int
-    candidates_token_count: int
-    total_token_count: int
+    """
+    Google API usage metadata. Some fields may be None in certain edge cases
+    (e.g., when a request fails or has no output candidates), so we make them optional.
+    """
+    prompt_token_count: Optional[int] = None
+    candidates_token_count: Optional[int] = None
+    total_token_count: Optional[int] = None
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
 
@@ -434,10 +438,13 @@ async def invoke_google_ai_studio_chat_completions(
         usage_metadata_dict = None
         if response.usage_metadata:
             try:
+                # Note: getattr returns the default only if attr doesn't exist.
+                # Google API can return None for these fields (e.g., if content was filtered),
+                # so we use `or 0` to handle both missing attributes and None values.
                 usage_metadata_dict = {
-                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0),
-                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0),
-                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0),
+                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
+                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
+                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0) or 0,
                     "user_input_tokens": token_breakdown.get("user_input_tokens"),
                     "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
                 }
@@ -588,10 +595,11 @@ async def invoke_google_ai_studio_chat_completions(
                     if hasattr(usage_metadata_obj, "to_dict"):
                         usage_dict = usage_metadata_obj.to_dict()
                     else:
+                        # Handle None values that Google API may return
                         usage_dict = {
-                            "prompt_token_count": getattr(usage_metadata_obj, "prompt_token_count", 0),
-                            "candidates_token_count": getattr(usage_metadata_obj, "candidates_token_count", 0),
-                            "total_token_count": getattr(usage_metadata_obj, "total_token_count", 0),
+                            "prompt_token_count": getattr(usage_metadata_obj, "prompt_token_count", 0) or 0,
+                            "candidates_token_count": getattr(usage_metadata_obj, "candidates_token_count", 0) or 0,
+                            "total_token_count": getattr(usage_metadata_obj, "total_token_count", 0) or 0,
                         }
 
                     if system_prompt:
@@ -768,10 +776,11 @@ async def invoke_google_chat_completions(
         usage_metadata_dict = None
         if response.usage_metadata:
             try:
+                # Handle None values that Google API may return (e.g., content filtered)
                 usage_metadata_dict = {
-                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0),
-                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0),
-                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0),
+                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
+                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
+                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0) or 0,
                 }
             except Exception as e:
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
