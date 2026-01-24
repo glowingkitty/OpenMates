@@ -18,16 +18,42 @@
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
+    import { get } from 'svelte/store';
     import {
         chatDB,
         activeChatStore,
         decryptShareKeyBlob,
+        forcedLogoutInProgress,
+        isLoggingOut,
         type Chat,
         type Message
     } from '@repo/ui';
     import { goto } from '$app/navigation';
     import { getApiEndpoint } from '@repo/ui';
     import { deriveParentByChildEmbeds } from '../shareChatEmbedUtils';
+
+    // CRITICAL: Clear logout markers IMMEDIATELY on script load (before any other code runs)
+    // This prevents chatDB.init() from blocking during shared chat access.
+    // Shared chats don't require authentication, so we should never block on logout state.
+    //
+    // The problem: chatDB.init() checks for:
+    // 1. localStorage 'openmates_needs_cleanup' marker → sets forcedLogoutInProgress to true
+    // 2. forcedLogoutInProgress or isLoggingOut flags → throws "Database initialization blocked"
+    //
+    // This cleanup must run synchronously at module load time, before any await calls.
+    if (browser) {
+        // Clear the localStorage cleanup marker
+        if (localStorage.getItem('openmates_needs_cleanup') === 'true') {
+            console.debug('[ShareChat] IMMEDIATE: Clearing openmates_needs_cleanup marker');
+            localStorage.removeItem('openmates_needs_cleanup');
+        }
+        // Reset the in-memory flags
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[ShareChat] IMMEDIATE: Resetting logout flags for shared chat access');
+            forcedLogoutInProgress.set(false);
+            isLoggingOut.set(false);
+        }
+    }
 
     // Get chat ID from URL params
     let chatId = $derived($page.params.chatId);
@@ -218,13 +244,12 @@
             error = null;
             passwordError = null;
 
-            // CRITICAL FIX: Reset logout flags for shared chat access
-            // Shared chat pages don't require authentication and should not be blocked
-            // by logout processes from previous sessions or other tabs
-            const { forcedLogoutInProgress, isLoggingOut } = await import('@repo/ui');
-            const { get } = await import('svelte/store');
-            if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
-                console.debug('[ShareChat] Resetting logout flags - shared chat access does not require authentication');
+            // Double-check: Reset logout flags again in case something re-triggered them
+            // The main reset happens at module load time (top of script), but we ensure
+            // the flags are still cleared before calling chatDB.init()
+            if (browser && (get(forcedLogoutInProgress) || get(isLoggingOut))) {
+                console.debug('[ShareChat] Re-clearing logout flags before init');
+                localStorage.removeItem('openmates_needs_cleanup');
                 forcedLogoutInProgress.set(false);
                 isLoggingOut.set(false);
             }
