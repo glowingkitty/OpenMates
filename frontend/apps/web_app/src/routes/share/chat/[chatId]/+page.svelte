@@ -212,11 +212,22 @@
             isLoading = false;
             return;
         }
-        
+
         try {
             isLoading = true;
             error = null;
             passwordError = null;
+
+            // CRITICAL FIX: Reset logout flags for shared chat access
+            // Shared chat pages don't require authentication and should not be blocked
+            // by logout processes from previous sessions or other tabs
+            const { forcedLogoutInProgress, isLoggingOut } = await import('@repo/ui');
+            const { get } = await import('svelte/store');
+            if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+                console.debug('[ShareChat] Resetting logout flags - shared chat access does not require authentication');
+                forcedLogoutInProgress.set(false);
+                isLoggingOut.set(false);
+            }
             
             // Extract encryption key and message ID from URL fragment
             const { key: encryptedBlob, messageId } = extractKeyAndMessageFromFragment();
