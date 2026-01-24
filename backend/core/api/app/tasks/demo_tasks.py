@@ -352,7 +352,12 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
             "type": "function",
             "function": {
                 "name": "return_translations",
-                "description": "Return translations of the provided text to all target languages. Translate the text naturally and accurately to each language.",
+                "description": (
+                    "Return translations of the provided chat text to all target languages. "
+                    "The text comes from a conversation between a human user and an AI assistant. "
+                    "Preserve the original meaning, intent, and conversational style in each language. "
+                    "Do not add explanations or commentary."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": properties,
@@ -362,8 +367,28 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
         }
         
         messages = [
-            {"role": "system", "content": "You are a professional translator. Translate the provided text to all requested languages accurately and naturally."},
-            {"role": "user", "content": f"Translate the following text to all target languages: {text}"}
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional translator for chat conversations between a human user and an AI assistant. "
+                    "The input may be either a user request or an assistant reply. "
+                    "Translate the text to each requested language accurately and naturally, "
+                    "preserving tone (requests should still sound like requests, answers like answers), "
+                    "and keep all formatting, markdown and code snippets unchanged. "
+                    "When translating into languages with formal and informal 'you' (such as German, French, or Spanish), "
+                    "use the friendly, informal register that a person would naturally use when talking to a helpful chatbot "
+                    "(for example, use 'du' instead of 'Sie' in German, 'tu' instead of 'vous' in French, "
+                    "and 'tú' instead of 'usted' in Spanish), unless the source text is explicitly formal."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Translate the following chat message or passage to all target languages. "
+                    "Only translate natural language text; keep markdown syntax and code blocks as they are:\n\n"
+                    f"{text}"
+                ),
+            },
         ]
         
         try:
@@ -483,7 +508,13 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
             "type": "function",
             "function": {
                 "name": "return_translated_json",
-                "description": "Return translated Tiptap JSON for all target languages. Translate only the 'text' values in the JSON structure. Keep all other JSON structure, keys, and non-text values exactly as they are. Each output must be valid JSON.",
+                "description": (
+                    "Return translated Tiptap JSON for all target languages. "
+                    "The JSON represents content from a conversation between a human user and an AI assistant. "
+                    "Translate only the 'text' values in the JSON structure. Keep all JSON structure, keys, "
+                    "and non-text values (such as node types, attributes, and code blocks) exactly as they are. "
+                    "Each output must be valid JSON."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": properties,
@@ -493,8 +524,28 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
         }
         
         messages = [
-            {"role": "system", "content": "You are a professional translator. Translate the 'text' values in the provided Tiptap JSON to all requested languages. Keep all JSON structure, keys, and non-text values exactly as they are. Return valid JSON for each language."},
-            {"role": "user", "content": f"Translate the following Tiptap JSON to all target languages: {tiptap_json}"}
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional translator for chat conversations between a human user and an AI assistant. "
+                    "You are given Tiptap JSON that encodes rich-text chat content. "
+                    "Translate only the 'text' fields to the requested languages, preserving meaning, intent, and tone. "
+                    "Do NOT change the JSON structure, keys, node types, attributes, or code/markdown formatting. "
+                    "Each translated value must be valid JSON when inserted back into the same structure. "
+                    "When translating into languages with formal and informal 'you' (such as German, French, or Spanish), "
+                    "use the friendly, informal register that a person would naturally use when talking to a helpful chatbot "
+                    "(for example, use 'du' instead of 'Sie' in German, 'tu' instead of 'vous' in French, "
+                    "and 'tú' instead of 'usted' in Spanish), unless the source text is explicitly formal."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Translate the following Tiptap JSON chat content to all target languages. "
+                    "Only translate natural-language 'text' values; do not modify structure or code:\n\n"
+                    f"{tiptap_json}"
+                ),
+            },
         ]
         
         try:
