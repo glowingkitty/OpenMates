@@ -32,16 +32,26 @@
     import { getApiEndpoint } from '@repo/ui';
     import { deriveParentByChildEmbeds } from '../shareChatEmbedUtils';
 
-    // CRITICAL: Clear logout markers IMMEDIATELY on script load (before any other code runs)
+    // CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
     // This prevents chatDB.init() from blocking during shared chat access.
     // Shared chats don't require authentication, so we should never block on logout state.
     //
     // The problem: chatDB.init() checks for:
     // 1. localStorage 'openmates_needs_cleanup' marker → sets forcedLogoutInProgress to true
     // 2. forcedLogoutInProgress or isLoggingOut flags → throws "Database initialization blocked"
+    // 3. Orphan detection: no master key + has chats → sets forcedLogoutInProgress to true
+    //
+    // For shared chats, ALL of these are false positives because:
+    // - Shared chats use URL-embedded encryption keys, not the master key
+    // - Having chats without a master key is EXPECTED for shared chat sessions
     //
     // This cleanup must run synchronously at module load time, before any await calls.
     if (browser) {
+        // FIRST: Enable skip orphan detection mode on chatDB BEFORE any code can trigger init()
+        // This must be the FIRST thing we do to prevent race conditions where other code
+        // (imports, components) triggers chatDB.init() before our explicit call
+        chatDB.enableSkipOrphanDetection();
+        
         // Clear the localStorage cleanup marker
         if (localStorage.getItem('openmates_needs_cleanup') === 'true') {
             console.debug('[ShareChat] IMMEDIATE: Clearing openmates_needs_cleanup marker');

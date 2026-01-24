@@ -83,12 +83,35 @@ class ChatDatabase {
     // Flag to prevent new operations during database deletion
     private isDeleting: boolean = false;
     
+    // Flag to skip orphan detection for shared chat sessions.
+    // Once set to true (by init({ skipOrphanDetection: true })), it remains true
+    // for all subsequent init() calls. This is needed because shared chats are
+    // stored without a master key (they use URL-embedded encryption keys), so the
+    // "no master key but has chats" condition is expected and NOT orphan data.
+    private skipOrphanDetectionPersistent: boolean = false;
+    
     // Chat key cache for performance - public for chatKeyManagement module to access
     public chatKeys: Map<string, Uint8Array> = new Map();
 
     // ============================================================================
     // DATABASE INITIALIZATION
     // ============================================================================
+    
+    /**
+     * Enable skip orphan detection mode for shared chat sessions.
+     * 
+     * This should be called BEFORE any database operations to prevent the orphan
+     * detection logic from incorrectly flagging shared chats as orphan data.
+     * 
+     * Shared chats are stored without a master key (they use URL-embedded encryption keys),
+     * so the "no master key but has chats" condition is expected and NOT orphan data.
+     * 
+     * Once enabled, this flag remains true for all subsequent init() calls.
+     */
+    public enableSkipOrphanDetection(): void {
+        this.skipOrphanDetectionPersistent = true;
+        console.debug('[ChatDatabase] Enabled skipOrphanDetection mode for shared chat session');
+    }
 
     /**
      * Initialize the database.
@@ -109,6 +132,15 @@ class ChatDatabase {
      */
     async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
         const { skipOrphanDetection = false } = options;
+        
+        // Make skipOrphanDetection persistent - once set to true, it stays true for all
+        // subsequent init() calls. This handles the case where the initial init() is
+        // called with skipOrphanDetection: true (e.g., from share chat page), but later
+        // internal methods like getTransaction() call init() without the flag.
+        if (skipOrphanDetection) {
+            this.skipOrphanDetectionPersistent = true;
+        }
+        const shouldSkipOrphanDetection = this.skipOrphanDetectionPersistent;
         
         // Prevent initialization during deletion
         if (this.isDeleting) {
@@ -133,7 +165,7 @@ class ChatDatabase {
         // EXCEPTION: Skip orphan detection for shared chat pages. Shared chats are stored
         // without a master key (they use URL-embedded encryption keys), so the "no master key
         // but has chats" condition is expected and NOT an orphan scenario.
-        if (!skipOrphanDetection && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+        if (!shouldSkipOrphanDetection && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
             // Check if cleanup marker was already set by +page.svelte or a previous init() call
             const needsCleanup = typeof localStorage !== 'undefined' && 
                 localStorage.getItem('openmates_needs_cleanup') === 'true';
@@ -206,11 +238,14 @@ class ChatDatabase {
         // actual deleteDatabase() call completes. Without this check, database deletion fails
         // silently because there's a new open connection blocking it.
         //
-        // EXCEPTION: Allow initialization during login/auth attempts to prevent blocking
-        // legitimate authentication flows (e.g., after server restart WebSocket auth errors)
+        // EXCEPTIONS:
+        // 1. Allow initialization during login/auth attempts to prevent blocking
+        //    legitimate authentication flows (e.g., after server restart WebSocket auth errors)
+        // 2. Allow initialization for shared chat sessions (skipOrphanDetectionPersistent=true)
+        //    because shared chats use URL-embedded keys, not the master key
         const { isCheckingAuth } = await import('../stores/authState');
         const isAuthInProgress = get(isCheckingAuth);
-        if ((get(forcedLogoutInProgress) || get(isLoggingOut)) && !isAuthInProgress) {
+        if ((get(forcedLogoutInProgress) || get(isLoggingOut)) && !isAuthInProgress && !shouldSkipOrphanDetection) {
             console.debug('[ChatDatabase] Skipping init() - logout in progress (forcedLogout:',
                 get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut),
                 ', isCheckingAuth:', isAuthInProgress, ')');
