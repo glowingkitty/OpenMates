@@ -121,14 +121,23 @@ export async function login(
                     console.warn('[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
                 }
 
-                // CRITICAL: Reset forcedLogoutInProgress flag on successful login
-                // This handles the case where orphaned database cleanup was triggered on page load
-                // but the user successfully logs in, making the cleanup unnecessary
+                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags on successful login
+                // This handles the race condition where orphaned database cleanup was triggered on page load
+                // (setting these flags to true) but the user then successfully logs in.
+                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
                 const { get } = await import('svelte/store');
-                const { forcedLogoutInProgress } = await import('./signupState');
+                const { forcedLogoutInProgress, isLoggingOut } = await import('./signupState');
                 if (get(forcedLogoutInProgress)) {
                     console.debug('[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key');
                     forcedLogoutInProgress.set(false);
+                }
+                if (get(isLoggingOut)) {
+                    console.debug('[Login] Resetting isLoggingOut to false - successful login');
+                    isLoggingOut.set(false);
+                }
+                // Also clear the cleanup marker to prevent future false positives
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
                 }
 
                 // Now it's safe to update auth state, which will trigger WebSocket connection
