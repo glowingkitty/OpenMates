@@ -59,7 +59,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
-    import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
+    import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
@@ -2428,8 +2428,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug("[ActiveChat] Generated new temporary chat ID for new chat:", temporaryChatId);
         
         // Update phased sync state to indicate we're in "new chat" mode
-        // This prevents Phase 1 from auto-selecting the old chat when panel reopens
-        phasedSyncState.setCurrentActiveChatId(null);
+        // CRITICAL: Use sentinel value (not null) to explicitly indicate user chose new chat
+        // This prevents sync phases from auto-selecting the old chat
+        phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+        
+        // CRITICAL: Mark that user made an explicit choice to go to new chat
+        // This ensures sync phases NEVER override the user's choice
+        phasedSyncState.markUserMadeExplicitChoice();
 
         chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
         
@@ -2908,6 +2913,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Update phased sync state to track the current active chat
         // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
         phasedSyncState.setCurrentActiveChatId(chat.chat_id);
+        
+        // Mark that initial chat has been loaded - this prevents sync phases from overriding user's view
+        phasedSyncState.markInitialChatLoaded();
         
         // CRITICAL: Only clear temporaryChatId if this is not a sessionStorage-only chat
         // SessionStorage-only chats (new chats with drafts) should keep their temporaryChatId

@@ -1565,6 +1565,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		
+		// CRITICAL: Mark that user made an explicit choice when they click on a chat
+		// This ensures sync phases will NEVER override the user's choice
+		if (userInitiated) {
+			phasedSyncState.markUserMadeExplicitChoice();
+		}
 
 		// Update last selected for potential range selection (even when not in select mode)
 		lastSelectedChatId = chat.chat_id;

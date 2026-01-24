@@ -289,6 +289,14 @@
     async function handleSyncCompleteAndLoadChat() {
         console.debug('[+page.svelte] Sync event received, checking what chat to load...');
         
+        // CRITICAL: Check if we can auto-navigate
+        // If user has made an explicit choice (clicked on a chat or new chat), don't override
+        // If initial chat was already loaded, don't override
+        if (!phasedSyncState.canAutoNavigate()) {
+            console.debug('[+page.svelte] Skipping sync auto-load: user made explicit choice or initial chat already loaded');
+            return;
+        }
+        
         // PRIORITY 1: URL hash chat has absolute priority
         // Use originalHashChatId if available (stored at start of onMount), otherwise check current hash
         // This prevents issues where welcome chat loading overwrote the hash
@@ -915,26 +923,27 @@
 		if (isAuth || !$phasedSyncState.initialSyncCompleted) {
 			console.debug('[+page.svelte] Registering sync event listeners...');
 			
-			// Register listener for sync completion to auto-open chat based on priority
-			// Priority: hash chat > last opened chat > default
-			const handleSyncComplete = async () => {
-				console.debug('[+page.svelte] Sync complete event received, marking as completed');
-				phasedSyncState.markSyncCompleted(); // Mark immediately on any sync complete event
+			// OPTIMIZATION: Only Phase 1 triggers chat loading (last opened chat)
+			// Phase 2 and 3 only update the chat list in the sidebar (handled by Chats.svelte)
+			// This prevents duplicate load attempts and improves performance
+			const handlePhase1ChatLoad = async () => {
+				console.debug('[+page.svelte] Phase 1 complete, loading last opened chat');
 				await handleSyncCompleteAndLoadChat();
 			};
 			
-			// Register listeners for phased sync completion events only
-			// Use explicit phase events for UX timing; no legacy sync events
-			chatSyncService.addEventListener('phasedSyncComplete', handleSyncComplete);
-			chatSyncService.addEventListener('phase_3_last_100_chats_ready', handleSyncComplete);
-
-			// Also react to Phase 1 and Phase 2 events to load last chat ASAP (don't wait for full sync)
-			// Phase 1: last opened chat should be ready
-			chatSyncService.addEventListener('phase_1_last_chat_ready', handleSyncComplete);
-			// Phase 2: in case Phase 1 was skipped or last chat appears in recent set
-			chatSyncService.addEventListener('phase_2_last_20_chats_ready', handleSyncComplete);
+			// Mark sync completed when phasedSyncComplete fires (after all phases)
+			const handleSyncCompleted = () => {
+				console.debug('[+page.svelte] Full sync complete, marking as completed');
+				phasedSyncState.markSyncCompleted();
+			};
 			
-			console.debug('[+page.svelte] Sync event listeners registered');
+			// Only Phase 1 triggers chat loading - this is the "last opened chat" data
+			chatSyncService.addEventListener('phase_1_last_chat_ready', handlePhase1ChatLoad);
+			
+			// phasedSyncComplete marks overall sync as done (for sync status UI)
+			chatSyncService.addEventListener('phasedSyncComplete', handleSyncCompleted);
+			
+			console.debug('[+page.svelte] Sync event listeners registered (Phase 1 for chat load, phasedSyncComplete for status)');
 		}
 		
 		// Initialize authentication state (panelState will react to this)
