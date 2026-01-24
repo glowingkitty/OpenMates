@@ -288,6 +288,11 @@ async def _handle_phase1_sync(
                 f"[PHASE1_CHAT_METADATA] ❌ Error reading chat metadata from cache for {chat_id}: {cache_error}"
             )
         
+        # Track server message count for client-side validation
+        # Initialize here since it may be set in different code paths below
+        # This helps detect data inconsistencies where version matches but messages are missing
+        server_message_count = None
+        
         # Try to get client-encrypted messages from sync cache first
         try:
             cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
@@ -368,10 +373,6 @@ async def _handle_phase1_sync(
             else:
                 # No version data available at all - fetch from Directus to be safe
                 server_messages_v = None
-            
-            # Track server message count for client-side validation
-            # This helps detect data inconsistencies where version matches but messages are missing
-            server_message_count = None
             
             if server_messages_v is not None and client_versions:
                 client_messages_v = client_versions.get("messages_v", 0)

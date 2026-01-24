@@ -14,6 +14,9 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
+  import { isPublicChat } from '../demo_chats/convertToChat';
+  import { chatDB } from '../services/db';
+  import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   
@@ -179,7 +182,22 @@
 
     const chatId = original_message.chat_id;
     const messageId = original_message.message_id;
-    const link = `${window.location.origin}/#chatid=${chatId}&messageid=${messageId}`;
+    
+    // Construct the base link
+    let link = `${window.location.origin}/#chatid=${chatId}&messageid=${messageId}`;
+    
+    // For non-public chats (real user chats), we MUST include the encryption key
+    // so the server admin can decrypt the message to investigate the quality issue.
+    if (!isPublicChat(chatId)) {
+      const chatKey = chatDB.getChatKey(chatId);
+      if (chatKey) {
+        const urlSafeKey = uint8ArrayToUrlSafeBase64(chatKey);
+        link += `&key=${urlSafeKey}`;
+        console.debug(`[ChatMessage] Included encryption key in report link for real user chat ${chatId}`);
+      } else {
+        console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
+      }
+    }
     
     const template = $text('chat.report_bad_answer.template.text', { values: { link } });
     const title = $text('chat.report_bad_answer.title.text');

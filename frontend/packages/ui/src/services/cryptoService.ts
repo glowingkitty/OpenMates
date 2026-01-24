@@ -64,6 +64,14 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 }
 
 /**
+ * Converts Uint8Array to URL-safe Base64 string (no padding)
+ */
+export function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
+  const base64 = uint8ArrayToBase64(bytes);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
  * Converts Base64 string to Uint8Array
  * Handles both standard base64 and URL-safe base64 (with - and _)
  */
