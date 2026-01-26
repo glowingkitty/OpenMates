@@ -31,8 +31,7 @@
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
-  import { embedStore } from '../../services/embedStore';
-  import { decodeToonContent } from '../../services/embedResolver';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   
   // Animation state: controls both open and close animations via CSS classes
@@ -277,26 +276,33 @@
     
     for (const childEmbedId of embedIdList) {
       try {
-        // Fetch embed from store
-        const embedData = await embedStore.get(`embed:${childEmbedId}`);
+        // Fetch embed using resolveEmbed which checks BOTH:
+        // - Regular embedStore (for encrypted user embeds)
+        // - communityDemoStore (for cleartext demo chat embeds)
+        // This is critical for demo chats where embeds are stored separately.
+        const embedData = await resolveEmbed(childEmbedId);
         if (!embedData) {
           console.warn('[UnifiedEmbedFullscreen] Child embed not found:', childEmbedId);
           continue;
         }
         
         // Decode TOON content if needed
-        let decodedContent = embedData.content;
+        // decodedContent starts as string (TOON-encoded) and gets decoded to object
+        let decodedContent: Record<string, unknown> | null = null;
         
         // Debug: Log raw content before decoding
         console.debug('[UnifiedEmbedFullscreen] Child embed raw content:', {
           childEmbedId,
-          contentType: typeof decodedContent,
-          isString: typeof decodedContent === 'string',
-          contentPreview: typeof decodedContent === 'string' ? decodedContent.substring(0, 200) : 'not a string'
+          contentType: typeof embedData.content,
+          isString: typeof embedData.content === 'string',
+          contentPreview: typeof embedData.content === 'string' ? embedData.content.substring(0, 200) : 'not a string'
         });
         
-        if (typeof decodedContent === 'string') {
-          decodedContent = await decodeToonContent(decodedContent);
+        if (typeof embedData.content === 'string') {
+          decodedContent = await decodeToonContent(embedData.content);
+        } else if (typeof embedData.content === 'object' && embedData.content !== null) {
+          // Content might already be decoded (e.g., from demo embeds)
+          decodedContent = embedData.content as Record<string, unknown>;
         }
         
         // Debug: Log decoded content
@@ -315,14 +321,14 @@
         // Transform or create raw ChildEmbed
         if (childEmbedTransformer) {
           // Use custom transformer
-          const transformed = childEmbedTransformer(childEmbedId, decodedContent as Record<string, unknown>);
+          const transformed = childEmbedTransformer(childEmbedId, decodedContent);
           children.push(transformed);
         } else {
           // Return raw embed data object
           const childEmbed = {
             embed_id: childEmbedId,
-            content: decodedContent as Record<string, unknown>,
-            embed_type: embedData.embed_type
+            content: decodedContent,
+            embed_type: embedData.type // Use 'type' from EmbedData (not 'embed_type')
           };
           children.push(childEmbed);
         }
@@ -373,6 +379,11 @@
   /**
    * Refetch current embed data from the store and notify parent via callback
    * This ensures we have the latest data after an update during streaming
+   * 
+   * NOTE: Uses resolveEmbed() which checks BOTH:
+   * - Regular embedStore (for encrypted user embeds)
+   * - communityDemoStore (for cleartext demo chat embeds)
+   * This is critical for demo chats where embeds are stored separately.
    */
   async function refetchCurrentEmbed() {
     if (!currentEmbedId || !onEmbedDataUpdated) {
@@ -380,7 +391,7 @@
     }
     
     try {
-      const embedData = await embedStore.get(`embed:${currentEmbedId}`);
+      const embedData = await resolveEmbed(currentEmbedId);
       if (!embedData) {
         console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);
         return;
@@ -388,23 +399,26 @@
       
       console.debug(`[UnifiedEmbedFullscreen] Refetched data from store for ${currentEmbedId}:`, {
         status: embedData.status,
-        hasContent: !!embedData.content,
-        hasResults: !!embedData.results,
-        resultsCount: embedData.results?.length || 0
+        hasContent: !!embedData.content
       });
       
       // Decode TOON content if needed
-      let decodedContent = embedData.content;
-      if (typeof decodedContent === 'string') {
-        decodedContent = await decodeToonContent(decodedContent);
+      // decodedContent starts as string (TOON-encoded) and gets decoded to object
+      let decodedContent: Record<string, unknown> | null = null;
+      if (typeof embedData.content === 'string') {
+        decodedContent = await decodeToonContent(embedData.content);
+      } else if (typeof embedData.content === 'object' && embedData.content !== null) {
+        // Content might already be decoded (e.g., from demo embeds)
+        decodedContent = embedData.content as Record<string, unknown>;
       }
       
       // Notify parent component with decoded content and results
+      // Results are extracted from the decoded content (embed_ids field)
       if (decodedContent) {
         onEmbedDataUpdated({
           status: embedData.status || 'processing',
-          decodedContent: decodedContent as Record<string, unknown>,
-          results: embedData.results || (decodedContent as Record<string, unknown>)?.results as unknown[]
+          decodedContent: decodedContent,
+          results: (decodedContent?.results as unknown[]) || undefined
         });
       }
     } catch (error) {

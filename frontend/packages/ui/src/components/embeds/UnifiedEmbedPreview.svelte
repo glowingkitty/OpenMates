@@ -37,8 +37,7 @@
   import { onMount, onDestroy } from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
-  import { embedStore } from '../../services/embedStore';
-  import { decodeToonContent } from '../../services/embedResolver';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   
   /**
    * Props interface for unified embed preview
@@ -146,6 +145,13 @@
    * This ensures we have the latest data after an update
    * and notifies child components via onEmbedDataUpdated callback
    * 
+   * NOTE: Uses resolveEmbed() which checks BOTH:
+   * - Regular embedStore (for encrypted user embeds)
+   * - communityDemoStore (for cleartext demo chat embeds)
+   * 
+   * This is critical for demo chats where embeds are stored separately
+   * in the community demo store and wouldn't be found by embedStore.get().
+   * 
    * NOTE: Skips fetch for "legacy-*" IDs which are synthetic IDs created by
    * transformLegacyResults() in search fullscreens. These IDs don't exist in
    * IndexedDB - the data is already available from the parent component's props.
@@ -159,7 +165,9 @@
     }
     
     try {
-      const embedData = await embedStore.get(`embed:${id}`);
+      // Use resolveEmbed() which checks both regular embedStore AND communityDemoStore
+      // This is essential for demo chats where embeds are stored in a separate store
+      const embedData = await resolveEmbed(id);
       if (embedData) {
         console.debug(`[UnifiedEmbedPreview] Refetched data from store for ${id}:`, {
           status: embedData.status,
