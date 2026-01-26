@@ -49,7 +49,7 @@ async def _update_demo_status(task: BaseServiceTask, demo_chat_id: str, status: 
             await task.publish_websocket_event(
                 admin_user_id,
                 "demo_chat_updated",
-                {"demo_chat_id": demo_chat_id, "status": status}
+                {"user_id": admin_user_id, "demo_chat_id": demo_chat_id, "status": status}
             )
     except Exception as e:
         logger.error(f"Failed to update demo status to {status}: {e}")
@@ -198,6 +198,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 admin_user_id,
                 "demo_chat_progress",
                 {
+                    "user_id": admin_user_id,  # Required for WebSocket forwarding
                     "demo_chat_id": demo_chat_id,
                     "stage": "messages",
                     "completed": i,
@@ -219,6 +220,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 admin_user_id,
                 "demo_chat_progress",
                 {
+                    "user_id": admin_user_id,  # Required for WebSocket forwarding
                     "demo_chat_id": demo_chat_id,
                     "stage": "languages",
                     "completed": lang_idx + 1,  # +1 because we're about to complete this language
@@ -330,7 +332,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 await task.publish_websocket_event(
                     admin_user_id,
                     "demo_chat_updated",
-                    {"demo_chat_id": demo_chat_id, "status": "published"}
+                    {"user_id": admin_user_id, "demo_chat_id": demo_chat_id, "status": "published"}
                 )
         else:
             logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
