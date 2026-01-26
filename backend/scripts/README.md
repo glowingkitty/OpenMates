@@ -267,6 +267,42 @@ docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --no-c
 
 ---
 
+### Inspect Demo Chat
+
+**Purpose:** Display detailed information about a demo chat including metadata, translations, messages, embeds, and cache status. Demo chats are public example conversations shown to non-authenticated users.
+
+**Command:**
+```bash
+# By display ID (demo-1, demo-2, etc.)
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
+
+# By UUID
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py <uuid>
+
+# With options
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --lang de
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --json
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --no-cache
+```
+
+**What it shows:**
+- Demo chat metadata from Directus (UUID, status, approval info, encrypted fields)
+- All language translations with encrypted fields presence
+- Messages filtered by language with role distribution
+- Embeds (NOT translated - stored only once with language="original")
+- Redis cache status for demo chat data and lists
+
+**Options:**
+- `--lang LANG`: Language to inspect (default: en)
+- `--messages-limit N`: Limit number of messages to display (default: 20)
+- `--embeds-limit N`: Limit number of embeds to display (default: 20)
+- `--json`: Output as JSON instead of formatted text
+- `--no-cache`: Skip cache checks (faster if Redis is unavailable)
+
+**Use case:** Debugging demo chat display issues, verifying translations, checking if encrypted fields are properly stored.
+
+---
+
 ### Inspect Last AI Requests (Debug)
 
 **Purpose:** Inspect the last 10 AI request processing cycles with FULL input/output data for preprocessor, main processor, and postprocessor stages. Essential for debugging AI behavior and understanding the decision-making process.

@@ -213,6 +213,10 @@ Use these scripts to inspect server state directly. Run from the repo root.
 # Inspect a specific chat (cache, storage, Directus)
 docker exec api python /app/backend/scripts/inspect_chat.py <chat_id>
 
+# Inspect a specific demo chat (by display ID or UUID)
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --lang de  # German translation
+
 # Inspect a specific embed
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
 

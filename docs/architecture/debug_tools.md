@@ -211,6 +211,72 @@ CACHE STATUS (from Redis)
   ✅ Embed IDs Indexed: 40 embed(s)
 ```
 
+## Backend Debug Script: `inspect_demo_chat.py`
+
+A Python script to inspect demo chat data in Directus database and Redis cache. Demo chats are public example conversations shown to non-authenticated users.
+
+### Usage
+
+```bash
+# By display ID (demo-1, demo-2, etc.)
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
+
+# By UUID
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py 10ebe5d8-e496-4d4d-8802-51af1817583a
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--lang LANG` | Language to inspect (en, de, fr, etc.) | en |
+| `--messages-limit N` | Limit number of messages to display | 20 |
+| `--embeds-limit N` | Limit number of embeds to display | 20 |
+| `--json` | Output as JSON instead of formatted text | - |
+| `--no-cache` | Skip cache checks (faster if Redis is down) | - |
+
+### Examples
+
+```bash
+# Inspect German translation
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --lang de
+
+# Output as JSON for scripting
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --json
+
+# Quick check without cache
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --no-cache
+```
+
+### Output Sections
+
+#### 1. Demo Metadata (from Directus)
+- UUID and display ID mapping
+- Original chat ID (source chat)
+- Status (pending_approval, translating, published)
+- Admin approval info
+- Encrypted fields presence (category, icon)
+- Content hash for change detection
+
+#### 2. Translations (from Directus)
+- All available language translations
+- Encrypted fields presence per language (title, summary, follow-up suggestions)
+
+#### 3. Messages (from Directus)
+- Language-specific message count
+- Language breakdown across all translations
+- Role distribution (user/assistant/system)
+- Encrypted content and metadata presence
+
+#### 4. Embeds (from Directus)
+- Embed count (embeds are NOT translated, stored only once)
+- Type distribution
+- Warns if duplicate embeds exist from before the fix
+
+#### 5. Cache Status (from Redis)
+- Demo chat data cache per language
+- Demo chats list cache per language
+
 ## Comparing Frontend vs Backend Data
 
 When debugging sync issues, compare data from both sources:

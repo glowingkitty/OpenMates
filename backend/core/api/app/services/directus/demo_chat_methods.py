@@ -519,12 +519,19 @@ class DemoChatMethods:
             return []
 
     async def get_demo_embeds_by_uuid(self, demo_chat_uuid: str, language: str) -> List[Dict[str, Any]]:
-        """Get translated and encrypted embeds for a demo chat by UUID."""
+        """
+        Get encrypted embeds for a demo chat by UUID.
+        
+        NOTE: Unlike messages, embeds are NOT translated - they are stored once with
+        language="original". The language parameter is ignored for embeds since
+        embed content (structured data, images, etc.) doesn't get translated.
+        """
         try:
             params = {
                 "filter": {
                     "demo_chat_id": {"_eq": demo_chat_uuid},
-                    "language": {"_eq": language}
+                    # Always use "original" - embeds are not translated, stored only once
+                    "language": {"_eq": "original"}
                 },
                 "sort": ["original_created_at"]  # Sort by original timestamp
             }
