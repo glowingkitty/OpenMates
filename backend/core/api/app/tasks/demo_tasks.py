@@ -189,8 +189,20 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                     follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
         
         # Translate messages in batches
+        # IMPORTANT: System messages contain structured JSON (e.g., app_settings_memories_response)
+        # that should NOT be translated - copy them as-is to preserve JSON structure
         message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
         for i, msg in enumerate(decrypted_messages):
+            # Check if this is a system message - these should not be translated
+            # System messages contain JSON content like:
+            # {"type": "app_settings_memories_response", "user_message_id": "...", ...}
+            if msg.get("role") == "system":
+                logger.info(f"Skipping translation for system message {i+1}/{len(decrypted_messages)} (preserving JSON structure)")
+                # Copy original content to all languages without translation
+                for lang in TARGET_LANGUAGES:
+                    message_translations_by_lang[lang].append(msg["content"])
+                continue
+            
             logger.info(f"Translating message {i+1}/{len(decrypted_messages)} to all languages...")
 
             # Send progress update via WebSocket
@@ -506,10 +518,13 @@ async def _translate_markdown_with_code_blocks(
     Strategy:
     1. Extract all code blocks and replace with placeholders
     2. Split remaining text into segments
-    3. Translate each segment
-    4. Reassemble with original code blocks
+    3. Extract leading/trailing whitespace from each segment (preserve formatting)
+    4. Translate only the stripped text content
+    5. Restore whitespace and reassemble with original code blocks
     
-    This ensures code blocks (especially JSON embed references) are never modified.
+    This ensures:
+    - Code blocks (especially JSON embed references) are never modified
+    - Whitespace around code blocks is preserved (critical for proper rendering)
     """
     import re
     
@@ -533,22 +548,35 @@ async def _translate_markdown_with_code_blocks(
     segments = re.split(placeholder_pattern, text_with_placeholders)
     
     # Identify which segments are placeholders vs translatable text
+    # IMPORTANT: Preserve leading/trailing whitespace for proper formatting around code blocks
     translatable_segments = []
     segment_indices = []
+    segment_whitespace = []  # Store (leading_ws, trailing_ws) for each segment
+    
     for i, segment in enumerate(segments):
         if not segment.startswith(placeholder_prefix):
-            if segment.strip():  # Only translate non-empty segments
-                translatable_segments.append(segment)
+            stripped = segment.strip()
+            if stripped:  # Only translate non-empty segments
+                # Extract leading and trailing whitespace
+                # Use regex to capture leading whitespace
+                leading_match = re.match(r'^(\s*)', segment)
+                leading_ws = leading_match.group(1) if leading_match else ""
+                # Extract trailing whitespace
+                trailing_match = re.search(r'(\s*)$', segment)
+                trailing_ws = trailing_match.group(1) if trailing_match else ""
+                
+                translatable_segments.append(stripped)  # Send only stripped text to LLM
                 segment_indices.append(i)
+                segment_whitespace.append((leading_ws, trailing_ws))
     
-    logger.info(f"[Translation] Found {len(translatable_segments)} translatable segments")
+    logger.info(f"[Translation] Found {len(translatable_segments)} translatable segments (whitespace preserved)")
     
     if not translatable_segments:
         # No translatable text, just return original for all languages
         return {lang: text for lang in target_languages}
     
     # Translate all segments using the block translation function
-    # Create text blocks with segment info
+    # Create text blocks with segment info (using stripped text)
     text_blocks = [{"text": seg, "index": idx} for seg, idx in zip(translatable_segments, segment_indices)]
     
     # Translate all text blocks
@@ -559,10 +587,12 @@ async def _translate_markdown_with_code_blocks(
     for lang in target_languages:
         lang_texts = block_translations.get(lang, translatable_segments)
         
-        # Reconstruct segments with translations
+        # Reconstruct segments with translations, restoring whitespace
         translated_segments = list(segments)  # Copy original segments
         for i, (orig_idx, translated_text) in enumerate(zip(segment_indices, lang_texts)):
-            translated_segments[orig_idx] = translated_text
+            # Restore the original leading/trailing whitespace
+            leading_ws, trailing_ws = segment_whitespace[i]
+            translated_segments[orig_idx] = f"{leading_ws}{translated_text}{trailing_ws}"
         
         # Replace placeholders back with original code blocks
         result = "".join(translated_segments)
