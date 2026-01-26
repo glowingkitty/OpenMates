@@ -46,6 +46,9 @@
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
 
+    // Translation progress tracking
+    let translationProgress = $state<Map<string, any>>(new Map());
+
     // URL parameters for email link
     let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string; category?: string; icon?: string; follow_up_suggestions?: string }>({});
 
@@ -541,13 +544,15 @@
             }, 500);
         }
 
-        // Register WebSocket handler for demo chat updates
+        // Register WebSocket handlers
         webSocketService.on('demo_chat_updated', handleDemoChatUpdate);
+        webSocketService.on('demo_chat_progress', handleDemoChatProgress);
     });
 
     onDestroy(() => {
-        // Clean up WebSocket handler
+        // Clean up WebSocket handlers
         webSocketService.off('demo_chat_updated', handleDemoChatUpdate);
+        webSocketService.off('demo_chat_progress', handleDemoChatProgress);
     });
 
     /**
@@ -585,6 +590,47 @@
             }
         }
     }
+
+    /**
+     * Handle WebSocket progress updates for demo chat translation
+     */
+    function handleDemoChatProgress(payload: any) {
+        console.log('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
+
+        const { demo_chat_id, stage, completed, total, current_language, message } = payload;
+
+        // Update progress state
+        translationProgress.set(demo_chat_id, {
+            stage,
+            completed,
+            total,
+            current_language,
+            message,
+            last_update: Date.now()
+        });
+
+        // Trigger reactivity
+        translationProgress = new Map(translationProgress);
+
+        // Update the demo chat in currentDemoChats if it exists
+        const demoIndex = currentDemoChats.findIndex(d => d.id === demo_chat_id);
+        if (demoIndex !== -1) {
+            currentDemoChats[demoIndex] = {
+                ...currentDemoChats[demoIndex],
+                status: 'translating',
+                // Keep existing properties
+                ...currentDemoChats[demoIndex]
+            };
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+        }
+    }
+
+    /**
+     * Get progress information for a demo chat
+     */
+    function getProgressInfo(demoChatId: string) {
+        return translationProgress.get(demoChatId);
+    }
 </script>
 
 <div class="community-suggestions">
@@ -616,7 +662,18 @@
                                 {#if demo.status}
                                     <span class="status-tag status-{demo.status}">
                                         {#if demo.status === 'translating'}
-                                            ⏳ {demo.status}
+                                            {#if getProgressInfo(demo.id)}
+                                                {@const progress = getProgressInfo(demo.id)}
+                                                {#if progress.stage === 'messages'}
+                                                    ⏳ Translating {progress.completed}/{progress.total} messages
+                                                {:else if progress.stage === 'languages'}
+                                                    ⏳ Storing {progress.current_language} ({progress.completed}/{progress.total} languages)
+                                                {:else}
+                                                    ⏳ {progress.message || demo.status}
+                                                {/if}
+                                            {:else}
+                                                ⏳ {demo.status}
+                                            {/if}
                                         {:else if demo.status === 'published'}
                                             ✅ {demo.status}
                                         {:else if demo.status === 'translation_failed'}

@@ -192,14 +192,42 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
         for i, msg in enumerate(decrypted_messages):
             logger.info(f"Translating message {i+1}/{len(decrypted_messages)} to all languages...")
+
+            # Send progress update via WebSocket
+            await task.publish_websocket_event(
+                admin_user_id,
+                "demo_chat_progress",
+                {
+                    "demo_chat_id": demo_chat_id,
+                    "stage": "messages",
+                    "completed": i,
+                    "total": len(decrypted_messages),
+                    "message": f"Translating message {i+1}/{len(decrypted_messages)}"
+                }
+            )
+
             msg_translations = await _translate_tiptap_json_batch(task, msg["content"], TARGET_LANGUAGES)
             for lang in TARGET_LANGUAGES:
                 message_translations_by_lang[lang].append(msg_translations[lang])
         
         # 8. Store translations for each language
-        for lang in TARGET_LANGUAGES:
+        for lang_idx, lang in enumerate(TARGET_LANGUAGES):
             logger.info(f"Storing translations for {lang}...")
-            
+
+            # Send progress update via WebSocket for language completion
+            await task.publish_websocket_event(
+                admin_user_id,
+                "demo_chat_progress",
+                {
+                    "demo_chat_id": demo_chat_id,
+                    "stage": "languages",
+                    "completed": lang_idx + 1,  # +1 because we're about to complete this language
+                    "total": len(TARGET_LANGUAGES),
+                    "current_language": lang,
+                    "message": f"Storing translations for {lang} ({lang_idx + 1}/{len(TARGET_LANGUAGES)})"
+                }
+            )
+
             # Store metadata translation (Vault-encrypted)
             encrypted_title, _ = await task.encryption_service.encrypt(
                 title_translations[lang], 
@@ -322,6 +350,9 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
     For short text (titles, summaries, follow-ups), translates to all languages at once.
     For longer text, automatically batches to stay within token limits.
     
+    IMPORTANT: For markdown text with code blocks (like assistant messages with embeds),
+    this function extracts code blocks, translates only the text portions, then reassembles.
+    
     Uses 20k output token limit for reliability.
     
     Returns a dictionary mapping language codes to translations.
@@ -329,28 +360,42 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
     if not text:
         return {lang: "" for lang in target_languages}
     
-    # Determine optimal batch size based on content length
+    # Check if text contains markdown code blocks that should be preserved
+    # Common pattern: ```json ... ``` or ``` ... ```
+    import re
+    code_block_pattern = r'(```(?:json|javascript|python|bash|sh|html|css|xml|yaml|yml|text|plain)?\n[\s\S]*?```)'
+    code_blocks = re.findall(code_block_pattern, text)
+    
+    if code_blocks:
+        # Text contains code blocks - use block-by-block translation
+        logger.info(f"[Translation] Detected {len(code_blocks)} code blocks in markdown, using block extraction")
+        return await _translate_markdown_with_code_blocks(task, text, target_languages, code_block_pattern)
+    
+    # No code blocks - proceed with normal batch translation
     content_length = len(text)
     
-    # For plain text, use more aggressive batching since output is shorter than Tiptap JSON
-    # Estimate: 1 char ≈ 0.5 tokens input + 0.6 tokens output per language (shorter than JSON)
+    # For plain text, estimate output tokens per language
+    # Estimate: 1 char ≈ 0.6 tokens output per language (accounts for translation expansion)
     estimated_tokens_per_language = int(content_length * 0.6)
     
     # Calculate batch size to stay under 18k tokens (20k with safety buffer)
+    # CRITICAL: Always respect the calculated max_batch_size
     if estimated_tokens_per_language > 0:
         max_batch_size = max(1, min(20, int(18000 / estimated_tokens_per_language)))
     else:
         max_batch_size = 20
     
-    # For plain text, we can be more aggressive with batching
-    if content_length < 3000:
-        batch_size = 20  # Short text: all languages at once
-    elif content_length < 8000:
-        batch_size = min(10, max_batch_size)  # Medium text: 10 languages max
+    # Apply batch size limits based on content length, but ALWAYS respect max_batch_size
+    if content_length < 500:
+        batch_size = min(20, max_batch_size)  # Very short text
+    elif content_length < 1500:
+        batch_size = min(10, max_batch_size)  # Short text
+    elif content_length < 4000:
+        batch_size = min(5, max_batch_size)   # Medium text
     else:
-        batch_size = min(5, max_batch_size)  # Long text: 5 languages max
+        batch_size = min(3, max_batch_size)   # Long text
     
-    logger.info(f"[Translation] Plain text length: {content_length} chars, estimated {estimated_tokens_per_language} tokens/lang, batch size: {batch_size}")
+    logger.info(f"[Translation] Plain text length: {content_length} chars, estimated {estimated_tokens_per_language} tokens/lang, max_batch: {max_batch_size}, batch_size: {batch_size}")
     
     # Split target languages into batches
     all_translations = {}
@@ -444,6 +489,86 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
             for lang in batch_langs:
                 all_translations[lang] = text
     
+    return all_translations
+
+
+async def _translate_markdown_with_code_blocks(
+    task: BaseServiceTask, 
+    text: str, 
+    target_languages: list,
+    code_block_pattern: str
+) -> dict:
+    """
+    Translate markdown text that contains code blocks.
+    
+    Strategy:
+    1. Extract all code blocks and replace with placeholders
+    2. Split remaining text into segments
+    3. Translate each segment
+    4. Reassemble with original code blocks
+    
+    This ensures code blocks (especially JSON embed references) are never modified.
+    """
+    import re
+    
+    # Find all code blocks and their positions
+    code_blocks = []
+    placeholder_prefix = "<<<CODE_BLOCK_"
+    placeholder_suffix = ">>>"
+    
+    def replace_code_block(match):
+        idx = len(code_blocks)
+        code_blocks.append(match.group(0))
+        return f"{placeholder_prefix}{idx}{placeholder_suffix}"
+    
+    # Replace code blocks with placeholders
+    text_with_placeholders = re.sub(code_block_pattern, replace_code_block, text)
+    
+    logger.info(f"[Translation] Extracted {len(code_blocks)} code blocks, translating remaining text")
+    
+    # Split text by placeholders to get translatable segments
+    placeholder_pattern = r'(<<<CODE_BLOCK_\d+>>>)'
+    segments = re.split(placeholder_pattern, text_with_placeholders)
+    
+    # Identify which segments are placeholders vs translatable text
+    translatable_segments = []
+    segment_indices = []
+    for i, segment in enumerate(segments):
+        if not segment.startswith(placeholder_prefix):
+            if segment.strip():  # Only translate non-empty segments
+                translatable_segments.append(segment)
+                segment_indices.append(i)
+    
+    logger.info(f"[Translation] Found {len(translatable_segments)} translatable segments")
+    
+    if not translatable_segments:
+        # No translatable text, just return original for all languages
+        return {lang: text for lang in target_languages}
+    
+    # Translate all segments using the block translation function
+    # Create text blocks with segment info
+    text_blocks = [{"text": seg, "index": idx} for seg, idx in zip(translatable_segments, segment_indices)]
+    
+    # Translate all text blocks
+    block_translations = await _translate_text_blocks_batch(task, text_blocks, target_languages)
+    
+    # Reassemble for each language
+    all_translations = {}
+    for lang in target_languages:
+        lang_texts = block_translations.get(lang, translatable_segments)
+        
+        # Reconstruct segments with translations
+        translated_segments = list(segments)  # Copy original segments
+        for i, (orig_idx, translated_text) in enumerate(zip(segment_indices, lang_texts)):
+            translated_segments[orig_idx] = translated_text
+        
+        # Replace placeholders back with original code blocks
+        result = "".join(translated_segments)
+        for idx, code_block in enumerate(code_blocks):
+            result = result.replace(f"{placeholder_prefix}{idx}{placeholder_suffix}", code_block)
+        
+        all_translations[lang] = result
+        
     return all_translations
 
 
@@ -578,18 +703,28 @@ async def _translate_text_blocks_batch(task: BaseServiceTask, text_blocks: list,
     # Calculate batch size based on total text length
     total_text_length = sum(len(t) for t in texts)
     
-    # More conservative batching since we're translating multiple strings
-    # Each language needs all texts translated
-    if total_text_length < 1500:
-        batch_size = 20  # Short total: all languages at once
-    elif total_text_length < 4000:
-        batch_size = 10  # Medium total: 10 languages
-    elif total_text_length < 8000:
-        batch_size = 5   # Long total: 5 languages
-    else:
-        batch_size = 3   # Very long total: 3 languages at a time
+    # Conservative batching: estimate output tokens per language
+    # Output includes all text blocks translated, so multiply by number of blocks
+    # Estimate: 0.6 tokens per char * total_length * languages must stay under 18k
+    estimated_output_per_lang = int(total_text_length * 0.6)
     
-    logger.info(f"[Translation] Translating {len(texts)} text blocks ({total_text_length} chars total), batch size: {batch_size}")
+    # Calculate max batch size to stay under 18k tokens output
+    if estimated_output_per_lang > 0:
+        max_batch_size = max(1, min(20, int(18000 / estimated_output_per_lang)))
+    else:
+        max_batch_size = 20
+    
+    # Apply conservative limits based on content length
+    if total_text_length < 500:
+        batch_size = min(20, max_batch_size)  # Very short
+    elif total_text_length < 1500:
+        batch_size = min(10, max_batch_size)  # Short
+    elif total_text_length < 4000:
+        batch_size = min(5, max_batch_size)   # Medium
+    else:
+        batch_size = min(3, max_batch_size)   # Long
+    
+    logger.info(f"[Translation] Translating {len(texts)} text blocks ({total_text_length} chars total), max_batch: {max_batch_size}, batch_size: {batch_size}")
     
     all_translations = {}
     
