@@ -261,9 +261,26 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
             # {"type": "app_settings_memories_response", "user_message_id": "...", ...}
             if msg.get("role") == "system":
                 logger.info(f"Skipping translation for system message {i+1}/{len(decrypted_messages)} (preserving JSON structure)")
-                # Copy original content to all languages without translation and mark as completed
+                
+                # PRIVACY: Strip user_message_id from system messages in demo chats
+                # The user_message_id references the original chat's message ID which:
+                # 1. Leaks metadata from the original conversation
+                # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
+                # 3. The frontend uses position-based fallback for demo/shared chats
+                system_content = msg["content"]
+                try:
+                    parsed_system = json.loads(system_content)
+                    if isinstance(parsed_system, dict) and "user_message_id" in parsed_system:
+                        del parsed_system["user_message_id"]
+                        system_content = json.dumps(parsed_system)
+                        logger.info("Stripped user_message_id from system message for privacy")
+                except (json.JSONDecodeError, TypeError):
+                    # Not valid JSON, keep original content
+                    pass
+                
+                # Copy (sanitized) content to all languages without translation
                 for lang in TARGET_LANGUAGES:
-                    message_translations_by_lang[lang].append(msg["content"])
+                    message_translations_by_lang[lang].append(system_content)
 
                 # Update progress for system messages (all languages completed instantly)
                 completed_work_units += total_languages

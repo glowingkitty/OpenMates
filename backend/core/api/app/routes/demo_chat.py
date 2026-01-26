@@ -324,6 +324,7 @@ async def get_demo_chat(
 
         # 5. Decrypt content for client (No client-side decryption needed for demos)
         from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        import json as json_module
         encryption_service = request.app.state.encryption_service
         
         decrypted_messages = []
@@ -332,6 +333,22 @@ async def get_demo_chat(
                 msg.get("encrypted_content", ""), 
                 key_name=DEMO_CHATS_ENCRYPTION_KEY
             )
+            
+            # PRIVACY: Strip user_message_id from system message content
+            # The user_message_id references the original chat's message ID which:
+            # 1. Leaks metadata from the original conversation
+            # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
+            # 3. The frontend uses position-based fallback for demo/shared chats
+            if msg.get("role") == "system" and decrypted_content:
+                try:
+                    parsed_content = json_module.loads(decrypted_content)
+                    if isinstance(parsed_content, dict) and "user_message_id" in parsed_content:
+                        del parsed_content["user_message_id"]
+                        decrypted_content = json_module.dumps(parsed_content)
+                        logger.debug("Stripped user_message_id from system message for privacy")
+                except (json_module.JSONDecodeError, TypeError):
+                    # Not valid JSON, keep original content
+                    pass
             
             decrypted_category = None
             if msg.get("encrypted_category"):
