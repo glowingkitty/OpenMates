@@ -17,7 +17,7 @@ aiohttp==3.13.3
 celery==5.5.1
 regex==2024.11.6
 boto3==1.37.18
-python-multipart==0.0.20
+python-multipart==0.0.22
 argon2-cffi==23.1.0
 pyotp==2.9.0
 user-agents==2.2.0
