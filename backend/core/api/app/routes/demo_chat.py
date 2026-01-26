@@ -91,11 +91,13 @@ async def get_demo_chats(
             display_id = f"demo-{idx + 1}"
             
             # Decrypt category and icon if present
-            category = None
-            icon = None
+            # NOTE: These are stored on the demo_chats table itself (NOT translated)
+            # Using different variable names to avoid shadowing the 'category' query parameter
+            demo_category = None
+            demo_icon = None
             if demo.get("encrypted_category"):
                 try:
-                    category = await encryption_service.decrypt(
+                    demo_category = await encryption_service.decrypt(
                         demo["encrypted_category"],
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
@@ -103,7 +105,7 @@ async def get_demo_chats(
                     logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {e}")
             if demo.get("encrypted_icon"):
                 try:
-                    icon = await encryption_service.decrypt(
+                    demo_icon = await encryption_service.decrypt(
                         demo["encrypted_icon"],
                         key_name=DEMO_CHATS_ENCRYPTION_KEY
                     )
@@ -143,8 +145,8 @@ async def get_demo_chats(
                     "uuid": demo_uuid,  # Server UUID for lookups
                     "title": title or "Demo Chat",
                     "summary": summary,
-                    "category": category,
-                    "icon": icon,
+                    "category": demo_category,  # From demo_chats table (not translated)
+                    "icon": demo_icon,  # From demo_chats table (not translated)
                     "content_hash": content_hash,
                     "created_at": demo.get("created_at"),
                     "status": demo.get("status")
@@ -292,8 +294,16 @@ async def get_demo_chat(
                 logger.warning(f"Failed to decrypt follow-up suggestions: {e}")
         
         # Decrypt category and icon from demo_chat
+        # NOTE: Category and icon are stored on the demo_chats table itself (NOT translated)
+        # They remain in the original language from when the demo was created
         category = None
         icon = None
+        
+        # Debug: Log whether encrypted fields exist in the demo_chat record
+        logger.debug(
+            f"Demo {demo_chat_uuid}: encrypted_category exists={bool(demo_chat.get('encrypted_category'))}, "
+            f"encrypted_icon exists={bool(demo_chat.get('encrypted_icon'))}"
+        )
         
         if demo_chat.get("encrypted_category"):
             try:
@@ -301,8 +311,11 @@ async def get_demo_chat(
                     demo_chat["encrypted_category"],
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
+                logger.debug(f"Demo {demo_chat_uuid}: Decrypted category = {category}")
             except Exception as e:
-                logger.warning(f"Failed to decrypt category: {e}")
+                logger.warning(f"Failed to decrypt category for demo {demo_chat_uuid}: {e}")
+        else:
+            logger.debug(f"Demo {demo_chat_uuid}: No encrypted_category stored (NULL in database)")
         
         if demo_chat.get("encrypted_icon"):
             try:
@@ -310,8 +323,11 @@ async def get_demo_chat(
                     demo_chat["encrypted_icon"],
                     key_name=DEMO_CHATS_ENCRYPTION_KEY
                 )
+                logger.debug(f"Demo {demo_chat_uuid}: Decrypted icon = {icon}")
             except Exception as e:
-                logger.warning(f"Failed to decrypt icon: {e}")
+                logger.warning(f"Failed to decrypt icon for demo {demo_chat_uuid}: {e}")
+        else:
+            logger.debug(f"Demo {demo_chat_uuid}: No encrypted_icon stored (NULL in database)")
 
         # 4. Get messages and embeds by UUID
         messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, lang)

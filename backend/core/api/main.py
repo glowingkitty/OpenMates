@@ -694,6 +694,14 @@ async def lifespan(app: FastAPI):
             async def warm_demo_cache():
                 try:
                     await asyncio.sleep(5) # Wait for other services to settle
+                    
+                    # IMPORTANT: Clear existing demo cache before warming to prevent stale data
+                    # This ensures that any old cache entries (e.g., from before a demo was fully published
+                    # or with missing fields like encrypted_category) are removed before we populate
+                    # fresh data from the database.
+                    logger.info("Clearing existing demo chats cache before warming...")
+                    await app.state.directus_service.cache.clear_demo_chats_cache()
+                    
                     # Fetch all active demo chats to warm the cache for all languages
                     from backend.core.api.app.tasks.demo_tasks import TARGET_LANGUAGES
                     for lang in TARGET_LANGUAGES:
@@ -754,6 +762,14 @@ async def lifespan(app: FastAPI):
                                             logger.warning(f"Failed to decrypt follow_up_suggestions for demo {demo_uuid}: {followup_err}")
                                     
                                     # Decrypt category and icon from demo_chats table
+                                    # Log the fields present in the demo object to debug missing category issue
+                                    logger.info(
+                                        f"Demo {demo_uuid} fields check: encrypted_category={bool(demo.get('encrypted_category'))}, "
+                                        f"encrypted_icon={bool(demo.get('encrypted_icon'))}"
+                                    )
+                                    if not demo.get('encrypted_category'):
+                                        logger.warning(f"Demo {demo_uuid}: encrypted_category is MISSING! Keys: {list(demo.keys())}")
+                                    
                                     decrypted_category = None
                                     decrypted_icon = None
                                     if demo.get("encrypted_category"):
@@ -762,14 +778,19 @@ async def lifespan(app: FastAPI):
                                                 demo["encrypted_category"],
                                                 key_name=DEMO_CHATS_ENCRYPTION_KEY
                                             )
+                                            logger.debug(f"Demo {demo_uuid}: decrypted category = {decrypted_category}")
                                         except Exception as cat_err:
                                             logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {cat_err}")
+                                    else:
+                                        logger.warning(f"Demo {demo_uuid}: encrypted_category field is missing or empty!")
+                                    
                                     if demo.get("encrypted_icon"):
                                         try:
                                             decrypted_icon = await encryption_service.decrypt(
                                                 demo["encrypted_icon"],
                                                 key_name=DEMO_CHATS_ENCRYPTION_KEY
                                             )
+                                            logger.debug(f"Demo {demo_uuid}: decrypted icon = {decrypted_icon}")
                                         except Exception as icon_err:
                                             logger.warning(f"Failed to decrypt icon for demo {demo_uuid}: {icon_err}")
                                     

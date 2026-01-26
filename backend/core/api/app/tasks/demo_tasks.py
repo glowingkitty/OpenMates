@@ -403,23 +403,9 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 }
                 await task.directus_service.create_item("demo_messages", message_data)
 
-            # Store embeds (no translation for now, just copy with language marker)
-            for emb in decrypted_embeds:
-                # Encrypt embed content with Vault
-                encrypted_content, _ = await task.encryption_service.encrypt(
-                    emb["content"], 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                
-                embed_data = {
-                    "demo_chat_id": demo_chat_id,
-                    "language": lang,
-                    "original_embed_id": emb["original_embed_id"],
-                    "encrypted_content": encrypted_content,
-                    "type": emb["type"],
-                    "original_created_at": emb["original_created_at"]
-                }
-                await task.directus_service.create_item("demo_embeds", embed_data)
+            # NOTE: Embeds are NOT duplicated per language - they remain stored once with
+            # language="original" since embed content is not translated. The original embeds
+            # were already stored when the demo chat was created (see create_pending_demo_chat_with_content).
 
         # 9. Generate content hash for change detection
         hash_content = ""
@@ -450,8 +436,13 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         else:
             logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
         
-        # 11. Clear and reload cache
+        # 11. Clear demo cache after publishing
+        # IMPORTANT: This must happen AFTER all database updates are complete to ensure
+        # the next cache population (on-demand or at API startup) fetches the complete data.
+        # The cache will be re-populated on the next request with fresh data from the database.
+        # NOTE: API startup also clears the cache before warming to prevent stale data issues.
         await task.directus_service.cache.clear_demo_chats_cache()
+        logger.info(f"Cleared demo chats cache after publishing demo {demo_chat_id}")
 
         logger.info(f"Successfully published demo chat {demo_chat_id} in {len(TARGET_LANGUAGES)} languages")
 
