@@ -175,16 +175,54 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         
         # 7. Translate metadata and messages using batch translation
         logger.info(f"Translating demo {demo_chat_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
-        
+
+        # Progress tracking: total work units = messages × languages
+        total_messages = len(decrypted_messages)
+        total_languages = len(TARGET_LANGUAGES)
+        total_work_units = total_messages * total_languages
+        completed_work_units = 0
+
+        # Create progress callback for metadata translations
+        async def metadata_progress_callback(completed_languages):
+            """Callback for metadata translations."""
+            await task.publish_websocket_event(
+                admin_user_id,
+                "demo_chat_progress",
+                {
+                    "user_id": admin_user_id,
+                    "demo_chat_id": demo_chat_id,
+                    "stage": "metadata",
+                    "completed_units": len(completed_languages),
+                    "total_units": total_languages,
+                    "progress_percentage": int((len(completed_languages) / total_languages) * 100) if total_languages > 0 else 0,
+                    "current_batch_languages": completed_languages,
+                    "message": f"Translating metadata to {len(completed_languages)} languages"
+                }
+            )
+
         # Translate metadata in batches
-        title_translations = await _translate_text_batch(task, title or "Demo Chat", TARGET_LANGUAGES)
-        summary_translations = await _translate_text_batch(task, summary or "", TARGET_LANGUAGES)
-        
+        await task.publish_websocket_event(
+            admin_user_id,
+            "demo_chat_progress",
+            {
+                "user_id": admin_user_id,
+                "demo_chat_id": demo_chat_id,
+                "stage": "metadata",
+                "completed_units": 0,
+                "total_units": total_languages,
+                "progress_percentage": 0,
+                "message": "Starting metadata translation"
+            }
+        )
+
+        title_translations = await _translate_text_batch(task, title or "Demo Chat", TARGET_LANGUAGES, metadata_progress_callback)
+        summary_translations = await _translate_text_batch(task, summary or "", TARGET_LANGUAGES, metadata_progress_callback)
+
         # Translate follow-up suggestions in batches
         follow_up_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
         if follow_up_suggestions:
             for suggestion in follow_up_suggestions:
-                suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES)
+                suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES, metadata_progress_callback)
                 for lang in TARGET_LANGUAGES:
                     follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
         
@@ -192,34 +230,80 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         # IMPORTANT: System messages contain structured JSON (e.g., app_settings_memories_response)
         # that should NOT be translated - copy them as-is to preserve JSON structure
         message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
+
+        async def progress_callback(completed_languages):
+            """Callback called when a batch of languages is completed for the current message."""
+            nonlocal completed_work_units
+            completed_work_units += len(completed_languages)
+
+            # Calculate progress percentage
+            progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
+
+            # Send progress update
+            await task.publish_websocket_event(
+                admin_user_id,
+                "demo_chat_progress",
+                {
+                    "user_id": admin_user_id,
+                    "demo_chat_id": demo_chat_id,
+                    "stage": "translating",
+                    "completed_units": completed_work_units,
+                    "total_units": total_work_units,
+                    "progress_percentage": progress_percentage,
+                    "current_batch_languages": completed_languages,
+                    "message": f"Translated {len(completed_languages)} languages ({completed_work_units}/{total_work_units} total)"
+                }
+            )
+
         for i, msg in enumerate(decrypted_messages):
             # Check if this is a system message - these should not be translated
             # System messages contain JSON content like:
             # {"type": "app_settings_memories_response", "user_message_id": "...", ...}
             if msg.get("role") == "system":
                 logger.info(f"Skipping translation for system message {i+1}/{len(decrypted_messages)} (preserving JSON structure)")
-                # Copy original content to all languages without translation
+                # Copy original content to all languages without translation and mark as completed
                 for lang in TARGET_LANGUAGES:
                     message_translations_by_lang[lang].append(msg["content"])
+
+                # Update progress for system messages (all languages completed instantly)
+                completed_work_units += total_languages
+                progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
+
+                await task.publish_websocket_event(
+                    admin_user_id,
+                    "demo_chat_progress",
+                    {
+                        "user_id": admin_user_id,
+                        "demo_chat_id": demo_chat_id,
+                        "stage": "translating",
+                        "completed_units": completed_work_units,
+                        "total_units": total_work_units,
+                        "progress_percentage": progress_percentage,
+                        "message": f"Processed system message {i+1}/{total_messages}"
+                    }
+                )
                 continue
-            
+
             logger.info(f"Translating message {i+1}/{len(decrypted_messages)} to all languages...")
 
-            # Send progress update via WebSocket
+            # Send initial progress update for this message
+            progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
+
             await task.publish_websocket_event(
                 admin_user_id,
                 "demo_chat_progress",
                 {
-                    "user_id": admin_user_id,  # Required for WebSocket forwarding
+                    "user_id": admin_user_id,
                     "demo_chat_id": demo_chat_id,
-                    "stage": "messages",
-                    "completed": i,
-                    "total": len(decrypted_messages),
-                    "message": f"Translating message {i+1}/{len(decrypted_messages)}"
+                    "stage": "translating",
+                    "completed_units": completed_work_units,
+                    "total_units": total_work_units,
+                    "progress_percentage": progress_percentage,
+                    "message": f"Starting translation of message {i+1}/{total_messages}"
                 }
             )
 
-            msg_translations = await _translate_tiptap_json_batch(task, msg["content"], TARGET_LANGUAGES)
+            msg_translations = await _translate_tiptap_json_batch(task, msg["content"], TARGET_LANGUAGES, progress_callback)
             for lang in TARGET_LANGUAGES:
                 message_translations_by_lang[lang].append(msg_translations[lang])
         
@@ -357,7 +441,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
     finally:
         await task.cleanup_services()
 
-async def _translate_text_batch(task: BaseServiceTask, text: str, target_languages: list) -> dict:
+async def _translate_text_batch(task: BaseServiceTask, text: str, target_languages: list, progress_callback=None) -> dict:
     """
     Translate a single string to multiple languages using intelligent batching.
     
@@ -491,17 +575,30 @@ async def _translate_text_batch(task: BaseServiceTask, text: str, target_languag
                             all_translations[lang] = translations.get(lang, text)
                             if all_translations[lang] != text:
                                 logger.info(f"[Translation] Successfully translated plain text to {lang}")
+
+                # Call progress callback after successful batch completion
+                if progress_callback:
+                    await progress_callback(batch_langs)
+
             else:
                 # Fallback: if function calling failed for this batch, use original text
                 error_msg = response.error_message if hasattr(response, 'error_message') else 'No function call returned'
                 logger.error(f"[Translation] Batch plain text translation failed for {batch_langs}: {error_msg}")
                 for lang in batch_langs:
                     all_translations[lang] = text
-                    
+
+                # Still call progress callback even for failed batches
+                if progress_callback:
+                    await progress_callback(batch_langs)
+
         except Exception as e:
             logger.error(f"[Translation] Error calling Gemini for batch {batch_langs}: {e}")
             for lang in batch_langs:
                 all_translations[lang] = text
+
+            # Still call progress callback even for failed batches
+            if progress_callback:
+                await progress_callback(batch_langs)
     
     return all_translations
 
@@ -716,7 +813,7 @@ def _rebuild_tiptap_with_translations(original_json: dict, translations: list) -
     return result
 
 
-async def _translate_text_blocks_batch(task: BaseServiceTask, text_blocks: list, target_languages: list) -> dict:
+async def _translate_text_blocks_batch(task: BaseServiceTask, text_blocks: list, target_languages: list, progress_callback=None) -> dict:
     """
     Translate a list of text blocks to all target languages.
     
@@ -843,21 +940,34 @@ async def _translate_text_blocks_batch(task: BaseServiceTask, text_blocks: list,
                                 # Wrong number of translations - use originals
                                 logger.warning(f"[Translation] Got {len(lang_translations) if isinstance(lang_translations, list) else 0} translations for {lang}, expected {len(texts)}. Using originals.")
                                 all_translations[lang] = texts
+
+                # Call progress callback after successful batch completion
+                if progress_callback:
+                    await progress_callback(batch_langs)
+
             else:
                 error_msg = response.error_message if hasattr(response, 'error_message') else 'No function call returned'
                 logger.error(f"[Translation] Text block translation failed for {batch_langs}: {error_msg}")
                 for lang in batch_langs:
                     all_translations[lang] = texts
-                    
+
+                # Still call progress callback even for failed batches
+                if progress_callback:
+                    await progress_callback(batch_langs)
+
         except Exception as e:
             logger.error(f"[Translation] Error translating text blocks for {batch_langs}: {e}")
             for lang in batch_langs:
                 all_translations[lang] = texts
+
+            # Still call progress callback even for failed batches
+            if progress_callback:
+                await progress_callback(batch_langs)
     
     return all_translations
 
 
-async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, target_languages: list) -> dict:
+async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, target_languages: list, progress_callback=None) -> dict:
     """
     Translate Tiptap JSON content to multiple languages using text block extraction.
     
@@ -885,7 +995,7 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
         parsed_json = json.loads(tiptap_json)
     except Exception:
         # If not JSON, treat as plain text (markdown)
-        return await _translate_text_batch(task, tiptap_json, target_languages)
+        return await _translate_text_batch(task, tiptap_json, target_languages, progress_callback)
     
     content_length = len(tiptap_json)
     
@@ -912,7 +1022,7 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
         logger.info(f"[Translation] Extracted {len(text_blocks)} text blocks from Tiptap JSON")
         
         # Translate all text blocks
-        block_translations = await _translate_text_blocks_batch(task, text_blocks, target_languages)
+        block_translations = await _translate_text_blocks_batch(task, text_blocks, target_languages, progress_callback)
         
         # Rebuild Tiptap JSON for each language
         all_translations = {}

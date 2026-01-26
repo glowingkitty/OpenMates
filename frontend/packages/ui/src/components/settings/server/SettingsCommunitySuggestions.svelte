@@ -593,19 +593,36 @@
 
     /**
      * Handle WebSocket progress updates for demo chat translation
+     * 
+     * The backend sends granular progress updates with:
+     * - stage: 'metadata' | 'translating'
+     * - completed_units: number of language units completed
+     * - total_units: total language units (messages × languages)
+     * - progress_percentage: 0-100
+     * - current_batch_languages: array of language codes just completed
+     * - message: human-readable status message
      */
     function handleDemoChatProgress(payload: any) {
         console.log('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
 
-        const { demo_chat_id, stage, completed, total, current_language, message } = payload;
+        const { 
+            demo_chat_id, 
+            stage, 
+            completed_units, 
+            total_units, 
+            progress_percentage, 
+            current_batch_languages,
+            message 
+        } = payload;
 
-        // Update progress state
+        // Update progress state with new structure
         translationProgress.set(demo_chat_id, {
             stage,
-            completed,
-            total,
-            current_language,
-            message,
+            completed_units: completed_units || 0,
+            total_units: total_units || 0,
+            progress_percentage: progress_percentage || 0,
+            current_batch_languages: current_batch_languages || [],
+            message: message || 'Processing...',
             last_update: Date.now()
         });
 
@@ -617,9 +634,7 @@
         if (demoIndex !== -1) {
             currentDemoChats[demoIndex] = {
                 ...currentDemoChats[demoIndex],
-                status: 'translating',
-                // Keep existing properties
-                ...currentDemoChats[demoIndex]
+                status: 'translating'
             };
             currentDemoChats = [...currentDemoChats]; // Trigger reactivity
         }
@@ -661,23 +676,12 @@
                             <div class="header-tags">
                                 {#if demo.status}
                                     <span class="status-tag status-{demo.status}">
-                                        {#if demo.status === 'translating'}
-                                            {#if getProgressInfo(demo.id)}
-                                                {@const progress = getProgressInfo(demo.id)}
-                                                {#if progress.stage === 'messages'}
-                                                    ⏳ Translating {progress.completed}/{progress.total} messages
-                                                {:else if progress.stage === 'languages'}
-                                                    ⏳ Storing {progress.current_language} ({progress.completed}/{progress.total} languages)
-                                                {:else}
-                                                    ⏳ {progress.message || demo.status}
-                                                {/if}
-                                            {:else}
-                                                ⏳ {demo.status}
-                                            {/if}
-                                        {:else if demo.status === 'published'}
-                                            ✅ {demo.status}
+                                        {#if demo.status === 'published'}
+                                            ✅ Published
                                         {:else if demo.status === 'translation_failed'}
-                                            ❌ {demo.status}
+                                            ❌ Failed
+                                        {:else if demo.status === 'translating'}
+                                            ⏳ Translating...
                                         {:else}
                                             {demo.status}
                                         {/if}
@@ -690,6 +694,37 @@
                                 {/if}
                             </div>
                         </div>
+
+                        <!-- Translation Progress Bar -->
+                        {#if demo.status === 'translating'}
+                            {@const progress = getProgressInfo(demo.id)}
+                            <div class="translation-progress">
+                                <div class="progress-bar-container">
+                                    <div 
+                                        class="progress-bar-fill" 
+                                        style="width: {progress?.progress_percentage || 0}%"
+                                    ></div>
+                                </div>
+                                <div class="progress-info">
+                                    {#if progress}
+                                        <span class="progress-text">
+                                            {progress.message}
+                                        </span>
+                                        <span class="progress-percentage">
+                                            {progress.progress_percentage}%
+                                        </span>
+                                    {:else}
+                                        <span class="progress-text">Starting translation...</span>
+                                        <span class="progress-percentage">0%</span>
+                                    {/if}
+                                </div>
+                                {#if progress?.current_batch_languages?.length > 0}
+                                    <div class="progress-languages">
+                                        Last translated: {progress.current_batch_languages.join(', ')}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
 
                         {#if demo.summary}
                             <p class="demo-summary">{demo.summary}</p>
@@ -1013,9 +1048,88 @@
         color: #065F46;
     }
 
-    .status-error {
+    .status-error,
+    .status-translation_failed {
         background: #FEE2E2;
         color: #991B1B;
+    }
+
+    /* Translation Progress Bar Styles */
+    .translation-progress {
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+        background: var(--color-background-tertiary);
+        border-radius: 6px;
+        border: 1px solid var(--color-border);
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: var(--color-background-secondary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+        border-radius: 4px;
+        transition: width 0.3s ease-out;
+        position: relative;
+    }
+
+    .progress-bar-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 50%,
+            transparent 100%
+        );
+        animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+    }
+
+    .progress-text {
+        color: var(--color-text-secondary);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-right: 0.5rem;
+    }
+
+    .progress-percentage {
+        color: var(--color-primary);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .progress-languages {
+        font-size: 0.75rem;
+        color: var(--color-text-tertiary);
+        margin-top: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .demo-date {
