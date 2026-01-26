@@ -13,6 +13,7 @@
 import { writable, get } from 'svelte/store';
 import type { Chat, Message } from '../types/chat';
 import { demoChatsDB } from '../services/demoChatsDB';
+import type { DemoEmbed } from '../services/demoChatsDB';
 
 // ============================================================================
 // TYPES
@@ -20,11 +21,12 @@ import { demoChatsDB } from '../services/demoChatsDB';
 
 /**
  * Community demo chat data structure
- * Contains the chat metadata and its messages
+ * Contains the chat metadata, messages, and embeds
  */
 interface CommunityDemoData {
     chat: Chat;
     messages: Message[];
+    embeds: DemoEmbed[];  // Cleartext embeds for community demos
 }
 
 /**
@@ -68,19 +70,20 @@ const store = writable<CommunityDemoStoreState>(initialState);
  * @param chat - The Chat object
  * @param messages - Array of Message objects for this chat
  * @param contentHash - SHA256 hash of content for change detection (optional)
+ * @param embeds - Array of DemoEmbed objects for this chat (optional)
  */
-export async function addCommunityDemo(demoId: string, chat: Chat, messages: Message[], contentHash: string = ''): Promise<void> {
-    // Add to in-memory store first
+export async function addCommunityDemo(demoId: string, chat: Chat, messages: Message[], contentHash: string = '', embeds: DemoEmbed[] = []): Promise<void> {
+    // Add to in-memory store first (includes embeds)
     store.update(state => {
         const newChats = new Map(state.chats);
-        newChats.set(chat.chat_id, { chat, messages });
-        console.debug(`[CommunityDemoStore] Added community demo: ${demoId} (${chat.chat_id}) with ${messages.length} messages`);
+        newChats.set(chat.chat_id, { chat, messages, embeds });
+        console.debug(`[CommunityDemoStore] Added community demo: ${demoId} (${chat.chat_id}) with ${messages.length} messages and ${embeds.length} embeds`);
         return { ...state, chats: newChats };
     });
 
     // Cache in IndexedDB for offline support (don't await to avoid blocking UI)
     try {
-        await demoChatsDB.storeDemoChat(demoId, chat, messages, contentHash);
+        await demoChatsDB.storeDemoChat(demoId, chat, messages, contentHash, embeds);
         console.debug(`[CommunityDemoStore] Cached community demo ${demoId} in IndexedDB (hash: ${contentHash.slice(0, 16)}...)`);
     } catch (error) {
         console.error(`[CommunityDemoStore] Failed to cache community demo ${demoId}:`, error);
@@ -125,6 +128,36 @@ export function getCommunityDemoMessages(chatId: string): Message[] {
 }
 
 /**
+ * Get embeds for a community demo chat
+ * Returns cleartext embed data for rendering in demo chats
+ * @param chatId - The chat ID to look up
+ * @returns Array of DemoEmbed objects or empty array if not found
+ */
+export function getCommunityDemoEmbeds(chatId: string): DemoEmbed[] {
+    const state = get(store);
+    const data = state.chats.get(chatId);
+    return data?.embeds || [];
+}
+
+/**
+ * Get a specific embed by ID from community demo store
+ * @param embedId - The embed ID to look up
+ * @returns The DemoEmbed object or null if not found
+ */
+export function getCommunityDemoEmbed(embedId: string): DemoEmbed | null {
+    const state = get(store);
+    // Convert MapIterator to Array to avoid --downlevelIteration requirement
+    const chatDataArray = Array.from(state.chats.values());
+    for (const data of chatDataArray) {
+        const embed = data.embeds.find(e => e.embed_id === embedId);
+        if (embed) {
+            return embed;
+        }
+    }
+    return null;
+}
+
+/**
  * Get all community demo chats as Chat objects
  * @returns Array of all community demo Chat objects
  */
@@ -148,6 +181,7 @@ export function isCommunityDemo(chatId: string): boolean {
 /**
  * Load community demos from IndexedDB cache into memory
  * This provides offline support - cached demos are available immediately
+ * Loads messages and embeds for each cached demo chat
  */
 export async function loadFromCache(): Promise<void> {
     const currentState = get(store);
@@ -160,12 +194,15 @@ export async function loadFromCache(): Promise<void> {
         const cachedChats = await demoChatsDB.getAllDemoChats();
 
         if (cachedChats.length > 0) {
-            // Load each cached chat and its messages
+            // Load each cached chat with its messages and embeds
             const newChats = new Map();
+            let totalEmbeds = 0;
 
             for (const chat of cachedChats) {
                 const messages = await demoChatsDB.getDemoMessages(chat.chat_id);
-                newChats.set(chat.chat_id, { chat, messages });
+                const embeds = await demoChatsDB.getDemoEmbeds(chat.chat_id);
+                newChats.set(chat.chat_id, { chat, messages, embeds });
+                totalEmbeds += embeds.length;
             }
 
             store.update(state => ({
@@ -174,7 +211,7 @@ export async function loadFromCache(): Promise<void> {
                 cacheLoaded: true
             }));
 
-            console.debug(`[CommunityDemoStore] Loaded ${cachedChats.length} community demos from cache`);
+            console.debug(`[CommunityDemoStore] Loaded ${cachedChats.length} community demos with ${totalEmbeds} embeds from cache`);
         } else {
             // No cached chats, but cache is still "loaded" (empty)
             store.update(state => ({ ...state, cacheLoaded: true }));
@@ -279,6 +316,8 @@ export const communityDemoStore = {
     add: addCommunityDemo,
     getChat: getCommunityDemoChat,
     getMessages: getCommunityDemoMessages,
+    getEmbeds: getCommunityDemoEmbeds,
+    getEmbed: getCommunityDemoEmbed,
     getAllChats: getAllCommunityDemoChats,
     isDemo: isCommunityDemo,
     isLoaded,

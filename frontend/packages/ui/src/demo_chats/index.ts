@@ -22,6 +22,8 @@ export {
 	addCommunityDemo,
 	getCommunityDemoChat,
 	getCommunityDemoMessages,
+	getCommunityDemoEmbeds,
+	getCommunityDemoEmbed,
 	getAllCommunityDemoChats,
 	isCommunityDemo,
 	clearCommunityDemos,

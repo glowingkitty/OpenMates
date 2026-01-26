@@ -1320,17 +1320,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 					// ARCHITECTURE: Community demo messages are already decrypted server-side
 					// The API returns cleartext content directly (not encrypted)
-					// Store using CLEARTEXT field names (content, category) - NOT encrypted_* fields
+					// Store using CLEARTEXT field names (content, category, model_name) - NOT encrypted_* fields
 					const rawMessages = chatDataObj.messages || [];
-					const parsedMessages = rawMessages.map((msg: { role: string; content: string; category?: string; created_at?: number }) => {
+					const parsedMessages = rawMessages.map((msg: { role: string; content: string; category?: string; model_name?: string; created_at?: number }) => {
 						// Convert cleartext API format to Message format
-						// Server returns: { role, content (cleartext), category (cleartext), created_at }
+						// Server returns: { role, content (cleartext), category (cleartext), model_name (cleartext), created_at }
 						return {
 							message_id: `${demoId}-${rawMessages.indexOf(msg)}`,
 							chat_id: chatId,
 							role: msg.role || 'user',
 							content: msg.content || '',  // Cleartext content
 							category: msg.role === 'assistant' ? (msg.category || category) : undefined,  // Cleartext category
+							model_name: msg.role === 'assistant' ? msg.model_name : undefined,  // Cleartext model name for assistant messages
 							created_at: msg.created_at || Math.floor(Date.now() / 1000),
 							status: 'synced' as const
 						} as Message;
@@ -1370,18 +1371,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						group_key: 'examples'
 					};
 
-					// Store chat and messages in memory AND IndexedDB (with content_hash for change detection)
-					await addCommunityDemo(chatId, chat, parsedMessages, serverContentHash);
+					// Parse embeds from API response (cleartext, server-side decrypted)
+					// ARCHITECTURE: Demo embeds are stored in demo_chats_db for offline support
+					const rawEmbeds = chatDataObj.embeds || [];
+					const parsedEmbeds = rawEmbeds.map((emb: { embed_id?: string; type: string; content: string; created_at?: number }) => ({
+						embed_id: emb.embed_id || `${demoId}-embed-${rawEmbeds.indexOf(emb)}`,
+						chat_id: chatId,
+						type: emb.type || 'unknown',
+						content: emb.content || '',  // Cleartext content (JSON string)
+						created_at: emb.created_at || Math.floor(Date.now() / 1000)
+					}));
 
-					// Store embeds if any
-					// ARCHITECTURE: Demo embeds are cleartext (server-side decrypted)
-					// We store them in the in-memory embed cache for community demos
-					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
-						console.debug(`[Chats] Storing ${chatDataObj.embeds.length} cleartext embeds for community demo ${demoId}`);
-						// Community demo embeds are stored in-memory along with the chat
-						// The embedStore methods expect encrypted content, but for demos we have cleartext
-						// For now, we skip embed storage for community demos since they're rarely used
-						// TODO: Add a putCleartext method to embedStore if demo embeds are needed
+					// Store chat, messages, and embeds in memory AND IndexedDB (with content_hash for change detection)
+					await addCommunityDemo(chatId, chat, parsedMessages, serverContentHash, parsedEmbeds);
+
+					if (parsedEmbeds.length > 0) {
+						console.debug(`[Chats] Stored ${parsedEmbeds.length} cleartext embeds for community demo ${demoId}`);
 					}
 
 					newlyLoadedIds.push(demoId);

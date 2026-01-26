@@ -17,6 +17,18 @@ import type { Chat, Message } from '../types/chat';
 // TYPES
 // ============================================================================
 
+/**
+ * Interface for demo embed data
+ * Embeds are stored separately from messages for efficient retrieval
+ */
+export interface DemoEmbed {
+    embed_id: string;      // Unique embed identifier
+    chat_id: string;       // Associated demo chat ID
+    type: string;          // Embed type (e.g., 'web-website', 'app-skill-use')
+    content: string;       // Cleartext content (JSON string - already decrypted server-side)
+    created_at: number;    // Original creation timestamp
+}
+
 interface DemoChatRecord {
     chat_id: string;
     chat: Chat;
@@ -34,11 +46,12 @@ class DemoChatsDB {
     private db: IDBDatabase | null = null;
     private initializationPromise: Promise<void> | null = null;
     private readonly DB_NAME = 'demo_chats_db';
-    private readonly VERSION = 1;
+    private readonly VERSION = 2; // Bumped version to add demo_embeds store
 
     // Store names
     private readonly CHATS_STORE_NAME = 'demo_chats';
     private readonly MESSAGES_STORE_NAME = 'demo_messages';
+    private readonly EMBEDS_STORE_NAME = 'demo_embeds'; // New store for embeds
 
     // ============================================================================
     // INITIALIZATION
@@ -68,6 +81,13 @@ class DemoChatsDB {
                 if (!db.objectStoreNames.contains(this.MESSAGES_STORE_NAME)) {
                     const messagesStore = db.createObjectStore(this.MESSAGES_STORE_NAME, { keyPath: 'message_id' });
                     messagesStore.createIndex('chat_id', 'chat_id');
+                }
+
+                // Version 2: Add demo_embeds store for offline embed support
+                if (!db.objectStoreNames.contains(this.EMBEDS_STORE_NAME)) {
+                    const embedsStore = db.createObjectStore(this.EMBEDS_STORE_NAME, { keyPath: 'embed_id' });
+                    embedsStore.createIndex('chat_id', 'chat_id');
+                    console.debug('[DemoChatsDB] Created demo_embeds store for offline embed support');
                 }
             };
 
@@ -119,16 +139,17 @@ class DemoChatsDB {
     // ============================================================================
 
     /**
-     * Store a demo chat and its messages
+     * Store a demo chat, its messages, and embeds
      * @param demoId - The server demo ID (e.g., "demo-1")
      * @param chat - The Chat object
      * @param messages - Array of Message objects
      * @param contentHash - SHA256 hash of content for change detection
+     * @param embeds - Optional array of DemoEmbed objects
      */
-    async storeDemoChat(demoId: string, chat: Chat, messages: Message[], contentHash: string = ''): Promise<void> {
+    async storeDemoChat(demoId: string, chat: Chat, messages: Message[], contentHash: string = '', embeds: DemoEmbed[] = []): Promise<void> {
         await this.init();
 
-        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.EMBEDS_STORE_NAME], 'readwrite');
 
         try {
             // Store chat record
@@ -158,7 +179,19 @@ class DemoChatsDB {
                 });
             }
 
-            console.debug(`[DemoChatsDB] Stored demo chat ${demoId} (${chat.chat_id}) with ${messages.length} messages, hash: ${contentHash.slice(0, 16)}...`);
+            // Store embeds (if any)
+            if (embeds.length > 0) {
+                const embedStore = transaction.objectStore(this.EMBEDS_STORE_NAME);
+                for (const embed of embeds) {
+                    await new Promise<void>((resolve, reject) => {
+                        const request = embedStore.put(embed);
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+                }
+            }
+
+            console.debug(`[DemoChatsDB] Stored demo chat ${demoId} (${chat.chat_id}) with ${messages.length} messages, ${embeds.length} embeds, hash: ${contentHash.slice(0, 16)}...`);
         } catch (error) {
             console.error('[DemoChatsDB] Error storing demo chat:', error);
             throw error;
@@ -255,6 +288,47 @@ class DemoChatsDB {
     }
 
     /**
+     * Get embeds for a demo chat
+     * Returns cleartext embed data for offline demo chat viewing
+     */
+    async getDemoEmbeds(chatId: string): Promise<DemoEmbed[]> {
+        await this.init();
+
+        const transaction = await this.getTransaction(this.EMBEDS_STORE_NAME, 'readonly');
+        const store = transaction.objectStore(this.EMBEDS_STORE_NAME);
+        const index = store.index('chat_id');
+
+        return new Promise<DemoEmbed[]>((resolve, reject) => {
+            const request = index.getAll(chatId);
+            request.onsuccess = () => {
+                const embeds = request.result as DemoEmbed[];
+                console.debug(`[DemoChatsDB] Retrieved ${embeds.length} embeds for chat ${chatId}`);
+                resolve(embeds);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Get a specific embed by ID
+     */
+    async getDemoEmbed(embedId: string): Promise<DemoEmbed | null> {
+        await this.init();
+
+        const transaction = await this.getTransaction(this.EMBEDS_STORE_NAME, 'readonly');
+        const store = transaction.objectStore(this.EMBEDS_STORE_NAME);
+
+        return new Promise<DemoEmbed | null>((resolve, reject) => {
+            const request = store.get(embedId);
+            request.onsuccess = () => {
+                const embed = request.result as DemoEmbed | undefined;
+                resolve(embed || null);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
      * Get all cached demo chats
      */
     async getAllDemoChats(): Promise<Chat[]> {
@@ -294,12 +368,12 @@ class DemoChatsDB {
     }
 
     /**
-     * Delete a demo chat and its messages
+     * Delete a demo chat, its messages, and embeds
      */
     async deleteDemoChat(chatId: string): Promise<void> {
         await this.init();
 
-        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.EMBEDS_STORE_NAME], 'readwrite');
 
         try {
             // Delete chat
@@ -327,7 +401,24 @@ class DemoChatsDB {
                 });
             }
 
-            console.debug(`[DemoChatsDB] Deleted demo chat ${chatId} and ${messagesToDelete.length} messages`);
+            // Delete embeds
+            const embedStore = transaction.objectStore(this.EMBEDS_STORE_NAME);
+            const embedIndex = embedStore.index('chat_id');
+            const embedsToDelete = await new Promise<string[]>((resolve, reject) => {
+                const request = embedIndex.getAllKeys(chatId);
+                request.onsuccess = () => resolve(request.result as string[]);
+                request.onerror = () => reject(request.error);
+            });
+
+            for (const embedId of embedsToDelete) {
+                await new Promise<void>((resolve, reject) => {
+                    const request = embedStore.delete(embedId);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            console.debug(`[DemoChatsDB] Deleted demo chat ${chatId}, ${messagesToDelete.length} messages, and ${embedsToDelete.length} embeds`);
         } catch (error) {
             console.error('[DemoChatsDB] Error deleting demo chat:', error);
             throw error;
@@ -335,12 +426,12 @@ class DemoChatsDB {
     }
 
     /**
-     * Clear all demo chats (useful for testing or cache invalidation)
+     * Clear all demo chats, messages, and embeds (useful for testing or cache invalidation)
      */
     async clearAllDemoChats(): Promise<void> {
         await this.init();
 
-        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.EMBEDS_STORE_NAME], 'readwrite');
 
         try {
             // Clear chats
@@ -359,7 +450,15 @@ class DemoChatsDB {
                 request.onerror = () => reject(request.error);
             });
 
-            console.debug('[DemoChatsDB] Cleared all demo chats from cache');
+            // Clear embeds
+            const embedStore = transaction.objectStore(this.EMBEDS_STORE_NAME);
+            await new Promise<void>((resolve, reject) => {
+                const request = embedStore.clear();
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+
+            console.debug('[DemoChatsDB] Cleared all demo chats, messages, and embeds from cache');
         } catch (error) {
             console.error('[DemoChatsDB] Error clearing demo chats:', error);
             throw error;
@@ -369,15 +468,16 @@ class DemoChatsDB {
     /**
      * Get cache statistics
      */
-    async getCacheStats(): Promise<{ chatCount: number; messageCount: number; }> {
+    async getCacheStats(): Promise<{ chatCount: number; messageCount: number; embedCount: number; }> {
         await this.init();
 
-        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readonly');
+        const transaction = await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.EMBEDS_STORE_NAME], 'readonly');
 
         const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
         const messageStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+        const embedStore = transaction.objectStore(this.EMBEDS_STORE_NAME);
 
-        const [chatCount, messageCount] = await Promise.all([
+        const [chatCount, messageCount, embedCount] = await Promise.all([
             new Promise<number>((resolve, reject) => {
                 const request = chatStore.count();
                 request.onsuccess = () => resolve(request.result);
@@ -387,10 +487,15 @@ class DemoChatsDB {
                 const request = messageStore.count();
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
+            }),
+            new Promise<number>((resolve, reject) => {
+                const request = embedStore.count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
             })
         ]);
 
-        return { chatCount, messageCount };
+        return { chatCount, messageCount, embedCount };
     }
 }
 
