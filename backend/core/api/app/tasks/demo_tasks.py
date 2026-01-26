@@ -458,58 +458,340 @@ async def _translate_text(task: BaseServiceTask, text: str, target_lang: str) ->
     result = await _translate_text_batch(task, text, [target_lang])
     return result.get(target_lang, text)
 
+def _contains_code_blocks(node: dict) -> bool:
+    """
+    Check if a Tiptap JSON node contains any code blocks.
+    
+    Messages with code blocks (like embed references) should always use
+    block-by-block translation to ensure code content is never modified.
+    
+    Returns True if any codeBlock or code node is found.
+    """
+    if not isinstance(node, dict):
+        return False
+    
+    node_type = node.get("type", "")
+    
+    # Check if this node is a code block
+    if node_type in ("codeBlock", "code"):
+        return True
+    
+    # Recurse into content array
+    if "content" in node and isinstance(node["content"], list):
+        for child in node["content"]:
+            if _contains_code_blocks(child):
+                return True
+    
+    return False
+
+
+def _extract_text_blocks_from_tiptap(node: dict, blocks: list, path: list = None) -> None:
+    """
+    Recursively extract translatable text blocks from Tiptap JSON.
+    
+    Each block contains:
+    - path: JSON path to the text node (e.g., ['content', 0, 'content', 1, 'text'])
+    - text: The actual text content to translate
+    - is_code: Whether this text is inside a code block (should not be translated)
+    
+    This function modifies the 'blocks' list in place.
+    """
+    if path is None:
+        path = []
+    
+    if not isinstance(node, dict):
+        return
+    
+    node_type = node.get("type", "")
+    
+    # Skip code blocks - these should not be translated
+    if node_type in ("codeBlock", "code"):
+        return
+    
+    # Check for text content in this node
+    if "text" in node and isinstance(node["text"], str):
+        text = node["text"].strip()
+        # Only include non-empty text that isn't just whitespace or punctuation
+        if text and len(text) > 0:
+            blocks.append({
+                "path": path + ["text"],
+                "text": node["text"],  # Keep original with whitespace for accurate replacement
+                "is_code": False
+            })
+    
+    # Recurse into content array
+    if "content" in node and isinstance(node["content"], list):
+        for i, child in enumerate(node["content"]):
+            _extract_text_blocks_from_tiptap(child, blocks, path + ["content", i])
+
+
+def _rebuild_tiptap_with_translations(original_json: dict, translations: list) -> dict:
+    """
+    Rebuild Tiptap JSON with translated text blocks.
+    
+    Args:
+        original_json: The original parsed Tiptap JSON
+        translations: List of dicts with 'path' and 'translated_text' keys
+    
+    Returns:
+        New Tiptap JSON dict with translated text
+    """
+    import copy
+    result = copy.deepcopy(original_json)
+    
+    for item in translations:
+        path = item["path"]
+        translated_text = item["translated_text"]
+        
+        # Navigate to the parent node and set the text
+        current = result
+        for i, key in enumerate(path[:-1]):
+            if isinstance(key, int):
+                current = current[key]
+            else:
+                current = current.get(key, {})
+        
+        # Set the translated text
+        final_key = path[-1]
+        if isinstance(current, dict) and final_key in current:
+            current[final_key] = translated_text
+    
+    return result
+
+
+async def _translate_text_blocks_batch(task: BaseServiceTask, text_blocks: list, target_languages: list) -> dict:
+    """
+    Translate a list of text blocks to all target languages.
+    
+    For reliability, this translates all text blocks at once for each language batch.
+    The LLM receives a simple list of strings to translate, which is much more reliable
+    than asking it to produce valid Tiptap JSON.
+    
+    Returns a dict mapping language code to list of translated texts (same order as input).
+    """
+    if not text_blocks:
+        return {lang: [] for lang in target_languages}
+    
+    # Extract just the text content (not paths)
+    texts = [block["text"] for block in text_blocks]
+    
+    # Calculate batch size based on total text length
+    total_text_length = sum(len(t) for t in texts)
+    
+    # More conservative batching since we're translating multiple strings
+    # Each language needs all texts translated
+    if total_text_length < 1500:
+        batch_size = 20  # Short total: all languages at once
+    elif total_text_length < 4000:
+        batch_size = 10  # Medium total: 10 languages
+    elif total_text_length < 8000:
+        batch_size = 5   # Long total: 5 languages
+    else:
+        batch_size = 3   # Very long total: 3 languages at a time
+    
+    logger.info(f"[Translation] Translating {len(texts)} text blocks ({total_text_length} chars total), batch size: {batch_size}")
+    
+    all_translations = {}
+    
+    for batch_start in range(0, len(target_languages), batch_size):
+        batch_langs = target_languages[batch_start:batch_start + batch_size]
+        logger.info(f"[Translation] Translating text blocks to batch: {batch_langs}")
+        
+        # Build function schema - each language gets an array of translated strings
+        properties = {}
+        for lang in batch_langs:
+            properties[lang] = {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": f"Array of {len(texts)} translated strings for {lang}. Must have exactly {len(texts)} items in the same order as input."
+            }
+        
+        translation_tool = {
+            "type": "function",
+            "function": {
+                "name": "return_translations",
+                "description": (
+                    f"Return translations of the {len(texts)} text strings to all target languages. "
+                    "Each language should have an array of exactly the same number of translated strings, in the same order. "
+                    "Preserve meaning, tone, and any markdown formatting within strings."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": batch_langs
+                }
+            }
+        }
+        
+        # Format text list for the prompt
+        text_list_formatted = "\n".join([f"{i+1}. {text}" for i, text in enumerate(texts)])
+        
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional translator for chat conversations between a human user and an AI assistant. "
+                    "Translate each text string to all requested languages accurately and naturally. "
+                    "Preserve meaning, tone, and any markdown formatting (like **bold**, *italic*, links, etc.). "
+                    "Keep technical terms, code snippets, and proper nouns unchanged. "
+                    "Return exactly the same number of translated strings in the same order as the input. "
+                    "When translating into languages with formal and informal 'you' (such as German, French, or Spanish), "
+                    "use the friendly, informal register (e.g., 'du' in German, 'tu' in French, 'tú' in Spanish)."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Translate the following {len(texts)} text strings to all target languages. "
+                    f"Return exactly {len(texts)} translated strings per language, in the same order:\n\n"
+                    f"{text_list_formatted}"
+                ),
+            },
+        ]
+        
+        try:
+            response = await invoke_google_ai_studio_chat_completions(
+                task_id=f"translate_blocks_{hash(text_list_formatted) % 10000}_{batch_start}",
+                model_id="gemini-3-flash-preview",
+                messages=messages,
+                secrets_manager=task.secrets_manager,
+                tools=[translation_tool],
+                tool_choice="required",
+                temperature=0.3,
+                max_tokens=20000,
+                stream=False
+            )
+            
+            if response.success and response.tool_calls_made:
+                for tool_call in response.tool_calls_made:
+                    if tool_call.function_name == "return_translations":
+                        translations = tool_call.function_arguments_parsed
+                        for lang in batch_langs:
+                            lang_translations = translations.get(lang, [])
+                            # Validate we got the right number of translations
+                            if isinstance(lang_translations, list) and len(lang_translations) == len(texts):
+                                all_translations[lang] = lang_translations
+                                logger.info(f"[Translation] Successfully translated {len(texts)} blocks to {lang}")
+                            else:
+                                # Wrong number of translations - use originals
+                                logger.warning(f"[Translation] Got {len(lang_translations) if isinstance(lang_translations, list) else 0} translations for {lang}, expected {len(texts)}. Using originals.")
+                                all_translations[lang] = texts
+            else:
+                error_msg = response.error_message if hasattr(response, 'error_message') else 'No function call returned'
+                logger.error(f"[Translation] Text block translation failed for {batch_langs}: {error_msg}")
+                for lang in batch_langs:
+                    all_translations[lang] = texts
+                    
+        except Exception as e:
+            logger.error(f"[Translation] Error translating text blocks for {batch_langs}: {e}")
+            for lang in batch_langs:
+                all_translations[lang] = texts
+    
+    return all_translations
+
+
 async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, target_languages: list) -> dict:
     """
-    Translate Tiptap JSON content to multiple languages using intelligent batching.
+    Translate Tiptap JSON content to multiple languages using text block extraction.
     
-    Strategy:
-    - Short content (<2000 chars): translate to all 20 languages at once
-    - Medium content (2000-6000 chars): translate in batches of 10 languages
-    - Long content (6000-12000 chars): translate in batches of 5 languages
-    - Very long content (>12000 chars): translate one language at a time
+    Strategy for LONG CONTENT (>3000 chars) OR CONTENT WITH CODE BLOCKS:
+    1. Extract individual text blocks from the Tiptap JSON structure
+    2. Translate each text block as a simple string (much more reliable)
+    3. Rebuild the Tiptap JSON with translated text blocks
     
-    Uses 20k output token limit for reliability with long translations.
+    Strategy for SHORT CONTENT (<3000 chars) WITHOUT CODE BLOCKS:
+    - Translate the entire JSON at once (original approach, works well for short content)
+    
+    This hybrid approach ensures:
+    - Short content uses the fast single-call method
+    - Long content uses the reliable block-by-block method
+    - Content with code blocks (embeds, etc.) never has code content corrupted
+    - Translation failures don't silently store English under other languages
     
     Returns a dictionary mapping language codes to translated JSON strings.
     """
     if not tiptap_json:
         return {lang: "" for lang in target_languages}
     
-    # Simple check if it's actually JSON
+    # Parse JSON
     try:
-        json.loads(tiptap_json)
+        parsed_json = json.loads(tiptap_json)
     except Exception:
-        # If not JSON, treat as plain text
+        # If not JSON, treat as plain text (markdown)
         return await _translate_text_batch(task, tiptap_json, target_languages)
     
-    # Determine optimal batch size based on content length
     content_length = len(tiptap_json)
     
-    # Calculate estimated output tokens per language (conservative estimate)
-    # Assume: 1 char ≈ 0.75 tokens on average (accounts for non-English languages)
+    # Check if content contains code blocks (e.g., embed references)
+    # CRITICAL: Messages with code blocks must ALWAYS use block-by-block translation
+    # to ensure code content (like embed JSON) is never modified by the LLM
+    has_code_blocks = _contains_code_blocks(parsed_json)
+    
+    # Use block-by-block for:
+    # 1. Long content (>3000 chars) - whole-JSON translation becomes unreliable
+    # 2. Content with code blocks - prevents LLM from corrupting embed references
+    if content_length > 3000 or has_code_blocks:
+        reason = "code blocks present" if has_code_blocks else f"long content ({content_length} chars)"
+        logger.info(f"[Translation] Using block-by-block translation: {reason}")
+        
+        # Extract translatable text blocks
+        text_blocks = []
+        _extract_text_blocks_from_tiptap(parsed_json, text_blocks)
+        
+        if not text_blocks:
+            logger.warning("[Translation] No translatable text blocks found in Tiptap JSON")
+            return {lang: tiptap_json for lang in target_languages}
+        
+        logger.info(f"[Translation] Extracted {len(text_blocks)} text blocks from Tiptap JSON")
+        
+        # Translate all text blocks
+        block_translations = await _translate_text_blocks_batch(task, text_blocks, target_languages)
+        
+        # Rebuild Tiptap JSON for each language
+        all_translations = {}
+        for lang in target_languages:
+            lang_texts = block_translations.get(lang, [block["text"] for block in text_blocks])
+            
+            # Build translation items with paths and translated text
+            translation_items = []
+            for i, block in enumerate(text_blocks):
+                translation_items.append({
+                    "path": block["path"],
+                    "translated_text": lang_texts[i] if i < len(lang_texts) else block["text"]
+                })
+            
+            # Rebuild the JSON with translations
+            translated_json = _rebuild_tiptap_with_translations(parsed_json, translation_items)
+            all_translations[lang] = json.dumps(translated_json, ensure_ascii=False)
+            
+        return all_translations
+    
+    # For short content, use the original whole-JSON translation approach
+    # This is faster and works reliably for short content
+    logger.info(f"[Translation] Using whole-JSON translation for short content ({content_length} chars)")
+    
+    # Determine optimal batch size based on content length
     estimated_tokens_per_language = int(content_length * 0.75)
     
-    # Determine batch size to stay under 18k tokens (20k with safety buffer)
-    # Formula: batch_size = min(20, floor(18000 / estimated_tokens_per_language))
     if estimated_tokens_per_language > 0:
         max_batch_size = max(1, min(20, int(18000 / estimated_tokens_per_language)))
     else:
         max_batch_size = 20
     
-    # Apply content-length based limits for additional safety
-    if content_length < 2000:
+    # More conservative batch sizes
+    if content_length < 1500:
         batch_size = 20  # Small content: all languages at once
-    elif content_length < 6000:
+    elif content_length < 2500:
         batch_size = min(10, max_batch_size)  # Medium content: 10 languages max
-    elif content_length < 12000:
-        batch_size = min(5, max_batch_size)  # Long content: 5 languages max
     else:
-        batch_size = 1  # Very long content: one at a time
+        batch_size = min(5, max_batch_size)  # Approaching threshold: 5 languages max
     
-    logger.info(f"[Translation] Content length: {content_length} chars, estimated {estimated_tokens_per_language} tokens/lang, batch size: {batch_size}")
+    logger.info(f"[Translation] Content length: {content_length} chars, batch size: {batch_size}")
     
     # Split target languages into batches
     all_translations = {}
+    failed_languages = []  # Track languages that failed for retry
+    
     for batch_start in range(0, len(target_languages), batch_size):
         batch_langs = target_languages[batch_start:batch_start + batch_size]
         logger.info(f"[Translation] Translating to batch: {batch_langs}")
@@ -574,19 +856,17 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
                 secrets_manager=task.secrets_manager,
                 tools=[translation_tool],
                 tool_choice="required",
-                temperature=0.1, # Lower temperature for structural integrity
-                max_tokens=20000, # Increased to 20k for reliability with long content
+                temperature=0.1,
+                max_tokens=20000,
                 stream=False
             )
             
             if response.success and response.tool_calls_made:
-                # Extract translations from function call
                 for tool_call in response.tool_calls_made:
                     if tool_call.function_name == "return_translated_json":
                         translations = tool_call.function_arguments_parsed
-                        # Validate each translation is valid JSON
                         for lang in batch_langs:
-                            translated_json = translations.get(lang, tiptap_json)
+                            translated_json = translations.get(lang, "")
                             # Try to clean up markdown code blocks if AI included them
                             if isinstance(translated_json, str):
                                 if translated_json.startswith("```json"):
@@ -595,23 +875,55 @@ async def _translate_tiptap_json_batch(task: BaseServiceTask, tiptap_json: str, 
                                     translated_json = translated_json.split("```")[1].split("```")[0].strip()
                             
                             # Validate JSON
-                            try:
-                                json.loads(translated_json)
-                                all_translations[lang] = translated_json
-                                logger.info(f"[Translation] Successfully translated to {lang}")
-                            except Exception as e:
-                                logger.error(f"[Translation] AI returned invalid JSON for {lang}: {e}")
-                                all_translations[lang] = tiptap_json
+                            if translated_json:
+                                try:
+                                    json.loads(translated_json)
+                                    all_translations[lang] = translated_json
+                                    logger.info(f"[Translation] Successfully translated to {lang}")
+                                except Exception as e:
+                                    logger.warning(f"[Translation] Invalid JSON for {lang}, will retry with block method: {e}")
+                                    failed_languages.append(lang)
+                            else:
+                                logger.warning(f"[Translation] Empty translation for {lang}, will retry with block method")
+                                failed_languages.append(lang)
             else:
-                # Fallback: if function calling failed for this batch, use original JSON
                 error_msg = response.error_message if hasattr(response, 'error_message') else 'No function call returned'
-                logger.error(f"[Translation] Batch JSON translation failed for {batch_langs}: {error_msg}")
-                for lang in batch_langs:
-                    all_translations[lang] = tiptap_json
+                logger.warning(f"[Translation] Batch JSON translation failed for {batch_langs}, will retry: {error_msg}")
+                failed_languages.extend(batch_langs)
                     
         except Exception as e:
-            logger.error(f"[Translation] Error calling Gemini for batch {batch_langs}: {e}")
-            for lang in batch_langs:
+            logger.warning(f"[Translation] Error translating batch {batch_langs}, will retry: {e}")
+            failed_languages.extend(batch_langs)
+    
+    # Retry failed languages using the block-by-block approach
+    if failed_languages:
+        logger.info(f"[Translation] Retrying {len(failed_languages)} failed languages with block-by-block approach")
+        
+        # Extract text blocks
+        text_blocks = []
+        _extract_text_blocks_from_tiptap(parsed_json, text_blocks)
+        
+        if text_blocks:
+            # Translate blocks for failed languages
+            block_translations = await _translate_text_blocks_batch(task, text_blocks, failed_languages)
+            
+            # Rebuild JSON for each failed language
+            for lang in failed_languages:
+                lang_texts = block_translations.get(lang, [block["text"] for block in text_blocks])
+                
+                translation_items = []
+                for i, block in enumerate(text_blocks):
+                    translation_items.append({
+                        "path": block["path"],
+                        "translated_text": lang_texts[i] if i < len(lang_texts) else block["text"]
+                    })
+                
+                translated_json = _rebuild_tiptap_with_translations(parsed_json, translation_items)
+                all_translations[lang] = json.dumps(translated_json, ensure_ascii=False)
+                logger.info(f"[Translation] Successfully translated to {lang} using block method")
+        else:
+            # No blocks to translate, use original
+            for lang in failed_languages:
                 all_translations[lang] = tiptap_json
     
     return all_translations
