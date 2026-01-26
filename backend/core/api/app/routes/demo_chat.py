@@ -90,8 +90,9 @@ async def get_demo_chats(
             # The frontend will use this for display/routing
             display_id = f"demo-{idx + 1}"
             
-            # Decrypt category if present
+            # Decrypt category and icon if present
             category = None
+            icon = None
             if demo.get("encrypted_category"):
                 try:
                     category = await encryption_service.decrypt(
@@ -100,6 +101,14 @@ async def get_demo_chats(
                     )
                 except Exception as e:
                     logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {e}")
+            if demo.get("encrypted_icon"):
+                try:
+                    icon = await encryption_service.decrypt(
+                        demo["encrypted_icon"],
+                        key_name=DEMO_CHATS_ENCRYPTION_KEY
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt icon for demo {demo_uuid}: {e}")
             
             # Get translation by UUID
             translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
@@ -135,6 +144,7 @@ async def get_demo_chats(
                     "title": title or "Demo Chat",
                     "summary": summary,
                     "category": category,
+                    "icon": icon,
                     "content_hash": content_hash,
                     "created_at": demo.get("created_at"),
                     "status": demo.get("status")
@@ -347,9 +357,10 @@ async def get_demo_chat(
                 "message_id": str(msg.get("id")),
                 "role": msg.get("role"),
                 "content": decrypted_content,
-                "category": decrypted_category, # Return cleartext category
-                "model_name": decrypted_model_name, # Return cleartext model name
-                "created_at": msg.get("created_at")
+                "category": decrypted_category,  # Return cleartext category
+                "model_name": decrypted_model_name,  # Return cleartext model name
+                # Use original_created_at from demo_messages table (stores original message timestamp)
+                "created_at": msg.get("original_created_at")
             })
 
         decrypted_embeds = []
@@ -359,10 +370,12 @@ async def get_demo_chat(
                 key_name=DEMO_CHATS_ENCRYPTION_KEY
             )
             decrypted_embeds.append({
-                "embed_id": emb.get("embed_id"),
+                # Use original_embed_id from demo_embeds table (stores original embed ID)
+                "embed_id": emb.get("original_embed_id"),
                 "type": emb.get("type"),
                 "content": decrypted_content,
-                "created_at": emb.get("created_at")
+                # Use original_created_at from demo_embeds table (stores original embed timestamp)
+                "created_at": emb.get("original_created_at")
             })
 
         # 6. Prepare response

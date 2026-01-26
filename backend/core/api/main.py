@@ -729,6 +729,7 @@ async def lifespan(app: FastAPI):
                                     # Decrypt translation metadata first
                                     decrypted_title = None
                                     decrypted_summary = None
+                                    decrypted_follow_up_suggestions = []
                                     if translation.get("encrypted_title"):
                                         decrypted_title = await encryption_service.decrypt(
                                             translation["encrypted_title"],
@@ -739,14 +740,47 @@ async def lifespan(app: FastAPI):
                                             translation["encrypted_summary"],
                                             key_name=DEMO_CHATS_ENCRYPTION_KEY
                                         )
+                                    # Decrypt follow-up suggestions from translation
+                                    if translation.get("encrypted_follow_up_suggestions"):
+                                        try:
+                                            import json as json_module
+                                            decrypted_followup_json = await encryption_service.decrypt(
+                                                translation["encrypted_follow_up_suggestions"],
+                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                            )
+                                            if decrypted_followup_json:
+                                                decrypted_follow_up_suggestions = json_module.loads(decrypted_followup_json)
+                                        except Exception as followup_err:
+                                            logger.warning(f"Failed to decrypt follow_up_suggestions for demo {demo_uuid}: {followup_err}")
                                     
-                                    # Add to list with decrypted title/summary
+                                    # Decrypt category and icon from demo_chats table
+                                    decrypted_category = None
+                                    decrypted_icon = None
+                                    if demo.get("encrypted_category"):
+                                        try:
+                                            decrypted_category = await encryption_service.decrypt(
+                                                demo["encrypted_category"],
+                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                            )
+                                        except Exception as cat_err:
+                                            logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {cat_err}")
+                                    if demo.get("encrypted_icon"):
+                                        try:
+                                            decrypted_icon = await encryption_service.decrypt(
+                                                demo["encrypted_icon"],
+                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                            )
+                                        except Exception as icon_err:
+                                            logger.warning(f"Failed to decrypt icon for demo {demo_uuid}: {icon_err}")
+                                    
+                                    # Add to list with decrypted title/summary/category
                                     public_demo_chats.append({
                                         "demo_id": display_id,
                                         "uuid": demo_uuid,
                                         "title": decrypted_title or "Demo Chat",
                                         "summary": decrypted_summary,
-                                        "category": demo.get("category"),
+                                        "category": decrypted_category,
+                                        "icon": decrypted_icon,
                                         "content_hash": demo.get("content_hash", ""),
                                         "created_at": demo.get("created_at"),
                                         "status": demo.get("status")
@@ -807,9 +841,10 @@ async def lifespan(app: FastAPI):
                                         "demo_id": display_id,
                                         "title": decrypted_title,
                                         "summary": decrypted_summary,
-                                        "category": demo.get("category"),
+                                        "category": decrypted_category,
+                                        "icon": decrypted_icon,
                                         "content_hash": demo.get("content_hash", ""),
-                                        "follow_up_suggestions": translation.get("follow_up_suggestions"),
+                                        "follow_up_suggestions": decrypted_follow_up_suggestions,
                                         "chat_data": {
                                             "chat_id": display_id,  # Use display_id as chat_id for client
                                             "messages": decrypted_messages,
