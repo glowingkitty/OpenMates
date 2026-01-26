@@ -49,6 +49,7 @@ class ApproveDemoChatRequest(BaseModel):
     """Request model for approving a demo chat"""
     demo_chat_id: str  # UUID of the demo_chats entry
     chat_id: str  # The original chat_id (for verification)
+    replace_demo_chat_id: str | None = None  # Optional: UUID of demo chat to replace (if at limit)
 
 class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
@@ -250,25 +251,39 @@ async def approve_demo_chat(
         if chat.get("is_private", True):
             raise HTTPException(status_code=400, detail="Chat is not publicly shared")
         
-        # Check current published demo chat count and remove oldest if at limit
+        # Check current published demo chat count and remove one if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
         if len(current_demos) >= 5:
-            # Sort by created_at and delete the oldest (with all related data)
-            current_demos.sort(key=lambda x: x.get("created_at", ""))
-            oldest_demo = current_demos[0]
-            oldest_demo_id = oldest_demo["id"]
+            # Determine which demo to replace
+            demo_to_remove_id = None
             
-            logger.info(f"Deleting oldest demo chat {oldest_demo_id} to make room for new demo")
+            if payload.replace_demo_chat_id:
+                # Admin specified which demo to replace - validate it exists in current demos
+                demo_ids = [d["id"] for d in current_demos]
+                if payload.replace_demo_chat_id not in demo_ids:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Specified replacement demo chat not found or not currently published"
+                    )
+                demo_to_remove_id = payload.replace_demo_chat_id
+                logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
+            else:
+                # No replacement specified - fall back to oldest demo
+                current_demos.sort(key=lambda x: x.get("created_at", ""))
+                demo_to_remove_id = current_demos[0]["id"]
+                logger.info(f"No replacement specified, defaulting to oldest demo chat {demo_to_remove_id}")
+            
+            logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
             
             # Batch delete all related data using filters
             # Note: Directus batch delete uses filter parameters
-            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
-            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
-            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": oldest_demo_id}}, admin_required=True)
+            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
             
             # Finally, delete the demo_chat entry itself
-            await directus_service.delete_item("demo_chats", oldest_demo_id, admin_required=True)
-            logger.info(f"Deleted oldest demo chat {oldest_demo_id} and all related data")
+            await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
+            logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
         
         # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID
         updates = {

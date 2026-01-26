@@ -38,6 +38,33 @@
         created_at: string;
     }
 
+    interface DemoChatUpdatePayload {
+        user_id?: string;
+        demo_chat_id: string;
+        status: string;
+    }
+
+    interface DemoChatProgressPayload {
+        user_id?: string;
+        demo_chat_id: string;
+        stage: 'metadata' | 'translating';
+        completed_units?: number;
+        total_units?: number;
+        progress_percentage?: number;
+        current_batch_languages?: string[];
+        message?: string;
+    }
+
+    interface TranslationProgress {
+        stage: 'metadata' | 'translating';
+        completed_units: number;
+        total_units: number;
+        progress_percentage: number;
+        current_batch_languages: string[];
+        message: string;
+        last_update: number;
+    }
+
     // State
     let isLoading = $state(true);
     let error = $state<string | null>(null);
@@ -45,9 +72,10 @@
     let currentDemoChats = $state<DemoChat[]>([]);
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
+    let selectedReplacementChatId = $state<string>('');
 
     // Translation progress tracking
-    let translationProgress = $state<Map<string, any>>(new Map());
+    let translationProgress = $state<Map<string, TranslationProgress>>(new Map());
 
     // URL parameters for email link
     let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string; category?: string; icon?: string; follow_up_suggestions?: string }>({});
@@ -219,7 +247,8 @@
                 credentials: 'include',
                 body: JSON.stringify({
                     demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
-                    chat_id: suggestion.chat_id
+                    chat_id: suggestion.chat_id,
+                    replace_demo_chat_id: selectedReplacementChatId || null  // ID of demo chat to replace (null for auto-replacement)
                 })
             });
 
@@ -251,6 +280,9 @@
 
             // Remove from suggestions list
             suggestions = suggestions.filter(s => s.demo_chat_id !== suggestion.demo_chat_id);
+
+            // Clear replacement selection
+            selectedReplacementChatId = '';
 
             // Show success message
             dispatch('showToast', {
@@ -559,7 +591,7 @@
      * Handle WebSocket updates for demo chats
      * Updates the status and metadata when translation completes
      */
-    function handleDemoChatUpdate(payload: any) {
+    function handleDemoChatUpdate(payload: DemoChatUpdatePayload) {
         console.log('[SettingsCommunitySuggestions] Received demo_chat_updated event:', payload);
         
         const { demo_chat_id, status } = payload;
@@ -602,7 +634,7 @@
      * - current_batch_languages: array of language codes just completed
      * - message: human-readable status message
      */
-    function handleDemoChatProgress(payload: any) {
+    function handleDemoChatProgress(payload: DemoChatProgressPayload) {
         console.log('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
 
         const { 
@@ -774,6 +806,21 @@
                 {/if}
 
                 <div class="suggestion-actions">
+                    {#if currentDemoChats.length >= 5}
+                        <div class="replacement-selection">
+                            <label for="replacement-select-email" class="replacement-label">Replace existing demo chat:</label>
+                            <select
+                                id="replacement-select-email"
+                                bind:value={selectedReplacementChatId}
+                                class="replacement-select"
+                            >
+                                <option value="">Select chat to replace...</option>
+                                {#each currentDemoChats as demo}
+                                    <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
+                                {/each}
+                            </select>
+                        </div>
+                    {/if}
                     <button
                         onclick={() => rejectPendingSuggestion(pendingSuggestion!)}
                         class="btn btn-danger btn-small"
@@ -784,10 +831,14 @@
                     <button
                         onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
-                        disabled={isSubmitting || currentDemoChats.length >= 5}
+                        disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
                     >
                         {#if currentDemoChats.length >= 5}
-                            Demo Limit Reached
+                            {#if selectedReplacementChatId}
+                                Approve & Replace
+                            {:else}
+                                Select Chat to Replace
+                            {/if}
                         {:else}
                             Approve as Demo
                         {/if}
@@ -846,6 +897,21 @@
                         {/if}
 
                         <div class="suggestion-actions">
+                            {#if currentDemoChats.length >= 5}
+                                <div class="replacement-selection">
+                                    <label for="replacement-select-{suggestion.chat_id}" class="replacement-label">Replace existing demo chat:</label>
+                                    <select
+                                        id="replacement-select-{suggestion.chat_id}"
+                                        bind:value={selectedReplacementChatId}
+                                        class="replacement-select"
+                                    >
+                                        <option value="">Select chat to replace...</option>
+                                        {#each currentDemoChats as demo}
+                                            <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
+                                        {/each}
+                                    </select>
+                                </div>
+                            {/if}
                             <button
                                 onclick={() => rejectSuggestion(suggestion.demo_chat_id, suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
@@ -856,10 +922,14 @@
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
                                 class="btn btn-primary btn-small"
-                                disabled={isSubmitting || currentDemoChats.length >= 5}
+                                disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
                             >
                                 {#if currentDemoChats.length >= 5}
-                                    Demo Limit Reached
+                                    {#if selectedReplacementChatId}
+                                        Approve & Replace
+                                    {:else}
+                                        Select Chat to Replace
+                                    {/if}
                                 {:else}
                                     Approve as Demo
                                 {/if}
@@ -1160,6 +1230,40 @@
         flex-wrap: wrap;
         width: 100%;
     }
+
+    .replacement-selection {
+        width: 100%;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        background: var(--color-background-tertiary);
+        border-radius: 6px;
+        border: 1px solid var(--color-border);
+    }
+
+    .replacement-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .replacement-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+
+    .replacement-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
     
     .suggestion-actions .btn {
         flex: 0 0 auto;
@@ -1289,6 +1393,18 @@
             flex-direction: column;
             gap: 0.5rem;
             width: 100%;
+        }
+
+        .replacement-selection {
+            padding: 0.5rem;
+        }
+
+        .replacement-label {
+            font-size: 0.8rem;
+        }
+
+        .replacement-select {
+            font-size: 0.85rem;
         }
         
         .suggestion-actions .btn {
