@@ -75,6 +75,16 @@ class EncryptionService:
             else:
                 logger.error("EncryptionService.__init__: CRITICAL - NO VAULT TOKEN LOADED from file or VAULT_TOKEN env var.")
     
+    def _clear_token_cache(self):
+        """Clear the cached token to force re-reading from file.
+        
+        This should be called when the current token is invalid (expired or revoked)
+        to ensure we read the latest token from disk that vault-setup may have regenerated.
+        """
+        if hasattr(self, '_cached_file_token'):
+            self._cached_file_token = None
+            logger.debug("_clear_token_cache: Cleared cached file token")
+    
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
         # Check if we have a cached token
@@ -143,7 +153,10 @@ class EncryptionService:
             logger.warning(f"_validate_token: Current token {current_token_display} validation failed: {response.status_code} - {response.text}")
             
             # If the current token failed, try to get a fresh one from the file
+            # CRITICAL: Clear the token cache first so we actually re-read from disk
+            # vault-setup may have regenerated a new token after the old one expired
             logger.debug("_validate_token: Attempting to refresh token from file.")
+            self._clear_token_cache()  # Force re-read from file
             file_token = self._get_token_from_file() # This will log if it finds a token
             if file_token and file_token != self.vault_token:
                 logger.debug(f"_validate_token: Found different token in file. Old: {current_token_display}, New from file: {file_token[:4]}...{file_token[-4:] if len(file_token) >= 8 else '****'}. Updating and retrying validation.")

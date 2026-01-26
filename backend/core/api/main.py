@@ -709,50 +709,87 @@ async def lifespan(app: FastAPI):
                         
                         if demo_chats:
                             # This warms both the list and individual chat data caches
+                            # ARCHITECTURE: demo_chats from Directus have 'id' (UUID), not 'demo_id'
+                            # The display ID (demo-1, demo-2) is generated based on order
                             public_demo_chats = []
-                            for demo in demo_chats:
-                                demo_id = demo["demo_id"]
-                                # Warm translation cache
-                                translation = await app.state.directus_service.demo_chat.get_demo_chat_translation(demo_id, lang)
+                            for idx, demo in enumerate(demo_chats):
+                                demo_uuid = demo["id"]  # UUID from Directus
+                                display_id = f"demo-{idx + 1}"  # Generated display ID
+                                
+                                # Warm translation cache using UUID
+                                translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
                                 if not translation and lang != "en":
-                                    translation = await app.state.directus_service.demo_chat.get_demo_chat_translation(demo_id, "en")
+                                    translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
                                 
                                 if translation:
+                                    # Import encryption key once
+                                    from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+                                    encryption_service = app.state.encryption_service
+                                    
+                                    # Decrypt translation metadata first
+                                    decrypted_title = None
+                                    decrypted_summary = None
+                                    if translation.get("encrypted_title"):
+                                        decrypted_title = await encryption_service.decrypt(
+                                            translation["encrypted_title"],
+                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                        )
+                                    if translation.get("encrypted_summary"):
+                                        decrypted_summary = await encryption_service.decrypt(
+                                            translation["encrypted_summary"],
+                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                        )
+                                    
+                                    # Add to list with decrypted title/summary
                                     public_demo_chats.append({
-                                        "demo_id": demo_id,
-                                        "title": translation.get("title"),
-                                        "summary": translation.get("summary"),
+                                        "demo_id": display_id,
+                                        "uuid": demo_uuid,
+                                        "title": decrypted_title or "Demo Chat",
+                                        "summary": decrypted_summary,
                                         "category": demo.get("category"),
+                                        "content_hash": demo.get("content_hash", ""),
                                         "created_at": demo.get("created_at"),
                                         "status": demo.get("status")
                                     })
                                     
-                                    # Warm individual chat data cache
-                                    messages = await app.state.directus_service.demo_chat.get_demo_messages(demo_id, lang)
+                                    # Warm individual chat data cache using UUID
+                                    messages = await app.state.directus_service.demo_chat.get_demo_messages_by_uuid(demo_uuid, lang)
                                     if not messages and lang != "en":
-                                        messages = await app.state.directus_service.demo_chat.get_demo_messages(demo_id, "en")
+                                        messages = await app.state.directus_service.demo_chat.get_demo_messages_by_uuid(demo_uuid, "en")
                                         
-                                    embeds = await app.state.directus_service.demo_chat.get_demo_embeds(demo_id, lang)
+                                    embeds = await app.state.directus_service.demo_chat.get_demo_embeds_by_uuid(demo_uuid, lang)
                                     if not embeds and lang != "en":
-                                        embeds = await app.state.directus_service.demo_chat.get_demo_embeds(demo_id, "en")
-
-                                    # Prepare full chat data for cache (same format as API response)
-                                    from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-                                    encryption_service = app.state.encryption_service
+                                        embeds = await app.state.directus_service.demo_chat.get_demo_embeds_by_uuid(demo_uuid, "en")
                                     
+                                    # Decrypt messages including category and model_name
                                     decrypted_messages = []
                                     for msg in (messages or []):
                                         decrypted_content = await encryption_service.decrypt(
                                             msg.get("encrypted_content", ""), 
                                             key_name=DEMO_CHATS_ENCRYPTION_KEY
                                         )
+                                        decrypted_category = None
+                                        if msg.get("encrypted_category"):
+                                            decrypted_category = await encryption_service.decrypt(
+                                                msg["encrypted_category"],
+                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                            )
+                                        decrypted_model_name = None
+                                        if msg.get("encrypted_model_name"):
+                                            decrypted_model_name = await encryption_service.decrypt(
+                                                msg["encrypted_model_name"],
+                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
+                                            )
                                         decrypted_messages.append({
                                             "message_id": str(msg.get("id")),
                                             "role": msg.get("role"),
                                             "content": decrypted_content,
+                                            "category": decrypted_category,
+                                            "model_name": decrypted_model_name,
                                             "created_at": msg.get("created_at")
                                         })
 
+                                    # Decrypt embeds
                                     decrypted_embeds = []
                                     for emb in (embeds or []):
                                         decrypted_content = await encryption_service.decrypt(
@@ -760,28 +797,29 @@ async def lifespan(app: FastAPI):
                                             key_name=DEMO_CHATS_ENCRYPTION_KEY
                                         )
                                         decrypted_embeds.append({
-                                            "embed_id": emb.get("embed_id"),
+                                            "embed_id": emb.get("original_embed_id"),
                                             "type": emb.get("type"),
                                             "content": decrypted_content,
                                             "created_at": emb.get("created_at")
                                         })
 
                                     full_chat_data = {
-                                        "demo_id": demo_id,
-                                        "title": translation.get("title"),
-                                        "summary": translation.get("summary"),
+                                        "demo_id": display_id,
+                                        "title": decrypted_title,
+                                        "summary": decrypted_summary,
                                         "category": demo.get("category"),
+                                        "content_hash": demo.get("content_hash", ""),
                                         "follow_up_suggestions": translation.get("follow_up_suggestions"),
                                         "chat_data": {
-                                            "chat_id": demo.get("original_chat_id"),
+                                            "chat_id": display_id,  # Use display_id as chat_id for client
                                             "messages": decrypted_messages,
                                             "embeds": decrypted_embeds,
                                             "encryption_mode": "none"
                                         }
                                     }
                                     
-                                    # Store in cache
-                                    await app.state.directus_service.cache.set_demo_chat_data(demo_id, lang, full_chat_data)
+                                    # Store in cache using display_id as key
+                                    await app.state.directus_service.cache.set_demo_chat_data(display_id, lang, full_chat_data)
 
                             # Store list in cache
                             response_data = {
