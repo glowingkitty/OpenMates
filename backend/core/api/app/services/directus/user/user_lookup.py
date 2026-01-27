@@ -98,7 +98,7 @@ async def get_completed_signups_count(self) -> int:
     This excludes:
     - Users still in signup flow (last_opened starts with '/signup/')
     - Users with null/empty last_opened
-    - Users with special values like 'demo-welcome'
+    - Users with special values like 'demo-for-everyone'
     
     This is more accurate than counting all registered users, as it excludes users who
     abandoned signup before completing payment.

@@ -18,7 +18,7 @@ import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Im
 import { notificationStore } from './notificationStore'; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
 import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpen to control login interface visibility
-import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-welcome on logout
+import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from './signupStore'; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft cleanup
 import { isLoggingOut, forcedLogoutInProgress } from './signupState'; // Import isLoggingOut and forcedLogoutInProgress to track logout state
@@ -137,12 +137,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 forcedLogoutInProgress.set(true);
                 console.debug("[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading");
                 
-                // CRITICAL: Navigate to demo-welcome IMMEDIATELY (synchronously) BEFORE auth state changes
-                // This ensures any component reading activeChatStore will see demo-welcome, not the old chat
+                // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
+                // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
                 if (typeof window !== 'undefined') {
-                    activeChatStore.setActiveChat('demo-welcome');
-                    window.location.hash = 'chat-id=demo-welcome';
-                    console.debug("[AuthSessionActions] Navigated to demo-welcome chat IMMEDIATELY (synchronous) - missing master key");
+                    activeChatStore.setActiveChat('demo-for-everyone');
+                    window.location.hash = 'chat-id=demo-for-everyone';
+                    console.debug("[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key");
                 }
 
                 // Set auth state (don't block on database deletion)
@@ -155,9 +155,9 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
                 
-                // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-welcome
+                // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
                 // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-                // and load demo-welcome, even if the chat is a shared chat
+                // and load demo-for-everyone, even if the chat is a shared chat
                 isLoggingOut.set(true);
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for missing master key logout");
                 
@@ -352,7 +352,7 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 
                 // CRITICAL: Set isLoggingOut flag to true BEFORE dispatching logout event
                 // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-                // and load demo-welcome, even if the chat is a shared chat
+                // and load demo-for-everyone, even if the chat is a shared chat
                 isLoggingOut.set(true);
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for session expiration logout");
                 
@@ -402,14 +402,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     }, 100);
                 }
                 
-                // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
+                // CRITICAL: Navigate to demo-for-everyone chat to hide the previously open chat
                 // This ensures the previous chat is not visible after logout
                 // Small delay to ensure auth state changes are processed first
                 setTimeout(() => {
                     if (typeof window !== 'undefined') {
-                        activeChatStore.setActiveChat('demo-welcome');
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug("[AuthSessionActions] Navigated to demo-welcome chat after logout notification");
+                        activeChatStore.setActiveChat('demo-for-everyone');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug("[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification");
                     }
                 }, 50);
                 

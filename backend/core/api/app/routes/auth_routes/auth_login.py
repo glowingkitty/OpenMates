@@ -417,7 +417,7 @@ async def login(
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
             
-            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
             # This prevents users from getting stuck in signup flow after login when
             # signupStore data (email, username) is no longer available.
             # 
@@ -433,8 +433,8 @@ async def login(
                 "/signup/password", "#signup/password",
             ]
             if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
-                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-welcome' after login.")
-                last_opened_path = "demo-welcome"
+                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-for-everyone' after login.")
+                last_opened_path = "demo-for-everyone"
                 # Update Directus and cache with the new last_opened value and signup_completed flag
                 try:
                     update_success = await directus_service.update_user(user_id, {
@@ -447,7 +447,7 @@ async def login(
                             "signup_completed": True
                         })
                         user_profile["last_opened"] = last_opened_path
-                        logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                        logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                     else:
                         logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                 except Exception as e:
@@ -641,7 +641,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
                 # This prevents users from getting stuck in signup flow after OTP login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -657,8 +657,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_otp and any(last_opened_path_otp.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-welcome' after OTP login.")
-                    last_opened_path_otp = "demo-welcome"
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-for-everyone' after OTP login.")
+                    last_opened_path_otp = "demo-for-everyone"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -671,7 +671,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_otp
-                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:
@@ -953,7 +953,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
                 # This prevents users from getting stuck in signup flow after backup code login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -969,8 +969,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_backup and any(last_opened_path_backup.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-welcome' after backup code login.")
-                    last_opened_path_backup = "demo-welcome"
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-for-everyone' after backup code login.")
+                    last_opened_path_backup = "demo-for-everyone"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -983,7 +983,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_backup
-                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:

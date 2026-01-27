@@ -502,7 +502,7 @@
         // This ensures users see the welcome chat after logging out
         setTimeout(() => {
             console.debug("[ActiveChat] After logout - loading default welcome chat");
-            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeDemo) {
                 // Translate the demo chat to the user's locale
                 const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -517,7 +517,7 @@
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
-                activeChatStore.setActiveChat('demo-welcome');
+                activeChatStore.setActiveChat('demo-for-everyone');
                 loadChat(welcomeChat);
                 console.debug("[ActiveChat] ✅ Default welcome chat loaded after logout");
             }
@@ -557,13 +557,13 @@
                 
                 if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
-                    // EXCEPTION: If we're explicitly logging out, always switch to demo-welcome
+                    // EXCEPTION: If we're explicitly logging out, always switch to demo-for-everyone
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
                 }
 
                 if (isSharedChat && $isLoggingOut) {
-                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-welcome:', currentChat.chat_id);
+                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-for-everyone:', currentChat.chat_id);
                     // Continue with clearing logic below
                 }
                 
@@ -589,11 +589,11 @@
                             return;
                         }
 
-                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                         if (welcomeDemo) {
                             const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                             const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                            activeChatStore.setActiveChat('demo-welcome');
+                            activeChatStore.setActiveChat('demo-for-everyone');
                             await tick();
                             await loadChat(welcomeChat);
                             console.debug('[ActiveChat] ✅ Demo welcome chat loaded after auth state change (backup)');
@@ -3321,7 +3321,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 4. Not in signup process
             if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     // Translate the demo chat to the user's locale
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -3336,8 +3336,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
 
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
-                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
-                            activeChatStore.setActiveChat('demo-welcome');
+                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-for-everyone') {
+                            activeChatStore.setActiveChat('demo-for-everyone');
                             loadChat(welcomeChat);
                             console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
@@ -3438,13 +3438,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentChat = null;
             currentMessages = [];
             showWelcome = false; // Explicitly set to false for public chat
-            activeChatStore.setActiveChat('demo-welcome');
+            activeChatStore.setActiveChat('demo-for-everyone');
             
             // Wait a tick to ensure state is cleared before loading new chat
             await tick();
             
             // Load default demo chat (welcome chat)
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
                 // Await loadChat to ensure chat is fully loaded before dispatching selection event
@@ -3461,13 +3461,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     composed: true
                 });
                 window.dispatchEvent(globalChatSelectedEvent);
-                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-welcome chat");
+                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-for-everyone chat");
                 
                 // Also wait a bit and dispatch again in case Chats component mounts after panel opens
                 // This handles the case where the panel opens and Chats component mounts after our first dispatch
                 setTimeout(() => {
                     window.dispatchEvent(globalChatSelectedEvent);
-                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-welcome chat (after delay)");
+                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-for-everyone chat (after delay)");
                 }, 300); // Longer delay to ensure Chats component is mounted if panel was opened
                 
                 console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
@@ -3490,13 +3490,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Ensure login interface is closed
             loginInterfaceOpen.set(false);
             // Load default demo chat
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
                 // Clear current chat first
                 currentChat = null;
                 currentMessages = [];
-                activeChatStore.setActiveChat('demo-welcome');
+                activeChatStore.setActiveChat('demo-for-everyone');
                 loadChat(chat);
                 console.debug("[ActiveChat] ✅ Demo chat loaded after logout from signup");
             }
@@ -3612,14 +3612,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 
                 // Load default demo chat (welcome chat) - use static bundle, not database
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     // Translate the demo chat to the user's locale
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
                     
                     // Set active chat and load welcome chat
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     
                     // Use a small delay to ensure state is cleared and component is ready
                     // This is especially important on mobile where component initialization might be slower
@@ -3650,7 +3650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
                         showWelcome = true;
                         currentChat = welcomeChat; // Set chat object directly as fallback
-                        currentMessages = getDemoMessages('demo-welcome', DEMO_CHATS, LEGAL_CHATS);
+                        currentMessages = getDemoMessages('demo-for-everyone', DEMO_CHATS, LEGAL_CHATS);
                         if (chatHistoryRef) {
                             chatHistoryRef.updateMessages(currentMessages);
                         }

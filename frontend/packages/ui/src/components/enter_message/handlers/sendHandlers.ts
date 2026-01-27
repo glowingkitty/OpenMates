@@ -368,7 +368,7 @@ export async function handleSend(
         // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
         // This ensures:
         // 1. The chat can't be identified as demo/legal later
-        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-welcome}-{uuid_v4}
+        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-for-everyone}-{uuid_v4}
         let sourceDemoId: string | null = null;
         if (chatIdToUse && isPublicChat(chatIdToUse)) {
             sourceDemoId = chatIdToUse;

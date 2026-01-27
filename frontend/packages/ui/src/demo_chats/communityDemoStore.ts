@@ -169,7 +169,7 @@ export function getAllCommunityDemoChats(): Chat[] {
 /**
  * Check if a chat ID is a community demo chat
  * Community demos have IDs like "demo-1", "demo-2", etc. (from server)
- * Static demos have IDs like "demo-welcome", "demo-different" (from code)
+ * Static demos have IDs like "demo-for-everyone", "demo-for-developers" (from code)
  * @param chatId - The chat ID to check
  * @returns True if this is a community demo (in our store)
  */

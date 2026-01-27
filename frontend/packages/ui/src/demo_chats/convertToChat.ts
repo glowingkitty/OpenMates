@@ -69,7 +69,7 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
  * ARCHITECTURE: All demo/public chat data is stored in-memory, never in IndexedDB.
  * This avoids database initialization issues during logout/cleanup.
  * 
- * @param chatId - The chat ID to search for (e.g., 'demo-welcome', 'legal-privacy', 'demo-1')
+ * @param chatId - The chat ID to search for (e.g., 'demo-for-everyone', 'legal-privacy', 'demo-1')
  * @param demoChats - Array of static demo chats (from DEMO_CHATS)
  * @param legalChats - Array of legal chats (from LEGAL_CHATS) - optional, will import if not provided
  * @returns Array of messages for the chat, or empty array if not found
@@ -119,7 +119,7 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 
 /**
  * Check if a chat is a demo chat (starts with 'demo-' prefix)
- * Includes static demos (demo-welcome, demo-different, etc.) and community demos (demo-1, demo-2, etc.)
+ * Includes static demos (demo-for-everyone, demo-for-developers, etc.) and community demos (demo-1, demo-2, etc.)
  */
 export function isDemoChat(chatId: string): boolean {
 	return chatId.startsWith('demo-');

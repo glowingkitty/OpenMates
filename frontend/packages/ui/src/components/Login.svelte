@@ -2241,7 +2241,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
@@ -2304,7 +2304,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
@@ -2346,7 +2346,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes

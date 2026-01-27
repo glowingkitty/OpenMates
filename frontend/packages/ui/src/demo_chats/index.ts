@@ -1,6 +1,6 @@
 import type { DemoChat } from './types';
 import { forEveryoneChat } from './data/for_everyone';
-import { whatMakesDifferentChat } from './data/what-makes-different';
+import { forDevelopersChat } from './data/for_developers';
 import { LEGAL_CHATS } from '../legal';
 
 // Export types
@@ -43,9 +43,9 @@ export {
  */
 export const INTRO_CHATS: DemoChat[] = [
 	forEveryoneChat,
-	whatMakesDifferentChat
+	forDevelopersChat
 	// Privacy, Terms, Imprint are NOT intro chats - they're accessed via /privacy, /terms, /imprint routes
-	// More will be added: october-2025-updates, example-learn-something, developers, stay-up-to-date
+	// More will be added: october-2025-updates, example-learn-something, stay-up-to-date
 	// Apps feature: example-power-of-apps (coming soon when Apps are implemented)
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 

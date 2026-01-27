@@ -1209,18 +1209,18 @@ changes to the documentation (to keep the documentation up to date).
                     console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
 
-                    // CRITICAL: Force ActiveChat to load demo-welcome by setting activeChatStore directly
-                    // This ensures demo-welcome loads even if event handlers have timing issues
+                    // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
+                    // This ensures demo-for-everyone loads even if event handlers have timing issues
                     // Small delay to ensure auth state changes are processed first
                     await new Promise(resolve => setTimeout(resolve, 50));
                     const { activeChatStore } = await import('@repo/ui');
-                    activeChatStore.setActiveChat('demo-welcome');
-                    console.debug('[Settings] Directly set activeChatStore to demo-welcome during logout');
+                    activeChatStore.setActiveChat('demo-for-everyone');
+                    console.debug('[Settings] Directly set activeChatStore to demo-for-everyone during logout');
 
-                    // CRITICAL: Ensure URL hash is set to demo-welcome
+                    // CRITICAL: Ensure URL hash is set to demo-for-everyone
                     if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug('[Settings] Set URL hash to demo-welcome during logout');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug('[Settings] Set URL hash to demo-for-everyone during logout');
                     }
                     
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
@@ -1253,11 +1253,11 @@ changes to the documentation (to keep the documentation up to date).
                     // Only close settings menu
                  	isMenuOpen.set(false);
 
-                    // CRITICAL: Ensure URL hash is set to demo-welcome after logout
-                    // This ensures consistent behavior where logout always redirects to demo-welcome
+                    // CRITICAL: Ensure URL hash is set to demo-for-everyone after logout
+                    // This ensures consistent behavior where logout always redirects to demo-for-everyone
                     if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug('[Settings] Set URL hash to demo-welcome after logout');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug('[Settings] Set URL hash to demo-for-everyone after logout');
                     }
 
                     // Small delay to allow sidebar animation if needed

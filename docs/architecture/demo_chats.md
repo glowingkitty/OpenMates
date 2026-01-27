@@ -10,7 +10,7 @@ There are **two types** of demo chats:
    - Examples: "Welcome to OpenMates!", "What makes OpenMates different?"
    - Stored in: `frontend/packages/ui/src/demo_chats/data/`
    - Translations: `frontend/packages/ui/src/i18n/sources/demo_chats/`
-   - Fixed chat IDs: `demo-welcome`, `demo-different`, etc.
+   - Fixed chat IDs: `demo-for-everyone`, `demo-for-developers`, etc.
 
 2. **Community Demos** (Dynamic/Server-fetched): User-submitted chats approved by admins
    - Maximum of 5 published demos at a time
@@ -76,7 +76,7 @@ This generates the `locales/{locale}.json` files that the app uses at runtime.
 1. **Access the chat**: Navigate to `/#chat-id=demo-example` in the browser
 2. **Check sidebar**: Verify it appears in the correct order
 3. **Test translations**: Change language and verify content translates correctly
-4. **Verify links**: Check that any internal links (like `/#chat-id=demo-different`) work correctly
+4. **Verify links**: Check that any internal links (like `/#chat-id=demo-for-developers`) work correctly
 
 ### Best Practices
 
@@ -86,14 +86,14 @@ This generates the `locales/{locale}.json` files that the app uses at runtime.
 4. **Order**: Set `metadata.order` to control display position (1 = first, higher = later)
 5. **Icons**: Use Lucide icon names for `icon_names` (see [Lucide Icons](https://lucide.dev/icons/))
 6. **Markdown**: Content supports Markdown formatting (headings, lists, links, etc.)
-7. **Internal Links**: Use hash links like `/#chat-id=demo-different` to link to other intro chats
+7. **Internal Links**: Use hash links like `/#chat-id=demo-for-developers` to link to other intro chats
 
 ### Example: Existing Intro Chats
 
-- **Welcome Chat**: `demo-welcome` - First-time user introduction
+- **Welcome Chat**: `demo-for-everyone` - First-time user introduction
   - Data file: [`frontend/packages/ui/src/demo_chats/data/welcome.ts`](../../frontend/packages/ui/src/demo_chats/data/welcome.ts)
   - Translations: [`frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml)
-- **What Makes Different**: `demo-different` - Feature comparison and differentiators
+- **What Makes Different**: `demo-for-developers` - Feature comparison and differentiators
   - Data file: [`frontend/packages/ui/src/demo_chats/data/what-makes-different.ts`](../../frontend/packages/ui/src/demo_chats/data/what-makes-different.ts)
   - Translations: [`frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml)
 

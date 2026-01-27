@@ -388,7 +388,7 @@ export async function decryptMessageFields(
 ): Promise<Message> {
     // CRITICAL: Skip decryption entirely during forced logout (missing master key scenario)
     // This prevents errors when the app tries to decrypt chats that can't be decrypted anymore
-    // because the master key is gone. The forced logout will navigate to demo-welcome.
+    // because the master key is gone. The forced logout will navigate to demo-for-everyone.
     if (get(forcedLogoutInProgress)) {
         console.debug(`[ChatDatabase] Skipping message decryption during forced logout for chat: ${chatId}`);
         return { ...message };

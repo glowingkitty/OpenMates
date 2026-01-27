@@ -15,7 +15,7 @@ import { replaceState } from '$app/navigation';
 
 /**
  * Store to track when deep link processing is happening
- * This prevents auto-loading of demo-welcome during deep link processing
+ * This prevents auto-loading of demo-for-everyone during deep link processing
  */
 export const deepLinkProcessing = writable(false);
 

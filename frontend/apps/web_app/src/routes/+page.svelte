@@ -279,7 +279,7 @@
      * Handler for sync completion - loads chat based on priority:
      * 1. URL hash chat (if present)
      * 2. Last opened chat (if no hash)
-     * 3. Default (demo-welcome for non-auth, new chat for auth)
+     * 3. Default (demo-for-everyone for non-auth, new chat for auth)
      * 
      * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
      * 
@@ -431,18 +431,18 @@
         }
         
         // PRIORITY 3: Default chat (only if no last opened chat was loaded)
-        // For non-authenticated users: demo-welcome
+        // For non-authenticated users: demo-for-everyone
         // For authenticated users: new chat window
         if (!$activeChatStore && activeChat) {
             if (!$authStore.isAuthenticated) {
-                // Non-auth: load demo-welcome
-                console.debug('[+page.svelte] No last opened chat, loading demo-welcome (default for non-auth)');
+                // Non-auth: load demo-for-everyone
+                console.debug('[+page.svelte] No last opened chat, loading demo-for-everyone (default for non-auth)');
                 const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     activeChat.loadChat(welcomeChat);
                 }
             } else {
@@ -605,14 +605,14 @@
 			// In this case, we must:
 			// - Set forcedLogoutInProgress to prevent any encrypted chat loading attempts
 			// - Clear the URL hash if it points to an encrypted chat
-			// - Ensure demo-welcome loads instead of the previous chat
+			// - Ensure demo-for-everyone loads instead of the previous chat
 			if (localProfile && localProfile.username) {
 				console.warn('[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)');
 				console.debug('[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading');
 				forcedLogoutInProgress.set(true);
 				
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
-				// If so, clear the hash and navigate to demo-welcome to prevent loading broken chat
+				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
 				if (originalHash) {
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
@@ -622,13 +622,13 @@
 					}
 					
 					if (hashChatId && !isPublicChat(hashChatId)) {
-						console.debug(`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-welcome`);
+						console.debug(`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`);
 						// Clear the hash to prevent deep link handler from trying to load it
 						window.location.hash = '';
 						// Clear the stored original hash so deep link handler doesn't use it
 						// Note: We can't reassign originalHash (const), but we'll handle this in deep link processing
-						// by setting activeChatStore to demo-welcome explicitly
-						activeChatStore.setActiveChat('demo-welcome');
+						// by setting activeChatStore to demo-for-everyone explicitly
+						activeChatStore.setActiveChat('demo-for-everyone');
 					}
 				}
 			}
@@ -678,9 +678,9 @@
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
 				if (isForcedLogout && !isPublicChat(originalHashChatId)) {
-					console.debug(`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-welcome`);
-					originalHashChatId = 'demo-welcome';
-					activeChatStore.setActiveChat('demo-welcome');
+					console.debug(`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-for-everyone`);
+					originalHashChatId = 'demo-for-everyone';
+					activeChatStore.setActiveChat('demo-for-everyone');
 				} else {
 					// Set active chat store immediately to prevent race conditions
 					activeChatStore.setActiveChat(originalHashChatId);
@@ -691,9 +691,9 @@
 
 			// Process through unified deep link handler
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
-			// During forced logout, the handler will load demo-welcome for empty/null hash
+			// During forced logout, the handler will load demo-for-everyone for empty/null hash
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess = isForcedLogout && originalHashChatId === 'demo-welcome' ? '' : (originalHash || '');
+			const hashToProcess = isForcedLogout && originalHashChatId === 'demo-for-everyone' ? '' : (originalHash || '');
 			await processDeepLink(hashToProcess, handlers);
 			deepLinkProcessed = true; // Mark that processing was completed
 
@@ -1062,7 +1062,7 @@
 				// 2. Store indicates welcome chat is selected
 				// 3. ActiveChat component is ready
 				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
-				if (sidebarOpen && storeChatId === 'demo-welcome' && activeChat) {
+				if (sidebarOpen && storeChatId === 'demo-for-everyone' && activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load');
 					return;
 				}
@@ -1070,12 +1070,12 @@
 				if (activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
 					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
 					if (welcomeDemo) {
 						// Translate the demo chat to the user's locale
 						const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
 						const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-						activeChatStore.setActiveChat('demo-welcome');
+						activeChatStore.setActiveChat('demo-for-everyone');
 						activeChat.loadChat(welcomeChat);
 						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
 					} else {
@@ -1322,29 +1322,29 @@
     });
 
     /**
-     * Load demo-welcome chat for non-authenticated users
+     * Load demo-for-everyone chat for non-authenticated users
      */
     async function loadDemoWelcomeChat() {
-        console.debug('[+page.svelte] Loading demo-welcome chat for non-authenticated user');
+        console.debug('[+page.svelte] Loading demo-for-everyone chat for non-authenticated user');
 
         // Wait for activeChat component to be ready
         const waitForActiveChat = async (retries = 20): Promise<void> => {
             if (activeChat) {
                 const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     activeChat.loadChat(welcomeChat);
-                    console.debug('[+page.svelte] ✅ Demo-welcome chat loaded successfully');
+                    console.debug('[+page.svelte] ✅ demo-for-everyone chat loaded successfully');
                 }
                 return;
             } else if (retries > 0) {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 return waitForActiveChat(retries - 1);
             } else {
-                console.error('[+page.svelte] ⚠️ activeChat not ready after retries - demo-welcome may not load');
+                console.error('[+page.svelte] ⚠️ activeChat not ready after retries - demo-for-everyone may not load');
             }
         };
 
@@ -1420,7 +1420,7 @@
                     // For authenticated users: try to load last_opened chat, otherwise create new chat
                     await loadLastOpenedChatOrCreateNew();
                 } else {
-                    // For non-authenticated users: load demo-welcome chat
+                    // For non-authenticated users: load demo-for-everyone chat
                     await loadDemoWelcomeChat();
                 }
             },

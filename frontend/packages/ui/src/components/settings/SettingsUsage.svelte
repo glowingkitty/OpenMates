@@ -740,7 +740,7 @@ Usage Settings - View usage statistics and export usage data
             }
         }
 
-        // For non-UUID chat IDs (like "demo-welcome"), return null immediately
+        // For non-UUID chat IDs (like "demo-for-everyone"), return null immediately
         // These are demo/placeholder chats not stored in IndexedDB
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidPattern.test(chatId)) {
