@@ -26,8 +26,6 @@ from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_or
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
-# Import recovery key email task
-from backend.core.api.app.tasks.email_tasks.recovery_key_email_task import send_recovery_key_used_email
 
 """
 Zero-Knowledge Authentication System
@@ -63,7 +61,7 @@ async def login(
     Authenticate a user, handle 2FA if enabled, and create a session.
     Accepts optional tfa_code for the second step of 2FA login.
     """
-    logger.info(f"Processing POST /login")
+    logger.info("Processing POST /login")
     
     try:
         # Step 1: Check if hashed_email and lookup_hash are provided
@@ -80,7 +78,7 @@ async def login(
         # Check if this is a recovery key login
         is_recovery_key_login = login_data.login_method == "recovery_key"
         if is_recovery_key_login:
-            logger.info(f"Recovery key login detected from request")
+            logger.info("Recovery key login detected from request")
         
         metrics_service.track_login_attempt(auth_success)
         
@@ -136,6 +134,7 @@ async def login(
             if not login_data.tfa_code or login_data.tfa_code.strip() == "":
                 logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
                 minimal_user_info = UserResponse(
+                    id=None,
                     username="",  # Default empty string
                     is_admin=False, # Default False
                     credits=0,      # Default 0
@@ -418,7 +417,7 @@ async def login(
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
             
-            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
             # This prevents users from getting stuck in signup flow after login when
             # signupStore data (email, username) is no longer available.
             # 
@@ -434,8 +433,8 @@ async def login(
                 "/signup/password", "#signup/password",
             ]
             if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
-                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-welcome' after login.")
-                last_opened_path = "demo-welcome"
+                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-for-everyone' after login.")
+                last_opened_path = "demo-for-everyone"
                 # Update Directus and cache with the new last_opened value and signup_completed flag
                 try:
                     update_success = await directus_service.update_user(user_id, {
@@ -448,7 +447,7 @@ async def login(
                             "signup_completed": True
                         })
                         user_profile["last_opened"] = last_opened_path
-                        logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                        logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                     else:
                         logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                 except Exception as e:
@@ -472,11 +471,11 @@ async def login(
                         # In eager mode, the task would run here. We can set the flag.
                         await cache_service.set_user_cache_primed_flag(user_id)
                     else: # Should not happen if user_id is present, but defensive
-                        logger.error(f"Cannot dispatch warm_user_cache task: user_id is missing, though it was checked.")
+                        logger.error("Cannot dispatch warm_user_cache task: user_id is missing, though it was checked.")
                 else:
                     logger.info(f"User cache already primed/warming for {user_id[:6]}... ✅")
             else:
-                logger.error(f"Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
+                logger.error("Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
             if refresh_token:
@@ -486,6 +485,7 @@ async def login(
                 success=True,
                 message="Login successful",
                 user=UserResponse(
+                    id=user_id,
                     username=user_profile.get("username"),
                     is_admin=user_profile.get("is_admin", False),
                     credits=user_profile.get("credits", 0),
@@ -519,6 +519,7 @@ async def login(
             # Return minimal user info needed for the 2FA screen, using valid defaults for required fields
             # Include last_opened so frontend can redirect to signup if 2FA isn't actually configured
             minimal_user_info = UserResponse(
+                id=user_id,
                 username="",  # Default empty string
                 is_admin=False, # Default False
                 credits=0,      # Default 0
@@ -640,7 +641,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
                 # This prevents users from getting stuck in signup flow after OTP login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -656,8 +657,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_otp and any(last_opened_path_otp.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-welcome' after OTP login.")
-                    last_opened_path_otp = "demo-welcome"
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-for-everyone' after OTP login.")
+                    last_opened_path_otp = "demo-for-everyone"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -670,7 +671,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_otp
-                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:
@@ -692,12 +693,12 @@ async def login(
                         elif app.conf.task_always_eager:
                             logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (OTP login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
-                        else: # Should not happen
-                            logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
+                        else: # Should not happen if user_id is present, but defensive
+                            logger.error("Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
                     else:
                         logger.info(f"User cache already primed/warming for {user_id[:6]}... (OTP login) ✅")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
+                    logger.error("Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -705,6 +706,7 @@ async def login(
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
+                        id=user_id,
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
@@ -744,7 +746,7 @@ async def login(
 
                 # Step 2: Check cache for recently used backup code SHA hash (user-specific)
                 used_code_cache_key = f"used_backup_code:{user_id}:{provided_code_sha_hash}"
-                logger.info(f"Checking recently used backup code SHA hash...")
+                logger.info("Checking recently used backup code SHA hash...")
                 recently_used = await cache_service.get(used_code_cache_key)
 
                 if recently_used is not None:
@@ -951,7 +953,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-welcome
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
                 # This prevents users from getting stuck in signup flow after backup code login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -967,8 +969,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_backup and any(last_opened_path_backup.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-welcome' after backup code login.")
-                    last_opened_path_backup = "demo-welcome"
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-for-everyone' after backup code login.")
+                    last_opened_path_backup = "demo-for-everyone"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -981,7 +983,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_backup
-                            logger.info(f"Successfully reset last_opened to 'demo-welcome' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:
@@ -1004,11 +1006,11 @@ async def login(
                             logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (Backup code login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
                         else: # Should not happen
-                            logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing, though it was checked.")
+                            logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing, though it was checked.")
                     else:
                         logger.info(f"User cache already primed/warming for {user_id[:6]}... (Backup code login) ✅")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
+                    logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -1016,6 +1018,7 @@ async def login(
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
+                        id=user_id,
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
@@ -1322,7 +1325,7 @@ async def lookup_user(
     Look up a user by hashed email and return available login methods.
     This is the first step in the new multi-step login flow.
     """
-    logger.info(f"Processing POST /lookup")
+    logger.info("Processing POST /lookup")
     
     try:
         # Step 1: Check if hashed_email is provided
@@ -1412,6 +1415,12 @@ async def lookup_user(
                     login_methods = []
             
             if login_methods:
+                # Initialize flags
+                has_password = False
+                has_passkey = False
+                has_security_key = False
+                has_recovery_key = False
+
                 # Check for password first - prefer password over passkey for better UX
                 # Users expect to enter password after email, not be forced into passkey
                 has_password = any(method == "password" for method in login_methods)
@@ -1427,9 +1436,9 @@ async def lookup_user(
                     # Verify that there are actual passkeys in the user_passkeys table
                     try:
                         actual_passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
-                        has_actual_passkeys = len(actual_passkeys) > 0
+                        has_passkey = len(actual_passkeys) > 0
                         
-                        if has_actual_passkeys:
+                        if has_passkey:
                             # available_methods.append("passkey") # Removed as per user request - frontend handles passkey availability
                             # Only set as preferred if password is not available
                             if not has_password:

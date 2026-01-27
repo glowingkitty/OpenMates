@@ -5,12 +5,13 @@
 provider_id: "mistral"
 name: "Mistral AI"
 description: "AI models and services from Mistral AI."
-logo_svg: "logos/mistral.svg" # Path for UI, relative to a common logos directory
+logo_svg: "logos/mistral.svg"  # Path for UI, relative to logos directory
 
 models:
-  - id: "mistral-small-latest" # Official model ID
+  - id: "mistral-small-latest"  # Official model ID
     name: "Mistral Small"
-    description: "Mistral AI's fast and cost-effective model, optimized for low latency."
+    description: >-
+      Mistral AI's fast and cost-effective model, optimized for low latency.
     input_types:
       - text
       - image
@@ -23,30 +24,35 @@ models:
         model_id: "mistral-small-latest"  # Direct Mistral API model ID
       - id: "google"
         name: "Google Cloud Vertex AI"
-        model_id: "mistral-small-2503"  # Google Vertex AI model identifier for Mistral Small 3.1 (25.03)
+        # Google Vertex AI model identifier for Mistral Small 3.1 (25.03)
+        model_id: "mistral-small-2503"
       - id: "openrouter"
         name: "OpenRouter"
-        model_id: "mistralai/mistral-small-3.2-24b-instruct"  # OpenRouter model identifier
-    # Full reference for API calls would be "mistral/mistral-small-latest" (or similar based on client)
-    pricing: # Model-specific base pricing (example structure)
-      tokens: 
+        # OpenRouter model identifier
+        model_id: "mistralai/mistral-small-3.2-24b-instruct"
+    # Full reference for API calls would be "mistral/mistral-small-latest"
+    # (or similar based on client)
+    pricing:  # Model-specific base pricing (example structure)
+      tokens:
         input:
-          per_credit_unit: 3000 # 1 credit per 3,000 input tokens
+          per_credit_unit: 3300  # 1 credit per 3,300 input tokens
         output:
-          per_credit_unit: 1000  # 1 credit per 1,000 output tokens
+          per_credit_unit: 1100  # 1 credit per 1,100 output tokens
     costs:
       input_per_million_token:
         price: 0.10
         currency: USD
-        max_context: 128000 # Max context window.
+        max_context: 128000  # Max context window.
       output_per_million_token:
         price: 0.30
         currency: USD
         max_context: 128000
 
-  - id: "mistral-medium-latest" # Official model ID
+  - id: "mistral-medium-latest"  # Official model ID
     name: "Mistral Medium"
-    description: "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient."
+    description: >-
+      State-of-the-art performance. Simplified enterprise deployments.
+      Cost-efficient.
     input_types:
       - text
       - image
@@ -61,11 +67,11 @@ models:
         name: "OpenRouter"
         model_id: "mistralai/mistral-medium-3.1"  # OpenRouter model identifier
     pricing:
-      tokens: 
+      tokens:
         input:
-          per_credit_unit: 1000 # 1 credit per 1,000 input tokens
+          per_credit_unit: 850  # 1 credit per 850 input tokens
         output:
-          per_credit_unit: 200  # 1 credit per 200 output tokens
+          per_credit_unit: 170  # 1 credit per 170 output tokens
     costs:
       input_per_million_token:
         price: 0.40
@@ -76,16 +82,59 @@ models:
         currency: USD
         max_context: 128000
 
+  - id: "devstral-2512"  # Official model ID
+    name: "Devstral 2"
+    description: >-
+      Our frontier code agents model for solving software engineering tasks;
+      excels at using tools to explore codebases, editing multiple files and
+      power software engineering agents.
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "mistral"  # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "devstral-2512"  # Direct Mistral API model ID
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/devstral-2512"
+    pricing:
+      tokens:
+        input:
+          # 1 credit per 850 input tokens (calculated from $0.4/M tokens)
+          per_credit_unit: 850
+        output:
+          # 1 credit per 170 output tokens (calculated from $2/M tokens)
+          per_credit_unit: 170
+    costs:
+      input_per_million_token:
+        price: 0.40
+        currency: USD
+        max_context: 256000  # Max context window: 256k tokens
+      output_per_million_token:
+        price: 2.00
+        currency: USD
+        max_context: 256000
+    features:
+      max_output_tokens: 128000
+      tool_use: true
+      streaming: true
+      agents: true
+
 
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
-# 
+#
 # Where:
 # - credit_value_usd = 0.001 (110 USD / 110,000 credits)
 # - markup = 3 (3x your cost)
 #
-# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
+# Simplified: tokens_per_credit = 0.001 /
+# ((your_cost_per_million * 3) / 1,000,000)
 # Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
 #
 # Examples:

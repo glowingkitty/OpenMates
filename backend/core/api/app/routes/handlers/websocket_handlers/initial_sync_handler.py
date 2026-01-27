@@ -200,6 +200,7 @@ async def handle_initial_sync(
                 current_chat_payload_dict["encrypted_title"] = encrypted_title  # This is encrypted content from cache
                 current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
                 current_chat_payload_dict["unread_count"] = unread_count
+                current_chat_payload_dict["user_id"] = user_id  # Add user_id for client ownership tracking
                 
                 # CRITICAL: Add encrypted_chat_key for client-side decryption
                 # Try to get it from cached_list_item_data first, then db_list_item_data fallback, then DB fetch

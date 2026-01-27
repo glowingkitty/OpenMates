@@ -5,11 +5,11 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES, isSignupPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, isSignupPath } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
 // Import defaultProfile directly for logout reset
-import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile';
+import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { resetTwoFAData } from './twoFAState';
 import { processedImageUrl } from './profileImage';
 import { locale } from 'svelte-i18n';
@@ -17,6 +17,7 @@ import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId';
 import { phasedSyncState } from './phasedSyncStateStore';
 import { aiTypingStore } from './aiTypingStore';
+import { webSocketService } from '../services/websocketService';
 
 // Import core auth state and related flags
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
@@ -118,6 +119,25 @@ export async function login(
                     console.debug('[Login] WebSocket token stored from login response');
                 } else {
                     console.warn('[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+                }
+
+                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags on successful login
+                // This handles the race condition where orphaned database cleanup was triggered on page load
+                // (setting these flags to true) but the user then successfully logs in.
+                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
+                const { get } = await import('svelte/store');
+                const { forcedLogoutInProgress, isLoggingOut } = await import('./signupState');
+                if (get(forcedLogoutInProgress)) {
+                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key');
+                    forcedLogoutInProgress.set(false);
+                }
+                if (get(isLoggingOut)) {
+                    console.debug('[Login] Resetting isLoggingOut to false - successful login');
+                    isLoggingOut.set(false);
+                }
+                // Also clear the cleanup marker to prevent future false positives
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
                 }
 
                 // Now it's safe to update auth state, which will trigger WebSocket connection
@@ -224,6 +244,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         cryptoService.clearKeyFromStorage(); // Clear master key
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
+        // Disconnect WebSocket and clear handlers to prevent connection attempts during logout
+        console.debug('[AuthStore] Disconnecting WebSocket and clearing handlers...');
+        webSocketService.disconnectAndClearHandlers();
+
         // Clear WebSocket token from sessionStorage
         const { clearWebSocketToken } = await import('../utils/cookies');
         clearWebSocketToken();

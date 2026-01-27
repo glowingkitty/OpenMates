@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from backend.core.api.app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
-from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
+from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item, delete_item, delete_items # Import delete methods
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
 from backend.core.api.app.services.directus.gift_card_methods import (
     get_gift_card_by_code, 
@@ -89,6 +89,10 @@ class DirectusService:
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
         self.admin = AdminMethods(self) # Initialize AdminMethods
+        
+        # Initialize server stats service
+        from backend.core.api.app.services.server_stats_service import ServerStatsService
+        self.stats = ServerStatsService(self.cache, self)
 
     async def close(self):
         """Close the httpx client."""
@@ -844,7 +848,7 @@ class DirectusService:
             logger.error(f"Exception updating API key last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)
             return False
 
-    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
+    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None, admin_required: bool = False) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
@@ -857,9 +861,21 @@ class DirectusService:
             url = f"{self.base_url}/users/{item_id}"
         else:
             url = f"{self.base_url}/items/{collection}/{item_id}"
-        
+
+        # For sensitive collections or when explicitly requested, use admin token
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions', 'demo_chats']
+        headers = {}
+        if admin_required or collection in sensitive_collections:
+            # Ensure we have a valid admin token for sensitive collections
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error(f"Failed to get admin token for updating item in collection: {collection}")
+                return None
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            logger.info(f"Using admin token for updating item in collection: {collection}")
+
         response_obj = await self._make_api_request(
-            "PATCH", url, json=data, params=params
+            "PATCH", url, headers=headers, json=data, params=params
         )
 
         # _make_api_request returns httpx.Response object or None on error
@@ -925,8 +941,9 @@ class DirectusService:
             logger.error(f"API request to delete item {item_id} in collection {collection} failed (request layer).")
             return False
 
-    # Assign the internal helper to the class
-    delete_item = _delete_item
+    # Assign the API methods to the class
+    delete_item = delete_item
+    delete_items = delete_items
 
     async def bulk_delete_items(self, collection: str, item_ids: List[str], params: Optional[Dict] = None) -> bool:
         """

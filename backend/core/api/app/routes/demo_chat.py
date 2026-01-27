@@ -5,7 +5,6 @@ Handles creation, approval, and public access to demo chats.
 """
 
 import logging
-import hashlib
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 
@@ -35,50 +34,104 @@ def get_directus_service(request: Request) -> DirectusService:
 @limiter.limit("60/minute")  # Public endpoint, higher rate limit
 async def get_demo_chats(
     request: Request,
+    lang: str = Query("en", description="Language code"),
     category: Optional[str] = Query(None, description="Filter by category"),
+    hashes: Optional[str] = Query(None, description="Comma-separated list of demo_id:hash pairs for change detection"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Get list of approved demo chats.
-
-    This endpoint is public and can be accessed by non-authenticated users.
-    Only returns approved demo chats.
+    Get list of approved and published demo chats.
+    
+    Supports change detection via the `hashes` parameter:
+    - If provided, returns a list of demos with an `updated` flag indicating if content changed
+    - Format: "demo-1:abc123,demo-2:def456" (demo_id:content_hash pairs)
+    - This allows clients to only fetch full data for changed demos
     """
     try:
-        # 1. Try to get from cache first
-        cached_data = await directus_service.cache.get_demo_chats_list(category=category)
-        if cached_data:
-            # Check if this is the "public-ready" format (list of dicts with count)
-            if isinstance(cached_data, dict) and "demo_chats" in cached_data:
-                logger.debug(f"Cache HIT: Returning public-ready demo chats list (category: {category})")
+        # Parse client hashes for change detection
+        client_hashes: Dict[str, str] = {}
+        if hashes:
+            for pair in hashes.split(","):
+                if ":" in pair:
+                    demo_id, hash_value = pair.split(":", 1)
+                    client_hashes[demo_id.strip()] = hash_value.strip()
+        
+        # 1. Try to get from cache first (only if not doing hash comparison)
+        if not client_hashes:
+            cached_data = await directus_service.cache.get_demo_chats_list(lang, category=category)
+            if cached_data:
+                logger.debug(f"Cache HIT: Returning demo chats list for {lang} (category: {category})")
                 return cached_data
 
-        # 2. Get from database (via service which also has internal caching)
+        # 2. Get from database
+        params = {
+            "filter": {
+                "status": {"_eq": "published"},
+                "is_active": {"_eq": True}
+            },
+            "sort": ["-created_at"]
+        }
         if category:
-            demo_chats = await directus_service.demo_chat.get_demo_chats_by_category(category, approved_only=True)
-        else:
-            demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
+            params["filter"]["category"] = {"_eq": category}
 
-        # 3. Remove sensitive information before returning
+        demo_chats = await directus_service.get_items("demo_chats", params)
+        
         public_demo_chats = []
-        for demo_chat in demo_chats:
-            public_demo_chat = {
-                "demo_id": demo_chat.get("demo_id"),
-                "title": demo_chat.get("title"),
-                "summary": demo_chat.get("summary"),
-                "category": demo_chat.get("category"),
-                "created_at": demo_chat.get("created_at")
-            }
-            public_demo_chats.append(public_demo_chat)
+        
+        for idx, demo in enumerate(demo_chats):
+            # Use UUID as the ID instead of demo_id
+            demo_uuid = demo["id"]
+            content_hash = demo.get("content_hash", "")
+            
+            # Generate client-side display ID based on order (demo-1, demo-2, etc.)
+            # The frontend will use this for display/routing
+            display_id = f"demo-{idx + 1}"
+            
+            # Get category and icon (stored as cleartext)
+            # NOTE: These are stored on the demo_chats table itself (NOT translated)
+            # Using different variable names to avoid shadowing the 'category' query parameter
+            demo_category = demo.get("category")
+            demo_icon = demo.get("icon")
+            
+            # Get translation by UUID
+            translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
+            # Fallback to English if translation not found
+            if not translation and lang != "en":
+                translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
+            
+            if translation:
+                # Get translated fields (stored as cleartext)
+                title = translation.get("title")
+                summary = translation.get("summary")
+                
+                demo_data = {
+                    "demo_id": display_id,  # Client-side display ID
+                    "uuid": demo_uuid,  # Server UUID for lookups
+                    "title": title or "Demo Chat",
+                    "summary": summary,
+                    "category": demo_category,  # From demo_chats table (not translated)
+                    "icon": demo_icon,  # From demo_chats table (not translated)
+                    "content_hash": content_hash,
+                    "created_at": demo.get("created_at"),
+                    "status": demo.get("status")
+                }
+                
+                # Add `updated` flag if client provided hashes for change detection
+                if client_hashes:
+                    client_hash = client_hashes.get(display_id, "")
+                    demo_data["updated"] = (content_hash != client_hash) if content_hash else True
+                
+                public_demo_chats.append(demo_data)
 
         response_data = {
             "demo_chats": public_demo_chats,
             "count": len(public_demo_chats)
         }
 
-        # 4. Cache the final public-ready result
-        await directus_service.cache.set_demo_chats_list(response_data, category=category)
+        # 3. Cache the result (only if not doing hash comparison)
+        if not client_hashes:
+            await directus_service.cache.set_demo_chats_list(lang, response_data, category=category)
 
         return response_data
 
@@ -91,82 +144,175 @@ async def get_demo_chats(
 async def get_demo_chat(
     request: Request,
     demo_id: str,
+    lang: str = Query("en", description="Language code"),
     current_user: Optional[User] = Depends(get_current_user_optional),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Get demo chat data for viewing.
-
-    This endpoint returns the encrypted chat data along with the encryption key,
-    allowing non-authenticated users to view the demo chat.
-
-    This is public but rate-limited to prevent abuse.
+    Get full demo chat data for viewing.
+    Accepts display IDs (demo-1, demo-2) or UUIDs.
     """
     try:
         # 1. Try to get from cache first
-        cached_data = await directus_service.cache.get_demo_chat_data(demo_id)
+        cached_data = await directus_service.cache.get_demo_chat_data(demo_id, lang)
         if cached_data:
-            logger.debug(f"Cache HIT: Returning demo chat data for {demo_id}")
+            logger.debug(f"Cache HIT: Returning demo chat data for {demo_id} ({lang})")
             return cached_data
 
-        # 2. Get demo chat metadata
-        demo_chat = await directus_service.demo_chat.get_demo_chat_by_id(demo_id)
+        # 2. Get demo chat metadata - need to map display ID to UUID
+        demo_chat_uuid = None
+        
+        # Check if demo_id is a display ID (demo-1, demo-2, etc.) or UUID
+        if demo_id.startswith("demo-"):
+            # It's a display ID - need to fetch all demos and find the matching one by order
+            try:
+                index = int(demo_id.split("-")[1]) - 1  # demo-1 -> index 0
 
-        if not demo_chat:
-            logger.debug(f"Demo chat {demo_id} not found")
-            raise HTTPException(status_code=404, detail="Demo chat not found")
+                # Get published demos sorted by creation (same as list endpoint)
+                params = {
+                    "filter": {
+                        "status": {"_eq": "published"},
+                        "is_active": {"_eq": True}
+                    },
+                    "sort": ["-created_at"]
+                }
+                demos = await directus_service.get_items("demo_chats", params)
 
-        if not demo_chat.get("approved_by_admin", False):
-            logger.debug(f"Demo chat {demo_id} not approved by admin")
-            raise HTTPException(status_code=404, detail="Demo chat not found")
+                logger.info(f"Found {len(demos)} published demo chats for display ID {demo_id}, looking for index {index}")
 
-        # Get the original chat data using the stored chat_id
-        original_chat_id = demo_chat.get("original_chat_id")
-        if not original_chat_id:
-            logger.error(f"Demo chat {demo_id} missing original_chat_id")
-            raise HTTPException(status_code=500, detail="Demo chat configuration error")
+                if demos and len(demos) > index:
+                    demo_chat_uuid = demos[index]["id"]
+                    logger.info(f"Mapped display ID {demo_id} to UUID {demo_chat_uuid}")
+                else:
+                    logger.error(f"No demo chat found at index {index} for display ID {demo_id}")
+                    raise HTTPException(status_code=404, detail="Demo chat not found")
+            except (ValueError, IndexError) as e:
+                logger.error(f"Invalid demo ID format {demo_id}: {e}")
+                raise HTTPException(status_code=404, detail="Invalid demo ID format")
+        else:
+            # Assume it's a UUID
+            demo_chat_uuid = demo_id
 
-        # Fetch the shared chat data (this will be encrypted)
-        # We use the existing share endpoint logic but bypass the dummy data
-        original_chat = await directus_service.chat.get_chat_metadata(original_chat_id)
+        # Fetch the demo chat by UUID
+        logger.info(f"Fetching demo chat by UUID: {demo_chat_uuid}")
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_uuid}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        logger.info(f"Demo chat found: {demo_chat is not None}, status: {demo_chat.get('status') if demo_chat else 'None'}")
 
-        if not original_chat or original_chat.get("is_private", True):
-            logger.error(f"Original chat {original_chat_id} for demo {demo_id} is not available")
-            raise HTTPException(status_code=404, detail="Demo chat content not available")
+        if not demo_chat or demo_chat.get("status") != "published":
+            logger.error(f"Demo chat not found or not published: demo_chat={demo_chat is not None}, status={demo_chat.get('status') if demo_chat else 'None'}")
+            raise HTTPException(status_code=404, detail="Demo chat not found or not yet published")
 
-        # Get messages for the chat
-        messages = await directus_service.chat.get_all_messages_for_chat(
-            chat_id=original_chat_id,
-            decrypt_content=False  # Return encrypted messages
-        )
+        # 3. Get translation by UUID
+        logger.info(f"Looking for translation for demo_chat_uuid {demo_chat_uuid} in language {lang}")
+        translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, lang)
+        logger.info(f"Translation for {lang}: {translation is not None}")
 
-        # Get embeds for the chat
-        hashed_chat_id = hashlib.sha256(original_chat_id.encode()).hexdigest()
-        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+        if not translation and lang != "en":
+            logger.info(f"No translation for {lang}, trying English")
+            translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_chat_uuid, "en")
+            logger.info(f"English translation: {translation is not None}")
 
-        # Return the demo chat data including the encryption key
+        if not translation:
+            logger.error(f"No translation found for demo chat {demo_chat_uuid}")
+            raise HTTPException(status_code=404, detail="Translation not found")
+        
+        # Get translation metadata (stored as cleartext)
+        title = translation.get("title")
+        summary = translation.get("summary")
+        follow_up_suggestions = []
+
+        if translation.get("follow_up_suggestions"):
+            try:
+                import json
+                follow_up_suggestions = json.loads(translation["follow_up_suggestions"])
+            except Exception as e:
+                logger.warning(f"Failed to parse follow-up suggestions: {e}")
+        
+        # Get category and icon from demo_chat (stored as cleartext)
+        # NOTE: Category and icon are stored on the demo_chats table itself (NOT translated)
+        # They remain in the original language from when the demo was created
+        category = demo_chat.get("category")
+        icon = demo_chat.get("icon")
+
+        # 4. Get messages and embeds by UUID
+        messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, lang)
+        if not messages and lang != "en":
+            messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, "en")
+            
+        embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_uuid, lang)
+        if not embeds and lang != "en":
+            embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_uuid, "en")
+
+        # 5. Get content for client (stored as cleartext)
+        import json as json_module
+
+        decrypted_messages = []
+        for msg in (messages or []):
+            content = msg.get("content", "")
+
+            # PRIVACY: Strip user_message_id from system message content
+            # The user_message_id references the original chat's message ID which:
+            # 1. Leaks metadata from the original conversation
+            # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
+            # 3. The frontend uses position-based fallback for demo/shared chats
+            if msg.get("role") == "system" and content:
+                try:
+                    parsed_content = json_module.loads(content)
+                    if isinstance(parsed_content, dict) and "user_message_id" in parsed_content:
+                        del parsed_content["user_message_id"]
+                        content = json_module.dumps(parsed_content)
+                        logger.debug("Stripped user_message_id from system message for privacy")
+                except (json_module.JSONDecodeError, TypeError):
+                    # Not valid JSON, keep original content
+                    pass
+
+            decrypted_messages.append({
+                "message_id": str(msg.get("id")),
+                "role": msg.get("role"),
+                "content": content,
+                "category": msg.get("category"),  # Return cleartext category
+                "model_name": msg.get("model_name"),  # Return cleartext model name
+                # Use original_created_at from demo_messages table (stores original message timestamp)
+                "created_at": msg.get("original_created_at")
+            })
+
+        decrypted_embeds = []
+        for emb in (embeds or []):
+            decrypted_embeds.append({
+                # Use original_embed_id from demo_embeds table (stores original embed ID)
+                "embed_id": emb.get("original_embed_id"),
+                "type": emb.get("type"),
+                "content": emb.get("content", ""),
+                # Use original_created_at from demo_embeds table (stores original embed timestamp)
+                "created_at": emb.get("original_created_at")
+            })
+
+        # 6. Prepare response
+        # ARCHITECTURE: Demo chats use demo_id (e.g., "demo-1") as their chat_id
+        # Messages are already server-side decrypted, so no encryption_key is needed
+        # content_hash is included for client-side change detection
         response_data = {
             "demo_id": demo_id,
-            "title": demo_chat.get("title"),
-            "summary": demo_chat.get("summary"),
-            "category": demo_chat.get("category"),
+            "title": title,
+            "summary": summary,
+            "category": category,
+            "icon": icon,
+            "content_hash": demo_chat.get("content_hash", ""),
+            "follow_up_suggestions": follow_up_suggestions,
             "chat_data": {
-                "chat_id": original_chat_id,
-                "encryption_key": demo_chat.get("encrypted_key"),  # Provide the key for decryption
-                "encrypted_title": original_chat.get("encrypted_title"),
-                "encrypted_chat_summary": original_chat.get("encrypted_chat_summary"),
-                "encrypted_follow_up_request_suggestions": original_chat.get("encrypted_follow_up_request_suggestions"),
-                "encrypted_icon": original_chat.get("encrypted_icon"),
-                "encrypted_category": original_chat.get("encrypted_category"),
-                "messages": messages or [],
-                "embeds": embeds or [],
-                "embed_keys": embed_keys or []
+                "chat_id": demo_id,  # Use demo_id as the chat identifier (not original_chat_id)
+                "messages": decrypted_messages,  # Already decrypted server-side (cleartext)
+                "embeds": decrypted_embeds,  # Already decrypted server-side (cleartext)
+                "encryption_mode": "none"  # Cleartext - no client-side decryption needed
             }
         }
 
-        # Cache the response data
-        await directus_service.cache.set_demo_chat_data(demo_id, response_data)
+        # 7. Cache the response data
+        await directus_service.cache.set_demo_chat_data(demo_id, lang, response_data)
 
         return response_data
 
@@ -185,24 +331,33 @@ async def deactivate_demo_chat(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Deactivate (soft delete) a demo chat.
+    Permanently delete a demo chat and all related data.
+    
+    CRITICAL: This performs a HARD delete of:
+    - The demo_chat entry
+    - All demo_messages (all languages)
+    - All demo_embeds (all languages)
+    - All demo_chat_translations (all languages)
+    
+    This ensures no orphaned data is left behind.
 
     Requires admin authentication.
     """
     try:
-        # TODO: Add admin role check here
-
+        # Check if user is admin
+        # TODO: Implement proper admin check dependency
+        
         success = await directus_service.demo_chat.deactivate_demo_chat(demo_id)
 
         if not success:
             raise HTTPException(status_code=404, detail="Demo chat not found")
 
-        logger.info(f"Deactivated demo chat {demo_id} by user {current_user.id}")
+        logger.info(f"Deleted demo chat {demo_id} and all related data by user {current_user.id}")
 
         return {
             "success": True,
             "demo_id": demo_id,
-            "message": "Demo chat deactivated successfully"
+            "message": "Demo chat and all related data deleted successfully"
         }
 
     except HTTPException:

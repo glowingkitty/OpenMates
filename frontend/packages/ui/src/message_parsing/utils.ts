@@ -13,11 +13,18 @@ export const EMBED_PATTERNS = {
     TITLE_COMMENT: /^<!--\s*title:\s*["'](.+?)["']\s*-->$/,
     
     // URL pattern (http/https links)
-    URL: /https?:\/\/[^\s]+/g,
+    // Matches URLs with protocol AND common video platform URLs without protocol
+    // This is more targeted than matching all URLs without protocol to avoid false positives
+    // Matches:
+    // - URLs with protocol: https://example.com/path, http://site.com
+    // - YouTube URLs without protocol: youtube.com/watch?v=..., youtu.be/VIDEO_ID, www.youtube.com/...
+    // Uses negative lookbehind to avoid matching URLs already inside other patterns
+    URL: /(?:https?:\/\/[^\s\])"'<>]+|(?<![/\w@])(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)[^\s\])"'<>]+|youtu\.be\/[^\s\])"'<>]+))/g,
     
-    // YouTube URL patterns
+    // YouTube URL patterns for type detection (after URL is matched)
     // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
     // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+    // Protocol is optional - works on both normalized and raw URLs
     YOUTUBE_URL: /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g,
     
     // Markdown syntax patterns
@@ -51,6 +58,23 @@ export function createContentId(hash: string): string {
 // Create stream key from UUID
 export function createStreamKey(uuid: string): string {
   return `stream:${uuid}`;
+}
+
+/**
+ * Normalize a URL by adding https:// protocol if missing
+ * This ensures URLs detected without protocol are properly formatted
+ * 
+ * @param url The URL to normalize
+ * @returns Normalized URL with protocol
+ */
+export function normalizeUrl(url: string): string {
+  // If URL already has protocol, return as-is
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  
+  // Add https:// prefix for URLs without protocol
+  return `https://${url}`;
 }
 
 // ============================================================================

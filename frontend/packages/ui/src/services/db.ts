@@ -26,6 +26,10 @@ import * as messageOps from './db/messageOperations';
 import * as chatCrudOps from './db/chatCrudOperations';
 import * as offlineOps from './db/offlineChangesAndUpdates';
 
+// Import logout state to prevent database re-initialization during logout
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
+
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
 type ChatRecordWithMessages = Chat & { messages?: Message[] };
 type MessageRecordWithTimestamp = Message & { timestamp?: number };
@@ -79,20 +83,197 @@ class ChatDatabase {
     // Flag to prevent new operations during database deletion
     private isDeleting: boolean = false;
     
+    // Flag to skip orphan detection for shared chat sessions.
+    // This is backed by sessionStorage to persist across page navigations within
+    // the same browser session. This is needed because shared chats are stored
+    // without a master key (they use URL-embedded encryption keys), so the
+    // "no master key but has chats" condition is expected and NOT orphan data.
+    private static readonly SKIP_ORPHAN_DETECTION_KEY = 'openmates_skip_orphan_detection';
+    
     // Chat key cache for performance - public for chatKeyManagement module to access
     public chatKeys: Map<string, Uint8Array> = new Map();
 
     // ============================================================================
     // DATABASE INITIALIZATION
     // ============================================================================
+    
+    /**
+     * Check if skip orphan detection is enabled (via sessionStorage).
+     * This persists across page navigations within the same browser session.
+     */
+    private isSkipOrphanDetectionEnabled(): boolean {
+        if (typeof sessionStorage === 'undefined') return false;
+        return sessionStorage.getItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY) === 'true';
+    }
+    
+    /**
+     * Enable skip orphan detection mode for shared chat sessions.
+     * 
+     * This should be called BEFORE any database operations to prevent the orphan
+     * detection logic from incorrectly flagging shared chats as orphan data.
+     * 
+     * Shared chats are stored without a master key (they use URL-embedded encryption keys),
+     * so the "no master key but has chats" condition is expected and NOT orphan data.
+     * 
+     * Once enabled, this flag persists in sessionStorage across page navigations
+     * within the same browser session (but clears when the tab is closed).
+     */
+    public enableSkipOrphanDetection(): void {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY, 'true');
+        }
+        console.debug('[ChatDatabase] Enabled skipOrphanDetection mode for shared chat session');
+    }
+    
+    /**
+     * Disable skip orphan detection mode.
+     * Called when user logs in (master key available) to restore normal orphan detection.
+     */
+    public disableSkipOrphanDetection(): void {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY);
+        }
+        console.debug('[ChatDatabase] Disabled skipOrphanDetection mode');
+    }
 
     /**
-     * Initialize the database
+     * Initialize the database.
+     * 
+     * CRITICAL: This method prevents initialization during logout to avoid race conditions
+     * where the database is re-opened after deletion has started but before it completes.
+     * The forcedLogoutInProgress and isLoggingOut flags are checked to ensure the database
+     * remains closed during the entire logout/deletion process.
+     * 
+     * ORPHANED DATABASE DETECTION: On page reload, components may call database operations
+     * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
+     * detects the "orphaned database" scenario (profile exists but no master key) and sets
+     * the flag itself, ensuring cleanup happens even if this is the first database operation.
+     * 
+     * @param options.skipOrphanDetection - If true, skip orphan detection. Use for shared chat
+     *        pages where chats are stored without a master key (they use URL-embedded keys).
+     *        Default: false
      */
-    async init(): Promise<void> {
+    async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
+        const { skipOrphanDetection = false } = options;
+        
+        // Make skipOrphanDetection persistent via sessionStorage - once set to true, it
+        // stays true for all subsequent init() calls AND survives page navigations.
+        // This handles:
+        // 1. Internal methods like getTransaction() calling init() without the flag
+        // 2. Navigation from share chat page to main app (different page load)
+        if (skipOrphanDetection) {
+            this.enableSkipOrphanDetection();
+        }
+        const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
+        
         // Prevent initialization during deletion
         if (this.isDeleting) {
             throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
+        // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
+        // This handles the race condition where components call database operations BEFORE
+        // +page.svelte's onMount can set the forcedLogoutInProgress flag.
+        // 
+        // Scenario: User reloads page with stayLoggedIn=false -> master key is gone but
+        // IndexedDB still has encrypted chats from the previous session.
+        // 
+        // Detection approach:
+        // 1. Check if we've already detected cleanup is needed (via localStorage marker)
+        // 2. If not, check if master key is missing AND database exists (contains encrypted data)
+        // 3. If so, set the flag to trigger cleanup
+        // 
+        // Note: We use localStorage 'openmates_needs_cleanup' as a marker because IndexedDB
+        // profile check would require opening the database (chicken-and-egg problem).
+        //
+        // EXCEPTION: Skip orphan detection for shared chat pages. Shared chats are stored
+        // without a master key (they use URL-embedded encryption keys), so the "no master key
+        // but has chats" condition is expected and NOT an orphan scenario.
+        if (!shouldSkipOrphanDetection && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+            // Check if cleanup marker was already set by +page.svelte or a previous init() call
+            const needsCleanup = typeof localStorage !== 'undefined' && 
+                localStorage.getItem('openmates_needs_cleanup') === 'true';
+            
+            if (needsCleanup) {
+                console.warn('[ChatDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress');
+                forcedLogoutInProgress.set(true);
+            } else {
+                // Check if master key is missing - if so, we can't decrypt encrypted chats
+                // Dynamically import to avoid circular dependencies
+                const { getKeyFromStorage } = await import('./cryptoService');
+                const hasMasterKey = await getKeyFromStorage();
+                
+                if (!hasMasterKey) {
+                    // Check if database exists and contains encrypted data
+                    // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
+                    if (typeof indexedDB !== 'undefined') {
+                        // Check if database exists and contains encrypted data
+                        // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
+                        try {
+                            // Check localStorage marker for faster detection
+                            const dbInitialized = typeof localStorage !== 'undefined' &&
+                                localStorage.getItem('openmates_chats_db_initialized') === 'true';
+
+                            if (dbInitialized) {
+                                // Try to open database and check if it contains encrypted chats
+                                // This is a more precise check than just checking if DB exists
+                                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+
+                                checkRequest.onsuccess = (event) => {
+                                    const db = (event.target as IDBOpenDBRequest).result;
+                                    const transaction = db.transaction([this.CHATS_STORE_NAME], 'readonly');
+                                    const store = transaction.objectStore(this.CHATS_STORE_NAME);
+                                    const countRequest = store.count();
+
+                                    countRequest.onsuccess = () => {
+                                        const chatCount = countRequest.result;
+                                        if (chatCount > 0) {
+                                            console.warn('[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found', chatCount, 'encrypted chats');
+                                            console.warn('[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
+                                            if (typeof localStorage !== 'undefined') {
+                                                localStorage.setItem('openmates_needs_cleanup', 'true');
+                                            }
+                                            forcedLogoutInProgress.set(true);
+                                        }
+                                        db.close();
+                                    };
+
+                                    countRequest.onerror = () => {
+                                        db.close();
+                                    };
+                                };
+
+                                checkRequest.onerror = () => {
+                                    // Database doesn't exist or can't be opened, no cleanup needed
+                                };
+                            }
+                        } catch {
+                            // Error checking database, assume no cleanup needed
+                        }
+                    }
+                }
+            }
+        }
+        
+        // CRITICAL: Prevent initialization during logout to avoid race conditions
+        // If forced logout is in progress (missing master key scenario), or if user is actively
+        // logging out, we should NOT re-initialize the database. This prevents a race condition
+        // where the database is re-opened after it was closed for deletion but before the
+        // actual deleteDatabase() call completes. Without this check, database deletion fails
+        // silently because there's a new open connection blocking it.
+        //
+        // EXCEPTIONS:
+        // 1. Allow initialization during login/auth attempts to prevent blocking
+        //    legitimate authentication flows (e.g., after server restart WebSocket auth errors)
+        // 2. Allow initialization for shared chat sessions (skipOrphanDetectionPersistent=true)
+        //    because shared chats use URL-embedded keys, not the master key
+        const { isCheckingAuth } = await import('../stores/authState');
+        const isAuthInProgress = get(isCheckingAuth);
+        if ((get(forcedLogoutInProgress) || get(isLoggingOut)) && !isAuthInProgress && !shouldSkipOrphanDetection) {
+            console.debug('[ChatDatabase] Skipping init() - logout in progress (forcedLogout:',
+                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut),
+                ', isCheckingAuth:', isAuthInProgress, ')');
+            throw new Error('Database initialization blocked during logout - data will be deleted');
         }
         
         if (this.initializationPromise) {
@@ -117,6 +298,12 @@ class ChatDatabase {
             request.onsuccess = async () => {
                 console.debug("[ChatDatabase] Database opened successfully");
                 this.db = request.result;
+                
+                // Set marker in localStorage to indicate database has been initialized
+                // This is used by orphaned database detection to know if cleanup is needed
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('openmates_chats_db_initialized', 'true');
+                }
                 
                 // Load chat keys from database into cache
                 try {
@@ -695,6 +882,14 @@ class ChatDatabase {
                 request.onsuccess = () => {
                     console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
                     this.isDeleting = false;
+                    
+                    // Clear localStorage markers used for orphaned database detection
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.removeItem('openmates_chats_db_initialized');
+                        localStorage.removeItem('openmates_needs_cleanup');
+                        console.debug('[ChatDatabase] Cleared localStorage markers after database deletion');
+                    }
+                    
                     resolve();
                 };
 

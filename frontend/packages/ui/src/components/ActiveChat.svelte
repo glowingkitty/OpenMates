@@ -59,7 +59,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
-    import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
+    import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
@@ -502,7 +502,7 @@
         // This ensures users see the welcome chat after logging out
         setTimeout(() => {
             console.debug("[ActiveChat] After logout - loading default welcome chat");
-            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeDemo) {
                 // Translate the demo chat to the user's locale
                 const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -517,7 +517,7 @@
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
-                activeChatStore.setActiveChat('demo-welcome');
+                activeChatStore.setActiveChat('demo-for-everyone');
                 loadChat(welcomeChat);
                 console.debug("[ActiveChat] ✅ Default welcome chat loaded after logout");
             }
@@ -557,13 +557,13 @@
                 
                 if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
-                    // EXCEPTION: If we're explicitly logging out, always switch to demo-welcome
+                    // EXCEPTION: If we're explicitly logging out, always switch to demo-for-everyone
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
                 }
 
                 if (isSharedChat && $isLoggingOut) {
-                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-welcome:', currentChat.chat_id);
+                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-for-everyone:', currentChat.chat_id);
                     // Continue with clearing logic below
                 }
                 
@@ -589,11 +589,11 @@
                             return;
                         }
 
-                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                         if (welcomeDemo) {
                             const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                             const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                            activeChatStore.setActiveChat('demo-welcome');
+                            activeChatStore.setActiveChat('demo-for-everyone');
                             await tick();
                             await loadChat(welcomeChat);
                             console.debug('[ActiveChat] ✅ Demo welcome chat loaded after auth state change (backup)');
@@ -1330,7 +1330,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
                     
                     // Load follow-up suggestions from the database (source of truth)
-                    if (freshChat.encrypted_follow_up_request_suggestions) {
+                    // Check for cleartext suggestions first (demo chats - should be rare in post-processing)
+                    if (freshChat.follow_up_request_suggestions) {
+                        try {
+                            const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
+                            if (suggestions && suggestions.length > 0) {
+                                followUpSuggestions = suggestions;
+                                console.info('[ActiveChat] ✅ Loaded cleartext follow-up suggestions after post-processing:', suggestions.length);
+                            }
+                        } catch (parseError) {
+                            console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                        }
+                    } else if (freshChat.encrypted_follow_up_request_suggestions) {
                         const chatKey = chatDB.getOrGenerateChatKey(chatId);
                         const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                         const decryptedSuggestions = await decryptArrayWithChatKey(
@@ -1541,8 +1552,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // in-memory (e.g., after post-processing completes but the event handler didn't fire)
     $effect(() => {
         if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
-            // Only try to reload if we have encrypted suggestions in the chat
-            if (currentChat.encrypted_follow_up_request_suggestions) {
+            // CRITICAL: Skip suggestion reload if logout is in progress
+            // This prevents database access attempts during logout cleanup
+            if ($isLoggingOut) {
+                console.debug('[ActiveChat] Skipping suggestion reload - logout in progress');
+                return;
+            }
+
+            // Check for cleartext suggestions first (demo chats)
+            if (currentChat.follow_up_request_suggestions) {
+                console.debug('[ActiveChat] Loading cleartext follow-up suggestions for demo chat');
+                try {
+                    const suggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                    if (suggestions && suggestions.length > 0) {
+                        followUpSuggestions = suggestions;
+                        console.info('[ActiveChat] Loaded cleartext follow-up suggestions on focus:', suggestions.length);
+                    }
+                } catch (error) {
+                    console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
+                }
+            } else if (currentChat.encrypted_follow_up_request_suggestions) {
+                // Try to reload encrypted suggestions for regular chats
                 console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
                 // Use an IIFE to handle async operations
                 (async () => {
@@ -1563,11 +1593,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 })();
             } else {
                 // Try to refresh chat from database in case it was updated
-                console.debug('[ActiveChat] No encrypted suggestions in currentChat - checking database');
+                console.debug('[ActiveChat] No suggestions in currentChat - checking database');
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        if (freshChat?.encrypted_follow_up_request_suggestions) {
+                        // Check for cleartext suggestions first (demo chats)
+                        if (freshChat?.follow_up_request_suggestions) {
+                            try {
+                                const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
+                                if (suggestions && suggestions.length > 0) {
+                                    followUpSuggestions = suggestions;
+                                    currentChat = { ...currentChat, ...freshChat };
+                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh database read:', suggestions.length);
+                                }
+                            } catch (parseError) {
+                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                            }
+                        } else if (freshChat?.encrypted_follow_up_request_suggestions) {
                             const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
@@ -2386,8 +2428,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug("[ActiveChat] Generated new temporary chat ID for new chat:", temporaryChatId);
         
         // Update phased sync state to indicate we're in "new chat" mode
-        // This prevents Phase 1 from auto-selecting the old chat when panel reopens
-        phasedSyncState.setCurrentActiveChatId(null);
+        // CRITICAL: Use sentinel value (not null) to explicitly indicate user chose new chat
+        // This prevents sync phases from auto-selecting the old chat
+        phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+        
+        // CRITICAL: Mark that user made an explicit choice to go to new chat
+        // This ensures sync phases NEVER override the user's choice
+        phasedSyncState.markUserMadeExplicitChoice();
 
         chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
         
@@ -2867,6 +2914,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
         phasedSyncState.setCurrentActiveChatId(chat.chat_id);
         
+        // Mark that initial chat has been loaded - this prevents sync phases from overriding user's view
+        phasedSyncState.markInitialChatLoaded();
+        
         // CRITICAL: Only clear temporaryChatId if this is not a sessionStorage-only chat
         // SessionStorage-only chats (new chats with drafts) should keep their temporaryChatId
         // so drafts can be saved and loaded correctly
@@ -3009,7 +3059,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const translatedChat = translateDemoChat(publicChatSource);
                 followUpSuggestions = translatedChat.follow_up_suggestions || [];
                 console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
+            } else if (currentChat.follow_up_request_suggestions) {
+                // For community demo chats (from server), use cleartext suggestions stored on chat object
+                // ARCHITECTURE: Community demo chats use cleartext fields (not encrypted_* fields)
+                try {
+                    followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                    console.debug('[ActiveChat] Loaded community demo chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
+                } catch (error) {
+                    console.error('[ActiveChat] Failed to parse community demo follow-up suggestions:', error);
+                    followUpSuggestions = [];
+                }
             } else {
+                followUpSuggestions = [];
+            }
+        } else if (currentChat.follow_up_request_suggestions) {
+            // For chats with cleartext follow-up suggestions (should be rare outside demo context)
+            try {
+                followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
+                console.debug('[ActiveChat] Loaded follow-up suggestions from cleartext field:', $state.snapshot(followUpSuggestions));
+            } catch (error) {
+                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
                 followUpSuggestions = [];
             }
         } else if (currentChat.encrypted_follow_up_request_suggestions) {
@@ -3252,7 +3321,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 4. Not in signup process
             if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     // Translate the demo chat to the user's locale
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -3267,8 +3336,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
 
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
-                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
-                            activeChatStore.setActiveChat('demo-welcome');
+                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-for-everyone') {
+                            activeChatStore.setActiveChat('demo-for-everyone');
                             loadChat(welcomeChat);
                             console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
@@ -3288,6 +3357,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Close chats panel when opening login
             if ($panelState.isActivityHistoryOpen) {
                 // If panel is open, explicitly close it
+                panelState.toggleChats();
+            }
+        };
+
+        // Listen for event to open signup interface from message input button
+        const handleOpenSignupInterface = () => {
+            console.debug("[ActiveChat] Opening signup interface (alpha disclaimer) from message input button");
+            // Set signup state directly to alpha disclaimer
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            isInSignupProcess.set(true);
+            loginInterfaceOpen.set(true);
+            
+            // Close chats panel when opening signup
+            if ($panelState.isActivityHistoryOpen) {
                 panelState.toggleChats();
             }
         };
@@ -3355,13 +3438,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentChat = null;
             currentMessages = [];
             showWelcome = false; // Explicitly set to false for public chat
-            activeChatStore.setActiveChat('demo-welcome');
+            activeChatStore.setActiveChat('demo-for-everyone');
             
             // Wait a tick to ensure state is cleared before loading new chat
             await tick();
             
             // Load default demo chat (welcome chat)
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
                 // Await loadChat to ensure chat is fully loaded before dispatching selection event
@@ -3378,13 +3461,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     composed: true
                 });
                 window.dispatchEvent(globalChatSelectedEvent);
-                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-welcome chat");
+                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-for-everyone chat");
                 
                 // Also wait a bit and dispatch again in case Chats component mounts after panel opens
                 // This handles the case where the panel opens and Chats component mounts after our first dispatch
                 setTimeout(() => {
                     window.dispatchEvent(globalChatSelectedEvent);
-                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-welcome chat (after delay)");
+                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-for-everyone chat (after delay)");
                 }, 300); // Longer delay to ensure Chats component is mounted if panel was opened
                 
                 console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
@@ -3403,22 +3486,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for event to load demo chat after logout from signup
         const handleLoadDemoChat = () => {
             console.debug("[ActiveChat] Loading demo chat after logout from signup");
+
             // Ensure login interface is closed
             loginInterfaceOpen.set(false);
             // Load default demo chat
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
                 // Clear current chat first
                 currentChat = null;
                 currentMessages = [];
-                activeChatStore.setActiveChat('demo-welcome');
+                activeChatStore.setActiveChat('demo-for-everyone');
                 loadChat(chat);
                 console.debug("[ActiveChat] ✅ Demo chat loaded after logout from signup");
             }
         };
         
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
         // Add event listener for embed fullscreen events
         const embedFullscreenHandler = (event: CustomEvent) => {
@@ -3527,14 +3612,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 
                 // Load default demo chat (welcome chat) - use static bundle, not database
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     // Translate the demo chat to the user's locale
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
                     
                     // Set active chat and load welcome chat
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     
                     // Use a small delay to ensure state is cleared and component is ready
                     // This is especially important on mobile where component initialization might be slower
@@ -3565,7 +3650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
                         showWelcome = true;
                         currentChat = welcomeChat; // Set chat object directly as fallback
-                        currentMessages = getDemoMessages('demo-welcome', DEMO_CHATS, LEGAL_CHATS);
+                        currentMessages = getDemoMessages('demo-for-everyone', DEMO_CHATS, LEGAL_CHATS);
                         if (chatHistoryRef) {
                             chatHistoryRef.updateMessages(currentMessages);
                         }
@@ -3690,7 +3775,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
         window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked);
         
-        // Add language change listener to reload public chats (demo + legal) when language changes
+        // Add language change listener to reload public chats (demo + legal + community demos) when language changes
         const handleLanguageChange = async () => {
             try {
                 // CRITICAL: Use $state.snapshot to get current value in async context
@@ -3715,7 +3800,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const { _: translationStore } = await import('svelte-i18n');
                 get(translationStore); // Ensure translation store is updated
                 
-                // Find the public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
+                // Import community demo store functions
+                const { getCommunityDemoMessages, communityDemoStore } = await import('../demo_chats');
+                
+                // Check if this is a community demo chat (demo-1, demo-2, etc.)
+                // Community demos are fetched from server with language-specific translations
+                // ARCHITECTURE: Community demos use a pattern-based ID check (startsWith 'demo-')
+                // but exclude static intro chats which are in DEMO_CHATS
+                const isStatic = DEMO_CHATS.some(c => c.chat_id === snapshotChat.chat_id);
+                if (snapshotChat.chat_id.startsWith('demo-') && !isStatic) {
+                    console.debug('[ActiveChat] Language changed - reloading community demo:', snapshotChat.chat_id);
+                    
+                    // ARCHITECTURE: Community demos are reloaded by Chats.svelte when language changes
+                    // The 'language-changed' event triggers loadDemoChatsFromServer(true) in Chats.svelte
+                    // which clears the cache and fetches demos in the new language
+                    // We need to wait for that reload to complete before we can get the new messages
+                    
+                    // Wait for Chats.svelte to finish reloading the community demos
+                    // We use waitForLoadingComplete() which waits for the store's loading flag to clear
+                    await communityDemoStore.waitForLoadingComplete();
+                    
+                    // Get the reloaded messages from communityDemoStore
+                    const newMessages = getCommunityDemoMessages(snapshotChat.chat_id);
+                    
+                    if (newMessages.length > 0) {
+                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for community demo ${snapshotChat.chat_id}`);
+                        
+                        // CRITICAL: Force new array reference to ensure reactivity
+                        currentMessages = newMessages.map(msg => ({ ...msg }));
+                        
+                        // Update chat history display
+                        if (chatHistoryRef) {
+                            chatHistoryRef.updateMessages(currentMessages);
+                        } else {
+                            console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
+                        }
+                    } else {
+                        console.warn('[ActiveChat] No messages found for community demo after language change:', snapshotChat.chat_id);
+                        console.debug('[ActiveChat] Community demos may still be loading - messages will update when available');
+                    }
+                    
+                    return;
+                }
+                
+                // Find the static public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
                 // Use snapshotChat to ensure we have the current value
                 let publicChat = DEMO_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
                 if (!publicChat) {
@@ -4093,6 +4221,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListenerCallback);
+            window.removeEventListener('openSignupInterface', handleOpenSignupInterface as EventListenerCallback);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener

@@ -1169,7 +1169,7 @@
         document.addEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
-        editorElement?.addEventListener('custom-sign-in-click', handleSignInClick as EventListener); // Handle Enter key for unauthenticated users
+        editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -1246,7 +1246,7 @@
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
-        editorElement?.removeEventListener('custom-sign-in-click', handleSignInClick as EventListener);
+        editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -1683,15 +1683,15 @@
     }
 
     /**
-     * Handle "Sign in" button click for non-authenticated users
-     * Saves the current draft message to sessionStorage so it can be restored after signup/login
+     * Handle "Sign up" button click for non-authenticated users
+     * Saves the current draft message to sessionStorage so it can be restored after signup
      * Clears the editor content after saving to prevent search in new chat suggestions
      */
-    async function handleSignInClick() {
+    async function handleSignUpClick() {
         if (!editor || editor.isDestroyed) {
-            console.warn('[MessageInput] Cannot save draft for sign-in - editor not available');
-            // Still open login interface even if draft can't be saved
-            window.dispatchEvent(new CustomEvent('openLoginInterface'));
+            console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
+            // Still open signup interface even if draft can't be saved
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
             return;
         }
 
@@ -1721,13 +1721,13 @@
         }
 
         // Clear the editor content after saving to prevent search in new chat suggestions
-        // This ensures that if the user interrupts the login/signup process, the field is empty
+        // This ensures that if the user interrupts the signup process, the field is empty
         await clearMessageField(false); // Don't focus after clearing
         originalMarkdown = ''; // Clear markdown tracking
         hasContent = false; // Update content state
         
         // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
-        // This ensures follow-up suggestions show properly when user returns from login flow
+        // This ensures follow-up suggestions show properly when user returns from signup flow
         // The clearMessageField function uses clearContent(false) which doesn't trigger update events
         try {
             dispatch('textchange', { text: '' });
@@ -1736,10 +1736,10 @@
             console.error('[MessageInput] Failed to dispatch textchange event after clearing:', err);
         }
         
-        console.debug('[MessageInput] Cleared editor content after saving draft for sign-in');
+        console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        // Open the login interface (which also provides signup option)
-        window.dispatchEvent(new CustomEvent('openLoginInterface'));
+        // Open the signup interface directly with alpha disclaimer
+        window.dispatchEvent(new CustomEvent('openSignupInterface'));
     }
 
     function handleInsertSpace() {
@@ -1971,7 +1971,7 @@
                 on:locationClick={handleLocationClick}
                 on:cameraClick={handleCameraClick}
                 on:sendMessage={handleSendMessage}
-                on:signInClick={handleSignInClick}
+                on:signUpClick={handleSignUpClick}
                 on:recordMouseDown={onRecordMouseDown}
                 on:recordMouseUp={onRecordMouseUp}
                 on:recordMouseLeave={onRecordMouseLeave}

@@ -26,7 +26,7 @@ export interface DeepLinkResult {
 }
 
 export interface DeepLinkHandlers {
-    onChat?: (chatId: string) => Promise<void>;
+    onChat?: (chatId: string, messageId?: string | null) => Promise<void>;
     onSettings?: (path: string, hash: string) => void;
     onSignup?: (step: string) => void;
     onEmbed?: (embedId: string) => Promise<void>;
@@ -46,21 +46,26 @@ export function parseDeepLink(hash: string): { type: DeepLinkType; data: any } |
         return null;
     }
 
-    // Chat deep links: #chat-id={id} or #chat_id={id}
-    const chatMatch = hash.match(/^#chat[-_]id=(.+)$/);
+    // Chat deep links: #chat-id={id} or #chat_id={id} or #chatid={id}
+    // Also support / prefix (e.g. /#chatid=...)
+    const normalizedHash = hash.startsWith('#/') ? '#' + hash.substring(2) : hash;
+    const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(?:&message[-_]?id=(.+))?$/);
     if (chatMatch) {
         return {
             type: 'chat',
-            data: { chatId: chatMatch[1] }
+            data: { 
+                chatId: chatMatch[1],
+                messageId: chatMatch[2] || null
+            }
         };
     }
 
     // Settings deep links: #settings/{path}
-    if (hash.startsWith('#settings')) {
-        const settingsPath = hash.substring('#settings'.length);
+    if (normalizedHash.startsWith('#settings')) {
+        const settingsPath = normalizedHash.substring('#settings'.length);
         return {
             type: 'settings',
-            data: { path: settingsPath, fullHash: hash }
+            data: { path: settingsPath, fullHash: normalizedHash }
         };
     }
 
@@ -116,7 +121,7 @@ export async function processDeepLink(
     switch (parsed.type) {
         case 'chat':
             if (handlers.onChat) {
-                await handlers.onChat(parsed.data.chatId);
+                await handlers.onChat(parsed.data.chatId, parsed.data.messageId);
                 return { type: 'chat', processed: true };
             }
             break;
@@ -213,12 +218,23 @@ export function processSettingsDeepLink(
         // Strip query parameters for path matching (they remain in window.location.hash)
         let path = pathWithParams.split('?')[0];
         
-        // Map common aliases
-        if (path === 'appstore') {
-            path = 'app_store';
+        // Map common aliases - handle 'appstore' prefix (with or without subpath)
+        // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
+        if (path === 'appstore' || path.startsWith('appstore/')) {
+            path = 'app_store' + path.substring('appstore'.length);
         }
         // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
         path = path.replace(/-/g, '_');
+        
+        // Normalize app store sub-routes from plural to singular form
+        // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
+        // Pattern: app_store/{appId}/skills/{skillId} -> app_store/{appId}/skill/{skillId}
+        // Pattern: app_store/{appId}/focuses/{focusModeId} -> app_store/{appId}/focus/{focusModeId}
+        if (path.startsWith('app_store/')) {
+            path = path.replace(/\/skills\//, '/skill/');
+            path = path.replace(/\/focuses\//, '/focus/');
+        }
+        
         handlers.setSettingsDeepLink(path);
         
         // Clear the hash after processing

@@ -1,48 +1,53 @@
 demo_chats:
   type: collection
   fields:
-    demo_id:
-      type: string
-      length: 16
-      note: "Short identifier for the demo chat"
-      required: true
-      unique: true
     original_chat_id:
       type: string
       length: 64
-      note: "The original chat identifier"
+      note: "The original chat identifier (for reference only, not used for decryption)"
       required: true
-    encrypted_key:
+    category:
       type: textfield
-      note: "The encryption key for the chat"
-      required: true
+      note: "Category for grouping demo chats (cleartext)"
     title:
-      type: string
-      length: 255
-      note: "Display title for the demo chat"
-      required: true
+      type: textfield
+      note: "Title of the chat (cleartext)"
     summary:
       type: textfield
-      note: "Description of the demo chat"
-    category:
+      note: "Summary of the chat (cleartext)"
+    icon:
+      type: textfield
+      note: "Icon name for the chat (cleartext)"
+    follow_up_suggestions:
+      type: textfield
+      note: "Follow-up suggestions (JSON array, cleartext)"
+    status:
       type: string
-      length: 100
-      note: "Category for grouping demo chats"
+      length: 50
+      default: "pending_approval"
+      note: "Status: 'pending_approval' | 'translating' | 'published' | 'translation_failed'. pending_approval = waiting for admin, translating = being translated, published = ready for display, translation_failed = translation error"
     approved_by_admin:
-      type: boolean
-      default: false
-      note: "Whether this chat has been approved for display"
+      type: uuid
+      note: "UUID of the admin user who approved this chat"
     approved_at:
       type: timestamp
-      note: "When the chat was approved"
+      note: "When the chat was approved by admin"
+    content_hash:
+      type: string
+      length: 64
+      note: "SHA256 hash of all demo content (messages + embeds) for change detection"
     is_active:
       type: boolean
       default: true
-      note: "Whether this demo chat is active"
+      note: "Whether this demo chat is active (soft delete)"
     deactivated_at:
       type: timestamp
       note: "When the chat was deactivated"
     created_at:
       type: timestamp
-      note: "When the demo chat entry was created"
+      note: "When the demo chat entry was created (used for ordering - newest first)"
       required: true
+    updated_at:
+      type: timestamp
+      note: "When the demo chat was last updated"
+  note: "Demo chats are ordered by created_at DESC. Client generates display IDs (demo-1 to demo-5) based on position. Maximum 5 published demos maintained automatically."

@@ -53,8 +53,25 @@ export const MarkdownHighlight = Highlight.configure({
 });
 
 /**
+ * Check if a href is an internal hash-based link
+ * Internal links include:
+ * - #chat-id= or /#chat-id= - Chat deep links
+ * - #settings/ or /#settings/ - Settings deep links (including app store)
+ */
+function isInternalHashLink(href: string): boolean {
+  if (!href) return false;
+  const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+  return (
+    normalizedHref.startsWith('#chat-id=') ||
+    normalizedHref.startsWith('#settings') ||
+    normalizedHref.includes('#chat-id=') ||
+    normalizedHref.includes('#settings/')
+  );
+}
+
+/**
  * Enhanced MarkdownLink extension that handles internal vs external links
- * - Internal links (hash-based #chat-id= or /#chat-id=): Same tab navigation via hash routing
+ * - Internal links (hash-based #chat-id= or /#chat-id= or #settings/): Same tab navigation via hash routing
  * - External links: Open in new tab (default behavior)
  */
 export const MarkdownLink = Link.extend({
@@ -78,15 +95,15 @@ export const MarkdownLink = Link.extend({
             return {};
           }
           
-          // Check if this is an internal link (hash-based chat-id link)
-          // Supports #chat-id=, /#chat-id=, and any URL containing #chat-id=
+          // Check if this is an internal link (hash-based chat-id or settings link)
+          // Supports #chat-id=, /#chat-id=, #settings/, /#settings/
           // Normalize the href first to handle different formats
           let normalizedHref = attributes.href;
           if (normalizedHref.startsWith('/#')) {
-            normalizedHref = normalizedHref.substring(1); // Remove leading / from /#chat-id=
+            normalizedHref = normalizedHref.substring(1); // Remove leading / from /#...
           }
           
-          const isInternal = normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=');
+          const isInternal = isInternalHashLink(attributes.href);
           
           if (isInternal) {
             // Internal link: same tab, no target="_blank"
@@ -117,25 +134,16 @@ export const MarkdownLink = Link.extend({
         parseHTML: element => {
           const href = element.getAttribute('href');
           // For internal links, always return null to prevent target attribute
-          if (href) {
-            const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
-            if (normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=')) {
-              return null; // No target for internal links
-            }
+          if (href && isInternalHashLink(href)) {
+            return null; // No target for internal links
           }
           return element.getAttribute('target');
         },
         renderHTML: attributes => {
           // Check if this is an internal link
-          if (attributes.href) {
-            let normalizedHref = attributes.href;
-            if (normalizedHref.startsWith('/#')) {
-              normalizedHref = normalizedHref.substring(1);
-            }
-            if (normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=')) {
-              // Return empty object - this prevents target from being rendered
-              return {};
-            }
+          if (attributes.href && isInternalHashLink(attributes.href)) {
+            // Return empty object - this prevents target from being rendered
+            return {};
           }
           // For external links, render target if provided
           return attributes.target ? { target: attributes.target } : {};
@@ -145,7 +153,7 @@ export const MarkdownLink = Link.extend({
   },
   
   /**
-   * Override click behavior for hash-based chat links
+   * Override click behavior for hash-based internal links (chat-id and settings)
    * Prevents TipTap from opening them in a new tab
    */
   addProseMirrorPlugins() {
@@ -161,9 +169,9 @@ export const MarkdownLink = Link.extend({
               
               if (link) {
                 const href = link.getAttribute('href');
-                const isInternal = link.hasAttribute('data-internal');
+                const hasInternalAttr = link.hasAttribute('data-internal');
                 
-                if (isInternal && href && (href.startsWith('#chat-id=') || href.startsWith('/#chat-id='))) {
+                if (hasInternalAttr && href && isInternalHashLink(href)) {
                   // Internal hash-based link: prevent default and navigate to hash
                   event.preventDefault();
                   event.stopPropagation();
@@ -178,7 +186,7 @@ export const MarkdownLink = Link.extend({
                   }
                   
                   return true; // Indicate we handled the click
-                } else if (!isInternal && href) {
+                } else if (!hasInternalAttr && href) {
                   // External link: open in new tab (default browser behavior)
                   // Don't prevent default - let browser handle it
                   // The target="_blank" attribute is already set in renderHTML

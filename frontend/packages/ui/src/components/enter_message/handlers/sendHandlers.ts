@@ -15,6 +15,8 @@ import { chatListCache } from '../../../services/chatListCache';
 import { createEmbedFromUrl } from '../services/urlMetadataService'; // Import URL-to-embed creation
 import { authStore } from '../../../stores/authStore'; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from '../../../stores/appSettingsMemoriesPermissionStore'; // For auto-dismissing permission dialog
+import { forcedLogoutInProgress } from '../../../stores/signupState';
+import { notificationStore } from '../../../stores/notificationStore';
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -24,9 +26,13 @@ import { appSettingsMemoriesPermissionStore } from '../../../stores/appSettingsM
 
 /**
  * Regular expression to detect URLs in text content.
- * Matches http and https URLs.
+ * Matches URLs with protocol AND common video platform URLs without protocol.
+ * This is more targeted than matching all URLs without protocol to avoid false positives.
+ * Matches:
+ * - URLs with protocol: https://example.com/path, http://site.com
+ * - YouTube URLs without protocol: youtube.com/watch?v=..., youtu.be/VIDEO_ID, www.youtube.com/...
  */
-const URL_REGEX = /https?:\/\/[^\s\])"'<>]+/g;
+const URL_REGEX = /(?:https?:\/\/[^\s\])"'<>]+|(?<![/\w@])(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)[^\s\])"'<>]+|youtu\.be\/[^\s\])"'<>]+))/g;
 
 /**
  * Detects all URLs in the given text content.
@@ -55,7 +61,7 @@ function detectUrlsInText(text: string): Array<{url: string, startPos: number, e
     URL_REGEX.lastIndex = 0; // Reset regex state
     
     while ((match = URL_REGEX.exec(text)) !== null) {
-        const url = match[0];
+        let url = match[0];
         const startPos = match.index;
         const endPos = startPos + url.length;
         
@@ -65,6 +71,10 @@ function detectUrlsInText(text: string): Array<{url: string, startPos: number, e
         );
         
         if (!isInsideCodeBlock) {
+            // Normalize URL by adding https:// if protocol is missing
+            if (!/^https?:\/\//i.test(url)) {
+                url = `https://${url}`;
+            }
             urls.push({ url, startPos, endPos });
         }
     }
@@ -329,6 +339,12 @@ export async function handleSend(
         console.log('[handleSend] SUGGESTION DEBUG 1B: No suggestion was tracked for deletion (encryptedSuggestionToDelete is null/undefined)');
     }
 
+    if (get(forcedLogoutInProgress)) {
+        console.error("[handleSend] Cannot send message - forced logout in progress");
+        notificationStore.error("Session expired. Please log in again.");
+        return;
+    }
+
     let chatIdToUse = currentChatId;
     let chatToUpdate: import('../../../types/chat').Chat | null = null;
     let isNewChatCreation = false;
@@ -352,8 +368,10 @@ export async function handleSend(
         // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
         // This ensures:
         // 1. The chat can't be identified as demo/legal later
-        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-welcome}-{uuid_v4}
+        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-for-everyone}-{uuid_v4}
+        let sourceDemoId: string | null = null;
         if (chatIdToUse && isPublicChat(chatIdToUse)) {
+            sourceDemoId = chatIdToUse;
             const oldChatId = chatIdToUse;
             chatIdToUse = crypto.randomUUID();
             isNewChatCreation = true;
@@ -444,8 +462,48 @@ export async function handleSend(
                 updated_at: now,
                 processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
                 waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
-                is_incognito: isIncognitoEnabled
+                is_incognito: isIncognitoEnabled,
+                source_demo_id: sourceDemoId // Track source for duplication flow
             };
+
+            // Duplication Flow: If this chat is from a demo, copy history messages
+            if (sourceDemoId) {
+                try {
+                    const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } = await import('../../../demo_chats');
+                    const demoMessages = getDemoMessages(sourceDemoId, DEMO_CHATS, LEGAL_CHATS);
+                    
+                    if (demoMessages && demoMessages.length > 0) {
+                        console.info(`[handleSend] Duplicating ${demoMessages.length} demo messages to new chat ${chatIdToUse}`);
+                        
+                        // Ensure we have a chat key for encryption
+                        await chatDB.getOrGenerateChatKey(chatIdToUse);
+                        
+                        for (const demoMsg of demoMessages) {
+                            // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}
+                            const newMsgId = `${chatIdToUse.substring(chatIdToUse.length - 10)}-${crypto.randomUUID()}`;
+                            
+                            // Create message object (cleartext version)
+                            const messageToSave: import('../../../types/chat').Message = {
+                                ...demoMsg,
+                                message_id: newMsgId,
+                                chat_id: chatIdToUse,
+                                status: 'synced', // Mark as synced since it's from a demo
+                                created_at: demoMsg.created_at || now,
+                                content: typeof demoMsg.content === 'string' ? demoMsg.content : JSON.stringify(demoMsg.content)
+                            };
+                            
+                            // Save to DB (this will automatically encrypt fields using chat key)
+                            await chatDB.saveMessage(messageToSave);
+                        }
+                        
+                        // Update messages_v count (existing demo messages + the new message being sent)
+                        newChatData.messages_v = demoMessages.length + 1;
+                    }
+                } catch (dupError) {
+                    console.error('[handleSend] Error duplicating demo history:', dupError);
+                }
+            }
+
             console.debug(`[handleSend] Creating new ${isIncognitoEnabled ? 'incognito' : 'regular'} chat with waiting_for_metadata=${newChatData.waiting_for_metadata}:`, {
                 chatId: chatIdToUse,
                 waiting_for_metadata: newChatData.waiting_for_metadata
@@ -685,14 +743,14 @@ export function createKeyboardHandlingExtension() {
                         const isAuthenticated = get(authStore).isAuthenticated;
                         
                         if (!isAuthenticated) {
-                            // Dispatch sign-in event instead of send event for unauthenticated users
-                            // This triggers the sign-in flow which saves the draft and opens login interface
-                            const signInEvent = new Event('custom-sign-in-click', {
+                            // Dispatch sign-up event instead of send event for unauthenticated users
+                            // This triggers the sign-up flow which saves the draft and opens signup interface
+                            const signUpEvent = new Event('custom-sign-up-click', {
                                 bubbles: true,
                                 cancelable: true
                             });
-                            editor.view.dom.dispatchEvent(signInEvent);
-                            console.debug('[KeyboardShortcuts] User not authenticated, triggering sign-in flow instead of send');
+                            editor.view.dom.dispatchEvent(signUpEvent);
+                            console.debug('[KeyboardShortcuts] User not authenticated, triggering sign-up flow instead of send');
                             return true; // We've handled the event.
                         }
                         

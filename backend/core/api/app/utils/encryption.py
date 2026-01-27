@@ -27,6 +27,9 @@ ISSUE_REPORT_ENCRYPTION_KEY = "issue_report_emails"
 # This is a system-level key used to encrypt AI request debug data (last 10 requests)
 # for debugging purposes. Data auto-expires after 30 minutes.
 DEBUG_REQUESTS_ENCRYPTION_KEY = "debug_requests"
+# Vault transit key name for demo chat encryption
+# This is a system-level key used to encrypt approved demo chats for all users.
+DEMO_CHATS_ENCRYPTION_KEY = "demo_chats"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -71,6 +74,16 @@ class EncryptionService:
                 logger.debug(f"EncryptionService.__init__: Loaded token from VAULT_TOKEN env var: {self.vault_token[:4]}...{self.vault_token[-4:] if len(self.vault_token) >=8 else '****'}")
             else:
                 logger.error("EncryptionService.__init__: CRITICAL - NO VAULT TOKEN LOADED from file or VAULT_TOKEN env var.")
+    
+    def _clear_token_cache(self):
+        """Clear the cached token to force re-reading from file.
+        
+        This should be called when the current token is invalid (expired or revoked)
+        to ensure we read the latest token from disk that vault-setup may have regenerated.
+        """
+        if hasattr(self, '_cached_file_token'):
+            self._cached_file_token = None
+            logger.debug("_clear_token_cache: Cleared cached file token")
     
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
@@ -140,7 +153,10 @@ class EncryptionService:
             logger.warning(f"_validate_token: Current token {current_token_display} validation failed: {response.status_code} - {response.text}")
             
             # If the current token failed, try to get a fresh one from the file
+            # CRITICAL: Clear the token cache first so we actually re-read from disk
+            # vault-setup may have regenerated a new token after the old one expired
             logger.debug("_validate_token: Attempting to refresh token from file.")
+            self._clear_token_cache()  # Force re-read from file
             file_token = self._get_token_from_file() # This will log if it finds a token
             if file_token and file_token != self.vault_token:
                 logger.debug(f"_validate_token: Found different token in file. Old: {current_token_display}, New from file: {file_token[:4]}...{file_token[-4:] if len(file_token) >= 8 else '****'}. Updating and retrying validation.")
@@ -603,6 +619,51 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure debug requests encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize debug requests encryption key: {str(e)}")
+
+        # --- Ensure DEMO_CHATS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting translated demo chats (system-level).
+        try:
+            logger.debug(f"Checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == DEMO_CHATS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize demo chats encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure demo chats encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize demo chats encryption key: {str(e)}")
 
     # Removed get_email_hash_key method
 

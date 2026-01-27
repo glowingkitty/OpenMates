@@ -71,10 +71,22 @@ export class ChatSynchronizationService extends EventTarget {
     constructor() {
         super();
         this.registerWebSocketHandlers();
+        
+        // Listen for handlers being cleared (e.g., during logout)
+        // and reset the registration flag so they can be re-registered on next login
+        webSocketService.addEventListener('handlers_cleared', () => {
+            console.info('[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.');
+            this.handlersRegistered = false;
+        });
+
         websocketStatus.subscribe(storeState => {
             this.webSocketConnected = storeState.status === 'connected';
             if (this.webSocketConnected) {
                 console.info("[ChatSyncService] WebSocket connected.");
+                
+                // CRITICAL: Re-register handlers on connection if they were cleared
+                // This ensures sync works correctly after login without requiring a page reload
+                this.registerWebSocketHandlers();
                 
                 // Dispatch event for components that need to know when WebSocket is ready
                 this.dispatchEvent(new CustomEvent('webSocketConnected'));
@@ -354,6 +366,7 @@ export class ChatSynchronizationService extends EventTarget {
         id: string;
         app_id: string;
         item_key: string;
+        item_type: string;
         encrypted_item_json: string;
         encrypted_app_key: string;
         created_at: number;

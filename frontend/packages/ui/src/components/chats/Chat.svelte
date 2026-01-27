@@ -21,6 +21,12 @@
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
   import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
+  import { 
+    getCategoryGradientColors, 
+    getFallbackIconForCategory, 
+    getValidIconName, 
+    getLucideIcon
+  } from '../../utils/categoryUtils';
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -153,93 +159,27 @@
   }
 
   /**
-   * Get gradient colors for a category based on mate configuration
-   */
-  function getCategoryGradientColors(category: string): { start: string; end: string } | null {
-    // Map categories to gradient colors based on mates.yml configuration
-    const categoryGradients: Record<string, { start: string; end: string }> = {
-      'software_development': { start: '#155D91', end: '#42ABF4' },
-      'business_development': { start: '#004040', end: '#008080' },
-      'medical_health': { start: '#FD50A0', end: '#F42C2D' },
-      'legal_law': { start: '#239CFF', end: '#005BA5' }, // Legacy - kept for backwards compatibility
-      'openmates_official': { start: '#6366f1', end: '#4f46e5' }, // Official OpenMates brand colors (indigo)
-      'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
-      'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
-      'finance': { start: '#119106', end: '#15780D' },
-      'design': { start: '#101010', end: '#2E2E2E' },
-      'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
-      'movies_tv': { start: '#00C2C5', end: '#3170DC' },
-      'history': { start: '#4989F2', end: '#2F44BF' },
-      'science': { start: '#FF7300', end: '#D5320' },
-      'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
-      'cooking_food': { start: '#FD8450', end: '#F42C2D' },
-      'activism': { start: '#F53D00', end: '#F56200' },
-      'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
-    };
-    
-    return categoryGradients[category] || null;
-  }
-
-  /**
-   * Get fallback icon for a category when no icon names are provided
-   */
-  function getFallbackIconForCategory(category: string): string {
-    const categoryIcons: Record<string, string> = {
-      'software_development': 'code',
-      'business_development': 'briefcase',
-      'medical_health': 'heart',
-      'legal_law': 'gavel', // Legacy - kept for backwards compatibility
-      'openmates_official': 'shield-check', // Official category uses shield icon
-      'maker_prototyping': 'wrench',
-      'marketing_sales': 'megaphone',
-      'finance': 'dollar-sign',
-      'design': 'palette',
-      'electrical_engineering': 'zap',
-      'movies_tv': 'tv',
-      'history': 'clock',
-      'science': 'microscope',
-      'life_coach_psychology': 'users',
-      'cooking_food': 'utensils',
-      'activism': 'trending-up',
-      'general_knowledge': 'help-circle'
-    };
-    
-    return categoryIcons[category] || 'help-circle';
-  }
-
-  /**
-   * Get a valid icon name with robust fallback system
-   * Tries each provided icon name, then falls back to category-specific icon, then default
-   */
-  function getValidIconName(providedIconNames: string[], category: string): string {
-    // Try each provided icon name in order
-    for (const iconName of providedIconNames) {
-      if (isValidLucideIcon(iconName)) {
-        console.debug(`[Chat] Using valid icon: ${iconName}`);
-        return iconName;
-      } else {
-        console.warn(`[Chat] Invalid icon name provided: ${iconName}, trying next...`);
-      }
-    }
-
-    // If no valid icons provided, use category-specific fallback
-    const categoryFallback = getFallbackIconForCategory(category);
-    if (isValidLucideIcon(categoryFallback)) {
-      console.debug(`[Chat] Using category fallback icon: ${categoryFallback}`);
-      return categoryFallback;
-    } else {
-      // Final safety net - use default icon
-      console.warn(`[Chat] Category fallback icon ${categoryFallback} is invalid, using default`);
-      return 'help-circle';
-    }
-  }
-
-  /**
    * Decrypt chat data on-demand (icon and category)
+   * ARCHITECTURE: Demo chats use cleartext fields (icon, category), 
+   * regular chats use encrypted fields (encrypted_icon, encrypted_category)
    */
   async function decryptChatData(chat: Chat): Promise<DecryptedChatData> {
     const result: DecryptedChatData = {};
     
+    // Check for cleartext fields first (demo chats - already decrypted server-side)
+    if (chat.icon) {
+      result.icon = chat.icon;
+    }
+    if (chat.category) {
+      result.category = chat.category;
+    }
+    
+    // If we already have cleartext data, return it
+    if (result.icon || result.category) {
+      return result;
+    }
+    
+    // For regular chats, decrypt from encrypted fields
     // Get chat key for decryption
     const chatKey = chatDB.getChatKey(chat.chat_id);
     if (!chatKey) {
@@ -272,32 +212,6 @@
     }
     
     return result;
-  }
-
-  /**
-   * Check if a string is a valid Lucide icon name
-   */
-  function isValidLucideIcon(iconName: string): boolean {
-    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
-    const pascalCaseName = iconName
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
-    
-    return pascalCaseName in LucideIcons;
-  }
-
-  /**
-   * Get the Lucide icon component by name
-   */
-  function getLucideIcon(iconName: string) {
-    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
-    const pascalCaseName = iconName
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
-    
-    return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
   }
 
   // Update typing indicator based on store value
@@ -379,13 +293,15 @@
       const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
       lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
       
-      // Category is stored in encrypted_category field (as plaintext for demos)
-      chatCategory = currentChat.encrypted_category || null;
+      // ARCHITECTURE: Demo chats use cleartext fields (category, icon)
+      // Fallback to encrypted_* fields for backwards compatibility
+      chatCategory = currentChat.category || currentChat.encrypted_category || null;
       
-      // Icon names stored in encrypted_icon field (as comma-separated string for demos)
-      // Parse the first icon name from the list
-      if (currentChat.encrypted_icon) {
-        const iconNames = currentChat.encrypted_icon.split(',');
+      // Icon names stored in icon field (as comma-separated string for demos)
+      // Fallback to encrypted_icon for backwards compatibility
+      const iconField = currentChat.icon || currentChat.encrypted_icon;
+      if (iconField) {
+        const iconNames = iconField.split(',');
         chatIcon = iconNames.length > 0 ? iconNames[0] : null;
       } else {
         chatIcon = null;
@@ -683,8 +599,8 @@
             console.debug(`[Chat] Fetched fresh chat data after ${detail.type}:`, {
               chatId: chat.chat_id,
               hasEncryptedTitle: !!freshChat.encrypted_title,
-              hasEncryptedCategory: !!freshChat.encrypted_category,
-              hasEncryptedIcon: !!freshChat.encrypted_icon,
+              hasCategory: !!freshChat.category || !!freshChat.encrypted_category,
+              hasIcon: !!freshChat.icon || !!freshChat.encrypted_icon,
               waitingForMetadata: freshChat.waiting_for_metadata
             });
             await updateDisplayInfo(freshChat);

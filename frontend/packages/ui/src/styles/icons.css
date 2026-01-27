@@ -521,6 +521,12 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
 }
 
+.clickable-icon.icon_thumbsdown {
+  -webkit-mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  transform: rotate(180deg);
+}
+
 .clickable-icon.icon_task {
   -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
   mask-image: url('@openmates/ui/static/icons/task.svg');
@@ -1088,7 +1094,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/task.svg');
+      background-image: url('@openmates/ui/static/icons/usage.svg');
   }
 }
 

@@ -10,6 +10,17 @@ import { locale as svelteLocaleStore } from 'svelte-i18n';
  */
 export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]> {
     return chatsToGroup.reduce<Record<string, ChatType[]>>((groups, chat) => {
+        // If chat has a predefined group key (e.g., 'intro', 'examples', 'legal'), use it directly
+        // This allows manual overrides of the automatic time-based grouping
+        if (chat.group_key) {
+            const groupKey = chat.group_key;
+            if (!groups[groupKey]) {
+                groups[groupKey] = [];
+            }
+            groups[groupKey].push(chat);
+            return groups;
+        }
+
         const now = new Date();
         
         // CRITICAL FIX: Handle timestamp format mismatch between demo chats and real chats
@@ -75,7 +86,10 @@ export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]>
  * @param t The svelte-i18n translation function (`$_`).
  * @returns A localized string for the group title.
  */
-export function getLocalizedGroupTitle(groupKey: string, t: (key: string, options?: any) => string): string {
+export function getLocalizedGroupTitle(groupKey: string, t: (key: string, options?: Record<string, unknown>) => string): string {
+    if (groupKey === 'intro') return t('activity.intro.text');
+    if (groupKey === 'examples') return t('activity.examples.text');
+    if (groupKey === 'legal') return t('activity.legal.text');
     if (groupKey === 'today') return t('activity.today.text');
     if (groupKey === 'yesterday') return t('activity.yesterday.text');
     if (groupKey === 'previous_7_days') return t('activity.previous_7_days.text');

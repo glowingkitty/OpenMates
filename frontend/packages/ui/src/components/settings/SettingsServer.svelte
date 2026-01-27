@@ -15,6 +15,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
+    import SettingsStats from './server/SettingsStats.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -57,6 +58,23 @@ changes to the documentation (to keep the documentation up to date).
         scrollToTop();
     }
 
+    function showStatsSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'stats';
+        childComponent = SettingsStats;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/stats',
+            direction: 'forward',
+            icon: 'usage',
+            title: $text('settings.server.stats.text'),
+            translationKey: 'settings.server.stats'
+        });
+
+        scrollToTop();
+    }
+
     function scrollToTop() {
         // Find settings content element and scroll to top
         const settingsContent = document.querySelector('.settings-content-wrapper');
@@ -90,12 +108,23 @@ changes to the documentation (to keep the documentation up to date).
         subtitleTop="Manage demo chats from community-shared conversations"
         onClick={() => showCommunitySuggestions()}
     />
+    <SettingsItem
+        icon="usage"
+        title={$text('settings.server.stats.text')}
+        subtitleTop="View global server usage and growth metrics"
+        onClick={() => showStatsSettings()}
+    />
 {:else if currentView === 'softwareUpdate' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}
     />
 {:else if currentView === 'communitySuggestions' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'stats' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

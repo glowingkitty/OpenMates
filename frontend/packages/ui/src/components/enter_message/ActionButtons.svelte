@@ -41,9 +41,9 @@
         dispatch('sendMessage');
     }
 
-    // Handle "Sign in" button click for non-authenticated users
-    function handleSignInClick() {
-        dispatch('signInClick');
+    // Handle "Sign up" button click for non-authenticated users
+    function handleSignUpClick() {
+        dispatch('signUpClick');
     }
 
     // --- Record Button Handlers ---
@@ -128,13 +128,13 @@
                    {$text('enter_message.send.text')}
                 </button>
             {:else}
-                <!-- Show "Sign in" button for non-authenticated users -->
+                <!-- Show "Sign up" button for non-authenticated users -->
                 <button
                     class="send-button"
-                    onclick={handleSignInClick}
-                    aria-label={$text('header.login.text')}
+                    onclick={handleSignUpClick}
+                    aria-label={$text('signup.sign_up.text')}
                 >
-                   {$text('header.login.text')}
+                   {$text('signup.sign_up.text')}
                 </button>
             {/if}
         {/if}

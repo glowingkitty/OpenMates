@@ -1,8 +1,6 @@
 import logging
 import json
-import uuid
 import time
-import os
 import random
 import string
 from typing import Dict, Any, Optional, Tuple
@@ -146,6 +144,14 @@ async def create_user(self,
         if response.status_code == 200:
             created_user = response.json().get("data")
             
+            # Update server stats
+            try:
+                # Increment daily registration counter
+                if hasattr(self, 'cache_service') and self.cache_service:
+                    await self.cache_service.increment_stat("new_users_registered")
+            except Exception as stats_err:
+                logger.error(f"Error updating server stats after user creation: {stats_err}")
+
             # Update the require_invite_code cache if needed
             # Note: We don't update the cache here because the user hasn't completed signup yet
             # (last_opened is still a signup path). The cache will be updated when they complete

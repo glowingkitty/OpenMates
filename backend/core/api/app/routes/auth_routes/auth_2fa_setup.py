@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
+from fastapi import APIRouter, Depends, Request
 import logging
 import time
-from typing import List, Optional, Dict, Any
 
 # Import schemas
 from backend.core.api.app.schemas.auth_2fa import (
@@ -334,9 +333,42 @@ async def request_backup_codes(
 
         user_id = user_data.get("user_id")
 
+        # RESILIENT BACKUP CODE GENERATION:
+        # Check if 2FA is actually enabled in the user profile (persistent state) instead of
+        # relying solely on the ephemeral 2fa_setup cache. This allows users who logged out/in
+        # or waited too long to still complete the backup codes step.
+        #
+        # Two valid scenarios:
+        # 1. Happy path: Cache exists with tfa_added_to_app=true (normal signup flow)
+        # 2. Recovery path: 2FA is enabled in profile AND user is at backup-codes step
+        #    (user logged out/in or cache expired after completing 2FA verification)
+        
         setup_data = await cache_service.get(f"2fa_setup:{user_id}")
-        if not setup_data or not setup_data.get("tfa_added_to_app"):
+        tfa_enabled = user_data.get("tfa_enabled", False)
+        last_opened = user_data.get("last_opened", "")
+        is_at_backup_codes_step = (
+            last_opened.startswith("/signup/backup-codes") or 
+            last_opened.startswith("#signup/backup-codes")
+        )
+        
+        # Allow if either:
+        # - Cache exists with tfa_added_to_app (normal flow), OR
+        # - 2FA is enabled AND user is at backup codes step (recovery path)
+        cache_ok = setup_data and setup_data.get("tfa_added_to_app")
+        recovery_ok = tfa_enabled and is_at_backup_codes_step
+        
+        if not (cache_ok or recovery_ok):
+            logger.warning(
+                f"User {user_id} attempted to request backup codes without proper setup. "
+                f"cache_ok={cache_ok}, recovery_ok={recovery_ok}, "
+                f"tfa_enabled={tfa_enabled}, last_opened={last_opened}"
+            )
             return BackupCodesResponse(success=False, message="2FA setup not complete")
+        
+        logger.info(
+            f"Generating backup codes for user {user_id}: "
+            f"cache_path={'yes' if cache_ok else 'no'}, recovery_path={'yes' if recovery_ok else 'no'}"
+        )
 
         backup_codes = generate_backup_codes()
         hashed_codes = [hash_backup_code(code) for code in backup_codes]

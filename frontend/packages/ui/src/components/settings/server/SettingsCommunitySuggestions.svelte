@@ -5,21 +5,76 @@
     Allows admins to approve chats to become demo chats with a limit of 5.
 -->
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
+    import Chat from '../../chats/Chat.svelte';
+    import type { Chat as ChatType } from '../../../types/chat';
+    import { decryptShareKeyBlob } from '../../../services/shareEncryption';
+    import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
+
+    interface Suggestion {
+        demo_chat_id?: string;  // UUID of the pending demo_chat entry (optional for email deep links)
+        chat_id: string;
+        title: string;
+        summary?: string;
+        category?: string;
+        icon?: string;
+        follow_up_suggestions?: string[];
+        shared_at: string;
+        share_link: string;
+        encryption_key?: string;  // No longer needed with zero-knowledge architecture, kept for backward compatibility
+        status?: string;  // Status of the demo_chat entry (pending_approval, translating, published, translation_failed)
+    }
+
+    interface DemoChat {
+        id: string;  // UUID of the demo_chat entry
+        title?: string;
+        summary?: string;
+        category?: string;
+        icon?: string;
+        status?: string;
+        created_at: string;
+    }
+
+    interface DemoChatUpdatePayload {
+        user_id?: string;
+        demo_chat_id: string;
+        status: string;
+    }
+
+    interface DemoChatProgressPayload {
+        user_id?: string;
+        demo_chat_id: string;
+        stage: 'metadata' | 'translating' | 'storing';
+        progress_percentage?: number;
+        current_language?: string;
+        message?: string;
+    }
+
+    interface TranslationProgress {
+        stage: 'metadata' | 'translating' | 'storing';
+        progress_percentage: number;
+        current_language: string;
+        message: string;
+        last_update: number;
+    }
 
     // State
     let isLoading = $state(true);
     let error = $state<string | null>(null);
-    let suggestions = $state<Array<{ chat_id: string; title?: string; summary?: string; category?: string; shared_at: string; share_link: string }>>([]);
-    let currentDemoChats = $state<Array<{ demo_id: string; title: string; summary?: string; category?: string; created_at: string }>>([]);
+    let suggestions = $state<Suggestion[]>([]);
+    let currentDemoChats = $state<DemoChat[]>([]);
     let isSubmitting = $state(false);
-    let pendingSuggestion = $state<{ chat_id: string; encryption_key: string; title: string; summary: string; shared_at: string; share_link: string } | null>(null);
+    let pendingSuggestion = $state<Suggestion | null>(null);
+    let selectedReplacementChatId = $state<string>('');
+
+    // Translation progress tracking
+    let translationProgress = $state<Map<string, TranslationProgress>>(new Map());
 
     // URL parameters for email link
-    let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string }>({});
+    let urlParams = $state<{ chat_id?: string; key?: string; title?: string; summary?: string; category?: string; icon?: string; follow_up_suggestions?: string }>({});
 
     /**
      * Extract URL parameters for email deep link
@@ -31,16 +86,31 @@
                 chat_id: searchParams.get('chat_id') || undefined,
                 key: searchParams.get('key') || undefined,
                 title: searchParams.get('title') || undefined,
-                summary: searchParams.get('summary') || undefined
+                summary: searchParams.get('summary') || undefined,
+                category: searchParams.get('category') || undefined,
+                icon: searchParams.get('icon') || undefined,
+                follow_up_suggestions: searchParams.get('follow_up_suggestions') || undefined
             };
 
             // If we have URL params, create a pending suggestion
             if (urlParams.chat_id && urlParams.key) {
+                let followUpSuggestions: string[] | undefined = undefined;
+                if (urlParams.follow_up_suggestions) {
+                    try {
+                        followUpSuggestions = JSON.parse(decodeURIComponent(urlParams.follow_up_suggestions));
+                    } catch (e) {
+                        console.warn('Failed to parse follow-up suggestions from URL:', e);
+                    }
+                }
+
                 pendingSuggestion = {
                     chat_id: urlParams.chat_id,
                     encryption_key: urlParams.key,
                     title: decodeURIComponent(urlParams.title || 'Community Shared Chat'),
                     summary: decodeURIComponent(urlParams.summary || ''),
+                    category: urlParams.category || undefined,
+                    icon: urlParams.icon || undefined,
+                    follow_up_suggestions: followUpSuggestions,
                     shared_at: new Date().toISOString(),
                     share_link: `${window.location.origin}/share/chat/${urlParams.chat_id}#key=${urlParams.key}`
                 };
@@ -56,7 +126,9 @@
             isLoading = true;
             error = null;
 
-            const response = await fetch(getApiEndpoint('/v1/admin/community-suggestions'), {
+            const { getApiEndpoint } = await import('@repo/ui');
+    const lang = document.documentElement.lang || 'en';
+    const response = await fetch(getApiEndpoint('/v1/admin/community-suggestions?lang=' + lang), {
                 credentials: 'include'
             });
 
@@ -85,13 +157,18 @@
      */
     async function loadCurrentDemoChats() {
         try {
-            const response = await fetch(getApiEndpoint('/v1/admin/demo-chats'), {
+            const lang = document.documentElement.lang || 'en';
+    const response = await fetch(getApiEndpoint('/v1/admin/demo-chats?lang=' + lang), {
                 credentials: 'include'
             });
 
             if (response.ok) {
                 const data = await response.json();
-                currentDemoChats = data.demo_chats || [];
+                // Show published and translating demo chats in the "Active Demo Chats" section
+                // pending_approval demos appear in "Other Pending Suggestions"
+                currentDemoChats = (data.demo_chats || []).filter(demo => 
+                    demo.status === 'published' || demo.status === 'translating'
+                );
             }
 
         } catch (err) {
@@ -100,25 +177,63 @@
     }
 
     /**
-     * Approve a chat as demo chat
+     * Helper to get the actual chat encryption key from a suggestion
+     * Handles both raw base64 keys and encrypted share blobs
      */
-    async function approveDemoChat(suggestion: { chat_id: string; encryption_key?: string; title?: string; summary?: string; category?: string }) {
+    async function getDecryptedChatKey(suggestion: Suggestion): Promise<string | null> {
+        let keyOrBlob = suggestion.encryption_key;
+        
+        // Try to get key from local storage if not in suggestion
+        if (!keyOrBlob) {
+            const { getSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+            const storedKey = await getSharedChatKey(suggestion.chat_id);
+            if (storedKey) {
+                // Convert Uint8Array to base64
+                keyOrBlob = window.btoa(String.fromCharCode(...storedKey));
+            }
+        }
+
+        if (!keyOrBlob && suggestion.share_link) {
+            // Extract key from share link if not provided directly
+            const shareLink = suggestion.share_link;
+            if (shareLink && shareLink.includes('#key=')) {
+                keyOrBlob = shareLink.split('#key=')[1];
+            }
+        }
+
+        if (!keyOrBlob) return null;
+
+        // If the key is short, it's likely already a raw base64 key
+        if (keyOrBlob.length < 100) {
+            return keyOrBlob;
+        }
+
+        // Otherwise, it's an encrypted share blob - decrypt it
+        try {
+            const serverTime = Math.floor(Date.now() / 1000);
+            const result = await decryptShareKeyBlob(suggestion.chat_id, keyOrBlob, serverTime);
+            
+            if (result.success && result.chatEncryptionKey) {
+                console.debug('[SettingsCommunitySuggestions] Decrypted share key blob successfully');
+                return result.chatEncryptionKey;
+            } else {
+                console.warn('[SettingsCommunitySuggestions] Failed to decrypt share key blob:', result.error);
+                return null;
+            }
+        } catch (e) {
+            console.error('[SettingsCommunitySuggestions] Error decrypting share key blob:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Approve a chat as demo chat
+     * With zero-knowledge architecture, we don't need to send the encryption key
+     * The server already has the decrypted content stored (Vault-encrypted)
+     */
+    async function approveDemoChat(suggestion: Suggestion) {
         try {
             isSubmitting = true;
-
-            // Get encryption key from suggestion (for email links) or extract from share_link
-            let encryptionKey = suggestion.encryption_key;
-            if (!encryptionKey && 'share_link' in suggestion) {
-                // Extract key from share link if not provided directly
-                const shareLink = (suggestion as any).share_link;
-                if (shareLink && shareLink.includes('#key=')) {
-                    encryptionKey = shareLink.split('#key=')[1];
-                }
-            }
-
-            if (!encryptionKey) {
-                throw new Error('Encryption key is required to approve demo chat');
-            }
 
             const response = await fetch(getApiEndpoint('/v1/admin/approve-demo-chat'), {
                 method: 'POST',
@@ -127,11 +242,9 @@
                 },
                 credentials: 'include',
                 body: JSON.stringify({
+                    demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
                     chat_id: suggestion.chat_id,
-                    encryption_key: encryptionKey,  // Pass encryption key to backend
-                    title: suggestion.title || 'Demo Chat',
-                    summary: suggestion.summary || '',
-                    category: suggestion.category || 'General'
+                    replace_demo_chat_id: selectedReplacementChatId || null  // ID of demo chat to replace (null for auto-replacement)
                 })
             });
 
@@ -149,13 +262,28 @@
                 window.history.replaceState({}, '', url.toString());
             }
 
-            // Reload data
-            await Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
+            // Optimistically add to currentDemoChats with full metadata from suggestion
+            // This will be updated when the translation task completes
+            currentDemoChats = [...currentDemoChats, {
+                id: suggestion.demo_chat_id!,
+                title: suggestion.title,
+                summary: suggestion.summary,
+                category: suggestion.category,
+                icon: suggestion.icon,
+                status: 'translating',
+                created_at: new Date().toISOString()
+            }];
+
+            // Remove from suggestions list
+            suggestions = suggestions.filter(s => s.demo_chat_id !== suggestion.demo_chat_id);
+
+            // Clear replacement selection
+            selectedReplacementChatId = '';
 
             // Show success message
             dispatch('showToast', {
                 type: 'success',
-                message: 'Demo chat approved successfully!'
+                message: 'Demo chat approved! Translation in progress...'
             });
 
         } catch (err) {
@@ -170,17 +298,136 @@
     }
 
     /**
-     * Remove a demo chat
+     * Reject a community suggestion
+     * Deactivates the pending demo_chat entry and removes from community suggestions
      */
-    async function removeDemoChat(demoId: string) {
-        if (!confirm('Are you sure you want to remove this demo chat? This action cannot be undone.')) {
+    async function rejectSuggestion(demoChatId: string, chatId: string) {
+        if (!confirm('Are you sure you want to reject this suggestion? It will be removed from the review queue.')) {
             return;
+        }
+
+        // Optimistically remove the suggestion from the UI
+        const suggestionIndex = suggestions.findIndex(s => s.chat_id === chatId);
+        const removedSuggestion = suggestionIndex !== -1 ? suggestions[suggestionIndex] : null;
+
+        if (removedSuggestion) {
+            suggestions.splice(suggestionIndex, 1);
+            suggestions = [...suggestions]; // Trigger reactivity
         }
 
         try {
             isSubmitting = true;
 
-            const response = await fetch(getApiEndpoint(`/v1/admin/demo-chat/${demoId}`), {
+            const response = await fetch(getApiEndpoint('/v1/admin/reject-suggestion'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    demo_chat_id: demoChatId,  // UUID
+                    chat_id: chatId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to reject suggestion');
+            }
+
+            // If this was a pending suggestion from email, clear it
+            if (pendingSuggestion && pendingSuggestion.chat_id === chatId) {
+                pendingSuggestion = null;
+                // Clear URL params using native History API (works in shared UI package)
+                const url = new URL(window.location.href);
+                url.search = '';
+                window.history.replaceState({}, '', url.toString());
+            }
+
+            dispatch('showToast', {
+                type: 'success',
+                message: 'Suggestion rejected successfully'
+            });
+
+        } catch (err) {
+            console.error('Error rejecting suggestion:', err);
+
+            // Restore the suggestion if the API call failed
+            if (removedSuggestion) {
+                suggestions = [removedSuggestion, ...suggestions];
+            }
+
+            dispatch('showToast', {
+                type: 'error',
+                message: err instanceof Error ? err.message : 'Failed to reject suggestion'
+            });
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    /**
+     * Helper to reject a pending suggestion from email deep link
+     * Looks up the demo_chat_id from loaded suggestions if not present in the pendingSuggestion
+     */
+    function rejectPendingSuggestion(suggestion: Suggestion) {
+        // For email deep-link pending suggestions, look up demo_chat_id from loaded suggestions
+        const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
+        const demoChatId = suggestion.demo_chat_id || matchingSuggestion?.demo_chat_id || '';
+        
+        if (demoChatId) {
+            rejectSuggestion(demoChatId, suggestion.chat_id);
+        } else {
+            console.error('Cannot reject: demo_chat_id not found for chat', suggestion.chat_id);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Cannot reject: suggestion not found in pending list'
+            });
+        }
+    }
+
+    /**
+     * Helper to approve a pending suggestion from email deep link
+     * Merges demo_chat_id from loaded suggestions if not present in the pendingSuggestion
+     */
+    function approvePendingSuggestion(suggestion: Suggestion) {
+        // For email deep-link pending suggestions, merge with matching loaded suggestion to get demo_chat_id
+        const matchingSuggestion = suggestions.find(s => s.chat_id === suggestion.chat_id);
+        const mergedSuggestion = matchingSuggestion 
+            ? { ...suggestion, demo_chat_id: matchingSuggestion.demo_chat_id }
+            : suggestion;
+        
+        if (mergedSuggestion.demo_chat_id) {
+            approveDemoChat(mergedSuggestion);
+        } else {
+            console.error('Cannot approve: demo_chat_id not found for chat', suggestion.chat_id);
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Cannot approve: suggestion not found in pending list'
+            });
+        }
+    }
+
+    /**
+     * Remove a demo chat
+     */
+    async function removeDemoChat(demoChatId: string) {
+        if (!confirm('Are you sure you want to remove this demo chat? This action cannot be undone.')) {
+            return;
+        }
+
+        // Optimistically remove the demo chat from the UI
+        const demoChatIndex = currentDemoChats.findIndex(d => d.id === demoChatId);
+        const removedDemoChat = demoChatIndex !== -1 ? currentDemoChats[demoChatIndex] : null;
+
+        if (removedDemoChat) {
+            currentDemoChats.splice(demoChatIndex, 1);
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+        }
+
+        try {
+            isSubmitting = true;
+
+            const response = await fetch(getApiEndpoint(`/v1/admin/demo-chat/${demoChatId}`), {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -189,9 +436,6 @@
                 throw new Error('Failed to remove demo chat');
             }
 
-            // Reload data
-            await Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
-
             dispatch('showToast', {
                 type: 'success',
                 message: 'Demo chat removed successfully!'
@@ -199,6 +443,12 @@
 
         } catch (err) {
             console.error('Error removing demo chat:', err);
+
+            // Restore the demo chat if the API call failed
+            if (removedDemoChat) {
+                currentDemoChats = [...currentDemoChats, removedDemoChat];
+            }
+
             dispatch('showToast', {
                 type: 'error',
                 message: 'Failed to remove demo chat'
@@ -227,33 +477,84 @@
     }
 
     /**
-     * Handle back button
+     * Helper to create a virtual chat object for display in the Chat component
      */
-    function handleBack() {
-        dispatch('back');
+    function createVirtualChat(item: Suggestion): ChatType {
+        const now = Math.floor(Date.now() / 1000);
+        return {
+            chat_id: item.chat_id,
+            title: item.title || undefined, // Use title from backend (already decrypted)
+            // ARCHITECTURE: Use cleartext fields for demo/preview chats (already decrypted by server)
+            category: item.category,
+            icon: item.icon,
+            follow_up_request_suggestions: item.follow_up_suggestions ? JSON.stringify(item.follow_up_suggestions) : undefined,
+            waiting_for_metadata: false,
+            messages_v: 1,
+            title_v: 1,
+            pinned: false,
+            is_incognito: false,
+            unread_count: 0,
+            encrypted_title: '', // Empty for virtual chats - title is in cleartext `title` field
+            last_edited_overall_timestamp: now,
+            created_at: now,
+            updated_at: now
+        };
+    }
+
+    /**
+     * Preview a shared chat in the main app view
+     * 
+     * The encryption key is provided by the server (decrypted from shared_encrypted_chat_key).
+     * Stores the key in IndexedDB, closes settings panel, and navigates to the chat in the current tab.
+     */
+    async function openSharedChat(suggestion: Suggestion) {
+        // Get the actual chat encryption key (decrypting if necessary)
+        const encryptionKey = await getDecryptedChatKey(suggestion);
+
+        // If no key is available, show error
+        if (!encryptionKey) {
+            dispatch('showToast', {
+                type: 'error',
+                message: 'Encryption key not available. This chat may have been shared before this feature was added.'
+            });
+            return;
+        }
+
+        // Store the key in sharedChatKeyStorage so it's available for decryption
+        try {
+            const { saveSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
+            // Convert base64 to Uint8Array
+            const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+            await saveSharedChatKey(suggestion.chat_id, keyBytes);
+        } catch (e) {
+            console.warn('Failed to save shared chat key to IndexedDB:', e);
+        }
+
+        // Close settings and navigate to the chat in the current tab
+        // Use the hash format that the app expects for deep links
+        window.location.hash = `chat_id=${suggestion.chat_id}`;
+        
+        // Dispatch event to ensure chat loads immediately
+        const event = new CustomEvent('globalChatSelected', {
+            detail: { 
+                chat: { chat_id: suggestion.chat_id },
+                is_shared: true
+            },
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(event);
+        
+        // Close the settings panel
+        dispatch('close');
     }
 
     /**
      * Open the chat in the main view when coming from email link
      */
     function openChatFromEmail() {
-        if (pendingSuggestion && pendingSuggestion.share_link) {
-            // Extract chat_id from share link (format: /share/chat/{chat_id}#key=...)
-            const shareLink = pendingSuggestion.share_link;
-            const match = shareLink.match(/\/share\/chat\/([^#]+)/);
-            if (match && match[1]) {
-                const chatId = match[1];
-                // Navigate to main app with chat loaded
-                // This will open the chat in the main view while keeping settings open
-                window.location.hash = `chat_id=${chatId}`;
-                // Also dispatch event to ensure chat loads
-                const event = new CustomEvent('globalChatSelected', {
-                    detail: { chat: { chat_id: chatId } },
-                    bubbles: true,
-                    composed: true
-                });
-                window.dispatchEvent(event);
-            }
+        if (pendingSuggestion) {
+            openSharedChat(pendingSuggestion);
         }
     }
 
@@ -270,15 +571,117 @@
                 openChatFromEmail();
             }, 500);
         }
+
+        // Register WebSocket handlers
+        webSocketService.on('demo_chat_updated', handleDemoChatUpdate);
+        webSocketService.on('demo_chat_progress', handleDemoChatProgress);
     });
+
+    onDestroy(() => {
+        // Clean up WebSocket handlers
+        webSocketService.off('demo_chat_updated', handleDemoChatUpdate);
+        webSocketService.off('demo_chat_progress', handleDemoChatProgress);
+    });
+
+    /**
+     * Handle WebSocket updates for demo chats
+     * Updates the status and metadata when translation completes
+     */
+    function handleDemoChatUpdate(payload: DemoChatUpdatePayload) {
+        console.log('[SettingsCommunitySuggestions] Received demo_chat_updated event:', payload);
+        
+        const { demo_chat_id, status } = payload;
+        
+        // Find and update the demo chat in currentDemoChats
+        const demoIndex = currentDemoChats.findIndex(d => d.id === demo_chat_id);
+        if (demoIndex !== -1) {
+            currentDemoChats[demoIndex] = {
+                ...currentDemoChats[demoIndex],
+                status
+            };
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+            
+            // If translation completed, reload to get full metadata
+            if (status === 'published') {
+                console.log('[SettingsCommunitySuggestions] Demo chat published, reloading data...');
+                loadCurrentDemoChats();
+                
+                dispatch('showToast', {
+                    type: 'success',
+                    message: 'Demo chat translation completed and published!'
+                });
+            } else if (status === 'translation_failed') {
+                dispatch('showToast', {
+                    type: 'error',
+                    message: 'Demo chat translation failed. Please try again.'
+                });
+            }
+        }
+    }
+
+    /**
+     * Handle WebSocket progress updates for demo chat translation
+     * 
+     * The backend sends granular progress updates with:
+     * - stage: 'metadata' | 'translating'
+     * - completed_units: number of language units completed
+     * - total_units: total language units (messages × languages)
+     * - progress_percentage: 0-100
+     * - current_batch_languages: array of language codes just completed
+     * - message: human-readable status message
+     */
+    function handleDemoChatProgress(payload: DemoChatProgressPayload) {
+        console.log('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
+
+        const { 
+            demo_chat_id, 
+            stage, 
+            progress_percentage, 
+            current_language,
+            message 
+        } = payload;
+
+        // Ensure progress only moves forward (monotonically increasing)
+        const existing = translationProgress.get(demo_chat_id);
+        const newPercentage = progress_percentage || 0;
+        const effectivePercentage = existing 
+            ? Math.max(existing.progress_percentage, newPercentage) 
+            : newPercentage;
+
+        // Update progress state
+        translationProgress.set(demo_chat_id, {
+            stage,
+            progress_percentage: effectivePercentage,
+            current_language: current_language || '',
+            message: message || 'Processing...',
+            last_update: Date.now()
+        });
+
+        // Trigger reactivity
+        translationProgress = new Map(translationProgress);
+
+        // Update the demo chat in currentDemoChats if it exists
+        const demoIndex = currentDemoChats.findIndex(d => d.id === demo_chat_id);
+        if (demoIndex !== -1) {
+            currentDemoChats[demoIndex] = {
+                ...currentDemoChats[demoIndex],
+                status: 'translating'
+            };
+            currentDemoChats = [...currentDemoChats]; // Trigger reactivity
+        }
+    }
+
+    /**
+     * Get progress information for a demo chat
+     */
+    function getProgressInfo(demoChatId: string) {
+        return translationProgress.get(demoChatId);
+    }
 </script>
 
 <div class="community-suggestions">
     <!-- Header -->
     <div class="header">
-        <button onclick={handleBack} class="back-button">
-            ← Back
-        </button>
         <h2>Community Chat Suggestions</h2>
         <p>Manage demo chats from community-shared conversations</p>
     </div>
@@ -300,11 +703,59 @@
                 {#each currentDemoChats as demo}
                     <div class="demo-card">
                         <div class="demo-header">
-                            <h4>{demo.title}</h4>
-                            {#if demo.category}
-                                <span class="category-tag">{demo.category}</span>
-                            {/if}
+                            <h4>{demo.title || 'Demo Chat'}</h4>
+                            <div class="header-tags">
+                                {#if demo.status}
+                                    <span class="status-tag status-{demo.status}">
+                                        {#if demo.status === 'published'}
+                                            ✅ Published
+                                        {:else if demo.status === 'translation_failed'}
+                                            ❌ Failed
+                                        {:else if demo.status === 'translating'}
+                                            ⏳ Translating...
+                                        {:else}
+                                            {demo.status}
+                                        {/if}
+                                    </span>
+                                {/if}
+                                {#if demo.category}
+                                    <span class="category-tag">{demo.category}</span>
+                                {:else if demo.icon}
+                                    <span class="icon-tag">{demo.icon}</span>
+                                {/if}
+                            </div>
                         </div>
+
+                        <!-- Translation Progress Bar -->
+                        {#if demo.status === 'translating'}
+                            {@const progress = getProgressInfo(demo.id)}
+                            <div class="translation-progress">
+                                <div class="progress-bar-container">
+                                    <div 
+                                        class="progress-bar-fill" 
+                                        style="width: {progress?.progress_percentage || 0}%"
+                                    ></div>
+                                </div>
+                                <div class="progress-info">
+                                    {#if progress}
+                                        <span class="progress-text">
+                                            {progress.message}
+                                        </span>
+                                        <span class="progress-percentage">
+                                            {progress.progress_percentage}%
+                                        </span>
+                                    {:else}
+                                        <span class="progress-text">Starting translation...</span>
+                                        <span class="progress-percentage">0%</span>
+                                    {/if}
+                                </div>
+                                {#if progress?.current_language}
+                                    <div class="progress-languages">
+                                        Currently translating: {progress.current_language.toUpperCase()}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
 
                         {#if demo.summary}
                             <p class="demo-summary">{demo.summary}</p>
@@ -313,7 +764,7 @@
                         <div class="demo-footer">
                             <span class="demo-date">{formatDate(demo.created_at)}</span>
                             <button
-                                onclick={() => removeDemoChat(demo.demo_id)}
+                                onclick={() => removeDemoChat(demo.id)}
                                 class="btn btn-danger btn-small"
                                 disabled={isSubmitting}
                             >
@@ -335,9 +786,18 @@
             </div>
 
             <div class="email-suggestion-card">
-                <div class="suggestion-header">
-                    <h4>{pendingSuggestion.title}</h4>
-                    <span class="suggestion-date">Just now</span>
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                    class="suggestion-chat-preview clickable" 
+                    onclick={() => openSharedChat(pendingSuggestion!)}
+                    title="Click to open chat in new window"
+                >
+                    <Chat 
+                        chat={createVirtualChat(pendingSuggestion)}
+                        activeChatId={undefined}
+                        selectMode={false}
+                    />
                 </div>
 
                 {#if pendingSuggestion.summary}
@@ -345,19 +805,39 @@
                 {/if}
 
                 <div class="suggestion-actions">
+                    {#if currentDemoChats.length >= 5}
+                        <div class="replacement-selection">
+                            <label for="replacement-select-email" class="replacement-label">Replace existing demo chat:</label>
+                            <select
+                                id="replacement-select-email"
+                                bind:value={selectedReplacementChatId}
+                                class="replacement-select"
+                            >
+                                <option value="">Select chat to replace...</option>
+                                {#each currentDemoChats as demo}
+                                    <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
+                                {/each}
+                            </select>
+                        </div>
+                    {/if}
                     <button
-                        onclick={() => window.open(pendingSuggestion.share_link, '_blank')}
-                        class="btn btn-secondary btn-small"
+                        onclick={() => rejectPendingSuggestion(pendingSuggestion!)}
+                        class="btn btn-danger btn-small"
+                        disabled={isSubmitting}
                     >
-                        Preview Chat
+                        Reject
                     </button>
                     <button
-                        onclick={() => approveDemoChat(pendingSuggestion)}
+                        onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
-                        disabled={isSubmitting || currentDemoChats.length >= 5}
+                        disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
                     >
                         {#if currentDemoChats.length >= 5}
-                            Demo Limit Reached
+                            {#if selectedReplacementChatId}
+                                Approve & Replace
+                            {:else}
+                                Select Chat to Replace
+                            {/if}
                         {:else}
                             Approve as Demo
                         {/if}
@@ -397,9 +877,18 @@
             <div class="suggestions-grid">
                 {#each suggestions as suggestion}
                     <div class="suggestion-card">
-                        <div class="suggestion-header">
-                            <h4>{suggestion.title || 'Untitled Chat'}</h4>
-                            <span class="suggestion-date">{formatDate(suggestion.shared_at)}</span>
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div 
+                            class="suggestion-chat-preview clickable"
+                            onclick={() => openSharedChat(suggestion)}
+                            title="Click to open chat in new window"
+                        >
+                            <Chat 
+                                chat={createVirtualChat(suggestion)}
+                                activeChatId={undefined}
+                                selectMode={false}
+                            />
                         </div>
 
                         {#if suggestion.summary}
@@ -407,19 +896,39 @@
                         {/if}
 
                         <div class="suggestion-actions">
+                            {#if currentDemoChats.length >= 5}
+                                <div class="replacement-selection">
+                                    <label for="replacement-select-{suggestion.chat_id}" class="replacement-label">Replace existing demo chat:</label>
+                                    <select
+                                        id="replacement-select-{suggestion.chat_id}"
+                                        bind:value={selectedReplacementChatId}
+                                        class="replacement-select"
+                                    >
+                                        <option value="">Select chat to replace...</option>
+                                        {#each currentDemoChats as demo}
+                                            <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
+                                        {/each}
+                                    </select>
+                                </div>
+                            {/if}
                             <button
-                                onclick={() => window.open(suggestion.share_link, '_blank')}
-                                class="btn btn-secondary btn-small"
+                                onclick={() => rejectSuggestion(suggestion.demo_chat_id, suggestion.chat_id)}
+                                class="btn btn-danger btn-small"
+                                disabled={isSubmitting}
                             >
-                                Preview
+                                Reject
                             </button>
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
                                 class="btn btn-primary btn-small"
-                                disabled={isSubmitting || currentDemoChats.length >= 5}
+                                disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
                             >
                                 {#if currentDemoChats.length >= 5}
-                                    Demo Limit Reached
+                                    {#if selectedReplacementChatId}
+                                        Approve & Replace
+                                    {:else}
+                                        Select Chat to Replace
+                                    {/if}
                                 {:else}
                                     Approve as Demo
                                 {/if}
@@ -440,7 +949,7 @@
                 <li>They showcase OpenMates capabilities to potential users</li>
                 <li>Maximum of 5 demo chats to keep selection curated</li>
                 <li>Oldest demos are automatically removed when approving new ones</li>
-                <li>Demo chats can be previewed before approval</li>
+                <li>Click a chat preview to view the conversation in a new window</li>
             </ul>
         </div>
     </div>
@@ -457,24 +966,6 @@
         margin-bottom: 2rem;
         padding-bottom: 1rem;
         border-bottom: 1px solid var(--color-border);
-    }
-
-    .back-button {
-        background: none;
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
-        margin-bottom: 1rem;
-        font-size: 0.9rem;
-    }
-
-    .back-button:hover {
-        color: var(--color-primary);
-    }
-
-    .header h2 {
-        margin: 0 0 0.5rem 0;
-        color: var(--color-text-primary);
     }
 
     .header p {
@@ -546,6 +1037,10 @@
         border-radius: 8px;
         padding: 1rem;
         transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Allow flex children to shrink */
+        overflow: visible; /* Ensure buttons are not clipped */
     }
 
     .demo-card:hover,
@@ -554,8 +1049,26 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .demo-header,
-    .suggestion-header {
+    .suggestion-chat-preview {
+        margin-bottom: 1rem;
+        background: var(--color-background-tertiary);
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        transition: all 0.2s ease;
+    }
+
+    .suggestion-chat-preview.clickable {
+        cursor: pointer;
+    }
+
+    .suggestion-chat-preview.clickable:hover {
+        border-color: var(--color-primary);
+        background: var(--color-background-secondary);
+        transform: scale(1.02);
+    }
+
+    .demo-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -563,8 +1076,7 @@
         gap: 1rem;
     }
 
-    .demo-header h4,
-    .suggestion-header h4 {
+    .demo-header h4 {
         margin: 0;
         flex: 1;
         color: var(--color-text-primary);
@@ -581,7 +1093,114 @@
         white-space: nowrap;
     }
 
-    .suggestion-date,
+    .header-tags {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .status-tag {
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-translating {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-published {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-error,
+    .status-translation_failed {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    /* Translation Progress Bar Styles */
+    .translation-progress {
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+        background: var(--color-background-tertiary);
+        border-radius: 6px;
+        border: 1px solid var(--color-border);
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: var(--color-background-secondary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+        border-radius: 4px;
+        transition: width 0.3s ease-out;
+        position: relative;
+    }
+
+    .progress-bar-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 50%,
+            transparent 100%
+        );
+        animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+    }
+
+    .progress-text {
+        color: var(--color-text-secondary);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-right: 0.5rem;
+    }
+
+    .progress-percentage {
+        color: var(--color-primary);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .progress-languages {
+        font-size: 0.75rem;
+        color: var(--color-text-tertiary);
+        margin-top: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .demo-date {
         font-size: 0.85rem;
         color: var(--color-text-secondary);
@@ -603,9 +1222,51 @@
     .demo-footer,
     .suggestion-actions {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: center;
         margin-top: auto;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .replacement-selection {
+        width: 100%;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        background: var(--color-background-tertiary);
+        border-radius: 6px;
+        border: 1px solid var(--color-border);
+    }
+
+    .replacement-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .replacement-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+
+    .replacement-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    
+    .suggestion-actions .btn {
+        flex: 0 0 auto;
+        min-width: fit-content;
     }
 
     .btn {
@@ -635,17 +1296,6 @@
 
     .btn-primary:hover:not(:disabled) {
         background: var(--color-primary-dark);
-    }
-
-    .btn-secondary {
-        background: var(--color-background-tertiary);
-        color: var(--color-text-secondary);
-        border: 1px solid var(--color-border);
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-        background: var(--color-background-secondary);
-        color: var(--color-text-primary);
     }
 
     .btn-danger {
@@ -741,10 +1391,26 @@
         .suggestion-actions {
             flex-direction: column;
             gap: 0.5rem;
+            width: 100%;
         }
 
-        .demo-header,
-        .suggestion-header {
+        .replacement-selection {
+            padding: 0.5rem;
+        }
+
+        .replacement-label {
+            font-size: 0.8rem;
+        }
+
+        .replacement-select {
+            font-size: 0.85rem;
+        }
+        
+        .suggestion-actions .btn {
+            width: 100%;
+        }
+
+        .demo-header {
             flex-direction: column;
             gap: 0.5rem;
         }

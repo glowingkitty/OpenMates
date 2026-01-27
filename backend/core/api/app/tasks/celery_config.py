@@ -60,6 +60,8 @@ TASK_CONFIG = [
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
+    {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -608,6 +610,8 @@ task_routes = {
     # Persistence tasks use custom names like "app.tasks.persistence_tasks.*" instead of full module paths
     # This pattern ensures all persistence tasks (user messages, chat metadata, AI responses, etc.) route correctly
     "app.tasks.persistence_tasks.*": {'queue': 'persistence'},
+    # Demo tasks use custom names like "demo.*"
+    "demo.*": {'queue': 'demo'},
     # Add other explicitly named tasks here as needed
 }
 
@@ -652,6 +656,9 @@ _EXPLICIT_TASK_ROUTES = {
     # Usage archive tasks
     "usage.archive_old_entries": "persistence",
     
+    # Server stats tasks
+    "server_stats.flush_to_directus": "server_stats",
+    
     # Email tasks (custom names starting with app.tasks.email_tasks.*)
     "app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email": "email",
     "app.tasks.email_tasks.account_created_email_task.send_account_created_email": "email",
@@ -677,6 +684,9 @@ _EXPLICIT_TASK_ROUTES = {
     # User cache tasks
     "app.tasks.user_cache_tasks.warm_user_cache": "user_init",
     "delete_user_account": "user_init",
+
+    # Demo tasks
+    "demo.translate_chat": "demo",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -794,6 +804,11 @@ app.conf.beat_schedule = {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
         'options': {'queue': 'persistence'},  # Route to persistence queue
+    },
+    'flush-server-stats': {
+        'task': 'server_stats.flush_to_directus',
+        'schedule': timedelta(seconds=600),  # Every 10 minutes
+        'options': {'queue': 'server_stats'},  # Route to server_stats queue
     },
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',

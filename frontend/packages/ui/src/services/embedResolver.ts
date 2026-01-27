@@ -2,9 +2,13 @@
  * Embed Resolver Service
  * Resolves embed references (embed_id) to actual embed content from ContentStore or Directus.
  * Handles TOON-encoded content decoding when needed.
+ * 
+ * For community demo chats, embeds are stored in the communityDemoStore (cleartext).
+ * This resolver checks both the regular embedStore and the community demo store.
  */
 
 import { embedStore } from './embedStore';
+import { getCommunityDemoEmbed } from '../demo_chats/communityDemoStore';
 import { EmbedNodeAttributes } from '../message_parsing/types';
 import { generateUUID } from '../message_parsing/utils';
 
@@ -47,6 +51,7 @@ interface EmbedData {
 
 /**
  * Resolve an embed by embed_id
+ * Checks both the regular embedStore and the community demo store for cleartext embeds
  * @param embed_id - The embed identifier
  * @returns Embed data or null if not found
  */
@@ -55,17 +60,33 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
     // Initialize TOON decoder
     await initToonDecoder();
     
-    // First, try to load from EmbedStore (IndexedDB)
+    // First, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
     const cachedEmbed = await embedStore.get(`embed:${embed_id}`);
     if (cachedEmbed) {
       console.debug('[embedResolver] Found embed in EmbedStore:', embed_id);
       return cachedEmbed as EmbedData;
     }
     
-    // If not in EmbedStore, request from server via WebSocket (async, non-blocking)
+    // Second, check community demo store for cleartext demo embeds
+    // Community demo embeds are stored separately with cleartext content
+    const demoEmbed = getCommunityDemoEmbed(embed_id);
+    if (demoEmbed) {
+      console.debug('[embedResolver] Found embed in community demo store:', embed_id);
+      // Convert DemoEmbed to EmbedData format
+      return {
+        embed_id: demoEmbed.embed_id,
+        type: demoEmbed.type,
+        status: 'finished' as const,
+        content: demoEmbed.content, // Already cleartext (JSON string)
+        createdAt: demoEmbed.created_at,
+        updatedAt: demoEmbed.created_at
+      };
+    }
+    
+    // If not in any store, request from server via WebSocket (async, non-blocking)
     // This handles cases where embeds weren't in the sync payload
     // The embed will be stored when the server responds, and the UI will re-render
-    console.warn('[embedResolver] Embed not in EmbedStore, requesting from server (async):', embed_id);
+    console.warn('[embedResolver] Embed not in EmbedStore or demo store, requesting from server (async):', embed_id);
     
     try {
       const { webSocketService } = await import('./websocketService');

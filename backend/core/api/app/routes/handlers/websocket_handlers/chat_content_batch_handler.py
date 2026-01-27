@@ -5,7 +5,7 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService, chat_methods
+from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.schemas.chat import MessageResponse # Assuming MessageResponse is the schema for client-facing messages
 
@@ -43,6 +43,13 @@ async def handle_chat_content_batch(
 
     for chat_id in chat_ids:
         try:
+            # Verify chat ownership
+            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            if not is_owner:
+                logger.warning(f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Skipping.")
+                messages_by_chat_id[chat_id] = []
+                continue
+
             messages_data: Optional[List[MessageResponse]] = await directus_service.chat.get_all_messages_for_chat(
                 chat_id=chat_id,
                 decrypt_content=True

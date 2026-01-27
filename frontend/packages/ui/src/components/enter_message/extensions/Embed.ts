@@ -365,15 +365,15 @@ export const Embed = Node.create<EmbedOptions>({
       // Check if we have a specific renderer for this embed type
       const renderer = getEmbedRenderer(attrs.type);
       
-      console.log('[Embed] Looking for renderer for type:', attrs.type, 'found:', !!renderer);
-      console.log('[Embed] Renderer object:', renderer);
-      console.log('[Embed] Available renderers:', Object.keys(embedRenderers));
+      console.debug('[Embed] Looking for renderer for type:', attrs.type, 'found:', !!renderer);
+      console.debug('[Embed] Renderer object:', renderer);
+      console.debug('[Embed] Available renderers:', Object.keys(embedRenderers));
       
       if (renderer) {
         // Use the dedicated renderer
         // For app-skill-use: mount directly into wrapper (Svelte component creates unified-embed-preview)
         // For other types: mount into container (renderers create their own content structure)
-        console.log('[Embed] Using renderer for type:', attrs.type);
+        console.debug('[Embed] Using renderer for type:', attrs.type);
         
         // If renderer.render is async (returns Promise), handle it
         const renderResult = renderer.render({ attrs, container, content: mountTarget });

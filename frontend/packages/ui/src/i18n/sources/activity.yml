@@ -274,8 +274,77 @@ sync_complete:
   cs: Synchronizace dokončena
   sv: Synkronisering slutförd
   verified_by_human: []
+intro:
+  context: Group title for intro chats
+  en: INTRO
+  de: INTRO
+  zh: 介绍
+  es: INTRODUCCIÓN
+  fr: INTRODUCTION
+  pt: INTRODUÇÃO
+  ru: ВВЕДЕНИЕ
+  ja: はじめに
+  ko: 소개
+  it: INTRODUZIONE
+  tr: GİRİŞ
+  vi: GIỚI THIỆU
+  id: INTRO
+  pl: WPROWADZENIE
+  nl: INTRODUCTIE
+  ar: مقدمة
+  hi: परिचय
+  th: บทนำ
+  cs: ÚVOD
+  sv: INTRO
+  verified_by_human: []
+examples:
+  context: Group title for example chats (community suggestions)
+  en: EXAMPLE CHATS
+  de: BEISPIEL-CHATS
+  zh: 示例聊天
+  es: CHATS DE EJEMPLO
+  fr: EXEMPLES DE CHATS
+  pt: EXEMPLOS DE CHATS
+  ru: ПРИМЕРЫ ЧАТОВ
+  ja: チャット例
+  ko: 예시 채팅
+  it: ESEMPI DI CHAT
+  tr: ÖRNEK SOHBETLER
+  vi: CÁC CUỘC TRÒ CHUYỆN VÍ DỤ
+  id: CHAT CONTOH
+  pl: PRZYKŁADOWE CZATY
+  nl: VOORBEELDCHATS
+  ar: دردشات تجريبية
+  hi: उदाहरण चैट
+  th: ตัวอย่างแชท
+  cs: PŘÍKLADY CHATŮ
+  sv: EXEMPELCHATTAR
+  verified_by_human: []
+legal:
+  context: Group title for legal chats (privacy, terms, imprint)
+  en: LEGAL
+  de: RECHTLICHES
+  zh: 法律
+  es: LEGAL
+  fr: JURIDIQUE
+  pt: JURÍDICO
+  ru: ЮРИДИЧЕСКАЯ ИНФОРМАЦИЯ
+  ja: 法的情報
+  ko: 법적 고지
+  it: LEGALE
+  tr: YASAL
+  vi: PHÁP LÝ
+  id: LEGAL
+  pl: INFORMACJE PRAWNE
+  nl: JURIDISCH
+  ar: قانوني
+  hi: कानूनी
+  th: ข้อกฎหมาย
+  cs: PRÁVNÍ
+  sv: JURIDIK
+  verified_by_human: []
 loadMore.button:
-  context: Button text for loading all chats in the activity sidebar
+  context: Button text for loading all chats
   en: Load all chats
   de: Alle Chats laden
   zh: 加载所有聊天

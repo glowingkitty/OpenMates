@@ -18,16 +18,52 @@
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
+    import { get } from 'svelte/store';
     import {
         chatDB,
         activeChatStore,
         decryptShareKeyBlob,
+        forcedLogoutInProgress,
+        isLoggingOut,
         type Chat,
         type Message
     } from '@repo/ui';
     import { goto } from '$app/navigation';
     import { getApiEndpoint } from '@repo/ui';
     import { deriveParentByChildEmbeds } from '../shareChatEmbedUtils';
+
+    // CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
+    // This prevents chatDB.init() from blocking during shared chat access.
+    // Shared chats don't require authentication, so we should never block on logout state.
+    //
+    // The problem: chatDB.init() checks for:
+    // 1. localStorage 'openmates_needs_cleanup' marker → sets forcedLogoutInProgress to true
+    // 2. forcedLogoutInProgress or isLoggingOut flags → throws "Database initialization blocked"
+    // 3. Orphan detection: no master key + has chats → sets forcedLogoutInProgress to true
+    //
+    // For shared chats, ALL of these are false positives because:
+    // - Shared chats use URL-embedded encryption keys, not the master key
+    // - Having chats without a master key is EXPECTED for shared chat sessions
+    //
+    // This cleanup must run synchronously at module load time, before any await calls.
+    if (browser) {
+        // FIRST: Enable skip orphan detection mode on chatDB BEFORE any code can trigger init()
+        // This must be the FIRST thing we do to prevent race conditions where other code
+        // (imports, components) triggers chatDB.init() before our explicit call
+        chatDB.enableSkipOrphanDetection();
+        
+        // Clear the localStorage cleanup marker
+        if (localStorage.getItem('openmates_needs_cleanup') === 'true') {
+            console.debug('[ShareChat] IMMEDIATE: Clearing openmates_needs_cleanup marker');
+            localStorage.removeItem('openmates_needs_cleanup');
+        }
+        // Reset the in-memory flags
+        if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+            console.debug('[ShareChat] IMMEDIATE: Resetting logout flags for shared chat access');
+            forcedLogoutInProgress.set(false);
+            isLoggingOut.set(false);
+        }
+    }
 
     // Get chat ID from URL params
     let chatId = $derived($page.params.chatId);
@@ -40,17 +76,26 @@
     let passwordError = $state<string | null>(null);
     
     /**
-     * Extract the encryption key from the URL fragment
-     * Format: #key={encrypted_blob}
+     * Extract the encryption key and message ID from the URL fragment
+     * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
+     * Or for public chats: #messageid={messageId}
      */
-    function extractKeyFromFragment(): string | null {
-        if (!browser) return null;
-        
+    function extractKeyAndMessageFromFragment(): { key: string | null; messageId: string | null } {
+        if (!browser) return { key: null, messageId: null };
+
         const hash = window.location.hash;
         if (hash.startsWith('#key=')) {
-            return hash.substring(5); // Remove '#key=' prefix
+            const keyPart = hash.substring(5); // Remove '#key=' prefix
+            const parts = keyPart.split('&messageid=');
+            const key = parts[0];
+            const messageId = parts.length > 1 ? parts[1] : null;
+            return { key, messageId };
+        } else if (hash.startsWith('#messageid=')) {
+            // Public chat with message ID only
+            const messageId = hash.substring(11); // Remove '#messageid=' prefix
+            return { key: null, messageId };
         }
-        return null;
+        return { key: null, messageId: null };
     }
     
     /**
@@ -130,6 +175,7 @@
                     encrypted_content: messageObj.encrypted_content || '',
                     encrypted_sender_name: messageObj.encrypted_sender_name,
                     encrypted_category: messageObj.encrypted_category,
+                    encrypted_model_name: messageObj.encrypted_model_name, // Model name for assistant messages
                     user_message_id: messageObj.user_message_id,
                     client_message_id: messageObj.client_message_id
                 };
@@ -202,14 +248,24 @@
             isLoading = false;
             return;
         }
-        
+
         try {
             isLoading = true;
             error = null;
             passwordError = null;
+
+            // Double-check: Reset logout flags again in case something re-triggered them
+            // The main reset happens at module load time (top of script), but we ensure
+            // the flags are still cleared before calling chatDB.init()
+            if (browser && (get(forcedLogoutInProgress) || get(isLoggingOut))) {
+                console.debug('[ShareChat] Re-clearing logout flags before init');
+                localStorage.removeItem('openmates_needs_cleanup');
+                forcedLogoutInProgress.set(false);
+                isLoggingOut.set(false);
+            }
             
-            // Extract encryption key from URL fragment
-            const encryptedBlob = extractKeyFromFragment();
+            // Extract encryption key and message ID from URL fragment
+            const { key: encryptedBlob, messageId } = extractKeyAndMessageFromFragment();
             if (!encryptedBlob) {
                 error = 'Invalid share link: missing encryption key';
                 isLoading = false;
@@ -276,8 +332,11 @@
             console.debug('[ShareChat] Persisted shared chat key to IndexedDB for chat:', chatId);
             
             // Store chat and messages in IndexedDB
+            // CRITICAL: Skip orphan detection for shared chats. Shared chats are stored
+            // without a master key (they use URL-embedded encryption keys), so the
+            // "no master key but has chats" condition is expected and NOT orphan data.
             console.debug('[ShareChat] Storing chat and messages in IndexedDB...');
-            await chatDB.init();
+            await chatDB.init({ skipOrphanDetection: true });
             
             // Store chat metadata first (addChat creates its own transaction)
             await chatDB.addChat(fetchedChat);
@@ -369,11 +428,14 @@
             
             // Set active chat in store
             activeChatStore.setActiveChat(chatId);
-            
+
             // Navigate to main app with the chat loaded
             // This allows the user to see the chat in the normal interface
             // The chat key is already set in the cache, so the chat will be decrypted when loaded
-            await goto(`/#chat_id=${chatId}`);
+            // Include message ID if provided for highlighting/scrolling
+            // NOTE: Must include leading '/' to navigate to root, not just update hash on current page
+            const targetUrl = messageId ? `/#chat_id=${chatId}&messageid=${messageId}` : `/#chat_id=${chatId}`;
+            await goto(targetUrl);
             
             isLoading = false;
         } catch (err) {

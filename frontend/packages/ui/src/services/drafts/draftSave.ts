@@ -612,7 +612,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 return;
             }
         }
-        
+
         if (!existingChat) {
             // CRITICAL FIX: Chat ID exists in state but not in IndexedDB
             // This can happen after login when state is restored but DB is cleared

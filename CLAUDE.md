@@ -33,8 +33,52 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 
 - Always limit checks to the specific files or folders you touched (use `--path` or `--`)
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
+- **CRITICAL**: Before every git commit, you MUST run the linter check script on all modified files and fix all remaining issues.
+- **CRITICAL**: Only once the linter check script shows NO errors for modified files shall you commit the changes.
 - Always run the lint script before considering changes complete
 - Fix all errors before proceeding
+
+## Git Commit Best Practices
+
+### Commit Message Format
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+**Format:** `<type>: <description>`
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `build`: Changes that affect the build system or external dependencies
+- `ci`: Changes to CI configuration files and scripts
+- `chore`: Other changes that don't modify src or test files
+- `revert`: Reverts a previous commit
+
+**Rules:**
+- **Scope**: NEVER add all files (e.g., `git add .`) to a commit. Only add files modified or created within the current chat session, unless explicitly instructed otherwise by the user.
+- Use the imperative, present tense: "change" not "changed" nor "changes"
+- Don't capitalize the first letter of the description
+- No dot (.) at the end of the title
+- **Description/Body**: Use for complex changes. Explain the **why** and **what**, focusing on the reasoning behind the change.
+
+**Example:**
+```bash
+feat: add user authentication flow
+
+- Implement JWT token generation and validation
+- Add login and registration endpoints
+- Secure existing API routes with auth middleware
+```
+
+### Pre-commit Checklist
+- [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
+- [ ] Fix all linter and type errors
+- [ ] Remove temporary `console.log` or `print` statements (unless permanent)
+- [ ] Only add files changed/created in this chat (no `git add .`)
 
 ## Debugging Backend Issues
 
@@ -169,6 +213,10 @@ Use these scripts to inspect server state directly. Run from the repo root.
 # Inspect a specific chat (cache, storage, Directus)
 docker exec api python /app/backend/scripts/inspect_chat.py <chat_id>
 
+# Inspect a specific demo chat (by display ID or UUID)
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --lang de  # German translation
+
 # Inspect a specific embed
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
 
@@ -236,6 +284,11 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect registered
 docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled
 ```
 
+## Package and Dependency Management
+
+- **Verify Versions**: ALWAYS check for the latest stable version of a package (e.g., using `pip` or `npm` search/info commands, or web search) before installing or adding it to dependency files.
+- **No Hallucinations**: NEVER assume or hallucinate version numbers. If the version is not explicitly known, verify it using terminal tools or web search.
+
 ## Logging and Error Handling
 
 ### Backend (Python)
@@ -251,6 +304,29 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled
 - **Comments**: Add extensive comments explaining complex logic and architectural choices.
 - **Cache First**: Update server cache BEFORE Directus/disk to ensure data consistency.
 - **Directus models**: Define Directus models in YAML files under `backend/core/directus/schemas/`.
+
+## Internationalization (i18n)
+
+### Guidelines
+- **NEVER use hardcoded text** for user-facing strings in frontend or backend.
+- **ALWAYS use the translation system** for all user-facing content.
+- **Source of Truth**: The primary source for translations are the `.yml` files in `frontend/packages/ui/src/i18n/sources/`.
+- **Adding Translations**:
+  1. Add new keys and translations to the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`.
+  2. Follow the established format (use empty strings for missing translations):
+     ```yaml
+     key_name:
+       context: Description of how the text is used
+       en: English text
+       de: German translation
+       # ... other languages
+     ```
+  3. After modifying `.yml` files, run `npm run build:translations` in `frontend/packages/ui` to update the `.json` files in `locales/`.
+
+### Usage
+- **Frontend**: Use the `$text` store for translations: `$text('namespace.key.text')`.
+- **Backend**: Use the `TranslationService` to resolve translations from the same YAML sources.
+- **Metadata**: Application names and descriptions should use `name_translation_key` or `description_translation_key` instead of hardcoded strings.
 
 ## Testing Policy
 

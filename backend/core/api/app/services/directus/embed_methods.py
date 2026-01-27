@@ -201,6 +201,13 @@ class EmbedMethods:
             )
             if success and created_embed:
                 logger.info(f"Successfully created embed {embed_data.get('embed_id', 'unknown')}")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache_service.increment_stat("embeds_created")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after embed creation: {stats_err}")
+                    
                 return created_embed
             else:
                 logger.error(f"Failed to create embed {embed_data.get('embed_id', 'unknown')}: {created_embed}")

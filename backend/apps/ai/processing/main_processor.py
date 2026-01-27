@@ -48,6 +48,18 @@ logger = logging.getLogger(__name__)
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
 
+# === SKILL CALL BUDGET LIMITS ===
+# These limits prevent runaway research loops where the AI keeps requesting more and more searches.
+# Each "skill call" is counted per-request (e.g., a tool call with 3 requests counts as 3 skill calls).
+#
+# SOFT_LIMIT_SKILL_CALLS: When this limit is reached, inject a budget warning into the next LLM call,
+# instructing the AI to finish with gathered information or ask the user for follow-up.
+SOFT_LIMIT_SKILL_CALLS = 4
+#
+# HARD_LIMIT_SKILL_CALLS: When this limit is reached, stop executing further skills entirely.
+# Force the LLM to answer with gathered information by setting tool_choice="none".
+HARD_LIMIT_SKILL_CALLS = 6
+
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
     """
@@ -639,6 +651,7 @@ async def handle_main_processing(
     # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
     if preprocessing_results.load_app_settings_and_memories and cache_service:
+        logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
             # Import helper function for creating requests
             from backend.core.api.app.utils.app_settings_memories_request import (
@@ -674,11 +687,29 @@ async def handle_main_processing(
                             if decrypted_content:
                                 # Try to parse as JSON (content might be serialized JSON)
                                 try:
-                                    loaded_app_settings_and_memories_content[key] = json.loads(decrypted_content)
+                                    parsed_content = json.loads(decrypted_content)
+                                    loaded_app_settings_and_memories_content[key] = parsed_content
+                                    # DEBUG: Log content type and preview for troubleshooting - NEVER log sensitive content on production
+                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
+                                    if server_environment == "development":
+                                        content_type = type(parsed_content).__name__
+                                        if isinstance(parsed_content, list):
+                                            content_preview = f"list with {len(parsed_content)} items"
+                                        elif isinstance(parsed_content, dict):
+                                            content_preview = f"dict with keys: {list(parsed_content.keys())[:5]}"
+                                        else:
+                                            content_preview = f"value: {str(parsed_content)[:100]}"
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: {content_type}, content: {content_preview})")
+                                    else:
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
                                 except json.JSONDecodeError:
                                     # If not JSON, use as plain string
                                     loaded_app_settings_and_memories_content[key] = decrypted_content
-                                logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key}")
+                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
+                                    if server_environment == "development":
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: str, length: {len(decrypted_content)})")
+                                    else:
+                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
                             else:
                                 logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
                         else:
@@ -874,7 +905,27 @@ async def handle_main_processing(
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
+    
+    # DEBUG: Log the app_settings_memories content before adding to prompt
+    # This helps diagnose issues where data is found in cache but not injected into prompt
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
     if loaded_app_settings_and_memories_content:
+        if server_environment == "development":
+            logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt: {list(loaded_app_settings_and_memories_content.keys())}")
+        else:
+            logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] Adding {len(loaded_app_settings_and_memories_content)} item(s) to system prompt (keys redacted - production environment)")
+    else:
+        logger.info(f"{log_prefix} [APP_SETTINGS_MEMORIES] No app settings/memories content to add to system prompt (dict is empty)")
+    
+    if loaded_app_settings_and_memories_content:
+        # First, add the instruction telling the LLM how to use this data
+        # CRITICAL: This instruction is essential because without it, the LLM may ignore the data
+        # and respond with "I don't know anything about you" even when the data is present.
+        app_settings_usage_instruction = base_instructions.get("base_app_settings_memories_usage_instruction", "")
+        if app_settings_usage_instruction:
+            prompt_parts.append(app_settings_usage_instruction)
+        
+        # Then add the actual data
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
             # CRITICAL: Convert Unix timestamps to human-readable date strings
@@ -1070,18 +1121,63 @@ async def handle_main_processing(
 
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     
+    # === SKILL CALL BUDGET TRACKING ===
+    # Track total skill calls across all iterations to prevent runaway research loops.
+    # Each request within a tool call counts as one skill call.
+    total_skill_calls = 0
+    budget_warning_injected = False
+    force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}")
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
+        
+        # === LAST ITERATION SAFETY CHECK ===
+        # If we're on the last iteration, always force no tools to ensure we get an answer.
+        # This acts as a safety net in case the budget limits weren't reached.
+        if iteration == MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
+            force_no_tools = True
+            if not budget_warning_injected:
+                budget_warning_injected = True
+            logger.info(
+                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
+                f"forcing tool_choice='none' to ensure final answer is generated."
+            )
+        
+        # Determine tool_choice based on budget state
+        # If we've hit the hard limit or this is the last iteration, force the LLM to answer without tools
+        if force_no_tools:
+            current_tool_choice = "none"
+            logger.info(
+                f"{log_prefix} [SKILL_BUDGET] Forcing tool_choice='none' - LLM must answer with gathered information "
+                f"(total_skill_calls={total_skill_calls}, hard_limit={HARD_LIMIT_SKILL_CALLS})"
+            )
+        else:
+            current_tool_choice = "auto"
+        
+        # Build system prompt for this iteration
+        # Inject budget warning if we've exceeded the soft limit
+        iteration_system_prompt = full_system_prompt
+        if budget_warning_injected:
+            budget_warning = (
+                "\n\n--- IMPORTANT: Research Budget Limit ---\n"
+                "You have used most of your available research calls for this response. "
+                "Please provide the best possible answer using the information you have already gathered. "
+                "If you need more information to fully answer the user's question, suggest specific follow-up questions "
+                "the user could ask, rather than making additional research calls.\n"
+                "--- End Research Budget Warning ---\n"
+            )
+            iteration_system_prompt = full_system_prompt + budget_warning
+            logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
         llm_stream = call_main_llm_stream(
             task_id=task_id,
-            system_prompt=full_system_prompt,
+            system_prompt=iteration_system_prompt,
             message_history=current_message_history,
             model_id=preprocessing_results.selected_main_llm_model_id,
             temperature=preprocessing_results.llm_response_temp,
             secrets_manager=secrets_manager,
-            tools=available_tools_for_llm if available_tools_for_llm else None,
-            tool_choice="auto"
+            tools=available_tools_for_llm if not force_no_tools else None,
+            tool_choice=current_tool_choice
         )
 
         current_turn_text_buffer = []
@@ -1447,6 +1543,60 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                
+                # === SKILL CALL BUDGET CHECK ===
+                # Count requests in this tool call and check against hard limit.
+                # If we've already reached the limit, skip this tool call entirely.
+                # User won't see any indication that the tool call was skipped.
+                requests_in_this_call = 1  # Default: single request
+                requests_list_for_budget = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
+                    requests_in_this_call = len(requests_list_for_budget)
+                
+                # Skip this tool call if we've already reached the hard limit
+                # We don't count system tools (focus mode) against the budget
+                if app_id != "system" and total_skill_calls >= HARD_LIMIT_SKILL_CALLS:
+                    logger.info(
+                        f"{log_prefix} [SKILL_BUDGET] Skipping tool call '{tool_name}' with {requests_in_this_call} request(s) - "
+                        f"hard limit already reached (total_skill_calls={total_skill_calls}, limit={HARD_LIMIT_SKILL_CALLS})"
+                    )
+                    # Add a tool response to history so the LLM knows this tool was skipped
+                    # but the user won't see any placeholder or error
+                    tool_response_message = {
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped",
+                            "reason": "Research limit reached for this response. Use gathered information to answer."
+                        })
+                    }
+                    current_message_history.append(tool_response_message)
+                    continue  # Skip to next tool call
+                
+                # Update budget counters (only for non-system tools)
+                if app_id != "system":
+                    total_skill_calls += requests_in_this_call
+                    logger.info(
+                        f"{log_prefix} [SKILL_BUDGET] Executing '{tool_name}' with {requests_in_this_call} request(s), "
+                        f"total now: {total_skill_calls}/{HARD_LIMIT_SKILL_CALLS}"
+                    )
+                    
+                    # Check if we've reached the soft limit - inject warning for next iteration
+                    if total_skill_calls >= SOFT_LIMIT_SKILL_CALLS and not budget_warning_injected:
+                        budget_warning_injected = True
+                        logger.info(
+                            f"{log_prefix} [SKILL_BUDGET] Soft limit reached ({total_skill_calls} >= {SOFT_LIMIT_SKILL_CALLS}). "
+                            f"Budget warning will be injected in next iteration."
+                        )
+                    
+                    # Check if we've hit the hard limit - force no tools for next iteration
+                    if total_skill_calls >= HARD_LIMIT_SKILL_CALLS:
+                        force_no_tools = True
+                        logger.info(
+                            f"{log_prefix} [SKILL_BUDGET] Hard limit reached ({total_skill_calls} >= {HARD_LIMIT_SKILL_CALLS}). "
+                            f"Next iteration will force tool_choice='none' to generate final answer."
+                        )
                 
                 # --- Handle system tools (focus mode activation/deactivation) ---
                 # System tools are special tools that modify the chat state rather than executing skills
@@ -2750,8 +2900,27 @@ async def handle_main_processing(
             }
             current_message_history.append(tool_response_message)
 
-        if iteration == MAX_TOOL_CALL_ITERATIONS - 1:
-            yield "\n[Max tool call iterations reached.]"
+        # === MAX ITERATIONS HANDLING ===
+        # If we're on the second-to-last iteration and the LLM is still requesting tools,
+        # force the next (final) iteration to generate an answer without tools.
+        # This ensures the user ALWAYS gets an answer based on gathered information.
+        if iteration == MAX_TOOL_CALL_ITERATIONS - 2:
+            # We're on the second-to-last iteration - force the final iteration to answer
+            force_no_tools = True
+            if not budget_warning_injected:
+                budget_warning_injected = True  # Also inject budget warning
+            logger.info(
+                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
+                f"Next iteration will force tool_choice='none' to generate final answer."
+            )
+        elif iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+            # We're on the last iteration - if we still have tool calls, that's unexpected
+            # (because we should have forced no tools in the previous iteration)
+            # Log this as a warning but don't show error to user - we already have tool results
+            logger.warning(
+                f"{log_prefix} [MAX_ITERATIONS] Final iteration reached with tool calls still pending. "
+                f"This shouldn't happen if force_no_tools was set correctly. Breaking loop."
+            )
             break
 
     if usage:

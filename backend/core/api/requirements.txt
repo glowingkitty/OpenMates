@@ -17,7 +17,7 @@ aiohttp==3.13.3
 celery==5.5.1
 regex==2024.11.6
 boto3==1.37.18
-python-multipart==0.0.20
+python-multipart==0.0.22
 argon2-cffi==23.1.0
 pyotp==2.9.0
 user-agents==2.2.0
@@ -31,7 +31,8 @@ stripe==12.2.0
 timezonefinder==8.2.0
 pytz==2025.2
 pynacl==1.6.2
-openai==1.99.3
+openai==2.15.0
+c2pa-python==0.28.0
 toon-format @ git+https://github.com/toon-format/toon-python.git
 groq==0.34.1
 youtube-transcript-api==1.2.3

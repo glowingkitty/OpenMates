@@ -220,6 +220,22 @@ class ChatCacheMixin:
             logger.error(f"CACHE_OP_ERROR: Error getting score for chat {chat_id} from {key}: {e}", exc_info=True)
             return None
 
+    async def check_chat_exists_for_user(self, user_id: str, chat_id: str) -> bool:
+        """
+        Efficiently checks if a chat_id exists in the user's chat list in cache.
+        Returns True if the chat is present in the sorted set.
+        """
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_user_chat_ids_versions_key(user_id)
+        try:
+            score = await client.zscore(key, chat_id)
+            return score is not None
+        except Exception as e:
+            logger.error(f"Error checking chat presence in cache for user {user_id}, chat {chat_id}: {e}")
+            return False
+
     # 2. user:{user_id}:chat:{chat_id}:versions (Hash: messages_v, draft_v, title_v)
     def _get_chat_versions_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:versions"
@@ -1078,9 +1094,13 @@ class ChatCacheMixin:
         """Returns the cache key for tracking active AI task for a chat."""
         return f"chat:{chat_id}:active_ai_task"
     
+    def _get_task_chat_mapping_key(self, task_id: str) -> str:
+        """Returns the cache key for mapping a task_id back to its chat_id (for cancellation ownership)."""
+        return f"active_task:{task_id}:chat_id"
+    
     async def set_active_ai_task(self, chat_id: str, task_id: str, ttl: int = 600) -> bool:
         """
-        Mark a chat as having an active AI task.
+        Mark a chat as having an active AI task and store reverse mapping for ownership.
         
         Args:
             chat_id: The chat ID
@@ -1096,9 +1116,14 @@ class ChatCacheMixin:
             return False
         
         key = self._get_active_task_key(chat_id)
+        reverse_key = self._get_task_chat_mapping_key(task_id)
         try:
+            # Store chat -> task mapping
             await client.set(key, task_id, ex=ttl)
-            logger.debug(f"Set active AI task {task_id} for chat {chat_id}")
+            # Store task -> chat mapping (reverse mapping)
+            await client.set(reverse_key, chat_id, ex=ttl)
+            
+            logger.debug(f"Set active AI task {task_id} for chat {chat_id} (and reverse mapping)")
             return True
         except Exception as e:
             logger.error(f"Error setting active AI task for chat {chat_id}: {e}", exc_info=True)
@@ -1125,10 +1150,32 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error getting active AI task for chat {chat_id}: {e}", exc_info=True)
             return None
+
+    async def get_chat_id_for_task(self, task_id: str) -> Optional[str]:
+        """
+        Get the chat ID associated with an active AI task.
+        
+        Args:
+            task_id: The task ID
+            
+        Returns:
+            Chat ID if found, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_task_chat_mapping_key(task_id)
+        try:
+            chat_id = await client.get(key)
+            return chat_id.decode('utf-8') if chat_id else None
+        except Exception as e:
+            logger.error(f"Error getting chat ID for task {task_id}: {e}", exc_info=True)
+            return None
     
     async def clear_active_ai_task(self, chat_id: str) -> bool:
         """
-        Clear the active AI task marker for a chat.
+        Clear the active AI task marker for a chat and its reverse mapping.
         
         Args:
             chat_id: The chat ID
@@ -1142,8 +1189,15 @@ class ChatCacheMixin:
         
         key = self._get_active_task_key(chat_id)
         try:
+            # We need to find the task_id to clear the reverse mapping
+            task_id_bytes = await client.get(key)
+            if task_id_bytes:
+                task_id = task_id_bytes.decode('utf-8')
+                reverse_key = self._get_task_chat_mapping_key(task_id)
+                await client.delete(reverse_key)
+            
             await client.delete(key)
-            logger.debug(f"Cleared active AI task for chat {chat_id}")
+            logger.debug(f"Cleared active AI task for chat {chat_id} (and reverse mapping)")
             return True
         except Exception as e:
             logger.error(f"Error clearing active AI task for chat {chat_id}: {e}", exc_info=True)

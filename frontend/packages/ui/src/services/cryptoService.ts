@@ -64,6 +64,14 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 }
 
 /**
+ * Converts Uint8Array to URL-safe Base64 string (no padding)
+ */
+export function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
+  const base64 = uint8ArrayToBase64(bytes);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
  * Converts Base64 string to Uint8Array
  * Handles both standard base64 and URL-safe base64 (with - and _)
  */
@@ -1258,7 +1266,7 @@ export function generateSecureRecoveryKey(length = 24): string {
   const randomBytes = crypto.getRandomValues(new Uint8Array(length));
 
   // Ensure we have at least one character from each set by reserving positions
-  let result: string[] = new Array(length);
+  const result: string[] = new Array(length);
 
   // Reserve first 4 positions for mandatory character types
   const charSets = [

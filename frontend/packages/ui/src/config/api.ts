@@ -179,7 +179,7 @@ export const apiEndpoints = {
 } as const;
 
 // Helper to get full API endpoint URL
-export function getApiEndpoint(path: string): string {
+export function getApiEndpoint(path: string = ''): string {
     // Get the base API URL using the helper function
     const apiBase = getApiUrl();
     return `${apiBase}${path}`;

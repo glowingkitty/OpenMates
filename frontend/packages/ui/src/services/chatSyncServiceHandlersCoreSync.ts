@@ -29,6 +29,11 @@ export async function handleInitialSyncResponseImpl(
         // CRITICAL: Do all async processing FIRST, THEN create transaction
         // If transaction is created before async work, it will auto-commit
         
+        // Get current user's ID for ownership tracking
+        // All synced chats belong to the current user (server filters by hashed_user_id)
+        const userProfile = await userDB.getUserProfile();
+        const currentUserId = userProfile?.user_id;
+        
         // Process chats with async decryption
         const chatsToUpdate: Chat[] = await Promise.all(payload.chats_to_add_or_update.map(async (serverChat) => {
             // Decrypt encrypted title from server for in-memory use using chat-specific key
@@ -95,6 +100,8 @@ export async function handleInitialSyncResponseImpl(
                 unread_count: serverChat.unread_count,
                 created_at: serverChat.created_at,
                 updated_at: serverChat.updated_at,
+                // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
+                user_id: currentUserId,
                 // Include sharing fields from server sync for cross-device consistency
                 is_shared: serverChat.is_shared !== undefined ? serverChat.is_shared : undefined,
                 is_private: serverChat.is_private !== undefined ? serverChat.is_private : undefined,
@@ -261,6 +268,11 @@ export async function handlePhase1LastChatImpl(
         if (payload.chat_details && payload.messages) {
             console.info("[ChatSyncService:CoreSync] Saving Phase 1 chat data to IndexedDB:", payload.chat_id);
             
+            // Get current user's ID for ownership tracking
+            // All synced chats belong to the current user (server filters by hashed_user_id)
+            const userProfile = await userDB.getUserProfile();
+            const currentUserId = userProfile?.user_id;
+            
             // CRITICAL FIX: Ensure chat_details has the chat_id field
             // The backend sends chat_id at payload root, but chat_details needs it too
             // Ensure all required Chat fields are present
@@ -276,6 +288,8 @@ export async function handlePhase1LastChatImpl(
                 unread_count: payload.chat_details.unread_count ?? 0,
                 created_at: payload.chat_details.created_at ?? Math.floor(Date.now() / 1000),
                 updated_at: payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
+                // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
+                user_id: currentUserId,
                 // Include optional fields
                 encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
                 encrypted_icon: payload.chat_details.encrypted_icon ?? null,

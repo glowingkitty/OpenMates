@@ -32,12 +32,20 @@ class SkillPreviewService extends EventTarget {
    * Handler for skill cancellation confirmation
    */
   private skillCancelHandler?: (payload: SkillCancelRequestedPayload) => void;
+
+  private handlersRegistered = false;
   
   /**
    * Register WebSocket handlers for skill execution updates
    */
   registerWebSocketHandlers(): void {
+    if (this.handlersRegistered) {
+      console.debug('[SkillPreviewService] Handlers already registered, skipping');
+      return;
+    }
+
     console.debug('[SkillPreviewService] Registering WebSocket handlers');
+    this.handlersRegistered = true;
     
     // Store handler reference for unregistering
     this.skillStatusHandler = (payload: SkillExecutionStatusUpdatePayload) => {
@@ -62,6 +70,7 @@ class SkillPreviewService extends EventTarget {
    */
   unregisterWebSocketHandlers(): void {
     console.debug('[SkillPreviewService] Unregistering WebSocket handlers');
+    this.handlersRegistered = false;
     if (this.skillStatusHandler) {
       webSocketService.off('skill_execution_status', this.skillStatusHandler);
       this.skillStatusHandler = undefined;

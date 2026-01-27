@@ -7,7 +7,7 @@ import logging
 import hashlib
 import time
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
@@ -52,9 +52,14 @@ class ShareChatMetadataUpdate(BaseModel):
     chat_id: str
     title: Optional[str] = None
     summary: Optional[str] = None
+    category: Optional[str] = None
+    icon: Optional[str] = None
+    follow_up_suggestions: Optional[List[str]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
-    share_link: Optional[str] = None  # The share link URL (for community sharing notification)
+    # For community sharing: client sends decrypted messages and embeds (zero-knowledge architecture)
+    decrypted_messages: Optional[List[Dict[str, Any]]] = None  # [{role, content, category?, model_name?, created_at}]
+    decrypted_embeds: Optional[List[Dict[str, Any]]] = None  # [{embed_id, type, content, created_at}]
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -360,6 +365,28 @@ async def update_share_metadata(
             )
             updates["shared_encrypted_summary"] = encrypted_summary
         
+        if payload.category is not None:
+            encrypted_category, _ = await encryption_service.encrypt(
+                payload.category,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_category"] = encrypted_category
+            
+        if payload.icon is not None:
+            encrypted_icon, _ = await encryption_service.encrypt(
+                payload.icon,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_icon"] = encrypted_icon
+
+        if payload.follow_up_suggestions is not None:
+            import json
+            encrypted_follow_ups, _ = await encryption_service.encrypt(
+                json.dumps(payload.follow_up_suggestions),
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_follow_up_suggestions"] = encrypted_follow_ups
+        
         # Update sharing status: set is_shared=true and is_private=false when sharing
         if payload.is_shared is not None:
             updates["is_shared"] = payload.is_shared
@@ -370,6 +397,11 @@ async def update_share_metadata(
         # Update community sharing preference
         if payload.share_with_community is not None:
             updates["share_with_community"] = payload.share_with_community
+        
+        # Note: When sharing with community, the client decrypts messages/embeds locally
+        # and sends plaintext to the server (zero-knowledge architecture).
+        # The share_link with encryption key is NOT sent to the server.
+        # The server creates a separate demo_chats entry encrypted with Vault.
         
         # Update chat in database
         if updates:
@@ -382,7 +414,7 @@ async def update_share_metadata(
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,is_shared,is_private'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private'
             }
             updated_item = await directus_service.update_item("chats", chat_id, updates, params=params)
             if updated_item is None:
@@ -460,13 +492,39 @@ async def update_share_metadata(
             except Exception as e:
                 logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
         
-        # If chat is shared with community, send notification email to admin
-        if payload.share_with_community and payload.share_link:
+        # If chat is shared with community, create a pending demo_chat entry with messages/embeds
+        # Zero-knowledge architecture: Client decrypts and sends plaintext, server stores encrypted with Vault
+        if payload.share_with_community and payload.decrypted_messages:
+            demo_chat_id = None
             try:
-                # Get admin email from environment variable
+                # Create a pending demo_chat entry with status='pending_approval'
+                # Store messages and embeds encrypted with Vault (not the user's chat key)
+                demo_chat = await directus_service.demo_chat.create_pending_demo_chat_with_content(
+                    chat_id=chat_id,
+                    title=payload.title,
+                    summary=payload.summary,
+                    category=payload.category,
+                    icon=payload.icon,
+                    follow_up_suggestions=payload.follow_up_suggestions,
+                    decrypted_messages=payload.decrypted_messages,  # [{role, content, created_at}]
+                    decrypted_embeds=payload.decrypted_embeds or []  # [{embed_id, type, content, created_at}]
+                )
+                if demo_chat:
+                    demo_chat_id = demo_chat.get("id")  # UUID, not demo_id string
+                    logger.info(f"Created pending demo chat {demo_chat_id} for community-shared chat {chat_id}")
+                else:
+                    logger.warning(f"Failed to create pending demo chat for chat {chat_id}")
+            except Exception as e:
+                # Log error but don't fail the request - demo chat creation is secondary
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}: {e}", exc_info=True)
+            
+            # Send notification email to admin
+            try:
                 admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
                 
                 # Dispatch email task to notify admin about community share
+                # Note: We don't send share_link because it contains the encryption key (zero-knowledge)
+                # The admin will approve the demo chat and view it through the admin interface
                 from backend.core.api.app.tasks.celery_config import app
                 app.send_task(
                     name='app.tasks.email_tasks.community_share_email_task.send_community_share_notification',
@@ -474,8 +532,10 @@ async def update_share_metadata(
                         "admin_email": admin_email,
                         "chat_title": payload.title or "Untitled Chat",
                         "chat_summary": payload.summary or "",
-                        "share_link": payload.share_link,
-                        "chat_id": chat_id
+                        "category": payload.category,
+                        "icon": payload.icon,
+                        "chat_id": chat_id,
+                        "demo_chat_id": demo_chat_id  # UUID of the demo_chat entry
                     },
                     queue='email'
                 )

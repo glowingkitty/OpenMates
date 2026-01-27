@@ -5,8 +5,6 @@
 	import { panelState } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
-	import { webSocketService } from '../../services/websocketService';
-	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
@@ -15,29 +13,29 @@
 	import { chatSyncService } from '../../services/chatSyncService';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
-	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
+	import { locale as svelteLocaleStore, waitLocale } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore, getLocalContentHashes } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
-	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { getApiEndpoint } from '../../config/api'; // For API calls
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
+	// NOTE: Demo chats are now decrypted server-side, so decryptShareKeyBlob is no longer needed here
 
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
-let updateChatListDebounceTimer: NodeJS.Timeout | null = null;
+let updateChatListDebounceTimer: any = null;
 const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Component State ---
@@ -74,7 +72,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
-	let currentScrollTop = $state(0); // Track current scroll position for reactivity
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -100,7 +97,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Reactive Computations for Display ---
 
-	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
+	// Get filtered public chats (intro + community demos + legal) - exclude hidden ones for authenticated users
+	// 
+	// ARCHITECTURE:
+	// - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different)
+	// - Community demos: Dynamic demo chats fetched from server, stored in communityDemoStore (in-memory)
+	// - Legal chats: Legal documents (privacy, terms, imprint) - only for non-self-hosted
+	//
 	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
 	// For self-hosted instances, legal chats are excluded because operators should provide their own legal docs
 	// Translates demo chats to the user's locale before converting to Chat format
@@ -108,27 +111,52 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let visiblePublicChats = $derived((() => {
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
-		const currentLocale = $svelteLocaleStore;
-		// Don't log every recalculation - only log when locale actually changes (handled elsewhere if needed)
+		void $svelteLocaleStore;
+		
+		// Reference the text store to ensure reactivity when translations are loaded
+		void $text;
+		
+		// Reference the communityDemoStore to trigger reactivity when community demos are loaded
+		void $communityDemoStore;
+		
+		console.debug('[Chats] Recalculating visiblePublicChats. Community demos count:', getAllCommunityDemoChats().length);
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
 		
-		// Filter demo chats
-		let demoChats: ChatType[] = [];
+		// 1. Static intro chats (bundled with app)
+		let introChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
-			demoChats = DEMO_CHATS
+			introChats = INTRO_CHATS
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
-				.map(demo => convertDemoChatToChat(demo));
+				.map(demo => {
+					const chat = convertDemoChatToChat(demo);
+					chat.group_key = 'intro';
+					return chat;
+				});
 		} else {
-			// For authenticated users, filter out hidden demo chats
-			demoChats = DEMO_CHATS
+			// For authenticated users, filter out hidden intro chats
+			introChats = INTRO_CHATS
 				.filter(demo => !hiddenIds.includes(demo.chat_id))
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
-				.map(demo => convertDemoChatToChat(demo));
+				.map(demo => {
+					const chat = convertDemoChatToChat(demo);
+					chat.group_key = 'intro';
+					return chat;
+				});
 		}
 		
-		// Include legal chats ONLY for non-self-hosted instances
+		// 2. Community demo chats (fetched from server, stored in-memory)
+		// These are shown for all users (authenticated and non-authenticated)
+		let communityChats: ChatType[] = [];
+		communityChats = getAllCommunityDemoChats()
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.map(chat => ({
+				...chat,
+				group_key: 'examples' // Community demos go in "Examples" group
+			}));
+		
+		// 3. Legal chats (ONLY for non-self-hosted instances)
 		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
 		// - No imprint: only required for commercial/public-facing websites
 		// - No privacy policy: GDPR "household exemption" applies to personal/private use
@@ -140,27 +168,46 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			legalChats = LEGAL_CHATS
 				.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
 				.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
-				.map(legal => convertDemoChatToChat(legal));
+				.map(legal => {
+					const chat = convertDemoChatToChat(legal);
+					chat.group_key = 'legal';
+					return chat;
+				});
 		}
 		
-		return [...demoChats, ...legalChats];
+		return [...introChats, ...communityChats, ...legalChats];
 	})());
 
-	// Combine public chats (demo + legal) with real chats from IndexedDB
+	// Combine public chats (intro + community demos + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
 	// Also include incognito chats (stored in sessionStorage, not IndexedDB)
 	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
+	//
+	// ARCHITECTURE:
+	// - Intro chats: Static, bundled with app, stored in INTRO_CHATS array (in-memory)
+	// - Community demos: Dynamic, fetched from server, stored in communityDemoStore (in-memory)
+	// - Legal chats: Static, bundled with app, stored in LEGAL_CHATS array (in-memory)
+	// - Real chats: User's actual chats, stored in IndexedDB
+	// - Shared chats: Chats shared with user, stored in IndexedDB (temporary for viewing)
+	// - Incognito chats: Ephemeral chats, stored in sessionStorage
 	let incognitoChatsTrigger = $state(0); // Trigger for reactivity when incognito chats change
 	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
 	
 	let allChats = $derived((() => {
-		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
-		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
-		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
+		void visiblePublicChats;
+
+		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
+		const processedRealChats = allChatsFromDB
+			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
+
+		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
+		// CRITICAL: We don't filter out public chats from visiblePublicChats even if they are in the DB,
+		// because they are already filtered out of processedRealChats. This ensures they always show up.
+		const filteredPublicChats = visiblePublicChats;
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
-		const _incognitoTrigger = incognitoChatsTrigger;
+		void incognitoChatsTrigger;
 		
 		// Load incognito chats (only if incognito mode is enabled)
 		// This is async, so we use the cached incognitoChats array which is updated via effect
@@ -169,7 +216,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// CRITICAL: For non-authenticated users, include sessionStorage-only chats (new chats with drafts)
 		// These are chats that have drafts in sessionStorage but don't exist in IndexedDB yet
 		// Reference sessionStorageDraftUpdateTrigger to make this reactive to draft changes
-		const _trigger = sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
+		void sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
 		let sessionStorageChats: ChatType[] = [];
 		let sharedChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
@@ -177,8 +224,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Filter out demo/legal chat IDs (they're already in visiblePublicChats)
 			// and chat IDs that are already in IndexedDB
 			const existingChatIds = new Set([
-				...visiblePublicChats.map(c => c.chat_id),
-				...realChatsFromDB.map(c => c.chat_id),
+				...filteredPublicChats.map(c => c.chat_id),
+				...processedRealChats.map(c => c.chat_id),
 				..._incognitoChats.map(c => c.chat_id) // Also exclude incognito chats
 			]);
 			
@@ -214,7 +261,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Shared chat keys are now stored in IndexedDB (sharedChatKeyStorage) instead of sessionStorage
 			// The sharedChats array will be populated asynchronously via loadSharedChatsForNonAuth()
 			// For now, include any chats that have keys in the memory cache (chatDB.chatKeys)
-			for (const chat of realChatsFromDB) {
+			for (const chat of processedRealChats) {
 				if (!existingChatIds.has(chat.chat_id)) {
 					// Check if we have a key for this chat (indicating it's a shared chat we can decrypt)
 					const hasKey = chatDB.getChatKey(chat.chat_id) !== null;
@@ -227,8 +274,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// CRITICAL SAFEGUARD: Deduplicate the final array by chat_id
-		// This prevents duplicate chats from appearing in the sidebar, even if a bug elsewhere creates duplicates
-		const combinedChats = [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
+		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
+		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
+		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
 		const seenIds = new Set<string>();
 		const deduplicatedChats: ChatType[] = [];
 		for (const chat of combinedChats) {
@@ -236,9 +284,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				seenIds.add(chat.chat_id);
 				deduplicatedChats.push(chat);
 			} else {
-				console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
+				// Only log if it's not an expected overlap (like a public chat already in list)
+				if (!isPublicChat(chat.chat_id)) {
+					console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
+				}
 			}
 		}
+		
+		// Final log for debugging community demo categorization
+		const communityDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
+		if (communityDemoCount > 0) {
+			console.debug(`[Chats] Found ${communityDemoCount} community demo chat(s) in 'examples' group`);
+		}
+		
 		return deduplicatedChats;
 	})());
 
@@ -258,10 +316,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		return sorted.filter(chat => !(chat as any).is_hidden && !(chat as any).is_hidden_candidate);
 	})());
 
-	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
-	// Define the order of group keys (most recent first)
-	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
-
 	// Separate list for hidden chats (only shown when unlocked)
 	let hiddenChats = $derived((() => {
 		if (!hiddenChatState.isUnlocked) {
@@ -276,17 +330,26 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		const groups = groupedHiddenChats;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
-		// First, add groups in the defined order
-		for (const groupKey of GROUP_ORDER) {
+		// 1. First, add standard time groups in the defined order (Today, Yesterday, etc.)
+		const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+		for (const groupKey of timeGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
-		// Then, add any remaining groups
+		// 2. Then, add any remaining time groups (e.g., month groups) in their order
+		const staticGroups = ['intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+
+		// 3. Finally, add the static sections in the specified order
+		for (const groupKey of staticGroups) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
@@ -305,17 +368,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		const groups = groupedChatsForDisplay;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
-		// First, add groups in the defined order
-		for (const groupKey of GROUP_ORDER) {
+		// 1. First, add standard time groups in the defined order (Today, Yesterday, etc.)
+		const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+		for (const groupKey of timeGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
-		// Then, add any remaining groups (e.g., month groups) in their original order
+		// 2. Then, add any remaining time groups (e.g., month groups) in their order
+		// These are older real user chats, so they should come before the static sections
+		const staticGroups = ['intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+
+		// 3. Finally, add the static sections in the specified order
+		for (const groupKey of staticGroups) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
 		}
 		
@@ -326,21 +399,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
 	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
 	
-	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
-	// Define the order of group keys (most recent first) - MOVED UP to avoid use-before-declaration
-	// Note: GROUP_ORDER is now defined above, before its first use
-	
-	// Locale for date formatting, updated reactively
-	let currentLocale = get(svelteLocaleStore);
-	svelteLocaleStore.subscribe(newLocale => {
-		currentLocale = newLocale;
-		// Re-trigger grouping if locale affects date strings used as keys (implicitly handled by reactivity of groupedChatsForDisplay)
-	});
-
-
 	// --- Event Handlers & Lifecycle ---
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
+	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -770,6 +832,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		};
 		window.addEventListener('language-changed', languageChangeHandler);
 
+		// Language change handler for demo chats - reload demos in new language
+		handleLanguageChangeForDemos = () => {
+			// Reload demos for ALL users when language changes
+			console.debug('[Chats] Language changed - reloading community demo chats');
+			loadDemoChatsFromServer(true); // Pass true to force reload
+		};
+		window.addEventListener('language-changed', handleLanguageChangeForDemos);
+
 		// Listen to local draft changes for immediate UI updates
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 
@@ -1049,7 +1119,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						if (activityHistoryElement) {
 							// Force scroll to top using multiple methods for maximum compatibility
 							activityHistoryElement.scrollTop = 0;
-							currentScrollTop = 0;
 							// Also try scrollTo for better compatibility
 							activityHistoryElement.scrollTo({ top: 0, behavior: 'auto' });
 							// Force a reflow to ensure scroll position is applied
@@ -1061,7 +1130,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 								setTimeout(() => {
 									if (activityHistoryElement) {
 										activityHistoryElement.scrollTop = 0;
-										currentScrollTop = 0;
 									}
 								}, 50);
 							}
@@ -1076,13 +1144,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
-		// Load demo chats from server in background (for non-authenticated users)
+		// Load demo chats from server in background (for all users)
 		// Similar to how shared chats are loaded - stores in IndexedDB and displays in chat list
-		if (!$authStore.isAuthenticated) {
-			loadDemoChatsFromServer().catch(error => {
-				console.error('[Chats] Error loading demo chats from server:', error);
-			});
-		}
+		loadDemoChatsFromServer().catch(error => {
+			console.error('[Chats] Error loading demo chats from server:', error);
+		});
 
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
@@ -1109,22 +1175,88 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	});
 	
 	/**
-	 * Load demo chats from server and store in IndexedDB
-	 * Similar to how shared chats are loaded - works in background
-	 * Only loads for non-authenticated users
+	 * Load community demo chats from server with language-aware caching
+	 * 
+	 * ARCHITECTURE: Language-specific loading with IndexedDB caching
+	 * 1. Loads demos in the user's current device language ONLY
+	 * 2. Uses IndexedDB for offline support (cached demos available offline)
+	 * 3. Reloads when language changes (via 'language-changed' event)
+	 * 4. Hash-based change detection - only fetches updated demos
+	 * 5. Clears cache on language change to fetch new language content
+	 * 
+	 * Rationale for single-language storage:
+	 * - Most users rarely switch languages
+	 * - Saves storage (5 demos × 20 languages = 100 demo chat records vs 5)
+	 * - Simplifies cache management
+	 * - Language change triggers automatic reload with new translations
+	 * 
+	 * Available for ALL users (authenticated and non-authenticated).
+	 * 
+	 * @param forceLanguageReload - If true, clears cache and reloads all demos (used on language change)
 	 */
-	async function loadDemoChatsFromServer(): Promise<void> {
-		if ($authStore.isAuthenticated) {
-			return; // Only load for non-authenticated users
+	async function loadDemoChatsFromServer(forceLanguageReload: boolean = false): Promise<void> {
+		// Check if already loading (unless forcing reload for language change)
+		if (!forceLanguageReload && communityDemoStore.isLoading()) {
+			console.debug('[Chats] Community demos already loading, skipping');
+			return;
 		}
 
 		try {
-			console.debug('[Chats] Loading demo chats from server...');
+			// CRITICAL: Wait for translations to be fully loaded before fetching
+			// This ensures svelteLocaleStore has the correct language for the API call
+			await waitLocale();
 			
-			// Fetch demo chats list
-			const response = await fetch(getApiEndpoint('/v1/demo/chats'));
+			communityDemoStore.setLoading(true);
+			
+			// Get user's current language from svelte-i18n store
+			const currentLang = get(svelteLocaleStore) || 'en';
+			console.debug(`[Chats] Loading community demos for language: ${currentLang}`);
+			
+			// STEP 1: If language changed, clear cache and memory
+			if (forceLanguageReload) {
+				console.debug('[Chats] Language changed - clearing cache and reloading demos');
+				try {
+					const { demoChatsDB } = await import('../../services/demoChatsDB');
+					await demoChatsDB.clearAllDemoChats();
+					communityDemoStore.clear();
+				} catch (error) {
+					console.error('[Chats] Error clearing demo chats cache:', error);
+				}
+			}
+			
+			// STEP 2: Load from IndexedDB cache first (provides offline support)
+			if (!forceLanguageReload && !communityDemoStore.isCacheLoaded()) {
+				console.debug('[Chats] Loading community demos from IndexedDB cache...');
+				await communityDemoStore.loadFromCache();
+			}
+
+			// STEP 3: Get local content hashes for change detection
+			const localHashes = await getLocalContentHashes();
+			const hashesParam = Array.from(localHashes.entries())
+				.map(([demoId, hash]) => `${demoId}:${hash}`)
+				.join(',');
+			
+			if (forceLanguageReload) {
+				console.debug(`[Chats] Reloading all demos in ${currentLang}`);
+			} else {
+				console.debug(`[Chats] Checking for demo chat updates with ${localHashes.size} local hashes...`);
+			}
+			
+			// STEP 4: Fetch demo list with language and hashes for change detection
+			const url = hashesParam 
+				? getApiEndpoint(`/v1/demo/chats?lang=${currentLang}&hashes=${encodeURIComponent(hashesParam)}`)
+				: getApiEndpoint(`/v1/demo/chats?lang=${currentLang}`);
+			
+			const response = await fetch(url);
 			if (!response.ok) {
+				// If server is unavailable, use cached demos (offline mode)
+				if (getAllCommunityDemoChats().length > 0) {
+					console.debug(`[Chats] Server unavailable, using ${getAllCommunityDemoChats().length} cached community demos`);
+					communityDemoStore.markAsLoaded();
+					return;
+				}
 				console.warn('[Chats] Failed to fetch demo chats list:', response.status);
+				communityDemoStore.markAsLoaded();
 				return;
 			}
 
@@ -1132,137 +1264,143 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			const demoChatsList = data.demo_chats || [];
 			
 			if (demoChatsList.length === 0) {
-				console.debug('[Chats] No demo chats available from server');
+				console.debug('[Chats] No community demo chats available from server');
+				communityDemoStore.markAsLoaded();
 				return;
 			}
 
-			console.debug(`[Chats] Found ${demoChatsList.length} demo chats, loading individually...`);
+			// Determine which demos need to be fetched
+			// - If hashes were provided, only fetch demos with `updated: true`
+			// - If no hashes (first load), fetch all demos
+			const demosToFetch = localHashes.size > 0
+				? demoChatsList.filter((d: { updated?: boolean }) => d.updated === true)
+				: demoChatsList;
+			
+			console.debug(`[Chats] Found ${demoChatsList.length} community demos, ${demosToFetch.length} need updates`);
 
-			// Get existing demo chat IDs from sessionStorage to avoid reloading
-			const existingDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
-			const demoChatIds: string[] = [];
+			// Track loaded demo IDs
+			const newlyLoadedIds: string[] = [];
 
-			// Ensure DB is initialized
-			await chatDB.init();
-
-			// Load each demo chat
-			for (const demoChatMeta of demoChatsList) {
+			// Load each demo chat that needs updating
+			for (const demoChatMeta of demosToFetch) {
 				const demoId = demoChatMeta.demo_id;
+				const contentHash = demoChatMeta.content_hash || '';
 				if (!demoId) continue;
-
-				// Skip if already loaded
-				if (existingDemoChatIds.includes(demoId)) {
-					console.debug(`[Chats] Demo chat ${demoId} already loaded, skipping`);
-					continue;
-				}
 
 				try {
 					// Fetch individual demo chat data
-					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
+					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`));
 					if (!chatResponse.ok) {
-						console.warn(`[Chats] Failed to fetch demo chat ${demoId}:`, chatResponse.status);
+						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
 						continue;
 					}
 
 					const chatData = await chatResponse.json();
 					const chatDataObj = chatData.chat_data;
+					const serverContentHash = chatData.content_hash || contentHash || ''; // Get content_hash from response
 					
-					if (!chatDataObj || !chatDataObj.chat_id || !chatDataObj.encryption_key) {
-						console.warn(`[Chats] Invalid demo chat data for ${demoId}`);
+					// ARCHITECTURE: Community demo chats are server-side decrypted
+					// The API returns cleartext messages with encryption_mode: "none"
+					// No encryption_key is needed - just chat_id and messages
+					if (!chatDataObj || !chatDataObj.chat_id) {
+						console.warn(`[Chats] Invalid community demo chat data for ${demoId}`);
 						continue;
 					}
 
-					const chatId = chatDataObj.chat_id;
-					const encryptionKey = chatDataObj.encryption_key;
+					const chatId = chatDataObj.chat_id;  // This is the demo_id (e.g., "demo-1")
+					
+					console.debug(`[Chats] Community demo ${demoId} loaded: chatId=${chatId}, hash=${serverContentHash.slice(0, 16)}...`);
 
-					// Convert encryption key from base64 string to Uint8Array
-					const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+					// Extract metadata from API response (already translated server-side)
+					const title = chatData.title || 'Demo Chat';
+					const summary = chatData.summary || '';
+					const category = chatData.category || '';
+					const icon = chatData.icon || '';
+					const followUpSuggestions = chatData.follow_up_suggestions || [];
 
-					// Set the chat encryption key in the database cache
-					chatDB.setChatKey(chatId, keyBytes);
-
-					// Parse messages if needed (backend returns JSON strings when decrypt_content=False)
+					// ARCHITECTURE: Community demo messages are already decrypted server-side
+					// The API returns cleartext content directly (not encrypted)
+					// Store using CLEARTEXT field names (content, category, model_name) - NOT encrypted_* fields
 					const rawMessages = chatDataObj.messages || [];
-					const parsedMessages = rawMessages.map((msg: any) => {
-						if (typeof msg === 'string') {
-							try {
-								return JSON.parse(msg);
-							} catch (e) {
-								console.warn('[Chats] Failed to parse message JSON:', e);
-								return null;
-							}
-						}
-						return msg;
-					}).filter((msg: any) => msg !== null);
+					const parsedMessages = rawMessages.map((msg: { role: string; content: string; category?: string; model_name?: string; created_at?: number }) => {
+						// Convert cleartext API format to Message format
+						// Server returns: { role, content (cleartext), category (cleartext), model_name (cleartext), created_at }
+						return {
+							message_id: `${demoId}-${rawMessages.indexOf(msg)}`,
+							chat_id: chatId,
+							role: msg.role || 'user',
+							content: msg.content || '',  // Cleartext content
+							category: msg.role === 'assistant' ? (msg.category || category) : undefined,  // Cleartext category
+							model_name: msg.role === 'assistant' ? msg.model_name : undefined,  // Cleartext model name for assistant messages
+							created_at: msg.created_at || Math.floor(Date.now() / 1000),
+							status: 'synced' as const
+						} as Message;
+					});
+					
+					console.debug(`[Chats] Community demo ${demoId} has ${parsedMessages.length} messages`);
 
-					// Calculate timestamps
-					const messageTimestamps = parsedMessages
-						.map((m: any) => m.created_at || 0)
-						.filter((ts: number) => ts > 0);
-					const lastMessageTimestamp = messageTimestamps.length > 0
-						? Math.max(...messageTimestamps)
-						: Math.floor(Date.now() / 1000);
+					// ARCHITECTURE: Use consistent timestamps for all demo chats (intro + community)
+					// This ensures they stay grouped correctly and have a stable order.
+					// Intro chats use '7 days ago' minus their order.
+					// Community demos use '7 days ago' minus 10000 minus their index.
+					const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+					const demoIndex = parseInt(demoId.split('-')[1] || '0');
+					const displayTimestamp = sevenDaysAgo - (demoIndex * 1000) - 10000;
 
-					// Create Chat object
+					// Create Chat object with cleartext metadata
+					// ARCHITECTURE: Demo chats use CLEARTEXT field names (category, icon, follow_up_request_suggestions)
+					// NOT encrypted_* field names - the data is already decrypted server-side
 					const chat: ChatType = {
 						chat_id: chatId,
-						encrypted_title: chatDataObj.encrypted_title || null,
-						encrypted_chat_summary: chatDataObj.encrypted_chat_summary || null,
-						encrypted_follow_up_request_suggestions: chatDataObj.encrypted_follow_up_request_suggestions || null,
-						encrypted_icon: chatDataObj.encrypted_icon || null,
-						encrypted_category: chatDataObj.encrypted_category || null,
+						title: title,  // Cleartext title
+						encrypted_title: null,  // Not encrypted - title is in `title` field
+						// CLEARTEXT fields - demo chats are already decrypted server-side
+						chat_summary: summary || null,
+						follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
+						icon: icon || null,
+						category: category || null,
 						messages_v: parsedMessages.length,
 						title_v: 0,
 						draft_v: 0,
-						encrypted_draft_md: null,
-						encrypted_draft_preview: null,
-						last_edited_overall_timestamp: lastMessageTimestamp,
+						last_edited_overall_timestamp: displayTimestamp,
 						unread_count: 0,
-						created_at: lastMessageTimestamp,
-						updated_at: lastMessageTimestamp,
+						created_at: displayTimestamp,
+						updated_at: displayTimestamp,
 						processing_metadata: false,
-						waiting_for_metadata: false
+						waiting_for_metadata: false,
+						group_key: 'examples'
 					};
 
-					// Store chat in IndexedDB
-					await chatDB.addChat(chat);
+					// Parse embeds from API response (cleartext, server-side decrypted)
+					// ARCHITECTURE: Demo embeds are stored in demo_chats_db for offline support
+					const rawEmbeds = chatDataObj.embeds || [];
+					const parsedEmbeds = rawEmbeds.map((emb: { embed_id?: string; type: string; content: string; created_at?: number }) => ({
+						embed_id: emb.embed_id || `${demoId}-embed-${rawEmbeds.indexOf(emb)}`,
+						chat_id: chatId,
+						type: emb.type || 'unknown',
+						content: emb.content || '',  // Cleartext content (JSON string)
+						created_at: emb.created_at || Math.floor(Date.now() / 1000)
+					}));
 
-					// Store messages if any
-					if (parsedMessages.length > 0) {
-						await chatDB.batchSaveMessages(parsedMessages);
+					// Store chat, messages, and embeds in memory AND IndexedDB (with content_hash for change detection)
+					await addCommunityDemo(chatId, chat, parsedMessages, serverContentHash, parsedEmbeds);
+
+					if (parsedEmbeds.length > 0) {
+						console.debug(`[Chats] Stored ${parsedEmbeds.length} cleartext embeds for community demo ${demoId}`);
 					}
 
-					// Store embeds if any
-					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
-						// Process embed_keys first - unwrap them with chat key
-						const embedKeys = chatDataObj.embed_keys || [];
-						// Store embeds and embed keys (similar to shared chat logic)
-						// Note: Embed storage logic would go here if needed
-					}
-
-					// Track demo chat ID in sessionStorage
-					demoChatIds.push(demoId);
-					
-					console.debug(`[Chats] Successfully loaded demo chat ${demoId} (chat_id: ${chatId})`);
+					newlyLoadedIds.push(demoId);
+					console.debug(`[Chats] Successfully loaded community demo ${demoId} (chat_id: ${chatId}) into memory and cache`);
 				} catch (error) {
-					console.error(`[Chats] Error loading demo chat ${demoId}:`, error);
+					console.error(`[Chats] Error loading community demo ${demoId}:`, error);
 				}
 			}
 
-			// Update sessionStorage with all demo chat IDs
-			if (demoChatIds.length > 0) {
-				const allDemoChatIds = [...existingDemoChatIds, ...demoChatIds];
-				sessionStorage.setItem('demo_chats', JSON.stringify(allDemoChatIds));
-				console.debug(`[Chats] Stored ${demoChatIds.length} new demo chats in sessionStorage`);
-			}
-
-			// Refresh chat list to show newly loaded demo chats
-			chatListCache.markDirty();
-			await updateChatListFromDB(true);
-
-			console.debug('[Chats] Finished loading demo chats from server');
+			communityDemoStore.markAsLoaded();
+			console.debug(`[Chats] Finished loading community demos: ${newlyLoadedIds.length} updated, ${getAllCommunityDemoChats().length} total`);
 		} catch (error) {
-			console.error('[Chats] Error loading demo chats from server:', error);
+			console.error('[Chats] Error loading community demo chats from server:', error);
+			communityDemoStore.markAsLoaded();
 		}
 	}
 	
@@ -1298,9 +1436,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// If already initialized, this returns immediately
 			try {
 				await chatDB.init();
-			} catch (initError: any) {
+			} catch (initError) {
+				const error = initError as Error;
 				// If database is being deleted (e.g., during logout), skip database access
-				if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+				if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
 					console.debug("[Chats] Database is being deleted, skipping initialization - demo/legal chats will be shown");
 					allChatsFromDB = []; // Clear user chats, keep only demo/legal chats
 					return; // Exit early - demo/legal chats are already in visiblePublicChats
@@ -1318,6 +1457,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	onDestroy(() => {
 		window.removeEventListener('language-changed', languageChangeHandler);
+		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
 		if (unsubscribeDraftState) unsubscribeDraftState();
@@ -1430,6 +1570,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		
+		// CRITICAL: Mark that user made an explicit choice when they click on a chat
+		// This ensures sync phases will NEVER override the user's choice
+		if (userInitiated) {
+			phasedSyncState.markUserMadeExplicitChoice();
+		}
 
 		// Update last selected for potential range selection (even when not in select mode)
 		lastSelectedChatId = chat.chat_id;
@@ -1541,13 +1687,15 @@ async function updateChatListFromDBInternal(force = false) {
 		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
+			// NOTE: Community demo chats are now stored in-memory (communityDemoStore), not IndexedDB
+			// They're included via visiblePublicChats derived, so we only need to load shared chats here
 			
 			try {
 				// Check if database is being deleted (e.g., during logout)
 				try {
 					await chatDB.init();
 				} catch (initError: any) {
-					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized') || initError?.message?.includes('Database initialization blocked')) {
 						console.debug("[Chats] Database unavailable, skipping shared chat load");
 						allChatsFromDB = [];
 						return;
@@ -1555,34 +1703,33 @@ async function updateChatListFromDBInternal(force = false) {
 					throw initError;
 				}
 				
-				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage) and demo chat IDs from sessionStorage
+				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage)
+				// Community demos are now in-memory, so we don't load them from here
 				const { getStoredSharedChatIds } = await import('../../services/sharedChatKeyStorage');
 				const sharedChatIds = await getStoredSharedChatIds();
-				const demoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 				
-				// Combine shared and demo chat IDs
-				const allChatIds = [...sharedChatIds, ...demoChatIds];
-				
-				if (allChatIds.length > 0) {
-					// Load shared and demo chats from IndexedDB
+				if (sharedChatIds.length > 0) {
+					// Load shared chats from IndexedDB
 					const loadedChats: ChatType[] = [];
-					for (const chatId of allChatIds) {
+					
+					for (const chatId of sharedChatIds) {
 						try {
 							const chat = await chatDB.getChat(chatId);
 							if (chat) {
 								loadedChats.push(chat);
 							}
 						} catch (error) {
-							console.warn(`[Chats] Error loading chat ${chatId}:`, error);
+							console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
 						}
 					}
-				allChatsFromDB = loadedChats;
-				chatListCache.setCache(loadedChats);
-				console.debug(`[Chats] Loaded ${loadedChats.length} chat(s) from IndexedDB (${sharedChatIds.length} shared, ${demoChatIds.length} demo)`);
-			} else {
-				allChatsFromDB = [];
-				chatListCache.setCache([]);
-			}
+					
+					allChatsFromDB = loadedChats;
+					chatListCache.setCache(loadedChats);
+					console.debug(`[Chats] Loaded ${loadedChats.length} shared chat(s) from IndexedDB`);
+				} else {
+					allChatsFromDB = [];
+					chatListCache.setCache([]);
+				}
 			} catch (error) {
 				console.error("[Chats] Error loading shared chats from DB:", error);
 				allChatsFromDB = [];
@@ -1789,9 +1936,8 @@ async function updateChatListFromDBInternal(force = false) {
     function handleScroll(event: Event) {
         if (!activityHistoryElement) return;
         
-        // Update reactive scroll position
+        // Update scroll position
         const newScrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = newScrollTop;
         
         // CRITICAL: Ensure scroll can reach 0 when hidden chats are unlocked
         // Sometimes scroll position can get stuck slightly above 0, preventing access to hidden chats section
@@ -1801,7 +1947,6 @@ async function updateChatListFromDBInternal(force = false) {
             requestAnimationFrame(() => {
                 if (activityHistoryElement && activityHistoryElement.scrollTop <= 2) {
                     activityHistoryElement.scrollTop = 0;
-                    currentScrollTop = 0;
                 }
             });
         }
@@ -1815,7 +1960,6 @@ async function updateChatListFromDBInternal(force = false) {
         if (!activityHistoryElement) return;
         
         const scrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = scrollTop; // Update reactive scroll position
         
         // CRITICAL: Also allow scrolling to top when hidden chats are already unlocked
         // This ensures users can scroll up to see the hidden chats section after unhiding
@@ -1842,7 +1986,6 @@ async function updateChatListFromDBInternal(force = false) {
         if (!activityHistoryElement) return;
         
         const scrollTop = activityHistoryElement.scrollTop;
-        currentScrollTop = scrollTop; // Update reactive scroll position
         
         const touchY = event.touches[0].clientY;
         const deltaY = touchY - touchStartY;
@@ -2043,12 +2186,13 @@ async function updateChatListFromDBInternal(force = false) {
      * Handles public chats (demo/legal), regular chats, and incognito chats
      */
     async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
-        // Check if this is a public chat
+        // Check if this is a public chat (intro, community demo, or legal)
         if (isPublicChat(chatId)) {
             // Find the chat in visiblePublicChats
             const chat = visiblePublicChats.find(c => c.chat_id === chatId);
             if (chat) {
-                const messages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and communityDemoStore
+                const messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
                 return { chat, messages };
             }
             return { chat: null, messages: [] };

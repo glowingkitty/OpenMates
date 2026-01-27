@@ -11,7 +11,8 @@ import { getSessionId } from '../utils/sessionId';
 import { getWebSocketToken } from '../utils/cookies'; // Use getWebSocketToken instead of getAuthRefreshToken
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
-import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
+import { isLoggingOut, forcedLogoutInProgress } from '../stores/signupState'; // Import logout state
+import { websocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
 import { notificationStore } from '../stores/notificationStore'; // Import notification store
 
 /**
@@ -84,8 +85,10 @@ type KnownMessageTypes =
     // Kept for potential future use (e.g., LLM message streaming)
     | 'message_update'                 // For streaming updates to a message content while it's being generated
     | 'user_credits_updated'
+    | 'user_admin_status_updated'      // Notification that user admin status has changed
     | 'credit_note_ready'               // Notification that credit note PDF is ready for download
     | 'message_queued'                  // Notification that a message was queued because an AI task is active
+    | 'demo_chat_updated'               // Notification that a demo chat status has changed (for admins)
 
     ;
 
@@ -203,6 +206,13 @@ class WebSocketService extends EventTarget {
             console.warn('[WebSocketService] Cannot connect: User not authenticated.');
             websocketStatus.setStatus('disconnected'); // Ensure status is disconnected
             return Promise.reject('User not authenticated');
+        }
+
+        // Prevent connection attempts during logout to avoid auth errors
+        if (get(isLoggingOut) || get(forcedLogoutInProgress)) {
+            console.debug('[WebSocketService] Cannot connect: Logout in progress.');
+            websocketStatus.setStatus('disconnected');
+            return Promise.reject('Logout in progress');
         }
 
         // --- START ADDITION: Update Status ---
@@ -535,6 +545,13 @@ class WebSocketService extends EventTarget {
         this.connectionPromise = null; // Clear connection promise
     }
 
+    // Disconnect and clear all handlers - used during logout
+    public disconnectAndClearHandlers(): void {
+        console.info('[WebSocketService] Disconnecting and clearing all handlers...');
+        this.disconnect();
+        this.clearAllHandlers();
+    }
+
     private startPing(): void {
         this.stopPing(); // Clear any existing ping interval
         this.pingIntervalId = setInterval(() => {
@@ -638,11 +655,12 @@ class WebSocketService extends EventTarget {
             this.messageHandlers.set(messageType, []);
         }
         const currentHandlers = this.messageHandlers.get(messageType);
-        currentHandlers?.push(handler);
-        // Debug logging for duplicate detection (can be removed in production)
-        // console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers?.length}`);
-        if (currentHandlers && currentHandlers.length > 1) {
-            console.warn(`[WebSocketService] ⚠️ DUPLICATE HANDLERS DETECTED for "${messageType}"! Count: ${currentHandlers.length}`);
+        // Check if this exact handler is already registered to prevent duplicates
+        if (currentHandlers && !currentHandlers.includes(handler)) {
+            currentHandlers.push(handler);
+            console.debug(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`);
+        } else if (currentHandlers) {
+            console.warn(`[WebSocketService] ⚠️ Handler already registered for "${messageType}"! Skipping duplicate registration.`);
         }
     }
 
@@ -658,6 +676,22 @@ class WebSocketService extends EventTarget {
                 this.messageHandlers.delete(messageType);
             }
         }
+    }
+
+    // Clear all handlers for a specific message type
+    public clearHandlers(messageType: string): void {
+        if (this.messageHandlers.has(messageType)) {
+            this.messageHandlers.delete(messageType);
+            console.debug(`[WebSocketService] Cleared all handlers for message type: "${messageType}"`);
+        }
+    }
+
+    // Clear all handlers for all message types
+    public clearAllHandlers(): void {
+        const handlerCount = Array.from(this.messageHandlers.values()).reduce((total, handlers) => total + handlers.length, 0);
+        this.messageHandlers.clear();
+        console.debug(`[WebSocketService] Cleared all handlers (${handlerCount} total)`);
+        this.dispatchEvent(new CustomEvent('handlers_cleared'));
     }
 }
 

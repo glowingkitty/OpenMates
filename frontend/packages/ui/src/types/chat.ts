@@ -21,17 +21,21 @@ export interface Message {
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
   
-  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB)
-  encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB for regular chats)
+  // ARCHITECTURE: These fields are ONLY used for regular (encrypted) chats
+  // Demo chats use cleartext fields (content, category) instead
+  encrypted_content?: string; // Encrypted markdown content, encrypted using chat-specific key (optional for demo chats)
   encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
   encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
   encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
   
-  // Decrypted fields (computed on-demand, never stored)
-  content?: string; // Decrypted markdown content (computed from encrypted_content)
-  category?: string; // Decrypted category (computed from encrypted_category)
-  sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
-  model_name?: string; // Decrypted model name (computed from encrypted_model_name)
+  // Cleartext/Decrypted fields
+  // For regular chats: computed on-demand from encrypted_* fields, never stored
+  // For demo chats: stored directly as cleartext (already decrypted server-side)
+  content?: string; // Cleartext markdown content
+  category?: string; // Cleartext category
+  sender_name?: string; // Cleartext sender name (not used for demo chats)
+  model_name?: string; // Cleartext model name
   
   // Truncation fields for performance optimization (only for user messages)
   is_truncated?: boolean; // Flag indicating if content is truncated for display
@@ -89,6 +93,13 @@ export interface Chat {
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   
+  // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
+  // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions
+  chat_summary?: string | null; // Cleartext summary for demo chats
+  follow_up_request_suggestions?: string | null; // Cleartext JSON array of follow-up suggestions for demo chats
+  icon?: string | null; // Cleartext icon name for demo chats
+  category?: string | null; // Cleartext category for demo chats
+  
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
   is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
@@ -96,8 +107,21 @@ export interface Chat {
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
 
+  // Demo duplication tracking
+  source_demo_id?: string | null; // ID of the source demo chat if this chat was created by duplicating a demo
+
   // Pin functionality
   pinned?: boolean; // Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync.
+
+  // Hidden chat fields (UI only, not persisted in this format)
+  is_hidden?: boolean; // True if this chat is hidden (unlocked with password)
+  is_hidden_candidate?: boolean; // True if this chat is a candidate for being hidden (decryption failed)
+
+  // Temporary messages field for sync/storage processing
+  messages?: Message[];
+
+  // Optional group key for manual UI grouping (e.g., 'intro', 'examples', 'legal')
+  group_key?: string;
 }
 
 export interface ChatComponentVersions {
@@ -410,6 +434,7 @@ export interface InitialSyncResponsePayload {
         messages?: Message[];
         is_shared?: boolean; // Whether this chat has been shared (share link generated)
         is_private?: boolean; // Whether this chat is private (not shared)
+        user_id?: string; // Owner/creator of the chat
     }>;
     server_chat_order: string[];
     server_timestamp: number;
@@ -526,9 +551,13 @@ export interface SyncStatusResponsePayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
  */
 export interface Phase2RecentChatsPayload {
-    chats?: Partial<Chat>[];  // Optional - only present in direct sync response
+    chats?: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>;
     chat_count: number;
-    phase?: 'phase2';  // Optional - only present in direct sync response
+    phase?: 'phase2';
 }
 
 /**
@@ -539,10 +568,14 @@ export interface Phase2RecentChatsPayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
  */
 export interface Phase3FullSyncPayload {
-  chats?: Partial<Chat>[];  // Optional - only present in direct sync response
-  chat_count: number;
-  new_chat_suggestions?: NewChatSuggestion[];
-  phase?: 'phase3';  // Optional - only present in direct sync response
+    chats?: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>;
+    chat_count: number;
+    new_chat_suggestions?: NewChatSuggestion[];
+    phase?: 'phase3';
 }
 
 // Scroll position and read status payloads

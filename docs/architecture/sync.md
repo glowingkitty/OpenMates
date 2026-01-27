@@ -83,17 +83,27 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 ### Phase 1: Last Opened Chat AND New Chat Suggestions (Immediate Priority)
 **Goal**: Get user into their last opened content as quickly as possible with all needed data
 
-**Process**:
-1. **Server**: ALWAYS fetch latest 50 new chat suggestions from Directus
-2. **Server**: Check user profile `last_opened` field
-3. **Server**: If last opened is a chat (not "new"), load chat metadata, all messages, and all embeds referenced in those messages
-4. **Server**: Send BOTH chat data (if applicable) AND suggestions via WebSocket "phase_1_last_chat_ready" event
-5. **Client**: Store suggestions in IndexedDB
-6. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
-7. **Client**: If chat data present, decrypt and store in IndexedDB (encrypted)
-8. **Client**: If embeds present, store in EmbedStore (IndexedDB, encrypted)
-9. **Client**: If chat data present, open chat in UI immediately after decryption
-10. **Client**: Dispatch "chatOpened" event to update UI state (if chat was opened)
+**IMPORTANT - User Choice Protection**:
+- If user manually switches to "new chat" or clicks on a different chat AFTER page load, sync phases will NOT override their choice
+- The client tracks `userMadeExplicitChoice` and `initialChatLoaded` flags in `phasedSyncStateStore`
+- When user clicks "new chat", the store uses a sentinel value (`NEW_CHAT_SENTINEL`) instead of null to explicitly indicate new chat mode
+- Only Phase 1 triggers chat loading in `+page.svelte`; Phase 2 and 3 only update the sidebar chat list
+
+**Process (Server - Optimized with Parallel Queries)**:
+1. **Server**: Parse `last_opened` field to get target chat ID (if any)
+2. **Server**: Run two Directus queries IN PARALLEL using `asyncio.gather`:
+   - Query A: Fetch 50 new chat suggestions for user (always runs)
+   - Query B: If target chat exists, fetch chat metadata, all messages, and embeds
+3. **Server**: Cache results and send via WebSocket "phase_1_last_chat_ready" event
+
+**Process (Client)**:
+1. **Client**: Check `canAutoNavigate()` - if user made explicit choice, skip auto-load
+2. **Client**: Store suggestions in IndexedDB
+3. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
+4. **Client**: If chat data present, decrypt and store in IndexedDB (encrypted)
+5. **Client**: If embeds present, store in EmbedStore (IndexedDB, encrypted)
+6. **Client**: If chat data present AND no explicit user choice, open chat in UI
+7. **Client**: Mark `initialChatLoaded` to prevent future sync phases from overriding
 
 **Data Flow (Chat)**:
 ```
@@ -110,11 +120,13 @@ Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypt
 Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 ```
 
-**Directus Requests**:
-- Request 1: Get 50 new chat suggestions for user (always)
-- Request 2: Get user profile to check `last_opened` field
-- Request 3 (if not "new"): Get chat metadata and all messages for that chat_id (encrypted)
-- Request 4 (if not "new"): Query all embeds by hashed_chat_id (server hashes chat_id, queries Directus embeds collection)
+**Directus Requests (Parallel Execution)**:
+- **Parallel Query A**: Get 50 new chat suggestions for user (always runs)
+- **Parallel Query B** (if `last_opened` is a chat ID):
+  - Get chat metadata and all messages for that chat_id (encrypted)
+  - Query all embeds by hashed_chat_id (server hashes chat_id, queries Directus embeds collection)
+
+**OPTIMIZATION**: Queries A and B run concurrently via `asyncio.gather()`, reducing Phase 1 latency by ~50% when both are needed.
 
 **Embed Loading Process (Server-Side)**:
 1. **Hash Chat IDs**: Server hashes each chat_id using SHA256 to get `hashed_chat_id` values
@@ -362,11 +374,32 @@ if not cache_primed and not is_warming:
 
 ### Frontend Components
 
-#### 1. Phased Sync Service (`PhasedSyncService.ts`)
+#### 1. Phased Sync State Store (`phasedSyncStateStore.ts`)
+
+**User Choice Protection:**
+The `phasedSyncState` store prevents sync phases from overriding explicit user choices:
+
+| State Flag | Purpose |
+|---|---|
+| `initialSyncCompleted` | Prevents redundant syncs when components remount |
+| `initialChatLoaded` | Set when first chat loads after page reload; blocks future auto-navigation |
+| `userMadeExplicitChoice` | Set when user clicks on a chat or "new chat"; sync will NEVER override |
+| `currentActiveChatId` | Tracks current active chat; uses `NEW_CHAT_SENTINEL` for new chat mode |
+
+**Key Methods:**
+- `shouldAutoSelectPhase1Chat(chatId)`: Returns false if user made explicit choice or initial chat loaded
+- `canAutoNavigate()`: Returns false if `userMadeExplicitChoice || initialChatLoaded`
+- `markUserMadeExplicitChoice()`: Called when user clicks on chat in sidebar or "new chat" button
+- `markInitialChatLoaded()`: Called when `loadChat()` successfully loads a chat
+
+**NEW_CHAT_SENTINEL:**
+Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly indicate user is in "new chat" mode. This ensures `shouldAutoSelectPhase1Chat` correctly blocks auto-selection.
+
+#### 2. Phased Sync Service (`PhasedSyncService.ts`)
 
 **Client-Side Sync Management:**
 - Event-driven sync coordination
-- Automatic chat opening after Phase 1
+- Automatic chat opening after Phase 1 (if no explicit user choice)
 - Encrypted data storage in IndexedDB
 - Memory management for decrypted data
 
@@ -376,15 +409,18 @@ if not cache_primed and not is_warming:
 - Sync status tracking and management
 - Error handling and recovery
 
-**Event Handling:**
-- `phase_1_last_chat_ready`: Handle Phase 1 completion
-- `phase_2_last_20_chats_ready`: Handle Phase 2 completion
-- `phase_3_last_100_chats_ready`: Handle Phase 3 completion
-- `cache_primed`: Handle full sync completion
+**Event Handling (Optimized):**
+- `phase_1_last_chat_ready`: **Only event that triggers chat loading** in `+page.svelte`
+- `phase_2_last_20_chats_ready`: Updates sidebar chat list only (handled by `Chats.svelte`)
+- `phase_3_last_100_chats_ready`: Updates sidebar chat list only (handled by `Chats.svelte`)
+- `phasedSyncComplete`: Marks sync as completed for status UI
 
-#### 2. Chat Components
+**OPTIMIZATION**: Previously, all phase events triggered `handleSyncCompleteAndLoadChat()`, causing duplicate load attempts. Now only Phase 1 triggers chat loading, reducing unnecessary work.
 
-**Auto-Open Logic**: Automatically open last chat after Phase 1 sync
+#### 3. Chat Components
+
+**Auto-Open Logic**: Automatically open last chat after Phase 1 sync (only if `canAutoNavigate()` returns true)
+**Explicit Choice Tracking**: When user clicks on chat or "new chat", `markUserMadeExplicitChoice()` is called
 **Decryption Handling**: Decrypt chat data for display while keeping IndexedDB encrypted
 **Embed Resolution**: Resolve embed references in messages from EmbedStore or fetch from Directus if missing
 **UI Updates**: Update chat list and active chat based on sync progress

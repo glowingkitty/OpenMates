@@ -118,34 +118,59 @@ async def _warm_cache_phase_one(
     directus_service: DirectusService,
     encryption_service: EncryptionService
 ) -> Optional[str]:
-    """Handles Phase 1 of cache warming: Immediate Needs (last opened chat AND new chat suggestions)."""
+    """Handles Phase 1 of cache warming: Immediate Needs (last opened chat AND new chat suggestions).
+    
+    OPTIMIZATION: New chat suggestions and chat details are fetched in parallel to reduce latency.
+    """
     target_immediate_chat_id = _parse_chat_id_from_path(last_opened_path_from_user_model)
     logger.info(f"warm_user_cache Phase 1 for user {user_id}. Target immediate chat: {target_immediate_chat_id}")
 
-    # ALWAYS fetch and cache new chat suggestions in Phase 1
-    try:
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
-            hashed_user_id, limit=50
-        )
-        if new_chat_suggestions:
-            # Cache suggestions with 10-minute TTL
-            await cache_service.set_new_chat_suggestions(hashed_user_id, new_chat_suggestions, ttl=600)
-            logger.info(f"User {user_id}: Cached {len(new_chat_suggestions)} new chat suggestions in Phase 1")
-        else:
-            logger.info(f"User {user_id}: No new chat suggestions found to cache in Phase 1")
-    except Exception as e:
-        logger.error(f"Error caching new chat suggestions in Phase 1 for user {user_id}: {e}", exc_info=True)
-
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+    
+    # OPTIMIZATION: Fetch new chat suggestions AND chat details in parallel
+    # This reduces Phase 1 latency by running both Directus queries concurrently
+    async def fetch_suggestions():
+        """Fetch and cache new chat suggestions."""
+        try:
+            suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
+                hashed_user_id, limit=50
+            )
+            if suggestions:
+                # Cache suggestions with 10-minute TTL
+                await cache_service.set_new_chat_suggestions(hashed_user_id, suggestions, ttl=600)
+                logger.info(f"User {user_id}: Cached {len(suggestions)} new chat suggestions in Phase 1")
+            else:
+                logger.info(f"User {user_id}: No new chat suggestions found to cache in Phase 1")
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error caching new chat suggestions in Phase 1 for user {user_id}: {e}", exc_info=True)
+            return None
+    
+    async def fetch_chat_details():
+        """Fetch chat details for the target chat."""
+        if not target_immediate_chat_id:
+            return None
+        try:
+            return await directus_service.chat.get_full_chat_and_user_draft_details_for_cache_warming(
+                user_id, target_immediate_chat_id
+            )
+        except Exception as e:
+            logger.error(f"Error fetching chat details for {target_immediate_chat_id}: {e}", exc_info=True)
+            return None
+    
+    # Run both queries in parallel using asyncio.gather
+    suggestions_result, full_data = await asyncio.gather(
+        fetch_suggestions(),
+        fetch_chat_details()
+    )
+    
+    # If no target chat, we're done (suggestions already cached above)
     if not target_immediate_chat_id:
         logger.info(f"User {user_id}: No specific target_immediate_chat_id found from path '{last_opened_path_from_user_model}'. Skipping Phase 1 specific chat load.")
         return None
 
+    # Process the chat details if we got them
     try:
-        full_data = await directus_service.chat.get_full_chat_and_user_draft_details_for_cache_warming(
-            user_id, target_immediate_chat_id
-        )
-
         if not full_data or not full_data.get("chat_details"):
             logger.warning(f"User {user_id}: Could not fetch details for target_immediate_chat_id {target_immediate_chat_id} from Directus (chat may have been deleted).")
             logger.info(f"User {user_id}: Skipping Phase 1 cache warming - user will see 'new chat' view instead")
@@ -167,7 +192,10 @@ async def _warm_cache_phase_one(
             encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
             encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
             encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
-            last_message_timestamp=chat_details.get("last_message_timestamp")
+            last_message_timestamp=chat_details.get("last_message_timestamp"),
+            is_shared=chat_details.get("is_shared"),
+            is_private=chat_details.get("is_private"),
+            user_id=user_id  # Cache the owner ID
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -263,7 +291,10 @@ async def _warm_cache_phase_two_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
 
             # Prepare pipeline operations for this chat
@@ -306,7 +337,10 @@ async def _warm_cache_phase_two_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp")
+                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        is_shared=chat_data.get("is_shared"),
+                        is_private=chat_data.get("is_private"),
+                        user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -428,7 +462,10 @@ async def _warm_cache_phase_three_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
 
             # Prepare pipeline operations for this chat
@@ -471,7 +508,10 @@ async def _warm_cache_phase_three_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp")
+                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        is_shared=chat_data.get("is_shared"),
+                        is_private=chat_data.get("is_private"),
+                        user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -570,7 +610,10 @@ async def _warm_cache_phase_three(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp")
+                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                is_shared=chat_data.get("is_shared"),
+                is_private=chat_data.get("is_private"),
+                user_id=user_id  # Cache the owner ID
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 

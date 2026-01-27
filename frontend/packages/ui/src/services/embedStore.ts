@@ -438,7 +438,7 @@ export class EmbedStore {
       await new Promise<void>((resolve, reject) => {
         const request = store.put(entry);
         request.onsuccess = () => {
-          console.info('[EmbedStore] ✅ Successfully stored encrypted embed in IndexedDB:', contentRef, { type: normalizedType, hasEmbedId: !!encryptedData.embed_id });
+          console.debug('[EmbedStore] ✅ Successfully stored encrypted embed in IndexedDB:', contentRef, { type: normalizedType, hasEmbedId: !!encryptedData.embed_id });
           resolve();
         };
         request.onerror = () => reject(request.error);

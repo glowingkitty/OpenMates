@@ -46,11 +46,14 @@ class BecomeAdminRequest(BaseModel):
 
 class ApproveDemoChatRequest(BaseModel):
     """Request model for approving a demo chat"""
-    chat_id: str
-    encryption_key: str  # Encryption key from share link - required for non-auth users to decrypt
-    title: str
-    summary: str = ""
-    category: str = ""
+    demo_chat_id: str  # UUID of the demo_chats entry
+    chat_id: str  # The original chat_id (for verification)
+    replace_demo_chat_id: str | None = None  # Optional: UUID of demo chat to replace (if at limit)
+
+class RejectSuggestionRequest(BaseModel):
+    """Request model for rejecting a community suggestion"""
+    demo_chat_id: str  # UUID of the demo_chats entry
+    chat_id: str  # The original chat_id (for updating the chats table)
 
 # --- Endpoints ---
 
@@ -103,50 +106,57 @@ async def get_community_suggestions(
     """
     Get pending community chat suggestions for admin review.
 
-    Returns chats that were shared with the community but haven't been
-    made into demo chats yet.
+    Returns demo_chats entries with status='pending_approval'.
+    These are chats that were shared with the community and are pending admin approval.
+    The metadata is decrypted using the demo_chats vault key for display.
     """
     try:
-        # 1. Get all chats shared with community
-        params = {
-            "filter": {
-                "share_with_community": {"_eq": True}
-            },
-            "fields": "id,encrypted_title,shared_encrypted_title,shared_encrypted_summary,updated_at,is_private,is_shared"
-        }
-        community_chats = await directus_service.get_items("chats", params)
-
-        # 2. Get all existing demo chats to filter them out
-        active_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
-        existing_demo_chat_ids = {d.get("original_chat_id") for d in active_demos}
-
-        # 3. Filter and format suggestions
+        import json
+        
+        # Get all pending demo chats (status='pending_approval')
+        pending_demos = await directus_service.demo_chat.get_pending_demo_chats()
+        
         suggestions = []
-        for chat in community_chats:
-            chat_id = str(chat.get("id"))
-            if chat_id in existing_demo_chat_ids:
-                continue
-
-            # Ensure chat is actually shared (double check)
-            if chat.get("is_private", True):
-                continue
-
-            # Get title and summary (fall back to encrypted_title if shared versions missing)
-            # Note: Server can decrypt shared_* fields using shared vault key
-            # but for the suggestion list we just need metadata
+        for demo in pending_demos:
+            demo_chat_item = demo  # demo is already the full item with 'id' field
+            chat_id = demo.get("original_chat_id")
+            
+            # Get metadata from cleartext fields
+            title = demo.get("title")
+            summary = demo.get("summary")
+            category = demo.get("category")
+            icon = demo.get("icon")
+            
+            # Parse follow-up suggestions from cleartext JSON
+            follow_up_suggestions = []
+            if demo.get("follow_up_suggestions"):
+                try:
+                    follow_up_suggestions = json.loads(demo["follow_up_suggestions"])
+                except Exception as e:
+                    logger.warning(f"Failed to parse follow-up suggestions for pending demo {demo_chat_item['id']}: {e}")
+            
+            # No encryption_key field anymore with zero-knowledge architecture
+            encryption_key = None
+            
             suggestions.append({
+                "demo_chat_id": demo_chat_item["id"],  # UUID of the demo_chats entry
                 "chat_id": chat_id,
-                "title": chat.get("encrypted_title"), # This will be decrypted on client if needed
-                "summary": None, # Will be fetched/decrypted on client
-                "shared_at": chat.get("updated_at"),
-                "share_link": f"/share/chat/{chat_id}" # UI will add the key from the email or local store
+                "title": title or "Untitled Chat",
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": follow_up_suggestions,
+                "shared_at": demo.get("created_at"),
+                "share_link": f"/share/chat/{chat_id}",
+                "encryption_key": encryption_key,  # The chat encryption key for approval
+                "status": demo.get("status")
             })
-
+        
         return {
             "suggestions": suggestions,
             "count": len(suggestions)
         }
-
+    
     except Exception as e:
         logger.error(f"Error getting community suggestions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get community suggestions")
@@ -160,62 +170,185 @@ async def approve_demo_chat(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Approve a community-shared chat to become a demo chat.
+    Approve a pending demo chat for translation and publication.
 
-    This creates a demo chat entry with a limit of 5 most recent demos.
+    Updates an existing demo_chat entry (status='pending_approval') to
+    status='translating' and triggers the translation task.
+    
+    Enforces a limit of 5 published demo chats - if at limit, deactivates the oldest.
     """
     try:
-        # Verify the chat exists and is shared
+        from datetime import datetime, timezone
+        
+        # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": payload.demo_chat_id}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        if not demo_chat:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        # Verify it's in pending status
+        if demo_chat.get("status") != "pending_approval":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Demo chat is not pending approval (current status: {demo_chat.get('status')})"
+            )
+        
+        # Verify the chat_id matches
+        if demo_chat.get("original_chat_id") != payload.chat_id:
+            raise HTTPException(status_code=400, detail="Chat ID mismatch")
+        
+        # Verify the original chat exists and is shared
         chat = await directus_service.chat.get_chat_metadata(payload.chat_id)
         if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
-
+            raise HTTPException(status_code=404, detail="Original chat not found")
+        
         if chat.get("is_private", True):
             raise HTTPException(status_code=400, detail="Chat is not publicly shared")
-
-        # Use the encryption key provided in the request
-        # This key comes from the share link and allows non-authenticated users to decrypt the chat
-        # SECURITY: Each chat has its own encryption key, so storing it for demo chats is safe
-        # - The key only decrypts this specific chat
-        # - Even if compromised, it only affects this one demo chat
-        # - Demo chats are public content by design (admin-approved for public display)
-        encryption_key = payload.encryption_key
-
-        # Check current demo chat count and remove oldest if at limit
+        
+        # Check current published demo chat count and remove one if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
         if len(current_demos) >= 5:
-            # Sort by created_at and remove the oldest
-            current_demos.sort(key=lambda x: x.get("created_at", ""))
-            oldest_demo = current_demos[0]
-            await directus_service.demo_chat.deactivate_demo_chat(oldest_demo["demo_id"])
-            logger.info(f"Deactivated oldest demo chat {oldest_demo['demo_id']} to make room for new demo")
-
-        # Create the demo chat
-        demo_chat = await directus_service.demo_chat.create_demo_chat(
-            chat_id=payload.chat_id,
-            encryption_key=encryption_key,
-            title=payload.title,
-            summary=payload.summary,
-            category=payload.category,
-            approved_by_admin=True
-        )
-
-        if not demo_chat:
-            raise HTTPException(status_code=500, detail="Failed to create demo chat")
-
-        logger.info(f"Admin {admin_user.id} approved demo chat for chat {payload.chat_id}")
-
+            # Determine which demo to replace
+            demo_to_remove_id = None
+            
+            if payload.replace_demo_chat_id:
+                # Admin specified which demo to replace - validate it exists in current demos
+                demo_ids = [d["id"] for d in current_demos]
+                if payload.replace_demo_chat_id not in demo_ids:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Specified replacement demo chat not found or not currently published"
+                    )
+                demo_to_remove_id = payload.replace_demo_chat_id
+                logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
+            else:
+                # No replacement specified - fall back to oldest demo
+                current_demos.sort(key=lambda x: x.get("created_at", ""))
+                demo_to_remove_id = current_demos[0]["id"]
+                logger.info(f"No replacement specified, defaulting to oldest demo chat {demo_to_remove_id}")
+            
+            logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
+            
+            # Batch delete all related data using filters
+            # Note: Directus batch delete uses filter parameters
+            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            
+            # Finally, delete the demo_chat entry itself
+            await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
+            logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
+        
+        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID
+        updates = {
+            "status": "translating",
+            "approved_by_admin": admin_user.id,  # Store admin UUID
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        result = await directus_service.update_item("demo_chats", payload.demo_chat_id, updates, admin_required=True)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to update demo chat status")
+        
+        # Trigger translation task (pass UUID, not demo_id string)
+        from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
+        translate_demo_chat_task.delay(payload.demo_chat_id, admin_user_id=admin_user.id)
+        
+        logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_chat_id} for chat {payload.chat_id}. Translation task triggered.")
+        
         return {
             "success": True,
-            "demo_id": demo_chat.get("demo_id"),
-            "message": "Demo chat approved and created successfully"
+            "demo_chat_id": payload.demo_chat_id,
+            "message": "Demo chat approved and translation process started"
         }
-
+    
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error approving demo chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to approve demo chat")
+
+@router.post("/reject-suggestion")
+@limiter.limit("30/minute")
+async def reject_suggestion(
+    request: Request,
+    payload: RejectSuggestionRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Reject a pending community suggestion.
+    
+    This deletes the pending demo_chat entry and all related data (messages, embeds, translations)
+    and sets share_with_community to False on the original chat so it won't be re-submitted.
+    
+    CRITICAL: All related data must be deleted to prevent orphaned foreign key references.
+    """
+    try:
+        demo_chat_id = payload.demo_chat_id
+        
+        logger.info(f"Admin {admin_user.id} rejecting demo_chat {demo_chat_id}")
+        
+        # Batch delete all related data using filters (CRITICAL: must happen BEFORE deleting demo_chat)
+        # 1. Delete demo_messages
+        messages_deleted = await directus_service.delete_items(
+            "demo_messages",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {messages_deleted} demo_messages for demo_chat {demo_chat_id}")
+        
+        # 2. Delete demo_embeds
+        embeds_deleted = await directus_service.delete_items(
+            "demo_embeds",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {embeds_deleted} demo_embeds for demo_chat {demo_chat_id}")
+        
+        # 3. Delete demo_chat_translations
+        translations_deleted = await directus_service.delete_items(
+            "demo_chat_translations",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {translations_deleted} demo_chat_translations for demo_chat {demo_chat_id}")
+        
+        # 4. Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
+        if not success:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
+        
+        # 5. Update the original chat to remove from community suggestions
+        # This prevents it from being re-submitted
+        await directus_service.update_item(
+            "chats", 
+            payload.chat_id, 
+            {"share_with_community": False}
+        )
+        
+        logger.info(f"Admin {admin_user.id} rejected community suggestion demo_chat_id={payload.demo_chat_id} for chat {payload.chat_id}")
+        
+        return {
+            "success": True,
+            "message": "Suggestion rejected successfully",
+            "deleted_counts": {
+                "messages": messages_deleted,
+                "embeds": embeds_deleted,
+                "translations": translations_deleted
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting community suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to reject suggestion")
 
 @router.get("/demo-chats")
 @limiter.limit("30/minute")
@@ -228,11 +361,61 @@ async def get_admin_demo_chats(
     Get all demo chats for admin management.
     """
     try:
+        # Get language for enrichment
+        lang = request.query_params.get("lang", "en")
         demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
+        
+        # Enrich with language-specific metadata
+        enriched_demos = []
+        
+        for demo in demo_chats:
+            demo_chat_id = demo["id"]  # UUID
+            
+            # Get translation for this language
+            translation_params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_id},
+                    "language": {"_eq": lang}
+                },
+                "limit": 1
+            }
+            translations = await directus_service.get_items("demo_chat_translations", translation_params)
+            translation = translations[0] if translations else None
+            
+            # Fallback to English if translation not found
+            if not translation and lang != "en":
+                translation_params["filter"]["language"] = {"_eq": "en"}
+                translations = await directus_service.get_items("demo_chat_translations", translation_params)
+                translation = translations[0] if translations else None
+            
+            # Get translation metadata (stored as cleartext)
+            title = None
+            summary = None
+            if translation:
+                title = translation.get("title")
+                summary = translation.get("summary")
+            
+            # Fallback to original metadata if translation not found
+            if not title:
+                title = demo.get("title")
+            
+            if not summary:
+                summary = demo.get("summary")
+
+            # Get category and icon from original demo entry (stored as cleartext)
+            category = demo.get("category")
+            icon = demo.get("icon")
+            
+            demo["title"] = title or "Demo Chat"
+            demo["summary"] = summary
+            demo["category"] = category
+            demo["icon"] = icon
+            
+            enriched_demos.append(demo)
 
         return {
-            "demo_chats": demo_chats,
-            "count": len(demo_chats),
+            "demo_chats": enriched_demos,
+            "count": len(enriched_demos),
             "limit": 5
         }
 
@@ -240,27 +423,36 @@ async def get_admin_demo_chats(
         logger.error(f"Error getting admin demo chats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get demo chats")
 
-@router.delete("/demo-chat/{demo_id}")
+@router.delete("/demo-chat/{demo_chat_id}")
 @limiter.limit("10/hour")
 async def delete_demo_chat(
     request: Request,
-    demo_id: str,
+    demo_chat_id: str,  # UUID parameter
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Deactivate a demo chat.
+    Delete a demo chat and all related data (messages, embeds, translations).
     """
     try:
-        success = await directus_service.demo_chat.deactivate_demo_chat(demo_id)
+        # Batch delete all related data using filters
+        await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        
+        # Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
         if not success:
             raise HTTPException(status_code=404, detail="Demo chat not found")
 
-        logger.info(f"Admin {admin_user.id} deactivated demo chat {demo_id}")
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
+        
+        # Clear cache after deletion
+        await directus_service.cache.clear_demo_chats_cache()
 
         return {
             "success": True,
-            "message": "Demo chat deactivated successfully"
+            "message": "Demo chat deleted successfully"
         }
 
     except HTTPException:
@@ -268,3 +460,50 @@ async def delete_demo_chat(
     except Exception as e:
         logger.error(f"Error deleting demo chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete demo chat")
+
+@router.get("/server-stats")
+@limiter.limit("30/minute")
+async def get_server_stats(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get server statistics for the admin dashboard.
+    Returns daily stats for the last 30 days and monthly stats for the last 12 months.
+    """
+    try:
+        from datetime import datetime
+        
+        # 1. Fetch last 30 daily records
+        daily_stats = await directus_service.get_items(
+            "server_stats_global_daily",
+            params={
+                "sort": "-date",
+                "limit": 30
+            }
+        )
+
+        # 2. Fetch last 12 monthly records
+        monthly_stats = await directus_service.get_items(
+            "server_stats_global_monthly",
+            params={
+                "sort": "-year_month",
+                "limit": 12
+            }
+        )
+
+        # 3. Get current totals (from latest daily record or live from Directus if needed)
+        # We prefer the latest daily record as it's pre-aggregated
+        current_stats = daily_stats[0] if daily_stats else {}
+
+        return {
+            "current": current_stats,
+            "daily_history": daily_stats,
+            "monthly_history": monthly_stats,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching server stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch server statistics")

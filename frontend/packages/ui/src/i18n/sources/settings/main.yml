@@ -1870,6 +1870,595 @@ server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
   de: Community-Vorschläge
+server.stats:
+  context: Server stats settings menu item
+  en: Stats
+  de: Statistiken
+  zh: 统计
+  es: Estadísticas
+  fr: Statistiques
+  pt: Estatísticas
+  ru: Статистика
+  ja: 統計
+  ko: 통계
+  it: Statistiche
+  tr: İstatistikler
+  vi: Thống kê
+  id: Statistik
+  pl: Statystyki
+  nl: Statistieken
+  ar: الإحصائيات
+  hi: आंकड़े
+  th: สถิติ
+  cs: Statistiky
+  sv: Statistik
+server_stats.title:
+  en: Server Statistics
+  de: Server-Statistiken
+  zh: 服务器统计
+  es: Estadísticas del servidor
+  fr: Statistiques du serveur
+  pt: Estatísticas do servidor
+  ru: Статистика сервера
+  ja: サーバー統計
+  ko: 서버 통계
+  it: Statistiche del server
+  tr: Sunucu İstatistikleri
+  vi: Thống kê máy chủ
+  id: Statistik Server
+  pl: Statystyki serwera
+  nl: Serverstatistieken
+  ar: إحصائيات الخادم
+  hi: सर्वर आंकड़े
+  th: สถิติเซิร์ฟเวอร์
+  cs: Statistiky serveru
+  sv: Serverstatistik
+server_stats.description:
+  en: Global usage and growth metrics
+  de: Globale Nutzungs- und Wachstumsmetriken
+  zh: 全局使用和增长指标
+  es: Métricas de uso global y crecimiento
+  fr: Métriques d'utilisation globale et de croissance
+  pt: Métricas de uso global e crescimento
+  ru: Глобальные показатели использования и роста
+  ja: グローバルな使用状況と成長指標
+  ko: 글로벌 사용 및 성장 지표
+  it: Metriche di utilizzo globale e crescita
+  tr: Küresel kullanım ve büyüme metrikleri
+  vi: Số liệu sử dụng và tăng trưởng toàn cầu
+  id: Metrik penggunaan dan pertumbuhan global
+  pl: Globalne metryki użytkowania i wzrostu
+  nl: Globale gebruiks- en groeistatistieken
+  ar: مقاييس الاستخدام والنمو العالمية
+  hi: वैश्विक उपयोग और विकास मेट्रिक्स
+  th: เมทริกซ์การใช้งานและการเติบโตทั่วโลก
+  cs: Globální metriky využití a růstu
+  sv: Globala användnings- och tillväxtmått
+server_stats.loading:
+  en: Loading statistics...
+  de: Statistiken werden geladen...
+  zh: 正在加载统计信息...
+  es: Cargando estadísticas...
+  fr: Chargement des statistiques...
+  pt: Carregando estatísticas...
+  ru: Загрузка статистики...
+  ja: 統計を読み込み中...
+  ko: 통계 로드 중...
+  it: Caricamento statistiche...
+  tr: İstatistikler yükleniyor...
+  vi: Đang tải thống kê...
+  id: Memuat statistik...
+  pl: Ładowanie statystyk...
+  nl: Statistieken laden...
+  ar: جاري تحميل الإحصائيات...
+  hi: आंकड़े लोड हो रहे हैं...
+  th: กำลังโหลดสถิติ...
+  cs: Načítání statistik...
+  sv: Laddar statistik...
+server_stats.try_again:
+  en: Try Again
+  de: Erneut versuchen
+  zh: 再试一次
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Попробовать еще раз
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar Dene
+  vi: Thử lại
+  id: Coba Lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: حاول مرة أخرى
+  hi: फिर कोशिश करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+server_stats.total_users:
+  en: Total Users
+  de: Benutzer gesamt
+  zh: 总用户数
+  es: Usuarios totales
+  fr: Nombre total d'utilisateurs
+  pt: Total de usuários
+  ru: Всего пользователей
+  ja: 総ユーザー数
+  ko: 총 사용자
+  it: Utenti totali
+  tr: Toplam Kullanıcı
+  vi: Tổng số người dùng
+  id: Total Pengguna
+  pl: Całkowita liczba użytkowników
+  nl: Totaal aantal gebruikers
+  ar: إجمالي المستخدمين
+  hi: कुल उपयोगकर्ता
+  th: ผู้ใช้ทั้งหมด
+  cs: Celkem uživatelů
+  sv: Totalt antal användare
+server_stats.total_users_sub:
+  en: Non-admin users
+  de: Nicht-Admin-Benutzer
+  zh: 非管理员用户
+  es: Usuarios no administradores
+  fr: Utilisateurs non-administrateurs
+  pt: Usuários não administradores
+  ru: Пользователи без прав администратора
+  ja: 一般ユーザー
+  ko: 비관리자 사용자
+  it: Utenti non amministratori
+  tr: Yönetici olmayan kullanıcılar
+  vi: Người dùng không phải quản trị viên
+  id: Pengguna non-admin
+  pl: Użytkownicy niebędący administratorami
+  nl: Niet-admin gebruikers
+  ar: مستخدمون ليسوا مشرفين
+  hi: गैर-व्यवस्थापक उपयोगकर्ता
+  th: ผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
+  cs: Neadministrátoři
+  sv: Icke-admin-användare
+server_stats.active_subscriptions:
+  en: Active Subscriptions
+  de: Aktive Abonnements
+  zh: 活动订阅
+  es: Suscripciones activas
+  fr: Abonnements actifs
+  pt: Assinaturas ativas
+  ru: Активные подписки
+  ja: 有効なサブスクリプション
+  ko: 활성 구독
+  it: Abbonamenti attivi
+  tr: Aktif Abonelikler
+  vi: Đăng ký đang hoạt động
+  id: Langganan Aktif
+  pl: Aktywne subskrypcje
+  nl: Actieve abonnementen
+  ar: الاشتراكات النشطة
+  hi: सक्रिय सदस्यताएँ
+  th: การสมัครใช้งานที่ใช้งานอยู่
+  cs: Aktivní předplatné
+  sv: Aktiva prenumerationer
+server_stats.active_subscriptions_sub:
+  en: Stripe subscriptions
+  de: Stripe-Abonnements
+  zh: Stripe 订阅
+  es: Suscripciones de Stripe
+  fr: Abonnements Stripe
+  pt: Assinaturas do Stripe
+  ru: Подписки Stripe
+  ja: Stripe サブスクリプション
+  ko: Stripe 구독
+  it: Abbonamenti Stripe
+  tr: Stripe abonelikleri
+  vi: Đăng ký Stripe
+  id: Langganan Stripe
+  pl: Subskrypcje Stripe
+  nl: Stripe abonnementen
+  ar: اشتراكات Stripe
+  hi: स्ट्राइप सदस्यताएँ
+  th: การสมัครใช้งาน Stripe
+  cs: Předplatné Stripe
+  sv: Stripe-prenumerationer
+server_stats.total_liability:
+  en: Total Liability
+  de: Gesamtverbindlichkeiten
+  zh: 总负债
+  es: Pasivo total
+  fr: Passif total
+  pt: Responsabilidade total
+  ru: Общие обязательства
+  ja: 総負債
+  ko: 총 부채
+  it: Passività totale
+  tr: Toplam Yükümlülük
+  vi: Tổng nợ phải trả
+  id: Total Kewajiban
+  pl: Całkowite zobowiązania
+  nl: Totale verplichtingen
+  ar: إجمالي الالتزامات
+  hi: कुल देयता
+  th: หนี้สินทั้งหมด
+  cs: Celkové závazky
+  sv: Totalt ansvar
+server_stats.total_liability_sub:
+  en: Outstanding credits
+  de: Ausstehende Credits
+  zh: 待处理积分
+  es: Créditos pendientes
+  fr: Crédits en attente
+  pt: Créditos pendentes
+  ru: Невыплаченные кредиты
+  ja: 未払いのクレジット
+  ko: 미결제 크레딧
+  it: Crediti residui
+  tr: Bekleyen krediler
+  vi: Tín dụng chưa thanh toán
+  id: Kredit terhutang
+  pl: Niewykorzystane kredyty
+  nl: Uitstaande credits
+  ar: الاعتمادات المستحقة
+  hi: बकाया क्रेडिट
+  th: เครดิตคงค้าง
+  cs: Nevyplacené kredity
+  sv: Utestående krediter
+server_stats.latest_activity:
+  en: Latest Day Activity ({date})
+  de: Letzte Tagesaktivität ({date})
+  zh: 最近一天的活动 ({date})
+  es: Actividad del último día ({date})
+  fr: Activité de la dernière journée ({date})
+  pt: Atividade do último dia ({date})
+  ru: Активность за последний день ({date})
+  ja: 最新の日のアクティビティ ({date})
+  ko: 최근 일일 활동 ({date})
+  it: Attività dell'ultimo giorno ({date})
+  tr: Son Gün Etkinliği ({date})
+  vi: Hoạt động ngày gần nhất ({date})
+  id: Aktivitas Hari Terakhir ({date})
+  pl: Aktywność z ostatniego dnia ({date})
+  nl: Activiteit van de laatste dag ({date})
+  ar: نشاط اليوم الأخير ({date})
+  hi: अंतिम दिन की गतिविधि ({date})
+  th: กิจกรรมวันล่าสุด ({date})
+  cs: Aktivita za poslední den ({date})
+  sv: Senaste dagens aktivitet ({date})
+server_stats.new_registrations:
+  en: New Registrations
+  de: Neuanmeldungen
+  zh: 新注册
+  es: Nuevos registros
+  fr: Nouvelles inscriptions
+  pt: Novos registros
+  ru: Новые регистрации
+  ja: 新規登録
+  ko: 신규 가입
+  it: Nuove registrazioni
+  tr: Yeni Kayıtlar
+  vi: Đăng ký mới
+  id: Pendaftaran Baru
+  pl: Nowe rejestracje
+  nl: Nieuwe registraties
+  ar: تسجيلات جديدة
+  hi: नए पंजीकरण
+  th: การลงทะเบียนใหม่
+  cs: Nové registrace
+  sv: Nya registreringar
+server_stats.finished_signup:
+  en: Finished Signup
+  de: Anmeldung abgeschlossen
+  zh: 完成注册
+  es: Registro finalizado
+  fr: Inscription terminée
+  pt: Inscrição finalizada
+  ru: Завершенная регистрация
+  ja: 登録完了
+  ko: 가입 완료
+  it: Registrazione completata
+  tr: Kaydı Tamamla
+  vi: Hoàn tất đăng ký
+  id: Pendaftaran Selesai
+  pl: Zakończono rejestrację
+  nl: Registratie voltooid
+  ar: التسجيل المنتهي
+  hi: साइनअप समाप्त
+  th: ลงทะเบียนเสร็จสิ้น
+  cs: Dokončená registrace
+  sv: Avslutad registrering
+server_stats.income:
+  en: Income
+  de: Einnahmen
+  zh: 收入
+  es: Ingresos
+  fr: Revenu
+  pt: Renda
+  ru: Доход
+  ja: 収入
+  ko: 수입
+  it: Reddito
+  tr: Gelir
+  vi: Thu nhập
+  id: Pendapatan
+  pl: Dochód
+  nl: Inkomen
+  ar: الدخل
+  hi: आय
+  th: รายได้
+  cs: Příjem
+  sv: Inkomst
+server_stats.credits_sold:
+  en: Credits Sold
+  de: Verkaufte Credits
+  zh: 已售积分
+  es: Créditos vendidos
+  fr: Crédits vendus
+  pt: Créditos vendidos
+  ru: Проданные кредиты
+  ja: 販売されたクレジット
+  ko: 판매된 크레딧
+  it: Crediti venduti
+  tr: Satılan Krediler
+  vi: Tín dụng đã bán
+  id: Kredit Terjual
+  pl: Sprzedane kredyty
+  nl: Verkochte credits
+  ar: الاعتمادات المباعة
+  hi: क्रेडिट बेचे गए
+  th: เครดิตที่ขายแล้ว
+  cs: Prodané kredity
+  sv: Sålda krediter
+server_stats.credits_used:
+  en: Credits Used
+  de: Verbrauchte Credits
+  zh: 已用积分
+  es: Créditos usados
+  fr: Crédits utilisés
+  pt: Créditos usados
+  ru: Использованные кредиты
+  ja: 使用されたクレジット
+  ko: 사용된 크레딧
+  it: Crediti utilizzati
+  tr: Kullanılan Krediler
+  vi: Tín dụng đã sử dụng
+  id: Kredit Terpakai
+  pl: Zużyte kredyty
+  nl: Verbruikte credits
+  ar: الاعتمادات المستخدمة
+  hi: प्रयुक्त क्रेडिट
+  th: เครดิตที่ใช้ไป
+  cs: Využité kredity
+  sv: Använda krediter
+server_stats.messages_sent:
+  en: Messages Sent
+  de: Gesendete Nachrichten
+  zh: 已发送消息
+  es: Mensajes enviados
+  fr: Messages envoyés
+  pt: Mensagens enviadas
+  ru: Сообщения отправлены
+  ja: 送信されたメッセージ
+  ko: 보낸 메시지
+  it: Messaggi inviati
+  tr: Gönderilen Mesajlar
+  vi: Tin nhắn đã gửi
+  id: Pesan Terkirim
+  pl: Wysłane wiadomości
+  nl: Verzonden berichten
+  ar: الرسائل المرسلة
+  hi: भेजे गए संदेश
+  th: ข้อความที่ส่งแล้ว
+  cs: Odeslané zprávy
+  sv: Skickade meddelanden
+server_stats.chats_created:
+  en: Chats Created
+  de: Erstellte Chats
+  zh: 已创建聊天
+  es: Chats creados
+  fr: Chats créés
+  pt: Chats criados
+  ru: Чаты созданы
+  ja: 作成されたチャット
+  ko: 생성된 채팅
+  it: Chat create
+  tr: Oluşturulan Sohbetler
+  vi: Các cuộc trò chuyện đã tạo
+  id: Obrolan Dibuat
+  pl: Utworzone czaty
+  nl: Aangemaakte chats
+  ar: المحادثات المنشأة
+  hi: चैट बनाए गए
+  th: แชทที่สร้างขึ้น
+  cs: Vytvořené chaty
+  sv: Skapade chattar
+server_stats.daily_history:
+  en: Daily History (Last 30 Days)
+  de: Täglicher Verlauf (Letzte 30 Tage)
+  zh: 每日历史（最近 30 天）
+  es: Historial diario (últimos 30 días)
+  fr: Historique quotidien (30 derniers jours)
+  pt: Histórico diário (últimos 30 dias)
+  ru: Ежедневная история (последние 30 дней)
+  ja: 毎日の履歴（過去 30 日間）
+  ko: 일일 내역 (최근 30일)
+  it: Cronologia giornaliera (ultimi 30 giorni)
+  tr: Günlük Geçmiş (Son 30 Gün)
+  vi: Lịch sử hàng ngày (30 ngày qua)
+  id: Riwayat Harian (30 Hari Terakhir)
+  pl: Historia dzienna (ostatnie 30 dni)
+  nl: Dagelijkse geschiedenis (laatste 30 dagen)
+  ar: التاريخ اليومي (آخر 30 يومًا)
+  hi: दैनिक इतिहास (अंतिम 30 दिन)
+  th: ประวัติรายวัน (30 วันล่าสุด)
+  cs: Denní historie (posledních 30 dní)
+  sv: Daglig historik (senaste 30 dagarna)
+server_stats.monthly_history:
+  en: Monthly History (Last 12 Months)
+  de: Monatlicher Verlauf (Letzte 12 Monate)
+  zh: 每月历史（最近 12 个月）
+  es: Historial mensual (últimos 12 meses)
+  fr: Historique mensuel (12 derniers mois)
+  pt: Histórico mensal (últimos 12 meses)
+  ru: Ежемесячная история (последние 12 месяцев)
+  ja: 毎月の履歴（過去 12 か月間）
+  ko: 월별 내역 (최근 12개월)
+  it: Cronologia mensile (ultimi 12 mesi)
+  tr: Aylık Geçmiş (Son 12 Ay)
+  vi: Lịch sử hàng tháng (12 tháng qua)
+  id: Riwayat Bulanan (12 Bulan Terakhir)
+  pl: Historia miesięczna (ostatnie 12 miesięcy)
+  nl: Maandelijkse geschiedenis (laatste 12 maanden)
+  ar: التاريخ الشهري (آخر 12 شهرًا)
+  hi: मासिक इतिहास (अंतिम 12 महीने)
+  th: ประวัติรายเดือน (12 เดือนล่าสุด)
+  cs: Měsíční historie (posledních 12 měsíců)
+  sv: Månadshistorik (senaste 12 månaderna)
+server_stats.date:
+  en: Date
+  de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
+  ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
+server_stats.new_users:
+  en: New Users
+  de: Neue Benutzer
+  zh: 新用户
+  es: Usuarios nuevos
+  fr: Nouveaux utilisateurs
+  pt: Novos usuários
+  ru: Новые пользователи
+  ja: 新規ユーザー
+  ko: 신규 사용자
+  it: Nuovi utenti
+  tr: Yeni Kullanıcılar
+  vi: Người dùng mới
+  id: Pengguna Baru
+  pl: Nowi użytkownicy
+  nl: Nieuwe gebruikers
+  ar: مستخدمون جدد
+  hi: नए उपयोगकर्ता
+  th: ผู้ใช้ใหม่
+  cs: Noví uživatelé
+  sv: Nya användare
+server_stats.signup_fin:
+  en: Signup Fin.
+  de: Anm. abg.
+  zh: 注册完成
+  es: Reg. fin.
+  fr: Inscr. term.
+  pt: Insc. fin.
+  ru: Рег. зав.
+  ja: 登録完了
+  ko: 가입 완료
+  it: Iscr. term.
+  tr: Kayıt Tamam.
+  vi: Đăng ký hoàn tất
+  id: Daftar Selesai
+  pl: Zakończono rej.
+  nl: Registratie voltooid
+  ar: التسجيل المنتهي
+  hi: साइनअप समाप्त
+  th: ลงทะเบียนเสร็จสิ้น
+  cs: Dokončená reg.
+  sv: Avslutad reg.
+server_stats.messages:
+  en: Messages
+  de: Nachrichten
+  zh: 消息
+  es: Mensajes
+  fr: Messages
+  pt: Mensagens
+  ru: Сообщения
+  ja: メッセージ
+  ko: 메시지
+  it: Messaggi
+  tr: Mesajlar
+  vi: Tin nhắn
+  id: Pesan
+  pl: Wiadomości
+  nl: Berichten
+  ar: الرسائل
+  hi: संदेश
+  th: ข้อความ
+  cs: Zprávy
+  sv: Meddelanden
+server_stats.chats:
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Các cuộc trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
+  ar: المحادثات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+server_stats.month:
+  en: Month
+  de: Monat
+  zh: 月份
+  es: Mes
+  fr: Mois
+  pt: Mês
+  ru: Месяц
+  ja: 月
+  ko: 월
+  it: Mese
+  tr: Ay
+  vi: Tháng
+  id: Bulan
+  pl: Miesiąc
+  nl: Maand
+  ar: الشهر
+  hi: महीना
+  th: เดือน
+  cs: Měsíc
+  sv: Månad
+server_stats.embeds:
+  en: Embeds
+  de: Embeds
+  zh: 嵌入
+  es: Incrustaciones
+  fr: Intégrations
+  pt: Incorporações
+  ru: Вставки
+  ja: 埋め込み
+  ko: 임베드
+  it: Incorporamenti
+  tr: Gömülü İçerikler
+  vi: Nhúng
+  id: Sematan
+  pl: Osadzone
+  nl: Insluitingen
+  ar: المضمنات
+  hi: एम्बेड
+  th: ฝังตัว
+  cs: Vložení
+  sv: Inbäddningar
 software_updates:
   context: Software updates settings menu item
   en: Software updates

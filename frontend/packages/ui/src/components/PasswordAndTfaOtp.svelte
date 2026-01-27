@@ -549,7 +549,7 @@
             // A user is in signup flow if:
             // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
             // 2. tfa_enabled is false (2FA not set up - signup incomplete)
-            // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+            // This handles cases where last_opened was overwritten to demo-for-everyoneryone in a previous session
             const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } = await import('../stores/signupState');
             const inSignupFlow = isSignupPath(data.user?.last_opened) || 
                                 (data.user?.tfa_enabled === false);

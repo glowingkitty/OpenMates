@@ -21,6 +21,8 @@ CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
@@ -37,14 +39,19 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
-    "pinned"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "hashed_user_id,"
     "encrypted_title,"
+    "encrypted_chat_key,"  # Needed for decryption
     "created_at,"
     "updated_at,"
     "title_v,"
@@ -56,7 +63,9 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
-    "pinned"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields for the new 'drafts' collection
@@ -147,7 +156,7 @@ class ChatMethods:
             Chat metadata dict if found, None otherwise
         """
         # Validate chat_id is a UUID format before querying Directus
-        # Non-UUID chat IDs (like "demo-welcome") are not stored in Directus
+        # Non-UUID chat IDs (like "demo-for-everyone") are not stored in Directus
         import re
         uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
         if not uuid_pattern.match(chat_id):
@@ -175,6 +184,7 @@ class ChatMethods:
     async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
         """
         Checks if a user owns a chat by comparing hashed_user_id.
+        Optimized to use cache first, falling back to Directus only if necessary.
         
         Args:
             chat_id: The chat ID to check
@@ -184,6 +194,22 @@ class ChatMethods:
             True if the user owns the chat, False otherwise
         """
         try:
+            # 1. Try cache first (most efficient)
+            # If the chat_id is in the user's sorted set, they definitely own it.
+            cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)
+            if cache_exists:
+                logger.debug(f"Ownership check CACHE HIT for chat {chat_id}, user {user_id}: True")
+                return True
+            
+            # 2. If not in cache, check if cache is primed for this user.
+            # If primed and not in cache, the user does NOT own the chat (False).
+            is_primed = await self.directus_service.cache.is_user_cache_primed(user_id)
+            if is_primed:
+                logger.debug(f"Ownership check CACHE HIT (primed but missing) for chat {chat_id}, user {user_id}: False")
+                return False
+            
+            # 3. Cache miss or not primed: Fallback to Directus (DB hit)
+            logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
             chat_metadata = await self.get_chat_metadata(chat_id)
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
@@ -199,7 +225,7 @@ class ChatMethods:
             user_hashed_id = hashlib.sha256(user_id.encode()).hexdigest()
             is_owner = chat_hashed_user_id == user_hashed_id
             
-            logger.debug(f"Ownership check for chat {chat_id}, user {user_id}: {is_owner}")
+            logger.debug(f"Ownership check (DB fallback) for chat {chat_id}, user {user_id}: {is_owner}")
             return is_owner
             
         except Exception as e:
@@ -209,10 +235,13 @@ class ChatMethods:
     async def get_user_chats_metadata(self, user_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
+        Uses hashed_user_id for filtering (privacy by design - raw user_id is never stored in Directus).
         """
         logger.info(f"Fetching chat metadata list for user_id: {user_id}, limit: {limit}, offset: {offset}")
+        # Hash the user_id for privacy-preserving lookup
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[user_id][_eq]': user_id, # Assuming 'user_id' field exists in 'chats'
+            'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,
@@ -289,6 +318,13 @@ class ChatMethods:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
                 if chat_id_val: # Check if chat_id_val is not None
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache_service.increment_stat("chats_created")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after chat creation: {stats_err}")
+                    
                 return result_data, False
             else:
                 # Check if this is a duplicate key error (race condition - chat was created by another task)
@@ -430,6 +466,13 @@ class ChatMethods:
                 logger.info(f"✅ Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
                 if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:messages")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache_service.increment_stat("messages_sent")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after message creation: {stats_err}")
+                    
                 return result_data
             else:
                 # Check for duplicate key error (RECORD_NOT_UNIQUE)

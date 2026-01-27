@@ -1,0 +1,36 @@
+demo_embeds:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    demo_chat_id:
+      type: uuid
+      note: "Foreign key to demo_chats.id"
+      required: true
+    language:
+      type: string
+      length: 10
+      note: "Language code (e.g., 'en', 'de', 'original' for source language)"
+      required: true
+    original_embed_id:
+      type: string
+      length: 64
+      note: "Original embed_id from user's chat (for reference)"
+      required: true
+    content:
+      type: textfield
+      note: "TOON format content (cleartext)"
+      required: true
+    type:
+      type: string
+      length: 100
+      note: "Embed type (e.g., 'web-website', 'app-skill-use')"
+      required: true
+    original_created_at:
+      type: timestamp
+      note: "Original embed timestamp from user's chat (used for ordering embeds)"
+      required: true
+    created_at:
+      type: timestamp
+      note: "When this demo embed entry was created"
+  note: "Embeds ordered by original_created_at. Currently not translated (same content for all languages)."

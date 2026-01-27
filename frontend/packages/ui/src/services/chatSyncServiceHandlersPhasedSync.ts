@@ -9,11 +9,14 @@ import type {
     PhasedSyncCompletePayload,
     SyncStatusResponsePayload,
     SyncEmbed,
-    Chat
+    Chat,
+    Message,
+    MessageStatus
 } from '../types/chat';
 import type { EmbedKeyEntry } from './embedStore';
 import type { EmbedType } from '../message_parsing/types';
 import { chatDB } from './db';
+import { userDB } from './userDB';
 
 /**
  * Handle Phase 2 completion (recent chats ready)
@@ -250,8 +253,20 @@ export async function handleSyncStatusResponseImpl(
  * Store recent chats (Phase 2)
  * Merges server data with local data, preserving higher version numbers
  */
-async function storeRecentChats(serviceInstance: ChatSynchronizationService, chats: any[]): Promise<void> {
+async function storeRecentChats(
+    serviceInstance: ChatSynchronizationService,
+    chats: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>
+): Promise<void> {
     try {
+        // Get current user's ID for ownership tracking
+        // All synced chats belong to the current user (server filters by hashed_user_id)
+        const userProfile = await userDB.getUserProfile();
+        const currentUserId = userProfile?.user_id;
+        
         for (const chatItem of chats) {
             const { chat_details, messages, server_message_count } = chatItem;
             const chatId = chat_details.id;
@@ -260,7 +275,7 @@ async function storeRecentChats(serviceInstance: ChatSynchronizationService, cha
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat, currentUserId);
             
             // CRITICAL: Check if we should sync messages for Phase 2 chats
             // This prevents data inconsistency where messages_v is set but messages are missing
@@ -368,9 +383,21 @@ async function storeRecentChats(serviceInstance: ChatSynchronizationService, cha
  * 
  * CRITICAL: Uses transactions to prevent duplicate messages during reconnection
  */
-async function storeAllChats(serviceInstance: ChatSynchronizationService, chats: any[]): Promise<void> {
+async function storeAllChats(
+    serviceInstance: ChatSynchronizationService,
+    chats: Array<{
+        chat_details: Partial<Chat> & { id: string };
+        messages?: Message[];
+        server_message_count?: number;
+    }>
+): Promise<void> {
     try {
         console.debug(`[ChatSyncService] storeAllChats: Processing ${chats.length} chats from Phase 3`);
+        
+        // Get current user's ID for ownership tracking
+        // All synced chats belong to the current user (server filters by hashed_user_id)
+        const userProfile = await userDB.getUserProfile();
+        const currentUserId = userProfile?.user_id;
         
         for (const chatItem of chats) {
             const { chat_details, messages, server_message_count } = chatItem;
@@ -382,7 +409,7 @@ async function storeAllChats(serviceInstance: ChatSynchronizationService, chats:
             const existingChat = await chatDB.getChat(chatId);
             
             // Merge server data with local data, preserving higher versions
-            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat);
+            let mergedChat = mergeServerChatWithLocal(chat_details, existingChat, currentUserId);
             
             // Check if we should sync messages
             const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
@@ -480,8 +507,8 @@ async function storeAllChats(serviceInstance: ChatSynchronizationService, chats:
 /**
  * Prepare messages for storage - parses JSON strings and validates required fields
  */
-function prepareMessagesForStorage(messages: any[], chatId: string, phaseName: string): any[] {
-    const preparedMessages: any[] = [];
+function prepareMessagesForStorage(messages: Message[], chatId: string, phaseName: string): Message[] {
+    const preparedMessages: Message[] = [];
     
     if (!messages || !Array.isArray(messages)) {
         return preparedMessages;
@@ -494,7 +521,8 @@ function prepareMessagesForStorage(messages: any[], chatId: string, phaseName: s
         if (typeof messageData === 'string') {
             try {
                 message = JSON.parse(messageData);
-                console.debug(`[ChatSyncService] ${phaseName} - Parsed message JSON string for message: ${message.message_id || message.id}`);
+                const messageId = message.message_id || (message as Message & { id?: string }).id;
+                console.debug(`[ChatSyncService] ${phaseName} - Parsed message JSON string for message: ${messageId}`);
             } catch (e) {
                 console.error(`[ChatSyncService] ${phaseName} - Failed to parse message JSON for chat ${chatId}:`, e);
                 continue;
@@ -502,8 +530,8 @@ function prepareMessagesForStorage(messages: any[], chatId: string, phaseName: s
         }
         
         // Use 'id' field as message_id if message_id is missing
-        if (!message.message_id && message.id) {
-            message.message_id = message.id;
+        if (!message.message_id && (message as Message & { id?: string }).id) {
+            message.message_id = (message as Message & { id?: string }).id;
         }
         
         // Skip messages without message_id
@@ -519,7 +547,7 @@ function prepareMessagesForStorage(messages: any[], chatId: string, phaseName: s
         
         // Set default status if missing
         if (!message.status) {
-            message.status = 'delivered';
+            message.status = 'delivered' as MessageStatus;
         }
         
         preparedMessages.push(message);
@@ -623,9 +651,10 @@ async function storeEmbedKeysBatch(embed_keys: EmbedKeyEntry[], phaseName: strin
  * 
  * @param serverChat - Server chat data with at least the 'id' field
  * @param localChat - Existing local chat data (or null if not exists locally)
+ * @param currentUserId - Current user's ID (all synced chats belong to them - server filters by hashed_user_id)
  * @returns Merged chat data with required fields for Chat type
  */
-function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, localChat: Chat | null): Chat {
+function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, localChat: Chat | null, currentUserId?: string): Chat {
     const nowTimestamp = Math.floor(Date.now() / 1000);
     
     // If no local chat exists, use server data with defaults
@@ -653,13 +682,20 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
             encrypted_follow_up_request_suggestions: serverChat.encrypted_follow_up_request_suggestions,
             encrypted_chat_summary: serverChat.encrypted_chat_summary,
             encrypted_chat_tags: serverChat.encrypted_chat_tags,
-            encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat
+            encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat,
+            // Include sharing fields from server sync
+            is_shared: serverChat.is_shared,
+            is_private: serverChat.is_private,
+            // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
+            user_id: currentUserId
         };
     }
     
     // Start with server data as base, using defaults from local chat where server data is missing
     const merged: Chat = {
         chat_id: serverChat.id,
+        // Preserve local user_id (ownership doesn't change)
+        user_id: localChat.user_id ?? currentUserId,
         encrypted_title: serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
         messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
         title_v: serverChat.title_v ?? localChat.title_v ?? 0,
@@ -681,7 +717,10 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
         encrypted_follow_up_request_suggestions: serverChat.encrypted_follow_up_request_suggestions ?? localChat.encrypted_follow_up_request_suggestions,
         encrypted_chat_summary: serverChat.encrypted_chat_summary ?? localChat.encrypted_chat_summary,
         encrypted_chat_tags: serverChat.encrypted_chat_tags ?? localChat.encrypted_chat_tags,
-        encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat ?? localChat.encrypted_top_recommended_apps_for_chat
+        encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat ?? localChat.encrypted_top_recommended_apps_for_chat,
+        // Include sharing fields from server sync, falling back to local if server data is missing
+        is_shared: serverChat.is_shared ?? localChat.is_shared,
+        is_private: serverChat.is_private ?? localChat.is_private
     };
     
     // Preserve local encrypted_title if local title_v is higher or equal

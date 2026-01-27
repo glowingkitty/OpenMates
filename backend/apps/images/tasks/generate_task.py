@@ -104,14 +104,17 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 4. Call Provider API
         logger.info(f"{log_prefix} Calling provider for model: {model_ref}")
         image_bytes = None
+        actual_model = model_ref or "Unknown AI"
         
         if model_ref and "google" in model_ref:
+            model_id = model_ref.split('/')[-1] if "/" in model_ref else model_ref
             image_bytes = await generate_image_google(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
                 aspect_ratio=aspect_ratio,
-                model_id=model_ref.split('/')[-1] if "/" in model_ref else model_ref
+                model_id=model_id
             )
+            actual_model = f"Google {model_id}"
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
             # Map model ref to fal.ai model ID
             # bfl/flux-schnell -> fal-ai/flux-2/klein/9b/base
@@ -124,17 +127,23 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 secrets_manager=task._secrets_manager,
                 model_id=fal_model_id
             )
+            actual_model = f"fal.ai {fal_model_id}"
         else:
             # Fallback to draft if not specified or unknown
             logger.warning(f"{log_prefix} Unknown or missing model reference '{model_ref}', falling back to FLUX.2 Klein")
+            fal_model_id = "fal-ai/flux-2/klein/9b/base"
             image_bytes = await generate_image_fal_flux(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
-                model_id="fal-ai/flux-2/klein/9b/base"
+                model_id=fal_model_id
             )
+            actual_model = f"fal.ai {fal_model_id} (fallback)"
 
         if not image_bytes:
             raise Exception("Provider returned empty image data")
+
+        # Update model_ref to the actual model used for the rest of the task
+        model_ref = actual_model
 
         # 5. Get original image dimensions
         original_width, original_height = _get_image_dimensions(image_bytes)
@@ -142,7 +151,17 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
         # 6. Process image (Original + Full WEBP + Preview WEBP)
         logger.info(f"{log_prefix} Processing image into multiple formats...")
-        processed_images = process_image_for_storage(image_bytes)
+        
+        # Prepare metadata for labeling (no visible text, just invisible standard metadata)
+        labeling_metadata = {
+            "prompt": prompt,
+            "model": model_ref,
+            "software": "OpenMates",
+            "source": "OpenMates AI",
+            "generated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        processed_images = process_image_for_storage(image_bytes, metadata=labeling_metadata)
         
         # 7. Hybrid Encryption Setup
         # Fetch user profile to get vault_key_id

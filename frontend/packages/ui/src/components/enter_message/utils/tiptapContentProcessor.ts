@@ -15,7 +15,12 @@ interface TiptapDoc {
 
 // Regex for standalone URLs (simplified, adjust as needed for precision)
 // This regex looks for URLs that are not already part of markdown links or image tags
-const standaloneUrlRegex = /(?<!\]\()(?<!src=")(https?:\/\/[^\s]+\.[a-zA-Z]{2,}(\/\S*)?)/g;
+// Matches URLs with protocol AND common video platform URLs without protocol.
+// This is more targeted than matching all URLs without protocol to avoid false positives.
+// Matches:
+// - URLs with protocol: https://example.com/path, http://site.com
+// - YouTube URLs without protocol: youtube.com/watch?v=..., youtu.be/VIDEO_ID, www.youtube.com/...
+const standaloneUrlRegex = /(?<!\]\()(?<!src=")(?:https?:\/\/[^\s]+\.[a-zA-Z]{2,}(\/\S*)?|(?<![/\w@])(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)[^\s\])"'<>]+|youtu\.be\/[^\s\])"'<>]+))/g;
 
 
 // Regex for markdown code blocks
@@ -68,13 +73,18 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
     // Then, process the remaining text for URLs
     // Only process URLs that are not part of markdown links
     while ((match = standaloneUrlRegex.exec(text)) !== null) {
-        const url = match[0];
+        let url = match[0];
         const matchStart = match.index;
         const matchEnd = matchStart + url.length;
 
         // Add preceding text if any
         if (matchStart > lastIndex) {
             newNodes.push({ ...textNode, text: text.substring(lastIndex, matchStart) });
+        }
+        
+        // Normalize URL by adding https:// if protocol is missing
+        if (!/^https?:\/\//i.test(url)) {
+            url = `https://${url}`;
         }
         
         // Add embed node using the correct schema

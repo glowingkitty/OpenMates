@@ -962,6 +962,28 @@ async def payment_webhook(
                     )
 
                 if directus_update_success:
+                    # Update server stats
+                    try:
+                        server_stats_service = request.app.state.server_stats_service
+                        if server_stats_service:
+                            # 1. Increment income
+                            income_cents = get_price_for_credits(credits_purchased, cached_order_data.get("currency", "eur"))
+                            if income_cents:
+                                await server_stats_service.increment_stat("income_eur_cents", income_cents)
+                            
+                            # 2. Increment credits sold
+                            await server_stats_service.increment_stat("credits_sold", credits_purchased)
+                            
+                            # 3. Update liability (add credits)
+                            await server_stats_service.update_liability(credits_purchased)
+                            
+                            # 4. If first purchase, increment finished signup
+                            # We can check if last_opened was a signup path
+                            if user_cache_data.get("last_opened", "").startswith("/signup/"):
+                                await server_stats_service.increment_stat("new_users_finished_signup")
+                    except Exception as stats_err:
+                        logger.error(f"Error updating server stats after payment: {stats_err}")
+
                     # Log withdrawal waiver consent for EU/German consumer law compliance
                     # This consent is given when user checks the checkbox during checkout
                     # We log it here when payment completes to ensure we have a record
@@ -1041,6 +1063,27 @@ async def payment_webhook(
                             logger.error(f"Failed to publish 'gift_card_created' event for user {user_id}: {pub_exc}", exc_info=True)
                     else:
                         logger.info(f"Successfully updated Directus credits for user {user_id}.")
+
+                        # Update Global Stats
+                        try:
+                            # 1. Income (cents)
+                            # get_price_for_credits already returns cents
+                            income_cents = get_price_for_credits(credits_purchased, order_currency)
+                            if income_cents:
+                                await cache_service.increment_stat("income_eur_cents", int(income_cents))
+                            
+                            # 2. Credits Sold
+                            await cache_service.increment_stat("credits_sold", int(credits_purchased))
+                            
+                            # 3. Liability Increase
+                            await cache_service.update_liability(int(credits_purchased))
+                            
+                            # 4. Finished Signup (if this is their first payment)
+                            # We can approximate this by checking if they just completed signup
+                            if not user_cache_data.get('signup_completed'):
+                                await cache_service.increment_stat("new_users_finished_signup", 1)
+                        except Exception as stats_err:
+                            logger.error(f"Error updating global stats during payment: {stats_err}")
 
                         # Publish an event to notify websockets about the credit update
                         try:
@@ -2475,6 +2518,16 @@ async def redeem_gift_card(
         user_cache_data["credits"] = new_total_credits
         await cache_service.set_user(user_cache_data, user_id=user_id)
         
+        # Update Global Stats for Gift Card
+        try:
+            # Gift cards increase liability and count as a 'finished signup' if it's the first one
+            await cache_service.increment_stat("credits_sold", int(credits_value))
+            await cache_service.update_liability(int(credits_value))
+            if not user_cache_data.get('signup_completed'):
+                await cache_service.increment_stat("new_users_finished_signup", 1)
+        except Exception as stats_err:
+            logger.error(f"Error updating global stats during gift card redemption: {stats_err}")
+
         # 9. Record redemption in redeemed_gift_cards before deleting
         # Get user_id_hash for recording redemption
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()

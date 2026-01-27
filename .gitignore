@@ -169,6 +169,7 @@ secrets.json
 
 .DS_Store
 log/
+logs/
 processed_websites/
 temp_data
 
@@ -236,3 +237,6 @@ scripts/encrypt_domain_security.py
 .pnpm-store/
 
 .venv*
+playwright-artifacts*
+backend/scripts/debug_output*
+frontend/apps/web_app/test-results*

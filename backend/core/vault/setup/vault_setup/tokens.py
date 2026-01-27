@@ -4,7 +4,7 @@ Functions for managing Vault tokens.
 
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Optional
 
 logger = logging.getLogger("vault-setup.tokens")
 
@@ -149,10 +149,13 @@ class TokenManager:
 
         try:
             # Create a token with the specified policies
+            # TTL set to 1 year (8760h) to minimize token expiration issues
+            # The token is renewable, and the API service will re-read from file if it expires
+            # vault-setup regenerates the token when it runs (e.g., after container restart)
             token_payload = {
                 "policies": policies,
-                "display_name": f"api-token-{'-'.join(policies)}", # More descriptive display name
-                "ttl": "768h",  # 32 days, adjust as needed
+                "display_name": f"api-token-{'-'.join(policies)}",
+                "ttl": "8760h",  # 1 year - long TTL to minimize expiration issues
                 "renewable": True
             }
             logger.debug(f"Creating token with payload: {token_payload}")

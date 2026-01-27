@@ -1,13 +1,10 @@
 import logging
-import json
-import time
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed for validation?
-from backend.core.api.app.services.directus import chat_methods
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 # No Celery task needed for immediate draft persistence
@@ -76,6 +73,56 @@ async def handle_update_draft(
         return
 
     logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
+
+    # Verify chat ownership
+    # CRITICAL: Allow drafts for new chats that don't exist in Directus yet
+    # When a user starts typing in a new chat, the chat is created locally but not yet in Directus.
+    # The chat is only created in Directus when the first message is sent.
+    # This matches the behavior in message_received_handler.py (lines 108-110)
+    try:
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            # Check if chat exists at all - if not, treat as new chat creation (allowed)
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Chat exists but user doesn't own it - reject
+                logger.warning(f"User {user_id} attempted to update draft for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+            else:
+                # Chat doesn't exist - this is a new chat creation, which is allowed
+                logger.debug(f"Chat {chat_id} not found in database - treating as new chat draft (allowed)")
+    except Exception as e_ownership:
+        # On error checking ownership, check if chat exists
+        # If chat doesn't exist, allow draft save (new chat creation)
+        # If chat exists, reject for security (fail closed)
+        try:
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Chat exists but we couldn't verify ownership - reject for security
+                logger.error(f"Error verifying ownership for existing chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Unable to verify chat ownership. Please try again.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+            else:
+                # Chat doesn't exist - treat as new chat creation (allowed)
+                logger.debug(f"Chat {chat_id} not found in database during ownership check error - treating as new chat draft (allowed)")
+        except Exception as e_metadata:
+            # Couldn't check if chat exists - reject for security
+            logger.error(f"Error checking if chat {chat_id} exists for user {user_id}: {e_metadata}", exc_info=True)
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": "Unable to verify chat permissions. Please try again.", "chat_id": chat_id}},
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+            return
 
     # Basic validation - check length limits for encrypted content
     if encrypted_draft_md and len(encrypted_draft_md) > MAX_DRAFT_CHARS:  # Use existing limit for encrypted content, NOTE: does this make sense? needs update?

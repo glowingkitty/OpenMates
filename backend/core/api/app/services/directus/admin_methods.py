@@ -38,6 +38,27 @@ class AdminMethods:
                 # Ensure the is_admin flag is also set on the user record
                 try:
                     await self.directus_service.update_user(user_id, {"is_admin": True})
+                    # Invalidate user profile cache to ensure fresh data on next request
+                    cache_key = f"user_profile:{user_id}"
+                    try:
+                        await self.directus_service.cache.delete(cache_key)
+                        logger.info(f"Invalidated user profile cache for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+                    
+                    # Send WebSocket notification to user's connected devices
+                    try:
+                        await self.directus_service.cache.publish_event(
+                            channel=f"user_updates::{user_id}",
+                            event_data={
+                                "event_for_client": "user_admin_status_updated",
+                                "user_id_uuid": user_id,
+                                "payload": {"is_admin": True}
+                            }
+                        )
+                        logger.info(f"Published 'user_admin_status_updated' event for user {user_id} via Redis pub/sub")
+                    except Exception as pub_err:
+                        logger.warning(f"Failed to publish admin status update event: {pub_err}")
                 except Exception as e:
                     logger.warning(f"Failed to ensure is_admin flag on already-admin user {user_id}: {e}")
                 
@@ -59,6 +80,29 @@ class AdminMethods:
                 try:
                     await self.directus_service.update_user(user_id, {"is_admin": True})
                     logger.info(f"Updated user record is_admin flag for user {user_id}")
+                    
+                    # Invalidate user profile cache to ensure fresh data on next request
+                    # This allows the client to see the Server settings section without logout/login
+                    cache_key = f"user_profile:{user_id}"
+                    try:
+                        await self.directus_service.cache.delete(cache_key)
+                        logger.info(f"Invalidated user profile cache for user {user_id} - client will see Server settings on next auth check")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+                    
+                    # Send WebSocket notification to user's connected devices for immediate update
+                    try:
+                        await self.directus_service.cache.publish_event(
+                            channel=f"user_updates::{user_id}",
+                            event_data={
+                                "event_for_client": "user_admin_status_updated",
+                                "user_id_uuid": user_id,
+                                "payload": {"is_admin": True}
+                            }
+                        )
+                        logger.info(f"Published 'user_admin_status_updated' event for user {user_id} via Redis pub/sub - devices will update immediately")
+                    except Exception as pub_err:
+                        logger.warning(f"Failed to publish admin status update event: {pub_err}")
                 except Exception as user_update_err:
                     logger.error(f"Failed to update user record is_admin flag: {user_update_err}")
                     # Don't fail the whole operation if this secondary update fails
@@ -144,6 +188,28 @@ class AdminMethods:
                 try:
                     await self.directus_service.update_user(user_id, {"is_admin": False})
                     logger.info(f"Updated user record is_admin flag (False) for user {user_id}")
+                    
+                    # Invalidate user profile cache to ensure fresh data on next request
+                    cache_key = f"user_profile:{user_id}"
+                    try:
+                        await self.directus_service.cache.delete(cache_key)
+                        logger.info(f"Invalidated user profile cache for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+                    
+                    # Send WebSocket notification to user's connected devices for immediate update
+                    try:
+                        await self.directus_service.cache.publish_event(
+                            channel=f"user_updates::{user_id}",
+                            event_data={
+                                "event_for_client": "user_admin_status_updated",
+                                "user_id_uuid": user_id,
+                                "payload": {"is_admin": False}
+                            }
+                        )
+                        logger.info(f"Published 'user_admin_status_updated' event for user {user_id} via Redis pub/sub - devices will update immediately")
+                    except Exception as pub_err:
+                        logger.warning(f"Failed to publish admin status update event: {pub_err}")
                 except Exception as user_update_err:
                     logger.error(f"Failed to update user record is_admin flag: {user_update_err}")
                 

@@ -472,8 +472,9 @@ async def _handle_normal_billing(
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
-        input_tokens = usage.prompt_token_count
-        output_tokens = usage.candidates_token_count
+        # Handle optional fields - Google API may return None for these in edge cases
+        input_tokens = usage.prompt_token_count or 0
+        output_tokens = usage.candidates_token_count or 0
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "google"
@@ -853,6 +854,10 @@ async def _consume_main_processing_stream(
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
     stream_exception: Optional[BaseException] = None
+    
+    # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
+    # This is used at the end to show a generic fallback message if the response would be empty
+    fake_tool_calls_filtered = False
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
@@ -1267,71 +1272,37 @@ async def _consume_main_processing_stream(
                                 except (json.JSONDecodeError, Exception):
                                     pass  # Not a valid JSON, ignore
                         
-                        # Handle fake tool call: replace with user-friendly message instead of code block
-                        # Users should NEVER see confusing tool_code/toon code blocks
+                        # Handle fake tool call: silently filter it out
+                        # Users should NEVER see confusing tool_code/toon code blocks or error messages
+                        # We only show a fallback message at the end if the entire response would be empty
                         if is_fake_tool_call:
+                            # Log the issue for server-side debugging
                             logger.error(
-                                f"{log_prefix} [SKILL_AVAILABILITY_ISSUE] The LLM attempted to use "
+                                f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] The LLM attempted to use "
                                 f"tool '{fake_tool_name}' but it was not available. This may indicate: "
                                 f"1) Preprocessing LLM failed to preselect the skill for a follow-up query, "
                                 f"2) The skill is not in always_include_skills config, "
                                 f"3) The skill is not assigned to the current Mate. "
-                                f"Consider adding '{fake_tool_name}' to always_include_skills in ai/app.yml."
+                                f"Consider adding '{fake_tool_name}' to always_include_skills in ai/app.yml. "
+                                f"Code block silently filtered (user won't see it)."
                             )
                             
-                            # Replace fake tool call with user-friendly message from translations
-                            # This ensures users never see confusing code blocks
-                            try:
-                                translation_service = TranslationService()
-                                # Get user's language preference (default to English)
-                                language = "en"
-                                
-                                # Format the skill name for display (convert hyphen to space, capitalize)
-                                display_skill_name = fake_tool_name.replace('-', ' ').replace('_', ' ').title() if fake_tool_name else "a skill"
-                                
-                                # Get the translated fallback message
-                                fallback_message = translation_service.get_nested_translation(
-                                    "predefined_responses.skill_execution_failed.text",
-                                    language,
-                                    {"skill_name": display_skill_name}
-                                )
-                                
-                                if not fallback_message:
-                                    # Hardcoded fallback if translation not found
-                                    fallback_message = f"Hmm... I wasn't able to use {display_skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
-                                
-                                logger.info(
-                                    f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY] Replaced fake tool call "
-                                    f"'{fake_tool_name}' with user-friendly message"
-                                )
-                                
-                                # Replace the code block chunk with the fallback message
-                                # Add line breaks for proper formatting
-                                chunk = f"\n\n{fallback_message}\n\n"
-                                
-                                # Reset code block state and continue to next chunk
-                                in_code_block = False
-                                current_code_language = ""
-                                current_code_filename = None
-                                current_code_content = ""
-                                current_code_embed_id = None
-                                
-                                # Skip the normal code embed creation - continue with the fallback message
-                                # The chunk variable now contains the fallback message instead of code
-                                
-                            except Exception as e:
-                                logger.error(
-                                    f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY_ERROR] Failed to generate "
-                                    f"fallback message for fake tool call '{fake_tool_name}': {e}",
-                                    exc_info=True
-                                )
-                                # If fallback fails, use a simple hardcoded message
-                                chunk = "\n\nI encountered an issue with this request. Could you please clarify what you'd like me to do?\n\n"
-                                in_code_block = False
-                                current_code_language = ""
-                                current_code_filename = None
-                                current_code_content = ""
-                                current_code_embed_id = None
+                            # Set the flag so we know we filtered fake tool calls
+                            # This is used at the end to show a fallback if response is empty
+                            fake_tool_calls_filtered = True
+                            
+                            # Reset code block state - silently drop this content
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            
+                            # Set chunk to empty to prevent any content from being added
+                            chunk = ""
+                            
+                            # Skip to the next chunk - don't create embeds or show anything to user
+                            continue
                         
                         # Create embed and finalize immediately (only for real code blocks, not fake tool calls)
                         # Skip embed creation if this was a fake tool call (already handled above with fallback message)
@@ -1580,7 +1551,7 @@ async def _consume_main_processing_stream(
                                     pass
                         
                         if is_suspicious_language or is_json_fake_tool:
-                            # Determine the fake tool name for the message
+                            # Determine the fake tool name for logging
                             if fake_tool_name_from_content:
                                 fake_tool_name = fake_tool_name_from_content
                             elif '"tool":' in current_code_content:
@@ -1594,40 +1565,27 @@ async def _consume_main_processing_stream(
                             else:
                                 fake_tool_name = current_code_language or 'unknown'
                             
+                            # Log the issue for server-side debugging, but silently filter for user
                             logger.error(
-                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Replacing fake tool call "
-                                f"'{fake_tool_name}' (multi-chunk) with user-friendly message. "
-                                f"Content length: {len(current_code_content)} chars"
+                                f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Multi-chunk fake tool call "
+                                f"'{fake_tool_name}' detected. Content length: {len(current_code_content)} chars. "
+                                f"Silently filtering (user won't see it)."
                             )
                             
-                            # Generate fallback message
-                            try:
-                                translation_service = TranslationService()
-                                display_skill_name = fake_tool_name.replace('-', ' ').replace('_', ' ').title()
-                                
-                                fallback_message = translation_service.get_nested_translation(
-                                    "predefined_responses.skill_execution_failed.text",
-                                    "en",
-                                    {"skill_name": display_skill_name}
-                                )
-                                
-                                if not fallback_message:
-                                    fallback_message = f"Hmm... I wasn't able to use {display_skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
-                                
-                                # Emit fallback message as the chunk
-                                chunk = f"\n\n{fallback_message}\n\n"
-                                logger.info(f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY] Replaced multi-chunk fake tool call with fallback message")
-                                
-                            except Exception as e:
-                                logger.error(f"{log_prefix} Error generating fallback for multi-chunk fake tool: {e}", exc_info=True)
-                                chunk = "\n\nI encountered an issue with this request. Could you please clarify what you'd like me to do?\n\n"
+                            # Set the flag so we know we filtered fake tool calls
+                            # This is used at the end to show a fallback if response is empty
+                            fake_tool_calls_filtered = True
                             
-                            # Reset state
+                            # Reset state - silently drop this content
                             in_code_block = False
                             current_code_language = ""
                             current_code_filename = None
                             current_code_content = ""
                             current_code_embed_id = None
+                            
+                            # Set chunk to empty and skip to next iteration
+                            chunk = ""
+                            continue
                         # Finalize code embed (only for real code blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -1780,23 +1738,63 @@ async def _consume_main_processing_stream(
     # 
     # EXCEPTION: When awaiting app settings/memories permission, empty content is EXPECTED.
     # The user needs to respond to the permission dialog before LLM processing continues.
+    #
+    # SPECIAL CASE: If we filtered fake tool calls and the response is empty, show a user-friendly
+    # fallback message instead of the technical error message.
     if (
         not aggregated_response
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not awaiting_app_settings_memories_permission
     ):
-        if stream_exception:
+        if fake_tool_calls_filtered:
+            # We filtered fake tool calls and the LLM didn't produce any other content
+            # Show a user-friendly fallback message in the user's language
+            logger.warning(
+                f"{log_prefix} Response empty after filtering fake tool calls. "
+                f"Showing user-friendly fallback message."
+            )
+            try:
+                translation_service = TranslationService()
+                # Get user's language preference from preprocessing result (fallback to English)
+                # TODO: Add language detection to preprocessor and pass it here
+                language = "en"
+                
+                # Get the translated fallback message
+                fallback_message = translation_service.get_nested_translation(
+                    "predefined_responses.processing_error_rephrase.text",
+                    language,
+                    {}
+                )
+                
+                if not fallback_message:
+                    # Hardcoded fallback if translation not found
+                    fallback_message = (
+                        "I had trouble processing your request. "
+                        "Could you rephrase what you'd like me to help with? "
+                        "The more specific details you can provide, the better I can assist you."
+                    )
+                
+                aggregated_response = fallback_message
+            except Exception as e:
+                logger.error(f"{log_prefix} Error generating fallback message for filtered fake tool calls: {e}", exc_info=True)
+                aggregated_response = (
+                    "I had trouble processing your request. "
+                    "Could you rephrase what you'd like me to help with?"
+                )
+        elif stream_exception:
             logger.error(
                 f"{log_prefix} Stream failed before producing any content. "
                 f"Returning standardized user-facing error message. Technical error: {stream_exception!r}"
             )
+            aggregated_response = standardized_error_message
         else:
             logger.error(
                 f"{log_prefix} Stream completed with empty content (no interruption). "
                 "Returning standardized user-facing error message."
             )
-        aggregated_response = standardized_error_message
+            aggregated_response = standardized_error_message
+        
         final_response_chunks = [aggregated_response]
         if stream_chunk_count == 0:
             # Mirror fake-stream behavior: one content chunk + one final marker.

@@ -1,14 +1,23 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
+  import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
+  import MessageContextMenu from './chats/MessageContextMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
-  import { text } from '@repo/ui'; // For translations
+  import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
+  import { reportIssueStore } from '../stores/reportIssueStore';
+  import { messageHighlightStore } from '../stores/messageHighlightStore';
+  import { isPublicChat } from '../demo_chats/convertToChat';
+  import { chatDB } from '../services/db';
+  import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
+  import { generateShareKeyBlob } from '../services/shareEncryption';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   
@@ -33,7 +42,6 @@
 
   // All props using Svelte 5 runes mode (single $props() call)
   let { 
-    messageId = undefined,
     role = 'user',
     category = undefined,
     sender_name = undefined,
@@ -45,7 +53,6 @@
     content,
     animated = false,
     is_truncated = false,
-    full_content_length = 0,
     original_message = null,
     containerWidth = 0,
     _embedUpdateTimestamp = 0,
@@ -54,7 +61,6 @@
     thinkingContent = undefined,
     isThinkingStreaming = false
   }: {
-    messageId?: string; // Message ID for loading app settings/memories action data
     role?: MessageRole;
     category?: string;
     sender_name?: string;
@@ -66,7 +72,6 @@
     content: any;
     animated?: boolean;
     is_truncated?: boolean;
-    full_content_length?: number;
     original_message?: any;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
@@ -90,8 +95,12 @@
       const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
       if (category?.name_translation_key) {
         // Use the translation key to get localized name
-        const translated = $text(category.name_translation_key);
-        if (translated && translated !== category.name_translation_key) {
+        // Ensure the key ends with .text as required
+        const translationKey = category.name_translation_key.endsWith('.text') 
+          ? category.name_translation_key 
+          : `${category.name_translation_key}.text`;
+        const translated = $text(translationKey);
+        if (translated && translated !== translationKey) {
           return translated;
         }
       }
@@ -138,6 +147,302 @@
   let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
   let selectedAppId = $state<string | null>(null);
   let selectedSkillId = $state<string | null>(null);
+
+  // Message context menu state
+  let showMessageMenu = $state(false);
+  let messageMenuX = $state(0);
+  let messageMenuY = $state(0);
+  let selectable = $state(false);
+  let readOnlyMessageComponent = $state<ReturnType<typeof ReadOnlyMessage>>();
+  let messageContentElement = $state<HTMLElement>();
+
+  // State for report button hover
+  let isReportHovered = $state(false);
+
+  // State for message highlighting
+  let isHighlighted = $state(false);
+
+  // Handle message highlighting
+  $effect(() => {
+    if (original_message?.message_id && $messageHighlightStore === original_message.message_id) {
+      isHighlighted = true;
+      // Clear highlight after 3 seconds
+      const timer = setTimeout(() => {
+        isHighlighted = false;
+        messageHighlightStore.set(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  });
+
+  /**
+   * Handle reporting a bad answer
+   */
+  async function handleReportBadAnswer() {
+    if (!original_message) return;
+
+    const chatId = original_message.chat_id;
+    const messageId = original_message.message_id;
+
+    // Construct the share chat URL (not direct chat access)
+    let link = `${window.location.origin}/share/chat/${chatId}`;
+
+    // For non-public chats (real user chats), we MUST include the encryption key
+    // so the server admin can decrypt the entire chat to investigate the quality issue.
+    if (!isPublicChat(chatId)) {
+      try {
+        // Get the chat key and convert to base64 format expected by generateShareKeyBlob
+        const chatKey = chatDB.getChatKey(chatId);
+        if (chatKey) {
+          let chatKeyBase64: string;
+          if (chatKey instanceof Uint8Array) {
+            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
+          } else if (typeof chatKey === 'string') {
+            chatKeyBase64 = chatKey;
+          } else {
+            throw new Error('Unexpected chat key format');
+          }
+
+          // Generate a proper share key blob (no expiration, no password for reporting)
+          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
+
+          // Include message ID for highlighting/scrolling to the reported message
+          link += `#key=${encryptedBlob}&messageid=${messageId}`;
+          console.debug(`[ChatMessage] Generated encrypted share blob and included message ID in report link for real user chat ${chatId}`);
+        } else {
+          console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
+        }
+      } catch (error) {
+        console.error(`[ChatMessage] Error generating share key blob for chat ${chatId}:`, error);
+      }
+    } else {
+      // For public chats, still include message ID for highlighting
+      link += `#messageid=${messageId}`;
+      console.debug(`[ChatMessage] Included message ID in public chat report link for ${chatId}`);
+    }
+
+    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
+    const title = $text('chat.report_bad_answer.title.text');
+
+    reportIssueStore.set({
+      title: title,
+      description: template
+    });
+
+    settingsDeepLink.set('report_issue');
+    panelState.openSettings();
+  }
+
+  /**
+   * Deactivates selection mode and clears browser selection
+   */
+  function deactivateSelection() {
+    if (!selectable) return;
+    
+    selectable = false;
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+    }
+    console.debug('[ChatMessage] Selection mode deactivated');
+  }
+
+  /**
+   * Global click handler to detect clicks outside the selectable message
+   */
+  function handleGlobalClick(event: MouseEvent | TouchEvent) {
+    if (!selectable || !messageContentElement) return;
+
+    const target = event.target as Node;
+    if (!messageContentElement.contains(target)) {
+      deactivateSelection();
+    }
+  }
+
+  /**
+   * Handle context menu (right-click) for the entire message bubble
+   */
+  function handleMessageContextMenu(event: MouseEvent) {
+    // Only show if not clicking on an embed (embeds have their own menu)
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
+      return;
+    }
+
+    // CRITICAL: If selection mode is active and there is a selection, allow browser context menu
+    // This allows users to use browser's native Copy/Look up for selected text
+    if (selectable) {
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        // Selection exists, don't prevent default, don't show custom menu
+        return;
+      }
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    
+    messageMenuX = event.clientX;
+    messageMenuY = event.clientY;
+    showMessageMenu = true;
+    console.debug('[ChatMessage] Message context menu triggered (right-click)');
+  }
+
+  /**
+   * Handle keyboard interaction for the message bubble
+   */
+  function handleMessageKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      // Don't trigger if already focusing an interactive element
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention, button')) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Show menu at the center of the element for keyboard users
+      if (messageContentElement) {
+        const rect = messageContentElement.getBoundingClientRect();
+        messageMenuX = rect.left + rect.width / 2;
+        messageMenuY = rect.top + rect.height / 2;
+        showMessageMenu = true;
+      }
+    }
+  }
+
+  // Touch handling for long-press on message bubble
+  const LONG_PRESS_DURATION = 500;
+  const TOUCH_MOVE_THRESHOLD = 10;
+  let messageTouchTimer: ReturnType<typeof setTimeout> | null = null;
+  let messageTouchStartX = 0;
+  let messageTouchStartY = 0;
+
+  function handleMessageTouchStart(event: TouchEvent) {
+    // Only handle single touch
+    if (event.touches.length !== 1) {
+      clearMessageTouchTimer();
+      return;
+    }
+
+    // Don't trigger if touching an embed
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
+      return;
+    }
+
+    // CRITICAL: If selection mode is active, don't trigger our custom long-press context menu.
+    // This allows the native mobile selection handles and context menu to work normally.
+    if (selectable) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    messageTouchStartX = touch.clientX;
+    messageTouchStartY = touch.clientY;
+
+    messageTouchTimer = setTimeout(() => {
+      messageMenuX = messageTouchStartX;
+      messageMenuY = messageTouchStartY;
+      showMessageMenu = true;
+      
+      console.debug('[ChatMessage] Message long-pressed');
+      
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      messageTouchTimer = null;
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleMessageTouchMove(event: TouchEvent) {
+    if (!messageTouchTimer) return;
+    
+    const touch = event.touches[0];
+    const deltaX = Math.abs(touch.clientX - messageTouchStartX);
+    const deltaY = Math.abs(touch.clientY - messageTouchStartY);
+
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearMessageTouchTimer();
+    }
+  }
+
+  function handleMessageTouchEnd() {
+    clearMessageTouchTimer();
+  }
+
+  function clearMessageTouchTimer() {
+    if (messageTouchTimer) {
+      clearTimeout(messageTouchTimer);
+      messageTouchTimer = null;
+    }
+  }
+
+  // Removed handleMessageClick to avoid intrusive menu on tap
+
+  /**
+   * Copies the full message content to clipboard, or selected text if available
+   */
+  async function handleCopyMessage() {
+    try {
+      let contentToCopy: string;
+      const selection = window.getSelection();
+      
+      // If there's a selection and it's within this message, copy only the selection
+      if (selectable && selection && selection.toString().length > 0) {
+        contentToCopy = selection.toString();
+        console.debug('[ChatMessage] Copying selected text');
+      } else {
+        // Otherwise copy the full message content
+        contentToCopy = typeof original_message?.content === 'string' 
+          ? original_message.content 
+          : JSON.stringify(content);
+        console.debug('[ChatMessage] Copying full message content');
+      }
+        
+      await navigator.clipboard.writeText(contentToCopy);
+      
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success(
+        selectable && selection && selection.toString().length > 0
+          ? 'Selected text copied to clipboard'
+          : 'Message copied to clipboard'
+      );
+    } catch (error) {
+      console.error('[ChatMessage] Failed to copy message:', error);
+    }
+  }
+
+  function handleSelectMessage() {
+    selectable = true;
+    // Call selectAt on the ReadOnlyMessage component with the menu coordinates
+    if (readOnlyMessageComponent) {
+      readOnlyMessageComponent.selectAt(messageMenuX, messageMenuY);
+    }
+  }
+
+  // Final cleanup of any pre-existing handlers in template to avoid double calls
+  // The logic is now correctly attached programmatically in onMount
+
+  onMount(() => {
+    document.addEventListener('mousedown', handleGlobalClick);
+    document.addEventListener('touchstart', handleGlobalClick);
+    
+    const el = messageContentElement;
+    if (el) {
+      // ONLY attach keydown, remove click to avoid intrusive menu on tap
+      el.addEventListener('keydown', handleMessageKeyDown as any);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalClick);
+      document.removeEventListener('touchstart', handleGlobalClick);
+      if (el) {
+        el.removeEventListener('keydown', handleMessageKeyDown as any);
+      }
+    };
+  });
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
   let showFullscreen = $state(false);
@@ -485,7 +790,6 @@
         const results = decodedContent.results || [];
         const firstResult = results[0] || {};
         const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
-        const videoUrl = firstResult.url || '';
 
         switch (action) {
           case 'copy':
@@ -658,7 +962,18 @@
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
+    <div 
+      bind:this={messageContentElement}
+      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
+      class:highlighted={isHighlighted}
+      style="opacity: {defaultHidden ? '0' : '1'};"
+      role="article"
+      oncontextmenu={handleMessageContextMenu}
+      ontouchstart={handleMessageTouchStart}
+      ontouchmove={handleMessageTouchMove}
+      ontouchend={handleMessageTouchEnd}
+      ontouchcancel={handleMessageTouchEnd}
+    >
       {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
@@ -675,16 +990,20 @@
         
         {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
+              bind:this={readOnlyMessageComponent}
               content={fullContent}
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
+              {selectable}
               on:message-embed-click={handleEmbedClick}
           />
         {:else}
           <ReadOnlyMessage 
+              bind:this={readOnlyMessageComponent}
               {content}
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
+              {selectable}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}
@@ -742,9 +1061,37 @@
           onDownload={() => handleMenuAction('download')}
         />
       {/if}
+
+      {#if showMessageMenu}
+        <MessageContextMenu
+          x={messageMenuX}
+          y={messageMenuY}
+          show={showMessageMenu}
+          onClose={() => showMessageMenu = false}
+          onCopy={handleCopyMessage}
+          onSelect={handleSelectMessage}
+        />
+      {/if}
     </div>
     {#if role === 'assistant' && model_name}
-      <div class="generated-by">generated by {model_name}</div>
+      <div class="generated-by-container">
+        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: model_name } })}</div>
+        <button 
+          class="report-bad-answer-btn" 
+          class:hovered={isReportHovered}
+          onmouseenter={() => isReportHovered = true}
+          onmouseleave={() => isReportHovered = false}
+          onclick={handleReportBadAnswer}
+          aria-label={$text('chat.report_bad_answer.button_text.text')}
+        >
+          <div class="clickable-icon icon_thumbsdown"></div>
+          {#if isReportHovered}
+            <span class="report-text" in:fade={{ duration: 150 }}>
+              {$text('chat.report_bad_answer.button_text.text')}
+            </span>
+          {/if}
+        </button>
+      </div>
     {/if}
     {#if messageStatusText}
       <div class="message-status">
@@ -798,10 +1145,63 @@
 
   .generated-by {
     font-size: 14px;
+    color: var(--color-grey-60);
+  }
+
+  .generated-by-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-top: 6px;
     margin-left: 12px;
     margin-bottom: 10px;
+  }
+
+  .report-bad-answer-btn {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
     color: var(--color-grey-60);
+  }
+
+  .report-bad-answer-btn:hover {
+    background-color: var(--color-grey-20);
+    color: var(--color-primary);
+  }
+
+  .report-bad-answer-btn .clickable-icon {
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+  }
+
+  .report-text {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .mate-message-content.highlighted {
+    animation: highlight-animation 3s ease-out;
+  }
+
+  @keyframes highlight-animation {
+    0% {
+      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
+      box-shadow: 0 0 15px var(--color-primary);
+    }
+    70% {
+      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
+      box-shadow: 0 0 10px var(--color-primary);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: none;
+    }
   }
 
   .chat-app-cards-container.scrollable {

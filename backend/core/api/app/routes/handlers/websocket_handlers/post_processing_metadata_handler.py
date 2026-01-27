@@ -58,6 +58,17 @@ async def handle_post_processing_metadata(
             )
             return
 
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to update post-processing metadata for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         logger.info(f"Processing post-processing metadata for chat {chat_id} from {user_id}")
 
         # Build update fields for Directus

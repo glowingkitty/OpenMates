@@ -441,17 +441,22 @@ function parseNonCodeBlockEmbeds(
         protectedRanges.push({ start: absStart, end: absStart + url.length });
       }
       
-      // Find standalone URLs
-      const urlRegex = /https?:\/\/[^\s]+/g;
+      // Find standalone URLs using shared pattern which supports optional protocol
+      const urlRegex = EMBED_PATTERNS.URL;
       let urlMatch: RegExpExecArray | null;
       while ((urlMatch = urlRegex.exec(originalLine)) !== null) {
-        const url = urlMatch[0];
+        let url = urlMatch[0];
         const startIdx = urlMatch.index ?? 0;
         
         // Skip URLs inside markdown links
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) {
           continue;
+        }
+        
+        // Normalize URL by adding https:// if protocol is missing
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
         }
         
         const id = generateUUID();

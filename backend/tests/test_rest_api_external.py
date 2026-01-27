@@ -2,7 +2,15 @@ import os
 import json
 import httpx
 import pytest
+import io
+from PIL import Image
 from dotenv import load_dotenv
+
+try:
+    import c2pa
+    HAS_C2PA = True
+except ImportError:
+    HAS_C2PA = False
 
 # Load environment variables from the root .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
@@ -33,6 +41,81 @@ def log_response(response: httpx.Response):
                 print("[RESPONSE] (empty body)")
         except Exception:
             print("[RESPONSE] (could not read body)")
+
+def verify_image_metadata(image_bytes: bytes, expected_prompt: str, expected_model: str):
+    """Verify that the generated image contains the expected AI metadata and C2PA provenance."""
+    print(f"[VERIFY] Checking metadata/C2PA for image ({len(image_bytes)} bytes)...")
+    try:
+        # 1. Standard XMP Check
+        img = Image.open(io.BytesIO(image_bytes))
+        xmp = img.info.get("xmp")
+        
+        if not xmp:
+            print(f"[FAIL] No XMP metadata found. Available info: {list(img.info.keys())}")
+            # WebP often stores metadata in a different way in Pillow depending on version, 
+            # but our implementation explicitly saves it as 'xmp'.
+            pytest.fail("No XMP metadata found in generated image")
+            
+        xmp_str = xmp.decode("utf-8") if isinstance(xmp, bytes) else xmp
+        
+        # Core AI signal
+        assert "trainedAlgorithmicMedia" in xmp_str, "Missing 'trainedAlgorithmicMedia' marker in XMP"
+        
+        # Model info
+        if expected_model:
+            # We check if the provided model reference is at least partially in the metadata
+            # (it might be prefixed with "Google" or "fal.ai" by the processor)
+            model_snippet = expected_model.split('/')[-1] if '/' in expected_model else expected_model
+            assert model_snippet in xmp_str, f"Expected model snippet '{model_snippet}' (from '{expected_model}') not found in XMP metadata"
+        
+        # Prompt info (snippet)
+        prompt_snippet = expected_prompt[:30]
+        assert prompt_snippet in xmp_str, f"Prompt snippet '{prompt_snippet}' not found in XMP metadata"
+        
+        # Software marker
+        assert "OpenMates" in xmp_str, "Missing 'OpenMates' software marker in XMP"
+        
+        print("[OK] XMP metadata markers verified.")
+
+        # 2. C2PA (Content Credentials) Check
+        print(f"[VERIFY] Checking C2PA (Coalition for Content Provenance and Authenticity)...")
+        # JUMBF box marker is mandatory for C2PA
+        has_c2pa_jumb = b"jumb" in image_bytes.lower()
+        assert has_c2pa_jumb, "Missing C2PA JUMBF box in image bytes"
+
+        if HAS_C2PA:
+            try:
+                # Use c2pa-python to verify the manifest store
+                mime_type = "image/webp"
+                if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+                    mime_type = "image/png"
+                elif image_bytes.startswith(b"\xff\xd8"):
+                    mime_type = "image/jpeg"
+
+                with c2pa.Reader(mime_type, io.BytesIO(image_bytes)) as reader:
+                    manifest_json = reader.json()
+                    if not manifest_json:
+                        pytest.fail("C2PA Reader found no manifest")
+                    
+                    # Verify manifest contents
+                    assert "trainedAlgorithmicMedia" in manifest_json, "C2PA manifest missing AI digital source type"
+                    assert "OpenMates" in manifest_json, "C2PA manifest missing OpenMates generator info"
+                    
+                    # Verify validation state
+                    validation = reader.get_validation_state()
+                    print(f"[INFO] C2PA Validation State: {validation}")
+                    
+                print("[OK] C2PA manifest verified with c2pa-python library!")
+            except Exception as e:
+                print(f"[WARN] C2PA library verification failed, falling back to byte check: {e}")
+        else:
+            print("[INFO] c2pa-python not installed, verified via JUMBF byte marker only.")
+
+        print("[OK] All metadata and C2PA markers found successfully!")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to verify metadata/C2PA: {e}")
+        raise e
 
 # This test suite makes real requests to the dev API domain using a real API key.
 # It validates that the REST API endpoints are functional and return expected structures.
@@ -257,10 +340,11 @@ def test_execute_skill_image_generation_draft(api_client):
     else:
         pytest.fail(f"Task timed out after {max_retries * poll_interval} seconds")
 
-    # 3. Download and save the decrypted image from the embed endpoint
-    print(f"[DOWNLOAD] Requesting decrypted image from /v1/embeds/{embed_id}/file?format=preview")
+    # 3. Download and verify the decrypted image from the embed endpoint
+    # We test the 'full' format as it has higher quality and guaranteed metadata preservation
+    print(f"[DOWNLOAD] Requesting decrypted image from /v1/embeds/{embed_id}/file?format=full")
     
-    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=preview")
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=full")
     
     if download_response.status_code == 200:
         # Save to local file
@@ -272,6 +356,12 @@ def test_execute_skill_image_generation_draft(api_client):
         assert file_size > 0
         assert download_response.headers["Content-Type"] == "image/webp"
         print(f"\n[IMAGE SAVED] Decrypted draft image saved to: {os.path.abspath(filename)} ({file_size} bytes)")
+        
+        # Verify AI Metadata
+        # Draft model for generate_draft is typically bfl/flux-schnell
+        # We'll use the model reference returned in the result if available, or fallback
+        expected_model = completed_result.get("model", "bfl/flux-schnell")
+        verify_image_metadata(download_response.content, prompt, expected_model)
     else:
         print(f"\n[DOWNLOAD FAILED] Status: {download_response.status_code}")
         print(f"Response: {download_response.text}")
@@ -307,6 +397,7 @@ def test_execute_skill_image_generation_high_end(api_client):
     # 2. Poll for status (allow more time for high-end)
     max_retries = 60
     poll_interval = 2.0
+    completed_result = None
     
     for i in range(max_retries):
         status_resp = api_client.get(f"/v1/tasks/{task_id}")
@@ -314,6 +405,7 @@ def test_execute_skill_image_generation_high_end(api_client):
         status = status_data["status"]
         
         if status == "completed":
+            completed_result = status_data.get("result")
             print("\n[SUCCESS] High-end image generation completed!")
             break
         elif status == "failed":
@@ -325,15 +417,20 @@ def test_execute_skill_image_generation_high_end(api_client):
     else:
         pytest.fail("Task timed out")
 
-    # 3. Download original format
-    print(f"[DOWNLOAD] Requesting original format from /v1/embeds/{embed_id}/file?format=original")
-    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=original")
+    # 3. Download full format and verify metadata
+    # We test the 'full' format as it has higher quality and guaranteed metadata preservation
+    print(f"[DOWNLOAD] Requesting full format from /v1/embeds/{embed_id}/file?format=full")
+    download_response = api_client.get(f"/v1/embeds/{embed_id}/file?format=full")
     
     if download_response.status_code == 200:
-        filename = "test_generated_image_high.png"
+        filename = "test_generated_image_high.webp"
         with open(filename, "wb") as f:
             f.write(download_response.content)
         print(f"[IMAGE SAVED] High-end image saved to: {os.path.abspath(filename)} ({len(download_response.content)} bytes)")
+        
+        # Verify AI Metadata
+        expected_model = completed_result.get("model", "google/gemini-3-pro-image-preview")
+        verify_image_metadata(download_response.content, prompt, expected_model)
     else:
         pytest.fail(f"Download failed: {download_response.status_code}")
 

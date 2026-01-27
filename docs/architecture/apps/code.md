@@ -541,37 +541,59 @@ def validate_python_code(code: str) -> tuple[bool, str]:
 
 ### Automatic Linter Processing via e2b
 
+> **Status:** Planned feature - to be implemented (TODO)
+
 **Functionality:** After the assistant response is completed, automatically run linters on all generated/modified files using e2b sandboxed environments to catch linting issues and code quality problems.
 
 **Description:**
-In addition to syntax validation, the system automatically runs language-specific linters on all files after code generation completes. This process uses e2b sandboxed environments to safely execute linters without affecting the local development environment.
+In addition to syntax validation, the system automatically runs language-specific linters on all files after code generation completes. This process uses **e2b (End-to-Box)** sandboxed environments to safely execute linters without affecting the local development environment. E2b is chosen for its specialized focus on AI code interpretation and extremely fast **Firecracker microVM** cold-starts.
+
+**Full Context, Targeted Reporting Strategy:**
+To ensure high accuracy and avoid false positives caused by cross-file dependencies (e.g., imports between files generated in different messages), the system follows a "Full Context" approach:
+1. **Context Reconstruction**: All code files currently in the chat history (stored as embeds) are loaded into the e2b sandbox.
+2. **Global Execution**: Linters are run against the entire project structure in the sandbox. This allows tools like TypeScript or Pylint to resolve all dependencies correctly.
+3. **Targeted Filtering**: Only linting errors and warnings related to the **newly generated or modified files** in the latest assistant response are reported back to the user or used for automatic fixing. This prevents overwhelming the user with legacy issues while ensuring the new code is fully validated in context.
+
+**Cost and Performance (Expected):**
+*   **Provider**: E2B.dev (Firecracker microVMs).
+*   **Startup Latency**: ~150ms cold-start time.
+*   **Execution Time**: Typically 1–5 seconds per run (background task).
+*   **Estimated Cost**: 
+    *   **Hobby/Dev**: $0 (leveraging E2B's $100 one-time free credit).
+    *   **Production Usage**: Extremely low (~$0.00003 for Python, ~$0.0002 for Svelte/Node).
+    *   **Scale**: Approx. 5,000 to 30,000 checks per $1.
 
 **Linting Process:**
-1. **Automatic Trigger**: After assistant response completion, the system automatically identifies all generated or modified files
-2. **e2b Sandbox Execution**: Files are processed in an isolated e2b sandbox environment with appropriate language tooling installed
+1. **Automatic Trigger**: After assistant response completion, the system automatically identifies all generated or modified files and reconstructs the full project context from the chat's code embeds.
+2. **e2b Sandbox Execution**: Files are processed in an isolated e2b sandbox environment with appropriate language tooling installed.
 3. **Language-Specific Linters**: Appropriate linters are run for each file based on its language:
    - **Python**: `ruff`, `pylint`, or `flake8`
-   - **JavaScript/TypeScript**: `ESLint`, `TypeScript compiler`
+   - **JavaScript/TypeScript**: `ESLint`, `TypeScript compiler (tsc)` for type checking
+   - **Svelte**: `svelte-check` and `eslint-plugin-svelte`
    - **Go**: `golangci-lint` or `gofmt`
    - **Rust**: `clippy` and `rustfmt`
-   - **Other languages**: Language-specific linters
-4. **Issue Collection**: All linting errors and warnings are collected and formatted
-5. **Automatic Fix Request**: If linting issues are found, the LLM is automatically prompted to fix them
-6. **Iterative Fixing**: The linting process repeats until all issues are resolved or a maximum retry limit is reached
+   - **Java**: `Checkstyle` or `PMD`
+   - **C/C++**: `cppcheck` or `clang-tidy`
+   - **Ruby**: `RuboCop`
+   - **PHP**: `PHP_CodeSniffer` or `PHPStan`
+   - **Other languages**: Appropriate community-standard linters
+4. **Issue Collection & Filtering**: All linting errors are collected, but filtered to only include those relevant to the latest message.
+5. **Automatic Fix Request**: If critical linting issues are found in the new code, the LLM is automatically prompted to fix them.
+6. **Iterative Fixing**: The linting process repeats until all new issues are resolved or a maximum retry limit is reached.
 
 **Benefits:**
-- Catches code style and quality issues automatically
-- Ensures generated code follows project coding standards
-- Runs in isolated environments, preventing conflicts with local setup
-- Provides consistent linting across all generated code
-- Reduces manual code review burden
+- **Zero False Positives**: By providing full project context, linters won't complain about "missing" imports that exist in previous chat messages.
+- **Deep Validation**: Allows for full type checking across file boundaries (crucial for TypeScript/Svelte).
+- **Safe Execution**: Runs in isolated environments, preventing conflicts with local setup.
+- **Consistent Quality**: Ensures all code delivered by the assistant meets modern standards.
 
 **Implementation Strategy:**
-- Use e2b sandboxed VMs for safe, isolated linting execution
-- Support project-specific linting configurations (e.g., `.eslintrc`, `pyproject.toml`)
-- Cache linting results to avoid redundant checks
-- Provide detailed linting reports with file paths, line numbers, and error messages
-- Integrate with the existing validation pipeline for seamless error reporting
+- Use e2b sandboxed VMs for safe, isolated linting execution.
+- Dynamically build the file tree in the VM based on the chat's Code Embed history.
+- Support project-specific linting configurations (e.g., `.eslintrc`, `pyproject.toml`) if provided by the user.
+- Cache linting results based on content hashes to avoid redundant checks on unchanged files.
+- Provide detailed linting reports with file paths, line numbers, and error messages.
+- Integrate with the existing validation pipeline for seamless error reporting.
 
 ## Planned Code Quality Enhancements
 

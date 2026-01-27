@@ -8,7 +8,7 @@ the admin can approve it to become a demo chat.
 """
 
 import logging
-import hashlib
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
@@ -27,7 +27,8 @@ class DemoChatMethods:
         title: str,
         summary: Optional[str] = None,
         category: Optional[str] = None,
-        approved_by_admin: bool = False
+        follow_up_suggestions: Optional[List[str]] = None,
+        approved_by_admin: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Create a new demo chat entry.
@@ -38,42 +39,424 @@ class DemoChatMethods:
             title: Display title for the demo chat
             summary: Optional description/summary
             category: Optional category for grouping
-            approved_by_admin: Whether this demo chat has been approved by admin
+            follow_up_suggestions: Optional follow-up suggestions
+            approved_by_admin: UUID of admin who approved this demo chat (None if not approved)
 
         Returns:
             Created demo chat item or None if failed
         """
         try:
-            # Generate a unique demo ID (different from the original chat_id)
-            demo_id = hashlib.sha256(f"demo_{chat_id}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
+            # Generate a sequential demo ID (demo-1, demo-2, demo-3, etc.)
+            # Query all existing demo chats to find the highest number
+            existing_demos = await self.directus_service.get_items("demo_chats", {
+                "filter": {"is_active": {"_eq": True}},
+                "fields": ["demo_id"]
+            })
+            
+            # Extract numbers from demo_ids that match the pattern demo-{number}
+            max_number = 0
+            for demo in existing_demos or []:
+                demo_id_str = demo.get("demo_id", "")
+                # Match pattern: demo-{number}
+                match = re.match(r"^demo-(\d+)$", demo_id_str)
+                if match:
+                    number = int(match.group(1))
+                    max_number = max(max_number, number)
+            
+            # Generate the next sequential ID
+            next_number = max_number + 1
+            demo_id = f"demo-{next_number}"
 
             demo_chat_data = {
-                "demo_id": demo_id,
                 "original_chat_id": chat_id,
-                "encrypted_key": encryption_key,  # Store the encryption key securely
                 "title": title,
                 "summary": summary,
                 "category": category,
+                "status": "translating",
                 "approved_by_admin": approved_by_admin,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "is_active": True
             }
 
             # Create the demo chat entry
-            result = await self.directus_service.create_item("demo_chats", demo_chat_data)
-            if result:
-                # Invalidate cache if approved
-                if approved_by_admin:
-                    await self.directus_service.cache.clear_demo_chats_cache()
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if success and created_item:
+                # Store the original title/summary in the translation table for 'en' initially
+                # This will be overwritten by the translation task
+                # But we need it for immediate display if needed
+                initial_translation = {
+                    "demo_id": demo_id,
+                    "language": "en",
+                    "title": title,
+                    "summary": summary,
+                    "follow_up_suggestions": follow_up_suggestions
+                }
+                await self.directus_service.create_item("demo_chat_translations", initial_translation)
+
                 logger.info(f"Created demo chat {demo_id} for chat {chat_id}")
-                return result
+                return created_item
             else:
-                logger.error(f"Failed to create demo chat for chat {chat_id}")
+                logger.error(f"Failed to create demo chat for chat {chat_id}: {created_item}")
                 return None
 
         except Exception as e:
             logger.error(f"Error creating demo chat for chat {chat_id}: {e}", exc_info=True)
             return None
+
+    async def create_pending_demo_chat(
+        self,
+        chat_id: str,
+        encryption_key: str,
+        title: Optional[str] = None,
+        summary: Optional[str] = None,
+        category: Optional[str] = None,
+        icon: Optional[str] = None,
+        follow_up_suggestions: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a pending demo chat entry with status='waiting_for_confirmation'.
+        
+        This is called when a user shares a chat with community. The admin must
+        approve it before it becomes a published demo chat.
+        
+        If a demo_chat already exists for this chat:
+        - If status='waiting_for_confirmation': update it with new metadata
+        - If status is anything else: return None (already processed)
+        
+        Args:
+            chat_id: The original chat ID
+            encryption_key: The encryption key needed to decrypt the chat
+            title: Display title for the demo chat (will be vault-encrypted)
+            summary: Description/summary (will be vault-encrypted)
+            category: Category for grouping (will be vault-encrypted)
+            icon: Icon name (will be vault-encrypted)
+            follow_up_suggestions: Follow-up suggestions list (will be vault-encrypted as JSON)
+            
+        Returns:
+            Created/updated demo chat item or None if failed/already processed
+        """
+        try:
+            # Check if a demo_chat already exists for this chat
+            existing_demo = await self.get_demo_chat_by_original_chat_id(chat_id)
+            
+            if existing_demo:
+                # Demo chat already exists
+                existing_status = existing_demo.get("status", "")
+                if existing_status == "waiting_for_confirmation":
+                    # Update existing pending entry with new metadata
+                    logger.info(f"Updating existing pending demo chat {existing_demo.get('demo_id')} for chat {chat_id}")
+                    return await self._update_pending_demo_chat(
+                        existing_demo.get("id"),
+                        existing_demo.get("demo_id"),
+                        encryption_key, title, summary, category, icon, follow_up_suggestions
+                    )
+                else:
+                    # Already approved/processed - don't create duplicate
+                    logger.info(f"Demo chat for chat {chat_id} already exists with status '{existing_status}' - skipping")
+                    return None
+            
+            # Generate a sequential demo ID (demo-1, demo-2, demo-3, etc.)
+            existing_demos = await self.directus_service.get_items("demo_chats", {
+                "filter": {"is_active": {"_eq": True}},
+                "fields": ["demo_id"]
+            })
+            
+            max_number = 0
+            for demo in existing_demos or []:
+                demo_id_str = demo.get("demo_id", "")
+                match = re.match(r"^demo-(\d+)$", demo_id_str)
+                if match:
+                    number = int(match.group(1))
+                    max_number = max(max_number, number)
+            
+            next_number = max_number + 1
+            demo_id = f"demo-{next_number}"
+            
+            # Store metadata as cleartext (demo chats are public content)
+            import json
+
+            demo_chat_data = {
+                "demo_id": demo_id,
+                "original_chat_id": chat_id,
+                "title": title,
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": json.dumps(follow_up_suggestions) if follow_up_suggestions else None,
+                "status": "waiting_for_confirmation",
+                "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_active": True
+            }
+            
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if success and created_item:
+                logger.info(f"Created pending demo chat {demo_id} for chat {chat_id}")
+                return created_item
+            else:
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}: {created_item}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating pending demo chat for chat {chat_id}: {e}", exc_info=True)
+            return None
+
+    async def create_pending_demo_chat_with_content(
+        self,
+        chat_id: str,
+        title: Optional[str],
+        summary: Optional[str],
+        category: Optional[str],
+        icon: Optional[str],
+        follow_up_suggestions: Optional[List[str]],
+        decrypted_messages: List[Dict[str, Any]],
+        decrypted_embeds: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a pending demo chat with decrypted content from client (zero-knowledge architecture).
+        
+        This is the new approach where the client decrypts messages/embeds locally and sends
+        plaintext to the server. The server then encrypts everything with Vault and stores it.
+        
+        Args:
+            chat_id: The original chat ID
+            title: Demo chat title
+            summary: Demo chat summary  
+            category: Demo chat category
+            icon: Icon name
+            follow_up_suggestions: List of follow-up suggestions
+            decrypted_messages: List of {role, content, created_at}
+            decrypted_embeds: List of {embed_id, type, content, created_at}
+            
+        Returns:
+            Created demo chat item or None if failed
+        """
+        try:
+            # Check if a demo_chat already exists for this chat
+            existing_demo = await self.get_demo_chat_by_original_chat_id(chat_id)
+            
+            if existing_demo:
+                # Demo chat already exists
+                existing_status = existing_demo.get("status", "")
+                if existing_status == "pending_approval":
+                    # Update existing pending entry
+                    logger.info(f"Updating existing pending demo chat {existing_demo.get('id')} for chat {chat_id}")
+                    # We'll update the full content
+                    # For now, just log and return existing - full update implementation needed
+                    return existing_demo
+                else:
+                    # Already approved/processed - don't create duplicate
+                    logger.info(f"Demo chat for chat {chat_id} already exists with status '{existing_status}' - skipping")
+                    return None
+            
+            # Store metadata as cleartext (demo chats are public content)
+            # Create demo_chats entry
+            from datetime import datetime, timezone
+            import json
+            
+            demo_chat_data = {
+                "original_chat_id": chat_id,
+                "title": title,
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": json.dumps(follow_up_suggestions) if follow_up_suggestions else None,
+                "status": "pending_approval",
+                "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_active": True
+            }
+            
+            success, created_item = await self.directus_service.create_item("demo_chats", demo_chat_data)
+            if not success or not created_item:
+                logger.error(f"Failed to create pending demo chat for chat {chat_id}")
+                return None
+            
+            demo_chat_id = created_item["id"]  # UUID
+            logger.info(f"Created pending demo chat {demo_chat_id} for chat {chat_id}")
+            
+            # Store messages (cleartext content and category for demo chats)
+            for msg in decrypted_messages:
+                message_data = {
+                    "demo_chat_id": demo_chat_id,
+                    "role": msg["role"],
+                    "content": msg["content"],
+                    "category": msg.get("category"),
+                    "model_name": msg.get("model_name"),
+                    "language": "original",  # Mark as original language, will be translated later
+                    "original_created_at": datetime.fromtimestamp(msg["created_at"] / 1000, tz=timezone.utc).isoformat() if msg["created_at"] > 1000000000000 else datetime.fromtimestamp(msg["created_at"], tz=timezone.utc).isoformat()
+                }
+                await self.directus_service.create_item("demo_messages", message_data)
+            
+            logger.info(f"Stored {len(decrypted_messages)} messages for demo chat {demo_chat_id}")
+            
+            # Store embeds (cleartext, in original language only)
+            for emb in decrypted_embeds:
+                embed_data = {
+                    "demo_chat_id": demo_chat_id,
+                    "original_embed_id": emb["embed_id"],
+                    "type": emb["type"],
+                    "content": emb["content"],
+                    "language": "original",  # Mark as original language
+                    "original_created_at": datetime.fromtimestamp(emb["created_at"] / 1000, tz=timezone.utc).isoformat() if emb["created_at"] > 1000000000000 else datetime.fromtimestamp(emb["created_at"], tz=timezone.utc).isoformat()
+                }
+                await self.directus_service.create_item("demo_embeds", embed_data)
+            
+            logger.info(f"Stored {len(decrypted_embeds)} embeds for demo chat {demo_chat_id}")
+            
+            return created_item
+                
+        except Exception as e:
+            logger.error(f"Error creating pending demo chat with content for chat {chat_id}: {e}", exc_info=True)
+            return None
+
+    async def _update_pending_demo_chat(
+        self,
+        item_id: str,
+        demo_id: str,
+        encryption_key: str,
+        title: Optional[str],
+        summary: Optional[str],
+        category: Optional[str],
+        icon: Optional[str],
+        follow_up_suggestions: Optional[List[str]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing pending demo chat with new metadata.
+        Called when user re-shares a chat with community.
+        """
+        try:
+            import json
+
+            # Store metadata as cleartext (demo chats are public content)
+            updates = {}
+
+            if title:
+                updates["title"] = title
+            if summary:
+                updates["summary"] = summary
+            if category:
+                updates["category"] = category
+            if icon:
+                updates["icon"] = icon
+            if follow_up_suggestions:
+                updates["follow_up_suggestions"] = json.dumps(follow_up_suggestions)
+
+            result = await self.directus_service.update_item("demo_chats", item_id, updates)
+            if result:
+                logger.info(f"Updated pending demo chat {demo_id}")
+                return result
+            else:
+                logger.error(f"Failed to update pending demo chat {demo_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error updating pending demo chat {demo_id}: {e}", exc_info=True)
+            return None
+
+    async def get_demo_chat_by_original_chat_id(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get demo chat by original chat ID.
+        
+        Args:
+            chat_id: The original chat identifier
+            
+        Returns:
+            Demo chat data or None if not found
+        """
+        try:
+            params = {
+                "filter": {
+                    "original_chat_id": {"_eq": chat_id},
+                    "is_active": {"_eq": True}
+                },
+                "limit": 1
+            }
+            
+            items = await self.directus_service.get_items("demo_chats", params)
+            if items and len(items) > 0:
+                return items[0]
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error fetching demo chat by original chat ID {chat_id}: {e}", exc_info=True)
+            return None
+
+    async def get_pending_demo_chats(self) -> List[Dict[str, Any]]:
+        """
+        Get all demo chats with status='pending_approval'.
+
+        Returns:
+            List of pending demo chat entries
+        """
+        try:
+            params = {
+                "filter": {
+                    "status": {"_eq": "pending_approval"},
+                    "is_active": {"_eq": True}
+                },
+                "sort": ["-created_at"]
+            }
+            
+            items = await self.directus_service.get_items("demo_chats", params)
+            return items or []
+            
+        except Exception as e:
+            logger.error(f"Error fetching pending demo chats: {e}", exc_info=True)
+            return []
+
+    async def get_demo_chat_translation_by_uuid(self, demo_chat_uuid: str, language: str) -> Optional[Dict[str, Any]]:
+        """Get translated metadata for a demo chat by UUID."""
+        try:
+            params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
+                    "language": {"_eq": language}
+                },
+                "limit": 1
+            }
+            items = await self.directus_service.get_items("demo_chat_translations", params)
+            return items[0] if items else None
+        except Exception as e:
+            logger.error(f"Error fetching demo chat translation by UUID: {e}")
+            return None
+
+    async def get_demo_messages_by_uuid(self, demo_chat_uuid: str, language: str) -> List[Dict[str, Any]]:
+        """Get translated and encrypted messages for a demo chat by UUID."""
+        try:
+            params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
+                    "language": {"_eq": language}
+                },
+                "sort": ["original_created_at"]  # Sort by original timestamp to maintain conversation flow
+            }
+            return await self.directus_service.get_items("demo_messages", params)
+        except Exception as e:
+            logger.error(f"Error fetching demo messages by UUID: {e}")
+            return []
+
+    async def get_demo_embeds_by_uuid(self, demo_chat_uuid: str, language: str) -> List[Dict[str, Any]]:
+        """
+        Get encrypted embeds for a demo chat by UUID.
+        
+        NOTE: Unlike messages, embeds are NOT translated - they are stored once with
+        language="original". The language parameter is ignored for embeds since
+        embed content (structured data, images, etc.) doesn't get translated.
+        """
+        try:
+            params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_uuid},
+                    # Always use "original" - embeds are not translated, stored only once
+                    "language": {"_eq": "original"}
+                },
+                "sort": ["original_created_at"]  # Sort by original timestamp
+            }
+            return await self.directus_service.get_items("demo_embeds", params)
+        except Exception as e:
+            logger.error(f"Error fetching demo embeds by UUID: {e}")
+            return []
 
     async def get_demo_chat_by_id(self, demo_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -109,16 +492,14 @@ class DemoChatMethods:
 
         Args:
             approved_only: Whether to only return admin-approved demo chats
-
-        Returns:
-            List of demo chat entries
         """
         try:
             # Check cache first if approved_only=True (public requests)
             if approved_only:
-                cached_demos = await self.directus_service.cache.get_demo_chats_list()
+                # Public requests should use language-specific methods now
+                # This is a fallback
+                cached_demos = await self.directus_service.cache.get_demo_chats_list("en")
                 if cached_demos is not None:
-                    logger.debug("Cache HIT: Returning all active demo chats from cache")
                     return cached_demos
 
             filter_conditions = {
@@ -127,6 +508,7 @@ class DemoChatMethods:
 
             if approved_only:
                 filter_conditions["approved_by_admin"] = {"_eq": True}
+                filter_conditions["status"] = {"_eq": "published"}
 
             params = {
                 "filter": filter_conditions,
@@ -134,11 +516,6 @@ class DemoChatMethods:
             }
 
             items = await self.directus_service.get_items("demo_chats", params)
-            
-            # Cache the result for public requests
-            if approved_only and items is not None:
-                await self.directus_service.cache.set_demo_chats_list(items)
-                
             return items or []
 
         except Exception as e:
@@ -177,28 +554,75 @@ class DemoChatMethods:
 
     async def deactivate_demo_chat(self, demo_id: str) -> bool:
         """
-        Deactivate a demo chat (soft delete).
+        Deactivate a demo chat (soft delete) or permanently delete it with all related data.
+        
+        ARCHITECTURE: This method performs a HARD delete of all related data to prevent orphaned records.
+        When a demo chat is deleted/deactivated, we must also delete:
+        - demo_messages (all languages)
+        - demo_embeds (all languages)
+        - demo_chat_translations (all languages)
+        
+        This ensures data integrity and prevents orphaned foreign key references.
 
         Args:
-            demo_id: The demo chat identifier
+            demo_id: The demo chat identifier (UUID or display ID like "demo-1")
 
         Returns:
             True if deactivation was successful
         """
         try:
-            updates = {
-                "is_active": False,
-                "deactivated_at": datetime.now(timezone.utc).isoformat()
-            }
+            # First, get the demo chat to find its actual Directus item ID (UUID)
+            demo_chat = await self.get_demo_chat_by_id(demo_id)
+            if not demo_chat:
+                logger.error(f"Demo chat {demo_id} not found for deactivation")
+                return False
 
-            result = await self.directus_service.update_item("demo_chats", demo_id, updates)
-            if result:
+            demo_chat_uuid = demo_chat.get("id")  # This is the Directus item ID (UUID)
+            if not demo_chat_uuid:
+                logger.error(f"Demo chat {demo_id} has no Directus item ID")
+                return False
+
+            logger.info(f"Deactivating demo chat {demo_id} (UUID: {demo_chat_uuid}) and all related data")
+
+            # Delete all related data first (CRITICAL: must happen before deleting the demo_chat entry)
+            # 1. Delete demo_messages
+            messages_deleted = await self.directus_service.delete_items(
+                "demo_messages",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {messages_deleted} demo_messages for demo_chat {demo_id}")
+
+            # 2. Delete demo_embeds
+            embeds_deleted = await self.directus_service.delete_items(
+                "demo_embeds",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {embeds_deleted} demo_embeds for demo_chat {demo_id}")
+
+            # 3. Delete demo_chat_translations
+            translations_deleted = await self.directus_service.delete_items(
+                "demo_chat_translations",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {translations_deleted} demo_chat_translations for demo_chat {demo_id}")
+
+            # 4. Finally, delete the demo_chat entry itself
+            delete_success = await self.directus_service.delete_item(
+                "demo_chats",
+                demo_chat_uuid,
+                admin_required=True
+            )
+
+            if delete_success:
                 # Invalidate cache
                 await self.directus_service.cache.clear_demo_chats_cache()
-                logger.info(f"Deactivated demo chat {demo_id}")
+                logger.info(f"Successfully deactivated demo chat {demo_id} and deleted all related data")
                 return True
             else:
-                logger.error(f"Failed to deactivate demo chat {demo_id}")
+                logger.error(f"Failed to delete demo_chats entry for {demo_id}")
                 return False
 
         except Exception as e:

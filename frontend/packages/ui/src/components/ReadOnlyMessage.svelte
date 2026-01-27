@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { text } from '@repo/ui';
@@ -15,11 +15,99 @@
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
-    let { content, isStreaming = false, _embedUpdateTimestamp = 0 }: { content: any; isStreaming?: boolean; _embedUpdateTimestamp?: number } = $props(); // The message content from Tiptap JSON
+    let { 
+        content, 
+        isStreaming = false, 
+        _embedUpdateTimestamp = 0,
+        selectable = false
+    }: { 
+        content: any; 
+        isStreaming?: boolean; 
+        _embedUpdateTimestamp?: number;
+        selectable?: boolean;
+    } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
+    
+    /**
+     * Auto-selects all text content within the message.
+     * Useful when 'Select' is chosen from the context menu.
+     */
+    export function selectAll() {
+        if (!editorElement) return;
+        
+        // Wait for next tick to ensure any state changes are reflected in DOM
+        tick().then(() => {
+            const range = document.createRange();
+            range.selectNodeContents(editorElement);
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+                logger.debug('Text auto-selected');
+            }
+        });
+    }
+
+    /**
+     * Selects the word at the specified coordinates, or the whole message as fallback.
+     */
+    export function selectAt(x: number, y: number) {
+        if (!editor || !editor.view) return;
+
+        tick().then(() => {
+            const selection = window.getSelection();
+            if (!selection) return;
+
+            // Use TipTap's posAtCoords for better accuracy with its internal DOM structure
+            const pos = editor.view.posAtCoords({ left: x, top: y });
+            
+            if (pos && pos.pos !== undefined) {
+                try {
+                    // Focus editor first
+                    editor.commands.focus();
+                    
+                    // Get document and resolve position
+                    const { doc } = editor.state;
+                    const resolvedPos = doc.resolve(pos.pos);
+                    
+                    // Find word boundaries around the position
+                    // We look for the start and end of the word containing the position
+                    let start = pos.pos;
+                    let end = pos.pos;
+                    
+                    const textContent = resolvedPos.parent.textContent;
+                    
+                    // Find start of word
+                    while (start > resolvedPos.start() && /\w/.test(textContent[start - resolvedPos.start() - 1])) {
+                        start--;
+                    }
+                    
+                    // Find end of word
+                    while (end < resolvedPos.end() && /\w/.test(textContent[end - resolvedPos.start()])) {
+                        end++;
+                    }
+                    
+                    if (start < end) {
+                        // Select the word
+                        editor.commands.setTextSelection({ from: start, to: end });
+                        logger.debug(`Word selected at point: "${doc.textBetween(start, end)}"`);
+                    } else {
+                        // Fallback to select all if no word found
+                        selectAll();
+                    }
+                } catch (e) {
+                    logger.debug('Failed to expand selection via TipTap, falling back to select all', e);
+                    selectAll();
+                }
+            } else {
+                // Coordinate lookup failed, select all
+                selectAll();
+            }
+        });
+    }
     
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport
@@ -592,7 +680,7 @@
     });
 </script>
 
-<div class="read-only-message" class:is-streaming={isStreaming}>
+<div class="read-only-message" class:is-streaming={isStreaming} class:is-selectable={selectable}>
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
@@ -602,9 +690,17 @@
 <style>
     .read-only-message {
         width: 100%;
-        /* Enable text selection on touch devices - override parent user-select: none */
+        /* Enable text selection by default */
         user-select: text !important;
         -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+    }
+
+    /* Keep is-selectable class for potentially future explicit overrides */
+    .read-only-message.is-selectable {
+        user-select: text !important;
+        -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }
@@ -634,9 +730,17 @@
         outline: none;
         cursor: default;
         padding: 0;
-        /* Enable text selection on touch devices - override parent user-select: none */
+        /* Enable text selection by default */
         user-select: text !important;
         -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+    }
+
+    :global(.read-only-message.is-selectable .ProseMirror) {
+        /* Keep for consistency */
+        user-select: text !important;
+        -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }

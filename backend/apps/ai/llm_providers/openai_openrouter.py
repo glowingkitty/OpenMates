@@ -114,7 +114,20 @@ def _resolve_openrouter_model_id(model_id: str) -> str:
 
         upstream_provider, model_suffix = model_id.split("/", 1)
         # If it's already an upstream OpenRouter namespace like qwen/* or openai/*, keep it
+        # BUT only if it's not a provider we have a specific mapping for in our config.
+        # We'll allow the lookup below to be the authoritative source if the model exists in our config.
+        # This set acts as a fallback for models not in our config.
         if upstream_provider in {"qwen", "openai", "mistral", "anthropic", "google"}:
+            # Check if this specific model exists in our config first
+            provider_config = config_manager.get_provider_config(upstream_provider)
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_suffix:
+                        servers = model.get("servers") or []
+                        for server in servers:
+                            if isinstance(server, dict) and server.get("id") == "openrouter" and server.get("model_id"):
+                                return str(server["model_id"])
+                        break
             return model_id
 
         provider_config = config_manager.get_provider_config(upstream_provider)

@@ -442,7 +442,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	// Confirm logout redirect to demo chat after deletion.
-	await page.waitForFunction(() => window.location.hash.includes('demo-welcome'), null, { timeout: 60000 });
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 60000 });
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });
 

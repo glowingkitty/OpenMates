@@ -192,8 +192,8 @@ export async function decryptChatFromStorage(
     if (chat.encrypted_chat_key) {
         // CRITICAL: Always clear is_hidden flags first to ensure fresh state
         // This prevents chats encrypted with a different code from showing up when unlocked with a new code
-        (decryptedChat as any).is_hidden = false;
-        (decryptedChat as any).is_hidden_candidate = false;
+        decryptedChat.is_hidden = false;
+        decryptedChat.is_hidden_candidate = false;
         
         // Always check the decryption path to determine if chat is hidden, even if we have a cached key
         // This ensures hidden chats are properly identified and filtered
@@ -203,7 +203,7 @@ export async function decryptChatFromStorage(
         // If normal decryption fails, mark as a hidden candidate for UI filtering.
         // This keeps locked hidden chats out of the main list without a DB flag.
         if (result.isHiddenCandidate) {
-            (decryptedChat as any).is_hidden_candidate = true;
+            decryptedChat.is_hidden_candidate = true;
         }
         
         if (result.chatKey) {
@@ -212,10 +212,10 @@ export async function decryptChatFromStorage(
             // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current password)
             // This ensures only chats that can be decrypted with the current password show up in hidden section
             if (result.isHidden) {
-                (decryptedChat as any).is_hidden = true;
+                decryptedChat.is_hidden = true;
             } else {
                 // Explicitly mark as not hidden if decrypted via normal path
-                (decryptedChat as any).is_hidden = false;
+                decryptedChat.is_hidden = false;
             }
         } else {
             // Both decryption paths failed - could be corrupted or a locked hidden chat
@@ -256,6 +256,15 @@ export async function addChat(
     transaction?: IDBTransaction
 ): Promise<void> {
     console.debug(`[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`);
+    
+    // CRITICAL: During forced logout (missing master key), only allow adding public chats (demo/legal)
+    // Refuse to save encrypted user chats since they cannot be decrypted later without the master key
+    const isPublicChat = chat.chat_id?.startsWith('demo-') || chat.chat_id?.startsWith('legal-');
+    if (get(forcedLogoutInProgress) && !isPublicChat) {
+        console.error(`[ChatDatabase] Refusing to addChat during forced logout - chat ${chat.chat_id}`);
+        throw new Error('Cannot create encrypted chat during forced logout');
+    }
+
     await dbInstance.init();
     
     // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
@@ -278,21 +287,24 @@ export async function addChat(
     // CRITICAL FIX: Do async encryption work BEFORE using the transaction
     // This ensures the transaction is still active when we try to use it
     const chatToSave = await encryptChatForStorage(dbInstance, chatWithDefaults);
-    delete (chatToSave as any).messages;
+    delete chatToSave.messages;
 
-    return new Promise(async (resolve, reject) => {
-        // CRITICAL FIX: Check if external transaction is still active before using it
-        if (usesExternalTransaction && transaction) {
+    return new Promise<void>((resolve, reject) => {
+        (async () => {
+            // CRITICAL FIX: Check if external transaction is still active before using it
+            if (usesExternalTransaction && transaction) {
             // Check transaction state - if it's finished, we need to create a new one
             try {
                 // Try to access the transaction's mode - if it throws, the transaction is finished
-                const _ = transaction.mode;
+                const mode = transaction.mode;
+                if (!mode) throw new Error("Transaction mode is undefined");
+                
                 // Also check if transaction is still active by checking error property
                 if (transaction.error !== null) {
                     throw new Error(`Transaction has error: ${transaction.error}`);
                 }
-            } catch (error) {
-                console.warn(`[ChatDatabase] External transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction`);
+            } catch (e) {
+                console.warn(`[ChatDatabase] External transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction:`, e);
                 // Transaction is finished, create a new one
                 const newTransaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readwrite');
                 
@@ -392,9 +404,10 @@ export async function addChat(
                 
                 reject(error); // This will also cause the transaction to abort if not handled
             };
-        } catch (error: any) {
+        } catch (error) {
             // Transaction is no longer active (InvalidStateError or similar)
-            if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
+            const err = error as { name?: string; message?: string };
+            if (err?.name === 'InvalidStateError' || err?.message?.includes('transaction')) {
                 console.warn(`[ChatDatabase] Transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction:`, error);
                 // Create a new transaction and retry
                 try {
@@ -438,6 +451,7 @@ export async function addChat(
                 reject(error);
             }
         }
+    })();
     });
 }
 
@@ -450,54 +464,61 @@ export async function getAllChats(
 ): Promise<Chat[]> {
     console.debug(`[ChatDatabase] getAllChats called with transaction: ${!!transaction}`);
     await dbInstance.init();
-    return new Promise(async (resolve, reject) => {
-        const currentTransaction = transaction || await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readonly');
-        const store = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
-        const index = store.index('last_edited_overall_timestamp');
-        const request = index.openCursor(null, 'prev');
-        const rawChats: any[] = []; // Collect raw chat data synchronously
-     
-        request.onsuccess = () => {
-            const cursor = request.result;
-            if (cursor) {
-                // Collect raw chat data synchronously (transaction must stay active)
-                const chatData = { ...cursor.value };
-                delete (chatData as any).messages;
-                rawChats.push(chatData);
-                cursor.continue();
-            } else {
-                // All cursors processed, now decrypt all chats after transaction completes
-                // This ensures the transaction doesn't finish while we're still using the cursor
-                currentTransaction.oncomplete = async () => {
-                    // Decrypt all chats after transaction completes
-                    const decryptedChats: Chat[] = [];
-                    for (const rawChat of rawChats) {
-                        try {
-                            const decryptedChat = await decryptChatFromStorage(dbInstance, rawChat);
-                            decryptedChats.push(decryptedChat);
-                        } catch (error) {
-                            console.error(`[ChatDatabase] Error decrypting chat ${rawChat.chat_id}:`, error);
-                            // Still include the chat even if decryption fails (with encrypted data)
-                            decryptedChats.push(rawChat as Chat);
-                        }
+    return new Promise((resolve, reject) => {
+        const execute = async () => {
+            try {
+                const currentTransaction = transaction || await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readonly');
+                const store = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
+                const index = store.index('last_edited_overall_timestamp');
+                const request = index.openCursor(null, 'prev');
+                const rawChats: Chat[] = []; // Collect raw chat data synchronously
+             
+                request.onsuccess = () => {
+                    const cursor = request.result;
+                    if (cursor) {
+                        // Collect raw chat data synchronously (transaction must stay active)
+                        const chatData = { ...cursor.value } as Chat;
+                        delete chatData.messages;
+                        rawChats.push(chatData);
+                        cursor.continue();
+                    } else {
+                        // All cursors processed, now decrypt all chats after transaction completes
+                        // This ensures the transaction doesn't finish while we're still using the cursor
+                        currentTransaction.oncomplete = async () => {
+                            // Decrypt all chats after transaction completes
+                            const decryptedChats: Chat[] = [];
+                            for (const rawChat of rawChats) {
+                                try {
+                                    const decryptedChat = await decryptChatFromStorage(dbInstance, rawChat);
+                                    decryptedChats.push(decryptedChat);
+                                } catch (error) {
+                                    console.error(`[ChatDatabase] Error decrypting chat ${rawChat.chat_id}:`, error);
+                                    // Still include the chat even if decryption fails (with encrypted data)
+                                    decryptedChats.push(rawChat as Chat);
+                                }
+                            }
+                            console.debug(`[ChatDatabase] Retrieved ${decryptedChats.length} chats from database`);
+                            resolve(decryptedChats);
+                        };
                     }
-                    console.debug(`[ChatDatabase] Retrieved ${decryptedChats.length} chats from database`);
-                    resolve(decryptedChats);
                 };
+                request.onerror = () => {
+                    console.error("[ChatDatabase] Error getting chats:", request.error);
+                    reject(request.error);
+                };
+                // Note: oncomplete handler is set inside request.onsuccess to handle decryption
+                // Only set error handler if we're not using an external transaction
+                if (!transaction) {
+                    currentTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] getAllChats transaction failed:`, currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
+                }
+            } catch (e) {
+                reject(e);
             }
         };
-        request.onerror = () => {
-            console.error("[ChatDatabase] Error getting chats:", request.error);
-            reject(request.error);
-        };
-        // Note: oncomplete handler is set inside request.onsuccess to handle decryption
-        // Only set error handler if we're not using an external transaction
-        if (!transaction) {
-            currentTransaction.onerror = () => {
-                console.error(`[ChatDatabase] getAllChats transaction failed:`, currentTransaction.error);
-                reject(currentTransaction.error);
-            };
-        }
+        execute();
     });
 }
 
@@ -518,30 +539,37 @@ export async function getChat(
     }
     
     await dbInstance.init();
-    return new Promise(async (resolve, reject) => {
-        try {
-            const currentTransaction = transaction || await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readonly');
-            const store = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
-            const request = store.get(chat_id);
-            
-            request.onsuccess = async () => {
-                const chatData = request.result;
-                if (chatData) {
-                    delete (chatData as any).messages; // Ensure messages property is not returned
-                    const decryptedChat = await decryptChatFromStorage(dbInstance, chatData);
-                    resolve(decryptedChat);
-                } else {
-                    resolve(null);
-                }
-            };
-            request.onerror = () => {
-                console.error(`[ChatDatabase] Error getting chat ${chat_id}:`, request.error);
-                reject(request.error);
-            };
-        } catch (error) {
-            console.error(`[ChatDatabase] Error in getChat for chat_id ${chat_id}:`, error);
-            reject(error);
-        }
+    return new Promise((resolve, reject) => {
+        const execute = async () => {
+            try {
+                const currentTransaction = transaction || await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readonly');
+                const store = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
+                const request = store.get(chat_id);
+                
+                request.onsuccess = async () => {
+                    const chatData = request.result;
+                    if (chatData) {
+                        delete chatData.messages; // Ensure messages property is not returned
+                        try {
+                            const decryptedChat = await decryptChatFromStorage(dbInstance, chatData);
+                            resolve(decryptedChat);
+                        } catch (e) {
+                            reject(e);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                };
+                request.onerror = () => {
+                    console.error(`[ChatDatabase] Error getting chat ${chat_id}:`, request.error);
+                    reject(request.error);
+                };
+            } catch (error) {
+                console.error(`[ChatDatabase] Error in getChat for chat_id ${chat_id}:`, error);
+                reject(error);
+            }
+        };
+        execute();
     });
 }
 
@@ -724,8 +752,14 @@ export async function createNewChatWithCurrentUserDraft(
     const newChatId = crypto.randomUUID();
     console.info(`[ChatDatabase] Creating NEW chat ${newChatId} with current user's draft (generates random UUID)`);
 
+    // Get current user ID to ensure ownership is recorded
+    const { userDB } = await import('../userDB');
+    const profile = await userDB.getUserProfile();
+    const currentUserId = profile?.user_id;
+
     const chatToCreate: Chat = {
         chat_id: newChatId,
+        user_id: currentUserId || undefined,
         encrypted_title: null,
         messages_v: 0,
         title_v: 0,
@@ -828,13 +862,13 @@ export async function addOrUpdateChatWithFullData(
     await dbInstance.init();
     console.debug("[ChatDatabase] Adding/updating chat with full data:", chatData.chat_id);
     const chatMetadata = { ...chatData };
-    delete (chatMetadata as any).messages; // Ensure messages are not part of chat metadata
+    delete (chatMetadata as Partial<Chat> & { messages?: unknown }).messages; // Ensure messages are not part of chat metadata
 
-    if (typeof (chatMetadata.created_at as any) === 'string' || (chatMetadata.created_at as any) instanceof Date) {
-        chatMetadata.created_at = Math.floor(new Date(chatMetadata.created_at as any).getTime() / 1000);
+    if (typeof chatMetadata.created_at === 'string' || (chatMetadata.created_at as unknown) instanceof Date) {
+        chatMetadata.created_at = Math.floor(new Date(chatMetadata.created_at as string | number | Date).getTime() / 1000);
     }
-    if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
-        chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
+    if (typeof chatMetadata.updated_at === 'string' || (chatMetadata.updated_at as unknown) instanceof Date) {
+        chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as string | number | Date).getTime() / 1000);
     }
     if (chatMetadata.encrypted_draft_md === undefined) chatMetadata.encrypted_draft_md = null;
     if (chatMetadata.encrypted_draft_preview === undefined) chatMetadata.encrypted_draft_preview = null;

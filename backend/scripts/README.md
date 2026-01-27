@@ -267,6 +267,42 @@ docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --no-c
 
 ---
 
+### Inspect Demo Chat
+
+**Purpose:** Display detailed information about a demo chat including metadata, translations, messages, embeds, and cache status. Demo chats are public example conversations shown to non-authenticated users.
+
+**Command:**
+```bash
+# By display ID (demo-1, demo-2, etc.)
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
+
+# By UUID
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py <uuid>
+
+# With options
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --lang de
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --json
+docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1 --no-cache
+```
+
+**What it shows:**
+- Demo chat metadata from Directus (UUID, status, approval info, encrypted fields)
+- All language translations with encrypted fields presence
+- Messages filtered by language with role distribution
+- Embeds (NOT translated - stored only once with language="original")
+- Redis cache status for demo chat data and lists
+
+**Options:**
+- `--lang LANG`: Language to inspect (default: en)
+- `--messages-limit N`: Limit number of messages to display (default: 20)
+- `--embeds-limit N`: Limit number of embeds to display (default: 20)
+- `--json`: Output as JSON instead of formatted text
+- `--no-cache`: Skip cache checks (faster if Redis is unavailable)
+
+**Use case:** Debugging demo chat display issues, verifying translations, checking if encrypted fields are properly stored.
+
+---
+
 ### Inspect Last AI Requests (Debug)
 
 **Purpose:** Inspect the last 10 AI request processing cycles with FULL input/output data for preprocessor, main processor, and postprocessor stages. Essential for debugging AI behavior and understanding the decision-making process.
@@ -315,6 +351,70 @@ docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./
 **Use case:** Understanding why the AI made specific decisions, debugging tool selection, investigating preprocessing failures, analyzing response quality issues.
 
 **Note:** Debug data is encrypted in cache with a system-level Vault key and auto-expires after 30 minutes for privacy.
+
+---
+
+### Translate Text
+
+**Purpose:** Translate text to multiple languages using Gemini 3 Flash with efficient batch translation (all languages in one API call). Supports both plain text and Tiptap JSON format.
+
+**Command:**
+```bash
+# Translate simple text to all 20 supported languages
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello, world!"
+
+# Translate to specific languages
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello, world!" --languages de es fr
+
+# Translate Tiptap JSON (preserves structure, only translates text values)
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello"}]}]}' --json
+
+# Output as JSON format
+docker compose --env-file .env -f backend/core/docker-compose.yml exec api python /app/backend/scripts/translate_text.py "Hello" --json-output
+```
+
+**What it does:**
+- Uses Gemini 3 Flash with function calling for efficient batch translation
+- Translates to all 20 supported languages in a single API call (much faster than individual calls)
+- For Tiptap JSON: Preserves JSON structure, formatting marks, and keys - only translates `text` values
+- Validates JSON output for Tiptap translations
+- Supports both human-readable and JSON output formats
+
+**Supported languages (20 total):**
+`en`, `de`, `zh`, `es`, `fr`, `pt`, `ru`, `ja`, `ko`, `it`, `tr`, `vi`, `id`, `pl`, `nl`, `ar`, `hi`, `th`, `cs`, `sv`
+
+**Options:**
+- `--languages LANG [LANG ...]`: Target languages to translate to (default: all 20 languages)
+- `--json`: Treat input as Tiptap JSON instead of plain text
+- `--json-output`: Output results as JSON instead of human-readable format
+
+**Example output (plain text):**
+```
+Original text: Hello, how can I help you today?
+================================================================================
+de : Hallo, wie kann ich Ihnen heute helfen?
+es : Hola, ¿cómo puedo ayudarle hoy?
+fr : Bonjour, comment puis-je vous aider aujourd'hui ?
+================================================================================
+```
+
+**Example output (Tiptap JSON):**
+```
+Original text: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"This is a test"}]}]}
+================================================================================
+de : Dies ist ein Test
+es : Esta es una prueba
+fr : Ceci est un test
+================================================================================
+```
+
+**Use case:** 
+- Testing translation quality before approving community chat suggestions
+- Ad-hoc translation needs for content creation
+- Verifying Tiptap JSON translation preserves structure correctly
+- Quick translation checks during development
+
+**Performance:** Uses batch translation with function calling - translates all languages in one API call instead of 20 separate calls, resulting in ~20x faster translation and lower API costs.
 
 ---
 

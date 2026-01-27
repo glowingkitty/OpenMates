@@ -15,6 +15,7 @@
         activeChatStore, // Import for deep linking
         activeEmbedStore, // Import for embed deep linking
         phasedSyncState, // Import phased sync state store
+        messageHighlightStore, // Import message highlight store for deep linking
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
         loadUserProfileFromDB, // Import loadUserProfileFromDB function
@@ -103,8 +104,13 @@
      * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
      * After loading, immediately clears the URL to prevent sharing chat history
      */
-    async function handleChatDeepLink(chatId: string) {
-        console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}`);
+    async function handleChatDeepLink(chatId: string, messageId?: string | null) {
+        console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}`);
+        
+        // If messageId is provided, set it in the highlight store
+        if (messageId) {
+            messageHighlightStore.set(messageId);
+        }
         
         // CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
         // After initial load, skip if chat is already active in store (prevents unnecessary processing)
@@ -273,7 +279,7 @@
      * Handler for sync completion - loads chat based on priority:
      * 1. URL hash chat (if present)
      * 2. Last opened chat (if no hash)
-     * 3. Default (demo-welcome for non-auth, new chat for auth)
+     * 3. Default (demo-for-everyone for non-auth, new chat for auth)
      * 
      * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
      * 
@@ -282,6 +288,14 @@
      */
     async function handleSyncCompleteAndLoadChat() {
         console.debug('[+page.svelte] Sync event received, checking what chat to load...');
+        
+        // CRITICAL: Check if we can auto-navigate
+        // If user has made an explicit choice (clicked on a chat or new chat), don't override
+        // If initial chat was already loaded, don't override
+        if (!phasedSyncState.canAutoNavigate()) {
+            console.debug('[+page.svelte] Skipping sync auto-load: user made explicit choice or initial chat already loaded');
+            return;
+        }
         
         // PRIORITY 1: URL hash chat has absolute priority
         // Use originalHashChatId if available (stored at start of onMount), otherwise check current hash
@@ -417,18 +431,18 @@
         }
         
         // PRIORITY 3: Default chat (only if no last opened chat was loaded)
-        // For non-authenticated users: demo-welcome
+        // For non-authenticated users: demo-for-everyone
         // For authenticated users: new chat window
         if (!$activeChatStore && activeChat) {
             if (!$authStore.isAuthenticated) {
-                // Non-auth: load demo-welcome
-                console.debug('[+page.svelte] No last opened chat, loading demo-welcome (default for non-auth)');
+                // Non-auth: load demo-for-everyone
+                console.debug('[+page.svelte] No last opened chat, loading demo-for-everyone (default for non-auth)');
                 const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     activeChat.loadChat(welcomeChat);
                 }
             } else {
@@ -445,6 +459,7 @@
 	// --- Lifecycle ---
 	// Define handlers outside onMount so they're accessible for cleanup
 	let handleWebSocketAuthError: (() => Promise<void>) | null = null;
+	let handleAdminStatusUpdate: ((payload: { is_admin: boolean }) => void) | null = null;
 	let handlePaymentCompleted: ((payload: { order_id: string, credits_purchased: number, current_credits: number }) => void) | null = null;
 	let handlePaymentFailed: ((payload: { order_id: string, message: string }) => void) | null = null;
 	let wasInSignupProcessAtMount = false;
@@ -590,14 +605,14 @@
 			// In this case, we must:
 			// - Set forcedLogoutInProgress to prevent any encrypted chat loading attempts
 			// - Clear the URL hash if it points to an encrypted chat
-			// - Ensure demo-welcome loads instead of the previous chat
+			// - Ensure demo-for-everyone loads instead of the previous chat
 			if (localProfile && localProfile.username) {
 				console.warn('[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)');
 				console.debug('[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading');
 				forcedLogoutInProgress.set(true);
 				
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
-				// If so, clear the hash and navigate to demo-welcome to prevent loading broken chat
+				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
 				if (originalHash) {
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
@@ -607,13 +622,13 @@
 					}
 					
 					if (hashChatId && !isPublicChat(hashChatId)) {
-						console.debug(`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-welcome`);
+						console.debug(`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`);
 						// Clear the hash to prevent deep link handler from trying to load it
 						window.location.hash = '';
 						// Clear the stored original hash so deep link handler doesn't use it
 						// Note: We can't reassign originalHash (const), but we'll handle this in deep link processing
-						// by setting activeChatStore to demo-welcome explicitly
-						activeChatStore.setActiveChat('demo-welcome');
+						// by setting activeChatStore to demo-for-everyone explicitly
+						activeChatStore.setActiveChat('demo-for-everyone');
 					}
 				}
 			}
@@ -663,9 +678,9 @@
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
 				if (isForcedLogout && !isPublicChat(originalHashChatId)) {
-					console.debug(`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-welcome`);
-					originalHashChatId = 'demo-welcome';
-					activeChatStore.setActiveChat('demo-welcome');
+					console.debug(`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-for-everyone`);
+					originalHashChatId = 'demo-for-everyone';
+					activeChatStore.setActiveChat('demo-for-everyone');
 				} else {
 					// Set active chat store immediately to prevent race conditions
 					activeChatStore.setActiveChat(originalHashChatId);
@@ -676,9 +691,9 @@
 
 			// Process through unified deep link handler
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
-			// During forced logout, the handler will load demo-welcome for empty/null hash
+			// During forced logout, the handler will load demo-for-everyone for empty/null hash
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess = isForcedLogout && originalHashChatId === 'demo-welcome' ? '' : (originalHash || '');
+			const hashToProcess = isForcedLogout && originalHashChatId === 'demo-for-everyone' ? '' : (originalHash || '');
 			await processDeepLink(hashToProcess, handlers);
 			deepLinkProcessed = true; // Mark that processing was completed
 
@@ -851,11 +866,32 @@
 			);
 		};
 		
+		// Listen for admin status updates via WebSocket
+		// This handles cases where admin privileges are granted/revoked while user is logged in
+		handleAdminStatusUpdate = async (payload: { is_admin: boolean }) => {
+			console.debug('[+page.svelte] Received user_admin_status_updated notification via WebSocket:', payload);
+			
+			// Update user profile with new admin status
+			if (typeof payload.is_admin === 'boolean') {
+				// Import updateProfile dynamically (non-blocking)
+				import('@repo/ui').then(({ updateProfile }) => {
+					updateProfile({ is_admin: payload.is_admin });
+					console.debug(`[+page.svelte] Updated user profile: is_admin = ${payload.is_admin}`);
+				}).catch(error => {
+					console.warn('[+page.svelte] Failed to import updateProfile:', error);
+				});
+			}
+		};
+		
 		// Register WebSocket listeners for payment notifications
 		// NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
 		// This prevents duplicate handler registrations during signup flow
 		// Store the signup state at registration time for proper cleanup
 		wasInSignupProcessAtMount = get(isInSignupProcess);
+		
+		// Register admin status update listener (always register, not dependent on signup state)
+		webSocketService.on('user_admin_status_updated', handleAdminStatusUpdate);
+		console.debug('[+page.svelte] Registered WebSocket admin status update listener');
 		
 		if (!wasInSignupProcessAtMount) {
 			// CRITICAL FIX: Clean up any existing handlers before registering new ones
@@ -887,26 +923,27 @@
 		if (isAuth || !$phasedSyncState.initialSyncCompleted) {
 			console.debug('[+page.svelte] Registering sync event listeners...');
 			
-			// Register listener for sync completion to auto-open chat based on priority
-			// Priority: hash chat > last opened chat > default
-			const handleSyncComplete = async () => {
-				console.debug('[+page.svelte] Sync complete event received, marking as completed');
-				phasedSyncState.markSyncCompleted(); // Mark immediately on any sync complete event
+			// OPTIMIZATION: Only Phase 1 triggers chat loading (last opened chat)
+			// Phase 2 and 3 only update the chat list in the sidebar (handled by Chats.svelte)
+			// This prevents duplicate load attempts and improves performance
+			const handlePhase1ChatLoad = async () => {
+				console.debug('[+page.svelte] Phase 1 complete, loading last opened chat');
 				await handleSyncCompleteAndLoadChat();
 			};
 			
-			// Register listeners for phased sync completion events only
-			// Use explicit phase events for UX timing; no legacy sync events
-			chatSyncService.addEventListener('phasedSyncComplete', handleSyncComplete);
-			chatSyncService.addEventListener('phase_3_last_100_chats_ready', handleSyncComplete);
-
-			// Also react to Phase 1 and Phase 2 events to load last chat ASAP (don't wait for full sync)
-			// Phase 1: last opened chat should be ready
-			chatSyncService.addEventListener('phase_1_last_chat_ready', handleSyncComplete);
-			// Phase 2: in case Phase 1 was skipped or last chat appears in recent set
-			chatSyncService.addEventListener('phase_2_last_20_chats_ready', handleSyncComplete);
+			// Mark sync completed when phasedSyncComplete fires (after all phases)
+			const handleSyncCompleted = () => {
+				console.debug('[+page.svelte] Full sync complete, marking as completed');
+				phasedSyncState.markSyncCompleted();
+			};
 			
-			console.debug('[+page.svelte] Sync event listeners registered');
+			// Only Phase 1 triggers chat loading - this is the "last opened chat" data
+			chatSyncService.addEventListener('phase_1_last_chat_ready', handlePhase1ChatLoad);
+			
+			// phasedSyncComplete marks overall sync as done (for sync status UI)
+			chatSyncService.addEventListener('phasedSyncComplete', handleSyncCompleted);
+			
+			console.debug('[+page.svelte] Sync event listeners registered (Phase 1 for chat load, phasedSyncComplete for status)');
 		}
 		
 		// Initialize authentication state (panelState will react to this)
@@ -1025,7 +1062,7 @@
 				// 2. Store indicates welcome chat is selected
 				// 3. ActiveChat component is ready
 				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
-				if (sidebarOpen && storeChatId === 'demo-welcome' && activeChat) {
+				if (sidebarOpen && storeChatId === 'demo-for-everyone' && activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load');
 					return;
 				}
@@ -1033,12 +1070,12 @@
 				if (activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
 					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
 					if (welcomeDemo) {
 						// Translate the demo chat to the user's locale
 						const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
 						const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-						activeChatStore.setActiveChat('demo-welcome');
+						activeChatStore.setActiveChat('demo-for-everyone');
 						activeChat.loadChat(welcomeChat);
 						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
 					} else {
@@ -1268,6 +1305,10 @@
         if (handleWebSocketAuthError) {
             webSocketService.removeEventListener('authError', handleWebSocketAuthError);
         }
+        // Unregister admin status update handler
+        if (handleAdminStatusUpdate) {
+            webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
+        }
         // Only unregister payment handlers if they were registered
         if (!wasInSignupProcessAtMount && handlePaymentCompleted && handlePaymentFailed) {
             webSocketService.off('payment_completed', handlePaymentCompleted);
@@ -1281,29 +1322,29 @@
     });
 
     /**
-     * Load demo-welcome chat for non-authenticated users
+     * Load demo-for-everyone chat for non-authenticated users
      */
     async function loadDemoWelcomeChat() {
-        console.debug('[+page.svelte] Loading demo-welcome chat for non-authenticated user');
+        console.debug('[+page.svelte] Loading demo-for-everyone chat for non-authenticated user');
 
         // Wait for activeChat component to be ready
         const waitForActiveChat = async (retries = 20): Promise<void> => {
             if (activeChat) {
                 const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
                     const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                     const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChatStore.setActiveChat('demo-for-everyone');
                     activeChat.loadChat(welcomeChat);
-                    console.debug('[+page.svelte] ✅ Demo-welcome chat loaded successfully');
+                    console.debug('[+page.svelte] ✅ demo-for-everyone chat loaded successfully');
                 }
                 return;
             } else if (retries > 0) {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 return waitForActiveChat(retries - 1);
             } else {
-                console.error('[+page.svelte] ⚠️ activeChat not ready after retries - demo-welcome may not load');
+                console.error('[+page.svelte] ⚠️ activeChat not ready after retries - demo-for-everyone may not load');
             }
         };
 
@@ -1344,7 +1385,7 @@
      */
     function createDeepLinkHandlers(): DeepLinkHandlers {
         return {
-            onChat: async (chatId: string) => {
+            onChat: async (chatId: string, messageId?: string | null) => {
                 // Update originalHashChatId to reflect the new hash (important for sync completion handler)
                 originalHashChatId = chatId;
 
@@ -1352,7 +1393,7 @@
                 isProcessingInitialHash = true;
                 deepLinkProcessed = true; // Mark that a deep link was processed
 
-                await handleChatDeepLink(chatId);
+                await handleChatDeepLink(chatId, messageId);
 
                 // Reset flag after processing
                 isProcessingInitialHash = false;
@@ -1379,7 +1420,7 @@
                     // For authenticated users: try to load last_opened chat, otherwise create new chat
                     await loadLastOpenedChatOrCreateNew();
                 } else {
-                    // For non-authenticated users: load demo-welcome chat
+                    // For non-authenticated users: load demo-for-everyone chat
                     await loadDemoWelcomeChat();
                 }
             },

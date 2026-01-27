@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class UserResponse(BaseModel):
+    id: Optional[str] = None # User's primary key (UUID)
     username: str
     is_admin: bool
     credits: int

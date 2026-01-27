@@ -410,7 +410,7 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		logSignupCheckpoint('Account deletion confirmed via passkey.');
 
 		// Confirm logout redirect to demo chat after deletion.
-		await page.waitForFunction(() => window.location.hash.includes('demo-welcome'), null, { timeout: 60000 });
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 60000 });
 		logSignupCheckpoint('Returned to demo chat after account deletion.');
 	} finally {
 		await teardownVirtualPasskeyAuthenticator(client, authenticatorId);

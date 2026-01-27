@@ -296,6 +296,10 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
     if (metadata?.title) {
         yamlData.chat.title = metadata.title;
         console.debug('[ChatExportService] Using decrypted title:', metadata.title);
+    } else if (chat.title) {
+        // Fallback for demo chats which use plaintext title
+        yamlData.chat.title = chat.title;
+        console.debug('[ChatExportService] Using plaintext title (demo chat):', chat.title);
     } else {
         console.warn('[ChatExportService] Could not decrypt title for YAML export');
     }
@@ -303,6 +307,10 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
     if (metadata?.summary) {
         yamlData.chat.summary = metadata.summary;
         console.debug('[ChatExportService] Using decrypted summary:', metadata.summary.substring(0, 50));
+    } else if ((chat as any).summary) {
+        // Fallback for demo chats which use plaintext summary
+        yamlData.chat.summary = (chat as any).summary;
+        console.debug('[ChatExportService] Using plaintext summary (demo chat):', (chat as any).summary.substring(0, 50));
     }
     
     // Add draft if present
@@ -367,8 +375,11 @@ async function convertMessageToYaml(message: Message): Promise<any> {
         };
         
         // Add assistant category if available
-        if (message.role === 'assistant' && message.category) {
-            messageData.assistant_category = message.category;
+        if (message.role === 'assistant') {
+            const category = message.category || (message as any).assistant_category;
+            if (category) {
+                messageData.assistant_category = category;
+            }
         }
         
         // Process message content

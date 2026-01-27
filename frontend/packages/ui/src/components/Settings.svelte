@@ -70,6 +70,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
+    import SettingsStats from './settings/server/SettingsStats.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -189,6 +190,7 @@ changes to the documentation (to keep the documentation up to date).
         'server': SettingsServer,
         'server/software-update': SettingsSoftwareUpdate,
         'server/community-suggestions': SettingsCommunitySuggestions,
+        'server/stats': SettingsStats,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
@@ -1085,6 +1087,16 @@ changes to the documentation (to keep the documentation up to date).
             }
         };
 
+        // Listen for admin status updates via WebSocket
+        // This handles cases where admin privileges are granted/revoked while user is on settings page
+        const handleAdminStatusUpdate = (payload: { is_admin: boolean }) => {
+            console.debug('[Settings] Received user_admin_status_updated notification via WebSocket:', payload);
+            if (typeof payload.is_admin === 'boolean') {
+                updateProfile({ is_admin: payload.is_admin });
+                console.debug(`[Settings] Updated user profile: is_admin = ${payload.is_admin}`);
+            }
+        };
+
         // Listen for payment completion notifications via WebSocket
         // This handles cases where payment completes after user has moved on from payment screen
         // NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
@@ -1122,6 +1134,7 @@ changes to the documentation (to keep the documentation up to date).
         };
 
         webSocketService.on('user_credits_updated', handleCreditUpdate);
+        webSocketService.on('user_admin_status_updated', handleAdminStatusUpdate);
         
         // Only register payment handlers if NOT in signup mode
         // During signup, Payment.svelte component already handles these events
@@ -1138,6 +1151,7 @@ changes to the documentation (to keep the documentation up to date).
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
+            webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
             // Only unregister payment handlers if they were registered
             if (!wasInSignupProcess) {
                 webSocketService.off('payment_completed', handlePaymentCompleted);
@@ -1195,18 +1209,18 @@ changes to the documentation (to keep the documentation up to date).
                     console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
 
-                    // CRITICAL: Force ActiveChat to load demo-welcome by setting activeChatStore directly
-                    // This ensures demo-welcome loads even if event handlers have timing issues
+                    // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
+                    // This ensures demo-for-everyone loads even if event handlers have timing issues
                     // Small delay to ensure auth state changes are processed first
                     await new Promise(resolve => setTimeout(resolve, 50));
                     const { activeChatStore } = await import('@repo/ui');
-                    activeChatStore.setActiveChat('demo-welcome');
-                    console.debug('[Settings] Directly set activeChatStore to demo-welcome during logout');
+                    activeChatStore.setActiveChat('demo-for-everyone');
+                    console.debug('[Settings] Directly set activeChatStore to demo-for-everyone during logout');
 
-                    // CRITICAL: Ensure URL hash is set to demo-welcome
+                    // CRITICAL: Ensure URL hash is set to demo-for-everyone
                     if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug('[Settings] Set URL hash to demo-welcome during logout');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug('[Settings] Set URL hash to demo-for-everyone during logout');
                     }
                     
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
@@ -1239,11 +1253,11 @@ changes to the documentation (to keep the documentation up to date).
                     // Only close settings menu
                  	isMenuOpen.set(false);
 
-                    // CRITICAL: Ensure URL hash is set to demo-welcome after logout
-                    // This ensures consistent behavior where logout always redirects to demo-welcome
+                    // CRITICAL: Ensure URL hash is set to demo-for-everyone after logout
+                    // This ensures consistent behavior where logout always redirects to demo-for-everyone
                     if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug('[Settings] Set URL hash to demo-welcome after logout');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug('[Settings] Set URL hash to demo-for-everyone after logout');
                     }
 
                     // Small delay to allow sidebar animation if needed
@@ -1313,6 +1327,15 @@ changes to the documentation (to keep the documentation up to date).
             if (!isMenuVisible) {
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
+
+                // Delay hiding the original profile until after transform animation (400ms)
+                // This ensures it moves to its position first, then hides, matching manual toggle
+                if (hideProfileTimeout) {
+                    clearTimeout(hideProfileTimeout);
+                }
+                hideProfileTimeout = setTimeout(() => {
+                    hideOriginalProfile = true;
+                }, 400);
 
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
@@ -1448,6 +1471,15 @@ changes to the documentation (to keep the documentation up to date).
     		isMenuVisible = true;
     		settingsMenuVisible.set(true); // Also update the store for consistency
    
+            // Delay hiding the original profile until after transform animation (400ms)
+            // This ensures it moves to its position first, then hides, matching manual toggle
+            if (hideProfileTimeout) {
+                clearTimeout(hideProfileTimeout);
+            }
+            hideProfileTimeout = setTimeout(() => {
+                hideOriginalProfile = true;
+            }, 400);
+
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
     			const menuElement = document.querySelector('.settings-menu');

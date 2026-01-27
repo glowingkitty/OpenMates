@@ -49,7 +49,7 @@ export const isLoggingOut = writable(false);
  * load and decrypt encrypted chats that can no longer be decrypted (because master key is missing).
  * 
  * When this flag is true:
- * - Chat loading should skip encrypted chats and load demo-welcome instead
+ * - Chat loading should skip encrypted chats and load demo-for-everyone instead
  * - Decryption operations should be skipped to avoid errors
  * - The flag is reset after the forced logout completes
  * 

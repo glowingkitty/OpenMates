@@ -18,7 +18,7 @@ import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Im
 import { notificationStore } from './notificationStore'; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
 import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpen to control login interface visibility
-import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-welcome on logout
+import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from './signupStore'; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft cleanup
 import { isLoggingOut, forcedLogoutInProgress } from './signupState'; // Import isLoggingOut and forcedLogoutInProgress to track logout state
@@ -120,6 +120,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 console.warn('[AuthSessionActions] No ws_token in session response - WebSocket connection may fail on Safari/iPad');
             }
 
+            // CRITICAL: Prevent duplicate forced logout triggers if already in progress
+            if (get(forcedLogoutInProgress)) {
+                console.debug("[AuthSessionActions] Forced logout already in progress, skipping duplicate trigger");
+                return false;
+            }
+
             const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
@@ -131,12 +137,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 forcedLogoutInProgress.set(true);
                 console.debug("[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading");
                 
-                // CRITICAL: Navigate to demo-welcome IMMEDIATELY (synchronously) BEFORE auth state changes
-                // This ensures any component reading activeChatStore will see demo-welcome, not the old chat
+                // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
+                // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
                 if (typeof window !== 'undefined') {
-                    activeChatStore.setActiveChat('demo-welcome');
-                    window.location.hash = 'chat-id=demo-welcome';
-                    console.debug("[AuthSessionActions] Navigated to demo-welcome chat IMMEDIATELY (synchronous) - missing master key");
+                    activeChatStore.setActiveChat('demo-for-everyone');
+                    window.location.hash = 'chat-id=demo-for-everyone';
+                    console.debug("[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key");
                 }
 
                 // Set auth state (don't block on database deletion)
@@ -149,42 +155,31 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
                 
-                // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-welcome
+                // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
                 // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-                // and load demo-welcome, even if the chat is a shared chat
+                // and load demo-for-everyone, even if the chat is a shared chat
                 isLoggingOut.set(true);
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for missing master key logout");
                 
                 // Trigger server logout and local data cleanup
-                // Database deletion happens asynchronously without blocking UI
+                // Database deletion is handled by the logout() function's background IIFE
+                // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
+                // This prevents race conditions where other code re-opens the database during logout
                 logout({
                     skipServerLogout: false, // Explicitly send logout request to server
                     isSessionExpiredLogout: true, // Custom flag for this scenario
                     afterLocalLogout: async () => {
-                        // Clear IndexedDB data in background (non-blocking)
-                        setTimeout(async () => {
-                            try {
-                                await userDB.deleteDatabase();
-                                console.debug("[AuthSessionActions] UserDB database deleted due to missing master key.");
-                            } catch (dbError) {
-                                console.warn("[AuthSessionActions] Failed to delete userDB database (may be blocked):", dbError);
-                            }
-                            try {
-                                await chatDB.deleteDatabase();
-                                console.debug("[AuthSessionActions] ChatDB database deleted due to missing master key.");
-                            } catch (dbError) {
-                                console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked):", dbError);
-                            }
-                            
-                            // CRITICAL: Reset logout flags after logout cleanup completes
-                            // This ensures the flags are reset even if logout was triggered by missing master key
-                            // Use a small delay to ensure all logout handlers have finished processing
-                            setTimeout(() => {
-                                isLoggingOut.set(false);
-                                forcedLogoutInProgress.set(false);
-                                console.debug("[AuthSessionActions] Reset isLoggingOut and forcedLogoutInProgress flags after missing master key logout cleanup");
-                            }, 500);
-                        }, 100);
+                        // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
+                        // and we need forcedLogoutInProgress to remain true until deletion completes
+                        // This prevents chatDB.init() from being called during the deletion window
+                        console.debug("[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)");
+                    },
+                    afterServerCleanup: async () => {
+                        // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
+                        // This ensures forcedLogoutInProgress stays true during the entire deletion process
+                        isLoggingOut.set(false);
+                        forcedLogoutInProgress.set(false);
+                        console.debug("[AuthSessionActions] Reset logout flags after server cleanup and DB deletion");
                     }
                 }).catch(err => {
                     console.error("[AuthSessionActions] Logout failed:", err);
@@ -199,13 +194,21 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 return false;
             }
 
-            // CRITICAL FIX: Reset forcedLogoutInProgress flag when authentication succeeds with valid master key
-            // This handles the race condition where the flag was set (e.g., during page load detecting
+            // CRITICAL FIX: Reset forcedLogoutInProgress and isLoggingOut flags when authentication succeeds with valid master key
+            // This handles the race condition where the flags were set (e.g., during page load detecting
             // "profile exists but no master key") but the user then successfully authenticates.
-            // Without this reset, the flag stays true and causes getChat() to return null for encrypted chats.
+            // Without this reset, the flags stay true and cause database operations to fail.
             if (get(forcedLogoutInProgress)) {
                 console.debug("[AuthSessionActions] Resetting forcedLogoutInProgress to false - auth succeeded with valid master key");
                 forcedLogoutInProgress.set(false);
+            }
+            if (get(isLoggingOut)) {
+                console.debug("[AuthSessionActions] Resetting isLoggingOut to false - auth succeeded with valid master key");
+                isLoggingOut.set(false);
+            }
+            // Also clear the cleanup marker to prevent future false positives
+            if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('openmates_needs_cleanup');
             }
 
             needsDeviceVerification.set(false);
@@ -349,7 +352,7 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 
                 // CRITICAL: Set isLoggingOut flag to true BEFORE dispatching logout event
                 // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-                // and load demo-welcome, even if the chat is a shared chat
+                // and load demo-for-everyone, even if the chat is a shared chat
                 isLoggingOut.set(true);
                 console.debug("[AuthSessionActions] Set isLoggingOut to true for session expiration logout");
                 
@@ -399,14 +402,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     }, 100);
                 }
                 
-                // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
+                // CRITICAL: Navigate to demo-for-everyone chat to hide the previously open chat
                 // This ensures the previous chat is not visible after logout
                 // Small delay to ensure auth state changes are processed first
                 setTimeout(() => {
                     if (typeof window !== 'undefined') {
-                        activeChatStore.setActiveChat('demo-welcome');
-                        window.location.hash = 'chat-id=demo-welcome';
-                        console.debug("[AuthSessionActions] Navigated to demo-welcome chat after logout notification");
+                        activeChatStore.setActiveChat('demo-for-everyone');
+                        window.location.hash = 'chat-id=demo-for-everyone';
+                        console.debug("[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification");
                     }
                 }, 50);
                 
@@ -449,7 +452,52 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             } else {
                 console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping cleanup.");
             }
-            
+
+            // CRITICAL: Check for orphaned database cleanup even if user was never authenticated
+            // This handles the case where the page was reloaded with stayLoggedIn=false but
+            // the databases were previously initialized and contain encrypted data that needs cleanup
+            const cleanupMarker = typeof localStorage !== 'undefined' &&
+                localStorage.getItem('openmates_needs_cleanup') === 'true';
+
+            if (cleanupMarker) {
+                console.warn("[AuthSessionActions] ORPHANED DATABASE CLEANUP: Found cleanup marker - triggering database deletion");
+
+                // CRITICAL: Clear the cleanup marker immediately to prevent showing this notification again
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
+                    console.debug("[AuthSessionActions] Cleared cleanup marker to prevent repeated notifications");
+                }
+
+                // CRITICAL: Set isLoggingOut flag to true for orphaned database cleanup
+                isLoggingOut.set(true);
+                console.debug("[AuthSessionActions] Set isLoggingOut to true for orphaned database cleanup");
+
+                // No notification needed - this is automatic cleanup
+
+                // Clear IndexedDB databases asynchronously without blocking UI
+                setTimeout(async () => {
+                    try {
+                        await userDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] UserDB database deleted during orphaned cleanup.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete userDB database during orphaned cleanup (may be blocked by open connections):", dbError);
+                    }
+
+                    try {
+                        await chatDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] ChatDB database deleted during orphaned cleanup.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete chatDB database during orphaned cleanup (may be blocked by open connections):", dbError);
+                    }
+
+                    // CRITICAL: Reset isLoggingOut flag after cleanup completes
+                    setTimeout(() => {
+                        isLoggingOut.set(false);
+                        console.debug("[AuthSessionActions] Reset isLoggingOut flag after orphaned database cleanup");
+                    }, 500);
+                }, 100); // Small delay to allow current operations to complete
+            }
+
             needsDeviceVerification.set(false);
             authStore.update(state => ({
                 ...state,

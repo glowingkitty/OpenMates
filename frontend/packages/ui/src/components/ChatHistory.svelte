@@ -16,6 +16,7 @@
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent
   } from '../services/chatSyncServiceHandlersAppSettings';
@@ -143,15 +144,42 @@
    * Derived state: Create a lookup map of user_message_id → app settings/memories response.
    * System messages with type 'app_settings_memories_response' contain the user's decision
    * (included/rejected) and should be displayed as part of the user's message, not separately.
+   * 
+   * FALLBACK LOGIC: For demo/shared chats, the user_message_id in the system message content
+   * may reference the original chat's message ID (which no longer exists). In this case, we
+   * fall back to position-based association: find the most recent user message before this
+   * system message in the array.
    */
   let appSettingsMemoriesResponseMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesResponseContent>();
     
+    // First, collect all user message IDs for lookup
+    const userMessageIds = new Set<string>();
     for (const msg of messages) {
+      if (msg.role === 'user') {
+        userMessageIds.add(msg.id);
+      }
+    }
+    
+    // Now process system messages
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
-        if (response && response.user_message_id) {
-          map.set(response.user_message_id, response);
+        if (response) {
+          // Try to use user_message_id if it matches a known user message
+          if (response.user_message_id && userMessageIds.has(response.user_message_id)) {
+            map.set(response.user_message_id, response);
+          } else {
+            // FALLBACK: user_message_id doesn't match any user message (common in demo/shared chats)
+            // Find the most recent user message before this system message
+            for (let j = i - 1; j >= 0; j--) {
+              if (messages[j].role === 'user') {
+                map.set(messages[j].id, response);
+                break;
+              }
+            }
+          }
         }
       }
     }
@@ -402,6 +430,37 @@
             isScrolling = false;
           }
         }, 350);
+      });
+    }
+  });
+
+  // Handle scrolling to highlighted message from deep link
+  $effect(() => {
+    if (container && $messageHighlightStore) {
+      const messageId = $messageHighlightStore;
+      
+      // Wait for messages to render
+      tick().then(() => {
+        const attemptScroll = (attempts = 0) => {
+          const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
+          
+          if (targetMessage) {
+            const messageTop = (targetMessage as HTMLElement).offsetTop;
+            // Scroll so the message has 100px offset from top
+            const scrollPosition = Math.max(0, messageTop - 100);
+            
+            container.scrollTo({
+              top: scrollPosition,
+              behavior: 'smooth'
+            });
+            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId}`);
+          } else if (attempts < 10) {
+            // Message not found yet, try again after a short delay
+            setTimeout(() => attemptScroll(attempts + 1), 100);
+          }
+        };
+        
+        attemptScroll();
       });
     }
   });
@@ -689,14 +748,12 @@
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
-                        messageId={msg.id}
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
                         content={msg.content}
                         status={msg.status}
                         is_truncated={msg.is_truncated}
-                        full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
                         appCards={msg.appCards}

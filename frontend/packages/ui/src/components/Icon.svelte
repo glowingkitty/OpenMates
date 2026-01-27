@@ -87,6 +87,23 @@
   // Get the actual icon URL variable name based on the input name using $derived (Svelte 5 runes mode)
   let iconUrlName = $derived(getIconUrlName(lowerCaseName));
 
+  /**
+   * Map icon names to app IDs for CSS variable construction.
+   * This handles cases where the icon name differs from the app ID.
+   * For example: icon name "image" maps to app ID "images" for --color-app-images CSS variable.
+   * 
+   * @param iconName - The lowercase icon name
+   * @returns The app ID to use for CSS variable construction
+   */
+  function getAppIdForCssVariable(iconName: string): string {
+    // Map icon names to their corresponding app IDs
+    if (iconName === 'image') {
+      return 'images'; // Icon name "image" maps to app ID "images"
+    }
+    // For all other cases, use the icon name as-is
+    return iconName;
+  }
+
   // Special handling for mates icon only using $derived (Svelte 5 runes mode)
   let isSpecialIcon = $derived(lowerCaseName === 'mates');
 
@@ -209,7 +226,7 @@
       `--icon-name: ${lowerCaseName};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
-      type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
+      type === 'app' ? `--icon-background: var(--color-app-${getAppIdForCssVariable(lowerCaseName)});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' '));

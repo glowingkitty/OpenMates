@@ -9,7 +9,10 @@
 import logging
 import time
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -154,5 +157,45 @@ class AnalyticsMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error getting most used apps: {e}", exc_info=True)
             return []
+
+    async def get_server_stats_daily(self, date_str: str) -> Optional[Dict[str, Any]]:
+        """Fetch daily stats for a specific date."""
+        params = {
+            "filter": {"date": {"_eq": date_str}},
+            "limit": 1
+        }
+        items = await self.directus_service.get_items("server_stats_global_daily", params=params)
+        return items[0] if items else None
+
+    async def update_server_stats_daily(self, item_id: str, data: Dict[str, Any]) -> bool:
+        """Update a daily stats record."""
+        url = f"{self.directus_service.base_url}/items/server_stats_global_daily/{item_id}"
+        resp = await self.directus_service._make_api_request("PATCH", url, json=data)
+        return resp is not None and 200 <= resp.status_code < 300
+
+    async def create_server_stats_daily(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new daily stats record."""
+        success, result = await self.directus_service.create_item("server_stats_global_daily", data)
+        return result if success else None
+
+    async def get_server_stats_monthly(self, year_month: str) -> Optional[Dict[str, Any]]:
+        """Fetch monthly stats for a specific month."""
+        params = {
+            "filter": {"year_month": {"_eq": year_month}},
+            "limit": 1
+        }
+        items = await self.directus_service.get_items("server_stats_global_monthly", params=params)
+        return items[0] if items else None
+
+    async def update_server_stats_monthly(self, item_id: str, data: Dict[str, Any]) -> bool:
+        """Update a monthly stats record."""
+        url = f"{self.directus_service.base_url}/items/server_stats_global_monthly/{item_id}"
+        resp = await self.directus_service._make_api_request("PATCH", url, json=data)
+        return resp is not None and 200 <= resp.status_code < 300
+
+    async def create_server_stats_monthly(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new monthly stats record."""
+        success, result = await self.directus_service.create_item("server_stats_global_monthly", data)
+        return result if success else None
 
 

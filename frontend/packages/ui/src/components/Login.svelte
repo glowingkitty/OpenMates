@@ -960,6 +960,24 @@
                     });
                 }
                 
+                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
+                // This handles the race condition where orphaned database cleanup was triggered on page load
+                // (setting these flags to true) but the user then successfully logs in with passkey.
+                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
+                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                if (get(forcedLogoutInProgress)) {
+                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
+                    forcedLogoutInProgress.set(false);
+                }
+                if (get(isLoggingOut)) {
+                    console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 1)');
+                    isLoggingOut.set(false);
+                }
+                // Also clear the cleanup marker to prevent future false positives
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
+                }
+                
                 // Save to IndexedDB first
                 const { userDB } = await import('../services/userDB');
                 await userDB.saveUserData(userData);
@@ -1464,6 +1482,24 @@
                         amount: userData.auto_topup_low_balance_amount,
                         currency: userData.auto_topup_low_balance_currency
                     });
+                }
+                
+                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
+                // This handles the race condition where orphaned database cleanup was triggered on page load
+                // (setting these flags to true) but the user then successfully logs in with passkey.
+                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
+                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                if (get(forcedLogoutInProgress)) {
+                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 2)');
+                    forcedLogoutInProgress.set(false);
+                }
+                if (get(isLoggingOut)) {
+                    console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 2)');
+                    isLoggingOut.set(false);
+                }
+                // Also clear the cleanup marker to prevent future false positives
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('openmates_needs_cleanup');
                 }
                 
                 // Save to IndexedDB first
@@ -2205,7 +2241,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
@@ -2268,7 +2304,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
@@ -2310,7 +2346,7 @@
                                                     
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
-                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes

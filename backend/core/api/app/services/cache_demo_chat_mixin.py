@@ -5,39 +5,39 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 # Cache keys for public demo chats
-DEMO_CHATS_LIST_CACHE_KEY = "public:demo_chats:list"
+DEMO_CHATS_LIST_CACHE_KEY_PREFIX = "public:demo_chats:list:" # Prefix for language-specific lists
 DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX = "public:demo_chats:category:"
-DEMO_CHAT_DATA_CACHE_KEY_PREFIX = "public:demo_chat:data:"
+DEMO_CHAT_DATA_CACHE_KEY_PREFIX = "public:demo_chat:data:" # Prefix for language-specific chat data
 
 class DemoChatCacheMixin:
     """Mixin for demo chat caching methods"""
 
-    async def set_demo_chat_data(self, demo_id: str, data: Dict[str, Any], ttl: int = 3600) -> bool:
+    async def set_demo_chat_data(self, demo_id: str, language: str, data: Dict[str, Any], ttl: int = 86400) -> bool:
         """
-        Cache full demo chat data (including messages and encryption key).
+        Cache full demo chat data for a specific language.
         """
         client = await self.client
         if not client:
             return False
         
-        key = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}{demo_id}"
+        key = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}{demo_id}:{language}"
         try:
             await client.set(key, json.dumps(data), ex=ttl)
-            logger.debug(f"Cached demo chat data for {demo_id} with TTL {ttl}s")
+            logger.debug(f"Cached demo chat data for {demo_id} ({language}) with TTL {ttl}s")
             return True
         except Exception as e:
             logger.error(f"Error caching demo chat data: {e}", exc_info=True)
             return False
 
-    async def get_demo_chat_data(self, demo_id: str) -> Optional[Dict[str, Any]]:
+    async def get_demo_chat_data(self, demo_id: str, language: str) -> Optional[Dict[str, Any]]:
         """
-        Get cached full demo chat data.
+        Get cached full demo chat data for a specific language.
         """
         client = await self.client
         if not client:
             return None
         
-        key = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}{demo_id}"
+        key = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}{demo_id}:{language}"
         try:
             data = await client.get(key)
             if data:
@@ -47,23 +47,19 @@ class DemoChatCacheMixin:
             logger.error(f"Error retrieving demo chat data from cache: {e}", exc_info=True)
             return None
 
-    async def set_demo_chats_list(self, demo_chats: List[Dict[str, Any]], category: Optional[str] = None, ttl: int = 3600) -> bool:
+    async def set_demo_chats_list(self, language: str, demo_chats: List[Dict[str, Any]], category: Optional[str] = None, ttl: int = 86400) -> bool:
         """
-        Cache the list of approved demo chats.
-        
-        Args:
-            demo_chats: List of demo chat metadata dictionaries
-            category: Optional category filter
-            ttl: Time to live in seconds (default: 1 hour)
-        
-        Returns:
-            True if successful, False otherwise
+        Cache the list of approved demo chats for a specific language.
         """
         client = await self.client
         if not client:
             return False
         
-        key = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}{category}" if category else DEMO_CHATS_LIST_CACHE_KEY
+        if category:
+            key = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}{category}:{language}"
+        else:
+            key = f"{DEMO_CHATS_LIST_CACHE_KEY_PREFIX}{language}"
+            
         try:
             await client.set(key, json.dumps(demo_chats), ex=ttl)
             logger.debug(f"Cached {len(demo_chats)} demo chats for key '{key}' with TTL {ttl}s")
@@ -72,21 +68,19 @@ class DemoChatCacheMixin:
             logger.error(f"Error caching demo chats list: {e}", exc_info=True)
             return False
 
-    async def get_demo_chats_list(self, category: Optional[str] = None) -> Optional[List[Dict[str, Any]]]:
+    async def get_demo_chats_list(self, language: str, category: Optional[str] = None) -> Optional[List[Dict[str, Any]]]:
         """
-        Get the cached list of approved demo chats.
-        
-        Args:
-            category: Optional category filter
-        
-        Returns:
-            List of demo chat metadata if cached, None otherwise
+        Get the cached list of approved demo chats for a specific language.
         """
         client = await self.client
         if not client:
             return None
         
-        key = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}{category}" if category else DEMO_CHATS_LIST_CACHE_KEY
+        if category:
+            key = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}{category}:{language}"
+        else:
+            key = f"{DEMO_CHATS_LIST_CACHE_KEY_PREFIX}{language}"
+            
         try:
             data = await client.get(key)
             if data:
@@ -106,30 +100,23 @@ class DemoChatCacheMixin:
             return False
         
         try:
-            # Clear main list
-            await client.delete(DEMO_CHATS_LIST_CACHE_KEY)
-            
+            # Clear main lists for all languages
+            pattern_list = f"{DEMO_CHATS_LIST_CACHE_KEY_PREFIX}*"
             # Clear all category lists using SCAN
-            pattern = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}*"
-            cursor = 0
-            while True:
-                cursor, keys = await client.scan(cursor, match=pattern, count=100)
-                if keys:
-                    await client.delete(*keys)
-                if cursor == 0:
-                    break
-            
+            pattern_cat = f"{DEMO_CHATS_CATEGORY_LIST_CACHE_KEY_PREFIX}*"
             # Clear all single chat data using SCAN
-            pattern = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}*"
-            cursor = 0
-            while True:
-                cursor, keys = await client.scan(cursor, match=pattern, count=100)
-                if keys:
-                    await client.delete(*keys)
-                if cursor == 0:
-                    break
+            pattern_data = f"{DEMO_CHAT_DATA_CACHE_KEY_PREFIX}*"
             
-            logger.info("Invalidated all demo chat caches (lists and single chats)")
+            for pattern in [pattern_list, pattern_cat, pattern_data]:
+                cursor = 0
+                while True:
+                    cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                    if keys:
+                        await client.delete(*keys)
+                    if cursor == 0:
+                        break
+            
+            logger.info("Invalidated all demo chat caches (lists and single chats) for all languages")
             return True
         except Exception as e:
             logger.error(f"Error clearing demo chats cache: {e}", exc_info=True)
