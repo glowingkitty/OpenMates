@@ -31,7 +31,7 @@ export const forEveryoneChat: DemoChat = {
 		'demo_chats.for_everyone.follow_up_3.text'
 	],
 	metadata: {
-		category: 'general_knowledge', // Real category from mates.yml
+		category: 'openmates_official', // Official OpenMates category - shows favicon, not mate profile
 		icon_names: ['hand-wave', 'rocket', 'sparkles'], // Lucide icons for welcome/introduction
 		featured: true,
 		order: 1,
