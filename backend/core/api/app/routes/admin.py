@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -113,70 +112,28 @@ async def get_community_suggestions(
     """
     try:
         import json
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
         
         # Get all pending demo chats (status='pending_approval')
         pending_demos = await directus_service.demo_chat.get_pending_demo_chats()
-        
-        encryption_service: EncryptionService = request.app.state.encryption_service
         
         suggestions = []
         for demo in pending_demos:
             demo_chat_item = demo  # demo is already the full item with 'id' field
             chat_id = demo.get("original_chat_id")
             
-            # Decrypt metadata using demo_chats vault key
-            title = None
-            if demo.get("encrypted_title"):
-                try:
-                    title = await encryption_service.decrypt(
-                        demo.get("encrypted_title"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt title for pending demo {demo_chat_item['id']}: {e}")
+            # Get metadata from cleartext fields
+            title = demo.get("title")
+            summary = demo.get("summary")
+            category = demo.get("category")
+            icon = demo.get("icon")
             
-            summary = None
-            if demo.get("encrypted_summary"):
-                try:
-                    summary = await encryption_service.decrypt(
-                        demo.get("encrypted_summary"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt summary for pending demo {demo_chat_item['id']}: {e}")
-            
-            category = None
-            if demo.get("encrypted_category"):
-                try:
-                    category = await encryption_service.decrypt(
-                        demo.get("encrypted_category"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt category for pending demo {demo_chat_item['id']}: {e}")
-            
-            icon = None
-            if demo.get("encrypted_icon"):
-                try:
-                    icon = await encryption_service.decrypt(
-                        demo.get("encrypted_icon"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt icon for pending demo {demo_chat_item['id']}: {e}")
-            
+            # Parse follow-up suggestions from cleartext JSON
             follow_up_suggestions = []
-            if demo.get("encrypted_follow_up_suggestions"):
+            if demo.get("follow_up_suggestions"):
                 try:
-                    decrypted_follow_ups = await encryption_service.decrypt(
-                        demo.get("encrypted_follow_up_suggestions"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                    if decrypted_follow_ups:
-                        follow_up_suggestions = json.loads(decrypted_follow_ups)
+                    follow_up_suggestions = json.loads(demo["follow_up_suggestions"])
                 except Exception as e:
-                    logger.warning(f"Failed to decrypt follow-up suggestions for pending demo {demo_chat_item['id']}: {e}")
+                    logger.warning(f"Failed to parse follow-up suggestions for pending demo {demo_chat_item['id']}: {e}")
             
             # No encryption_key field anymore with zero-knowledge architecture
             encryption_key = None
@@ -327,23 +284,47 @@ async def reject_suggestion(
     
     This deletes the pending demo_chat entry and all related data (messages, embeds, translations)
     and sets share_with_community to False on the original chat so it won't be re-submitted.
+    
+    CRITICAL: All related data must be deleted to prevent orphaned foreign key references.
     """
     try:
         demo_chat_id = payload.demo_chat_id
         
-        # Batch delete all related data using filters
-        await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
-        await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
-        await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        logger.info(f"Admin {admin_user.id} rejecting demo_chat {demo_chat_id}")
         
-        # Finally, delete the demo_chat entry itself
+        # Batch delete all related data using filters (CRITICAL: must happen BEFORE deleting demo_chat)
+        # 1. Delete demo_messages
+        messages_deleted = await directus_service.delete_items(
+            "demo_messages",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {messages_deleted} demo_messages for demo_chat {demo_chat_id}")
+        
+        # 2. Delete demo_embeds
+        embeds_deleted = await directus_service.delete_items(
+            "demo_embeds",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {embeds_deleted} demo_embeds for demo_chat {demo_chat_id}")
+        
+        # 3. Delete demo_chat_translations
+        translations_deleted = await directus_service.delete_items(
+            "demo_chat_translations",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {translations_deleted} demo_chat_translations for demo_chat {demo_chat_id}")
+        
+        # 4. Finally, delete the demo_chat entry itself
         success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
         if not success:
             raise HTTPException(status_code=404, detail="Demo chat not found")
         
         logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
         
-        # Also update the original chat to remove from community suggestions
+        # 5. Update the original chat to remove from community suggestions
         # This prevents it from being re-submitted
         await directus_service.update_item(
             "chats", 
@@ -355,7 +336,12 @@ async def reject_suggestion(
         
         return {
             "success": True,
-            "message": "Suggestion rejected successfully"
+            "message": "Suggestion rejected successfully",
+            "deleted_counts": {
+                "messages": messages_deleted,
+                "embeds": embeds_deleted,
+                "translations": translations_deleted
+            }
         }
     
     except HTTPException:
@@ -381,8 +367,6 @@ async def get_admin_demo_chats(
         
         # Enrich with language-specific metadata
         enriched_demos = []
-        encryption_service = directus_service.encryption_service
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
         
         for demo in demo_chats:
             demo_chat_id = demo["id"]  # UUID
@@ -404,58 +388,23 @@ async def get_admin_demo_chats(
                 translations = await directus_service.get_items("demo_chat_translations", translation_params)
                 translation = translations[0] if translations else None
             
-            # Decrypt translation metadata
+            # Get translation metadata (stored as cleartext)
             title = None
             summary = None
             if translation:
-                title = await encryption_service.decrypt(
-                    translation.get("encrypted_title"), 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                summary = await encryption_service.decrypt(
-                    translation.get("encrypted_summary"), 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
+                title = translation.get("title")
+                summary = translation.get("summary")
             
-            # Fallback to original metadata if translation not found or failed to decrypt
-            if not title and demo.get("encrypted_title"):
-                try:
-                    title = await encryption_service.decrypt(
-                        demo.get("encrypted_title"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception:
-                    pass
+            # Fallback to original metadata if translation not found
+            if not title:
+                title = demo.get("title")
             
-            if not summary and demo.get("encrypted_summary"):
-                try:
-                    summary = await encryption_service.decrypt(
-                        demo.get("encrypted_summary"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception:
-                    pass
+            if not summary:
+                summary = demo.get("summary")
 
-            # Always try to decrypt category and icon from original demo entry
-            category = None
-            if demo.get("encrypted_category"):
-                try:
-                    category = await encryption_service.decrypt(
-                        demo.get("encrypted_category"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception:
-                    pass
-
-            icon = None
-            if demo.get("encrypted_icon"):
-                try:
-                    icon = await encryption_service.decrypt(
-                        demo.get("encrypted_icon"), 
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception:
-                    pass
+            # Get category and icon from original demo entry (stored as cleartext)
+            category = demo.get("category")
+            icon = demo.get("icon")
             
             demo["title"] = title or "Demo Chat"
             demo["summary"] = summary

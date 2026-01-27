@@ -331,7 +331,15 @@ async def deactivate_demo_chat(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
-    Deactivate (soft delete) a demo chat.
+    Permanently delete a demo chat and all related data.
+    
+    CRITICAL: This performs a HARD delete of:
+    - The demo_chat entry
+    - All demo_messages (all languages)
+    - All demo_embeds (all languages)
+    - All demo_chat_translations (all languages)
+    
+    This ensures no orphaned data is left behind.
 
     Requires admin authentication.
     """
@@ -344,12 +352,12 @@ async def deactivate_demo_chat(
         if not success:
             raise HTTPException(status_code=404, detail="Demo chat not found")
 
-        logger.info(f"Deactivated demo chat {demo_id} by user {current_user.id}")
+        logger.info(f"Deleted demo chat {demo_id} and all related data by user {current_user.id}")
 
         return {
             "success": True,
             "demo_id": demo_id,
-            "message": "Demo chat deactivated successfully"
+            "message": "Demo chat and all related data deleted successfully"
         }
 
     except HTTPException:

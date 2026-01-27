@@ -68,9 +68,9 @@ class DemoChatMethods:
             demo_id = f"demo-{next_number}"
 
             demo_chat_data = {
-                "demo_id": demo_id,
                 "original_chat_id": chat_id,
-                "encrypted_key": encryption_key,  # Store the encryption key securely
+                "title": title,
+                "summary": summary,
                 "category": category,
                 "status": "translating",
                 "approved_by_admin": approved_by_admin,
@@ -172,40 +172,17 @@ class DemoChatMethods:
             next_number = max_number + 1
             demo_id = f"demo-{next_number}"
             
-            # Encrypt metadata with vault key
-            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-            encryption_service = self.directus_service.encryption_service
-            
-            encrypted_title = None
-            encrypted_summary = None
-            encrypted_category = None
-            encrypted_icon = None
-            encrypted_follow_up = None
-            
-            if title:
-                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if summary:
-                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if category:
-                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if icon:
-                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if follow_up_suggestions:
-                import json
-                encrypted_follow_up, _ = await encryption_service.encrypt(
-                    json.dumps(follow_up_suggestions), 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-            
+            # Store metadata as cleartext (demo chats are public content)
+            import json
+
             demo_chat_data = {
                 "demo_id": demo_id,
                 "original_chat_id": chat_id,
-                "encrypted_key": encryption_key,
-                "encrypted_title": encrypted_title,
-                "encrypted_summary": encrypted_summary,
-                "encrypted_category": encrypted_category,
-                "encrypted_icon": encrypted_icon,
-                "encrypted_follow_up_suggestions": encrypted_follow_up,
+                "title": title,
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": json.dumps(follow_up_suggestions) if follow_up_suggestions else None,
                 "status": "waiting_for_confirmation",
                 "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
                 "created_at": datetime.now(timezone.utc).isoformat(),
@@ -255,9 +232,6 @@ class DemoChatMethods:
             Created demo chat item or None if failed
         """
         try:
-            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-            encryption_service = self.directus_service.encryption_service
-            
             # Check if a demo_chat already exists for this chat
             existing_demo = await self.get_demo_chat_by_original_chat_id(chat_id)
             
@@ -275,37 +249,18 @@ class DemoChatMethods:
                     logger.info(f"Demo chat for chat {chat_id} already exists with status '{existing_status}' - skipping")
                     return None
             
-            # Encrypt metadata with Vault
-            encrypted_title = None
-            encrypted_summary = None
-            encrypted_category = None
-            encrypted_icon = None
-            encrypted_follow_up = None
-            
-            if title:
-                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if summary:
-                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if category:
-                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if icon:
-                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if follow_up_suggestions:
-                import json
-                encrypted_follow_up, _ = await encryption_service.encrypt(
-                    json.dumps(follow_up_suggestions), 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-            
+            # Store metadata as cleartext (demo chats are public content)
             # Create demo_chats entry
             from datetime import datetime, timezone
+            import json
+            
             demo_chat_data = {
                 "original_chat_id": chat_id,
-                "encrypted_title": encrypted_title,
-                "encrypted_summary": encrypted_summary,
-                "encrypted_category": encrypted_category,
-                "encrypted_icon": encrypted_icon,
-                "encrypted_follow_up_suggestions": encrypted_follow_up,
+                "title": title,
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": json.dumps(follow_up_suggestions) if follow_up_suggestions else None,
                 "status": "pending_approval",
                 "approved_by_admin": None,  # None (null) until approved by admin (then admin UUID)
                 "created_at": datetime.now(timezone.utc).isoformat(),
@@ -320,35 +275,14 @@ class DemoChatMethods:
             demo_chat_id = created_item["id"]  # UUID
             logger.info(f"Created pending demo chat {demo_chat_id} for chat {chat_id}")
             
-            # Store messages (Vault-encrypted content and category for demo chats)
+            # Store messages (cleartext content and category for demo chats)
             for msg in decrypted_messages:
-                encrypted_content, _ = await encryption_service.encrypt(
-                    msg["content"], 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                
-                encrypted_category = None
-                category = msg.get("category") or msg.get("encrypted_category")
-                if category:
-                    encrypted_category, _ = await encryption_service.encrypt(
-                        category,
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-
-                encrypted_model_name = None
-                model_name = msg.get("model_name")
-                if model_name:
-                    encrypted_model_name, _ = await encryption_service.encrypt(
-                        model_name,
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "role": msg["role"],
-                    "encrypted_content": encrypted_content,
-                    "encrypted_category": encrypted_category,
-                    "encrypted_model_name": encrypted_model_name,
+                    "content": msg["content"],
+                    "category": msg.get("category"),
+                    "model_name": msg.get("model_name"),
                     "language": "original",  # Mark as original language, will be translated later
                     "original_created_at": datetime.fromtimestamp(msg["created_at"] / 1000, tz=timezone.utc).isoformat() if msg["created_at"] > 1000000000000 else datetime.fromtimestamp(msg["created_at"], tz=timezone.utc).isoformat()
                 }
@@ -356,18 +290,13 @@ class DemoChatMethods:
             
             logger.info(f"Stored {len(decrypted_messages)} messages for demo chat {demo_chat_id}")
             
-            # Store embeds (encrypted with Vault, in original language only)
+            # Store embeds (cleartext, in original language only)
             for emb in decrypted_embeds:
-                encrypted_content, _ = await encryption_service.encrypt(
-                    emb["content"], 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                
                 embed_data = {
                     "demo_chat_id": demo_chat_id,
                     "original_embed_id": emb["embed_id"],
                     "type": emb["type"],
-                    "encrypted_content": encrypted_content,
+                    "content": emb["content"],
                     "language": "original",  # Mark as original language
                     "original_created_at": datetime.fromtimestamp(emb["created_at"] / 1000, tz=timezone.utc).isoformat() if emb["created_at"] > 1000000000000 else datetime.fromtimestamp(emb["created_at"], tz=timezone.utc).isoformat()
                 }
@@ -397,33 +326,22 @@ class DemoChatMethods:
         Called when user re-shares a chat with community.
         """
         try:
-            from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-            encryption_service = self.directus_service.encryption_service
-            
-            updates = {
-                "encrypted_key": encryption_key,  # Update encryption key in case it changed
-            }
-            
+            import json
+
+            # Store metadata as cleartext (demo chats are public content)
+            updates = {}
+
             if title:
-                encrypted_title, _ = await encryption_service.encrypt(title, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-                updates["encrypted_title"] = encrypted_title
+                updates["title"] = title
             if summary:
-                encrypted_summary, _ = await encryption_service.encrypt(summary, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-                updates["encrypted_summary"] = encrypted_summary
+                updates["summary"] = summary
             if category:
-                encrypted_category, _ = await encryption_service.encrypt(category, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-                updates["encrypted_category"] = encrypted_category
+                updates["category"] = category
             if icon:
-                encrypted_icon, _ = await encryption_service.encrypt(icon, key_name=DEMO_CHATS_ENCRYPTION_KEY)
-                updates["encrypted_icon"] = encrypted_icon
+                updates["icon"] = icon
             if follow_up_suggestions:
-                import json
-                encrypted_follow_up, _ = await encryption_service.encrypt(
-                    json.dumps(follow_up_suggestions), 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                updates["encrypted_follow_up_suggestions"] = encrypted_follow_up
-            
+                updates["follow_up_suggestions"] = json.dumps(follow_up_suggestions)
+
             result = await self.directus_service.update_item("demo_chats", item_id, updates)
             if result:
                 logger.info(f"Updated pending demo chat {demo_id}")
@@ -636,39 +554,75 @@ class DemoChatMethods:
 
     async def deactivate_demo_chat(self, demo_id: str) -> bool:
         """
-        Deactivate a demo chat (soft delete).
+        Deactivate a demo chat (soft delete) or permanently delete it with all related data.
+        
+        ARCHITECTURE: This method performs a HARD delete of all related data to prevent orphaned records.
+        When a demo chat is deleted/deactivated, we must also delete:
+        - demo_messages (all languages)
+        - demo_embeds (all languages)
+        - demo_chat_translations (all languages)
+        
+        This ensures data integrity and prevents orphaned foreign key references.
 
         Args:
-            demo_id: The demo chat identifier
+            demo_id: The demo chat identifier (UUID or display ID like "demo-1")
 
         Returns:
             True if deactivation was successful
         """
         try:
-            # First, get the demo chat to find its actual Directus item ID
+            # First, get the demo chat to find its actual Directus item ID (UUID)
             demo_chat = await self.get_demo_chat_by_id(demo_id)
             if not demo_chat:
                 logger.error(f"Demo chat {demo_id} not found for deactivation")
                 return False
 
-            item_id = demo_chat.get("id")  # This is the Directus item ID (UUID)
-            if not item_id:
+            demo_chat_uuid = demo_chat.get("id")  # This is the Directus item ID (UUID)
+            if not demo_chat_uuid:
                 logger.error(f"Demo chat {demo_id} has no Directus item ID")
                 return False
 
-            updates = {
-                "is_active": False,
-                "deactivated_at": datetime.now(timezone.utc).isoformat()
-            }
+            logger.info(f"Deactivating demo chat {demo_id} (UUID: {demo_chat_uuid}) and all related data")
 
-            result = await self.directus_service.update_item("demo_chats", item_id, updates)
-            if result:
+            # Delete all related data first (CRITICAL: must happen before deleting the demo_chat entry)
+            # 1. Delete demo_messages
+            messages_deleted = await self.directus_service.delete_items(
+                "demo_messages",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {messages_deleted} demo_messages for demo_chat {demo_id}")
+
+            # 2. Delete demo_embeds
+            embeds_deleted = await self.directus_service.delete_items(
+                "demo_embeds",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {embeds_deleted} demo_embeds for demo_chat {demo_id}")
+
+            # 3. Delete demo_chat_translations
+            translations_deleted = await self.directus_service.delete_items(
+                "demo_chat_translations",
+                {"demo_chat_id": {"_eq": demo_chat_uuid}},
+                admin_required=True
+            )
+            logger.info(f"Deleted {translations_deleted} demo_chat_translations for demo_chat {demo_id}")
+
+            # 4. Finally, delete the demo_chat entry itself
+            delete_success = await self.directus_service.delete_item(
+                "demo_chats",
+                demo_chat_uuid,
+                admin_required=True
+            )
+
+            if delete_success:
                 # Invalidate cache
                 await self.directus_service.cache.clear_demo_chats_cache()
-                logger.info(f"Deactivated demo chat {demo_id}")
+                logger.info(f"Successfully deactivated demo chat {demo_id} and deleted all related data")
                 return True
             else:
-                logger.error(f"Failed to deactivate demo chat {demo_id}")
+                logger.error(f"Failed to delete demo_chats entry for {demo_id}")
                 return False
 
         except Exception as e:
