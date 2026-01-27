@@ -107,6 +107,9 @@ export interface Chat {
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
 
+  // Demo duplication tracking
+  source_demo_id?: string | null; // ID of the source demo chat if this chat was created by duplicating a demo
+
   // Pin functionality
   pinned?: boolean; // Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync.
 
