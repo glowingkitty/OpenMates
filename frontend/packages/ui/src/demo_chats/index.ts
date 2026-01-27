@@ -1,5 +1,5 @@
 import type { DemoChat } from './types';
-import { welcomeChat } from './data/welcome';
+import { forEveryoneChat } from './data/for_everyone';
 import { whatMakesDifferentChat } from './data/what-makes-different';
 import { LEGAL_CHATS } from '../legal';
 
@@ -42,7 +42,7 @@ export {
  * You MUST use translateDemoChat() or translateDemoChats() to resolve translations at runtime.
  */
 export const INTRO_CHATS: DemoChat[] = [
-	welcomeChat,
+	forEveryoneChat,
 	whatMakesDifferentChat
 	// Privacy, Terms, Imprint are NOT intro chats - they're accessed via /privacy, /terms, /imprint routes
 	// More will be added: october-2025-updates, example-learn-something, developers, stay-up-to-date
