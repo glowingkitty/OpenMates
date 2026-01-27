@@ -47,20 +47,16 @@
     interface DemoChatProgressPayload {
         user_id?: string;
         demo_chat_id: string;
-        stage: 'metadata' | 'translating';
-        completed_units?: number;
-        total_units?: number;
+        stage: 'metadata' | 'translating' | 'storing';
         progress_percentage?: number;
-        current_batch_languages?: string[];
+        current_language?: string;
         message?: string;
     }
 
     interface TranslationProgress {
-        stage: 'metadata' | 'translating';
-        completed_units: number;
-        total_units: number;
+        stage: 'metadata' | 'translating' | 'storing';
         progress_percentage: number;
-        current_batch_languages: string[];
+        current_language: string;
         message: string;
         last_update: number;
     }
@@ -640,20 +636,23 @@
         const { 
             demo_chat_id, 
             stage, 
-            completed_units, 
-            total_units, 
             progress_percentage, 
-            current_batch_languages,
+            current_language,
             message 
         } = payload;
 
-        // Update progress state with new structure
+        // Ensure progress only moves forward (monotonically increasing)
+        const existing = translationProgress.get(demo_chat_id);
+        const newPercentage = progress_percentage || 0;
+        const effectivePercentage = existing 
+            ? Math.max(existing.progress_percentage, newPercentage) 
+            : newPercentage;
+
+        // Update progress state
         translationProgress.set(demo_chat_id, {
             stage,
-            completed_units: completed_units || 0,
-            total_units: total_units || 0,
-            progress_percentage: progress_percentage || 0,
-            current_batch_languages: current_batch_languages || [],
+            progress_percentage: effectivePercentage,
+            current_language: current_language || '',
             message: message || 'Processing...',
             last_update: Date.now()
         });
@@ -750,9 +749,9 @@
                                         <span class="progress-percentage">0%</span>
                                     {/if}
                                 </div>
-                                {#if progress?.current_batch_languages?.length > 0}
+                                {#if progress?.current_language}
                                     <div class="progress-languages">
-                                        Last translated: {progress.current_batch_languages.join(', ')}
+                                        Currently translating: {progress.current_language.toUpperCase()}
                                     </div>
                                 {/if}
                             </div>

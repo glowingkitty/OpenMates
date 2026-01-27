@@ -141,144 +141,46 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         follow_up_suggestions = []
 
         if demo_chat.get("follow_up_suggestions"):
-            import json
             try:
                 follow_up_suggestions = json.loads(demo_chat["follow_up_suggestions"])
             except Exception:
                 pass
         
-        # 7. Translate metadata and messages using batch translation
-        logger.info(f"Translating demo {demo_chat_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
+        # 7. Translate and store per-language (translate + store immediately, resumable on restart)
+        #
+        # Architecture: We loop over each target language. For each language we:
+        #   a) Check if translations already exist (resume support)
+        #   b) Translate metadata (title, summary, follow-ups) to that language
+        #   c) Translate all messages to that language
+        #   d) Store everything for that language immediately
+        # This means a crash/restart only loses work for the current language.
+        logger.info(f"Translating demo {demo_chat_id} to {len(TARGET_LANGUAGES)} languages (per-language pipeline)...")
 
-        # Progress tracking: total work units = messages × languages
-        total_messages = len(decrypted_messages)
         total_languages = len(TARGET_LANGUAGES)
-        total_work_units = total_messages * total_languages
-        completed_work_units = 0
 
-        # Create progress callback for metadata translations
-        async def metadata_progress_callback(completed_languages):
-            """Callback for metadata translations."""
-            await task.publish_websocket_event(
-                admin_user_id,
-                "demo_chat_progress",
-                {
-                    "user_id": admin_user_id,
-                    "demo_chat_id": demo_chat_id,
-                    "stage": "metadata",
-                    "completed_units": len(completed_languages),
-                    "total_units": total_languages,
-                    "progress_percentage": int((len(completed_languages) / total_languages) * 100) if total_languages > 0 else 0,
-                    "current_batch_languages": completed_languages,
-                    "message": f"Translating metadata to {len(completed_languages)} languages"
-                }
-            )
-
-        # Translate metadata in batches
-        await task.publish_websocket_event(
-            admin_user_id,
-            "demo_chat_progress",
-            {
-                "user_id": admin_user_id,
-                "demo_chat_id": demo_chat_id,
-                "stage": "metadata",
-                "completed_units": 0,
-                "total_units": total_languages,
-                "progress_percentage": 0,
-                "message": "Starting metadata translation"
-            }
-        )
-
-        title_translations = await _translate_text_batch(task, title or "Demo Chat", TARGET_LANGUAGES, metadata_progress_callback)
-        summary_translations = await _translate_text_batch(task, summary or "", TARGET_LANGUAGES, metadata_progress_callback)
-
-        # Translate follow-up suggestions in batches
-        follow_up_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
-        if follow_up_suggestions:
-            for suggestion in follow_up_suggestions:
-                suggestion_translations = await _translate_text_batch(task, suggestion, TARGET_LANGUAGES, metadata_progress_callback)
-                for lang in TARGET_LANGUAGES:
-                    follow_up_translations_by_lang[lang].append(suggestion_translations[lang])
-        
-        # Translate messages in batches
-        # IMPORTANT: System messages contain structured JSON (e.g., app_settings_memories_response)
-        # that should NOT be translated - copy them as-is to preserve JSON structure
-        message_translations_by_lang = {lang: [] for lang in TARGET_LANGUAGES}
-
-        async def progress_callback(completed_languages):
-            """Callback called when a batch of languages is completed for the current message."""
-            nonlocal completed_work_units
-            completed_work_units += len(completed_languages)
-
-            # Calculate progress percentage
-            progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
-
-            # Send progress update
-            await task.publish_websocket_event(
-                admin_user_id,
-                "demo_chat_progress",
-                {
-                    "user_id": admin_user_id,
-                    "demo_chat_id": demo_chat_id,
-                    "stage": "translating",
-                    "completed_units": completed_work_units,
-                    "total_units": total_work_units,
-                    "progress_percentage": progress_percentage,
-                    "current_batch_languages": completed_languages,
-                    "message": f"Translated {len(completed_languages)} languages ({completed_work_units}/{total_work_units} total)"
-                }
-            )
-
+        # Pre-process system messages once: strip user_message_id for privacy
+        # PRIVACY: The user_message_id references the original chat's message ID which:
+        # 1. Leaks metadata from the original conversation
+        # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
+        # 3. The frontend uses position-based fallback for demo/shared chats
+        sanitized_system_contents = {}  # index -> sanitized content
         for i, msg in enumerate(decrypted_messages):
-            # Check if this is a system message - these should not be translated
-            # System messages contain JSON content like:
-            # {"type": "app_settings_memories_response", "user_message_id": "...", ...}
             if msg.get("role") == "system":
-                logger.info(f"Skipping translation for system message {i+1}/{len(decrypted_messages)} (preserving JSON structure)")
-                
-                # PRIVACY: Strip user_message_id from system messages in demo chats
-                # The user_message_id references the original chat's message ID which:
-                # 1. Leaks metadata from the original conversation
-                # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
-                # 3. The frontend uses position-based fallback for demo/shared chats
                 system_content = msg["content"]
                 try:
                     parsed_system = json.loads(system_content)
                     if isinstance(parsed_system, dict) and "user_message_id" in parsed_system:
                         del parsed_system["user_message_id"]
                         system_content = json.dumps(parsed_system)
-                        logger.info("Stripped user_message_id from system message for privacy")
+                        logger.info(f"Stripped user_message_id from system message {i+1} for privacy")
                 except (json.JSONDecodeError, TypeError):
-                    # Not valid JSON, keep original content
                     pass
-                
-                # Copy (sanitized) content to all languages without translation
-                for lang in TARGET_LANGUAGES:
-                    message_translations_by_lang[lang].append(system_content)
+                sanitized_system_contents[i] = system_content
 
-                # Update progress for system messages (all languages completed instantly)
-                completed_work_units += total_languages
-                progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
-
-                await task.publish_websocket_event(
-                    admin_user_id,
-                    "demo_chat_progress",
-                    {
-                        "user_id": admin_user_id,
-                        "demo_chat_id": demo_chat_id,
-                        "stage": "translating",
-                        "completed_units": completed_work_units,
-                        "total_units": total_work_units,
-                        "progress_percentage": progress_percentage,
-                        "message": f"Processed system message {i+1}/{total_messages}"
-                    }
-                )
-                continue
-
-            logger.info(f"Translating message {i+1}/{len(decrypted_messages)} to all languages...")
-
-            # Send initial progress update for this message
-            progress_percentage = int((completed_work_units / total_work_units) * 100) if total_work_units > 0 else 0
+        async def send_progress(current_language: str, message: str, progress_percentage: int):
+            """Send a progress event with overall percentage."""
+            # Clamp to 0-99 (100% is reserved for the final 'published' status update)
+            progress_percentage = min(progress_percentage, 99)
 
             await task.publish_websocket_event(
                 admin_user_id,
@@ -287,50 +189,74 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                     "user_id": admin_user_id,
                     "demo_chat_id": demo_chat_id,
                     "stage": "translating",
-                    "completed_units": completed_work_units,
-                    "total_units": total_work_units,
                     "progress_percentage": progress_percentage,
-                    "message": f"Starting translation of message {i+1}/{total_messages}"
+                    "current_language": current_language,
+                    "message": message
                 }
             )
 
-            msg_translations = await _translate_tiptap_json_batch(task, msg["content"], TARGET_LANGUAGES, progress_callback)
-            for lang in TARGET_LANGUAGES:
-                message_translations_by_lang[lang].append(msg_translations[lang])
-        
-        # 8. Store translations for each language
+        # Check which languages already have translations (resume support)
+        existing_translations = await task.directus_service.get_items("demo_chat_translations", {
+            "filter": {"demo_chat_id": {"_eq": demo_chat_id}},
+            "fields": ["language"]
+        })
+        already_translated = {t["language"] for t in (existing_translations or [])}
+        if already_translated:
+            logger.info(f"Resuming translation: {len(already_translated)} languages already done: {already_translated}")
+
+        # Send initial progress (account for already-completed languages)
+        completed_languages = len(already_translated)
+        await send_progress(
+            "",
+            f"Starting translation ({completed_languages}/{total_languages} languages done)",
+            int((completed_languages / total_languages) * 100) if total_languages > 0 else 0
+        )
+
         for lang_idx, lang in enumerate(TARGET_LANGUAGES):
-            logger.info(f"Storing translations for {lang}...")
+            # Skip languages that already have translations stored (resume support)
+            if lang in already_translated:
+                logger.info(f"Skipping {lang} ({lang_idx + 1}/{total_languages}) - already translated")
+                completed_languages = lang_idx + 1
+                continue
 
-            # Send progress update via WebSocket for language completion
-            await task.publish_websocket_event(
-                admin_user_id,
-                "demo_chat_progress",
-                {
-                    "user_id": admin_user_id,  # Required for WebSocket forwarding
-                    "demo_chat_id": demo_chat_id,
-                    "stage": "languages",
-                    "completed": lang_idx + 1,  # +1 because we're about to complete this language
-                    "total": len(TARGET_LANGUAGES),
-                    "current_language": lang,
-                    "message": f"Storing translations for {lang} ({lang_idx + 1}/{len(TARGET_LANGUAGES)})"
-                }
+            logger.info(f"Translating to {lang} ({lang_idx + 1}/{total_languages})...")
+            await send_progress(
+                lang,
+                f"Translating to {lang} ({lang_idx + 1}/{total_languages})",
+                int((lang_idx / total_languages) * 100)
             )
 
-            # Store metadata translation (cleartext)
-            import json
+            # a) Translate metadata for this language
+            title_translation = await _translate_text_batch(task, title or "Demo Chat", [lang])
+            summary_translation = await _translate_text_batch(task, summary or "", [lang])
 
+            follow_up_translated = []
+            if follow_up_suggestions:
+                for suggestion in follow_up_suggestions:
+                    suggestion_translation = await _translate_text_batch(task, suggestion, [lang])
+                    follow_up_translated.append(suggestion_translation[lang])
+
+            # b) Translate messages for this language
+            translated_messages = []
+            for i, msg in enumerate(decrypted_messages):
+                if msg.get("role") == "system":
+                    # Use pre-sanitized system content (not translated)
+                    translated_messages.append(sanitized_system_contents[i])
+                else:
+                    msg_translation = await _translate_tiptap_json_batch(task, msg["content"], [lang])
+                    translated_messages.append(msg_translation[lang])
+
+            # c) Store translations immediately for this language
             translation_data = {
                 "demo_chat_id": demo_chat_id,
                 "language": lang,
-                "title": title_translations[lang],
-                "summary": summary_translations[lang],
-                "follow_up_suggestions": json.dumps(follow_up_translations_by_lang[lang])
+                "title": title_translation[lang],
+                "summary": summary_translation[lang],
+                "follow_up_suggestions": json.dumps(follow_up_translated)
             }
             await task.directus_service.create_item("demo_chat_translations", translation_data)
 
-            # Store translated messages (cleartext)
-            for i, translated_content in enumerate(message_translations_by_lang[lang]):
+            for i, translated_content in enumerate(translated_messages):
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "language": lang,
@@ -343,20 +269,27 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 await task.directus_service.create_item("demo_messages", message_data)
 
             # NOTE: Embeds are NOT duplicated per language - they remain stored once with
-            # language="original" since embed content is not translated. The original embeds
-            # were already stored when the demo chat was created (see create_pending_demo_chat_with_content).
+            # language="original" since embed content is not translated.
 
-        # 9. Generate content hash for change detection
+            completed_languages = lang_idx + 1
+            logger.info(f"Completed and stored translations for {lang} ({completed_languages}/{total_languages})")
+            await send_progress(
+                lang,
+                f"Completed {lang} ({completed_languages}/{total_languages})",
+                int((completed_languages / total_languages) * 100)
+            )
+
+        # 8. Generate content hash for change detection
+        import hashlib
         hash_content = ""
         for msg in decrypted_messages:
             hash_content += f"{msg['role']}:{msg['content']}\n"
         for emb in decrypted_embeds:
             hash_content += f"embed:{emb['original_embed_id']}:{emb['content']}\n"
-        import hashlib
         content_hash = hashlib.sha256(hash_content.encode('utf-8')).hexdigest()
         logger.info(f"Generated content hash for demo chat {demo_chat_id}: {content_hash[:16]}...")
         
-        # 10. Update status to published
+        # 9. Update status to published
         if demo_chat and demo_chat.get("id"):
             from datetime import datetime, timezone
             await task.directus_service.update_item("demo_chats", demo_chat["id"], {
@@ -375,7 +308,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         else:
             logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
         
-        # 11. Clear demo cache after publishing
+        # 10. Clear demo cache after publishing
         # IMPORTANT: This must happen AFTER all database updates are complete to ensure
         # the next cache population (on-demand or at API startup) fetches the complete data.
         # The cache will be re-populated on the next request with fresh data from the database.
@@ -383,7 +316,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         await task.directus_service.cache.clear_demo_chats_cache()
         logger.info(f"Cleared demo chats cache after publishing demo {demo_chat_id}")
 
-        logger.info(f"Successfully published demo chat {demo_chat_id} in {len(TARGET_LANGUAGES)} languages")
+        logger.info(f"Successfully published demo chat {demo_chat_id} in {total_languages} languages")
 
     finally:
         await task.cleanup_services()
