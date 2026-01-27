@@ -124,7 +124,10 @@ async def delete_item(self, collection: str, item_id: str, admin_required: bool 
 async def delete_items(self, collection: str, filter_dict: dict, admin_required: bool = False):
     """
     Batch delete items from a Directus collection using a filter.
-    Uses Directus batch delete endpoint with filter as query parameters.
+    
+    Directus does not support filter-based DELETE requests directly.
+    This method first fetches item IDs matching the filter, then batch deletes them
+    using DELETE /items/:collection with an array of IDs in the request body.
 
     Args:
         collection: The name of the collection
@@ -136,7 +139,6 @@ async def delete_items(self, collection: str, filter_dict: dict, admin_required:
     """
     import json
 
-    # Directus batch delete: DELETE /items/:collection?filter=...
     url = f"{self.base_url}/items/{collection}"
 
     try:
@@ -145,22 +147,47 @@ async def delete_items(self, collection: str, filter_dict: dict, admin_required:
             token = await self.login_admin()
             headers["Authorization"] = f"Bearer {token}"
 
-        # Send filter as query parameter
-        params = {
-            "filter": json.dumps(filter_dict)
+        # Step 1: Fetch IDs of items matching the filter
+        fetch_params = {
+            "filter": json.dumps(filter_dict),
+            "fields": "id",
+            "limit": -1  # Fetch all matching items
         }
 
-        response = await self._make_api_request("DELETE", url, headers=headers, params=params)
+        fetch_response = await self._make_api_request("GET", url, headers=headers, params=fetch_params)
 
-        if 200 <= response.status_code < 300:
-            # Directus returns deleted item IDs in response.data (array)
-            deleted_data = response.json().get("data", [])
-            count = len(deleted_data) if isinstance(deleted_data, list) else 0
-            logger.info(f"Successfully batch deleted {count} items from '{collection}' with filter {filter_dict}")
-            return count
-        else:
-            logger.error(f"Failed to batch delete from '{collection}'. Status: {response.status_code}, Response: {response.text}")
+        if not (200 <= fetch_response.status_code < 300):
+            logger.error(f"Failed to fetch items for batch delete from '{collection}'. Status: {fetch_response.status_code}, Response: {fetch_response.text}")
             return 0
+
+        items = fetch_response.json().get("data", [])
+        if not items:
+            logger.info(f"No items found in '{collection}' matching filter {filter_dict}, nothing to delete")
+            return 0
+
+        item_ids = [item["id"] for item in items if "id" in item]
+        if not item_ids:
+            logger.info(f"No valid IDs found in '{collection}' matching filter {filter_dict}")
+            return 0
+
+        logger.info(f"Found {len(item_ids)} items in '{collection}' to delete")
+
+        # Step 2: Delete each item individually
+        # NOTE: httpx's AsyncClient.delete() does not support request bodies (json/content),
+        # so we cannot use Directus batch delete (DELETE with JSON array body).
+        # Instead, we delete items one by one using the single-item delete endpoint.
+        deleted_count = 0
+        for item_id in item_ids:
+            delete_url = f"{url}/{item_id}"
+            delete_response = await self._make_api_request("DELETE", delete_url, headers=headers)
+
+            if 200 <= delete_response.status_code < 300:
+                deleted_count += 1
+            else:
+                logger.error(f"Failed to delete item {item_id} from '{collection}'. Status: {delete_response.status_code}")
+
+        logger.info(f"Successfully deleted {deleted_count}/{len(item_ids)} items from '{collection}' with filter {filter_dict}")
+        return deleted_count
 
     except Exception as e:
         logger.error(f"Exception during batch deletion from '{collection}': {str(e)}", exc_info=True)
