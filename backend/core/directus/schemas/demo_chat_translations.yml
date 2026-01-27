@@ -12,17 +12,17 @@ demo_chat_translations:
       length: 10
       note: "Language code (e.g., 'en', 'de', 'zh')"
       required: true
-    encrypted_title:
+    title:
       type: textfield
-      note: "[Vault-Encrypted] Translated title, encrypted with demo_chats vault key"
+      note: "Translated title (cleartext)"
       required: true
-    encrypted_summary:
+    summary:
       type: textfield
-      note: "[Vault-Encrypted] Translated summary, encrypted with demo_chats vault key"
-    encrypted_follow_up_suggestions:
+      note: "Translated summary (cleartext)"
+    follow_up_suggestions:
       type: textfield
-      note: "[Vault-Encrypted] JSON array of translated follow-up suggestions, encrypted with demo_chats vault key"
+      note: "JSON array of translated follow-up suggestions (cleartext)"
     created_at:
       type: timestamp
       note: "When this translation was created"
-  note: "Metadata translations for each language. All content is Vault-encrypted and cached server-side for performance."
+  note: "Metadata translations for each language. All content is stored in cleartext and cached server-side for performance."

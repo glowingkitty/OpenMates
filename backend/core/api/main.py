@@ -730,78 +730,31 @@ async def lifespan(app: FastAPI):
                                     translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
                                 
                                 if translation:
-                                    # Import encryption key once
-                                    from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-                                    encryption_service = app.state.encryption_service
-                                    
-                                    # Decrypt translation metadata first
-                                    decrypted_title = None
-                                    decrypted_summary = None
-                                    decrypted_follow_up_suggestions = []
-                                    if translation.get("encrypted_title"):
-                                        decrypted_title = await encryption_service.decrypt(
-                                            translation["encrypted_title"],
-                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                        )
-                                    if translation.get("encrypted_summary"):
-                                        decrypted_summary = await encryption_service.decrypt(
-                                            translation["encrypted_summary"],
-                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                        )
-                                    # Decrypt follow-up suggestions from translation
-                                    if translation.get("encrypted_follow_up_suggestions"):
+                                    # Get translation metadata (stored as cleartext)
+                                    title = translation.get("title")
+                                    summary = translation.get("summary")
+                                    follow_up_suggestions = []
+
+                                    # Parse follow-up suggestions from cleartext
+                                    if translation.get("follow_up_suggestions"):
                                         try:
                                             import json as json_module
-                                            decrypted_followup_json = await encryption_service.decrypt(
-                                                translation["encrypted_follow_up_suggestions"],
-                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                            )
-                                            if decrypted_followup_json:
-                                                decrypted_follow_up_suggestions = json_module.loads(decrypted_followup_json)
+                                            follow_up_suggestions = json_module.loads(translation["follow_up_suggestions"])
                                         except Exception as followup_err:
-                                            logger.warning(f"Failed to decrypt follow_up_suggestions for demo {demo_uuid}: {followup_err}")
-                                    
-                                    # Decrypt category and icon from demo_chats table
-                                    # Log the fields present in the demo object to debug missing category issue
-                                    logger.info(
-                                        f"Demo {demo_uuid} fields check: encrypted_category={bool(demo.get('encrypted_category'))}, "
-                                        f"encrypted_icon={bool(demo.get('encrypted_icon'))}"
-                                    )
-                                    if not demo.get('encrypted_category'):
-                                        logger.warning(f"Demo {demo_uuid}: encrypted_category is MISSING! Keys: {list(demo.keys())}")
-                                    
-                                    decrypted_category = None
-                                    decrypted_icon = None
-                                    if demo.get("encrypted_category"):
-                                        try:
-                                            decrypted_category = await encryption_service.decrypt(
-                                                demo["encrypted_category"],
-                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                            )
-                                            logger.debug(f"Demo {demo_uuid}: decrypted category = {decrypted_category}")
-                                        except Exception as cat_err:
-                                            logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {cat_err}")
-                                    else:
-                                        logger.warning(f"Demo {demo_uuid}: encrypted_category field is missing or empty!")
-                                    
-                                    if demo.get("encrypted_icon"):
-                                        try:
-                                            decrypted_icon = await encryption_service.decrypt(
-                                                demo["encrypted_icon"],
-                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                            )
-                                            logger.debug(f"Demo {demo_uuid}: decrypted icon = {decrypted_icon}")
-                                        except Exception as icon_err:
-                                            logger.warning(f"Failed to decrypt icon for demo {demo_uuid}: {icon_err}")
-                                    
-                                    # Add to list with decrypted title/summary/category
+                                            logger.warning(f"Failed to parse follow_up_suggestions for demo {demo_uuid}: {followup_err}")
+
+                                    # Get category and icon from demo_chats table (stored as cleartext)
+                                    category = demo.get("category")
+                                    icon = demo.get("icon")
+
+                                    # Add to list with cleartext data
                                     public_demo_chats.append({
                                         "demo_id": display_id,
                                         "uuid": demo_uuid,
-                                        "title": decrypted_title or "Demo Chat",
-                                        "summary": decrypted_summary,
-                                        "category": decrypted_category,
-                                        "icon": decrypted_icon,
+                                        "title": title or "Demo Chat",
+                                        "summary": summary,
+                                        "category": category,
+                                        "icon": icon,
                                         "content_hash": demo.get("content_hash", ""),
                                         "created_at": demo.get("created_at"),
                                         "status": demo.get("status")
@@ -816,60 +769,40 @@ async def lifespan(app: FastAPI):
                                     if not embeds and lang != "en":
                                         embeds = await app.state.directus_service.demo_chat.get_demo_embeds_by_uuid(demo_uuid, "en")
                                     
-                                    # Decrypt messages including category and model_name
-                                    decrypted_messages = []
+                                    # Get messages (stored as cleartext)
+                                    cleartext_messages = []
                                     for msg in (messages or []):
-                                        decrypted_content = await encryption_service.decrypt(
-                                            msg.get("encrypted_content", ""), 
-                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                        )
-                                        decrypted_category = None
-                                        if msg.get("encrypted_category"):
-                                            decrypted_category = await encryption_service.decrypt(
-                                                msg["encrypted_category"],
-                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                            )
-                                        decrypted_model_name = None
-                                        if msg.get("encrypted_model_name"):
-                                            decrypted_model_name = await encryption_service.decrypt(
-                                                msg["encrypted_model_name"],
-                                                key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                            )
-                                        decrypted_messages.append({
+                                        cleartext_messages.append({
                                             "message_id": str(msg.get("id")),
                                             "role": msg.get("role"),
-                                            "content": decrypted_content,
-                                            "category": decrypted_category,
-                                            "model_name": decrypted_model_name,
-                                            "created_at": msg.get("created_at")
+                                            "content": msg.get("content", ""),
+                                            "category": msg.get("category"),
+                                            "model_name": msg.get("model_name"),
+                                            "created_at": msg.get("original_created_at")  # Use original_created_at for ordering
                                         })
 
-                                    # Decrypt embeds
-                                    decrypted_embeds = []
+                                    # Get embeds (stored as cleartext)
+                                    cleartext_embeds = []
                                     for emb in (embeds or []):
-                                        decrypted_content = await encryption_service.decrypt(
-                                            emb.get("encrypted_content", ""), 
-                                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                                        )
-                                        decrypted_embeds.append({
+                                        cleartext_embeds.append({
                                             "embed_id": emb.get("original_embed_id"),
                                             "type": emb.get("type"),
-                                            "content": decrypted_content,
-                                            "created_at": emb.get("created_at")
+                                            "content": emb.get("content", ""),
+                                            "created_at": emb.get("original_created_at")  # Use original_created_at for ordering
                                         })
 
                                     full_chat_data = {
                                         "demo_id": display_id,
-                                        "title": decrypted_title,
-                                        "summary": decrypted_summary,
-                                        "category": decrypted_category,
-                                        "icon": decrypted_icon,
+                                        "title": title,
+                                        "summary": summary,
+                                        "category": category,
+                                        "icon": icon,
                                         "content_hash": demo.get("content_hash", ""),
-                                        "follow_up_suggestions": decrypted_follow_up_suggestions,
+                                        "follow_up_suggestions": follow_up_suggestions,
                                         "chat_data": {
                                             "chat_id": display_id,  # Use display_id as chat_id for client
-                                            "messages": decrypted_messages,
-                                            "embeds": decrypted_embeds,
+                                            "messages": cleartext_messages,
+                                            "embeds": cleartext_embeds,
                                             "encryption_mode": "none"
                                         }
                                     }

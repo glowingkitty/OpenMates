@@ -78,8 +78,6 @@ async def get_demo_chats(
         demo_chats = await directus_service.get_items("demo_chats", params)
         
         public_demo_chats = []
-        encryption_service = request.app.state.encryption_service
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
         
         for idx, demo in enumerate(demo_chats):
             # Use UUID as the ID instead of demo_id
@@ -90,27 +88,11 @@ async def get_demo_chats(
             # The frontend will use this for display/routing
             display_id = f"demo-{idx + 1}"
             
-            # Decrypt category and icon if present
+            # Get category and icon (stored as cleartext)
             # NOTE: These are stored on the demo_chats table itself (NOT translated)
             # Using different variable names to avoid shadowing the 'category' query parameter
-            demo_category = None
-            demo_icon = None
-            if demo.get("encrypted_category"):
-                try:
-                    demo_category = await encryption_service.decrypt(
-                        demo["encrypted_category"],
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt category for demo {demo_uuid}: {e}")
-            if demo.get("encrypted_icon"):
-                try:
-                    demo_icon = await encryption_service.decrypt(
-                        demo["encrypted_icon"],
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt icon for demo {demo_uuid}: {e}")
+            demo_category = demo.get("category")
+            demo_icon = demo.get("icon")
             
             # Get translation by UUID
             translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
@@ -119,26 +101,9 @@ async def get_demo_chats(
                 translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
             
             if translation:
-                # Decrypt translated fields
-                title = None
-                summary = None
-                if translation.get("encrypted_title"):
-                    try:
-                        title = await encryption_service.decrypt(
-                            translation["encrypted_title"],
-                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to decrypt title for demo {demo_uuid}: {e}")
-                
-                if translation.get("encrypted_summary"):
-                    try:
-                        summary = await encryption_service.decrypt(
-                            translation["encrypted_summary"],
-                            key_name=DEMO_CHATS_ENCRYPTION_KEY
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to decrypt summary for demo {demo_uuid}: {e}")
+                # Get translated fields (stored as cleartext)
+                title = translation.get("title")
+                summary = translation.get("summary")
                 
                 demo_data = {
                     "demo_id": display_id,  # Client-side display ID
@@ -255,79 +220,23 @@ async def get_demo_chat(
             logger.error(f"No translation found for demo chat {demo_chat_uuid}")
             raise HTTPException(status_code=404, detail="Translation not found")
         
-        # Decrypt translation metadata
-        encryption_service = request.app.state.encryption_service
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
-        
-        title = None
-        summary = None
+        # Get translation metadata (stored as cleartext)
+        title = translation.get("title")
+        summary = translation.get("summary")
         follow_up_suggestions = []
-        
-        if translation.get("encrypted_title"):
-            try:
-                title = await encryption_service.decrypt(
-                    translation["encrypted_title"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt title: {e}")
-        
-        if translation.get("encrypted_summary"):
-            try:
-                summary = await encryption_service.decrypt(
-                    translation["encrypted_summary"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt summary: {e}")
-        
-        if translation.get("encrypted_follow_up_suggestions"):
+
+        if translation.get("follow_up_suggestions"):
             try:
                 import json
-                decrypted_followup = await encryption_service.decrypt(
-                    translation["encrypted_follow_up_suggestions"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                if decrypted_followup:
-                    follow_up_suggestions = json.loads(decrypted_followup)
+                follow_up_suggestions = json.loads(translation["follow_up_suggestions"])
             except Exception as e:
-                logger.warning(f"Failed to decrypt follow-up suggestions: {e}")
+                logger.warning(f"Failed to parse follow-up suggestions: {e}")
         
-        # Decrypt category and icon from demo_chat
+        # Get category and icon from demo_chat (stored as cleartext)
         # NOTE: Category and icon are stored on the demo_chats table itself (NOT translated)
         # They remain in the original language from when the demo was created
-        category = None
-        icon = None
-        
-        # Debug: Log whether encrypted fields exist in the demo_chat record
-        logger.debug(
-            f"Demo {demo_chat_uuid}: encrypted_category exists={bool(demo_chat.get('encrypted_category'))}, "
-            f"encrypted_icon exists={bool(demo_chat.get('encrypted_icon'))}"
-        )
-        
-        if demo_chat.get("encrypted_category"):
-            try:
-                category = await encryption_service.decrypt(
-                    demo_chat["encrypted_category"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                logger.debug(f"Demo {demo_chat_uuid}: Decrypted category = {category}")
-            except Exception as e:
-                logger.warning(f"Failed to decrypt category for demo {demo_chat_uuid}: {e}")
-        else:
-            logger.debug(f"Demo {demo_chat_uuid}: No encrypted_category stored (NULL in database)")
-        
-        if demo_chat.get("encrypted_icon"):
-            try:
-                icon = await encryption_service.decrypt(
-                    demo_chat["encrypted_icon"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                logger.debug(f"Demo {demo_chat_uuid}: Decrypted icon = {icon}")
-            except Exception as e:
-                logger.warning(f"Failed to decrypt icon for demo {demo_chat_uuid}: {e}")
-        else:
-            logger.debug(f"Demo {demo_chat_uuid}: No encrypted_icon stored (NULL in database)")
+        category = demo_chat.get("category")
+        icon = demo_chat.get("icon")
 
         # 4. Get messages and embeds by UUID
         messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, lang)
@@ -338,75 +247,46 @@ async def get_demo_chat(
         if not embeds and lang != "en":
             embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_uuid, "en")
 
-        # 5. Decrypt content for client (No client-side decryption needed for demos)
-        from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
+        # 5. Get content for client (stored as cleartext)
         import json as json_module
-        encryption_service = request.app.state.encryption_service
-        
+
         decrypted_messages = []
         for msg in (messages or []):
-            decrypted_content = await encryption_service.decrypt(
-                msg.get("encrypted_content", ""), 
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            
+            content = msg.get("content", "")
+
             # PRIVACY: Strip user_message_id from system message content
             # The user_message_id references the original chat's message ID which:
             # 1. Leaks metadata from the original conversation
             # 2. Doesn't match any message ID in the demo chat (IDs are regenerated)
             # 3. The frontend uses position-based fallback for demo/shared chats
-            if msg.get("role") == "system" and decrypted_content:
+            if msg.get("role") == "system" and content:
                 try:
-                    parsed_content = json_module.loads(decrypted_content)
+                    parsed_content = json_module.loads(content)
                     if isinstance(parsed_content, dict) and "user_message_id" in parsed_content:
                         del parsed_content["user_message_id"]
-                        decrypted_content = json_module.dumps(parsed_content)
+                        content = json_module.dumps(parsed_content)
                         logger.debug("Stripped user_message_id from system message for privacy")
                 except (json_module.JSONDecodeError, TypeError):
                     # Not valid JSON, keep original content
                     pass
-            
-            decrypted_category = None
-            if msg.get("encrypted_category"):
-                try:
-                    decrypted_category = await encryption_service.decrypt(
-                        msg["encrypted_category"],
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt message category: {e}")
-
-            decrypted_model_name = None
-            if msg.get("encrypted_model_name"):
-                try:
-                    decrypted_model_name = await encryption_service.decrypt(
-                        msg["encrypted_model_name"],
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to decrypt message model name: {e}")
 
             decrypted_messages.append({
                 "message_id": str(msg.get("id")),
                 "role": msg.get("role"),
-                "content": decrypted_content,
-                "category": decrypted_category,  # Return cleartext category
-                "model_name": decrypted_model_name,  # Return cleartext model name
+                "content": content,
+                "category": msg.get("category"),  # Return cleartext category
+                "model_name": msg.get("model_name"),  # Return cleartext model name
                 # Use original_created_at from demo_messages table (stores original message timestamp)
                 "created_at": msg.get("original_created_at")
             })
 
         decrypted_embeds = []
         for emb in (embeds or []):
-            decrypted_content = await encryption_service.decrypt(
-                emb.get("encrypted_content", ""), 
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
             decrypted_embeds.append({
                 # Use original_embed_id from demo_embeds table (stores original embed ID)
                 "embed_id": emb.get("original_embed_id"),
                 "type": emb.get("type"),
-                "content": decrypted_content,
+                "content": emb.get("content", ""),
                 # Use original_created_at from demo_embeds table (stores original embed timestamp)
                 "created_at": emb.get("original_created_at")
             })

@@ -97,14 +97,14 @@ This generates the `locales/{locale}.json` files that the app uses at runtime.
   - Data file: [`frontend/packages/ui/src/demo_chats/data/what-makes-different.ts`](../../frontend/packages/ui/src/demo_chats/data/what-makes-different.ts)
   - Translations: [`frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml)
 
-## Zero-Knowledge Architecture
+## Simplified Storage Architecture
 
-**Critical Security Principle:** The server never receives the encryption key to the user's original chat. This maintains zero-knowledge encryption for user data.
+**Design Decision:** Demo chats are public content that should be accessible to all users without authentication. Since the content is intentionally public, encryption is unnecessary and overcomplicating the architecture.
 
 When sharing with community:
 1. **Client decrypts locally** - User's browser decrypts the chat using the locally-stored encryption key
 2. **Sends plaintext** - Decrypted messages and embeds are sent to server
-3. **Server creates separate copy** - A new demo chat entity is created (encrypted with Vault)
+3. **Server stores as cleartext** - Demo chat content is stored in cleartext for faster processing and easier access
 4. **Original stays encrypted** - The user's original chat remains zero-knowledge encrypted
 
 ```
@@ -115,8 +115,8 @@ User's Original Chat (ZK encrypted with NaCl)
     │                                         │
     ↓                                         ↓
 Original Chat                          Demo Chat Copy
-(ZK encrypted forever)                 (Vault encrypted)
-Server never gets key ✅               Server can translate ✅
+(ZK encrypted forever)                 (Cleartext)
+Server never gets key ✅               Fast processing ✅
 ```
 
 ## Data Flow
@@ -134,18 +134,17 @@ When a user shares a chat with the community:
 │ 2. Send         │     │ Receives:       │     │ - Metadata      │
 │    plaintext    │     │ - Plaintext     │     │ - Messages      │
 │    messages     │     │   messages      │     │ - Embeds        │
-│ - Metadata      │     │ - Metadata      │     │ (All Vault      │
-│ - Messages      │     │                 │     │  encrypted)     │
-│ - Embeds        │     │ Encrypts with   │     │                 │
-│                 │     │ Vault and stores│     │ status:         │
-│                 │     │                 │     │ pending_approval│
+│ - Metadata      │     │ - Metadata      │     │ (All cleartext) │
+│ - Messages      │     │                 │     │                 │
+│ - Embeds        │     │ Stores directly │     │ status:         │
+│                 │     │ as cleartext    │     │ pending_approval│
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 **Key Details:**
 - Frontend decrypts the chat **locally** using the NaCl key from IndexedDB
 - Plaintext messages, embeds, and metadata are sent to backend
-- Backend immediately encrypts everything with Vault's `demo_chats` transit key
+- Backend stores everything directly as cleartext (no encryption needed)
 - **No encryption key is ever sent to the server** ✅
 - Status is set to `pending_approval`
 - Timestamp is recorded for ordering
@@ -173,15 +172,15 @@ When an admin reviews and approves the community suggestion:
 ```
 
 **Admin Preview:**
-- Admin loads demo chat metadata from `demo_chats` (Vault-decrypted)
+- Admin loads demo chat metadata from `demo_chats` (stored as cleartext)
 - When previewing, demo messages are loaded and rendered in the UI
 - Admin sees the chat exactly as it will appear to users
 - No access to original user chat needed
 
 **Translation Task:**
-- Loads demo messages/embeds (already in plaintext after Vault decryption)
+- Loads demo messages/embeds (stored as cleartext)
 - Translates to all target languages using LLM
-- Stores translations encrypted with Vault
+- Stores translations as cleartext
 - Sets status to `published`
 - Sends notification to admin that translation is complete
 
@@ -250,11 +249,11 @@ When any user loads the web app:
 |-------|------|-------------|
 | id | UUID | Directus internal ID (primary key) |
 | original_chat_id | UUID | Reference to source chat (for tracking only) |
-| encrypted_title | string | Vault-encrypted title |
-| encrypted_summary | string | Vault-encrypted summary |
-| encrypted_category | string | Vault-encrypted category |
-| encrypted_icon | string | Vault-encrypted icon name |
-| encrypted_follow_up_suggestions | string | Vault-encrypted JSON array |
+| title | string | Title (cleartext) |
+| summary | string | Summary (cleartext) |
+| category | string | Category (cleartext) |
+| icon | string | Icon name (cleartext) |
+| follow_up_suggestions | string | JSON array (cleartext) |
 | content_hash | string | SHA256 hash of all content (for change detection) |
 | status | string | pending_approval, translating, published, translation_failed |
 | approved_by_admin | UUID | Admin user ID who approved |
@@ -274,7 +273,7 @@ When any user loads the web app:
 | id | UUID | Directus internal ID (primary key) |
 | demo_chat_id | UUID | Foreign key to demo_chats.id |
 | role | string | user or assistant |
-| encrypted_content | string | Vault-encrypted message content (TipTap JSON) |
+| content | string | Message content (TipTap JSON, cleartext) |
 | language | string | ISO language code (en, de, zh, etc.) |
 | original_created_at | datetime | Original message timestamp (used for ordering) |
 | created_at | datetime | Demo message creation timestamp |
@@ -289,7 +288,7 @@ When any user loads the web app:
 | demo_chat_id | UUID | Foreign key to demo_chats.id |
 | original_embed_id | string | Original embed ID (for reference) |
 | type | string | Embed type (web-website, app-skill-use, etc.) |
-| encrypted_content | string | Vault-encrypted embed content |
+| content | string | Embed content (cleartext) |
 | language | string | ISO language code (en, de, zh, etc.) |
 | original_created_at | datetime | Original embed timestamp (used for ordering) |
 | created_at | datetime | Demo embed creation timestamp |
@@ -303,12 +302,12 @@ When any user loads the web app:
 | id | UUID | Directus internal ID (primary key) |
 | demo_chat_id | UUID | Foreign key to demo_chats.id |
 | language | string | ISO language code (en, de, zh, etc.) |
-| encrypted_title | string | Vault-encrypted translated title |
-| encrypted_summary | string | Vault-encrypted translated summary |
-| encrypted_follow_up_suggestions | string | Vault-encrypted translated suggestions JSON array |
+| title | string | Translated title (cleartext) |
+| summary | string | Translated summary (cleartext) |
+| follow_up_suggestions | string | Translated suggestions JSON array (cleartext) |
 | created_at | datetime | Creation timestamp |
 
-**Note:** All translation content is Vault-encrypted for consistency. The server decrypts and caches all translations for quick access.
+**Note:** All translation content is stored as cleartext for faster processing. The server caches all translations for quick access.
 
 ## API Endpoints
 
@@ -501,7 +500,7 @@ Display IDs (`demo-1` through `demo-5`) are generated client-side based on posit
 
 3. **Separate Data Entities**: Demo chats are entirely separate from original chats. Deleting a demo chat does not affect the user's original chat.
 
-4. **Vault Encryption**: All demo content is encrypted at rest using HashiCorp Vault's transit engine with a dedicated `demo_chats` key.
+4. **Cleartext Storage**: Demo content is stored as cleartext since it's intentionally public. No encryption is applied to demo chats for faster processing and easier access.
 
 5. **Public Content by Design**: Demo chats are intentionally public content. After admin approval, they are accessible to all users without authentication. This is the intended behavior.
 
@@ -538,9 +537,9 @@ All demo chats are fully cached in memory for instant loading without database q
 
 **Cache Flow:**
 ```
-Client Request → Check Cache → 
+Client Request → Check Cache →
   ├─ HIT: Return cached data (instant)
-  └─ MISS: Load from DB → Decrypt with Vault → Store in cache → Return
+  └─ MISS: Load from DB (cleartext) → Store in cache → Return
 ```
 
 ### Client Cache (IndexedDB)

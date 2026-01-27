@@ -6,21 +6,21 @@ demo_chats:
       length: 64
       note: "The original chat identifier (for reference only, not used for decryption)"
       required: true
-    encrypted_category:
+    category:
       type: textfield
-      note: "[Vault-Encrypted] Category for grouping demo chats, encrypted with demo_chats vault key"
-    encrypted_title:
+      note: "Category for grouping demo chats (cleartext)"
+    title:
       type: textfield
-      note: "[Vault-Encrypted] Title of the chat, encrypted with demo_chats vault key"
-    encrypted_summary:
+      note: "Title of the chat (cleartext)"
+    summary:
       type: textfield
-      note: "[Vault-Encrypted] Summary of the chat, encrypted with demo_chats vault key"
-    encrypted_icon:
+      note: "Summary of the chat (cleartext)"
+    icon:
       type: textfield
-      note: "[Vault-Encrypted] Icon name for the chat, encrypted with demo_chats vault key"
-    encrypted_follow_up_suggestions:
+      note: "Icon name for the chat (cleartext)"
+    follow_up_suggestions:
       type: textfield
-      note: "[Vault-Encrypted] Follow-up suggestions (JSON array), encrypted with demo_chats vault key"
+      note: "Follow-up suggestions (JSON array, cleartext)"
     status:
       type: string
       length: 50

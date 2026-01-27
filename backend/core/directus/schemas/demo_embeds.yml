@@ -17,9 +17,9 @@ demo_embeds:
       length: 64
       note: "Original embed_id from user's chat (for reference)"
       required: true
-    encrypted_content:
+    content:
       type: textfield
-      note: "[Vault-Encrypted] TOON format content, encrypted with demo_chats vault key"
+      note: "TOON format content (cleartext)"
       required: true
     type:
       type: string

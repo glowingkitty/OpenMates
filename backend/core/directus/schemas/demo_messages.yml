@@ -17,18 +17,18 @@ demo_messages:
       length: 50
       note: "Role: 'user' | 'assistant' | 'system'"
       required: true
-    encrypted_content:
+    content:
       type: textfield
-      note: "[Vault-Encrypted] Tiptap JSON content, encrypted with demo_chats vault key"
+      note: "Tiptap JSON content (cleartext)"
       required: true
-    encrypted_category:
+    category:
       type: string
       length: 100
-      note: "[Vault-Encrypted] Message category, encrypted with demo_chats vault key"
-    encrypted_model_name:
+      note: "Message category (cleartext)"
+    model_name:
       type: string
       length: 100
-      note: "[Vault-Encrypted] Model name for assistant messages, encrypted with demo_chats vault key"
+      note: "Model name for assistant messages (cleartext)"
     original_created_at:
       type: timestamp
       note: "Original message timestamp from user's chat (used for ordering messages)"

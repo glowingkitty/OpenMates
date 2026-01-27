@@ -5,7 +5,6 @@ import json
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
-from backend.core.api.app.utils.encryption import DEMO_CHATS_ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -94,35 +93,19 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 }, admin_required=True)
             return
         
-        # 3. Decrypt original messages
+        # 3. Get original messages (stored as cleartext)
         decrypted_messages = []
         for msg in demo_messages:
-            decrypted_content = await task.encryption_service.decrypt(
-                msg["encrypted_content"],
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            
-            decrypted_category = None
-            if msg.get("encrypted_category"):
-                decrypted_category = await task.encryption_service.decrypt(
-                    msg["encrypted_category"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-            
-            # Decrypt model name for assistant messages
-            decrypted_model_name = None
-            if msg.get("encrypted_model_name"):
-                decrypted_model_name = await task.encryption_service.decrypt(
-                    msg["encrypted_model_name"],
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                
-            if decrypted_content:
+            content = msg.get("content", "")
+            category = msg.get("category")
+            model_name = msg.get("model_name")
+
+            if content:
                 decrypted_messages.append({
                     "role": msg["role"],
-                    "content": decrypted_content,
-                    "category": decrypted_category,
-                    "model_name": decrypted_model_name,
+                    "content": content,
+                    "category": category,
+                    "model_name": model_name,
                     "original_created_at": msg["original_created_at"]
                 })
         
@@ -138,40 +121,31 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         }
         demo_embeds = await task.directus_service.get_items("demo_embeds", embeds_params)
         
-        # 5. Decrypt embeds
+        # 5. Get embeds (stored as cleartext)
         decrypted_embeds = []
         for emb in demo_embeds or []:
-            decrypted_content = await task.encryption_service.decrypt(
-                emb["encrypted_content"],
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            if decrypted_content:
+            content = emb.get("content", "")
+            if content:
                 decrypted_embeds.append({
                     "original_embed_id": emb["original_embed_id"],
                     "type": emb["type"],
-                    "content": decrypted_content,
+                    "content": content,
                     "original_created_at": emb["original_created_at"]
                 })
         
         logger.info(f"Loaded and decrypted {len(decrypted_embeds)} embeds for demo chat {demo_chat_id}")
         
-        # 6. Decrypt demo metadata
-        title = None
-        summary = None
+        # 6. Get demo metadata (stored as cleartext)
+        title = demo_chat.get("title")
+        summary = demo_chat.get("summary")
         follow_up_suggestions = []
-        
-        if demo_chat.get("encrypted_title"):
-            title = await task.encryption_service.decrypt(demo_chat["encrypted_title"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
-        if demo_chat.get("encrypted_summary"):
-            summary = await task.encryption_service.decrypt(demo_chat["encrypted_summary"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
-        if demo_chat.get("encrypted_follow_up_suggestions"):
+
+        if demo_chat.get("follow_up_suggestions"):
             import json
-            follow_up_json = await task.encryption_service.decrypt(demo_chat["encrypted_follow_up_suggestions"], key_name=DEMO_CHATS_ENCRYPTION_KEY)
-            if follow_up_json:
-                try:
-                    follow_up_suggestions = json.loads(follow_up_json)
-                except Exception:
-                    pass
+            try:
+                follow_up_suggestions = json.loads(demo_chat["follow_up_suggestions"])
+            except Exception:
+                pass
         
         # 7. Translate metadata and messages using batch translation
         logger.info(f"Translating demo {demo_chat_id} to {len(TARGET_LANGUAGES)} languages using batch translation...")
@@ -343,62 +317,27 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
                 }
             )
 
-            # Store metadata translation (Vault-encrypted)
-            encrypted_title, _ = await task.encryption_service.encrypt(
-                title_translations[lang], 
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            encrypted_summary, _ = await task.encryption_service.encrypt(
-                summary_translations[lang], 
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            
+            # Store metadata translation (cleartext)
             import json
-            encrypted_follow_up, _ = await task.encryption_service.encrypt(
-                json.dumps(follow_up_translations_by_lang[lang]), 
-                key_name=DEMO_CHATS_ENCRYPTION_KEY
-            )
-            
+
             translation_data = {
                 "demo_chat_id": demo_chat_id,
                 "language": lang,
-                "encrypted_title": encrypted_title,
-                "encrypted_summary": encrypted_summary,
-                "encrypted_follow_up_suggestions": encrypted_follow_up
+                "title": title_translations[lang],
+                "summary": summary_translations[lang],
+                "follow_up_suggestions": json.dumps(follow_up_translations_by_lang[lang])
             }
             await task.directus_service.create_item("demo_chat_translations", translation_data)
 
-            # Store translated messages
+            # Store translated messages (cleartext)
             for i, translated_content in enumerate(message_translations_by_lang[lang]):
-                # Encrypt translated content and category
-                encrypted_content, _ = await task.encryption_service.encrypt(
-                    translated_content, 
-                    key_name=DEMO_CHATS_ENCRYPTION_KEY
-                )
-                
-                encrypted_category = None
-                category = decrypted_messages[i].get("category")
-                if category:
-                    encrypted_category, _ = await task.encryption_service.encrypt(
-                        category,
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-
-                encrypted_model_name = None
-                model_name = decrypted_messages[i].get("model_name")
-                if model_name:
-                    encrypted_model_name, _ = await task.encryption_service.encrypt(
-                        model_name,
-                        key_name=DEMO_CHATS_ENCRYPTION_KEY
-                    )
-
                 message_data = {
                     "demo_chat_id": demo_chat_id,
                     "language": lang,
                     "role": decrypted_messages[i]["role"],
-                    "encrypted_content": encrypted_content,
-                    "encrypted_category": encrypted_category,
-                    "encrypted_model_name": encrypted_model_name,
+                    "content": translated_content,
+                    "category": decrypted_messages[i].get("category"),
+                    "model_name": decrypted_messages[i].get("model_name"),
                     "original_created_at": decrypted_messages[i]["original_created_at"]
                 }
                 await task.directus_service.create_item("demo_messages", message_data)
