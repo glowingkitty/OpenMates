@@ -152,14 +152,21 @@ function detectNonCodeBlockElements(
         protectedRanges.push({ start: absStart, end: absStart + url.length });
       }
 
-      const urlRegex = /https?:\/\/[^\s]+/g;
+      // Use the shared URL pattern from EMBED_PATTERNS which supports optional protocol
+      const urlRegex = EMBED_PATTERNS.URL;
       let um: RegExpExecArray | null;
       while ((um = urlRegex.exec(line)) !== null) {
-        const url = um[0];
+        let url = um[0];
         const startIdx = um.index ?? 0;
         const endIdx = startIdx + url.length;
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) continue;
+        
+        // Normalize URL by adding https:// if protocol is missing
+        // Import normalizeUrl from utils
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
+        }
         
         const id = generateUUID();
         let type = 'web-website';

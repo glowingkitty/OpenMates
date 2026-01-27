@@ -26,9 +26,13 @@ import { notificationStore } from '../../../stores/notificationStore';
 
 /**
  * Regular expression to detect URLs in text content.
- * Matches http and https URLs.
+ * Matches URLs with protocol AND common video platform URLs without protocol.
+ * This is more targeted than matching all URLs without protocol to avoid false positives.
+ * Matches:
+ * - URLs with protocol: https://example.com/path, http://site.com
+ * - YouTube URLs without protocol: youtube.com/watch?v=..., youtu.be/VIDEO_ID, www.youtube.com/...
  */
-const URL_REGEX = /https?:\/\/[^\s\])"'<>]+/g;
+const URL_REGEX = /(?:https?:\/\/[^\s\])"'<>]+|(?<![/\w@])(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)[^\s\])"'<>]+|youtu\.be\/[^\s\])"'<>]+))/g;
 
 /**
  * Detects all URLs in the given text content.
@@ -57,7 +61,7 @@ function detectUrlsInText(text: string): Array<{url: string, startPos: number, e
     URL_REGEX.lastIndex = 0; // Reset regex state
     
     while ((match = URL_REGEX.exec(text)) !== null) {
-        const url = match[0];
+        let url = match[0];
         const startPos = match.index;
         const endPos = startPos + url.length;
         
@@ -67,6 +71,10 @@ function detectUrlsInText(text: string): Array<{url: string, startPos: number, e
         );
         
         if (!isInsideCodeBlock) {
+            // Normalize URL by adding https:// if protocol is missing
+            if (!/^https?:\/\//i.test(url)) {
+                url = `https://${url}`;
+            }
             urls.push({ url, startPos, endPos });
         }
     }
