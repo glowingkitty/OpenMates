@@ -225,6 +225,16 @@ export function processSettingsDeepLink(
         }
         // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
         path = path.replace(/-/g, '_');
+        
+        // Normalize app store sub-routes from plural to singular form
+        // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
+        // Pattern: app_store/{appId}/skills/{skillId} -> app_store/{appId}/skill/{skillId}
+        // Pattern: app_store/{appId}/focuses/{focusModeId} -> app_store/{appId}/focus/{focusModeId}
+        if (path.startsWith('app_store/')) {
+            path = path.replace(/\/skills\//, '/skill/');
+            path = path.replace(/\/focuses\//, '/focus/');
+        }
+        
         handlers.setSettingsDeepLink(path);
         
         // Clear the hash after processing
