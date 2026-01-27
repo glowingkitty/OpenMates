@@ -169,6 +169,7 @@ secrets.json
 
 .DS_Store
 log/
+logs/
 processed_websites/
 temp_data
 
