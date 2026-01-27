@@ -19,12 +19,29 @@ const defaultLinkRender = md.renderer.rules.link_open || ((tokens, idx, options,
   return self.renderToken(tokens, idx, options);
 });
 
+/**
+ * Check if a href is an internal hash-based link
+ * Internal links include:
+ * - #chat-id= or /#chat-id= - Chat deep links
+ * - #settings/ or /#settings/ - Settings deep links (including app store)
+ */
+function isInternalHashLink(href: string): boolean {
+  if (!href) return false;
+  const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+  return (
+    normalizedHref.startsWith('#chat-id=') ||
+    normalizedHref.startsWith('#settings') ||
+    normalizedHref.includes('#chat-id=') ||
+    normalizedHref.includes('#settings/')
+  );
+}
+
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
   const href = token.attrGet('href');
   
-  // Check if this is an internal hash-based link
-  if (href && (href.startsWith('#chat-id=') || href.startsWith('/#chat-id=') || href.includes('#chat-id='))) {
+  // Check if this is an internal hash-based link (chat or settings)
+  if (href && isInternalHashLink(href)) {
     // Remove target attribute if present (markdown-it linkify might add it)
     token.attrSet('target', null);
     // Remove rel attributes that might include nofollow
@@ -351,9 +368,9 @@ function convertNodeToTiptap(node: Node): any {
       const target = element.getAttribute('target');
 
       if (href) {
-        // Check if this is an internal hash-based link
+        // Check if this is an internal hash-based link (chat or settings deep links)
         const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
-        const isInternal = normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=');
+        const isInternal = isInternalHashLink(href);
 
         // Build link attributes
         let finalHref: string;
@@ -757,9 +774,9 @@ export function parseMarkdownToTiptap(markdownText: string): any {
       if (!hrefMatch) return match; // No href, keep as-is
       
       const href = hrefMatch[1];
-      // Check if this is an internal hash-based link
+      // Check if this is an internal hash-based link (chat or settings)
       const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
-      if (normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=')) {
+      if (isInternalHashLink(href)) {
         // Remove target and rel attributes from internal links
         let cleanedAttrs = attrs
           .replace(/\s*target=["'][^"']*["']/gi, '')

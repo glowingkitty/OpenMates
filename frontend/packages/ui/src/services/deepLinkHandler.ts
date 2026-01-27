@@ -218,9 +218,10 @@ export function processSettingsDeepLink(
         // Strip query parameters for path matching (they remain in window.location.hash)
         let path = pathWithParams.split('?')[0];
         
-        // Map common aliases
-        if (path === 'appstore') {
-            path = 'app_store';
+        // Map common aliases - handle 'appstore' prefix (with or without subpath)
+        // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
+        if (path === 'appstore' || path.startsWith('appstore/')) {
+            path = 'app_store' + path.substring('appstore'.length);
         }
         // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
         path = path.replace(/-/g, '_');
