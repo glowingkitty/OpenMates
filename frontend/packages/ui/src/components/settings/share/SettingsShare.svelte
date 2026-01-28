@@ -1043,6 +1043,35 @@
                     // Get all embeds for this chat
                     const hashedChatId = await computeSHA256(currentChatId);
                     const embedEntries = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                    
+                    // VALIDATION: Extract embed references from message content and check for missing embeds
+                    // CRITICAL: This prevents sharing chats with orphan embed references that would break demo chats
+                    if (decryptedMessages && decryptedMessages.length > 0) {
+                        const { extractEmbedReferences } = await import('../../../services/embedResolver');
+                        const embedIdsInStore = new Set((embedEntries || []).map(e => e.embed_id));
+                        const referencedEmbedIds = new Set<string>();
+
+                        for (const msg of decryptedMessages) {
+                            if (msg.content) {
+                                const refs = extractEmbedReferences(msg.content);
+                                for (const ref of refs) {
+                                    referencedEmbedIds.add(ref.embed_id);
+                                }
+                            }
+                        }
+
+                        // Find embed references that are not in the store
+                        const missingEmbedIds = [...referencedEmbedIds].filter(id => !embedIdsInStore.has(id));
+                        if (missingEmbedIds.length > 0) {
+                            // CRITICAL ERROR: Cannot share chat with orphan embed references
+                            const errorMessage = `Sorry, we can't share this chat right now. Something went wrong while processing the embeds in your messages. Please use the "Report Issue" button to let us know about this problem so we can help fix it.`;
+                            console.error('[SettingsShare] ❌ BLOCKED sharing due to missing embeds:', missingEmbedIds);
+
+                            // Show user-facing error and block sharing
+                            throw new Error(errorMessage);
+                        }
+                    }
+                    
                     if (embedEntries && embedEntries.length > 0) {
                         decryptedEmbeds = [];
                         console.debug(`[SettingsShare] Found ${embedEntries.length} embeds for community sharing`);
@@ -2235,5 +2264,3 @@
         line-height: 1.3;
     }
 </style>
-
-

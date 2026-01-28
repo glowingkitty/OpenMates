@@ -617,7 +617,18 @@ export async function sendNewMessageImpl(
     if (embedRefs.length > 0) {
         const embedIds = embedRefs.map(ref => ref.embed_id);
         const loadedEmbeds = await loadEmbeds(embedIds);
-        
+
+        // CRITICAL VALIDATION: Ensure all embed references have corresponding embed data
+        // If any embeds are missing, this indicates data corruption and should prevent message sending
+        const loadedEmbedIds = new Set(loadedEmbeds.map(e => e.embed_id));
+        const missingEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+
+        if (missingEmbedIds.length > 0) {
+            const errorMessage = `Sorry, we can't send this message right now. Something went wrong while processing the embeds in your message. Please use the "Report Issue" button to let us know about this problem so we can help fix it.`;
+            console.error('[ChatSyncService:Senders] ❌ BLOCKED message send due to missing embeds:', missingEmbedIds);
+            throw new Error(errorMessage);
+        }
+
         // Convert embeds to format expected by server (cleartext, will be encrypted server-side)
         for (const embed of loadedEmbeds) {
             embeds.push({
