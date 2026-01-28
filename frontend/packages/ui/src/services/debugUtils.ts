@@ -19,6 +19,19 @@ const DB_NAME = 'chats_db';
 const CHATS_STORE = 'chats';
 const MESSAGES_STORE = 'messages';
 const EMBEDS_STORE = 'embeds';
+const EMBED_KEYS_STORE = 'embed_keys';
+
+/**
+ * Compute SHA256 hash of a string
+ * Matches the implementation in message_parsing/utils.ts
+ */
+async function computeSHA256(content: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * Open the IndexedDB database
@@ -68,6 +81,19 @@ async function getAllFromStore<T>(db: IDBDatabase, storeName: string): Promise<T
         const request = store.getAll();
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result || []);
+    });
+}
+
+/**
+ * Get count of all items in an object store
+ */
+async function getStoreCount(db: IDBDatabase, storeName: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.count();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result || 0);
     });
 }
 
@@ -209,10 +235,25 @@ export async function debugChat(chatId: string): Promise<DebugChatResult> {
         console.log('  ❌ No messages found for this chat');
     }
     
-    // Get embed count for this chat (by hashed_chat_id)
-    // Note: We can't easily get embed count without knowing the hashed_chat_id
-    // For now just count all embeds
-    const allEmbeds = await getAllFromStore<Record<string, unknown>>(db, EMBEDS_STORE);
+    // Get embeds for this chat using hashed_chat_id index
+    const hashedChatId = await computeSHA256(chatId);
+    const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(db, EMBEDS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
+    
+    console.log('\n🖼️ EMBEDS:');
+    console.log('  Chat embeds count:', chatEmbeds.length);
+    console.log('  Total embeds in DB:', totalEmbedsCount);
+    console.log('  Hashed chat ID:', hashedChatId.substring(0, 24) + '...');
+    
+    if (chatEmbeds.length > 0) {
+        const typeCount: Record<string, number> = {};
+        for (const embed of chatEmbeds) {
+            const type = (embed.type as string) || 'unknown';
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        }
+        console.log('  Type distribution:', typeCount);
+        console.log('  Raw embeds:', chatEmbeds);
+    }
     
     db.close();
     
@@ -242,7 +283,7 @@ export async function debugChat(chatId: string): Promise<DebugChatResult> {
             items: messageItems
         },
         embeds: {
-            total_count: allEmbeds.length
+            total_count: chatEmbeds.length
         },
         version_analysis: {
             messages_v: messagesV,
@@ -500,43 +541,93 @@ export async function inspectChat(
         lines.push('  ❌ No messages found for this chat');
     }
     
-    // Get embeds for this chat
-    const allEmbeds = await getAllFromStore<Record<string, unknown>>(db, EMBEDS_STORE);
-    const chatEmbeds = allEmbeds.filter(e => e.chat_id === chatId);
+    // Get embeds for this chat using hashed_chat_id index
+    // Embeds are linked to chats via hashed_chat_id (SHA256 hash of chat_id) for privacy
+    const hashedChatId = await computeSHA256(chatId);
+    const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(db, EMBEDS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
     
     lines.push('');
     lines.push(thinSeparator);
-    lines.push(`EMBEDS - Total: ${chatEmbeds.length} (${allEmbeds.length} total in DB)`);
+    lines.push(`EMBEDS - Total: ${chatEmbeds.length} (${totalEmbedsCount} total in DB)`);
     lines.push(thinSeparator);
+    lines.push(`  Hashed Chat ID: ${hashedChatId.substring(0, 24)}...`);
     
     if (chatEmbeds.length > 0) {
+        // Collect statistics
         const statusCount: Record<string, number> = {};
+        const typeCount: Record<string, number> = {};
         for (const embed of chatEmbeds) {
             const status = (embed.status as string) || 'unknown';
+            const type = (embed.type as string) || 'unknown';
             statusCount[status] = (statusCount[status] || 0) + 1;
+            typeCount[type] = (typeCount[type] || 0) + 1;
         }
         lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
+        lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
+        
+        // Sort by createdAt descending (most recent first)
+        chatEmbeds.sort((a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0));
         
         // Show first few embeds
-        const showCount = Math.min(5, chatEmbeds.length);
-        lines.push(`  Showing first ${showCount} of ${chatEmbeds.length} embeds:`);
+        const showCount = Math.min(10, chatEmbeds.length);
+        lines.push('');
+        lines.push(`  Showing ${showCount} of ${chatEmbeds.length} embeds (most recent first):`);
         lines.push('');
         
         for (let i = 0; i < showCount; i++) {
             const embed = chatEmbeds[i];
-            const embedId = (embed.embed_id as string) || (embed.id as string);
-            const status = (embed.status as string) || 'unknown';
-            const hasContent = !!embed.content || !!embed.encrypted_content;
+            const embedId = (embed.embed_id as string) || embed.contentRef as string;
+            const type = (embed.type as string) || 'unknown';
+            const status = (embed.status as string) || 'N/A';
+            const hasEncryptedContent = !!embed.encrypted_content;
+            const hasPlainContent = !!embed.content || !!embed.data;
+            const createdAt = formatTimestamp(embed.createdAt as number);
             
-            lines.push(`    ${(i + 1).toString().padStart(2)}. [${status.padEnd(10)}] ${truncate(embedId, 40)}`);
-            lines.push(`       Content: ${hasContent ? '✓' : '✗'}`);
+            lines.push(`    ${(i + 1).toString().padStart(2)}. [${type.padEnd(15)}] ${truncate(embedId, 45)}`);
+            lines.push(`       Status: ${status} | Created: ${createdAt}`);
+            lines.push(`       Content: ${hasEncryptedContent ? '✓ encrypted' : (hasPlainContent ? '✓ plaintext' : '✗ missing')}`);
+            
+            // Show app/skill metadata for app-skill-use embeds
+            if (embed.app_id || embed.skill_id) {
+                lines.push(`       App: ${embed.app_id || 'N/A'} | Skill: ${embed.skill_id || 'N/A'}`);
+            }
+            
+            // Show child embed_ids if present
+            if (embed.embed_ids && Array.isArray(embed.embed_ids) && embed.embed_ids.length > 0) {
+                lines.push(`       Child Embeds: ${(embed.embed_ids as string[]).length} (${(embed.embed_ids as string[]).slice(0, 3).map(id => truncate(id, 12)).join(', ')}${(embed.embed_ids as string[]).length > 3 ? '...' : ''})`);
+            }
         }
         
         if (chatEmbeds.length > showCount) {
-            lines.push(`    ... and ${chatEmbeds.length - showCount} more`);
+            lines.push('');
+            lines.push(`    ... and ${chatEmbeds.length - showCount} more embeds`);
         }
     } else {
+        lines.push('');
         lines.push('  No embeds found for this chat');
+        lines.push('  (Embeds are queried by hashed_chat_id index)');
+    }
+    
+    // Also show embed keys for this chat
+    const chatEmbedKeys = await getAllFromIndex<Record<string, unknown>>(db, EMBED_KEYS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push(`EMBED KEYS - Total: ${chatEmbedKeys.length} for this chat (${totalEmbedKeysCount} total in DB)`);
+    lines.push(thinSeparator);
+    
+    if (chatEmbedKeys.length > 0) {
+        const keyTypeCount: Record<string, number> = {};
+        for (const key of chatEmbedKeys) {
+            const keyType = (key.key_type as string) || 'unknown';
+            keyTypeCount[keyType] = (keyTypeCount[keyType] || 0) + 1;
+        }
+        lines.push(`  Key Type Distribution: ${JSON.stringify(keyTypeCount)}`);
+        lines.push(`  (Keys enable decryption of embed content)`);
+    } else {
+        lines.push('  No embed keys found for this chat');
     }
     
     // Version consistency analysis

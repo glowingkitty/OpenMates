@@ -1863,6 +1863,7 @@ class IssueReportRequest(BaseModel):
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
+    indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
 
 
 class IssueReportResponse(BaseModel):
@@ -2011,6 +2012,14 @@ async def report_issue(
         if issue_data.console_logs and issue_data.console_logs.strip():
             console_logs_str = issue_data.console_logs.strip()
             logger.info(f"Console logs provided with issue report: {len(console_logs_str)} characters")
+        
+        # Process IndexedDB inspection report if provided
+        # This contains only metadata (timestamps, versions, encrypted content lengths)
+        # and NO plaintext content - safe to include for debugging
+        indexeddb_report_str = None
+        if issue_data.indexeddb_report and issue_data.indexeddb_report.strip():
+            indexeddb_report_str = issue_data.indexeddb_report.strip()
+            logger.info(f"IndexedDB report provided with issue report: {len(indexeddb_report_str)} characters")
 
         # Encrypt sensitive fields for database storage (server-side encryption)
         encryption_service: EncryptionService = request.app.state.encryption_service
@@ -2111,7 +2120,8 @@ async def report_issue(
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
-                "console_logs": console_logs_str
+                "console_logs": console_logs_str,
+                "indexeddb_report": indexeddb_report_str
             },
             queue='email'
         )

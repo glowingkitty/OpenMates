@@ -17,6 +17,7 @@
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
     import { reportIssueStore } from '../../stores/reportIssueStore';
+    import { inspectChat } from '../../services/debugUtils';
     
     // Form state
     let issueTitle = $state('');
@@ -272,6 +273,41 @@
             isTouchEnabled: 'ontouchstart' in window || navigator.maxTouchPoints > 0
         };
     }
+    
+    /**
+     * Collect IndexedDB inspection report for the active chat
+     * This report contains only metadata (timestamps, versions, counts, encrypted content lengths)
+     * and NO plaintext content - safe to include in issue reports for debugging.
+     * 
+     * @returns The inspection report string, or null if no active chat
+     */
+    async function collectChatInspectionReport(): Promise<string | null> {
+        try {
+            const activeChatId = $activeChatStore;
+            if (!activeChatId) {
+                console.debug('[SettingsReportIssue] No active chat for IndexedDB inspection');
+                return null;
+            }
+            
+            // Skip inspection for public/demo chats (they use a different DB)
+            if (isPublicChat(activeChatId)) {
+                console.debug('[SettingsReportIssue] Skipping IndexedDB inspection for public chat');
+                return null;
+            }
+            
+            console.debug('[SettingsReportIssue] Generating IndexedDB inspection for chat:', activeChatId);
+            
+            // Generate the inspection report (same format as window.inspectChat)
+            // This only returns metadata - no plaintext content is included
+            const report = await inspectChat(activeChatId);
+            
+            console.debug('[SettingsReportIssue] Generated IndexedDB inspection report:', report.length, 'chars');
+            return report;
+        } catch (error) {
+            console.warn('[SettingsReportIssue] Failed to generate IndexedDB inspection:', error);
+            return null;
+        }
+    }
 
     /**
      * Handle form submission
@@ -315,6 +351,11 @@
 
             // Collect console logs for debugging (last 100 lines)
             const consoleLogs = logCollector.getLogsAsText(100);
+            
+            // Collect IndexedDB inspection report for active chat (if any)
+            // This contains only metadata (timestamps, versions, encrypted content lengths)
+            // and NO plaintext content - safe to include for debugging
+            const indexedDbReport = await collectChatInspectionReport();
 
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
@@ -329,7 +370,8 @@
                     chat_or_embed_url: sanitizedUrl,
                     contact_email: sanitizedEmail,
                     device_info: currentDeviceInfo,
-                    console_logs: consoleLogs
+                    console_logs: consoleLogs,
+                    indexeddb_report: indexedDbReport
                 }),
                 credentials: 'include'
             });
