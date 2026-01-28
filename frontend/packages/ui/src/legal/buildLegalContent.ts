@@ -3,6 +3,10 @@
  * 
  * These functions construct markdown content from i18n translation keys
  * to ensure legal documents use the same translations as the Svelte components.
+ * 
+ * Date handling: The lastUpdated date is stored in TypeScript metadata (ISO format)
+ * and formatted at runtime using Intl.DateTimeFormat for the user's locale.
+ * This provides a single source of truth for dates with automatic localization.
  */
 
 import { privacyPolicyLinks } from '../config/links';
@@ -13,17 +17,61 @@ import { privacyPolicyLinks } from '../config/links';
 export type TranslationFunction = (key: string) => string;
 
 /**
- * Build Privacy Policy content from translation keys
+ * Format a date string for display in the user's locale
+ * 
+ * Uses Intl.DateTimeFormat for proper localization of date formats:
+ * - English: "January 28, 2026"
+ * - German: "28. Januar 2026"
+ * - Chinese: "2026年1月28日"
+ * - Japanese: "2026年1月28日"
+ * etc.
+ * 
+ * @param isoDate - ISO date string (e.g., "2026-01-28T00:00:00Z")
+ * @param locale - The user's locale (e.g., "en", "de", "zh")
+ * @returns Formatted date string for the locale
  */
-export function buildPrivacyPolicyContent(t: TranslationFunction): string {
+export function formatDateForLocale(isoDate: string, locale: string): string {
+	const date = new Date(isoDate);
+	
+	// Use Intl.DateTimeFormat for proper localization
+	// Options: Show full month name, day, and year
+	return new Intl.DateTimeFormat(locale, {
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric'
+	}).format(date);
+}
+
+/**
+ * Options for building legal content with date formatting
+ * 
+ * The lastUpdated date is stored in TypeScript metadata (single source of truth)
+ * and formatted at runtime using Intl.DateTimeFormat for the user's locale.
+ */
+export interface LegalContentOptions {
+	/** ISO date string for when the document was last updated (from metadata.lastUpdated) */
+	lastUpdated: string;
+	/** User's locale for date formatting (e.g., "en", "de", "zh") */
+	locale: string;
+}
+
+/**
+ * Build Privacy Policy content from translation keys
+ * 
+ * @param t - Translation function from svelte-i18n
+ * @param options - Options including lastUpdated date and locale for formatting
+ */
+export function buildPrivacyPolicyContent(t: TranslationFunction, options: LegalContentOptions): string {
 	const lines: string[] = [];
 
 	// Title
 	lines.push(`# ${t('legal.privacy.title.text')}`);
 	lines.push('');
 	
-	// Last updated - use fixed date from translation keys
-	lines.push(`*${t('legal.privacy.last_updated.text')}: ${t('legal.privacy.last_updated_date.text')}*`);
+	// Last updated - format date using Intl.DateTimeFormat for the user's locale
+	// The date comes from TypeScript metadata (single source of truth)
+	const formattedDate = formatDateForLocale(options.lastUpdated, options.locale);
+	lines.push(`*${t('legal.privacy.last_updated.text')}: ${formattedDate}*`);
 	lines.push('');
 
 	// Section 1: Data Protection Overview
@@ -264,16 +312,21 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 
 /**
  * Build Terms of Use content from translation keys
+ * 
+ * @param t - Translation function from svelte-i18n
+ * @param options - Options including lastUpdated date and locale for formatting
  */
-export function buildTermsOfUseContent(t: TranslationFunction): string {
+export function buildTermsOfUseContent(t: TranslationFunction, options: LegalContentOptions): string {
 	const lines: string[] = [];
 
 	// Title
 	lines.push(`# ${t('legal.terms.title.text')}`);
 	lines.push('');
 
-	// Last updated - use fixed date from translation keys
-	lines.push(`*${t('legal.terms.last_updated.text')}: ${t('legal.terms.last_updated_date.text')}*`);
+	// Last updated - format date using Intl.DateTimeFormat for the user's locale
+	// The date comes from TypeScript metadata (single source of truth)
+	const formattedDate = formatDateForLocale(options.lastUpdated, options.locale);
+	lines.push(`*${t('legal.terms.last_updated.text')}: ${formattedDate}*`);
 	lines.push('');
 
 	// Section 1: Agreement
@@ -380,6 +433,7 @@ export function buildTermsOfUseContent(t: TranslationFunction): string {
 /**
  * Build Imprint content from translation keys
  * Note: Imprint uses SVG images for contact info, which are displayed below
+ * Imprint doesn't have a last updated date as it's primarily contact info
  */
 export function buildImprintContent(t: TranslationFunction): string {
 	const lines: string[] = [];
@@ -410,4 +464,3 @@ export function buildImprintContent(t: TranslationFunction): string {
 
 	return lines.join('\n');
 }
-

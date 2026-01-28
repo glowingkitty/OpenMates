@@ -1,10 +1,11 @@
 import type { DemoChat } from './types';
 import { get } from 'svelte/store';
-import { _ } from 'svelte-i18n';
+import { _, locale } from 'svelte-i18n';
 import { 
 	buildPrivacyPolicyContent, 
 	buildTermsOfUseContent, 
-	buildImprintContent 
+	buildImprintContent,
+	type LegalContentOptions
 } from '../legal/buildLegalContent';
 
 /**
@@ -19,21 +20,32 @@ type TranslationFunction = (key: string) => string;
  * Legal chats build content from translation keys - they construct markdown from i18n keys.
  * Translation keys should be in format: 'demo_chats.{chat_name}.{field}.text'
  * 
+ * For legal documents, the lastUpdated date is stored in TypeScript metadata (single source of truth)
+ * and formatted using Intl.DateTimeFormat for the user's locale.
+ * 
  * @param demoChat - The demo chat with translation keys
  * @returns A new demo chat with translated content
  */
 export function translateDemoChat(demoChat: DemoChat): DemoChat {
 	const t = get(_) as TranslationFunction;
+	const currentLocale = get(locale) || 'en';
 	
 	// Legal chats (chat_id starts with 'legal-') build content from translation keys
 	if (demoChat.chat_id.startsWith('legal-')) {
 		let builtContent = '';
 		
+		// Build options for legal content - includes lastUpdated date from metadata
+		// and current locale for date formatting
+		const options: LegalContentOptions = {
+			lastUpdated: demoChat.metadata.lastUpdated || '2026-01-28T00:00:00Z',
+			locale: currentLocale
+		};
+		
 		// Build content based on chat type
 		if (demoChat.chat_id === 'legal-privacy') {
-			builtContent = buildPrivacyPolicyContent(t);
+			builtContent = buildPrivacyPolicyContent(t, options);
 		} else if (demoChat.chat_id === 'legal-terms') {
-			builtContent = buildTermsOfUseContent(t);
+			builtContent = buildTermsOfUseContent(t, options);
 		} else if (demoChat.chat_id === 'legal-imprint') {
 			builtContent = buildImprintContent(t);
 		} else {

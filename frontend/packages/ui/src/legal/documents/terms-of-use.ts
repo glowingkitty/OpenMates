@@ -22,7 +22,7 @@ export const termsOfUseChat: DemoChat = {
 			// Content will be built from translation keys at runtime
 			// See buildTermsOfUseContent() in buildLegalContent.ts
 			content: '', // Placeholder - will be built from translation keys
-			timestamp: '2025-01-01T00:00:00Z'
+			timestamp: '2026-01-28T00:00:00Z'
 		}
 	],
 	follow_up_suggestions: [
@@ -38,6 +38,6 @@ export const termsOfUseChat: DemoChat = {
 		icon_names: ['file-text', 'scale', 'shield'],
 		featured: false, // Don't show in regular sidebar (but always visible)
 		order: 4, // Order: 1=welcome, 2=different, 3=privacy, 4=terms, 5=imprint
-		lastUpdated: '2025-01-01T00:00:00Z'
+		lastUpdated: '2026-01-28T00:00:00Z' // Single source of truth for "last updated" date - formatted via Intl.DateTimeFormat
 	}
 };

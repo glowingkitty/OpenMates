@@ -44,29 +44,6 @@ last_updated:
   cs: Naposledy aktualizováno
   sv: Senast uppdaterad
   verified_by_human: []
-last_updated_date:
-  context: Actual last update date of privacy policy - update this when the policy changes
-  en: January 1, 2025
-  de: 1. Januar 2025
-  zh: 2025年1月1日
-  es: 1 de enero de 2025
-  fr: 1er janvier 2025
-  pt: 1 de janeiro de 2025
-  ru: 1 января 2025 г.
-  ja: 2025年1月1日
-  ko: 2025년 1월 1일
-  it: 1 gennaio 2025
-  tr: 1 Ocak 2025
-  vi: 1 tháng 1 năm 2025
-  id: 1 Januari 2025
-  pl: 1 stycznia 2025
-  nl: 1 januari 2025
-  ar: 1 يناير 2025
-  hi: 1 जनवरी 2025
-  th: 1 มกราคม 2025
-  cs: 1. ledna 2025
-  sv: 1 januari 2025
-  verified_by_human: []
 data_protection.heading:
   context: Section heading for data protection overview
   en: 1. Data Protection Overview
@@ -114,27 +91,27 @@ data_protection.overview:
   sv: Denna integritetspolicy förklarar vad som händer med dina uppgifter när du använder vår webbplats och webbapplikation. Vi är engagerade i transparens när det gäller datahantering och arbetar med olika tjänsteleverantörer för att leverera våra tjänster.
   verified_by_human: []
 data_protection.website_vs_webapp:
-  context: Clarification about website vs web app services
-  en: 'Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://openmates.org).'
-  de: 'Bitte beachten Sie: Unsere Website nutzt nur Vercel für das Hosting. Alle anderen unten genannten Dienste werden ausschließlich von Nutzern unserer Webanwendung (https://openmates.org) verwendet.'
-  zh: '请注意：我们的网站仅使用 Vercel 进行托管。下面提到的所有其他服务仅由我们的 Web 应用程序 (https://openmates.org) 的用户使用。'
-  es: 'Tenga en cuenta: Nuestro sitio web utiliza solo Vercel para el alojamiento. Todos los demás servicios mencionados a continuación son utilizados exclusivamente por los usuarios de nuestra aplicación web (https://openmates.org).'
-  fr: "Veuillez noter : Notre site web n'utilise que Vercel pour l'hébergement. Tous les autres services mentionnés ci-dessous sont utilisés exclusivement par les utilisateurs de notre application web (https://openmates.org)."
-  pt: 'Por favor, note: Nosso site usa apenas Vercel para hospedagem. Todos os outros serviços mencionados abaixo são usados exclusivamente por usuários de nossa aplicação web (https://openmates.org).'
-  ru: 'Обратите внимание: наш веб-сайт использует только Vercel для хостинга. Все остальные услуги, упомянутые ниже, используются исключительно пользователями нашего веб-приложения (https://openmates.org).'
-  ja: 'ご注意：当社のウェブサイトはホスティングにVercelのみを使用しています。以下に記載されているその他のすべてのサービスは、当社のウェブアプリケーション（https://openmates.org）のユーザーが独占的に使用します。'
-  ko: '참고: 당사 웹사이트는 호스팅에 Vercel만 사용합니다. 아래에 언급된 기타 모든 서비스는 웹 애플리케이션(https://openmates.org) 사용자만 독점적으로 사용합니다.'
-  it: "Si prega di notare: Il nostro sito web utilizza solo Vercel per l'hosting. Tutti gli altri servizi menzionati di seguito sono utilizzati esclusivamente dagli utenti della nostra applicazione web (https://openmates.org)."
-  tr: 'Lütfen dikkat: Web sitemiz yalnızca barındırma için Vercel kullanır. Aşağıda belirtilen diğer tüm hizmetler yalnızca web uygulamamızın (https://openmates.org) kullanıcıları tarafından kullanılır.'
-  vi: 'Xin lưu ý: Trang web của chúng tôi chỉ sử dụng Vercel để lưu trữ. Tất cả các dịch vụ khác được đề cập bên dưới chỉ được sử dụng bởi người dùng ứng dụng web của chúng tôi (https://openmates.org).'
-  id: 'Harap dicatat: Situs web kami hanya menggunakan Vercel untuk hosting. Semua layanan lain yang disebutkan di bawah ini digunakan secara eksklusif oleh pengguna aplikasi web kami (https://openmates.org).'
-  pl: 'Uwaga: Nasza strona internetowa używa tylko Vercel do hostingu. Wszystkie inne usługi wymienione poniżej są używane wyłącznie przez użytkowników naszej aplikacji internetowej (https://openmates.org).'
-  nl: 'Let op: Onze website gebruikt alleen Vercel voor hosting. Alle andere hieronder genoemde diensten worden uitsluitend gebruikt door gebruikers van onze webapplicatie (https://openmates.org).'
-  ar: 'يرجى ملاحظة: يستخدم موقعنا الإلكتروني Vercel فقط للاستضافة. جميع الخدمات الأخرى المذكورة أدناه تُستخدم حصريًا من قبل مستخدمي تطبيق الويب الخاص بنا (https://openmates.org).'
-  hi: 'कृपया ध्यान दें: हमारी वेबसाइट होस्टिंग के लिए केवल Vercel का उपयोग करती है। नीचे उल्लिखित अन्य सभी सेवाएं विशेष रूप से हमारे वेब एप्लिकेशन (https://openmates.org) के उपयोगकर्ताओं द्वारा उपयोग की जाती हैं।'
-  th: 'โปรดทราบ: เว็บไซต์ของเราใช้ Vercel สำหรับการโฮสต์เท่านั้น บริการอื่นๆ ทั้งหมดที่กล่าวถึงด้านล่างใช้โดยผู้ใช้แอปพลิเคชันเว็บของเรา (https://openmates.org) เท่านั้น'
-  cs: 'Poznámka: Náš web používá pro hostování pouze Vercel. Všechny ostatní služby uvedené níže jsou používány výhradně uživateli naší webové aplikace (https://openmates.org).'
-  sv: 'Observera: Vår webbplats använder endast Vercel för hosting. Alla andra tjänster som nämns nedan används uteslutande av användare av vår webbapplikation (https://openmates.org).'
+  context: Clarification about visitor vs signed-up user data handling
+  en: 'OpenMates (https://openmates.org) serves as both our informational website and web application. All visitors access OpenMates through Vercel. When you sign up and use our AI features, your data is also processed by our backend services (hosted on Hetzner) and various AI providers as described below.'
+  de: 'OpenMates (https://openmates.org) dient sowohl als unsere Informationswebsite als auch als Webanwendung. Alle Besucher greifen über Vercel auf OpenMates zu. Wenn Sie sich anmelden und unsere KI-Funktionen nutzen, werden Ihre Daten auch von unseren Backend-Diensten (gehostet auf Hetzner) und verschiedenen KI-Anbietern wie unten beschrieben verarbeitet.'
+  zh: 'OpenMates (https://openmates.org) 既是我们的信息网站，也是网络应用程序。所有访问者都通过 Vercel 访问 OpenMates。当您注册并使用我们的 AI 功能时，您的数据也会由我们的后端服务（托管在 Hetzner 上）和以下描述的各种 AI 提供商处理。'
+  es: 'OpenMates (https://openmates.org) sirve tanto como nuestro sitio web informativo como nuestra aplicación web. Todos los visitantes acceden a OpenMates a través de Vercel. Cuando te registras y usas nuestras funciones de IA, tus datos también son procesados por nuestros servicios backend (alojados en Hetzner) y varios proveedores de IA como se describe a continuación.'
+  fr: "OpenMates (https://openmates.org) sert à la fois de site web informatif et d'application web. Tous les visiteurs accèdent à OpenMates via Vercel. Lorsque vous vous inscrivez et utilisez nos fonctionnalités IA, vos données sont également traitées par nos services backend (hébergés sur Hetzner) et divers fournisseurs d'IA comme décrit ci-dessous."
+  pt: 'OpenMates (https://openmates.org) serve tanto como nosso site informativo quanto como aplicativo web. Todos os visitantes acessam o OpenMates através do Vercel. Quando você se cadastra e usa nossos recursos de IA, seus dados também são processados por nossos serviços de backend (hospedados na Hetzner) e vários provedores de IA conforme descrito abaixo.'
+  ru: 'OpenMates (https://openmates.org) служит одновременно нашим информационным веб-сайтом и веб-приложением. Все посетители получают доступ к OpenMates через Vercel. Когда вы регистрируетесь и используете наши функции ИИ, ваши данные также обрабатываются нашими бэкенд-сервисами (размещенными на Hetzner) и различными поставщиками ИИ, как описано ниже.'
+  ja: 'OpenMates (https://openmates.org) は、情報サイトとWebアプリケーションの両方として機能します。すべての訪問者はVercelを通じてOpenMatesにアクセスします。登録してAI機能を使用すると、データは当社のバックエンドサービス（Hetznerでホスト）および以下に説明する様々なAIプロバイダーによっても処理されます。'
+  ko: 'OpenMates (https://openmates.org)는 정보 웹사이트와 웹 애플리케이션 역할을 모두 수행합니다. 모든 방문자는 Vercel을 통해 OpenMates에 접속합니다. 가입하고 AI 기능을 사용하면 데이터는 백엔드 서비스(Hetzner에서 호스팅) 및 아래 설명된 다양한 AI 제공업체에서도 처리됩니다.'
+  it: "OpenMates (https://openmates.org) funge sia da sito web informativo che da applicazione web. Tutti i visitatori accedono a OpenMates tramite Vercel. Quando ti registri e utilizzi le nostre funzionalità AI, i tuoi dati vengono elaborati anche dai nostri servizi backend (ospitati su Hetzner) e da vari fornitori di AI come descritto di seguito."
+  tr: 'OpenMates (https://openmates.org) hem bilgi web sitemiz hem de web uygulamamız olarak hizmet vermektedir. Tüm ziyaretçiler OpenMates''e Vercel üzerinden erişir. Kaydolduğunuzda ve AI özelliklerimizi kullandığınızda, verileriniz aşağıda açıklandığı gibi backend hizmetlerimiz (Hetzner''da barındırılır) ve çeşitli AI sağlayıcıları tarafından da işlenir.'
+  vi: 'OpenMates (https://openmates.org) đóng vai trò là cả trang web thông tin và ứng dụng web của chúng tôi. Tất cả khách truy cập đều truy cập OpenMates thông qua Vercel. Khi bạn đăng ký và sử dụng các tính năng AI, dữ liệu của bạn cũng được xử lý bởi các dịch vụ backend (được lưu trữ trên Hetzner) và các nhà cung cấp AI khác nhau như mô tả bên dưới.'
+  id: 'OpenMates (https://openmates.org) berfungsi sebagai situs web informasi dan aplikasi web kami. Semua pengunjung mengakses OpenMates melalui Vercel. Saat Anda mendaftar dan menggunakan fitur AI kami, data Anda juga diproses oleh layanan backend kami (di-host di Hetzner) dan berbagai penyedia AI seperti yang dijelaskan di bawah.'
+  pl: 'OpenMates (https://openmates.org) służy zarówno jako nasza strona informacyjna, jak i aplikacja internetowa. Wszyscy odwiedzający uzyskują dostęp do OpenMates przez Vercel. Gdy zarejestrujesz się i korzystasz z naszych funkcji AI, Twoje dane są również przetwarzane przez nasze usługi backendowe (hostowane na Hetzner) i różnych dostawców AI, jak opisano poniżej.'
+  nl: 'OpenMates (https://openmates.org) dient zowel als onze informatieve website als webapplicatie. Alle bezoekers hebben toegang tot OpenMates via Vercel. Wanneer je je aanmeldt en onze AI-functies gebruikt, worden je gegevens ook verwerkt door onze backend-services (gehost op Hetzner) en verschillende AI-providers zoals hieronder beschreven.'
+  ar: 'يعمل OpenMates (https://openmates.org) كموقعنا الإلكتروني المعلوماتي وتطبيق الويب. يصل جميع الزوار إلى OpenMates عبر Vercel. عند التسجيل واستخدام ميزات الذكاء الاصطناعي، تتم معالجة بياناتك أيضًا بواسطة خدمات الواجهة الخلفية (المستضافة على Hetzner) ومختلف مزودي الذكاء الاصطناعي كما هو موضح أدناه.'
+  hi: 'OpenMates (https://openmates.org) हमारी सूचनात्मक वेबसाइट और वेब एप्लिकेशन दोनों के रूप में कार्य करता है। सभी आगंतुक Vercel के माध्यम से OpenMates तक पहुँचते हैं। जब आप साइन अप करते हैं और हमारी AI सुविधाओं का उपयोग करते हैं, तो आपका डेटा हमारी बैकएंड सेवाओं (Hetzner पर होस्ट) और नीचे वर्णित विभिन्न AI प्रदाताओं द्वारा भी संसाधित किया जाता है।'
+  th: 'OpenMates (https://openmates.org) ทำหน้าที่เป็นทั้งเว็บไซต์ข้อมูลและเว็บแอปพลิเคชันของเรา ผู้เยี่ยมชมทุกคนเข้าถึง OpenMates ผ่าน Vercel เมื่อคุณลงทะเบียนและใช้ฟีเจอร์ AI ของเรา ข้อมูลของคุณจะถูกประมวลผลโดยบริการแบ็กเอนด์ของเรา (โฮสต์บน Hetzner) และผู้ให้บริการ AI ต่างๆ ตามที่อธิบายไว้ด้านล่าง'
+  cs: 'OpenMates (https://openmates.org) slouží jako náš informační web i webová aplikace. Všichni návštěvníci přistupují k OpenMates přes Vercel. Když se zaregistrujete a používáte naše AI funkce, vaše data jsou také zpracovávána našimi backend službami (hostovanými na Hetzner) a různými poskytovateli AI, jak je popsáno níže.'
+  sv: 'OpenMates (https://openmates.org) fungerar som både vår informativa webbplats och webbapplikation. Alla besökare får tillgång till OpenMates via Vercel. När du registrerar dig och använder våra AI-funktioner behandlas dina uppgifter även av våra backend-tjänster (värd på Hetzner) och olika AI-leverantörer enligt beskrivningen nedan.'
   verified_by_human: []
 vercel.heading:
   context: Section heading for Vercel hosting information
@@ -229,8 +206,8 @@ webapp_services.heading:
   sv: 3. Webbapplikationstjänster
   verified_by_human: []
 webapp_services.intro:
-  context: Introduction to web app services
-  en: 'The following services are used exclusively for our web application (https://openmates.org):'
+  context: Introduction to backend and AI services used for signed-up users
+  en: 'The following services are used when you sign up and use OpenMates AI features:'
   de: 'Die folgenden Dienste werden ausschließlich für unsere Webanwendung (https://openmates.org) verwendet:'
   zh: '以下服务专门用于我们的 Web 应用程序 (https://openmates.org)：'
   es: 'Los siguientes servicios se utilizan exclusivamente para nuestra aplicación web (https://openmates.org):'
