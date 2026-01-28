@@ -2,10 +2,16 @@ title:
   context: Title of who_develops_openmates demo chat - introducing the creator
   en: Who develops OpenMates?
   de: Wer entwickelt OpenMates?
+  es: ¿Quién desarrolla OpenMates?
+  fr: Qui développe OpenMates ?
+  it: Chi sviluppa OpenMates?
 description:
   context: Description of who_develops_openmates demo chat for SEO
   en: Meet the creator of OpenMates and learn about the philosophy behind the project
   de: Lerne den Ersteller von OpenMates kennen und erfahre mehr über die Philosophie hinter dem Projekt
+  es: Conoce al creador de OpenMates y aprende sobre la filosofía detrás del proyecto
+  fr: Découvrez le créateur d'OpenMates et la philosophie derrière le projet
+  it: Scopri il creatore di OpenMates e la filosofia dietro il progetto
 message:
   context: Main who_develops_openmates message content introducing the creator and philosophy
   en: "# 👋 Who develops OpenMates?
@@ -64,15 +70,108 @@ message:
     Ich freue mich auf die kommenden Monate. Es wird eine aufregende Reise :)
 
     "
+  es: "# 👋 ¿Quién desarrolla OpenMates?
+
+
+    ¡Hola!
+
+    Aquí Marco (también conocido como [glowingkitty](https://github.com/glowingkitty)). Diseñador, arquitecto de software, maker. Y el creador de OpenMates.
+
+
+    Todos tenemos nuestra parte de experiencias frustrantes con las grandes empresas tecnológicas. Ya sea por su mal diseño de experiencia de usuario, suscripciones obligatorias con precios cada vez más altos, anuncios, datos de usuarios robados por seguridad insuficiente, venta de datos de usuarios, productos construidos tan adictivos como útiles - y la lista sigue y sigue.
+
+
+    Pero el software no tiene que ser tan frustrante y muchos desarrolladores (especialmente en la comunidad de código abierto) lo demuestran cada día con proyectos increíbles. Y yo he estado tanto entusiasmado por el potencial de dar a todos acceso a asistentes personales que pueden hacer de todo, desde ayudarte a aprender nuevos temas, buscar en la web, planificar viajes, obtener consejos de carrera, construir software y mucho más - como también preocupado por permitir que las grandes empresas tecnológicas definan y controlen este futuro. Porque esas empresas han demostrado una y otra vez que no se puede confiar en que prioricen los intereses de los usuarios sobre los intereses de los inversores.
+
+
+    Así que, comencé a trabajar alrededor de finales de 2024 en un proyecto personal. Una mejor alternativa a los chatbots / agentes de IA existentes. Con los intereses de los usuarios primero como prioridad principal, un mejor diseño de experiencia de usuario, mejor privacidad y cifrado, independencia de proveedores de IA individuales, un enfoque en educación e inspiración y con el objetivo general de hacer accesibles los aspectos útiles de la IA para personas comunes en tareas cotidianas. En lugar de construir otra máquina de contenido basura que hace a todos adictos e Internet más miserable de usar. Y ahora, está en línea. Sí, todavía una alpha con algunos errores y funciones faltantes, pero mejora cada semana.
+
+
+    Ah, y por supuesto OpenMates es completamente de código abierto. Porque eso es la base de todo software que quiere asegurar resiliencia contra la enshittification y priorizar los intereses de los usuarios también en el futuro.
+
+
+    Si quieres unirte a este viaje como usuario, ¡muchas gracias y bienvenido!
+
+    Si quieres unirte a este viaje como contribuidor y posible miembro del equipo - revisa [el repositorio de OpenMates](https://github.com/glowingkitty/openmates) y [nuestro grupo de desarrolladores](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) - ¡y espero saber de ti!
+
+
+    Deseando que lleguen los próximos meses. Va a ser un viaje emocionante :)
+
+    "
+  fr: "# 👋 Qui développe OpenMates ?
+
+
+    Bonjour !
+
+    Ici Marco (alias [glowingkitty](https://github.com/glowingkitty)). Designer, architecte logiciel, maker. Et le créateur d'OpenMates.
+
+
+    Nous avons tous notre lot d'expériences frustrantes avec les grandes entreprises technologiques. Que ce soit à cause de leur mauvais design d'expérience utilisateur, des abonnements obligatoires avec des prix toujours plus élevés, de la publicité, des données utilisateur volées à cause d'une sécurité insuffisante, de la vente des données utilisateur, de produits construits aussi addictifs qu'utiles - et la liste continue encore et encore.
+
+
+    Mais le logiciel n'a pas à être aussi frustrant et de nombreux développeurs (surtout dans la communauté open source) le montrent chaque jour avec des projets incroyables. Et j'ai été à la fois enthousiasmé par le potentiel de donner à chacun accès à des assistants personnels capables de tout faire, de l'apprentissage de nouveaux sujets à la recherche sur le web, en passant par la planification de voyages, les conseils de carrière, le développement de logiciels et bien plus encore - mais aussi préoccupé par le fait de laisser les grandes entreprises technologiques définir et contrôler cet avenir. Car ces entreprises ont montré encore et encore qu'on ne peut pas leur faire confiance pour prioriser les intérêts des utilisateurs par rapport aux intérêts des investisseurs.
+
+
+    Alors, j'ai commencé à travailler vers fin 2024 sur un projet personnel. Une meilleure alternative aux chatbots / agents IA existants. Avec les intérêts des utilisateurs d'abord comme priorité principale, un meilleur design d'expérience utilisateur, une meilleure confidentialité et un meilleur chiffrement, l'indépendance vis-à-vis des fournisseurs d'IA individuels, un accent sur l'éducation et l'inspiration et avec l'objectif général de rendre les aspects utiles de l'IA accessibles aux gens ordinaires pour les tâches quotidiennes. Au lieu de construire une énième machine à contenu médiocre qui rend tout le monde accro et Internet plus misérable à utiliser. Et maintenant, c'est en ligne. Oui, encore une alpha avec quelques bugs et des fonctionnalités manquantes, mais ça s'améliore chaque semaine.
+
+
+    Oh, et bien sûr OpenMates est entièrement open source. Car c'est la base de tout logiciel qui veut garantir une résilience contre l'enshittification et prioriser les intérêts des utilisateurs aussi à l'avenir.
+
+
+    Si vous souhaitez rejoindre cette aventure en tant qu'utilisateur, merci beaucoup et bienvenue !
+
+    Si vous souhaitez rejoindre cette aventure en tant que contributeur et possible membre de l'équipe - consultez [le dépôt Git d'OpenMates](https://github.com/glowingkitty/openmates) et [notre groupe de développeurs](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) - et j'espère avoir de vos nouvelles !
+
+
+    Vivement les mois à venir. Ça va être une aventure passionnante :)
+
+    "
+  it: "# 👋 Chi sviluppa OpenMates?
+
+
+    Ciao!
+
+    Qui Marco (alias [glowingkitty](https://github.com/glowingkitty)). Designer, architetto software, maker. E il creatore di OpenMates.
+
+
+    Tutti abbiamo la nostra parte di esperienze frustranti con le grandi aziende tecnologiche. Che sia per il loro cattivo design dell'esperienza utente, gli abbonamenti obbligatori con prezzi sempre più alti, la pubblicità, i dati degli utenti rubati a causa di sicurezza insufficiente, la vendita dei dati degli utenti, prodotti costruiti tanto dipendenti quanto utili - e la lista continua all'infinito.
+
+
+    Ma il software non deve essere così frustrante e molti sviluppatori (specialmente nella comunità open source) lo dimostrano ogni giorno con progetti incredibili. E io sono stato sia entusiasta del potenziale di dare a tutti l'accesso ad assistenti personali che possono fare di tutto, dall'aiutarti a imparare nuovi argomenti, cercare sul web, pianificare viaggi, ottenere consigli di carriera, costruire software e molto altro - ma anche preoccupato di permettere alle grandi aziende tecnologiche di definire e controllare questo futuro. Perché quelle aziende hanno dimostrato più e più volte che non ci si può fidare che diano priorità agli interessi degli utenti rispetto a quelli degli investitori.
+
+
+    Così, ho iniziato a lavorare verso la fine del 2024 a un progetto personale. Un'alternativa migliore ai chatbot / agenti IA esistenti. Con gli interessi degli utenti prima di tutto come priorità principale, un migliore design dell'esperienza utente, migliore privacy e crittografia, indipendenza dai singoli fornitori di IA, un focus sull'educazione e l'ispirazione e con l'obiettivo generale di rendere gli aspetti utili dell'IA accessibili alle persone comuni per le attività quotidiane. Invece di costruire l'ennesima macchina di contenuti scadenti che rende tutti dipendenti e Internet più miserabile da usare. E ora è online. Sì, ancora un'alpha con alcuni bug e funzionalità mancanti, ma migliora ogni settimana.
+
+
+    Oh, e naturalmente OpenMates è completamente open source. Perché questa è la base di ogni software che vuole garantire resilienza contro l'enshittification e dare priorità agli interessi degli utenti anche in futuro.
+
+
+    Se vuoi unirti a questo viaggio come utente, grazie mille e benvenuto!
+
+    Se vuoi unirti a questo viaggio come contributore e possibile membro del team - dai un'occhiata al [repository Git di OpenMates](https://github.com/glowingkitty/openmates) e al [nostro gruppo di sviluppatori](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) - e spero di sentirti!
+
+
+    Non vedo l'ora che arrivino i prossimi mesi. Sarà un viaggio emozionante :)
+
+    "
 follow_up_1:
   context: Follow-up suggestion 1 - learn about the vision
   en: What is the long-term vision for OpenMates?
   de: Was ist die langfristige Vision für OpenMates?
+  es: ¿Cuál es la visión a largo plazo para OpenMates?
+  fr: Quelle est la vision à long terme pour OpenMates ?
+  it: Qual è la visione a lungo termine per OpenMates?
 follow_up_2:
   context: Follow-up suggestion 2 - contributing
   en: How can I contribute to OpenMates?
   de: Wie kann ich zu OpenMates beitragen?
+  es: ¿Cómo puedo contribuir a OpenMates?
+  fr: Comment puis-je contribuer à OpenMates ?
+  it: Come posso contribuire a OpenMates?
 follow_up_3:
   context: Follow-up suggestion 3 - open source details
   en: Why is open source important for OpenMates?
   de: Warum ist Open Source wichtig für OpenMates?
+  es: ¿Por qué es importante el código abierto para OpenMates?
+  fr: Pourquoi l'open source est-il important pour OpenMates ?
+  it: Perché l'open source è importante per OpenMates?

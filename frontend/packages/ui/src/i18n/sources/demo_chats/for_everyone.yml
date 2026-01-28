@@ -2,10 +2,16 @@ title:
   context: Title of for_everyone demo chat - main introductory chat explaining OpenMates
   en: OpenMates | For everyone
   de: OpenMates | Für alle
+  es: OpenMates | Para todos
+  fr: OpenMates | Pour tous
+  it: OpenMates | Per tutti
 description:
   context: Description of for_everyone demo chat for SEO
   en: AI chatbots made accessible with apps, privacy, and no subscription required
   de: KI-Chatbots zugänglich gemacht mit Apps, Datenschutz und kein Abonnement erforderlich
+  es: Chatbots de IA accesibles con apps, privacidad y sin suscripción requerida
+  fr: Chatbots IA accessibles avec des apps, confidentialité et sans abonnement requis
+  it: Chatbot IA accessibili con app, privacy e senza abbonamento richiesto
 message:
   context: Main for_everyone message content explaining OpenMates core features
   en: '# ✨ Digital team mates for everyone
@@ -202,15 +208,315 @@ message:
     👨‍💻 Bist du Softwareentwickler? Dann [klicke hier](#chat-id=demo-for-developers), um mehr darüber zu erfahren, wie OpenMates super nützlich für die Entwicklung neuer Software sein kann.
 
     '
+  es: '# ✨ Compañeros de equipo digitales para todos
+
+
+    Con OpenMates tienes un equipo de chatbots de IA especializados que no solo pueden inspirarte y enseñarte nuevos conocimientos, sino también realizar diversas tareas usando apps. Haciendo accesibles los aspectos útiles de la IA para todos, mientras protege tu privacidad y te da acceso a todos los mejores modelos de IA.
+
+    Por ejemplo, puedes preguntar:
+
+    - 📰 "¿Hay noticias recientes sobre los temas discutidos en este video? youtube.com/watch?v=…"
+
+    - 📚 "Explica la crisis financiera de 2008."
+
+    - 🍳 "¿Ideas de recetas para comidas saludables que sean fáciles de preparar?"
+
+
+    ## 🚀 Inicio rápido
+
+
+    Pulsa el botón de Registrarse en la parte superior derecha para registrarte, compra créditos de uso y comienza a usar OpenMates. O sigue leyendo para aprender más sobre OpenMates, y revisa los chats de ejemplo en el menú de chats en la parte superior izquierda para explorar lo que OpenMates puede hacer.
+
+
+    ## 📱 Apps
+
+
+    Como solo buscar en la web no es suficiente para cumplir tareas cotidianas, OpenMates también soporta otras apps.
+
+    En la [Tienda de Apps](#settings/appstore) tienes una visión general de todas las apps que tus compañeros de equipo digitales pueden usar para cumplir tus solicitudes. Y sus habilidades, modos de enfoque y ajustes y memorias.
+    Ejemplos: [Web](#settings/appstore/web), [Mapas](#settings/appstore/maps), [Noticias](#settings/appstore/news), [Videos](#settings/appstore/videos), [Código](#settings/appstore/code), Viajes, Documentos y muchas más se añadirán pronto.
+
+
+    ### 🛠️ Habilidades
+
+
+    Permiten a tus compañeros interactuar con servicios externos. Para buscar en la web, leer transcripciones de videos y sitios web, buscar ubicaciones y sus horarios de apertura, buscar videos y mucho más.
+
+
+    ### 🎯 Modos de enfoque
+
+
+    Cambia el enfoque de un chat temporalmente para alcanzar un objetivo específico. Marca una gran diferencia para obtener respuestas y ayuda mucho mejores de tus chatbots. Sin que tengas que ser un experto en diseñar solicitudes complejas para chatbots.
+
+
+    ### 💾 Ajustes y memorias
+
+
+    Permite que OpenMates te dé respuestas más personalizadas basadas en tus intereses, viajes, libros que querías leer, proyectos y más. Pero:
+
+    - ✅ solo cuando es necesario
+
+    - ✅ solo para el chat específico donde se necesita
+
+    - ✅ solo con los datos que consientes compartir claramente
+
+    - ✅ nunca se almacenan datos sensibles en el servidor en disco
+
+    Todos los ajustes y memorias se cifran y descifran en tus dispositivos. Igual que tus chats. Esto significa que el servidor nunca puede descifrarlos por sí solo. Solo tus dispositivos pueden, usando tu método de inicio de sesión.
+
+
+    ## 🎨 Diseñado para facilidad de uso
+
+
+    Por defecto, OpenMates procesa automáticamente tu solicitud con el modelo de IA más adecuado, compañero, habilidades de apps, modos de enfoque de apps y ajustes y memorias (después de tu consentimiento). Mientras te permite sobrescribir la selección automática en cualquier momento en el menú de ajustes o escribiendo @ en tu mensaje.
+
+
+    ## 🎓 Aprendizaje e inspiración
+
+
+    Si se usa correctamente, los chatbots de IA pueden ser la herramienta de aprendizaje personalizado más increíble jamás desarrollada. OpenMates implementa varias funcionalidades para ayudarte no solo con tareas, sino para seguir aprendiendo cada día. Con sugerencias de seguimiento y sugerencias de nuevos chats basadas en tus chats, y la función ''Inspiración Diaria'' que se añadirá pronto.
+
+
+    ## 🔒 Privacidad y cifrado
+
+
+    Solo tu dispositivo puede descifrar tus chats y tus ajustes y memorias sensibles de apps.
+
+    Mantienes el control total sobre qué datos se envían a OpenMates.
+
+    Solo la cantidad mínima de datos necesarios se envía al servidor para procesar tu solicitud, y nunca se almacena en disco.
+
+    Solo los datos cifrados asegurados por tu método de inicio de sesión se almacenan para sincronización en el servidor. Asegurando que incluso los atacantes no puedan leer tus chats pasados.
+
+    Los proveedores de IA que usamos nunca verán quién envió exactamente una solicitud. Y trabajamos en aún más medidas para fortalecer aún más tu privacidad.
+
+
+    ## 💰 Precios
+
+
+    Sin suscripción requerida, sin anuncios, sin compartir tus datos de usuario, sin capital de riesgo (para asegurar que OpenMates priorice los intereses de los usuarios).
+
+    En su lugar: un sistema simple y justo de pago por uso. Compras créditos de uso, luego - dependiendo de los precios que puedes encontrar para cada habilidad de App en la Tienda de Apps - se te cobra por solicitud. Y por supuesto: los créditos no expiran.
+
+
+    ---
+
+
+    👨‍💻 ¿Eres desarrollador de software? Entonces [haz clic aquí](#chat-id=demo-for-developers) para aprender más sobre cómo OpenMates puede ser muy potente para construir nuevo software.
+
+    '
+  fr: '# ✨ Des coéquipiers numériques pour tous
+
+
+    Avec OpenMates, vous disposez d''une équipe de chatbots IA spécialisés qui peuvent non seulement vous inspirer et vous enseigner de nouvelles connaissances, mais aussi accomplir diverses tâches à l''aide d''apps. Rendre les aspects utiles de l''IA accessibles à tous, tout en protégeant votre vie privée et en vous donnant accès à tous les meilleurs modèles d''IA.
+
+    Par exemple, vous pouvez demander :
+
+    - 📰 "Des actualités récentes concernant les sujets abordés dans cette vidéo ? youtube.com/watch?v=…"
+
+    - 📚 "Explique la crise financière de 2008."
+
+    - 🍳 "Des idées de recettes pour des repas sains et faciles à préparer ?"
+
+
+    ## 🚀 Démarrage rapide
+
+
+    Appuyez sur le bouton S''inscrire en haut à droite pour vous inscrire, achetez des crédits d''utilisation et commencez à utiliser OpenMates. Ou continuez à lire pour en savoir plus sur OpenMates, et consultez les chats d''exemple dans le menu des chats en haut à gauche pour explorer ce que OpenMates peut faire.
+
+
+    ## 📱 Apps
+
+
+    Comme la simple recherche sur le web ne suffit pas pour accomplir les tâches quotidiennes, OpenMates prend également en charge diverses autres apps.
+
+    Dans l''[App Store](#settings/appstore), vous avez un aperçu de toutes les différentes apps que vos coéquipiers numériques peuvent utiliser pour répondre à vos demandes. Ainsi que leurs compétences, modes de focus et paramètres et mémoires.
+    Exemples : [Web](#settings/appstore/web), [Cartes](#settings/appstore/maps), [Actualités](#settings/appstore/news), [Vidéos](#settings/appstore/videos), [Code](#settings/appstore/code), Voyage, Docs et bien d''autres seront bientôt ajoutés.
+
+
+    ### 🛠️ Compétences
+
+
+    Permettent à vos coéquipiers d''interagir avec des services externes. Pour rechercher sur le web, lire des transcriptions vidéo et des sites web, rechercher des lieux et leurs horaires d''ouverture, rechercher des vidéos et bien plus encore.
+
+
+    ### 🎯 Modes de focus
+
+
+    Changez temporairement le focus d''un chat pour atteindre un objectif spécifique. Fait une énorme différence pour obtenir de bien meilleures réponses et une meilleure aide de vos chatbots. Sans que vous ayez besoin d''être expert dans la conception de requêtes complexes pour les chatbots.
+
+
+    ### 💾 Paramètres et mémoires
+
+
+    Permet à OpenMates de vous donner des réponses plus personnalisées basées sur vos intérêts, voyages, livres que vous vouliez lire, projets et plus encore. Mais :
+
+    - ✅ uniquement quand c''est nécessaire
+
+    - ✅ uniquement pour le chat spécifique où c''est nécessaire
+
+    - ✅ uniquement avec les données que vous consentez clairement à partager
+
+    - ✅ aucune donnée sensible n''est jamais stockée sur le serveur sur disque
+
+    Tous les paramètres et mémoires sont chiffrés et déchiffrés sur vos appareils. Tout comme vos chats. Cela signifie que le serveur ne peut jamais les déchiffrer par lui-même. Seuls vos appareils le peuvent, en utilisant votre méthode de connexion.
+
+
+    ## 🎨 Conçu pour la facilité d''utilisation
+
+
+    Par défaut, OpenMates traite automatiquement votre demande avec le modèle d''IA le mieux adapté, le coéquipier, les compétences d''apps, les modes de focus d''apps et les paramètres et mémoires (après votre consentement). Tout en vous permettant de remplacer la sélection automatique à tout moment dans le menu des paramètres ou en tapant @ dans votre message.
+
+
+    ## 🎓 Apprentissage et inspiration
+
+
+    Utilisés correctement, les chatbots IA peuvent être l''outil d''apprentissage personnalisé le plus incroyable jamais développé. OpenMates implémente diverses fonctionnalités pour vous aider non seulement dans vos tâches, mais pour continuer à apprendre chaque jour. Avec des suggestions de suivi et des suggestions de nouveaux chats basées sur vos chats, et la fonctionnalité ''Inspiration Quotidienne'' qui sera bientôt ajoutée.
+
+
+    ## 🔒 Confidentialité et chiffrement
+
+
+    Seul votre appareil peut déchiffrer vos chats et vos paramètres et mémoires d''apps sensibles.
+
+    Vous gardez le contrôle total sur les données envoyées à OpenMates.
+
+    Seule la quantité minimale de données nécessaire est envoyée au serveur pour traiter votre demande - et jamais stockée sur disque.
+
+    Seules les données chiffrées sécurisées par votre méthode de connexion sont stockées pour la synchronisation sur le serveur. Garantissant que même des attaquants ne pourraient pas lire vos chats passés.
+
+    Les fournisseurs d''IA que nous utilisons ne verront jamais qui a exactement envoyé une demande. Et nous travaillons sur encore plus de mesures pour renforcer davantage votre vie privée.
+
+
+    ## 💰 Tarifs
+
+
+    Pas d''abonnement requis, pas de publicités, pas de partage de vos données utilisateur, pas de capital-risque (pour garantir que OpenMates reste axé sur les intérêts des utilisateurs).
+
+    À la place : un système simple et équitable de paiement à l''usage. Vous achetez des crédits d''utilisation, puis - en fonction des prix que vous pouvez trouver pour chaque compétence d''App dans l''App Store - vous êtes facturé par demande. Et bien sûr : les crédits n''expirent pas.
+
+
+    ---
+
+
+    👨‍💻 Êtes-vous développeur logiciel ? Alors [cliquez ici](#chat-id=demo-for-developers) pour en savoir plus sur la façon dont OpenMates peut être super puissant pour construire de nouveaux logiciels.
+
+    '
+  it: '# ✨ Compagni di squadra digitali per tutti
+
+
+    Con OpenMates hai un team di chatbot IA specializzati che possono non solo ispirarti e insegnarti nuove conoscenze, ma anche svolgere varie attività utilizzando le app. Rendendo gli aspetti utili dell''IA accessibili a tutti, proteggendo la tua privacy e dandoti accesso a tutti i migliori modelli di IA.
+
+    Per esempio, puoi chiedere:
+
+    - 📰 "Ci sono notizie recenti riguardo agli argomenti discussi in questo video? youtube.com/watch?v=…"
+
+    - 📚 "Spiega la crisi finanziaria del 2008."
+
+    - 🍳 "Idee di ricette per pasti sani e facili da preparare?"
+
+
+    ## 🚀 Avvio rapido
+
+
+    Premi il pulsante Registrati in alto a destra per registrarti, acquista crediti di utilizzo e inizia a usare OpenMates. Oppure continua a leggere per saperne di più su OpenMates e consulta le chat di esempio nel menu delle chat in alto a sinistra per esplorare cosa può fare OpenMates.
+
+
+    ## 📱 App
+
+
+    Poiché la sola ricerca sul web non è sufficiente per svolgere le attività quotidiane, OpenMates supporta anche varie altre app.
+
+    Nell''[App Store](#settings/appstore) hai una panoramica di tutte le varie app che i tuoi compagni di squadra digitali possono utilizzare per soddisfare le tue richieste. E le loro competenze, modalità di focus e impostazioni e memorie.
+    Esempi: [Web](#settings/appstore/web), [Mappe](#settings/appstore/maps), [Notizie](#settings/appstore/news), [Video](#settings/appstore/videos), [Codice](#settings/appstore/code), Viaggi, Documenti e molte altre saranno aggiunte presto.
+
+
+    ### 🛠️ Competenze
+
+
+    Permettono ai tuoi compagni di interagire con servizi esterni. Per cercare sul web, leggere trascrizioni video e siti web, cercare luoghi e i loro orari di apertura, cercare video e molto altro.
+
+
+    ### 🎯 Modalità di focus
+
+
+    Cambia temporaneamente il focus di una chat per raggiungere un obiettivo specifico. Fa un''enorme differenza nell''ottenere risposte e aiuto molto migliori dai tuoi chatbot. Senza che tu debba essere un esperto nella progettazione di richieste complesse per i chatbot.
+
+
+    ### 💾 Impostazioni e memorie
+
+
+    Permette a OpenMates di darti risposte più personalizzate basate sui tuoi interessi, viaggi, libri che volevi leggere, progetti e altro. Ma:
+
+    - ✅ solo quando è necessario
+
+    - ✅ solo per la chat specifica dove è necessario
+
+    - ✅ solo con i dati che consenti chiaramente di condividere
+
+    - ✅ nessun dato sensibile viene mai memorizzato sul server su disco
+
+    Tutte le impostazioni e memorie vengono cifrate e decifrate sui tuoi dispositivi. Proprio come le tue chat. Questo significa che il server non può mai decifrarle da solo. Solo i tuoi dispositivi possono, utilizzando il tuo metodo di accesso.
+
+
+    ## 🎨 Progettato per la facilità d''uso
+
+
+    Per impostazione predefinita, OpenMates elabora automaticamente la tua richiesta con il modello di IA più adatto, il compagno, le competenze delle app, le modalità di focus delle app e le impostazioni e memorie (dopo il tuo consenso). Permettendoti di sovrascrivere la selezione automatica in qualsiasi momento nel menu delle impostazioni o digitando @ nel tuo messaggio.
+
+
+    ## 🎓 Apprendimento e ispirazione
+
+
+    Se usati correttamente, i chatbot IA possono essere lo strumento di apprendimento personalizzato più incredibile mai sviluppato. OpenMates implementa varie funzionalità per aiutarti non solo con le attività, ma per continuare a imparare ogni giorno. Con suggerimenti di follow-up e suggerimenti di nuove chat basati sulle tue chat, e la funzione ''Ispirazione Quotidiana'' che sarà aggiunta presto.
+
+
+    ## 🔒 Privacy e crittografia
+
+
+    Solo il tuo dispositivo può decifrare le tue chat e le tue impostazioni e memorie sensibili delle app.
+
+    Mantieni il pieno controllo su quali dati vengono inviati a OpenMates.
+
+    Solo la quantità minima di dati necessaria viene inviata al server per elaborare la tua richiesta - e mai memorizzata su disco.
+
+    Solo i dati cifrati protetti dal tuo metodo di accesso vengono memorizzati per la sincronizzazione sul server. Garantendo che anche gli aggressori non possano leggere le tue chat passate.
+
+    I fornitori di IA che utilizziamo non vedranno mai chi ha esattamente inviato una richiesta. E lavoriamo su ancora più misure per rafforzare ulteriormente la tua privacy.
+
+
+    ## 💰 Prezzi
+
+
+    Nessun abbonamento richiesto, nessuna pubblicità, nessuna condivisione dei tuoi dati utente, nessun capitale di rischio (per garantire che OpenMates rimanga incentrato sugli interessi degli utenti).
+
+    Invece: un sistema semplice e giusto di pagamento a consumo. Acquisti crediti di utilizzo, poi - a seconda dei prezzi che puoi trovare per ogni competenza dell''App nell''App Store - ti viene addebitato per richiesta. E naturalmente: i crediti non scadono.
+
+
+    ---
+
+
+    👨‍💻 Sei uno sviluppatore software? Allora [clicca qui](#chat-id=demo-for-developers) per scoprire come OpenMates può essere super potente per costruire nuovi software.
+
+    '
 follow_up_1:
   context: Follow-up suggestion 1 - link to pricing section
   en: How much does it cost?
   de: Wie viel kostet es?
+  es: ¿Cuánto cuesta?
+  fr: Combien ça coûte ?
+  it: Quanto costa?
 follow_up_2:
   context: Follow-up suggestion 2 - explore apps
   en: What apps are available?
   de: Welche Apps sind verfügbar?
+  es: ¿Qué apps están disponibles?
+  fr: Quelles apps sont disponibles ?
+  it: Quali app sono disponibili?
 follow_up_3:
   context: Follow-up suggestion 3 - privacy details
   en: Tell me more about privacy
   de: Erzähl mir mehr über Datenschutz
+  es: Cuéntame más sobre la privacidad
+  fr: Dis-moi en plus sur la confidentialité
+  it: Dimmi di più sulla privacy

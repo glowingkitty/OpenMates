@@ -26,7 +26,7 @@ export const imprintChat: DemoChat = {
 			// See buildImprintContent() in buildLegalContent.ts
 			// Note: Full contact details are shown via SVG images in the Svelte component
 			content: '', // Placeholder - will be built from translation keys
-			timestamp: '2025-01-01T00:00:00Z'
+			timestamp: '2026-01-28T00:00:00Z'
 		}
 	],
 	follow_up_suggestions: [
@@ -42,7 +42,7 @@ export const imprintChat: DemoChat = {
 		icon_names: ['building', 'map-pin', 'mail'],
 		featured: false, // Don't show in regular sidebar (but always visible)
 		order: 5, // Order: 1=welcome, 2=different, 3=privacy, 4=terms, 5=imprint
-		lastUpdated: '2025-01-01T00:00:00Z'
+		lastUpdated: '2026-01-28T00:00:00Z' // Updated date kept for consistency, though imprint doesn't display it
 	}
 };
 

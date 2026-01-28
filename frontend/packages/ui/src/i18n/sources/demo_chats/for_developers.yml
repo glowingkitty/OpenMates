@@ -2,10 +2,16 @@ title:
   context: Title of for_developers demo chat - introduction for developers
   en: OpenMates | For developers
   de: OpenMates | Für Entwickler
+  es: OpenMates | Para desarrolladores
+  fr: OpenMates | Pour les développeurs
+  it: OpenMates | Per sviluppatori
 description:
   context: Description of for_developers demo chat for SEO
   en: AI-powered development tools with REST API, CLI, privacy, and no MCP setup needed
   de: KI-gestützte Entwicklertools mit REST API, CLI, Datenschutz und ohne MCP-Setup
+  es: Herramientas de desarrollo con IA, REST API, CLI, privacidad y sin configuración MCP
+  fr: Outils de développement IA avec REST API, CLI, confidentialité et sans configuration MCP
+  it: Strumenti di sviluppo IA con REST API, CLI, privacy e senza configurazione MCP
 message:
   context: Main for_developers message content explaining OpenMates features for developers
   en: '# 👨‍💻 Digital team mates for developers
@@ -144,15 +150,228 @@ message:
     📚 Hast du schon die Einführung für alle gelesen? Falls nicht, dann [klicke hier](#chat-id=demo-for-everyone), um alle Grundlagen von OpenMates zu lernen.
 
     '
+  es: '# 👨‍💻 Compañeros de equipo digitales para desarrolladores
+
+
+    OpenMates es también una herramienta increíble para desarrolladores. Para todo, desde preguntas rápidas, planificación de grandes proyectos, generación de código basado en la documentación más actualizada y mucho más. Todo sin configuraciones complicadas de servidores MCP y protegiendo tu privacidad y dándote acceso a todos los mejores modelos de IA. Una REST API para todas las habilidades de apps incluida, y un potente CLI y paquetes pip y npm también están planeados, para permitirte interactuar con tus chats desde cualquier lugar.
+
+
+    ## 🚀 Inicio rápido
+
+
+    Pulsa el botón de Registrarse en la parte superior derecha para registrarte, compra créditos de uso y comienza a usar OpenMates. O sigue leyendo para aprender más sobre OpenMates para desarrolladores, y revisa los chats de ejemplo en el menú de chats en la parte superior izquierda para explorar lo que OpenMates puede hacer.
+
+
+    ## 📱 Apps para desarrolladores
+
+
+    Con Apps en OpenMates, no hay necesidad de configuraciones MCP complicadas, lentas e inseguras con claves API en texto plano en archivos de configuración JSON.
+
+    En su lugar, OpenMates usará automáticamente el modelo de IA adecuado, habilidad de app, modo de enfoque, ajustes y memorias optimizados para tu solicitud (mientras te permite sobrescribir la selección automática vía @ en tu mensaje).
+
+    Algunos ejemplos de cómo las Apps hacen OpenMates más útil:
+
+    - 📖 [Código | Obtener docs](#settings/appstore/code/skills/get-docs): Consulta la documentación más reciente de una API, framework o lenguaje antes de generar archivos de código.
+
+    - 🔍 [Web | Buscar](#settings/appstore/web/skills/search): Busca en la web para mejorar la precisión de las respuestas.
+
+    - ✅ Verificaciones automáticas de linter para código generado (próximamente).
+
+    - 🎯 Modos de enfoque para planificar proyectos, mejorar la seguridad, etc.
+
+    - 💾 Ajustes y memorias para que no tengas que mencionar detalles del proyecto todo el tiempo.
+
+
+    ## 🔌 REST API
+
+
+    La REST API de OpenMates te permite usar OpenMates de forma similar a otras APIs de LLM, e interactuar con todas las habilidades de Apps de OpenMates. Así puedes implementar OpenMates y sus habilidades de Apps fácilmente en tu propio software.
+
+
+    ## 💻 CLI, paquetes pip y npm - un enfoque centrado en la usabilidad
+
+
+    El CLI y los paquetes pip y npm, que se lanzarán pronto, te permitirán acceso completo a tu cuenta de OpenMates desde cualquier lugar. Asegurando cifrado de conocimiento cero y que mantengas el control. Accede a todos tus chats y habilidades de Apps desde tu terminal.
+
+    O encarga a OpenMates construir o depurar un proyecto de software en tu VM / servidor de desarrollo, pero con la comodidad de gestionar esa tarea en tu navegador web en lugar de desde una terminal.
+
+
+    ## 🔒 Privacidad y cifrado
+
+
+    OpenMates nunca entrena ningún modelo con tus datos. Y todos tus chats, detalles de proyectos y otros ajustes y memorias de apps se cifran y descifran con conocimiento cero en tu dispositivo. Cuando haces una solicitud, solo la cantidad mínima de datos necesaria se procesa en el servidor y nunca se almacena en disco de manera que el servidor o hackers puedan descifrar los chats o tus ajustes y memorias de Apps.
+
+
+    ## 🛡️ Código abierto como protección contra la enshittification
+
+
+    Los intereses de los usuarios primero, es la filosofía central detrás de OpenMates. Para asegurar esto también en el futuro, [OpenMates es completamente de código abierto bajo AGPL 3](https://github.com/glowingkitty/openmates). Porque ser de código abierto es la base para prevenir que la enshittification empeore el software con el tiempo.
+
+    Además, puedes verificar la arquitectura y seguridad de OpenMates en cualquier momento y eres bienvenido a contribuir, para hacer el proyecto aún mejor para todos.
+
+    Si quieres alojar OpenMates tú mismo y encargarte de toda la configuración y mantenimiento, también puedes. Usando tus propias claves API para los diversos servicios de IA, y en el futuro también usando modelos offline, para máxima privacidad y control.
+
+
+    ---
+
+
+    📚 ¿Ya leíste la introducción para todos? Si no, entonces [haz clic aquí](#chat-id=demo-for-everyone) para aprender todos los conceptos básicos de OpenMates.
+
+    '
+  fr: '# 👨‍💻 Des coéquipiers numériques pour les développeurs
+
+
+    OpenMates est aussi un outil formidable pour les développeurs. Pour tout, des questions rapides à la planification de grands projets, la génération de code basée sur la documentation la plus récente et bien plus encore. Le tout sans configurations compliquées de serveurs MCP et en protégeant votre vie privée et en vous donnant accès à tous les meilleurs modèles d''IA. Une REST API pour toutes les compétences d''apps incluse, et un puissant CLI ainsi que des packages pip et npm sont également prévus, pour vous permettre d''interagir avec vos chats de n''importe où.
+
+
+    ## 🚀 Démarrage rapide
+
+
+    Appuyez sur le bouton S''inscrire en haut à droite pour vous inscrire, achetez des crédits d''utilisation et commencez à utiliser OpenMates. Ou continuez à lire pour en savoir plus sur OpenMates pour les développeurs, et consultez les chats d''exemple dans le menu des chats en haut à gauche pour explorer ce que OpenMates peut faire.
+
+
+    ## 📱 Apps pour les développeurs
+
+
+    Avec les Apps sur OpenMates, pas besoin de configurations MCP compliquées, chronophages et non sécurisées avec des clés API en clair dans des fichiers de configuration JSON.
+
+    À la place, OpenMates utilisera automatiquement le bon modèle d''IA, la compétence d''app, le mode de focus, les paramètres et mémoires optimisés pour votre demande (tout en vous permettant de remplacer la sélection automatique via @ dans votre message).
+
+    Quelques exemples de comment les Apps rendent OpenMates plus utile :
+
+    - 📖 [Code | Obtenir la doc](#settings/appstore/code/skills/get-docs) : Vérifie la dernière documentation d''une API, framework ou langage avant de générer des fichiers de code.
+
+    - 🔍 [Web | Recherche](#settings/appstore/web/skills/search) : Recherche sur le web pour améliorer la précision des réponses.
+
+    - ✅ Vérifications automatiques du linter pour le code généré (bientôt disponible).
+
+    - 🎯 Modes de focus pour planifier des projets, améliorer la sécurité, etc.
+
+    - 💾 Paramètres et mémoires pour ne pas avoir à mentionner les détails du projet à chaque fois.
+
+
+    ## 🔌 REST API
+
+
+    La REST API d''OpenMates vous permet d''utiliser OpenMates de manière similaire aux autres API LLM, et d''interagir avec toutes les compétences d''Apps d''OpenMates. Vous pouvez ainsi implémenter facilement OpenMates et ses compétences d''Apps dans votre propre logiciel.
+
+
+    ## 💻 CLI, packages pip et npm - une approche axée sur l''utilisabilité
+
+
+    Le CLI et les packages pip et npm, bientôt disponibles, vous donneront un accès complet à votre compte OpenMates de n''importe où. Tout en garantissant un chiffrement à connaissance nulle et en vous laissant le contrôle. Accédez à tous vos chats et compétences d''Apps depuis votre terminal.
+
+    Ou confiez à OpenMates la construction ou le débogage d''un projet logiciel sur votre VM / serveur de développement, avec le confort de gérer cette tâche dans votre navigateur web plutôt que depuis un terminal.
+
+
+    ## 🔒 Confidentialité et chiffrement
+
+
+    OpenMates n''entraîne jamais de modèles sur vos données. Et tous vos chats, détails de projets et autres paramètres et mémoires d''apps sont chiffrés et déchiffrés à connaissance nulle sur votre appareil. Lorsque vous faites une demande, seule la quantité minimale de données nécessaire est traitée sur le serveur et jamais stockée sur disque d''une manière permettant au serveur ou à des pirates de déchiffrer les chats ou vos paramètres et mémoires d''Apps.
+
+
+    ## 🛡️ Open source comme protection contre l''enshittification
+
+
+    Les intérêts des utilisateurs d''abord, est la philosophie centrale derrière OpenMates. Pour garantir cela aussi à l''avenir, [OpenMates est entièrement open source sous AGPL 3](https://github.com/glowingkitty/openmates). Car être open source est la base pour empêcher l''enshittification de détériorer le logiciel au fil du temps.
+
+    De plus, vous pouvez vérifier l''architecture et la sécurité d''OpenMates à tout moment et êtes invité à contribuer, pour rendre le projet encore meilleur pour tous.
+
+    Si vous souhaitez auto-héberger OpenMates et vous occuper de toute la configuration et la maintenance, vous le pouvez également. En utilisant vos propres clés API pour les différents services d''IA, et à l''avenir aussi des modèles hors ligne, pour une confidentialité et un contrôle maximum.
+
+
+    ---
+
+
+    📚 Avez-vous déjà lu l''introduction pour tous ? Si non, alors [cliquez ici](#chat-id=demo-for-everyone) pour apprendre toutes les bases d''OpenMates.
+
+    '
+  it: '# 👨‍💻 Compagni di squadra digitali per sviluppatori
+
+
+    OpenMates è anche uno strumento fantastico per gli sviluppatori. Per tutto, dalle domande rapide alla pianificazione di grandi progetti, generazione di codice basata sulla documentazione più aggiornata e molto altro. Il tutto senza complicate configurazioni di server MCP e proteggendo la tua privacy e dandoti accesso a tutti i migliori modelli di IA. Una REST API per tutte le competenze delle app inclusa, e un potente CLI e pacchetti pip e npm sono anche previsti, per permetterti di interagire con le tue chat da qualsiasi luogo.
+
+
+    ## 🚀 Avvio rapido
+
+
+    Premi il pulsante Registrati in alto a destra per registrarti, acquista crediti di utilizzo e inizia a usare OpenMates. Oppure continua a leggere per saperne di più su OpenMates per gli sviluppatori, e consulta le chat di esempio nel menu delle chat in alto a sinistra per esplorare cosa può fare OpenMates.
+
+
+    ## 📱 App per sviluppatori
+
+
+    Con le App su OpenMates, non c''è bisogno di configurazioni MCP complicate, dispendiose in termini di tempo e insicure con chiavi API in chiaro in file di configurazione JSON.
+
+    Invece, OpenMates utilizzerà automaticamente il modello di IA giusto, la competenza dell''app, la modalità di focus, le impostazioni e memorie ottimizzate per la tua richiesta (permettendoti di sovrascrivere la selezione automatica tramite @ nel tuo messaggio).
+
+    Alcuni esempi di come le App rendono OpenMates più utile:
+
+    - 📖 [Codice | Ottieni doc](#settings/appstore/code/skills/get-docs): Controlla l''ultima documentazione per un''API, framework o linguaggio prima di generare file di codice.
+
+    - 🔍 [Web | Cerca](#settings/appstore/web/skills/search): Cerca sul web per migliorare la precisione delle risposte.
+
+    - ✅ Controlli automatici del linter per il codice generato (in arrivo).
+
+    - 🎯 Modalità di focus per pianificare progetti, migliorare la sicurezza, ecc.
+
+    - 💾 Impostazioni e memorie così non devi menzionare i dettagli del progetto ogni volta.
+
+
+    ## 🔌 REST API
+
+
+    La REST API di OpenMates ti permette di usare OpenMates in modo simile ad altre API LLM, e di interagire con tutte le competenze delle App di OpenMates. Così puoi implementare facilmente OpenMates e le sue competenze delle App nel tuo software.
+
+
+    ## 💻 CLI, pacchetti pip e npm - un approccio incentrato sull''usabilità
+
+
+    Il CLI e i pacchetti pip e npm, di prossimo rilascio, ti daranno pieno accesso al tuo account OpenMates da qualsiasi luogo. Garantendo crittografia a conoscenza zero e mantenendo il controllo. Accedi a tutte le tue chat e competenze delle App dal tuo terminale.
+
+    Oppure incarica OpenMates di costruire o fare il debug di un progetto software sulla tua VM / server di sviluppo, con la comodità di gestire quel compito nel tuo browser web invece che da un terminale.
+
+
+    ## 🔒 Privacy e crittografia
+
+
+    OpenMates non addestra mai alcun modello con i tuoi dati. E tutte le tue chat, i dettagli dei progetti e altre impostazioni e memorie delle app vengono cifrate e decifrate a conoscenza zero sul tuo dispositivo. Quando fai una richiesta, solo la quantità minima di dati necessaria viene elaborata sul server e mai memorizzata su disco in modo che il server o gli hacker possano decifrare le chat o le tue impostazioni e memorie delle App.
+
+
+    ## 🛡️ Open source come protezione contro l''enshittification
+
+
+    Gli interessi degli utenti prima di tutto, è la filosofia centrale dietro OpenMates. Per garantire questo anche in futuro, [OpenMates è completamente open source sotto AGPL 3](https://github.com/glowingkitty/openmates). Perché essere open source è la base per prevenire che l''enshittification peggiori il software nel tempo.
+
+    Inoltre, puoi verificare l''architettura e la sicurezza di OpenMates in qualsiasi momento e sei il benvenuto a contribuire, per rendere il progetto ancora migliore per tutti.
+
+    Se vuoi auto-ospitare OpenMates e occuparti di tutta la configurazione e manutenzione, puoi farlo. Usando le tue chiavi API per i vari servizi di IA, e in futuro anche usando modelli offline, per la massima privacy e controllo.
+
+
+    ---
+
+
+    📚 Hai già letto l''introduzione per tutti? Se no, allora [clicca qui](#chat-id=demo-for-everyone) per imparare tutte le basi di OpenMates.
+
+    '
 follow_up_1:
   context: Follow-up suggestion 1 - REST API details
   en: How does the REST API work?
   de: Wie funktioniert die REST API?
+  es: ¿Cómo funciona la REST API?
+  fr: Comment fonctionne la REST API ?
+  it: Come funziona la REST API?
 follow_up_2:
   context: Follow-up suggestion 2 - privacy for devs
   en: Is my code kept private?
   de: Bleibt mein Code privat?
+  es: ¿Se mantiene privado mi código?
+  fr: Mon code reste-t-il privé ?
+  it: Il mio codice resta privato?
 follow_up_3:
   context: Follow-up suggestion 3 - self hosting
   en: How can I self-host OpenMates?
   de: Wie kann ich OpenMates selbst hosten?
+  es: ¿Cómo puedo alojar OpenMates yo mismo?
+  fr: Comment puis-je auto-héberger OpenMates ?
+  it: Come posso ospitare OpenMates autonomamente?

@@ -8,7 +8,7 @@
  */
 
 import { embedStore } from './embedStore';
-import { getCommunityDemoEmbed } from '../demo_chats/communityDemoStore';
+import { getCommunityDemoEmbed, isCacheLoaded, loadFromCache, waitForLoadingComplete } from '../demo_chats/communityDemoStore';
 import { EmbedNodeAttributes } from '../message_parsing/types';
 import { generateUUID } from '../message_parsing/utils';
 
@@ -69,6 +69,20 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
     
     // Second, check community demo store for cleartext demo embeds
     // Community demo embeds are stored separately with cleartext content
+    // IMPORTANT: Wait for the demo store to load from cache first to avoid race conditions
+    // where the embed component tries to render before the demo chat data is available
+    if (!isCacheLoaded()) {
+      console.debug('[embedResolver] Waiting for community demo store cache to load...');
+      try {
+        // Ensure the cache is loaded from IndexedDB
+        await loadFromCache();
+        // Also wait for any server fetch in progress
+        await waitForLoadingComplete();
+      } catch (error) {
+        console.warn('[embedResolver] Error waiting for demo store cache:', error);
+      }
+    }
+    
     const demoEmbed = getCommunityDemoEmbed(embed_id);
     if (demoEmbed) {
       console.debug('[embedResolver] Found embed in community demo store:', embed_id);

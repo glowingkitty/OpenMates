@@ -44,29 +44,6 @@ last_updated:
   cs: ''
   sv: ''
   verified_by_human: []
-last_updated_date:
-  context: Actual last update date of terms - update this when the terms change
-  en: January 1, 2025
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  verified_by_human: []
 agreement.heading:
   context: Section heading for agreement
   en: Agreement to Terms
