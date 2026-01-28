@@ -2,6 +2,8 @@
 """
 Script to inspect demo chat data including metadata, translations, messages, embeds, and cache status.
 
+Data is now stored in cleartext (not encrypted).
+
 This script:
 1. Takes a demo ID (demo-1, demo-2, etc.) or UUID as argument
 2. Fetches demo chat metadata from Directus
@@ -35,7 +37,6 @@ sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.utils.encryption import EncryptionService
 
 # Configure logging
 logging.basicConfig(
@@ -474,18 +475,21 @@ def format_output_text(
             lines.append("  Approved By Admin:     ❌ NOT APPROVED")
         lines.append("")
 
-        # Encrypted fields (show presence only)
-        encrypted_fields = [
-            ('encrypted_category', 'Category'),
-            ('encrypted_icon', 'Icon'),
+        # Cleartext fields
+        cleartext_fields = [
+            ('category', 'Category'),
+            ('icon', 'Icon'),
         ]
 
-        lines.append("  Encrypted Fields Present:")
-        for field_key, field_name in encrypted_fields:
+        lines.append("  Cleartext Fields:")
+        for field_key, field_name in cleartext_fields:
             value = demo_metadata.get(field_key)
             has_value = "✓" if value else "✗"
-            size_info = f" ({len(value)} chars)" if value else ""
-            lines.append(f"    {has_value} {field_name}{size_info}")
+            if value:
+                truncated_value = truncate_string(value, 30)
+                lines.append(f"    {has_value} {field_name}: {truncated_value}")
+            else:
+                lines.append(f"    {has_value} {field_name}: N/A")
         lines.append("")
 
         # Content hash
@@ -512,19 +516,22 @@ def format_output_text(
             lines.append(f"  Language: {lang.upper()}")
             lines.append(f"    Translation ID: {translation.get('id', 'N/A')}")
 
-            # Encrypted fields presence
-            encrypted_fields = [
-                ('encrypted_title', 'Title'),
-                ('encrypted_summary', 'Summary'),
-                ('encrypted_follow_up_suggestions', 'Follow-up Suggestions'),
+            # Cleartext fields
+            cleartext_fields = [
+                ('title', 'Title'),
+                ('summary', 'Summary'),
+                ('follow_up_suggestions', 'Follow-up Suggestions'),
             ]
 
-            lines.append("    Encrypted Fields Present:")
-            for field_key, field_name in encrypted_fields:
+            lines.append("    Cleartext Fields:")
+            for field_key, field_name in cleartext_fields:
                 value = translation.get(field_key)
                 has_value = "✓" if value else "✗"
-                size_info = f" ({len(value)} chars)" if value else ""
-                lines.append(f"      {has_value} {field_name}{size_info}")
+                if value:
+                    truncated_value = truncate_string(value, 30)
+                    lines.append(f"      {has_value} {field_name}: {truncated_value}")
+                else:
+                    lines.append(f"      {has_value} {field_name}: N/A")
             lines.append("")
 
     # ===================== MESSAGES =====================
@@ -563,21 +570,26 @@ def format_output_text(
             msg_id = msg.get('id', 'N/A')
             role = msg.get('role', 'unknown')
             original_created_at = format_timestamp(msg.get('original_created_at'))
-            has_content = "✓" if msg.get('encrypted_content') else "✗"
-            content_len = len(msg.get('encrypted_content', '')) if msg.get('encrypted_content') else 0
+            content = msg.get('content', '')
+            has_content = "✓" if content else "✗"
+            content_len = len(content) if content else 0
 
             # Role indicator
             role_emoji = {"user": "👤", "assistant": "🤖", "system": "⚙️"}.get(role, "❓")
 
             lines.append(f"  {i:3}. {role_emoji} [{role:9}] {original_created_at}")
             lines.append(f"       ID: {msg_id}")
-            lines.append(f"       Content: {has_content} ({content_len} chars encrypted)")
+            if content:
+                truncated_content = truncate_string(content, 50)
+                lines.append(f"       Content: {has_content} ({content_len} chars) - {truncated_content}")
+            else:
+                lines.append(f"       Content: {has_content}")
 
-            # Show additional encrypted fields
-            if msg.get('encrypted_category'):
-                lines.append("       Category: ✓ (encrypted)")
-            if msg.get('encrypted_model_name'):
-                lines.append("       Model Name: ✓ (encrypted)")
+            # Show additional cleartext fields
+            if msg.get('category'):
+                lines.append(f"       Category: {truncate_string(msg.get('category'), 30)}")
+            if msg.get('model_name'):
+                lines.append(f"       Model Name: {msg.get('model_name')}")
 
         if len(messages) > messages_limit:
             lines.append(f"\n  ... and {len(messages) - messages_limit} more message(s)")
@@ -626,8 +638,9 @@ def format_output_text(
             original_embed_id = embed.get('original_embed_id', 'N/A')
             embed_type = embed.get('type', 'unknown')
             original_created_at = format_timestamp(embed.get('original_created_at'))
-            has_content = "✓" if embed.get('encrypted_content') else "✗"
-            content_len = len(embed.get('encrypted_content', '')) if embed.get('encrypted_content') else 0
+            content = embed.get('content', '')
+            has_content = "✓" if content else "✗"
+            content_len = len(content) if content else 0
 
             # Type indicator
             type_emoji = {"text": "📄", "image": "🖼️", "code": "💻", "file": "📎"}.get(embed_type, "❓")
@@ -635,7 +648,11 @@ def format_output_text(
             lines.append(f"  {i:3}. {type_emoji} [{embed_type:6}] {original_created_at}")
             lines.append(f"       Directus ID: {embed_id}")
             lines.append(f"       Original Embed ID: {original_embed_id}")
-            lines.append(f"       Content: {has_content} ({content_len} chars encrypted)")
+            if content:
+                truncated_content = truncate_string(content, 50)
+                lines.append(f"       Content: {has_content} ({content_len} chars) - {truncated_content}")
+            else:
+                lines.append(f"       Content: {has_content}")
 
         if len(embeds) > embeds_limit:
             lines.append(f"\n  ... and {len(embeds) - embeds_limit} more embed(s)")
@@ -785,10 +802,8 @@ async def main():
 
     # Initialize services
     cache_service = CacheService()
-    encryption_service = EncryptionService()
     directus_service = DirectusService(
-        cache_service=cache_service,
-        encryption_service=encryption_service
+        cache_service=cache_service
     )
 
     try:
