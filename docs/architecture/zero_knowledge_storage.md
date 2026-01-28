@@ -15,7 +15,7 @@ OpenMates implements client-side encryption for all sensitive data storage, ensu
 
 For AI inference, the client **does** send cleartext chat content to the server for processing. Additionally:
 
-- **Server-side caching**: Last 3 chats per user are cached via HashiCorp Vault encryption for faster inference
+- **Server-side caching**: Last 3 chats per user are cached via HashiCorp Vault encryption (72-hour TTL, LRU eviction) for faster inference
 - **Performance optimization**: Prevents client from resending full chat history on each request
 - **Ephemeral access**: Server processes cleartext only during active inference requests
 - **Zero-knowledge principle**: Server cannot decrypt historical stored chats without user providing keys
@@ -31,9 +31,9 @@ The key distinction: Server needs cleartext for active AI processing, but cannot
 During user signup:
 1. Client generates unique master encryption key (`encryption_key_user_local`)
 2. Master key wrapped using login method-specific derivation:
-   - **Password**: Argon2 key derivation from password + salt
+   - **Password**: PBKDF2-SHA256 key derivation from password + salt (100k iterations)
    - **Passkey**: HKDF from WebAuthn PRF signature + user salt (deterministic per device)
-   - **Recovery Key**: Argon2 key derivation from recovery key + salt
+   - **Recovery Key**: PBKDF2-SHA256 key derivation from recovery key + salt (100k iterations)
 3. Wrapped master key stored on server, plaintext master key stays client-side only
 
 **Note**: Passkeys use WebAuthn PRF extension to generate deterministic signatures that serve as key material, enabling true passwordless login. For complete passkey implementation details, see [Passkeys](./passkeys.md).
@@ -69,7 +69,7 @@ During user signup:
 
 **Active Inference Processing**:
 - Client sends cleartext chat content for AI inference
-- Server caches last 3 chats per user (HashiCorp Vault encryption)
+- Server caches last 3 chats per user (HashiCorp Vault encryption, 72-hour TTL, LRU eviction)
 - Improves performance by reducing redundant data transmission
 - Cache is separate from permanent encrypted storage
 
@@ -135,9 +135,9 @@ Email encryption keys are derived client-side using SHA256 with the user's email
 - **Key derivation**: PBKDF2-SHA256 (100k iterations) combined with 2FA for passwords
 - **Random generation**: Cryptographically secure random generation
 - **Key wrapping**:
-  - **Passwords**: Argon2 for wrapping master keys
+  - **Passwords**: PBKDF2-SHA256 (100k iterations) for wrapping master keys
   - **Passkeys**: HKDF from WebAuthn PRF signature for wrapping master keys
-  - **Recovery Keys**: Argon2 for wrapping master keys
+  - **Recovery Keys**: PBKDF2-SHA256 (100k iterations) for wrapping master keys
 
 ### Security Architecture
 
@@ -154,7 +154,7 @@ Email encryption keys are derived client-side using SHA256 with the user's email
 - User-controlled key management and derivation
 
 **Layer 4: Secure Key Derivation**
-- Argon2 key derivation with unique user salts
+- PBKDF2-SHA256 key derivation with unique user salts (100k iterations)
 - Cryptographically secure random generation
 
 **Result**: Server compromise yields only encrypted blobs useless without user keys

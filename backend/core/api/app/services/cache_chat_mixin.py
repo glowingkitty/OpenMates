@@ -724,8 +724,12 @@ class ChatCacheMixin:
     # 5. user:{user_id}:chat:{chat_id}:messages:sync (List of CLIENT-encrypted JSON Message strings for client sync)
     
     def _get_ai_messages_key(self, user_id: str, chat_id: str) -> str:
-        """Returns cache key for AI inference messages (vault-encrypted, last 3 chats, 24h TTL)"""
+        """Returns cache key for AI inference messages (vault-encrypted, last 3 chats, 72h TTL)"""
         return f"user:{user_id}:chat:{chat_id}:messages:ai"
+
+    def _get_ai_cache_lru_key(self, user_id: str) -> str:
+        """Returns cache key for tracking which chats have AI cache (sorted set by last activity)"""
+        return f"user:{user_id}:ai_cache_lru"
     
     def _get_sync_messages_key(self, user_id: str, chat_id: str) -> str:
         """Returns cache key for client sync messages (client-encrypted, last 100 chats, 1h TTL)"""
@@ -928,6 +932,7 @@ class ChatCacheMixin:
         Adds a vault-encrypted message to AI inference cache (prepends).
         Used by message_received_handler.py when storing new messages for AI context.
         Automatically limits to last 100 messages per chat.
+        Also enforces TOP_N_MESSAGES_COUNT limit (LRU eviction of oldest chats).
         """
         client = await self.client
         if not client:
@@ -937,8 +942,12 @@ class ChatCacheMixin:
             await client.lpush(key, encrypted_message_json)
             if max_history_length > 0:
                 await client.ltrim(key, 0, max_history_length - 1)
-            await client.expire(key, self.CHAT_MESSAGES_TTL)  # 24 hours
+            await client.expire(key, self.CHAT_MESSAGES_TTL)  # 72 hours
             logger.debug(f"Added AI message to cache for chat {chat_id}")
+
+            # Track activity and enforce LRU limit (TOP_N_MESSAGES_COUNT)
+            await self._track_ai_cache_activity(user_id, chat_id)
+
             return True
         except Exception as e:
             logger.error(f"Error adding AI message to {key}: {e}")
@@ -966,6 +975,7 @@ class ChatCacheMixin:
         """
         Sets the entire AI message history for a chat (vault-encrypted).
         Primarily used during AI inference cache warming (last 3 chats).
+        Also enforces TOP_N_MESSAGES_COUNT limit (LRU eviction of oldest chats).
         """
         client = await self.client
         if not client:
@@ -977,9 +987,128 @@ class ChatCacheMixin:
                 await client.rpush(key, *encrypted_messages_json_list)
             await client.expire(key, ttl if ttl is not None else self.CHAT_MESSAGES_TTL)
             logger.debug(f"Set {len(encrypted_messages_json_list)} AI messages for chat {chat_id}")
+
+            # Track activity and enforce LRU limit (TOP_N_MESSAGES_COUNT)
+            await self._track_ai_cache_activity(user_id, chat_id)
+
             return True
         except Exception as e:
             logger.error(f"Error setting AI messages for {key}: {e}")
+            return False
+
+    async def _track_ai_cache_activity(self, user_id: str, chat_id: str) -> None:
+        """
+        Updates the AI cache LRU sorted set to track which chats have AI cache.
+        Score is current timestamp (for LRU ordering).
+        Also enforces TOP_N_MESSAGES_COUNT limit by evicting oldest chats and their embeds.
+        """
+        client = await self.client
+        if not client:
+            return
+
+        lru_key = self._get_ai_cache_lru_key(user_id)
+        try:
+            import time
+            current_timestamp = time.time()
+
+            # Add/update this chat in the LRU set with current timestamp as score
+            await client.zadd(lru_key, {chat_id: current_timestamp})
+            await client.expire(lru_key, self.CHAT_MESSAGES_TTL)  # Same TTL as AI cache
+
+            # Check if we need to evict old chats (enforce TOP_N_MESSAGES_COUNT limit)
+            total_chats = await client.zcard(lru_key)
+            if total_chats > self.TOP_N_MESSAGES_COUNT:
+                # Get chats to evict (oldest ones beyond the limit)
+                # ZRANGE with scores sorted ascending (oldest first)
+                chats_to_evict = await client.zrange(
+                    lru_key,
+                    0,
+                    total_chats - self.TOP_N_MESSAGES_COUNT - 1
+                )
+
+                # Get the remaining top N chat IDs (for embed cross-reference checking)
+                remaining_chat_ids_bytes = await client.zrange(
+                    lru_key,
+                    total_chats - self.TOP_N_MESSAGES_COUNT,
+                    -1
+                )
+                remaining_chat_ids = {
+                    cid.decode('utf-8') if isinstance(cid, bytes) else cid
+                    for cid in remaining_chat_ids_bytes
+                }
+
+                for evict_chat_id_bytes in chats_to_evict:
+                    evict_chat_id = evict_chat_id_bytes.decode('utf-8') if isinstance(evict_chat_id_bytes, bytes) else evict_chat_id_bytes
+
+                    # Delete the AI cache for this chat
+                    ai_cache_key = self._get_ai_messages_key(user_id, evict_chat_id)
+                    await client.delete(ai_cache_key)
+
+                    # Evict embeds that are only used by this chat
+                    await self._evict_chat_embeds(client, evict_chat_id, remaining_chat_ids)
+
+                    # Remove from LRU tracking
+                    await client.zrem(lru_key, evict_chat_id)
+                    logger.info(f"[AI_CACHE_LRU] Evicted AI cache for chat {evict_chat_id} (user {user_id[:8]}...) - exceeded TOP_N_MESSAGES_COUNT ({self.TOP_N_MESSAGES_COUNT})")
+
+        except Exception as e:
+            logger.error(f"Error tracking AI cache activity for user {user_id[:8]}..., chat {chat_id}: {e}")
+
+    async def _evict_chat_embeds(self, client, evict_chat_id: str, remaining_chat_ids: set) -> None:
+        """
+        Evicts embeds that are only used by the evicted chat.
+        Embeds used in any of the remaining chats are preserved.
+        """
+        try:
+            # Get embed IDs for the evicted chat
+            evict_embed_index_key = f"chat:{evict_chat_id}:embed_ids"
+            embed_ids_bytes = await client.smembers(evict_embed_index_key)
+
+            if not embed_ids_bytes:
+                return
+
+            # Collect embed indices for remaining chats to check cross-references
+            remaining_embed_ids: set = set()
+            for remaining_chat_id in remaining_chat_ids:
+                remaining_index_key = f"chat:{remaining_chat_id}:embed_ids"
+                remaining_embeds = await client.smembers(remaining_index_key)
+                for embed_id_bytes in remaining_embeds:
+                    embed_id = embed_id_bytes.decode('utf-8') if isinstance(embed_id_bytes, bytes) else embed_id_bytes
+                    remaining_embed_ids.add(embed_id)
+
+            # Evict embeds not used in remaining chats
+            evicted_count = 0
+            for embed_id_bytes in embed_ids_bytes:
+                embed_id = embed_id_bytes.decode('utf-8') if isinstance(embed_id_bytes, bytes) else embed_id_bytes
+                if embed_id not in remaining_embed_ids:
+                    # Embed is only used by evicted chat - delete it
+                    embed_cache_key = f"embed:{embed_id}"
+                    await client.delete(embed_cache_key)
+                    evicted_count += 1
+
+            # Delete the embed index for the evicted chat
+            await client.delete(evict_embed_index_key)
+
+            if evicted_count > 0:
+                logger.info(f"[AI_CACHE_LRU] Evicted {evicted_count} embed(s) for chat {evict_chat_id}")
+
+        except Exception as e:
+            logger.error(f"Error evicting embeds for chat {evict_chat_id}: {e}")
+
+    async def delete_ai_messages_history(self, user_id: str, chat_id: str) -> bool:
+        """Deletes the AI message history for a chat and removes it from LRU tracking."""
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_ai_messages_key(user_id, chat_id)
+        lru_key = self._get_ai_cache_lru_key(user_id)
+        try:
+            await client.delete(key)
+            await client.zrem(lru_key, chat_id)
+            logger.debug(f"Deleted AI messages history for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting AI messages for {key}: {e}")
             return False
 
     async def save_chat_message_and_update_versions(
@@ -1005,7 +1134,7 @@ class ChatCacheMixin:
             message_json_str = message_data.model_dump_json()
             logger.debug(f"CACHE_OP: Serialized vault-encrypted message for user {user_id}, chat {chat_id}, msg_id {message_data.id} to JSON: {message_json_str[:200]}...")
 
-            # Use AI cache method (vault-encrypted, 24h TTL, for AI inference only)
+            # Use AI cache method (vault-encrypted, 72h TTL, for AI inference only)
             save_success = await self.add_ai_message_to_history(
                 user_id,
                 chat_id,
