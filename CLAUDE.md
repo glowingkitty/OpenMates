@@ -60,6 +60,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 
 **Rules:**
 - **Scope**: NEVER add all files (e.g., `git add .`) to a commit. Only add files modified or created within the current chat session, unless explicitly instructed otherwise by the user.
+- **No Co-authors**: NEVER add `--trailer` flags, `Co-authored-by` lines, or any co-author information to git commits.
 - Use the imperative, present tense: "change" not "changed" nor "changes"
 - Don't capitalize the first letter of the description
 - No dot (.) at the end of the title
