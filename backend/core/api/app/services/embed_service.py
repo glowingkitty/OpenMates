@@ -1950,15 +1950,15 @@ class EmbedService:
             import json as json_lib
             embed_json = json_lib.dumps(embed_data)
             
-            # Cache with 24h TTL (same as message cache)
+            # Cache with 72h TTL (same as message cache - CHAT_MESSAGES_TTL)
             client = await self.cache_service.client
             if client:
-                await client.set(cache_key, embed_json, ex=86400)  # 24 hours
-                
+                await client.set(cache_key, embed_json, ex=259200)  # 72 hours
+
                 # Add to chat index for eviction tracking
                 chat_embed_index_key = f"chat:{chat_id}:embed_ids"
                 await client.sadd(chat_embed_index_key, embed_id)
-                await client.expire(chat_embed_index_key, 86400)  # 24 hours
+                await client.expire(chat_embed_index_key, 259200)  # 72 hours
                 
                 logger.debug(f"Cached embed {embed_id} at {cache_key}")
             else:

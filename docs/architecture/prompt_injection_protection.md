@@ -1,7 +1,5 @@
 # Prompt Injection Protection
 
-> Prompt injection attack protection strategy for OpenMates. Rebuff (protectai/rebuff) was archived May 16, 2025. This document outlines recommended alternatives using a defense-in-depth approach.
-
 ## Attack Scenarios
 
 - App skill is processing text which contains malicious instructions targeting the assistant (website text, video transcript, emails, etc.)
@@ -84,11 +82,18 @@ Every website, email, document, code snippet, etc. that is returned by an app mu
 - Accurate detection across all content segments
 - Parallel processing of chunks when possible
 
-**Recommended Models** (based on testing):
+**Model Configuration**:
 
-- **Best**: `gpt-5-nano` (input: $0.05, output: $0.40 per 1M tokens) - Very reliable and cost-effective
-- **Alternative**: `gpt-5-mini` in priority mode (input: $0.45, output: $0.05, $3.60) - Faster but needs verification
-- **Not recommended**: Mistral Small 3.2, Mistral Medium 3, Gemini 2.5 Flash, Qwen 3 256b - Unreliable for this task
+**Main Backend** (AI App):
+- **Model Used**: `openai/gpt-oss-safeguard-20b` - A purpose-built safeguard model optimized for prompt injection detection
+- **Server Routing** (configured in [`backend/providers/openai.yml`](../../backend/providers/openai.yml)):
+  - **Primary**: Groq API - Ultra-fast inference for real-time sanitization
+  - **Fallback**: OpenRouter API - Automatic failover if Groq is unavailable
+- **Configuration**: Set in [`backend/apps/ai/app.yml`](../../backend/apps/ai/app.yml) under `content_sanitization_model`
+
+**Preview Server** (Website/YouTube Metadata):
+- **Model Used**: `llama-3.3-70b-versatile` via Groq API - Fast and reliable for metadata sanitization
+- **Configuration**: Set in [`backend/preview/app/config.py`](../../backend/preview/app/config.py) under `content_sanitization_model`
 
 **Testing Status**: Problem is solvable, but the optimal LLM and system prompt combination needs further validation with different models.
 

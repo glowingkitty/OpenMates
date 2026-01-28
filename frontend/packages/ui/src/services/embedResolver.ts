@@ -59,16 +59,9 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
   try {
     // Initialize TOON decoder
     await initToonDecoder();
-    
-    // First, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
-    const cachedEmbed = await embedStore.get(`embed:${embed_id}`);
-    if (cachedEmbed) {
-      console.debug('[embedResolver] Found embed in EmbedStore:', embed_id);
-      return cachedEmbed as EmbedData;
-    }
-    
-    // Second, check community demo store for cleartext demo embeds
-    // Community demo embeds are stored separately with cleartext content
+
+    // CRITICAL FIX: Check community demo store FIRST for demo embeds
+    // Demo embeds are stored as cleartext and should be resolved before regular encrypted embeds
     // IMPORTANT: Wait for the demo store to load from cache first to avoid race conditions
     // where the embed component tries to render before the demo chat data is available
     if (!isCacheLoaded()) {
@@ -82,7 +75,7 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
         console.warn('[embedResolver] Error waiting for demo store cache:', error);
       }
     }
-    
+
     const demoEmbed = getCommunityDemoEmbed(embed_id);
     if (demoEmbed) {
       console.debug('[embedResolver] Found embed in community demo store:', embed_id);
@@ -95,6 +88,13 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
         createdAt: demoEmbed.created_at,
         updatedAt: demoEmbed.created_at
       };
+    }
+
+    // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
+    const cachedEmbed = await embedStore.get(`embed:${embed_id}`);
+    if (cachedEmbed) {
+      console.debug('[embedResolver] Found embed in EmbedStore:', embed_id);
+      return cachedEmbed as EmbedData;
     }
     
     // If not in any store, request from server via WebSocket (async, non-blocking)

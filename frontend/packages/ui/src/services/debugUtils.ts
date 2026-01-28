@@ -5,7 +5,8 @@
  * They allow inspecting IndexedDB chat data, messages, and sync status.
  * 
  * Usage in browser console (all read-only):
- *   await window.debugChat('chat-id')      - Inspect a specific chat
+ *   await window.inspectChat('chat-id')    - Generate copyable inspection report (recommended)
+ *   await window.debugChat('chat-id')      - Inspect a specific chat (verbose console output)
  *   await window.debugAllChats()           - List all chats with consistency check
  *   await window.debugGetMessage('msg-id') - Get raw message data
  * 
@@ -18,6 +19,19 @@ const DB_NAME = 'chats_db';
 const CHATS_STORE = 'chats';
 const MESSAGES_STORE = 'messages';
 const EMBEDS_STORE = 'embeds';
+const EMBED_KEYS_STORE = 'embed_keys';
+
+/**
+ * Compute SHA256 hash of a string
+ * Matches the implementation in message_parsing/utils.ts
+ */
+async function computeSHA256(content: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * Open the IndexedDB database
@@ -67,6 +81,19 @@ async function getAllFromStore<T>(db: IDBDatabase, storeName: string): Promise<T
         const request = store.getAll();
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result || []);
+    });
+}
+
+/**
+ * Get count of all items in an object store
+ */
+async function getStoreCount(db: IDBDatabase, storeName: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.count();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result || 0);
     });
 }
 
@@ -208,10 +235,25 @@ export async function debugChat(chatId: string): Promise<DebugChatResult> {
         console.log('  ❌ No messages found for this chat');
     }
     
-    // Get embed count for this chat (by hashed_chat_id)
-    // Note: We can't easily get embed count without knowing the hashed_chat_id
-    // For now just count all embeds
-    const allEmbeds = await getAllFromStore<Record<string, unknown>>(db, EMBEDS_STORE);
+    // Get embeds for this chat using hashed_chat_id index
+    const hashedChatId = await computeSHA256(chatId);
+    const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(db, EMBEDS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
+    
+    console.log('\n🖼️ EMBEDS:');
+    console.log('  Chat embeds count:', chatEmbeds.length);
+    console.log('  Total embeds in DB:', totalEmbedsCount);
+    console.log('  Hashed chat ID:', hashedChatId.substring(0, 24) + '...');
+    
+    if (chatEmbeds.length > 0) {
+        const typeCount: Record<string, number> = {};
+        for (const embed of chatEmbeds) {
+            const type = (embed.type as string) || 'unknown';
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        }
+        console.log('  Type distribution:', typeCount);
+        console.log('  Raw embeds:', chatEmbeds);
+    }
     
     db.close();
     
@@ -241,7 +283,7 @@ export async function debugChat(chatId: string): Promise<DebugChatResult> {
             items: messageItems
         },
         embeds: {
-            total_count: allEmbeds.length
+            total_count: chatEmbeds.length
         },
         version_analysis: {
             messages_v: messagesV,
@@ -344,6 +386,304 @@ export async function debugGetMessage(messageId: string): Promise<Record<string,
 }
 
 // ============================================================================
+// INSPECT CHAT - Single copyable report output
+// ============================================================================
+
+/**
+ * Format a Unix timestamp (seconds) to ISO string
+ */
+function formatTimestamp(ts: number | undefined): string {
+    if (!ts) return 'N/A';
+    return new Date(ts * 1000).toISOString().replace('T', ' ').replace('Z', ' UTC');
+}
+
+/**
+ * Truncate a string to a max length with ellipsis
+ */
+function truncate(str: string | undefined, maxLen: number): string {
+    if (!str) return 'N/A';
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen - 3) + '...';
+}
+
+/**
+ * Inspect a chat and generate a formatted text report
+ * 
+ * This function produces a single, easy-to-copy text report similar to the 
+ * backend inspect_chat.py script. The report can be printed to console or
+ * downloaded as a text file.
+ * 
+ * Usage in console:
+ *   await window.inspectChat('chat-id')                    - Print report to console
+ *   await window.inspectChat('chat-id', { download: true }) - Download as .txt file
+ * 
+ * @param chatId - The chat ID to inspect
+ * @param options - Optional configuration
+ * @param options.download - If true, downloads report as a text file (default: false)
+ * @returns The formatted report string
+ */
+export async function inspectChat(
+    chatId: string, 
+    options: { download?: boolean } = {}
+): Promise<string> {
+    const db = await openDB();
+    const lines: string[] = [];
+    const separator = '='.repeat(100);
+    const thinSeparator = '-'.repeat(100);
+    
+    // Header
+    lines.push('');
+    lines.push(separator);
+    lines.push('CLIENT CHAT INSPECTION REPORT (IndexedDB)');
+    lines.push(separator);
+    lines.push(`Chat ID: ${chatId}`);
+    lines.push(`Generated at: ${new Date().toISOString()}`);
+    lines.push(`Database: ${db.name} v${db.version}`);
+    lines.push(`Object stores: ${Array.from(db.objectStoreNames).join(', ')}`);
+    lines.push(separator);
+    
+    // Get chat metadata
+    const chatMeta = await getFromStore<Record<string, unknown>>(db, CHATS_STORE, chatId);
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push('CHAT METADATA');
+    lines.push(thinSeparator);
+    
+    if (chatMeta) {
+        const messagesV = (chatMeta.messages_v as number) || 0;
+        const titleV = (chatMeta.title_v as number) || 0;
+        const draftV = (chatMeta.draft_v as number) || 0;
+        
+        lines.push(`  Chat ID:                     ${chatMeta.chat_id}`);
+        lines.push(`  User ID:                     ${truncate(chatMeta.user_id as string, 40)}`);
+        lines.push(`  Created At:                  ${formatTimestamp(chatMeta.created_at as number)}`);
+        lines.push(`  Updated At:                  ${formatTimestamp(chatMeta.updated_at as number)}`);
+        lines.push(`  Last Message TS:             ${formatTimestamp(chatMeta.last_message_timestamp as number)}`);
+        lines.push(`  Last Edited Overall TS:      ${formatTimestamp(chatMeta.last_edited_overall_timestamp as number)}`);
+        lines.push('');
+        lines.push(`  Messages Version (messages_v): ${messagesV}`);
+        lines.push(`  Title Version (title_v):       ${titleV}`);
+        lines.push(`  Draft Version (draft_v):       ${draftV}`);
+        lines.push(`  Unread Count:                  ${chatMeta.unread_count ?? 'N/A'}`);
+        lines.push(`  Pinned:                        ${chatMeta.pinned ?? false}`);
+        lines.push('');
+        lines.push(`  Is Private:                  ${chatMeta.is_private ?? false}`);
+        lines.push(`  Is Shared:                   ${chatMeta.is_shared ?? false}`);
+        lines.push(`  Is Hidden:                   ${chatMeta.is_hidden ?? false}`);
+        lines.push(`  Is Hidden Candidate:         ${chatMeta.is_hidden_candidate ?? false}`);
+        lines.push('');
+        lines.push('  Encrypted Fields Present:');
+        lines.push(`    ${chatMeta.encrypted_title ? '✓' : '✗'} Title ${chatMeta.encrypted_title ? `(${(chatMeta.encrypted_title as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_chat_key ? '✓' : '✗'} Chat Key ${chatMeta.encrypted_chat_key ? `(${(chatMeta.encrypted_chat_key as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_chat_summary ? '✓' : '✗'} Summary ${chatMeta.encrypted_chat_summary ? `(${(chatMeta.encrypted_chat_summary as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_chat_tags ? '✓' : '✗'} Tags ${chatMeta.encrypted_chat_tags ? `(${(chatMeta.encrypted_chat_tags as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_icon ? '✓' : '✗'} Icon ${chatMeta.encrypted_icon ? `(${(chatMeta.encrypted_icon as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_category ? '✓' : '✗'} Category ${chatMeta.encrypted_category ? `(${(chatMeta.encrypted_category as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_draft_md ? '✓' : '✗'} Draft ${chatMeta.encrypted_draft_md ? `(${(chatMeta.encrypted_draft_md as string).length} chars)` : ''}`);
+        lines.push(`    ${chatMeta.encrypted_follow_up_request_suggestions ? '✓' : '✗'} Follow-up Suggestions ${chatMeta.encrypted_follow_up_request_suggestions ? `(${(chatMeta.encrypted_follow_up_request_suggestions as string).length} chars)` : ''}`);
+    } else {
+        lines.push('  ❌ Chat NOT FOUND in IndexedDB');
+    }
+    
+    // Get all messages for the chat
+    const messages = await getAllFromIndex<Record<string, unknown>>(db, MESSAGES_STORE, 'chat_id', chatId);
+    
+    // Sort by created_at
+    messages.sort((a, b) => (a.created_at as number) - (b.created_at as number));
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push(`MESSAGES - Total: ${messages.length}`);
+    lines.push(thinSeparator);
+    
+    // Calculate role distribution
+    const roleCount: Record<string, number> = {};
+    for (const msg of messages) {
+        const role = (msg.role as string) || 'unknown';
+        roleCount[role] = (roleCount[role] || 0) + 1;
+    }
+    
+    lines.push(`  Role Distribution: ${JSON.stringify(roleCount)}`);
+    lines.push('');
+    lines.push(`  Showing ${messages.length} messages:`);
+    lines.push('');
+    
+    if (messages.length > 0) {
+        messages.forEach((msg, i) => {
+            const role = (msg.role as string) || 'unknown';
+            const roleIcon = role === 'user' ? '👤' : role === 'assistant' ? '🤖' : '❓';
+            const created = formatTimestamp(msg.created_at as number);
+            // Use client_message_id for display as that's what the UI references
+            const clientMsgId = (msg.client_message_id as string) || (msg.message_id as string) || msg.id as string;
+            const serverId = (msg.id as string) || 'N/A';
+            
+            lines.push(`    ${(i + 1).toString().padStart(2)}. ${roleIcon} [${role.padEnd(9)}] ${created}`);
+            lines.push(`       Server ID: ${truncate(serverId, 12)}  Client ID: ${truncate(clientMsgId, 30)}`);
+            
+            // Content status
+            const hasContent = !!msg.content;
+            const hasEncrypted = !!msg.encrypted_content;
+            const contentLen = hasEncrypted ? (msg.encrypted_content as string).length : (hasContent ? (msg.content as string).length : 0);
+            lines.push(`       Content: ${hasEncrypted ? '✓ encrypted' : (hasContent ? '✓ plaintext' : '✗ missing')} (${contentLen} chars)`);
+            
+            // Model info for assistant messages
+            if (role === 'assistant' && msg.encrypted_model) {
+                lines.push(`       Model: ✓ (encrypted)`);
+            }
+            
+            // Status if present
+            if (msg.status) {
+                lines.push(`       Status: ${msg.status}`);
+            }
+        });
+    } else {
+        lines.push('  ❌ No messages found for this chat');
+    }
+    
+    // Get embeds for this chat using hashed_chat_id index
+    // Embeds are linked to chats via hashed_chat_id (SHA256 hash of chat_id) for privacy
+    const hashedChatId = await computeSHA256(chatId);
+    const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(db, EMBEDS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push(`EMBEDS - Total: ${chatEmbeds.length} (${totalEmbedsCount} total in DB)`);
+    lines.push(thinSeparator);
+    lines.push(`  Hashed Chat ID: ${hashedChatId.substring(0, 24)}...`);
+    
+    if (chatEmbeds.length > 0) {
+        // Collect statistics
+        const statusCount: Record<string, number> = {};
+        const typeCount: Record<string, number> = {};
+        for (const embed of chatEmbeds) {
+            const status = (embed.status as string) || 'unknown';
+            const type = (embed.type as string) || 'unknown';
+            statusCount[status] = (statusCount[status] || 0) + 1;
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        }
+        lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
+        lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
+        
+        // Sort by createdAt descending (most recent first)
+        chatEmbeds.sort((a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0));
+        
+        // Show first few embeds
+        const showCount = Math.min(10, chatEmbeds.length);
+        lines.push('');
+        lines.push(`  Showing ${showCount} of ${chatEmbeds.length} embeds (most recent first):`);
+        lines.push('');
+        
+        for (let i = 0; i < showCount; i++) {
+            const embed = chatEmbeds[i];
+            const embedId = (embed.embed_id as string) || embed.contentRef as string;
+            const type = (embed.type as string) || 'unknown';
+            const status = (embed.status as string) || 'N/A';
+            const hasEncryptedContent = !!embed.encrypted_content;
+            const hasPlainContent = !!embed.content || !!embed.data;
+            const createdAt = formatTimestamp(embed.createdAt as number);
+            
+            lines.push(`    ${(i + 1).toString().padStart(2)}. [${type.padEnd(15)}] ${truncate(embedId, 45)}`);
+            lines.push(`       Status: ${status} | Created: ${createdAt}`);
+            lines.push(`       Content: ${hasEncryptedContent ? '✓ encrypted' : (hasPlainContent ? '✓ plaintext' : '✗ missing')}`);
+            
+            // Show app/skill metadata for app-skill-use embeds
+            if (embed.app_id || embed.skill_id) {
+                lines.push(`       App: ${embed.app_id || 'N/A'} | Skill: ${embed.skill_id || 'N/A'}`);
+            }
+            
+            // Show child embed_ids if present
+            if (embed.embed_ids && Array.isArray(embed.embed_ids) && embed.embed_ids.length > 0) {
+                lines.push(`       Child Embeds: ${(embed.embed_ids as string[]).length} (${(embed.embed_ids as string[]).slice(0, 3).map(id => truncate(id, 12)).join(', ')}${(embed.embed_ids as string[]).length > 3 ? '...' : ''})`);
+            }
+        }
+        
+        if (chatEmbeds.length > showCount) {
+            lines.push('');
+            lines.push(`    ... and ${chatEmbeds.length - showCount} more embeds`);
+        }
+    } else {
+        lines.push('');
+        lines.push('  No embeds found for this chat');
+        lines.push('  (Embeds are queried by hashed_chat_id index)');
+    }
+    
+    // Also show embed keys for this chat
+    const chatEmbedKeys = await getAllFromIndex<Record<string, unknown>>(db, EMBED_KEYS_STORE, 'hashed_chat_id', hashedChatId);
+    const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push(`EMBED KEYS - Total: ${chatEmbedKeys.length} for this chat (${totalEmbedKeysCount} total in DB)`);
+    lines.push(thinSeparator);
+    
+    if (chatEmbedKeys.length > 0) {
+        const keyTypeCount: Record<string, number> = {};
+        for (const key of chatEmbedKeys) {
+            const keyType = (key.key_type as string) || 'unknown';
+            keyTypeCount[keyType] = (keyTypeCount[keyType] || 0) + 1;
+        }
+        lines.push(`  Key Type Distribution: ${JSON.stringify(keyTypeCount)}`);
+        lines.push(`  (Keys enable decryption of embed content)`);
+    } else {
+        lines.push('  No embed keys found for this chat');
+    }
+    
+    // Version consistency analysis
+    const messagesV = chatMeta ? ((chatMeta.messages_v as number) || 0) : 0;
+    const actualMessageCount = messages.length;
+    
+    lines.push('');
+    lines.push(thinSeparator);
+    lines.push('VERSION CONSISTENCY CHECK');
+    lines.push(thinSeparator);
+    lines.push(`  Messages Version (messages_v): ${messagesV}`);
+    lines.push(`  Actual Message Count:          ${actualMessageCount}`);
+    
+    // Check consistency - if messages_v is 0 but there are messages, that's suspicious
+    // Also if messages_v is much higher than actual count, messages may be missing
+    if (messagesV === 0 && actualMessageCount > 0) {
+        lines.push(`  ⚠️  INCONSISTENT: messages_v is 0 but ${actualMessageCount} messages exist!`);
+        lines.push(`     This suggests sync metadata wasn't updated properly.`);
+    } else if (messagesV > actualMessageCount + 1) {
+        lines.push(`  ⚠️  POSSIBLE MISSING MESSAGES: messages_v=${messagesV} but only ${actualMessageCount} in IndexedDB`);
+    } else {
+        lines.push(`  ✅ Versions appear consistent`);
+    }
+    
+    // Footer
+    lines.push('');
+    lines.push(separator);
+    lines.push('END OF CLIENT REPORT');
+    lines.push(separator);
+    lines.push('');
+    
+    db.close();
+    
+    const report = lines.join('\n');
+    
+    // Output to console as a single string for easy copying
+    console.log(report);
+    
+    // Optionally download as file
+    if (options.download) {
+        const blob = new Blob([report], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat_inspection_${chatId}_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('📥 Report downloaded!');
+    }
+    
+    return report;
+}
+
+// ============================================================================
 // INITIALIZATION - Expose to window object
 // ============================================================================
 
@@ -354,6 +694,7 @@ export async function debugGetMessage(messageId: string): Promise<Record<string,
 export function initDebugUtils(): void {
     if (typeof window !== 'undefined') {
         // Expose read-only debug functions to window for console access
+        (window as unknown as Record<string, unknown>).inspectChat = inspectChat;
         (window as unknown as Record<string, unknown>).debugChat = debugChat;
         (window as unknown as Record<string, unknown>).debugAllChats = debugAllChats;
         (window as unknown as Record<string, unknown>).debugGetMessage = debugGetMessage;
@@ -361,7 +702,9 @@ export function initDebugUtils(): void {
         console.info(
             '%c🔧 Debug utilities loaded!%c\n' +
             'Available commands (read-only):\n' +
-            '  • await window.debugChat("chat-id") - Inspect a specific chat\n' +
+            '  • await window.inspectChat("chat-id") - Generate copyable inspection report\n' +
+            '  • await window.inspectChat("chat-id", {download: true}) - Download report as .txt\n' +
+            '  • await window.debugChat("chat-id") - Verbose console output\n' +
             '  • await window.debugAllChats() - List all chats with consistency check\n' +
             '  • await window.debugGetMessage("message-id") - Get raw message data',
             'color: #4CAF50; font-weight: bold; font-size: 14px;',

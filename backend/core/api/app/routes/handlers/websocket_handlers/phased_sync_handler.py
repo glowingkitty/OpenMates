@@ -297,27 +297,56 @@ async def _handle_phase1_sync(
         try:
             cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
             if cached_sync_messages:
-                messages_data = cached_sync_messages
+                cached_count = len(cached_sync_messages)
                 logger.info(
-                    f"[PHASE1_SYNC_CACHE] ✅ Sync cache HIT for {len(messages_data)} client-encrypted messages "
+                    f"[PHASE1_SYNC_CACHE] ✅ Sync cache HIT for {cached_count} client-encrypted messages "
                     f"in chat {chat_id} for user {user_id[:8]}..."
                 )
                 
-                # CRITICAL VALIDATION: Ensure these are client-encrypted (not vault-encrypted)
-                if messages_data and len(messages_data) > 0:
-                    import json
-                    try:
-                        # Check first and last messages to validate encryption
-                        first_msg = json.loads(messages_data[0])
-                        last_msg = json.loads(messages_data[-1]) if len(messages_data) > 1 else first_msg
-                        logger.info(
-                            f"[PHASE1_SYNC_CACHE] Message validation for chat {chat_id}: "
-                            f"first_msg_id={first_msg.get('id')}, first_role={first_msg.get('role')}, "
-                            f"last_msg_id={last_msg.get('id')}, last_role={last_msg.get('role')}, "
-                            f"total_messages={len(messages_data)}"
+                # CRITICAL FIX: Validate sync cache count against Directus
+                # If sync cache has fewer messages than Directus, the cache is stale/incomplete
+                # This prevents sending incomplete message lists to clients
+                try:
+                    directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                    server_message_count = directus_message_count  # Store for later use
+                    
+                    if directus_message_count is not None and cached_count < directus_message_count:
+                        logger.warning(
+                            f"[PHASE1_SYNC_CACHE] ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
+                            f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
+                            f"Falling back to Directus to ensure data consistency."
                         )
-                    except Exception as parse_err:
-                        logger.error(f"[PHASE1_SYNC_CACHE] ❌ Failed to parse messages in sync cache: {parse_err}")
+                        # Clear messages_data to force Directus fetch below
+                        cached_sync_messages = None
+                    else:
+                        logger.info(
+                            f"[PHASE1_SYNC_CACHE] ✓ Cache count validated: {cached_count} == Directus count {directus_message_count}"
+                        )
+                except Exception as count_err:
+                    logger.warning(
+                        f"[PHASE1_SYNC_CACHE] Could not validate sync cache count for {chat_id}: {count_err}. "
+                        f"Using cached messages anyway (may be incomplete)."
+                    )
+                
+                # Only use cached messages if validation passed (or was skipped)
+                if cached_sync_messages:
+                    messages_data = cached_sync_messages
+                    
+                    # Validation: Ensure these are client-encrypted (not vault-encrypted)
+                    if messages_data and len(messages_data) > 0:
+                        import json
+                        try:
+                            # Check first and last messages to validate encryption
+                            first_msg = json.loads(messages_data[0])
+                            last_msg = json.loads(messages_data[-1]) if len(messages_data) > 1 else first_msg
+                            logger.info(
+                                f"[PHASE1_SYNC_CACHE] Message validation for chat {chat_id}: "
+                                f"first_msg_id={first_msg.get('id')}, first_role={first_msg.get('role')}, "
+                                f"last_msg_id={last_msg.get('id')}, last_role={last_msg.get('role')}, "
+                                f"total_messages={len(messages_data)}"
+                            )
+                        except Exception as parse_err:
+                            logger.error(f"[PHASE1_SYNC_CACHE] ❌ Failed to parse messages in sync cache: {parse_err}")
             else:
                 logger.info(
                     f"[PHASE1_SYNC_CACHE] ⚠️ Sync cache MISS for messages in chat {chat_id} "
@@ -778,9 +807,31 @@ async def _handle_phase2_sync(
                 try:
                     cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
                     if cached_sync_messages:
-                        chat_wrapper["messages"] = cached_sync_messages
-                        messages_added_count += 1
-                        logger.debug(f"Phase 2: Sync cache HIT for {len(cached_sync_messages)} messages in chat {chat_id}")
+                        cached_count = len(cached_sync_messages)
+                        logger.debug(f"Phase 2: Sync cache HIT for {cached_count} messages in chat {chat_id}")
+                        
+                        # CRITICAL FIX: Validate sync cache count against Directus
+                        # If sync cache has fewer messages than Directus, the cache is stale/incomplete
+                        try:
+                            directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                            chat_wrapper["server_message_count"] = directus_message_count
+                            
+                            if directus_message_count is not None and cached_count < directus_message_count:
+                                logger.warning(
+                                    f"Phase 2: ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
+                                    f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
+                                    f"Falling back to Directus."
+                                )
+                                chat_ids_to_fetch_from_directus.append(chat_id)
+                            else:
+                                # Cache is valid, use it
+                                chat_wrapper["messages"] = cached_sync_messages
+                                messages_added_count += 1
+                        except Exception as count_err:
+                            logger.warning(f"Phase 2: Could not validate sync cache count for {chat_id}: {count_err}")
+                            # Use cached messages anyway (may be incomplete)
+                            chat_wrapper["messages"] = cached_sync_messages
+                            messages_added_count += 1
                     else:
                         logger.debug(f"Phase 2: Sync cache MISS for messages in chat {chat_id}")
                         chat_ids_to_fetch_from_directus.append(chat_id)
@@ -1136,9 +1187,31 @@ async def _handle_phase3_sync(
                     try:
                         cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
                         if cached_sync_messages:
-                            chat_wrapper["messages"] = cached_sync_messages
-                            messages_added_count += 1
-                            logger.debug(f"Phase 3: Sync cache HIT for {len(cached_sync_messages)} messages in chat {chat_id}")
+                            cached_count = len(cached_sync_messages)
+                            logger.debug(f"Phase 3: Sync cache HIT for {cached_count} messages in chat {chat_id}")
+                            
+                            # CRITICAL FIX: Validate sync cache count against Directus
+                            # If sync cache has fewer messages than Directus, the cache is stale/incomplete
+                            try:
+                                directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                                chat_wrapper["server_message_count"] = directus_message_count
+                                
+                                if directus_message_count is not None and cached_count < directus_message_count:
+                                    logger.warning(
+                                        f"Phase 3: ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
+                                        f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
+                                        f"Falling back to Directus."
+                                    )
+                                    chat_ids_to_fetch_from_directus.append(chat_id)
+                                else:
+                                    # Cache is valid, use it
+                                    chat_wrapper["messages"] = cached_sync_messages
+                                    messages_added_count += 1
+                            except Exception as count_err:
+                                logger.warning(f"Phase 3: Could not validate sync cache count for {chat_id}: {count_err}")
+                                # Use cached messages anyway (may be incomplete)
+                                chat_wrapper["messages"] = cached_sync_messages
+                                messages_added_count += 1
                         else:
                             logger.debug(f"Phase 3: Sync cache MISS for messages in chat {chat_id}")
                             chat_ids_to_fetch_from_directus.append(chat_id)

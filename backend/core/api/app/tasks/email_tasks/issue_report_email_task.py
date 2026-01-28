@@ -37,7 +37,8 @@ def send_issue_report_email(
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
-    console_logs: Optional[str] = None
+    console_logs: Optional[str] = None,
+    indexeddb_report: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -52,6 +53,7 @@ def send_issue_report_email(
         estimated_location: Estimated geographic location based on IP address
         device_info: Optional device information for debugging (browser, screen size, touch support)
         console_logs: Optional console logs from the client (last 100 lines)
+        indexeddb_report: Optional IndexedDB inspection report (metadata only, no plaintext content)
 
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -66,7 +68,8 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
-                chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs
+                chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs,
+                indexeddb_report
             )
         )
         if result:
@@ -100,7 +103,8 @@ async def _async_send_issue_report_email(
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
-    console_logs: Optional[str] = None
+    console_logs: Optional[str] = None,
+    indexeddb_report: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -176,7 +180,10 @@ async def _async_send_issue_report_email(
                 'logs': {
                     'console_logs': console_logs.strip() if console_logs and console_logs.strip() else None,
                     'docker_compose_logs': backend_logs.strip() if backend_logs and backend_logs.strip() else None
-                }
+                },
+                # IndexedDB inspection report contains ONLY metadata (timestamps, versions, encrypted content lengths)
+                # NO plaintext chat content is included - safe for debugging while preserving user privacy
+                'indexeddb_inspection': indexeddb_report.strip() if indexeddb_report and indexeddb_report.strip() else None
             }
         }
 

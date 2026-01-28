@@ -82,7 +82,7 @@ If user's device doesn't support PRF, they can:
 - Master key wrapped using PRF-derived wrapping key
 - Email encrypted with master key and stored as `encrypted_email_with_master_key` for passwordless login
 
-**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L133-L260) for registration endpoints.
+**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for registration endpoints.
 
 ### Login Flow
 
@@ -112,9 +112,9 @@ If user's device doesn't support PRF, they can:
 16. Backend verifies `lookup_hash` and creates session
 17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
 
-**Implementation**: 
-- Backend: [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1296-L1800) for assertion verification
-- Frontend: [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte#L403-L848) for passkey login flow
+**Implementation**:
+- Backend: [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for assertion verification
+- Frontend: [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) for passkey login flow
 
 ### Master Key Wrapping
 
@@ -154,7 +154,7 @@ If user's device doesn't support PRF, they can:
 5. Client sends `email_encryption_key` to server for notifications
 6. Server can decrypt `encrypted_email` (encrypted with `email_encryption_key`) for notifications
 
-**Implementation**: See [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte#L650-L750) for email decryption and master key unwrapping logic.
+**Implementation**: See [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) for email decryption and master key unwrapping logic.
 
 ## Database Schema
 
@@ -176,18 +176,18 @@ If user's device doesn't support PRF, they can:
 **Users Table Additions**:
 - `encrypted_email_with_master_key` - Email encrypted with master key (for passwordless login)
 
-**Schema Definition**: [`users.yml`](../../backend/core/directus/schemas/users.yml#L27-L30)
+**Schema Definition**: [`users.yml`](../../backend/core/directus/schemas/users.yml)
 
 ## API Endpoints
 
 ### Registration Flow
-- `POST /auth/passkey/registration/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L656-L900) - Generates WebAuthn registration options with PRF extension using global salt
-- `POST /auth/passkey/registration/complete` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L902-L1200) - Verifies attestation using `py_webauthn` library and stores passkey
+- `POST /auth/passkey/registration/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Generates WebAuthn registration options with PRF extension using global salt
+- `POST /auth/passkey/registration/complete` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Verifies attestation using `py_webauthn` library and stores passkey
 
 ### Login Flow
-- `POST /auth/passkey/assertion/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1200-L1295) - Generates WebAuthn challenge with PRF extension using global salt
-- `POST /auth/passkey/assertion/verify` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1296-L1800) - Verifies passkey signature, starts cache warming, returns encrypted user data
-- `POST /auth/login` - See [`auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py#L50-L360) - Completes authentication with `lookup_hash` and `login_method: 'passkey'`
+- `POST /auth/passkey/assertion/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Generates WebAuthn challenge with PRF extension using global salt
+- `POST /auth/passkey/assertion/verify` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Verifies passkey signature, starts cache warming, returns encrypted user data
+- `POST /auth/login` - See [`auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py) - Completes authentication with `lookup_hash` and `login_method: 'passkey'`
 
 ## Security Considerations
 
@@ -206,21 +206,21 @@ If user's device doesn't support PRF, they can:
 - Require additional verification (email confirmation, 2FA)
 - Log security event for audit trail
 
-**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L785-810) for sign count validation.
+**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for sign count validation.
 
 ### 3. Challenge Freshness
 - Generate new challenge for each registration/assertion
 - Challenge expires after 5 minutes if unused
 - Prevent replay attacks by validating timestamp
 
-**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L148-158) for challenge caching.
+**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for challenge caching.
 
 ### 4. User ID Lookup Efficiency
 - `user_passkeys` table includes `user_id` for efficient reverse lookups
 - Query by `hashed_user_id` (indexed) → get `user_id` directly
 - No batch-querying of users table required
 
-**Implementation**: See [`directus.py`](../../backend/core/api/app/services/directus/directus.py#L312-345) for efficient lookup method.
+**Implementation**: See [`directus.py`](../../backend/core/api/app/services/directus/directus.py) for efficient lookup method.
 
 ### 5. Cache Warming for Passkey Login
 - Cache warming starts immediately after passkey verification when `user_id` is known
@@ -229,7 +229,7 @@ If user's device doesn't support PRF, they can:
 - Frontend waits for cache to be primed (via WebSocket sync status) before loading main interface
 - Ensures instant sync experience: chats and data ready when user completes authentication
 
-**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1679-L1713) for cache warming logic.
+**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for cache warming logic.
 
 ## Fallback Scenarios
 
