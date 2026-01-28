@@ -196,18 +196,14 @@ async def approve_demo_chat(
                 detail=f"Demo chat is not pending approval (current status: {demo_chat.get('status')})"
             )
         
-        # Verify the chat_id matches
+        # Verify the chat_id matches the demo_chat entry
         if demo_chat.get("original_chat_id") != payload.chat_id:
             raise HTTPException(status_code=400, detail="Chat ID mismatch")
-        
-        # Verify the original chat exists and is shared
-        chat = await directus_service.chat.get_chat_metadata(payload.chat_id)
-        if not chat:
-            raise HTTPException(status_code=404, detail="Original chat not found")
-        
-        if chat.get("is_private", True):
-            raise HTTPException(status_code=400, detail="Chat is not publicly shared")
-        
+
+        # Note: No need to verify the original chat still exists.
+        # The demo_chat entry already contains all content needed for translation,
+        # independent of whether the original user chat was deleted.
+
         # Check current published demo chat count and remove one if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
         if len(current_demos) >= 5:
