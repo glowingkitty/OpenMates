@@ -447,6 +447,11 @@
             }));
             console.debug('[ShareChat] Dispatched LOCAL_CHAT_LIST_CHANGED_EVENT for shared chat:', chatId);
 
+            // CRITICAL: Small delay to ensure IndexedDB transactions are fully committed
+            // before navigating to the main page. Without this, there's a race condition
+            // where the main page tries to read from IndexedDB before the transaction is visible.
+            await new Promise(resolve => setTimeout(resolve, 50));
+
             // Navigate to main app with the chat loaded
             // This allows the user to see the chat in the normal interface
             // The chat key is already set in the cache, so the chat will be decrypted when loaded

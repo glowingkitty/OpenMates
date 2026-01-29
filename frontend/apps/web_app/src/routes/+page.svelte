@@ -204,9 +204,20 @@
                         // For authenticated users, wait for sync to complete
                         console.debug(`[+page.svelte] Chat ${chatId} not found in IndexedDB, waiting for sync...`);
                     } else {
-                        // For non-auth users, if chat is not in IndexedDB, it doesn't exist
-                        console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB (non-auth user)`);
-                        activeChatStore.clearActiveChat();
+                        // For non-auth users, retry a few times before giving up
+                        // CRITICAL: Shared chats are stored in IndexedDB by the share page, but there
+                        // may be a race condition where the transaction hasn't fully committed yet.
+                        // Retry with exponential backoff to handle this timing issue.
+                        if (retries > 0) {
+                            const delay = retries > 15 ? 50 : retries > 10 ? 100 : 200;
+                            console.debug(`[+page.svelte] Chat ${chatId} not found in IndexedDB (non-auth), retrying in ${delay}ms (${retries} retries left)`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return loadChatFromIndexedDB(retries - 1);
+                        } else {
+                            // After all retries, give up - chat truly doesn't exist
+                            console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB after retries (non-auth user)`);
+                            activeChatStore.clearActiveChat();
+                        }
                     }
                 }
             } catch (error) {
@@ -219,7 +230,7 @@
         // For non-authenticated users, try loading immediately (shared chats are already in IndexedDB)
         if (!$authStore.isAuthenticated) {
             console.debug(`[+page.svelte] Non-auth user - loading shared chat immediately from IndexedDB: ${chatId}`);
-            loadChatFromIndexedDB();
+            await loadChatFromIndexedDB();
         } else {
             // For authenticated users, wait for sync to complete
             const handlePhasedSyncComplete = async () => {
