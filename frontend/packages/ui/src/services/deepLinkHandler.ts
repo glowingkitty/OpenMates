@@ -3,7 +3,7 @@
  * 
  * Centralizes all deep link processing to avoid collisions and ensure consistent behavior.
  * Handles all URL hash-based deep links:
- * - #chat-id={id} / #chat_id={id} - Chat deep links
+ * - #chat-id={id} / #chat-id={id} - Chat deep links
  * - #settings/{path} - Settings deep links (including newsletter, email block, refunds)
  * - #signup/{step} - Signup flow deep links
  * - #embed-id={id} / #embed_id={id} - Embed deep links
@@ -46,7 +46,7 @@ export function parseDeepLink(hash: string): { type: DeepLinkType; data: any } |
         return null;
     }
 
-    // Chat deep links: #chat-id={id} or #chat_id={id} or #chatid={id}
+    // Chat deep links: #chat-id={id} or #chat-id={id} or #chatid={id}
     // Also support / prefix (e.g. /#chatid=...)
     const normalizedHash = hash.startsWith('#/') ? '#' + hash.substring(2) : hash;
     const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(?:&message[-_]?id=(.+))?$/);

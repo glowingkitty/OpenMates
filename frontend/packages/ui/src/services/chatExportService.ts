@@ -612,14 +612,14 @@ function convertToYamlString(data: any): string {
 
 /**
  * Generates a shareable link for a chat
- * Format: {domain}/#chat_id={id}
+ * Format: {domain}/#chat-id={id}
  * @param chatId - The chat ID
  * @returns The shareable link
  */
 export function generateChatLink(chatId: string): string {
     // Use window.location.origin to get current domain dynamically
     const baseUrl = window.location.origin;
-    const link = `${baseUrl}/#chat_id=${chatId}`;
+    const link = `${baseUrl}/#chat-id=${chatId}`;
     
     console.debug('[ChatExportService] Generated chat link:', {
         chatId,

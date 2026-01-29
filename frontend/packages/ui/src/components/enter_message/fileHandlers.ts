@@ -104,7 +104,7 @@ export function handleDragLeave(event: DragEvent, editorElement: HTMLElement | u
 /**
  * Extracts chat link from YAML content if present
  * Handles both raw YAML and YAML wrapped in markdown code blocks
- * Format: chat:\n  link: "https://domain/#chat_id=xxx"
+ * Format: chat:\n  link: "https://domain/#chat-id=xxx"
  * @param text - The pasted text content
  * @returns The chat link if found, null otherwise
  */
@@ -140,8 +140,8 @@ export function extractChatLinkFromYAML(text: string): string | null {
         if (linkMatch && linkMatch[1]) {
             const link = linkMatch[1].trim();
             
-            // Verify it's actually a chat link (contains #chat_id=)
-            if (link.includes('#chat_id=')) {
+            // Verify it's actually a chat link (contains #chat-id=)
+            if (link.includes('#chat-id=')) {
                 console.debug('[FileHandlers] Extracted chat link from YAML:', link);
                 return link;
             }

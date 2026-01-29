@@ -149,7 +149,7 @@ export function getStepFromPath(path: string): string {
 /**
  * Convert step name to last_opened path format
  * This is the reverse of getStepFromPath - converts step names like 'one_time_codes' to hash-based paths like '#signup/one-time-codes'
- * Uses hash-based format for consistency with other deep linking (e.g., #settings, #chat_id=)
+ * Uses hash-based format for consistency with other deep linking (e.g., #settings, #chat-id=)
  * @param stepName The step name constant (e.g., STEP_ONE_TIME_CODES)
  * @returns The hash-based path format (e.g., '#signup/one-time-codes')
  */

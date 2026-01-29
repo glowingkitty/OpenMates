@@ -434,7 +434,7 @@
             // The chat key is already set in the cache, so the chat will be decrypted when loaded
             // Include message ID if provided for highlighting/scrolling
             // NOTE: Must include leading '/' to navigate to root, not just update hash on current page
-            const targetUrl = messageId ? `/#chat_id=${chatId}&messageid=${messageId}` : `/#chat_id=${chatId}`;
+            const targetUrl = messageId ? `/#chat-id=${chatId}&messageid=${messageId}` : `/#chat-id=${chatId}`;
             await goto(targetUrl);
             
             isLoading = false;
