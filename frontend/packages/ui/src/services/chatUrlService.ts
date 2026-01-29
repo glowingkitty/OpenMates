@@ -4,7 +4,7 @@
  * Manages URL-based chat navigation with privacy-first approach.
  * 
  * Current Behavior (Privacy-First):
- * - Deep linking is supported: opening a URL with #chat_id=xxx will load that chat
+ * - Deep linking is supported: opening a URL with #chat-id=xxx will load that chat
  * - URL is immediately cleared after loading the deep-linked chat
  * - Normal chat navigation does NOT update the URL (no automatic URL updates)
  * - This prevents accidental sharing of chat history via URL
@@ -41,7 +41,7 @@ export function updateChatUrl(chatId: string | null): void {
 		
 		if (chatId) {
 			// Add chat ID to URL using hash fragment (not sent to server)
-			const newUrl = `${baseUrl}#chat_id=${chatId}`;
+			const newUrl = `${baseUrl}#chat-id=${chatId}`;
 			
 			// Use SvelteKit's replaceState to avoid creating browser history entry
 			replaceState(newUrl, {});
@@ -61,7 +61,7 @@ export function updateChatUrl(chatId: string | null): void {
 
 /**
  * Extract chat ID from the current URL hash
- * Supports format: #chat_id={chatId}
+ * Supports format: #chat-id={chatId}
  * 
  * @returns The chat ID if found in URL, null otherwise
  */
@@ -71,9 +71,9 @@ export function getChatIdFromUrl(): string | null {
 	try {
 		const hash = window.location.hash;
 		
-		// Check for #chat_id={chatId} format
-		if (hash.startsWith('#chat_id=')) {
-			const chatId = hash.substring(9); // Remove '#chat_id=' prefix
+		// Check for #chat-id={chatId} format
+		if (hash.startsWith('#chat-id=')) {
+			const chatId = hash.substring(9); // Remove '#chat-id=' prefix
 			if (chatId && chatId.length > 0) {
 				console.debug(`[ChatUrlService] Found chat ID in URL: ${chatId}`);
 				return chatId;

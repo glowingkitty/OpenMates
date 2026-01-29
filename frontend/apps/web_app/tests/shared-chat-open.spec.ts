@@ -92,7 +92,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	logCheckpoint('Navigating to shared chat URL...');
 	await page.goto(sharedChatUrl);
 
-	// Step 2: Wait for redirect to main app (should redirect to /#chat_id=...)
+	// Step 2: Wait for redirect to main app (should redirect to /#chat-id=...)
 	// The shared chat page will redirect to the main app once loaded
 	// The redirect happens very fast, so we don't take a screenshot until after
 	try {

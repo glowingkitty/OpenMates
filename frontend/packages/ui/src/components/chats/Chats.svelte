@@ -778,7 +778,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// CRITICAL: Don't clear URL hash if one exists - deep links need to be processed first
 			// Only clear the store state, let +page.svelte handle the hash
 			const hasHash = typeof window !== 'undefined' && window.location.hash &&
-				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id=') ||
+				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat-id=') ||
 				 window.location.hash.startsWith('#settings') || window.location.hash.startsWith('#embed') ||
 				 window.location.hash.startsWith('#signup'));
 

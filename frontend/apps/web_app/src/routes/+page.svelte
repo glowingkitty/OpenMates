@@ -309,8 +309,8 @@
             // Fallback: check current hash (might have been modified)
             hashChatIdToLoad = window.location.hash.startsWith('#chat-id=')
                 ? window.location.hash.substring('#chat-id='.length)
-                : window.location.hash.startsWith('#chat_id=')
-                ? window.location.hash.substring('#chat_id='.length)
+                : window.location.hash.startsWith('#chat-id=')
+                ? window.location.hash.substring('#chat-id='.length)
                 : null;
             console.debug('[+page.svelte] Using CURRENT hash chat ID (fallback):', hashChatIdToLoad);
         }
@@ -617,8 +617,8 @@
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
 						hashChatId = originalHash.substring('#chat-id='.length);
-					} else if (originalHash.startsWith('#chat_id=')) {
-						hashChatId = originalHash.substring('#chat_id='.length);
+					} else if (originalHash.startsWith('#chat-id=')) {
+						hashChatId = originalHash.substring('#chat-id='.length);
 					}
 					
 					if (hashChatId && !isPublicChat(hashChatId)) {
@@ -670,10 +670,10 @@
 			const isForcedLogout = get(forcedLogoutInProgress);
 			
 			// Extract originalHashChatId for chat hashes (needed for other logic)
-			if (originalHash && (originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat_id='))) {
+			if (originalHash && (originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat-id='))) {
 				originalHashChatId = originalHash.startsWith('#chat-id=')
 					? originalHash.substring('#chat-id='.length)
-					: originalHash.substring('#chat_id='.length);
+					: originalHash.substring('#chat-id='.length);
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key

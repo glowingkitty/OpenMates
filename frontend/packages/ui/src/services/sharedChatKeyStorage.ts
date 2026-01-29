@@ -10,7 +10,7 @@
  * the encryption key is extracted from the URL fragment and decrypted.
  * Without persistence, this key would be lost on page reload since:
  * - Memory cache (chatDB.chatKeys Map) is cleared on page reload
- * - The URL fragment might not be preserved after navigation to /#chat_id=...
+ * - The URL fragment might not be preserved after navigation to /#chat-id=...
  *
  * Architecture:
  * - Keys are stored in IndexedDB (survives page reloads and tab closures)
