@@ -185,6 +185,7 @@
             // For authenticated users, we need to determine if they own this chat
             // If they don't own it, set user_id to a placeholder to mark it as read-only
             let chatUserId: string | undefined = undefined;
+            let isCurrentUserOwner = false;
             const { authStore } = await import('@repo/ui');
             const { get } = await import('svelte/store');
             const { userDB } = await import('@repo/ui');
@@ -202,6 +203,10 @@
                     // If the chat doesn't have user_id set, it means it's a shared chat from another user
                     // We'll leave it undefined for now and let the ownership check in ActiveChat handle it
                     // TODO: In the future, we could fetch chat metadata from backend to get owner info
+                    
+                    // For shared chats, we assume the current user is NOT the owner
+                    // (if they were, they wouldn't need to access via share link)
+                    isCurrentUserOwner = false;
                 } catch (error) {
                     console.warn('[ShareChat] Could not determine user ownership:', error);
                 }
@@ -210,6 +215,7 @@
             // Convert server response to Chat object
             // Note: user_id is intentionally not set here - it will be determined by ownership check
             // If the chat is owned by another user, the ownership check will detect it
+            // CRITICAL: Mark as shared_by_others since user accessed via share link (not their own chat)
             const chat: Chat = {
                 chat_id: data.chat_id,
                 encrypted_title: data.encrypted_title || null,
@@ -225,6 +231,9 @@
                 encrypted_category: data.encrypted_category || null,  // Category name encrypted with chat key
                 // user_id is intentionally not set - will be determined by ownership check in ActiveChat
                 // If chat is from another user, ownership check will fail and chat will be read-only
+                // SHARING: Mark as shared by others and assign to shared_by_others group for sidebar
+                is_shared_by_others: true,
+                group_key: 'shared_by_others'
             };
             
             return { 
@@ -426,8 +435,17 @@
             
             console.debug('[ShareChat] Successfully stored chat in IndexedDB');
             
-            // Set active chat in store
+            // Set active chat in store BEFORE dispatching events
             activeChatStore.setActiveChat(chatId);
+            
+            // CRITICAL: Dispatch event to notify Chats.svelte that a new shared chat was added
+            // This ensures the chat appears in the sidebar immediately
+            // Import the event constant from @repo/ui
+            const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('@repo/ui');
+            window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+                detail: { chat_id: chatId, sharedChatAdded: true }
+            }));
+            console.debug('[ShareChat] Dispatched LOCAL_CHAT_LIST_CHANGED_EVENT for shared chat:', chatId);
 
             // Navigate to main app with the chat loaded
             // This allows the user to see the chat in the normal interface
@@ -435,6 +453,7 @@
             // Include message ID if provided for highlighting/scrolling
             // NOTE: Must include leading '/' to navigate to root, not just update hash on current page
             const targetUrl = messageId ? `/#chat-id=${chatId}&messageid=${messageId}` : `/#chat-id=${chatId}`;
+            console.debug('[ShareChat] Navigating to:', targetUrl);
             await goto(targetUrl);
             
             isLoading = false;

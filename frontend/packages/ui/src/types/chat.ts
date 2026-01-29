@@ -103,6 +103,7 @@ export interface Chat {
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
   is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
+  is_shared_by_others?: boolean; // Whether this chat was shared with the current user by someone else (user doesn't own this chat). Used for UI grouping.
   
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)

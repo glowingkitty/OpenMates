@@ -90,6 +90,7 @@ export function getLocalizedGroupTitle(groupKey: string, t: (key: string, option
     if (groupKey === 'intro') return t('activity.intro.text');
     if (groupKey === 'examples') return t('activity.examples.text');
     if (groupKey === 'legal') return t('activity.legal.text');
+    if (groupKey === 'shared_by_others') return t('activity.shared_by_others.text');
     if (groupKey === 'today') return t('activity.today.text');
     if (groupKey === 'yesterday') return t('activity.yesterday.text');
     if (groupKey === 'previous_7_days') return t('activity.previous_7_days.text');

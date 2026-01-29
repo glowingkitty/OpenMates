@@ -343,6 +343,29 @@ legal:
   cs: PRÁVNÍ
   sv: JURIDIK
   verified_by_human: []
+shared_by_others:
+  context: Group title for chats shared with the user by others
+  en: SHARED BY OTHERS
+  de: VON ANDEREN GETEILT
+  zh: 他人分享
+  es: COMPARTIDO POR OTROS
+  fr: PARTAGÉ PAR D'AUTRES
+  pt: COMPARTILHADO POR OUTROS
+  ru: ОБЩИЙ ДОСТУП ОТ ДРУГИХ
+  ja: 他のユーザーから共有
+  ko: 다른 사람이 공유함
+  it: CONDIVISO DA ALTRI
+  tr: BAŞKALARI TARAFINDAN PAYLAŞILDI
+  vi: ĐƯỢC CHIA SẺ BỞI NGƯỜI KHÁC
+  id: DIBAGIKAN OLEH ORANG LAIN
+  pl: UDOSTĘPNIONE PRZEZ INNYCH
+  nl: GEDEELD DOOR ANDEREN
+  ar: مشارك من آخرين
+  hi: दूसरों द्वारा साझा किया गया
+  th: แชร์โดยผู้อื่น
+  cs: SDÍLENO OSTATNÍMI
+  sv: DELAT AV ANDRA
+  verified_by_human: []
 loadMore.button:
   context: Button text for loading all chats
   en: Load all chats

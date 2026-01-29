@@ -1487,6 +1487,11 @@
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
+                  {:else if chat.is_shared}
+                    <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                    <div class="share-badge" title="This chat is shared">
+                      <LucideIcons.Share2 size={10} color="white" />
+                    </div>
                   {/if}
                 </div>
               </div>
@@ -1508,6 +1513,11 @@
                       <div class="unread-badge">
                         {chat.unread_count > 9 ? '9+' : chat.unread_count}
                       </div>
+                    {:else if chat.is_shared}
+                      <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                      <div class="share-badge" title="This chat is shared">
+                        <LucideIcons.Share2 size={10} color="white" />
+                      </div>
                     {/if}
                   </div>
                 </div>
@@ -1526,6 +1536,11 @@
                     {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
                         {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                      </div>
+                    {:else if chat.is_shared}
+                      <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                      <div class="share-badge" title="This chat is shared">
+                        <LucideIcons.Share2 size={10} color="white" />
                       </div>
                     {/if}
                   </div>
@@ -1741,6 +1756,23 @@
     font-size: 14px;
     font-weight: 500;
     border: 2px solid var(--color-background);
+  }
+
+  /* Share badge: indicates that this chat has an active share link */
+  .share-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    background: var(--color-grey-60);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--color-background);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
 
   .incognito-label {

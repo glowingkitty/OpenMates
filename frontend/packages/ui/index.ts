@@ -103,6 +103,9 @@ export {
     deleteSharedKeysDatabase
 } from "./src/services/sharedChatKeyStorage"; // Export shared chat key storage for unauthenticated users
 
+// Draft service - export constants
+export { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./src/services/drafts/draftConstants"; // Export event constant for chat list updates
+
 // Utils - export computeSHA256 for hashing
 export { computeSHA256 } from "./src/message_parsing/utils";
 // Utils - export chunk error handler for graceful handling of stale cache errors

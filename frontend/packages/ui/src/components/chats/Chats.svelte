@@ -339,7 +339,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
-		const staticGroups = ['intro', 'examples', 'legal'];
+		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -347,6 +348,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 
 		// 3. Finally, add the static sections in the specified order
+		// shared_by_others comes first (before intro/examples/legal) since these are chats from real users
 		for (const groupKey of staticGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
@@ -378,7 +380,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// These are older real user chats, so they should come before the static sections
-		const staticGroups = ['intro', 'examples', 'legal'];
+		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -386,6 +389,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 
 		// 3. Finally, add the static sections in the specified order
+		// shared_by_others comes first (before intro/examples/legal) since these are chats from real users
 		for (const groupKey of staticGroups) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
@@ -675,7 +679,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * without waiting for server round-trip
 	 */
 	const handleLocalChatListChanged = async (event: Event) => {
-		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
+		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean; sharedChatAdded?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
 		
 		// Invalidate caches for the specific chat if provided, to ensure fresh preview data
@@ -691,6 +695,16 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This ensures sessionStorage-only chats appear in the list and demo chat drafts update
 		// For authenticated users, update from database as usual
 		if (!$authStore.isAuthenticated) {
+			// CRITICAL: If a shared chat was added, we need to reload from IndexedDB
+			// Shared chats are stored in IndexedDB (not sessionStorage), so incrementing
+			// sessionStorageDraftUpdateTrigger alone is not sufficient
+			if (customEvent.detail?.sharedChatAdded) {
+				console.debug('[Chats] Shared chat added - reloading chat list from IndexedDB');
+				chatListCache.markDirty();
+				await updateChatListFromDB(true);
+				return;
+			}
+			
 			// Increment trigger to force reactivity in $derived allChats
 			// This will cause allChats to recalculate and include sessionStorage chats
 			sessionStorageDraftUpdateTrigger++;
@@ -1710,12 +1724,16 @@ async function updateChatListFromDBInternal(force = false) {
 				
 				if (sharedChatIds.length > 0) {
 					// Load shared chats from IndexedDB
+					// CRITICAL: Mark these as shared by others since they came from share links
 					const loadedChats: ChatType[] = [];
 					
 					for (const chatId of sharedChatIds) {
 						try {
 							const chat = await chatDB.getChat(chatId);
 							if (chat) {
+								// Mark as shared by others and assign to the shared_by_others group
+								chat.is_shared_by_others = true;
+								chat.group_key = 'shared_by_others';
 								loadedChats.push(chat);
 							}
 						} catch (error) {
@@ -1725,7 +1743,7 @@ async function updateChatListFromDBInternal(force = false) {
 					
 					allChatsFromDB = loadedChats;
 					chatListCache.setCache(loadedChats);
-					console.debug(`[Chats] Loaded ${loadedChats.length} shared chat(s) from IndexedDB`);
+					console.debug(`[Chats] Loaded ${loadedChats.length} shared chat(s) from IndexedDB (marked as shared_by_others)`);
 				} else {
 					allChatsFromDB = [];
 					chatListCache.setCache([]);
