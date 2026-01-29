@@ -699,7 +699,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Shared chats are stored in IndexedDB (not sessionStorage), so incrementing
 			// sessionStorageDraftUpdateTrigger alone is not sufficient
 			if (customEvent.detail?.sharedChatAdded) {
-				console.debug('[Chats] Shared chat added - reloading chat list from IndexedDB');
+				const sharedChatId = customEvent.detail.chat_id;
+				console.debug('[Chats] Shared chat added - reloading chat list from IndexedDB:', sharedChatId);
+				
+				// Queue the shared chat for selection after the list updates
+				// This ensures the chat is highlighted in the sidebar
+				if (sharedChatId) {
+					_chatIdToSelectAfterUpdate = sharedChatId;
+				}
+				
 				chatListCache.markDirty();
 				await updateChatListFromDB(true);
 				return;
@@ -790,13 +798,24 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			syncComplete = false;
 
 			// CRITICAL: Don't clear URL hash if one exists - deep links need to be processed first
-			// Only clear the store state, let +page.svelte handle the hash
+			// Only clear the store state for non-chat hashes, let +page.svelte handle the hash
 			const hasHash = typeof window !== 'undefined' && window.location.hash &&
 				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat-id=') ||
 				 window.location.hash.startsWith('#settings') || window.location.hash.startsWith('#embed') ||
 				 window.location.hash.startsWith('#signup'));
+			
+			// Check if this is specifically a chat hash - if so, DON'T clear the store
+			// The activeChatStore was already set by +page.svelte before Chats.svelte mounted
+			// Clearing it here would break shared chat selection (timing issue)
+			const hasChatHash = typeof window !== 'undefined' && window.location.hash &&
+				window.location.hash.startsWith('#chat-id=');
 
-			if (hasHash) {
+			if (hasChatHash) {
+				// CRITICAL: Don't clear the store for chat hashes - the active chat was already set
+				// by +page.svelte's deep link processing. Clearing it here causes a timing issue
+				// where the chat shows up in the list but isn't selected.
+				console.debug('[Chats] Preserving activeChatStore for chat deep link:', window.location.hash);
+			} else if (hasHash) {
 				console.debug('[Chats] Preserving URL hash for deep link processing:', window.location.hash);
 				// Only clear the store state without touching the URL hash
 				activeChatStore.setWithoutHashUpdate(null);
