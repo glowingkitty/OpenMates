@@ -21,7 +21,7 @@ from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 import httpx  # noqa: E402 # For service discovery
-from typing import Dict, List, Any  # noqa: E402 # For type hinting
+from typing import Dict, List, Any, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
@@ -1340,6 +1340,147 @@ def create_app() -> FastAPI:
             "apps": apps_health,
             "external_services": external_services_health
         }
+
+    # Health history endpoint - provides historical health data for incident analysis
+    # Note: This endpoint requires admin authentication for security (incident data is sensitive)
+    @app.get("/v1/health/history", dependencies=[])  # No dependencies - uses internal auth check
+    @limiter.limit("30/minute")
+    async def health_history(
+        request: Request,
+        service_type: Optional[str] = None,
+        service_id: Optional[str] = None,
+        since: Optional[int] = None,
+        limit: int = 100
+    ):
+        """
+        Get historical health events for incident analysis.
+        
+        This endpoint returns health status change events, allowing you to see
+        when and how often services went down over time. Only status transitions
+        are recorded (e.g., healthy → unhealthy), not every health check.
+        
+        Query Parameters:
+            service_type: Filter by service type ('provider', 'app', 'external')
+            service_id: Filter by service identifier (e.g., 'openrouter', 'ai', 'stripe')
+            since: Only include events after this Unix timestamp
+            limit: Maximum number of events to return (default 100, max 1000)
+        
+        Returns:
+            Dict with:
+            - events: List of health events sorted by created_at descending
+            - total: Number of events returned
+            - filters: Applied filters
+        
+        Note: Requires admin API key for access (sensitive incident data).
+        """
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.utils.api_key_auth import verify_api_key
+        
+        # Check for admin API key authentication
+        api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not api_key:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="API key required for health history access")
+        
+        # Verify API key and check for admin role
+        api_key_data = await verify_api_key(api_key)
+        if not api_key_data or api_key_data.get("role") != "admin":
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Admin access required for health history")
+        
+        # Validate service_type if provided
+        valid_service_types = {'provider', 'app', 'external'}
+        if service_type and service_type not in valid_service_types:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid service_type. Must be one of: {', '.join(valid_service_types)}"
+            )
+        
+        # Query health events
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            events = await directus.health_event.get_health_history(
+                service_type=service_type,
+                service_id=service_id,
+                since_timestamp=since,
+                limit=min(max(1, limit), 1000)
+            )
+            
+            return {
+                "events": events,
+                "total": len(events),
+                "filters": {
+                    "service_type": service_type,
+                    "service_id": service_id,
+                    "since": since,
+                    "limit": limit
+                }
+            }
+        finally:
+            await directus.close()
+
+    # Health incident summary endpoint - provides aggregated incident statistics
+    @app.get("/v1/health/incidents", dependencies=[])  # No dependencies - uses internal auth check
+    @limiter.limit("30/minute")
+    async def health_incident_summary(
+        request: Request,
+        service_type: Optional[str] = None,
+        since: Optional[int] = None
+    ):
+        """
+        Get aggregated incident statistics for all services.
+        
+        This endpoint provides a summary view of service incidents, including:
+        - Total incident count per service
+        - Total downtime duration per service
+        - Last incident timestamp
+        
+        Query Parameters:
+            service_type: Filter by service type ('provider', 'app', 'external')
+            since: Only include events after this Unix timestamp
+        
+        Returns:
+            Dict with incident statistics aggregated by service.
+        
+        Note: Requires admin API key for access (sensitive incident data).
+        """
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.utils.api_key_auth import verify_api_key
+        
+        # Check for admin API key authentication
+        api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not api_key:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="API key required for incident summary access")
+        
+        # Verify API key and check for admin role
+        api_key_data = await verify_api_key(api_key)
+        if not api_key_data or api_key_data.get("role") != "admin":
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Admin access required for incident summary")
+        
+        # Validate service_type if provided
+        valid_service_types = {'provider', 'app', 'external'}
+        if service_type and service_type not in valid_service_types:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid service_type. Must be one of: {', '.join(valid_service_types)}"
+            )
+        
+        # Get incident summary
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            summary = await directus.health_event.get_incident_summary(
+                since_timestamp=since,
+                service_type=service_type
+            )
+            return summary
+        finally:
+            await directus.close()
 
     # Server information endpoint - public endpoint (no auth required)
     # Included in OpenAPI docs - useful for clients to determine server type

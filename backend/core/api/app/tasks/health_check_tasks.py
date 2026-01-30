@@ -23,6 +23,79 @@ from backend.apps.ai.utils.llm_utils import (
 
 logger = logging.getLogger(__name__)
 
+# Flag to track if DirectusService is available for health event recording
+# This is set to True once the service is properly initialized during startup
+_directus_service_available = False
+
+
+async def _record_health_event_if_changed(
+    service_type: str,
+    service_id: str,
+    new_status: str,
+    previous_status: Optional[str],
+    previous_check_timestamp: Optional[int],
+    error_message: Optional[str] = None,
+    response_time_ms: Optional[float] = None
+) -> None:
+    """
+    Record a health event to the database if the status has changed.
+    
+    This function only records events when there's an actual status change
+    (e.g., healthy → unhealthy or unhealthy → healthy). This keeps the 
+    event log efficient and focused on meaningful incidents.
+    
+    Args:
+        service_type: Type of service ('provider', 'app', 'external')
+        service_id: Service identifier (e.g., 'openrouter', 'ai', 'stripe')
+        new_status: Current status ('healthy', 'unhealthy', 'degraded')
+        previous_status: Previous status from cache (can be None for first check)
+        previous_check_timestamp: Unix timestamp of previous status change (for duration calculation)
+        error_message: Sanitized error message if new_status is unhealthy
+        response_time_ms: Response time in milliseconds
+    """
+    # Only record if status changed (or if this is the first check and status is unhealthy)
+    if previous_status == new_status:
+        return
+    
+    # Skip recording "initial → healthy" events (not interesting)
+    # But record "initial → unhealthy" as that's a problem we want to track
+    if previous_status is None and new_status == "healthy":
+        logger.debug(f"[HEALTH_EVENT] Skipping initial healthy status for {service_type}/{service_id}")
+        return
+    
+    # Calculate duration of previous status if we have timestamps
+    duration_seconds = None
+    if previous_check_timestamp:
+        duration_seconds = int(time.time()) - previous_check_timestamp
+    
+    try:
+        # Import and use DirectusService for recording events
+        # We do this lazily to avoid circular imports and startup issues
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        
+        directus = DirectusService(cache_service=CacheService())
+        
+        try:
+            await directus.health_event.record_health_event(
+                service_type=service_type,
+                service_id=service_id,
+                previous_status=previous_status,
+                new_status=new_status,
+                error_message=error_message,
+                response_time_ms=response_time_ms,
+                duration_seconds=duration_seconds
+            )
+        finally:
+            await directus.close()
+            
+    except Exception as e:
+        # Log but don't fail the health check if event recording fails
+        logger.warning(
+            f"[HEALTH_EVENT] Failed to record status change for {service_type}/{service_id}: {e}"
+        )
+
+
 # Cache key prefix for health status
 HEALTH_CHECK_CACHE_KEY_PREFIX = "health_check:provider:"
 HEALTH_CHECK_APP_CACHE_KEY_PREFIX = "health_check:app:"
@@ -568,6 +641,19 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
             sorted_times = sorted(response_times_ms.items(), key=lambda x: int(x[0]), reverse=True)
             response_times_ms = dict(sorted_times[:5])
         
+        # Record health event if status changed (for historical tracking)
+        previous_status = existing_health_data.get("status")
+        previous_check_timestamp = existing_health_data.get("last_check")
+        await _record_health_event_if_changed(
+            service_type="provider",
+            service_id=provider_id,
+            new_status=status,
+            previous_status=previous_status,
+            previous_check_timestamp=previous_check_timestamp,
+            error_message=last_error,
+            response_time_ms=response_time_ms
+        )
+        
         # Store result in cache
         health_data = {
             "status": status,
@@ -664,6 +750,19 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
         # Keep only last 5 entries (sorted by timestamp, newest first)
         sorted_times = sorted(response_times_ms_dict.items(), key=lambda x: int(x[0]), reverse=True)
         response_times_ms_dict = dict(sorted_times[:5])
+    
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="provider",
+        service_id="brave",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
     
     # Store result in cache
     health_data = {
@@ -827,8 +926,46 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
     else:
         overall_status = "unhealthy"
     
-    # Store result in cache
     cache_key = f"{HEALTH_CHECK_APP_CACHE_KEY_PREFIX}{app_id}"
+    current_timestamp = int(time.time())
+    
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for app '{app_id}': {e}")
+    
+    # Determine error message for event recording (combine API and worker errors)
+    combined_error = None
+    if not api_healthy and api_error:
+        combined_error = f"API: {api_error}"
+    if not worker_healthy and worker_error:
+        if combined_error:
+            combined_error += f", Worker: {worker_error}"
+        else:
+            combined_error = f"Worker: {worker_error}"
+    
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="app",
+        service_id=app_id,
+        new_status=overall_status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=combined_error,
+        response_time_ms=None  # Apps don't have response time tracking
+    )
+    
+    # Store result in cache
     health_data = {
         "status": overall_status,
         "api": {
@@ -839,7 +976,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             "status": "healthy" if worker_healthy else "unhealthy",
             "last_error": worker_error
         },
-        "last_check": int(time.time())
+        "last_check": current_timestamp
     }
     
     try:
@@ -900,18 +1037,46 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
         response_time_ms = None
         logger.error(f"Health check: Error checking Stripe: {e}", exc_info=True)
 
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}stripe"
+    current_timestamp = int(time.time())
+
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for 'stripe': {e}")
+
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="stripe",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
     # Store result in cache
     health_data = {
         "status": status,
-        "last_check": int(time.time()),
+        "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(int(time.time())): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
     }
 
     try:
         client = await cache_service.client
         if client:
-            cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}stripe"
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store Stripe health status in cache: {e}")
@@ -978,18 +1143,46 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         response_time_ms = None
         logger.error(f"Health check: Error checking Sightengine: {e}", exc_info=True)
 
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
+    current_timestamp = int(time.time())
+
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for 'sightengine': {e}")
+
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="sightengine",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
     # Store result in cache
     health_data = {
         "status": status,
-        "last_check": int(time.time()),
+        "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(int(time.time())): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
     }
 
     try:
         client = await cache_service.client
         if client:
-            cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store Sightengine health status in cache: {e}")
@@ -1060,18 +1253,46 @@ async def _check_mailjet_health(secrets_manager: SecretsManager) -> Dict[str, An
         response_time_ms = None
         logger.error(f"Health check: Error checking Mailjet: {e}", exc_info=True)
 
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}mailjet"
+    current_timestamp = int(time.time())
+
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for 'mailjet': {e}")
+
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="mailjet",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
     # Store result in cache
     health_data = {
         "status": status,
-        "last_check": int(time.time()),
+        "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(int(time.time())): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
     }
 
     try:
         client = await cache_service.client
         if client:
-            cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}mailjet"
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store Mailjet health status in cache: {e}")
@@ -1200,18 +1421,46 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
         else:
             logger.error(f"Health check: Error checking AWS Bedrock: {e}", exc_info=True)
 
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}bedrock"
+    current_timestamp = int(time.time())
+
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for 'bedrock': {e}")
+
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="bedrock",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
     # Store result in cache
     health_data = {
         "status": status,
-        "last_check": int(time.time()),
+        "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(int(time.time())): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
     }
 
     try:
         client = await cache_service.client
         if client:
-            cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}bedrock"
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store AWS Bedrock health status in cache: {e}")
@@ -1259,18 +1508,46 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
             last_error = _sanitize_error_message(str(e))
             logger.error(f"Health check: Vercel domain '{domain}' error: {e}")
 
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}vercel"
+    current_timestamp = int(time.time())
+
+    # Get existing health data to check for status change
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode('utf-8')
+                existing_health_data = json.loads(existing_data_json)
+    except Exception as e:
+        logger.debug(f"Could not retrieve existing health data for 'vercel': {e}")
+
+    # Record health event if status changed (for historical tracking)
+    previous_status = existing_health_data.get("status")
+    previous_check_timestamp = existing_health_data.get("last_check")
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="vercel",
+        new_status=status,
+        previous_status=previous_status,
+        previous_check_timestamp=previous_check_timestamp,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
     # Store result in cache
     health_data = {
         "status": status,
-        "last_check": int(time.time()),
+        "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(int(time.time())): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
     }
 
     try:
         client = await cache_service.client
         if client:
-            cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}vercel"
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store Vercel domain health status in cache: {e}")
@@ -1689,4 +1966,43 @@ def check_external_services_health(self):
         logger.info("Health check: Async external service health checks completed successfully")
     except Exception as e:
         logger.error(f"Health check: Error running external service health checks: {e}", exc_info=True)
+        raise
+
+
+@app.task(name="health_check.cleanup_old_events", bind=True)
+def cleanup_old_health_events(self, retention_days: int = 90):
+    """
+    Periodic task to clean up old health events.
+    
+    This task removes health events older than the retention period to prevent
+    unbounded database growth. Default retention is 90 days, which provides
+    sufficient history for incident analysis while keeping storage manageable.
+    
+    Args:
+        retention_days: Number of days to retain events (default 90)
+    """
+    logger.info("=" * 80)
+    logger.info(f"Health check: Starting cleanup of health events older than {retention_days} days...")
+    logger.info("=" * 80)
+
+    async def run_cleanup():
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            deleted_count = await directus.health_event.cleanup_old_events(retention_days=retention_days)
+            
+            if deleted_count >= 0:
+                logger.info(f"Health check: Cleanup completed. Deleted {deleted_count} old health events.")
+            else:
+                logger.error("Health check: Cleanup failed.")
+        finally:
+            await directus.close()
+
+    # Run async cleanup
+    try:
+        asyncio.run(run_cleanup())
+    except Exception as e:
+        logger.error(f"Health check: Error running health event cleanup: {e}", exc_info=True)
         raise
