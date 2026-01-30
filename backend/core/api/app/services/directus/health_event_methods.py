@@ -27,6 +27,49 @@ class HealthEventMethods:
         """
         self.ds = directus_service
     
+    async def get_last_status(
+        self,
+        service_type: str,
+        service_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get the most recent health event for a service.
+        
+        This is used to determine the previous status when recording new events,
+        ensuring we use the database as the source of truth (not cache).
+        
+        Args:
+            service_type: Type of service ('provider', 'app', 'external')
+            service_id: Service identifier (e.g., 'openrouter', 'ai', 'stripe')
+        
+        Returns:
+            Dict with last event data (new_status, created_at) or None if no events exist
+        """
+        try:
+            query_string = (
+                f'filter[service_type][_eq]={service_type}'
+                f'&filter[service_id][_eq]={service_id}'
+                f'&limit=1'
+                f'&sort=-created_at'
+                f'&fields=new_status,created_at'
+            )
+            
+            url = f"{self.ds.base_url}/items/health_events?{query_string}"
+            
+            response = await self.ds._make_api_request("GET", url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                events = data.get("data", [])
+                if events:
+                    return events[0]
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"[HEALTH_EVENT] Error getting last status for {service_type}/{service_id}: {e}")
+            return None
+
     async def record_health_event(
         self,
         service_type: str,

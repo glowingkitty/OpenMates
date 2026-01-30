@@ -32,51 +32,67 @@ async def _record_health_event_if_changed(
     service_type: str,
     service_id: str,
     new_status: str,
-    previous_status: Optional[str],
-    previous_check_timestamp: Optional[int],
     error_message: Optional[str] = None,
     response_time_ms: Optional[float] = None
 ) -> None:
     """
     Record a health event to the database if the status has changed.
     
-    This function only records events when there's an actual status change
-    (e.g., healthy → unhealthy or unhealthy → healthy). This keeps the 
-    event log efficient and focused on meaningful incidents.
+    This function queries the database for the last known status (not cache)
+    and only records events when there's an actual status change.
+    Initial status is ALWAYS recorded for all services.
     
     Args:
         service_type: Type of service ('provider', 'app', 'external')
         service_id: Service identifier (e.g., 'openrouter', 'ai', 'stripe')
         new_status: Current status ('healthy', 'unhealthy', 'degraded')
-        previous_status: Previous status from cache (can be None for first check)
-        previous_check_timestamp: Unix timestamp of previous status change (for duration calculation)
         error_message: Sanitized error message if new_status is unhealthy
         response_time_ms: Response time in milliseconds
     """
-    # Only record if status changed (or if this is the first check and status is unhealthy)
-    if previous_status == new_status:
-        return
-    
-    # Skip recording "initial → healthy" events (not interesting)
-    # But record "initial → unhealthy" as that's a problem we want to track
-    if previous_status is None and new_status == "healthy":
-        logger.debug(f"[HEALTH_EVENT] Skipping initial healthy status for {service_type}/{service_id}")
-        return
-    
-    # Calculate duration of previous status if we have timestamps
-    duration_seconds = None
-    if previous_check_timestamp:
-        duration_seconds = int(time.time()) - previous_check_timestamp
-    
     try:
         # Import and use DirectusService for recording events
         # We do this lazily to avoid circular imports and startup issues
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
+        from datetime import datetime
         
         directus = DirectusService(cache_service=CacheService())
         
         try:
+            # Get the last known status from the DATABASE (not cache)
+            # This ensures we have accurate history even if cache expires
+            last_event = await directus.health_event.get_last_status(
+                service_type=service_type,
+                service_id=service_id
+            )
+            
+            previous_status = None
+            previous_check_timestamp = None
+            
+            if last_event:
+                previous_status = last_event.get("new_status")
+                # Parse the created_at timestamp
+                created_at_str = last_event.get("created_at")
+                if created_at_str:
+                    try:
+                        created_at_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        previous_check_timestamp = int(created_at_dt.timestamp())
+                    except (ValueError, TypeError):
+                        pass
+            
+            # Only record if status changed OR this is the first check (initial status)
+            if previous_status == new_status:
+                logger.debug(
+                    f"[HEALTH_EVENT] No status change for {service_type}/{service_id}: "
+                    f"still {new_status}"
+                )
+                return
+            
+            # Calculate duration of previous status if we have timestamps
+            duration_seconds = None
+            if previous_check_timestamp:
+                duration_seconds = int(time.time()) - previous_check_timestamp
+            
             await directus.health_event.record_health_event(
                 service_type=service_type,
                 service_id=service_id,
@@ -642,14 +658,10 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
             response_times_ms = dict(sorted_times[:5])
         
         # Record health event if status changed (for historical tracking)
-        previous_status = existing_health_data.get("status")
-        previous_check_timestamp = existing_health_data.get("last_check")
         await _record_health_event_if_changed(
             service_type="provider",
             service_id=provider_id,
             new_status=status,
-            previous_status=previous_status,
-            previous_check_timestamp=previous_check_timestamp,
             error_message=last_error,
             response_time_ms=response_time_ms
         )
@@ -752,14 +764,10 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
         response_times_ms_dict = dict(sorted_times[:5])
     
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="provider",
         service_id="brave",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -874,9 +882,39 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
         return False, _sanitize_error_message(str(e))
 
 
+def _app_has_workers(app_id: str) -> bool:
+    """
+    Check if an app has worker tasks defined.
+    
+    Apps with workers will have a tasks/ directory with Python files.
+    Apps without workers should not be marked as degraded.
+    
+    Args:
+        app_id: App ID to check
+    
+    Returns:
+        True if the app has workers, False otherwise
+    """
+    import glob
+    
+    # Check for tasks directory with Python files
+    apps_dir = "/app/backend/apps"
+    tasks_pattern = f"{apps_dir}/{app_id}/tasks/*.py"
+    
+    task_files = glob.glob(tasks_pattern)
+    
+    # Filter out __init__.py - only count actual task files
+    actual_task_files = [f for f in task_files if not f.endswith("__init__.py")]
+    
+    return len(actual_task_files) > 0
+
+
 async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
     """
-    Check health of a single app (both API and worker) with double-attempt logic.
+    Check health of a single app (API and optionally worker) with double-attempt logic.
+    
+    Worker health is only checked for apps that have workers defined (tasks/ directory).
+    Apps without workers will be healthy if their API is healthy.
     
     Args:
         app_id: App ID to check
@@ -885,7 +923,13 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
     Returns:
         Dict with api_status, worker_status, last_check, last_error
     """
-    logger.info(f"Health check: Checking app '{app_id}' (API and worker)...")
+    # Check if this app has workers
+    has_workers = _app_has_workers(app_id)
+    
+    if has_workers:
+        logger.info(f"Health check: Checking app '{app_id}' (API and worker)...")
+    else:
+        logger.info(f"Health check: Checking app '{app_id}' (API only - no workers)...")
     
     # Initialize cache service
     cache_service = CacheService()
@@ -904,43 +948,44 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
         api_healthy = True
         api_error = None
     
-    # Check worker health (first attempt)
-    worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id)
+    # Check worker health only if the app has workers
+    worker_healthy = True  # Default to healthy for apps without workers
+    worker_error = None
+    worker_status = "not_applicable"
     
-    # If first attempt failed, retry once
-    if not worker_attempt1_success:
-        logger.warning(f"Health check: App '{app_id}' worker first attempt failed: {worker_attempt1_error}. Retrying...")
-        await asyncio.sleep(1)
-        worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id)
-        worker_healthy = worker_attempt2_success
-        worker_error = worker_attempt2_error or worker_attempt1_error
-    else:
-        worker_healthy = True
-        worker_error = None
+    if has_workers:
+        # Check worker health (first attempt)
+        worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id)
+        
+        # If first attempt failed, retry once
+        if not worker_attempt1_success:
+            logger.warning(f"Health check: App '{app_id}' worker first attempt failed: {worker_attempt1_error}. Retrying...")
+            await asyncio.sleep(1)
+            worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id)
+            worker_healthy = worker_attempt2_success
+            worker_error = worker_attempt2_error or worker_attempt1_error
+        else:
+            worker_healthy = True
+            worker_error = None
+        
+        worker_status = "healthy" if worker_healthy else "unhealthy"
     
     # Determine overall app status
-    if api_healthy and worker_healthy:
-        overall_status = "healthy"
-    elif api_healthy or worker_healthy:
-        overall_status = "degraded"
+    # For apps with workers: both must be healthy
+    # For apps without workers: only API needs to be healthy
+    if has_workers:
+        if api_healthy and worker_healthy:
+            overall_status = "healthy"
+        elif api_healthy or worker_healthy:
+            overall_status = "degraded"
+        else:
+            overall_status = "unhealthy"
     else:
-        overall_status = "unhealthy"
+        # No workers - API health determines overall status
+        overall_status = "healthy" if api_healthy else "unhealthy"
     
     cache_key = f"{HEALTH_CHECK_APP_CACHE_KEY_PREFIX}{app_id}"
     current_timestamp = int(time.time())
-    
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for app '{app_id}': {e}")
     
     # Determine error message for event recording (combine API and worker errors)
     combined_error = None
@@ -953,14 +998,10 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             combined_error = f"Worker: {worker_error}"
     
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="app",
         service_id=app_id,
         new_status=overall_status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=combined_error,
         response_time_ms=None  # Apps don't have response time tracking
     )
@@ -973,7 +1014,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             "last_error": api_error
         },
         "worker": {
-            "status": "healthy" if worker_healthy else "unhealthy",
+            "status": worker_status,  # "healthy", "unhealthy", or "not_applicable"
             "last_error": worker_error
         },
         "last_check": current_timestamp
@@ -1040,28 +1081,11 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
     cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}stripe"
     current_timestamp = int(time.time())
 
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for 'stripe': {e}")
-
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="external",
         service_id="stripe",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -1101,22 +1125,28 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         )
 
         if not api_user or not api_secret:
-            status = "unhealthy"
-            last_error = "missing_credentials"
-            response_time_ms = None
-            logger.warning("Health check: Sightengine credentials not configured")
+            # No credentials = skip this check (not configured)
+            logger.info("Health check: Skipping Sightengine health check (not configured)")
+            return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
         else:
             start_time = time.time()
 
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Test with a simple API call - get moderation list (lightweight)
+                    # Test with a simple check endpoint (minimal image check)
+                    # We use the check-url endpoint with a tiny placeholder image
                     response = await client.get(
-                        "https://api.sightengine.com/1.0/moderation/list",
-                        params={"user_id": api_user, "secret": api_secret}
+                        "https://api.sightengine.com/1.0/check.json",
+                        params={
+                            "api_user": api_user,
+                            "api_secret": api_secret,
+                            "models": "nudity-2.0",
+                            "url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Transparent.gif"
+                        }
                     )
                     response_time_ms = (time.time() - start_time) * 1000
 
+                    # 200 = success, or we check for valid response structure
                     if response.status_code == 200:
                         status = "healthy"
                         last_error = None
@@ -1146,28 +1176,11 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
     current_timestamp = int(time.time())
 
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for 'sightengine': {e}")
-
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="external",
         service_id="sightengine",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -1190,94 +1203,70 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     return health_data
 
 
-async def _check_mailjet_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Mailjet API health via test request."""
-    logger.info("Health check: Checking Mailjet API...")
+async def _check_brevo_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
+    """Check Brevo (Sendinblue) API health via test request."""
+    logger.info("Health check: Checking Brevo API...")
     cache_service = CacheService()
 
     try:
-        # Get Mailjet credentials from Vault
+        # Get Brevo API key from Vault
         api_key = await secrets_manager.get_secret(
-            secret_path="kv/data/providers/mailjet",
+            secret_path="kv/data/providers/brevo",
             secret_key="api_key"
         )
-        api_secret = await secrets_manager.get_secret(
-            secret_path="kv/data/providers/mailjet",
-            secret_key="api_secret"
-        )
 
-        if not api_key or not api_secret:
+        if not api_key:
+            # No credentials = skip this check (not configured)
+            logger.info("Health check: Skipping Brevo health check (not configured)")
+            return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
+        
+        start_time = time.time()
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Test with account info endpoint (lightweight, read-only)
+                response = await client.get(
+                    "https://api.brevo.com/v3/account",
+                    headers={"api-key": api_key}
+                )
+                response_time_ms = (time.time() - start_time) * 1000
+
+                if response.status_code == 200:
+                    status = "healthy"
+                    last_error = None
+                    logger.info(f"Health check: Brevo API is healthy ({response_time_ms:.1f}ms)")
+                else:
+                    status = "unhealthy"
+                    last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                    logger.error(f"Health check: Brevo API returned {response.status_code}")
+
+        except httpx.TimeoutException:
+            response_time_ms = (time.time() - start_time) * 1000
             status = "unhealthy"
-            last_error = "missing_credentials"
-            response_time_ms = None
-            logger.warning("Health check: Mailjet credentials not configured")
-        else:
-            start_time = time.time()
-
-            try:
-                import base64
-                # Basic auth for Mailjet API
-                credentials = base64.b64encode(f"{api_key}:{api_secret}".encode()).decode()
-
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Test with a lightweight API call - list webhook configurations
-                    response = await client.get(
-                        "https://api.mailjet.com/v3.1/webhookevents",
-                        headers={"Authorization": f"Basic {credentials}"}
-                    )
-                    response_time_ms = (time.time() - start_time) * 1000
-
-                    if response.status_code == 200:
-                        status = "healthy"
-                        last_error = None
-                        logger.info(f"Health check: Mailjet API is healthy ({response_time_ms:.1f}ms)")
-                    else:
-                        status = "unhealthy"
-                        last_error = _sanitize_error_message(f"HTTP {response.status_code}")
-                        logger.error(f"Health check: Mailjet API returned {response.status_code}")
-
-            except httpx.TimeoutException:
-                response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = "timeout"
-                logger.error("Health check: Mailjet API timeout")
-            except Exception as e:
-                response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = _sanitize_error_message(str(e))
-                logger.error(f"Health check: Mailjet API error: {e}")
+            last_error = "timeout"
+            logger.error("Health check: Brevo API timeout")
+        except Exception as e:
+            response_time_ms = (time.time() - start_time) * 1000
+            status = "unhealthy"
+            last_error = _sanitize_error_message(str(e))
+            logger.error(f"Health check: Brevo API error: {e}")
 
     except Exception as e:
         status = "unhealthy"
         last_error = _sanitize_error_message(str(e))
         response_time_ms = None
-        logger.error(f"Health check: Error checking Mailjet: {e}", exc_info=True)
+        logger.error(f"Health check: Error checking Brevo: {e}", exc_info=True)
 
-    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}mailjet"
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}brevo"
     current_timestamp = int(time.time())
 
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for 'mailjet': {e}")
+    current_timestamp = int(time.time())
 
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="external",
-        service_id="mailjet",
+        service_id="brevo",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -1295,7 +1284,7 @@ async def _check_mailjet_health(secrets_manager: SecretsManager) -> Dict[str, An
         if client:
             await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
-        logger.error(f"Health check: Failed to store Mailjet health status in cache: {e}")
+        logger.error(f"Health check: Failed to store Brevo health status in cache: {e}")
 
     return health_data
 
@@ -1321,10 +1310,9 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
         ) or "us-east-1"
 
         if not aws_access_key or not aws_secret_key:
-            status = "unhealthy"
-            last_error = "missing_credentials"
-            response_time_ms = None
-            logger.warning("Health check: AWS credentials not configured")
+            # No credentials = skip this check (not configured)
+            logger.info("Health check: Skipping AWS Bedrock health check (not configured)")
+            return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
         else:
             start_time = time.time()
 
@@ -1424,28 +1412,11 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
     cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}bedrock"
     current_timestamp = int(time.time())
 
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for 'bedrock': {e}")
-
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="external",
         service_id="bedrock",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -1474,10 +1445,9 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     cache_service = CacheService()
 
     if not domain:
-        status = "unhealthy"
-        last_error = "missing_domain"
-        response_time_ms = None
-        logger.warning("Health check: Vercel domain not configured")
+        # No domain = skip this check (not configured)
+        logger.info("Health check: Skipping Vercel health check (not configured)")
+        return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
     else:
         try:
             start_time = time.time()
@@ -1511,28 +1481,11 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}vercel"
     current_timestamp = int(time.time())
 
-    # Get existing health data to check for status change
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for 'vercel': {e}")
-
     # Record health event if status changed (for historical tracking)
-    previous_status = existing_health_data.get("status")
-    previous_check_timestamp = existing_health_data.get("last_check")
     await _record_health_event_if_changed(
         service_type="external",
         service_id="vercel",
         new_status=status,
-        previous_status=previous_status,
-        previous_check_timestamp=previous_check_timestamp,
         error_message=last_error,
         response_time_ms=response_time_ms
     )
@@ -1912,16 +1865,16 @@ def check_external_services_health(self):
             else:
                 logger.info("Health check: Skipping Stripe health check (payment disabled - self-hosted mode)")
 
-            # Check Sightengine
+            # Check Sightengine (image moderation - skipped if not configured)
             tasks.append(_check_sightengine_health(secrets_manager))
 
-            # Check Mailjet
-            tasks.append(_check_mailjet_health(secrets_manager))
+            # Check Brevo (email service - skipped if not configured)
+            tasks.append(_check_brevo_health(secrets_manager))
 
-            # Check AWS Bedrock
+            # Check AWS Bedrock (skipped if not configured)
             tasks.append(_check_aws_bedrock_health(secrets_manager))
 
-            # Check Vercel domain
+            # Check Vercel domain (skipped if not configured)
             vercel_domain = os.getenv("VERCEL_DOMAIN", "")
             tasks.append(_check_vercel_domain_health(vercel_domain))
 
@@ -1929,21 +1882,22 @@ def check_external_services_health(self):
             logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Log results
+            # Log results (count skipped separately)
             healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
             unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
+            skipped_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "skipped")
             error_count = sum(1 for r in results if isinstance(r, Exception))
 
             logger.info("=" * 80)
             logger.info(
                 f"Health check: External services checks completed. "
-                f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+                f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Skipped: {skipped_count}, Errors: {error_count}"
             )
             logger.info("=" * 80)
 
             # Log details for unhealthy services
             if unhealthy_count > 0:
-                service_names = ["stripe", "sightengine", "mailjet", "bedrock", "vercel"]
+                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel"]
                 for i, result in enumerate(results):
                     if isinstance(result, dict) and result.get("status") == "unhealthy":
                         service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
