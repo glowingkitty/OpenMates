@@ -11,6 +11,10 @@ models:
   - id: "gpt-5.2" # Model ID without provider prefix
     name: "GPT-5.2"
     description: "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities"
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "gpt-5.2"
+      openrouter: "openai/gpt-5.2"
     input_types:
       - text
       - image
@@ -48,6 +52,10 @@ models:
   - id: "gpt-oss-120b" # Model ID without provider prefix
     name: "GPT-OSS-120b"
     description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "llama-3.1-405b-instruct"
+      openrouter: "openai/gpt-oss-120b"
     input_types:
       - text
     output_types:
@@ -84,6 +92,10 @@ models:
   - id: "gpt-oss-safeguard-20b" # Model ID without provider prefix
     name: "GPT-OSS-Safeguard-20b"
     description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "llama-guard-3-8b"
+      openrouter: "openai/gpt-oss-safeguard-20b"
     input_types:
       - text
     output_types:

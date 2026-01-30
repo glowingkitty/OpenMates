@@ -11,6 +11,10 @@ models:
   - id: "claude-haiku-4-5-20251001" # Official model ID
     name: "Claude Haiku 4.5"
     description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-4-haiku"
+      openrouter: "anthropic/claude-haiku-4-5-20251001"
     input_types:
       - text
       - image
@@ -50,6 +54,10 @@ models:
   - id: "claude-sonnet-4-5-20250929" # Official model ID
     name: "Claude Sonnet 4.5"
     description: "Optimal balance of intelligence, cost, and speed."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-4.5-sonnet"
+      openrouter: "anthropic/claude-sonnet-4-5-20250929"
     input_types:
       - text
       - image
@@ -90,6 +98,10 @@ models:
   - id: "claude-opus-4-5-20251101" # Official model ID
     name: "Claude Opus 4.5"
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-4.5-opus"
+      openrouter: "anthropic/claude-opus-4.5"
     input_types:
       - text
       - image

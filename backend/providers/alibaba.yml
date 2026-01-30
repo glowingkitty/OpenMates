@@ -11,6 +11,10 @@ models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen3 235B A22B (2507)"
     description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance."
+    country_origin: "CN"  # ISO 3166-1 alpha-2 country code for model origin (China)
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "qwen3-235b-a22b"
+      openrouter: "qwen/qwen3-235b-a22b-2507"
     input_types:
       - text
       - image

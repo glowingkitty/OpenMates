@@ -14,7 +14,7 @@ from backend.core.api.app.services.cache import CacheService # Corrected import 
 from backend.core.api.app.services.directus.directus import DirectusService # Added for type hinting and reuse
 from backend.core.api.app.utils.encryption import EncryptionService # Added for type hinting and reuse
 from backend.core.api.app.services.translations import TranslationService # For loading translations
- 
+
 # Import the new LLM utility
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
@@ -24,6 +24,15 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
+
+# Import UserOverrides for @ mentioning syntax support
+from backend.core.api.app.utils.override_parser import UserOverrides
+
+# Import China sensitivity detection for model filtering
+from backend.core.api.app.services.china_sensitivity import is_china_related
+
+# Import model selector for intelligent model selection based on leaderboard rankings
+from backend.apps.ai.utils.model_selector import ModelSelector
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -55,6 +64,12 @@ class PreprocessingResult(BaseModel):
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
+
+    # Model selection with fallbacks (from intelligent model selector)
+    selected_secondary_model_id: Optional[str] = None
+    selected_fallback_model_id: Optional[str] = None
+    model_selection_reason: Optional[str] = Field(None, description="Explanation of why these models were selected (for debugging/logging).")
+    filtered_cn_models: bool = Field(False, description="True if China-origin models were excluded due to sensitive content.")
 
     # Hardcoded disclaimer injection - ensures legal disclaimers are always shown for sensitive topics
     # This is NOT LLM-dependent; the disclaimer will be appended by stream_consumer after response completes
@@ -244,7 +259,8 @@ async def handle_preprocessing(
     directus_service: DirectusService, # Added DirectusService for reuse
     encryption_service: EncryptionService, # Added EncryptionService for reuse
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
-    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None  # AppYAML metadata for tool preselection
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None,  # AppYAML metadata for tool preselection
+    user_overrides: Optional[UserOverrides] = None  # User overrides from @ mentioning syntax
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -608,7 +624,7 @@ async def handle_preprocessing(
     logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
     logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Available focus modes ({len(available_focus_modes_list)} total): {', '.join(available_focus_modes_list) if available_focus_modes_list else 'None'}")
-    logger.info(f"  - Dynamic context for LLM prompt:")
+    logger.info("  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
     logger.info(f"    - AVAILABLE_FOCUS_MODES: {available_focus_modes_list if available_focus_modes_list else 'None'}")
@@ -766,13 +782,154 @@ async def handle_preprocessing(
         # Update llm_analysis_args for consistency
         llm_analysis_args["complexity"] = complexity_val
     
-    selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
-    selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
-    if complexity_val == "complex":
-        selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
-        selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
-    
-    logger.info(f"{log_prefix} Selected LLM for main processing: {selected_llm_for_main_id} (Name: {selected_llm_for_main_name}) based on complexity '{complexity_val}'.")
+    # --- Intelligent Model Selection using Leaderboard Rankings ---
+    # Extract task_area and user_unhappy from LLM analysis for model selection
+    task_area_val = llm_analysis_args.get("task_area", "general")
+    user_unhappy_val = llm_analysis_args.get("user_unhappy", False)
+
+    # Validate task_area (enum: code, math, creative, instruction, general)
+    valid_task_areas = ["code", "math", "creative", "instruction", "general"]
+    if task_area_val not in valid_task_areas:
+        logger.warning(
+            f"{log_prefix} LLM returned invalid task_area '{task_area_val}'. "
+            f"Valid values: {valid_task_areas}. Defaulting to 'general'."
+        )
+        task_area_val = "general"
+        llm_analysis_args["task_area"] = task_area_val
+
+    # Validate user_unhappy (boolean)
+    if not isinstance(user_unhappy_val, bool):
+        logger.warning(
+            f"{log_prefix} LLM returned non-boolean user_unhappy: {user_unhappy_val}. "
+            f"Defaulting to False."
+        )
+        user_unhappy_val = False
+        llm_analysis_args["user_unhappy"] = user_unhappy_val
+
+    # Check for China-sensitive content in the message history
+    # If detected, we filter out China-origin models to avoid censorship issues
+    china_related = is_china_related(sanitized_message_history)
+    if china_related:
+        logger.info(
+            f"{log_prefix} CHINA_SENSITIVITY: Detected China-sensitive content in message history. "
+            f"China-origin models will be excluded from selection."
+        )
+
+    # Initialize model selection variables
+    selected_llm_for_main_id: Optional[str] = None
+    selected_llm_for_main_name: Optional[str] = None
+    selected_secondary_model_id: Optional[str] = None
+    selected_fallback_model_id: Optional[str] = None
+    model_selection_reason: Optional[str] = None
+    filtered_cn_models = china_related
+
+    # --- Apply User Model Override (@ai-model:...) if specified ---
+    # User can force a specific model using @ai-model:{model_id} or @ai-model:{model_id}:{provider}
+    # This overrides the automatic model selection based on leaderboard rankings
+    model_override_applied = False
+    if user_overrides and user_overrides.model_id:
+        override_model_id = user_overrides.model_id
+        override_provider = user_overrides.model_provider
+
+        logger.info(
+            f"{log_prefix} USER_OVERRIDE: User requested model override. "
+            f"model_id={override_model_id}, provider={override_provider}"
+        )
+
+        # For now, we accept the user's model_id directly if it contains a provider prefix
+        # If it doesn't, we try to infer from the config or use the specified provider
+        if "/" in override_model_id:
+            # User provided full model reference (e.g., "anthropic/claude-opus-4-5-20251101")
+            selected_llm_for_main_id = override_model_id
+            # Extract model name for display
+            selected_llm_for_main_name = override_model_id.split("/")[-1]
+            model_override_applied = True
+            model_selection_reason = f"User override: {selected_llm_for_main_id}"
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id}"
+            )
+        elif override_provider:
+            # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
+            selected_llm_for_main_id = f"{override_provider}/{override_model_id}"
+            selected_llm_for_main_name = override_model_id
+            model_override_applied = True
+            model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id}"
+            )
+        else:
+            # User provided only model_id - we'll trust it and let main_processor handle resolution
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Model '{override_model_id}' specified without provider. "
+                f"Will attempt to resolve during main processing."
+            )
+            selected_llm_for_main_id = override_model_id
+            selected_llm_for_main_name = override_model_id
+            model_override_applied = True
+            model_selection_reason = f"User override (no provider): {override_model_id}"
+
+        logger.info(
+            f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
+            f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
+        )
+
+    # --- Use Intelligent Model Selector if no user override ---
+    if not model_override_applied:
+        # Use ModelSelector to select models based on leaderboard rankings
+        try:
+            from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
+
+            # Get leaderboard data from cache (preloaded on server startup)
+            leaderboard_data = await get_leaderboard_data()
+
+            # Create model selector and select models
+            model_selector = ModelSelector(leaderboard_data=leaderboard_data)
+            selection_result = model_selector.select_models(
+                task_area=task_area_val,
+                complexity=complexity_val,
+                china_related=china_related,
+                user_unhappy=user_unhappy_val,
+                log_prefix=log_prefix
+            )
+
+            selected_llm_for_main_id = selection_result.primary_model_id
+            selected_secondary_model_id = selection_result.secondary_model_id
+            selected_fallback_model_id = selection_result.fallback_model_id
+            model_selection_reason = selection_result.selection_reason
+            filtered_cn_models = selection_result.filtered_cn_models
+
+            # Extract model name from model_id (take last part after /)
+            if selected_llm_for_main_id and "/" in selected_llm_for_main_id:
+                selected_llm_for_main_name = selected_llm_for_main_id.split("/")[-1]
+            else:
+                selected_llm_for_main_name = selected_llm_for_main_id
+
+            logger.info(
+                f"{log_prefix} MODEL_SELECTION: Intelligent selection completed. "
+                f"task_area={task_area_val}, complexity={complexity_val}, "
+                f"china_related={china_related}, user_unhappy={user_unhappy_val}. "
+                f"Primary: {selected_llm_for_main_id}, Secondary: {selected_secondary_model_id}, "
+                f"Fallback: {selected_fallback_model_id}. Reason: {model_selection_reason}"
+            )
+        except Exception as e:
+            # Fallback to skill_config if model selector fails
+            logger.warning(
+                f"{log_prefix} MODEL_SELECTION: Failed to use intelligent model selector: {e}. "
+                f"Falling back to skill_config defaults."
+            )
+            # Use skill_config defaults as fallback
+            if complexity_val == "complex":
+                selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
+                selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
+            else:
+                selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
+                selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+
+            model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
+            logger.info(
+                f"{log_prefix} MODEL_SELECTION: Using fallback model from skill_config: "
+                f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
+            )
     
     # --- Validate llm_response_temp field (range: 0.0-2.0) ---
     llm_response_temp_val = llm_analysis_args.get("llm_response_temp", 0.4)
@@ -797,8 +954,7 @@ async def handle_preprocessing(
     # We validate the category and retry preprocessing once if invalid, then fallback to 'general_knowledge' if retry also fails.
     llm_category = llm_analysis_args.get("category")
     validated_category = llm_category
-    category_was_retried = False
-    
+
     # Validate category against available categories list
     if llm_category and llm_category not in available_categories_list:
         logger.warning(
@@ -841,7 +997,6 @@ async def handle_preprocessing(
                 if retry_category and retry_category in available_categories_list:
                     logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
                     validated_category = retry_category
-                    category_was_retried = True
                     # Update llm_analysis_args with the validated category for consistency
                     llm_analysis_args["category"] = validated_category
                 else:
@@ -879,7 +1034,7 @@ async def handle_preprocessing(
     
     # --- Mate selection based on validated category ---
     selected_mate_id: Optional[str] = None
-    
+
     if validated_category:
         if not all_mates:
             logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{validated_category}'.")
@@ -893,6 +1048,31 @@ async def handle_preprocessing(
                     f"{log_prefix} No mate found for validated category '{validated_category}'. "
                     f"'selected_mate_id' will be None. Main processing must handle this."
                 )
+
+    # --- Apply User Mate Override (@mate:...) if specified ---
+    # User can force a specific mate/persona using @mate:{mate_id}
+    # This overrides the automatic mate selection based on category
+    if user_overrides and user_overrides.mate_id:
+        override_mate_id = user_overrides.mate_id
+        # Validate that the mate exists
+        override_mate = next((mate for mate in all_mates if mate.id == override_mate_id), None)
+        if override_mate:
+            selected_mate_id = override_mate_id
+            # Also update category to match the mate's category for consistency
+            if override_mate.category:
+                validated_category = override_mate.category
+                llm_analysis_args["category"] = validated_category
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Applied mate override. "
+                f"mate_id={selected_mate_id}, category={validated_category}"
+            )
+        else:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Invalid mate override. "
+                f"Mate '{override_mate_id}' not found in available mates. "
+                f"Available mates: {[m.id for m in all_mates]}. "
+                f"Keeping automatic selection: {selected_mate_id}"
+            )
     
     # --- Validate load_app_settings_and_memories field ---
     # Filter out any keys that don't exist in the available metadata
@@ -1214,6 +1394,10 @@ async def handle_preprocessing(
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
+        selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
+        selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)
+        model_selection_reason=model_selection_reason,  # Explanation of model selection for debugging
+        filtered_cn_models=filtered_cn_models,  # True if CN models were filtered due to sensitive content
         selected_mate_id=selected_mate_id,
         raw_llm_response=llm_analysis_args,
         error_message=None

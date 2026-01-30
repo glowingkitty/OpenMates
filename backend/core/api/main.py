@@ -520,7 +520,25 @@ async def lifespan(app: FastAPI):
             # Don't fail startup - will fallback to disk loading on first request
     else:
         logger.warning("CacheService not available in app.state. Cannot preload AI configuration files.")
-    
+
+    # --- Preload leaderboard data into cache ---
+    # This ensures model rankings are available before first AI request
+    logger.info("Preloading leaderboard data into cache...")
+    if hasattr(app.state, 'cache_service'):
+        try:
+            from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
+            leaderboard_data = await get_leaderboard_data()
+            if leaderboard_data:
+                ranked_count = len(leaderboard_data.get("rankings", []))
+                logger.info(f"Successfully preloaded leaderboard data with {ranked_count} ranked models.")
+            else:
+                logger.warning("No leaderboard data available. Run 'leaderboard.update_daily' task to populate.")
+        except Exception as e_leaderboard:
+            logger.warning(f"Failed to preload leaderboard data during startup: {e_leaderboard}")
+            # Don't fail startup - leaderboard is optional for model selection
+    else:
+        logger.warning("CacheService not available in app.state. Cannot preload leaderboard data.")
+
     # --- Perform other async initializations ---
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
     logger.info("Initializing S3 service...")
