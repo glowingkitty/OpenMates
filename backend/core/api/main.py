@@ -1436,8 +1436,9 @@ def create_app() -> FastAPI:
             await directus.close()
 
     # Health incident summary endpoint - provides aggregated incident statistics
-    @app.get("/v1/health/incidents", dependencies=[])  # No dependencies - uses internal auth check
-    @limiter.limit("30/minute")
+    # Public endpoint (no auth required) - enables status pages and monitoring
+    @app.get("/v1/health/incidents", dependencies=[])  # No dependencies (public endpoint)
+    @limiter.limit("60/minute")
     async def health_incident_summary(
         request: Request,
         service_type: Optional[str] = None,
@@ -1457,24 +1458,9 @@ def create_app() -> FastAPI:
         
         Returns:
             Dict with incident statistics aggregated by service.
-        
-        Note: Requires admin API key for access (sensitive incident data).
         """
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
-        from backend.core.api.app.utils.api_key_auth import verify_api_key
-        
-        # Check for admin API key authentication
-        api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-        if not api_key:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=401, detail="API key required for incident summary access")
-        
-        # Verify API key and check for admin role
-        api_key_data = await verify_api_key(api_key)
-        if not api_key_data or api_key_data.get("role") != "admin":
-            from fastapi import HTTPException
-            raise HTTPException(status_code=403, detail="Admin access required for incident summary")
         
         # Validate service_type if provided
         valid_service_types = {'provider', 'app', 'external'}
