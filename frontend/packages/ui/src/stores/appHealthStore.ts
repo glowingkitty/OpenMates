@@ -35,18 +35,34 @@ interface AppHealthStatus {
 }
 
 /**
+ * Health status for a provider (LLM API provider like Anthropic, OpenAI, etc.).
+ */
+interface ProviderHealthStatus {
+    /** Provider status: "healthy" | "degraded" | "unhealthy" */
+    status: string;
+    /** Last health check timestamp */
+    last_check: number | null;
+    /** Last error message if any */
+    last_error: string | null;
+    /** Response times for different operations */
+    response_times_ms: Record<string, number>;
+}
+
+/**
  * Health endpoint response structure.
  */
 interface HealthResponse {
     status: string;
-    providers: Record<string, any>;
+    providers: Record<string, ProviderHealthStatus>;
     apps: Record<string, AppHealthStatus>;
-    external_services: Record<string, any>;
+    external_services: Record<string, unknown>;
 }
 
 interface AppHealthState {
     /** Map of app_id to health status */
     appHealth: Record<string, AppHealthStatus>;
+    /** Map of provider_id to health status */
+    providerHealth: Record<string, ProviderHealthStatus>;
     /** Whether health status has been fetched (even if it failed) */
     initialized: boolean;
     /** Whether the health data is actually available from a successful request */
@@ -63,6 +79,7 @@ interface AppHealthState {
 
 const initialState: AppHealthState = {
     appHealth: {},
+    providerHealth: {},
     initialized: false,
     dataAvailable: false,
     loading: false,
@@ -106,6 +123,29 @@ export const isAppHealthy = derived(
         // Check if the API is healthy (not the overall app status)
         // An app can be "degraded" (e.g., worker unhealthy) but still have a healthy API
         return health.api?.status === 'healthy';
+    }
+);
+
+/**
+ * Check if a provider (LLM API provider) is healthy.
+ * Returns true if provider status is "healthy" or if health data is not available (offline-first).
+ * 
+ * Note: For providers, we default to true when health data is unavailable,
+ * allowing the @ mention dropdown to work offline.
+ */
+export const isProviderHealthy = derived(
+    appHealthStore,
+    ($state) => (providerId: string): boolean => {
+        // If health data is not available (offline/failed), assume all providers are available
+        if (!$state.dataAvailable) {
+            return true;
+        }
+        const health = $state.providerHealth[providerId];
+        if (!health) {
+            // If provider is not in health data, assume it's healthy (may be a new provider)
+            return true;
+        }
+        return health.status === 'healthy';
     }
 );
 
@@ -168,12 +208,15 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
         
         console.debug('[AppHealthStore] Health status fetched:', {
             totalApps: Object.keys(data.apps || {}).length,
-            appIds: Object.keys(data.apps || {})
+            appIds: Object.keys(data.apps || {}),
+            totalProviders: Object.keys(data.providers || {}).length,
+            providerIds: Object.keys(data.providers || {})
         });
         
         // Update store with fetched health data
         appHealthStore.set({
             appHealth: data.apps || {},
+            providerHealth: data.providers || {},
             initialized: true,
             dataAvailable: true,
             loading: false,

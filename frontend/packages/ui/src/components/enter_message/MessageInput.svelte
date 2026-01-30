@@ -51,6 +51,11 @@
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
+    import MentionDropdown from './MentionDropdown.svelte';
+    import {
+        extractMentionQuery,
+        type AnyMentionResult
+    } from './services/mentionSearchService';
     import {
         processFiles,
         handleDrop as handleFileDrop,
@@ -114,6 +119,12 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let isMessageFieldFocused = $state(false);
+    
+    // --- Mention Dropdown State ---
+    let showMentionDropdown = $state(false);
+    let mentionQuery = $state('');
+    let mentionDropdownX = $state(0);
+    let mentionDropdownY = $state(0);
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
@@ -1124,6 +1135,82 @@
         }, 150); // Slightly longer delay to allow for quick focus regains
     }
 
+    /**
+     * Check for @ mention trigger and update the dropdown state.
+     * Shows the mention dropdown when user types @ at start of word.
+     */
+    function checkMentionTrigger(editor: Editor) {
+        const { from } = editor.state.selection;
+        const text = editor.getText();
+        
+        // Extract the query after @ if we're in mention mode
+        const query = extractMentionQuery(text, from);
+        
+        if (query !== null) {
+            // We're in mention mode - show dropdown
+            mentionQuery = query;
+            
+            // Calculate dropdown position based on cursor/caret
+            // Position it above the input field
+            if (messageInputWrapper) {
+                const rect = messageInputWrapper.getBoundingClientRect();
+                mentionDropdownX = 16; // Left padding
+                mentionDropdownY = rect.height + 8; // Above the input
+            }
+            
+            showMentionDropdown = true;
+        } else {
+            // Not in mention mode - hide dropdown
+            showMentionDropdown = false;
+            mentionQuery = '';
+        }
+    }
+
+    /**
+     * Handle selection of a mention result from the dropdown.
+     * Replaces the @query with the selected mention syntax.
+     */
+    function handleMentionSelectCallback(result: AnyMentionResult) {
+        if (!editor) return;
+
+        const { from } = editor.state.selection;
+        const editorText = editor.getText();
+        
+        // Find the @ position to replace
+        const beforeCursor = editorText.substring(0, from);
+        const lastAtIndex = beforeCursor.lastIndexOf('@');
+        
+        if (lastAtIndex === -1) return;
+        
+        // Calculate the range to replace (from @ to cursor)
+        // We need to account for TipTap's document structure
+        const docText = editor.state.doc.textBetween(0, editor.state.doc.content.size);
+        const atPosInDoc = docText.lastIndexOf('@', from);
+        
+        if (atPosInDoc === -1) return;
+        
+        // Replace @query with the mention syntax + space
+        // Add 1 to positions because ProseMirror uses 1-based positions for some operations
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: atPosInDoc + 1, to: from })
+            .insertContent(result.mentionSyntax + ' ')
+            .run();
+        
+        // Close dropdown
+        showMentionDropdown = false;
+        mentionQuery = '';
+    }
+
+    /**
+     * Handle closing the mention dropdown.
+     */
+    function handleMentionClose() {
+        showMentionDropdown = false;
+        mentionQuery = '';
+    }
+
     function handleEditorUpdate({ editor }: { editor: Editor }) {
         const newHasContent = !isContentEmptyExceptMention(editor);
         if (hasContent !== newHasContent) {
@@ -1154,6 +1241,9 @@
         } catch (err) {
             console.error('[MessageInput] Failed to dispatch textchange event:', err);
         }
+
+        // Check for @ mention trigger and update dropdown state
+        checkMentionTrigger(editor);
 
         tick().then(() => {
             checkScrollable();
@@ -2021,6 +2111,16 @@
         {#if showMaps}
             <MapsView on:close={() => showMaps = false} on:locationselected={handleLocationSelected} />
         {/if}
+
+        <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
+        <MentionDropdown
+            bind:show={showMentionDropdown}
+            query={mentionQuery}
+            positionX={mentionDropdownX}
+            positionY={mentionDropdownY}
+            onselect={handleMentionSelectCallback}
+            onclose={handleMentionClose}
+        />
     </div>
 </div>
 
