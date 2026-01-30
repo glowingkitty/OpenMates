@@ -5309,6 +5309,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         min-width: 0;
         height: 100%;
         overflow: hidden;
+        container-type: inline-size;
+        container-name: chat-side;
     }
 
     .top-buttons {
@@ -5400,12 +5402,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         mask-repeat: no-repeat;
     }
 
-    /* "New chat" label: visible on larger screens */
+    /* "New chat" label: visible when chat-side is wide enough */
     .new-chat-cta-label {
         white-space: nowrap;
     }
 
-    @media (max-width: 768px) {
+    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport) */
+    @container chat-side (max-width: 550px) {
         .new-chat-cta-label {
             display: none;
         }
