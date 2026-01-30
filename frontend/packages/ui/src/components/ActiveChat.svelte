@@ -4306,16 +4306,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
-                                <!-- Background container for new chat button to ensure visibility -->
-                                <div class="new-chat-button-wrapper">
-                                    <button 
-                                        class="clickable-icon icon_create top-button" 
+                                <!-- New chat CTA button: same color as Send, pill shape, white icon; label visible on larger screens only -->
+                                <div class="new-chat-button-wrapper new-chat-cta-wrapper">
+                                    <button
+                                        class="new-chat-cta-button"
                                         aria-label={$text('chat.new_chat.text')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
+                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                        <span class="new-chat-cta-label">{$text('chat.new_chat.text')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -5347,6 +5348,67 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    /* New chat CTA: no extra wrapper background so the pill button stands out */
+    .new-chat-cta-wrapper {
+        background-color: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text */
+    .new-chat-cta-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 9999px;
+        background-color: var(--color-button-primary);
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out;
+    }
+
+    .new-chat-cta-button:hover {
+        background-color: var(--color-button-primary-hover);
+    }
+
+    .new-chat-cta-button:active {
+        background-color: var(--color-button-primary-pressed);
+    }
+
+    .new-chat-cta-button .new-chat-cta-icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        background: white;
+        -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
+        mask-image: url('@openmates/ui/static/icons/create.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    /* "New chat" label: visible on larger screens */
+    .new-chat-cta-label {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+        .new-chat-cta-label {
+            display: none;
+        }
+
+        .new-chat-cta-button {
+            padding: 8px 12px;
+        }
     }
 
     .login-wrapper {
