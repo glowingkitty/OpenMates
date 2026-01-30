@@ -1141,10 +1141,14 @@
      */
     function checkMentionTrigger(editor: Editor) {
         const { from } = editor.state.selection;
-        const text = editor.getText();
+        
+        // Get text from document start to cursor position using ProseMirror's textBetween
+        // This properly handles the document structure and gives us the actual character position
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
         
         // Extract the query after @ if we're in mention mode
-        const query = extractMentionQuery(text, from);
+        // Pass full length as cursor position since we only have text up to cursor
+        const query = extractMentionQuery(textBeforeCursor, textBeforeCursor.length);
         
         if (query !== null) {
             // We're in mention mode - show dropdown

@@ -167,7 +167,7 @@
             <span class="header-text">
                 {$text('enter_message.mention_dropdown.header.text')}
             </span>
-            <button class="settings-button" aria-label={$text('common.settings.text')}>
+            <button class="settings-button" aria-label={$text('settings.settings.text')}>
                 <span class="clickable-icon icon_settings"></span>
             </button>
         </div>
@@ -223,7 +223,7 @@
                         class="row-settings-button" 
                         role="button"
                         tabindex="-1"
-                        aria-label={$text('common.settings.text')}
+                        aria-label={$text('settings.settings.text')}
                         onclick={(e) => e.stopPropagation()}
                         onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
                     >
