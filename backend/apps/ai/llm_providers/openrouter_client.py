@@ -426,49 +426,64 @@ async def _stream_openrouter_response(
                             yield delta["content"]
                         
                         # Handle tool calls
+                        # In OpenAI streaming format, first chunk has 'id', subsequent chunks use 'index'
+                        # We use index as the primary key for the buffer since id may be empty after first chunk
                         if "tool_calls" in delta:
                             for tc_delta in delta["tool_calls"]:
                                 tc_id = tc_delta.get("id", "")
                                 tc_index = tc_delta.get("index", 0)
                                 
+                                # Use index as key since id is only in first chunk
+                                buffer_key = tc_index
+                                
                                 # Initialize or update the tool call in the buffer
-                                if tc_id not in tool_calls_buffer:
-                                    tool_calls_buffer[tc_id] = {
+                                if buffer_key not in tool_calls_buffer:
+                                    tool_calls_buffer[buffer_key] = {
                                         "id": tc_id,
                                         "type": "function",
                                         "function": {"name": "", "arguments": ""}
                                     }
+                                elif tc_id:
+                                    # Update id if present (first chunk)
+                                    tool_calls_buffer[buffer_key]["id"] = tc_id
                                 
                                 # Update function name if present
                                 if "function" in tc_delta and "name" in tc_delta["function"]:
-                                    tool_calls_buffer[tc_id]["function"]["name"] = tc_delta["function"]["name"]
+                                    tool_calls_buffer[buffer_key]["function"]["name"] = tc_delta["function"]["name"]
                                 
-                                # Update function arguments if present
+                                # Update function arguments if present (accumulate across chunks)
                                 if "function" in tc_delta and "arguments" in tc_delta["function"]:
-                                    tool_calls_buffer[tc_id]["function"]["arguments"] += tc_delta["function"]["arguments"]
+                                    tool_calls_buffer[buffer_key]["function"]["arguments"] += tc_delta["function"]["arguments"]
+                        
+                        # Check for finish_reason and yield accumulated tool calls
+                        # finish_reason is typically set on the final chunk, which may not have tool_calls in delta
+                        # Accept both "tool_calls" (OpenAI) and "tool_call" (some providers use singular)
+                        finish_reason = choice.get("finish_reason")
+                        if finish_reason in ("tool_calls", "tool_call") and tool_calls_buffer:
+                            # Yield all accumulated tool calls when finish_reason indicates tool_calls
+                            for buffer_key, tc in tool_calls_buffer.items():
+                                tc_id = tc["id"]
+                                function_name = tc["function"]["name"]
+                                arguments_raw = tc["function"]["arguments"]
                                 
-                                # If this is the last chunk for this tool call, yield it
-                                if choice.get("finish_reason") == "tool_calls":
-                                    tc = tool_calls_buffer[tc_id]
-                                    function_name = tc["function"]["name"]
-                                    arguments_raw = tc["function"]["arguments"]
-                                    
-                                    # Parse the function arguments
-                                    parsed_args = {}
-                                    parsing_error = None
-                                    try:
-                                        parsed_args = json.loads(arguments_raw)
-                                    except json.JSONDecodeError as e:
-                                        parsing_error = f"Failed to parse function arguments: {str(e)}"
-                                        logger.error(f"{log_prefix} {parsing_error}")
-                                    
-                                    yield ParsedOpenAIToolCall(
-                                        tool_call_id=tc_id,
-                                        function_name=function_name,
-                                        function_arguments_raw=arguments_raw,
-                                        function_arguments_parsed=parsed_args,
-                                        parsing_error=parsing_error
-                                    )
+                                # Parse the function arguments
+                                parsed_args = {}
+                                parsing_error = None
+                                try:
+                                    parsed_args = json.loads(arguments_raw)
+                                except json.JSONDecodeError as e:
+                                    parsing_error = f"Failed to parse function arguments: {str(e)}"
+                                    logger.error(f"{log_prefix} {parsing_error}")
+                                
+                                yield ParsedOpenAIToolCall(
+                                    tool_call_id=tc_id,
+                                    function_name=function_name,
+                                    function_arguments_raw=arguments_raw,
+                                    function_arguments_parsed=parsed_args,
+                                    parsing_error=parsing_error
+                                )
+                            # Clear buffer after yielding
+                            tool_calls_buffer.clear()
                         
                         # Update usage if present
                         if "usage" in chunk:

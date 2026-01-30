@@ -1025,7 +1025,7 @@ async def handle_main_processing(
                     for focus in app_metadata.focuses:
                         if focus.id == mode_id:
                             # Get translated description
-                            description = translation_service.get_translation(focus.description_translation_key) or focus.description_translation_key
+                            description = translation_service.get_nested_translation(focus.description_translation_key) or focus.description_translation_key
                             focus_mode_descriptions.append(f"- {focus_id}: {description}")
                             break
             except Exception as e:
