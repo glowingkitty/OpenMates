@@ -875,49 +875,72 @@ async def handle_preprocessing(
 
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
-        # Use ModelSelector to select models based on leaderboard rankings
-        try:
-            from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
+        # Check if auto model selection is enabled in skill_config
+        # Default to False for safety - require explicit opt-in
+        enable_auto_select = getattr(skill_config, 'enable_auto_model_selection', False)
 
-            # Get leaderboard data from cache (preloaded on server startup)
-            leaderboard_data = await get_leaderboard_data()
+        if enable_auto_select:
+            # Use ModelSelector to select models based on leaderboard rankings
+            try:
+                from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
 
-            # Create model selector and select models
-            model_selector = ModelSelector(leaderboard_data=leaderboard_data)
-            selection_result = model_selector.select_models(
-                task_area=task_area_val,
-                complexity=complexity_val,
-                china_related=china_related,
-                user_unhappy=user_unhappy_val,
-                log_prefix=log_prefix
-            )
+                # Get leaderboard data from cache (preloaded on server startup)
+                leaderboard_data = await get_leaderboard_data()
 
-            selected_llm_for_main_id = selection_result.primary_model_id
-            selected_secondary_model_id = selection_result.secondary_model_id
-            selected_fallback_model_id = selection_result.fallback_model_id
-            model_selection_reason = selection_result.selection_reason
-            filtered_cn_models = selection_result.filtered_cn_models
+                # Create model selector and select models
+                model_selector = ModelSelector(leaderboard_data=leaderboard_data)
+                selection_result = model_selector.select_models(
+                    task_area=task_area_val,
+                    complexity=complexity_val,
+                    china_related=china_related,
+                    user_unhappy=user_unhappy_val,
+                    log_prefix=log_prefix
+                )
 
-            # Extract model name from model_id (take last part after /)
-            if selected_llm_for_main_id and "/" in selected_llm_for_main_id:
-                selected_llm_for_main_name = selected_llm_for_main_id.split("/")[-1]
-            else:
-                selected_llm_for_main_name = selected_llm_for_main_id
+                selected_llm_for_main_id = selection_result.primary_model_id
+                selected_secondary_model_id = selection_result.secondary_model_id
+                selected_fallback_model_id = selection_result.fallback_model_id
+                model_selection_reason = selection_result.selection_reason
+                filtered_cn_models = selection_result.filtered_cn_models
 
+                # Extract model name from model_id (take last part after /)
+                if selected_llm_for_main_id and "/" in selected_llm_for_main_id:
+                    selected_llm_for_main_name = selected_llm_for_main_id.split("/")[-1]
+                else:
+                    selected_llm_for_main_name = selected_llm_for_main_id
+
+                logger.info(
+                    f"{log_prefix} MODEL_SELECTION: Intelligent selection completed. "
+                    f"task_area={task_area_val}, complexity={complexity_val}, "
+                    f"china_related={china_related}, user_unhappy={user_unhappy_val}. "
+                    f"Primary: {selected_llm_for_main_id}, Secondary: {selected_secondary_model_id}, "
+                    f"Fallback: {selected_fallback_model_id}. Reason: {model_selection_reason}"
+                )
+            except Exception as e:
+                # Fallback to skill_config if model selector fails
+                logger.warning(
+                    f"{log_prefix} MODEL_SELECTION: Failed to use intelligent model selector: {e}. "
+                    f"Falling back to skill_config defaults."
+                )
+                # Use skill_config defaults as fallback
+                if complexity_val == "complex":
+                    selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
+                    selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
+                else:
+                    selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
+                    selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+
+                model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
+                logger.info(
+                    f"{log_prefix} MODEL_SELECTION: Using fallback model from skill_config: "
+                    f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
+                )
+        else:
+            # Auto-selection disabled - use hardcoded models from skill_config
             logger.info(
-                f"{log_prefix} MODEL_SELECTION: Intelligent selection completed. "
-                f"task_area={task_area_val}, complexity={complexity_val}, "
-                f"china_related={china_related}, user_unhappy={user_unhappy_val}. "
-                f"Primary: {selected_llm_for_main_id}, Secondary: {selected_secondary_model_id}, "
-                f"Fallback: {selected_fallback_model_id}. Reason: {model_selection_reason}"
+                f"{log_prefix} MODEL_SELECTION: Auto-selection disabled (enable_auto_model_selection=false). "
+                f"Using hardcoded models from skill_config."
             )
-        except Exception as e:
-            # Fallback to skill_config if model selector fails
-            logger.warning(
-                f"{log_prefix} MODEL_SELECTION: Failed to use intelligent model selector: {e}. "
-                f"Falling back to skill_config defaults."
-            )
-            # Use skill_config defaults as fallback
             if complexity_val == "complex":
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
@@ -925,11 +948,7 @@ async def handle_preprocessing(
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
 
-            model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
-            logger.info(
-                f"{log_prefix} MODEL_SELECTION: Using fallback model from skill_config: "
-                f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
-            )
+            model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
     
     # --- Validate llm_response_temp field (range: 0.0-2.0) ---
     llm_response_temp_val = llm_analysis_args.get("llm_response_temp", 0.4)

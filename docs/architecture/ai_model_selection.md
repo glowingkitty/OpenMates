@@ -28,6 +28,64 @@ Under `/backend/apps/ai/app.yml` we define the default LLM models for simple req
 
 ---
 
+## Safety Controls and Gradual Rollout
+
+The auto-selection system includes safety controls for gradual rollout of new models:
+
+### Global Toggle: `enable_auto_model_selection`
+
+Located in `backend/apps/ai/app.yml`:
+
+```yaml
+skill_config:
+  # When false: uses hardcoded models from default_llms (safe, predictable)
+  # When true: uses intelligent auto-selection based on leaderboard rankings
+  enable_auto_model_selection: false
+
+  default_llms:
+    preprocessing_model: mistral/mistral-small-latest
+    main_processing_simple: alibaba/qwen3-235b-a22b-2507
+    main_processing_complex: alibaba/qwen3-235b-a22b-2507
+    content_sanitization_model: openai/gpt-oss-safeguard-20b
+```
+
+### Per-Model Toggle: `allow_auto_select`
+
+Each model in provider YAMLs has an `allow_auto_select` flag:
+
+```yaml
+# backend/providers/anthropic.yml
+models:
+  - id: "claude-sonnet-4-5-20250929"
+    name: "Claude Sonnet 4.5"
+    country_origin: "US"
+    allow_auto_select: false  # Enable after manual testing
+    external_ids:
+      lmarena: "claude-sonnet-4-5-20250929"
+      openrouter: "anthropic/claude-sonnet-4-5-20250929"
+```
+
+When `allow_auto_select: false`:
+- Model is excluded from automatic selection
+- Model can still be used via explicit `@ai-model:xxx` override
+- Allows testing individual models before enabling auto-selection
+
+### Testing Workflow
+
+1. **Test models individually**: Use `@ai-model:{model_id}` in the web app to test each model
+2. **Enable per-model**: Set `allow_auto_select: true` in the provider YAML after confirming the model works
+3. **Enable global**: Set `enable_auto_model_selection: true` in `app.yml` once enough models are tested
+
+### Configuration States
+
+| `enable_auto_model_selection` | `allow_auto_select` on models | Behavior |
+|------------------------------|-------------------------------|----------|
+| `false` | Any | Uses hardcoded `default_llms` from app.yml |
+| `true` | All `false` | Falls back to default model (no auto-selectable models) |
+| `true` | Some `true` | Auto-selects from models with `allow_auto_select: true` |
+
+---
+
 ## Automatic Model Selection
 
 ### Architecture Overview
@@ -120,19 +178,20 @@ Under `/backend/apps/ai/app.yml` we define the default LLM models for simple req
 IF user specified @ai-model:{model_name}
    → Use that model directly (bypass all selection logic)
 
-ELSE IF simple task
-   → Select fast + economical model
+ELSE IF enable_auto_model_selection = false
+   → Use hardcoded models from default_llms in app.yml
 
-ELSE IF complex task OR user_unhappy
-   → Select leading model for detected task_area
-      (code → top coding model)
-      (math → top math/reasoning model)
-      (creative → top creative writing model)
-      (general → top overall model)
-
-THEN filter out models with country_origin=CN IF china_related = true
-
-RETURN top 2 models + hardcoded fallback (if different)
+ELSE (auto-selection enabled)
+   1. Filter to models with allow_auto_select = true
+   2. Filter out models with country_origin=CN IF china_related = true
+   3. IF simple task → Select fast + economical model
+      ELSE IF complex task OR user_unhappy
+        → Select leading model for detected task_area
+           (code → top coding model)
+           (math → top math/reasoning model)
+           (creative → top creative writing model)
+           (general → top overall model)
+   4. RETURN top 2 models + hardcoded fallback (if different)
 ```
 
 #### Task Complexity

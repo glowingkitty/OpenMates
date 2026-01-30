@@ -3,12 +3,30 @@
 # Model selector service for intelligent AI model selection.
 # Uses leaderboard rankings, task area, complexity, and sensitivity filters
 # to select the optimal model(s) for each request.
+#
+# Respects the `allow_auto_select` flag from provider YAML configs - models
+# with allow_auto_select=false are excluded from automatic selection and can
+# only be used via explicit @ai-model:xxx user overrides.
 
 import logging
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 
+import yaml
+
 logger = logging.getLogger(__name__)
+
+# Provider YAML files containing model configs with allow_auto_select settings
+PROVIDERS_DIR = Path("/app/backend/providers")
+LLM_PROVIDER_FILES = [
+    "anthropic.yml",
+    "openai.yml",
+    "google.yml",
+    "mistral.yml",
+    "alibaba.yml",
+    "zai.yml",
+]
 
 
 @dataclass
@@ -57,6 +75,66 @@ PREMIUM_MODELS = {
     "gpt-5.2-20250807",              # Top GPT
 }
 
+# Cache for allow_auto_select settings (loaded once per process)
+_auto_select_cache: Optional[Dict[str, bool]] = None
+
+
+def _load_auto_select_settings() -> Dict[str, bool]:
+    """
+    Load allow_auto_select settings from all provider YAML files.
+
+    Returns:
+        Dict mapping model_id -> allow_auto_select (True/False)
+        Models without the setting default to False (safe default).
+    """
+    global _auto_select_cache
+
+    if _auto_select_cache is not None:
+        return _auto_select_cache
+
+    settings: Dict[str, bool] = {}
+
+    for provider_file in LLM_PROVIDER_FILES:
+        provider_path = PROVIDERS_DIR / provider_file
+        if not provider_path.exists():
+            logger.debug(f"Provider file not found: {provider_path}")
+            continue
+
+        try:
+            with open(provider_path, 'r') as f:
+                provider_config = yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load provider YAML {provider_file}: {e}")
+            continue
+
+        for model in provider_config.get("models", []):
+            model_id = model.get("id")
+            if not model_id:
+                continue
+
+            # Default to False if not specified (safe: requires explicit opt-in)
+            allow_auto = model.get("allow_auto_select", False)
+            settings[model_id] = allow_auto
+
+    _auto_select_cache = settings
+    logger.info(
+        f"Loaded allow_auto_select settings for {len(settings)} models. "
+        f"Auto-select enabled: {sum(1 for v in settings.values() if v)}"
+    )
+    return settings
+
+
+def clear_auto_select_cache() -> None:
+    """
+    Clear the cached auto_select settings.
+
+    Call this if provider YAML files have been modified and you want
+    to reload the settings without restarting the process.
+    """
+    global _auto_select_cache
+    _auto_select_cache = None
+    logger.info("Cleared allow_auto_select cache")
+
 
 class ModelSelector:
     """
@@ -87,13 +165,17 @@ class ModelSelector:
 
     def _get_ranked_models(
         self,
-        exclude_cn: bool = False
+        exclude_cn: bool = False,
+        only_auto_select_enabled: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Get ranked models from leaderboard data, optionally excluding CN models.
+        Get ranked models from leaderboard data, with optional filtering.
 
         Args:
             exclude_cn: If True, exclude models with country_origin=CN
+            only_auto_select_enabled: If True (default), exclude models with
+                allow_auto_select=false in their provider YAML config.
+                Set to False to include all ranked models regardless of auto-select setting.
 
         Returns:
             List of ranked model entries sorted by composite score
@@ -103,6 +185,21 @@ class ModelSelector:
 
         rankings = self._leaderboard_data.get("rankings", [])
 
+        # Filter by allow_auto_select setting from provider YAMLs
+        if only_auto_select_enabled:
+            auto_select_settings = _load_auto_select_settings()
+            original_count = len(rankings)
+            rankings = [
+                r for r in rankings
+                if auto_select_settings.get(r.get("model_id"), False) is True
+            ]
+            filtered_count = original_count - len(rankings)
+            if filtered_count > 0:
+                logger.debug(
+                    f"Filtered out {filtered_count} models with allow_auto_select=false"
+                )
+
+        # Filter by country origin (China-sensitive content)
         if exclude_cn:
             rankings = [r for r in rankings if r.get("country_origin") != "CN"]
 
@@ -161,8 +258,22 @@ class ModelSelector:
         """
         reasons = []
 
-        # Step 1: Get ranked models
+        # Step 1: Get ranked models (filtered by allow_auto_select=true by default)
         ranked_models = self._get_ranked_models(exclude_cn=china_related)
+
+        if not ranked_models:
+            # Check if leaderboard has models but all are filtered out by allow_auto_select
+            all_ranked = self._get_ranked_models(
+                exclude_cn=china_related, only_auto_select_enabled=False
+            )
+            if all_ranked:
+                reasons.append(
+                    f"No models with allow_auto_select=true ({len(all_ranked)} models filtered)"
+                )
+            else:
+                reasons.append("No ranked models available in leaderboard")
+        else:
+            reasons.append(f"Filtered to {len(ranked_models)} models with allow_auto_select=true")
 
         if china_related:
             reasons.append("CN models excluded (China-sensitive content)")

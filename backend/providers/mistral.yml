@@ -13,6 +13,7 @@ models:
     description: >-
       Mistral AI's fast and cost-effective model, optimized for low latency.
     country_origin: "FR"  # ISO 3166-1 alpha-2 country code for model origin (France)
+    allow_auto_select: false  # Enable after manual testing via @ai-model:mistral-small-latest
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-small-latest"
       openrouter: "mistralai/mistral-small-3.2-24b-instruct"
@@ -58,6 +59,7 @@ models:
       State-of-the-art performance. Simplified enterprise deployments.
       Cost-efficient.
     country_origin: "FR"  # ISO 3166-1 alpha-2 country code for model origin (France)
+    allow_auto_select: false  # Enable after manual testing via @ai-model:mistral-medium-latest
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-medium-3.1"
       openrouter: "mistralai/mistral-medium-3.1"
@@ -97,6 +99,7 @@ models:
       excels at using tools to explore codebases, editing multiple files and
       power software engineering agents.
     country_origin: "FR"  # ISO 3166-1 alpha-2 country code for model origin (France)
+    allow_auto_select: false  # Enable after manual testing via @ai-model:devstral-2512
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "devstral-2512"
       openrouter: "mistralai/devstral-2512"

@@ -14,6 +14,7 @@ models:
     # Served via Cerebras API. Strong reasoning and general performance.
     description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
     country_origin: "CN"  # ISO 3166-1 alpha-2 country code for model origin (China)
+    allow_auto_select: false  # Enable after manual testing via @ai-model:zai-glm-4.7
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "glm-4.7"
       openrouter: "z-ai/glm-4.7"

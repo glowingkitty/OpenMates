@@ -12,8 +12,11 @@ models:
     name: "Claude Haiku 4.5"
     description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks."
     country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    # Allow this model to be selected by the intelligent auto-selection system.
+    # Set to false to exclude from auto-selection until manually tested.
+    allow_auto_select: false
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-4-haiku"
+      lmarena: "claude-haiku-4-5-20251001"  # Exact LMArena model name (if listed)
       openrouter: "anthropic/claude-haiku-4-5-20251001"
     input_types:
       - text
@@ -55,8 +58,9 @@ models:
     name: "Claude Sonnet 4.5"
     description: "Optimal balance of intelligence, cost, and speed."
     country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Enable after manual testing via @ai-model:claude-sonnet-4-5-20250929
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-4.5-sonnet"
+      lmarena: "claude-sonnet-4-5-20250929"  # Exact LMArena model name
       openrouter: "anthropic/claude-sonnet-4-5-20250929"
     input_types:
       - text
@@ -99,9 +103,10 @@ models:
     name: "Claude Opus 4.5"
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
     country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Enable after manual testing via @ai-model:claude-opus-4-5-20251101
     external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-4.5-opus"
-      openrouter: "anthropic/claude-opus-4.5"
+      lmarena: "claude-opus-4-5-20251101"  # Exact LMArena model name
+      openrouter: "anthropic/claude-opus-4-5-20251101"
     input_types:
       - text
       - image

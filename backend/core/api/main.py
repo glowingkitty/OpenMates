@@ -523,6 +523,7 @@ async def lifespan(app: FastAPI):
 
     # --- Preload leaderboard data into cache ---
     # This ensures model rankings are available before first AI request
+    # If no leaderboard data exists, trigger generation asynchronously
     logger.info("Preloading leaderboard data into cache...")
     if hasattr(app.state, 'cache_service'):
         try:
@@ -532,7 +533,17 @@ async def lifespan(app: FastAPI):
                 ranked_count = len(leaderboard_data.get("rankings", []))
                 logger.info(f"Successfully preloaded leaderboard data with {ranked_count} ranked models.")
             else:
-                logger.warning("No leaderboard data available. Run 'leaderboard.update_daily' task to populate.")
+                # No leaderboard data exists - trigger generation asynchronously
+                logger.warning("No leaderboard data available. Triggering initial leaderboard generation...")
+                try:
+                    task_result = celery_app.send_task(
+                        "leaderboard.update_daily",
+                        queue="leaderboard",
+                        kwargs={"category": "text"}
+                    )
+                    logger.info(f"Initial leaderboard generation task queued. Task ID: {task_result.id}")
+                except Exception as e_task:
+                    logger.warning(f"Failed to queue leaderboard generation task: {e_task}")
         except Exception as e_leaderboard:
             logger.warning(f"Failed to preload leaderboard data during startup: {e_leaderboard}")
             # Don't fail startup - leaderboard is optional for model selection
@@ -1360,9 +1371,9 @@ def create_app() -> FastAPI:
         }
 
     # Health history endpoint - provides historical health data for incident analysis
-    # Note: This endpoint requires admin authentication for security (incident data is sensitive)
-    @app.get("/v1/health/history", dependencies=[])  # No dependencies - uses internal auth check
-    @limiter.limit("30/minute")
+    # Public endpoint (no auth required) - enables status pages and monitoring
+    @app.get("/v1/health/history", dependencies=[])  # No dependencies (public endpoint)
+    @limiter.limit("60/minute")
     async def health_history(
         request: Request,
         service_type: Optional[str] = None,
@@ -1388,24 +1399,9 @@ def create_app() -> FastAPI:
             - events: List of health events sorted by created_at descending
             - total: Number of events returned
             - filters: Applied filters
-        
-        Note: Requires admin API key for access (sensitive incident data).
         """
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
-        from backend.core.api.app.utils.api_key_auth import verify_api_key
-        
-        # Check for admin API key authentication
-        api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-        if not api_key:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=401, detail="API key required for health history access")
-        
-        # Verify API key and check for admin role
-        api_key_data = await verify_api_key(api_key)
-        if not api_key_data or api_key_data.get("role") != "admin":
-            from fastapi import HTTPException
-            raise HTTPException(status_code=403, detail="Admin access required for health history")
         
         # Validate service_type if provided
         valid_service_types = {'provider', 'app', 'external'}
