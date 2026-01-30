@@ -1837,7 +1837,7 @@ def check_all_providers_health(self):
 @app.task(name="health_check.check_external_services", bind=True)
 def check_external_services_health(self):
     """
-    Periodic task to check health of external services (Stripe, Sightengine, Mailjet, AWS Bedrock, Vercel).
+    Periodic task to check health of external services (Stripe, Sightengine, Brevo, AWS Bedrock, Vercel).
     This task is scheduled by Celery Beat.
 
     Checks external services every 5 minutes.
