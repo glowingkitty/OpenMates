@@ -5357,12 +5357,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 0;
     }
 
-    /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text */
+    /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text.
+       Override global button styles from buttons.css (min-width, height, padding, filter). */
     .new-chat-cta-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
+        min-width: 0;
         padding: 8px 16px;
         border: none;
         border-radius: 9999px;
@@ -5371,6 +5373,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-weight: 500;
         cursor: pointer;
         transition: background-color 0.15s ease-in-out;
+        filter: none;
+        margin-right: 0;
     }
 
     .new-chat-cta-button:hover {
@@ -5406,11 +5410,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             display: none;
         }
 
-        /* Circle shape: square dimensions + full radius = circle */
+        /* Circle shape: override global button min-width/height so we can use fixed size */
         .new-chat-cta-button {
-            padding: 8px;
+            min-width: 0;
             width: 36px;
             height: 36px;
+            padding: 8px;
             box-sizing: border-box;
         }
     }
