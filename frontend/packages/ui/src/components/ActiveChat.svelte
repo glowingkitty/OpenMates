@@ -5406,8 +5406,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             display: none;
         }
 
+        /* Circle shape: square dimensions + full radius = circle */
         .new-chat-cta-button {
-            padding: 8px 12px;
+            padding: 8px;
+            width: 36px;
+            height: 36px;
+            box-sizing: border-box;
         }
     }
 
