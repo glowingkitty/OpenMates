@@ -57,7 +57,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
-    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
@@ -3319,7 +3319,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 2. No current chat is loaded
             // 3. No chat is in the activeChatStore (to avoid duplicate loading)
             // 4. Not in signup process
-            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
+            // 5. Not in "new chat" mode (phasedSyncState sentinel value)
+            // 6. No existing sessionStorage drafts (user has unsaved work)
+            const isInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
+            const hasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
+            
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
                 const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
@@ -3332,6 +3337,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         // Check if deep link processing is happening
                         if (get(deepLinkProcessing)) {
                             console.debug("[ActiveChat] [NON-AUTH] Skipping welcome chat - deep link processing in progress");
+                            return;
+                        }
+                        
+                        // Re-check new chat mode and drafts after delay (user might have started typing)
+                        const isStillInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
+                        const stillHasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
+                        if (isStillInNewChatMode || stillHasSessionStorageDrafts) {
+                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Skipping - user is in new chat mode or has drafts", { isStillInNewChatMode, stillHasSessionStorageDrafts });
                             return;
                         }
 
@@ -3347,6 +3360,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
                     }, 100);
                 }
+            } else if (!$authStore.isAuthenticated && (isInNewChatMode || hasSessionStorageDrafts)) {
+                console.debug("[ActiveChat] [NON-AUTH] Fallback skipped - user has draft or is in new chat mode", { isInNewChatMode, hasSessionStorageDrafts });
             }
         };
 

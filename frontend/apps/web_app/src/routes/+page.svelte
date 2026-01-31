@@ -42,7 +42,9 @@
 		LANGUAGE_CODES,
 		forcedLogoutInProgress,
 		isPublicChat,
-		loadSessionStorageDraft
+		loadSessionStorageDraft,
+		getAllDraftChatIdsWithDrafts,
+		NEW_CHAT_SENTINEL
 	} from '@repo/ui';
 	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -1595,9 +1597,74 @@
 
 	/**
 	 * Load demo-for-everyone chat for non-authenticated users
+	 * CRITICAL: Check for existing sessionStorage drafts first - if user has unsaved work,
+	 * we should restore their most recent draft instead of overwriting with the demo chat.
 	 */
 	async function loadDemoWelcomeChat() {
-		console.debug('[+page.svelte] Loading demo-for-everyone chat for non-authenticated user');
+		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
+
+		// CRITICAL: Check if user has any sessionStorage drafts (new chat drafts)
+		// If so, load the most recent one instead of demo-for-everyone
+		const draftChatIds = getAllDraftChatIdsWithDrafts();
+		if (draftChatIds.length > 0) {
+			// User has unsaved drafts - load the most recent one
+			// The draft IDs are ordered by when they were added, so the last one is most recent
+			const mostRecentDraftId = draftChatIds[draftChatIds.length - 1];
+			const draftContent = loadSessionStorageDraft(mostRecentDraftId);
+
+			if (draftContent) {
+				console.debug(
+					`[+page.svelte] Found sessionStorage draft for non-auth user, restoring draft chat: ${mostRecentDraftId}`
+				);
+
+				// Create a virtual chat object for the draft
+				const now = Math.floor(Date.now() / 1000);
+				const virtualChat: Chat = {
+					chat_id: mostRecentDraftId,
+					encrypted_title: null,
+					messages_v: 0,
+					title_v: 0,
+					draft_v: 0,
+					encrypted_draft_md: null,
+					encrypted_draft_preview: null,
+					last_edited_overall_timestamp: now,
+					unread_count: 0,
+					created_at: now,
+					updated_at: now,
+					processing_metadata: false,
+					waiting_for_metadata: false,
+					encrypted_category: null,
+					encrypted_icon: null
+				};
+
+				// Wait for activeChat component to be ready
+				const waitForActiveChatForDraft = async (retries = 20): Promise<void> => {
+					if (activeChat) {
+						// Set the phased sync state to NEW_CHAT_SENTINEL to indicate we're in draft mode
+						phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+						activeChatStore.setActiveChat(mostRecentDraftId);
+						activeChat.loadChat(virtualChat);
+						console.debug(
+							`[+page.svelte] ✅ SessionStorage draft chat loaded successfully: ${mostRecentDraftId}`
+						);
+						return;
+					} else if (retries > 0) {
+						await new Promise((resolve) => setTimeout(resolve, 50));
+						return waitForActiveChatForDraft(retries - 1);
+					} else {
+						console.error(
+							'[+page.svelte] ⚠️ activeChat not ready after retries - draft may not load'
+						);
+					}
+				};
+
+				await waitForActiveChatForDraft();
+				return; // Successfully loaded draft, don't load demo chat
+			}
+		}
+
+		// No drafts found, load demo-for-everyone as usual
+		console.debug('[+page.svelte] No sessionStorage drafts found, loading demo-for-everyone');
 
 		// Wait for activeChat component to be ready
 		const waitForActiveChat = async (retries = 20): Promise<void> => {
