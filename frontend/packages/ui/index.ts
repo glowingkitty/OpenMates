@@ -35,7 +35,13 @@ export * from "./src/types/chat";
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";
 export * from "./src/i18n/translations";
-export { SUPPORTED_LANGUAGES, LANGUAGE_CODES, SUPPORTED_LOCALES, getLanguageByCode, isLanguageSupported } from "./src/i18n/languages";
+export {
+  SUPPORTED_LANGUAGES,
+  LANGUAGE_CODES,
+  SUPPORTED_LOCALES,
+  getLanguageByCode,
+  isLanguageSupported,
+} from "./src/i18n/languages";
 
 // Stores
 export * from "./src/stores/theme";
@@ -70,51 +76,55 @@ export { chatSyncService } from "./src/services/chatSyncService"; // Export chat
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 export * from "./src/services/deepLinkHandler"; // Export unified deep link handler
-export { 
-    getKeyFromStorage, 
-    checkAndClearMasterKeyOnLoad,
-    // Embed key management functions for wrapped key architecture
-    generateEmbedKey,
-    wrapEmbedKeyWithMasterKey,
-    wrapEmbedKeyWithChatKey,
-    unwrapEmbedKeyWithMasterKey,
-    unwrapEmbedKeyWithChatKey,
-    unwrapEmbedKeyWithEmbedKey,
-    encryptWithEmbedKey,
-    decryptWithEmbedKey
+export {
+  getKeyFromStorage,
+  checkAndClearMasterKeyOnLoad,
+  // Embed key management functions for wrapped key architecture
+  generateEmbedKey,
+  wrapEmbedKeyWithMasterKey,
+  wrapEmbedKeyWithChatKey,
+  unwrapEmbedKeyWithMasterKey,
+  unwrapEmbedKeyWithChatKey,
+  unwrapEmbedKeyWithEmbedKey,
+  encryptWithEmbedKey,
+  decryptWithEmbedKey,
 } from "./src/services/cryptoService"; // Export cryptographic utilities
 export { decryptShareKeyBlob } from "./src/services/shareEncryption"; // Export share encryption utilities
-export { 
-    generateEmbedShareKeyBlob, 
-    decryptEmbedShareKeyBlob, 
-    getEmbedKeyForSharing,
-    type ShareDuration 
+export {
+  generateEmbedShareKeyBlob,
+  decryptEmbedShareKeyBlob,
+  getEmbedKeyForSharing,
+  type ShareDuration,
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
-export { 
-    saveSharedChatKey, 
-    getSharedChatKey, 
-    getAllSharedChatKeys, 
-    deleteSharedChatKey, 
-    clearAllSharedChatKeys,
-    getStoredSharedChatIds,
-    hasSharedChatKeys,
-    deleteSharedKeysDatabase
+export {
+  saveSharedChatKey,
+  getSharedChatKey,
+  getAllSharedChatKeys,
+  deleteSharedChatKey,
+  clearAllSharedChatKeys,
+  getStoredSharedChatIds,
+  hasSharedChatKeys,
+  deleteSharedKeysDatabase,
 } from "./src/services/sharedChatKeyStorage"; // Export shared chat key storage for unauthenticated users
 
-// Draft service - export constants
+// Draft service - export constants and functions
 export { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./src/services/drafts/draftConstants"; // Export event constant for chat list updates
+export {
+  loadSessionStorageDraft,
+  getAllDraftChatIdsWithDrafts,
+} from "./src/services/drafts/sessionStorageDraftService"; // Export sessionStorage draft functions for deep linking
 
 // Utils - export computeSHA256 for hashing
 export { computeSHA256 } from "./src/message_parsing/utils";
 // Utils - export chunk error handler for graceful handling of stale cache errors
-export { 
-    isChunkLoadError, 
-    logChunkLoadError, 
-    forcePageReload,
-    CHUNK_ERROR_MESSAGE, 
-    CHUNK_ERROR_NOTIFICATION_DURATION 
+export {
+  isChunkLoadError,
+  logChunkLoadError,
+  forcePageReload,
+  CHUNK_ERROR_MESSAGE,
+  CHUNK_ERROR_NOTIFICATION_DURATION,
 } from "./src/utils/chunkErrorHandler";
 
 // Styles
