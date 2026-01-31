@@ -14,6 +14,12 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
     return "";
   }
 
+  // Debug: Log the full document structure
+  console.info(
+    "[Serializer] tipTapToCanonicalMarkdown input doc:",
+    JSON.stringify(doc, null, 2),
+  );
+
   const lines: string[] = [];
 
   for (const node of doc.content) {
@@ -269,6 +275,10 @@ function serializeParagraph(node: any): string {
 
       // Handle AI model mention nodes - serialize to backend format
       if (child.type === "aiModelMention") {
+        console.info(
+          "[Serializer] Found aiModelMention node, modelId:",
+          child.attrs?.modelId,
+        );
         return `@ai-model:${child.attrs?.modelId || ""}`;
       }
 

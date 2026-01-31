@@ -1191,28 +1191,37 @@
         const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
         const atIndexInText = textBeforeCursor.lastIndexOf('@');
 
-        if (atIndexInText === -1) return;
+        console.info('[MentionSelect] DEBUG: Starting mention selection', {
+            resultType: result.type,
+            resultId: result.id,
+            from,
+            textBeforeCursor,
+            atIndexInText
+        });
+
+        if (atIndexInText === -1) {
+            console.warn('[MentionSelect] DEBUG: @ not found in text before cursor!');
+            return;
+        }
 
         // Calculate the actual document position of the @ character
-        // Since textBeforeCursor is the text from doc start to cursor,
-        // and the string index of @ gives us the offset from start,
-        // we need to account for the paragraph node structure.
-        // In a simple paragraph: pos 0 = doc start, pos 1 = paragraph start, pos 2+ = text
-        // So document position of @ = 1 (paragraph start) + atIndexInText + 1 (for paragraph node)
-        // Actually, for a simple doc with one paragraph:
-        // textBetween(0, from) returns text starting from the first text node
-        // The offset in the returned string corresponds to positions starting at 1 (after paragraph open)
-        // So the document position of character at string index i is: 1 + i
-        // However, this depends on document structure. A more robust approach:
-        // The cursor is at 'from', and we typed (textBeforeCursor.length - atIndexInText - 1) chars after @
+        // The cursor is at 'from', and we typed (textBeforeCursor.length - atIndexInText) chars including @
         // So @ is at: from - (textBeforeCursor.length - atIndexInText)
         const charsAfterAt = textBeforeCursor.length - atIndexInText;
         const atDocPosition = from - charsAfterAt;
 
-        // Delete from after @ (atDocPosition + 1) to cursor (from), keeping the @ character
-        // Then insert the mention node which will replace the @
-        // Actually, we should delete the @ too since the mention node will display @ModelName
+        console.info('[MentionSelect] DEBUG: Calculated positions', {
+            charsAfterAt,
+            atDocPosition,
+            deleteRange: { from: atDocPosition, to: from }
+        });
+
+        // Delete from @ position to cursor (includes the @, since mention node provides its own @)
         editor.chain().focus().deleteRange({ from: atDocPosition, to: from }).run();
+
+        console.info('[MentionSelect] DEBUG: After deleteRange, doc content:', 
+            editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n')
+        );
 
         // Insert the appropriate content based on result type
         if (result.type === 'model') {
@@ -1227,6 +1236,11 @@
                 })
                 .insertContent(' ')
                 .run();
+            
+            // Debug: Log the editor state after insertion
+            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
+                JSON.stringify(editor.getJSON(), null, 2)
+            );
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
