@@ -54,7 +54,8 @@
     import MentionDropdown from './MentionDropdown.svelte';
     import {
         extractMentionQuery,
-        type AnyMentionResult
+        type AnyMentionResult,
+        type MateMentionResult
     } from './services/mentionSearchService';
     import {
         processFiles,
@@ -123,7 +124,7 @@
     // --- Mention Dropdown State ---
     let showMentionDropdown = $state(false);
     let mentionQuery = $state('');
-    let mentionDropdownX = $state(0);
+
     let mentionDropdownY = $state(0);
     let isScrollable = $state(false);
     let showMenu = $state(false);
@@ -1157,9 +1158,9 @@
             // Calculate dropdown position based on cursor/caret
             // The dropdown is OUTSIDE .message-field but INSIDE .message-input-wrapper
             // Position it at the top of the wrapper (above the entire message field)
+            // The dropdown is horizontally centered via CSS transform
             if (messageInputWrapper) {
                 const wrapperRect = messageInputWrapper.getBoundingClientRect();
-                mentionDropdownX = 16; // Left padding
                 // Position dropdown at the top of the wrapper + small gap
                 // Since we use bottom positioning and the dropdown is in the wrapper,
                 // bottom: wrapperHeight + gap positions it above the wrapper
@@ -1207,15 +1208,18 @@
                 .insertContent(' ')
                 .run();
         } else if (result.type === 'mate') {
-            // Use the mate node which shows profile image
+            // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
+            const mateResult = result as MateMentionResult;
             editor
                 .chain()
                 .focus()
                 .setMate({
-                    name: result.id, // mate id like "software_development"
-                    displayName: result.mentionDisplayName, // e.g., "Sophia"
-                    id: crypto.randomUUID()
+                    name: mateResult.id, // mate id like "software_development"
+                    displayName: mateResult.mentionDisplayName, // e.g., "Sophia"
+                    id: crypto.randomUUID(),
+                    colorStart: mateResult.colorStart,
+                    colorEnd: mateResult.colorEnd
                 })
                 .insertContent(' ')
                 .run();
@@ -2155,7 +2159,6 @@
     <MentionDropdown
         bind:show={showMentionDropdown}
         query={mentionQuery}
-        positionX={mentionDropdownX}
         positionY={mentionDropdownY}
         onselect={handleMentionSelectCallback}
         onclose={handleMentionClose}

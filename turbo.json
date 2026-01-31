@@ -5,7 +5,13 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".svelte-kit/**", ".vercel/**", "**/i18n/locales/*.json", "**/data/appsMetadata.ts"]
+      "outputs": [
+        ".svelte-kit/**",
+        ".vercel/**",
+        "**/i18n/locales/*.json",
+        "**/data/appsMetadata.ts",
+        "**/data/modelsMetadata.ts"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -15,11 +21,23 @@
     },
     "test": {
       "dependsOn": ["^test"],
-      "inputs": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "**/*.test.ts", "**/*.spec.ts"]
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.svelte",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+      ]
     },
     "test:run": {
       "dependsOn": ["^test:run"],
-      "inputs": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "**/*.test.ts", "**/*.spec.ts"]
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.svelte",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+      ]
     },
     "dev": {
       "cache": false,

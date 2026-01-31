@@ -27,11 +27,12 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
+    "generate-models-metadata": "node scripts/generate-models-metadata.js",
     "build:translations": "node scripts/build-translations.js",
     "validate:locales": "node scripts/validate-locales.js",
     "update:translations": "node scripts/update-yaml-files.js",
-    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata",
-    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata",
+    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
+    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
     "build": "echo 'Build complete - translations and metadata generated in prebuild'"
   },
   "dependencies": {

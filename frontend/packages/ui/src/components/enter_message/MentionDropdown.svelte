@@ -20,8 +20,6 @@
         show?: boolean;
         /** Search query (text after @) */
         query?: string;
-        /** X position for the dropdown */
-        positionX?: number;
         /** Y position for the dropdown (top of input) */
         positionY?: number;
         /** Callback when a result is selected */
@@ -33,7 +31,6 @@
     let {
         show = $bindable(false),
         query = '',
-        positionX = 0,
         positionY = 0,
         onselect,
         onclose,
@@ -104,6 +101,16 @@
         selectResult(result);
     }
 
+    /**
+     * Prevent mousedown from causing editor blur.
+     * When user clicks on the dropdown, we prevent the default mousedown
+     * behavior which would otherwise blur the editor before the click is processed.
+     */
+    function handleMouseDown(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     function handleMouseEnter(index: number) {
         selectedIndex = index;
     }
@@ -151,25 +158,63 @@
         }
         return getTypeLabel(result.type);
     }
+
+    /**
+     * Get the settings link for a result based on its type.
+     * - Models: /#settings (general settings for now)
+     * - Mates: /#settings (mate-specific deep link added later)
+     * - Skills: /#app-store/app-{appId}/skills
+     * - Focus modes: /#app-store/app-{appId}/focus-modes
+     * - Settings/memories: /#app-store/app-{appId}/memories
+     */
+    function getSettingsLink(result: AnyMentionResult): string {
+        switch (result.type) {
+            case 'model':
+                return '/#settings';
+            case 'mate':
+                return '/#settings';
+            case 'skill': {
+                const skillResult = result as import('./services/mentionSearchService').SkillMentionResult;
+                return `/#app-store/app-${skillResult.appId}/skills`;
+            }
+            case 'focus_mode': {
+                const focusResult = result as import('./services/mentionSearchService').FocusModeMentionResult;
+                return `/#app-store/app-${focusResult.appId}/focus-modes`;
+            }
+            case 'settings_memory': {
+                const memoryResult = result as import('./services/mentionSearchService').SettingsMemoryMentionResult;
+                return `/#app-store/app-${memoryResult.appId}/memories`;
+            }
+            default:
+                return '/#settings';
+        }
+    }
 </script>
 
 {#if show && hasResults}
     <div
         bind:this={dropdownElement}
         class="mention-dropdown"
-        style="left: {positionX}px; bottom: {positionY}px;"
+        style="bottom: {positionY}px;"
         transition:fade={{ duration: 150 }}
         role="listbox"
+        tabindex="-1"
         aria-label="Mention suggestions"
+        onmousedown={handleMouseDown}
     >
         <!-- Header text -->
         <div class="mention-dropdown-header">
             <span class="header-text">
                 {$text('enter_message.mention_dropdown.header.text')}
             </span>
-            <button class="settings-button" aria-label={$text('settings.settings.text')}>
+            <a 
+                href="/#settings" 
+                class="settings-button" 
+                aria-label={$text('settings.settings.text')}
+                onclick={(e) => { e.stopPropagation(); }}
+            >
                 <span class="clickable-icon icon_settings"></span>
-            </button>
+            </a>
         </div>
 
         <!-- Results list -->
@@ -188,7 +233,7 @@
                         {#if result.type === 'model'}
                             <!-- Provider logo -->
                             <img 
-                                src="/static/{result.icon}" 
+                                src="/{result.icon}" 
                                 alt={result.subtitle}
                                 class="provider-logo"
                             />
@@ -219,16 +264,15 @@
                     </div>
 
                     <!-- Settings icon for each row -->
-                    <span 
+                    <a 
+                        href={getSettingsLink(result)}
                         class="row-settings-button" 
-                        role="button"
                         tabindex="-1"
                         aria-label={$text('settings.settings.text')}
                         onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
                     >
                         <span class="clickable-icon icon_settings"></span>
-                    </span>
+                    </a>
                 </button>
             {/each}
         </div>
@@ -253,6 +297,9 @@
         max-width: 450px;
         overflow: hidden;
         font-family: var(--font-family-primary);
+        /* Center horizontally above the input field */
+        left: 50% !important;
+        transform: translateX(-50%);
     }
 
     .mention-dropdown-header {
@@ -265,7 +312,7 @@
 
     .header-text {
         flex: 1;
-        font-size: 13px;
+        font-size: 16px;
         line-height: 1.4;
         color: var(--color-font-tertiary);
     }
@@ -384,7 +431,7 @@
     }
 
     .result-name {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 500;
         color: var(--color-primary-start);
         white-space: nowrap;
@@ -393,7 +440,7 @@
     }
 
     .result-subtitle {
-        font-size: 13px;
+        font-size: 16px;
         color: var(--color-font-tertiary);
         white-space: nowrap;
         overflow: hidden;
@@ -428,7 +475,7 @@
 
     .mention-dropdown-footer {
         padding: 10px 16px;
-        font-size: 12px;
+        font-size: 16px;
         color: var(--color-font-secondary);
         text-align: center;
         border-top: 1px solid var(--color-grey-15);
