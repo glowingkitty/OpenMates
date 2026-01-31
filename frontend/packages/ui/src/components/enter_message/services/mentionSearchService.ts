@@ -148,32 +148,49 @@ function calculateMatchScore(query: string, terms: string[]): number {
 /**
  * Convert AI model metadata to mention results.
  * Filters out models whose provider is unhealthy (if health data is available).
- * 
+ *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
 function getModelMentionResults(): ModelMentionResult[] {
     // Get the provider health checker function
     const checkProviderHealthy = get(isProviderHealthy);
-    
-    return modelsMetadata
-        // Filter by provider health (offline-first: shows all if health data unavailable)
-        .filter(model => checkProviderHealthy(model.provider_id))
-        .map(model => ({
-            id: model.id,
-            type: 'model' as const,
-            displayName: model.name,
-            subtitle: model.provider_name,
-            icon: model.logo_svg,
-            mentionSyntax: `@ai-model:${model.id}`,
-            searchTerms: buildSearchTerms(
-                model.name,
-                model.provider_name,
-                model.description,
-                model.id
-            ),
-            providerName: model.provider_name,
-            tier: model.tier,
-        }));
+
+    console.debug('[mentionSearchService] getModelMentionResults called:', {
+        totalModelsInMetadata: modelsMetadata.length,
+        modelsMetadataIds: modelsMetadata.map(m => m.id)
+    });
+
+    const filtered = modelsMetadata.filter(model => {
+        const isHealthy = checkProviderHealthy(model.provider_id);
+        console.debug('[mentionSearchService] Provider health check:', {
+            modelId: model.id,
+            providerId: model.provider_id,
+            isHealthy
+        });
+        return isHealthy;
+    });
+
+    console.debug('[mentionSearchService] Filtered models:', {
+        count: filtered.length,
+        ids: filtered.map(m => m.id)
+    });
+
+    return filtered.map(model => ({
+        id: model.id,
+        type: 'model' as const,
+        displayName: model.name,
+        subtitle: model.provider_name,
+        icon: model.logo_svg,
+        mentionSyntax: `@ai-model:${model.id}`,
+        searchTerms: buildSearchTerms(
+            model.name,
+            model.provider_name,
+            model.description,
+            model.id
+        ),
+        providerName: model.provider_name,
+        tier: model.tier,
+    }));
 }
 
 /**
@@ -335,7 +352,12 @@ export function getAllMentionResults(): AnyMentionResult[] {
  * Shows top 4 most popular AI models (the most common use case).
  */
 export function getDefaultMentionResults(): AnyMentionResult[] {
-    return getModelMentionResults().slice(0, 4);
+    const modelResults = getModelMentionResults();
+    console.debug('[mentionSearchService] getDefaultMentionResults:', {
+        totalModels: modelResults.length,
+        returning: modelResults.slice(0, 4).map(m => m.displayName)
+    });
+    return modelResults.slice(0, 4);
 }
 
 /**

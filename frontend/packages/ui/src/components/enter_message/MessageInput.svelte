@@ -1141,28 +1141,50 @@
      */
     function checkMentionTrigger(editor: Editor) {
         const { from } = editor.state.selection;
-        
+
         // Get text from document start to cursor position using ProseMirror's textBetween
         // This properly handles the document structure and gives us the actual character position
         const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
-        
+
+        console.debug('[MessageInput] checkMentionTrigger called:', {
+            from,
+            textBeforeCursor,
+            textLength: textBeforeCursor.length
+        });
+
         // Extract the query after @ if we're in mention mode
         // Pass full length as cursor position since we only have text up to cursor
         const query = extractMentionQuery(textBeforeCursor, textBeforeCursor.length);
-        
+
+        console.debug('[MessageInput] extractMentionQuery result:', {
+            query,
+            isInMentionMode: query !== null
+        });
+
         if (query !== null) {
             // We're in mention mode - show dropdown
             mentionQuery = query;
-            
+
             // Calculate dropdown position based on cursor/caret
-            // Position it above the input field
+            // The dropdown is OUTSIDE .message-field but INSIDE .message-input-wrapper
+            // Position it at the top of the wrapper (above the entire message field)
             if (messageInputWrapper) {
-                const rect = messageInputWrapper.getBoundingClientRect();
+                const wrapperRect = messageInputWrapper.getBoundingClientRect();
                 mentionDropdownX = 16; // Left padding
-                mentionDropdownY = rect.height + 8; // Above the input
+                // Position dropdown at the top of the wrapper + small gap
+                // Since we use bottom positioning and the dropdown is in the wrapper,
+                // bottom: wrapperHeight + gap positions it above the wrapper
+                mentionDropdownY = wrapperRect.height + 8;
+
+                console.debug('[MessageInput] Dropdown position calculated:', {
+                    wrapperHeight: wrapperRect.height,
+                    mentionDropdownX,
+                    mentionDropdownY
+                });
             }
-            
+
             showMentionDropdown = true;
+            console.debug('[MessageInput] Setting showMentionDropdown = true, query =', mentionQuery);
         } else {
             // Not in mention mode - hide dropdown
             showMentionDropdown = false;
@@ -2115,17 +2137,19 @@
         {#if showMaps}
             <MapsView on:close={() => showMaps = false} on:locationselected={handleLocationSelected} />
         {/if}
-
-        <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
-        <MentionDropdown
-            bind:show={showMentionDropdown}
-            query={mentionQuery}
-            positionX={mentionDropdownX}
-            positionY={mentionDropdownY}
-            onselect={handleMentionSelectCallback}
-            onclose={handleMentionClose}
-        />
     </div>
+
+    <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
+    <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
+    <!-- .message-field has overflow:hidden which would clip the dropdown if placed inside -->
+    <MentionDropdown
+        bind:show={showMentionDropdown}
+        query={mentionQuery}
+        positionX={mentionDropdownX}
+        positionY={mentionDropdownY}
+        onselect={handleMentionSelectCallback}
+        onclose={handleMentionClose}
+    />
 </div>
 
 <!-- Keyboard Shortcuts Listener -->
