@@ -35,6 +35,8 @@ export interface AIModelMetadata {
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
     tier: 'economy' | 'standard' | 'premium';
+    /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
+    search_aliases?: string[];
 }
 
 /**
@@ -95,6 +97,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ['text'],
         reasoning: true,
         tier: 'premium',
+        search_aliases: ['chatgpt', 'chat gpt', 'gpt'],
     },
 
     // Google Gemini models

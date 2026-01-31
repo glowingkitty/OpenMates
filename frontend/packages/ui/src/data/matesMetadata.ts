@@ -20,6 +20,8 @@ export interface MateMetadata {
     profile_class: string;
     /** Icon class suffix for the mate's expertise area */
     expertise_icon?: string;
+    /** Search names for the mate (includes display name and expertise keywords) */
+    search_names: string[];
 }
 
 /**
@@ -37,6 +39,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.software_development.text',
         profile_class: 'software_development',
         expertise_icon: 'code',
+        search_names: ['sophia', 'software', 'development', 'coding', 'programming', 'developer'],
     },
     {
         id: 'business_development',
@@ -44,6 +47,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.business_development.text',
         profile_class: 'business_development',
         expertise_icon: 'business',
+        search_names: ['burton', 'business', 'development', 'strategy', 'entrepreneur'],
     },
     {
         id: 'life_coach_psychology',
@@ -51,6 +55,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.life_coach_psychology.text',
         profile_class: 'life_coach_psychology',
         expertise_icon: 'psychology',
+        search_names: ['lisa', 'life', 'coach', 'psychology', 'mental', 'therapist', 'counselor'],
     },
     {
         id: 'medical_health',
@@ -58,6 +63,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.medical_health.text',
         profile_class: 'medical_health',
         expertise_icon: 'health',
+        search_names: ['melvin', 'medical', 'health', 'doctor', 'medicine', 'healthcare'],
     },
     {
         id: 'legal_law',
@@ -65,6 +71,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.legal_law.text',
         profile_class: 'legal_law',
         expertise_icon: 'law',
+        search_names: ['leon', 'legal', 'law', 'lawyer', 'attorney', 'contract'],
     },
     {
         id: 'finance',
@@ -72,6 +79,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.finance.text',
         profile_class: 'finance',
         expertise_icon: 'finance',
+        search_names: ['finn', 'finance', 'financial', 'investment', 'money', 'accounting'],
     },
     {
         id: 'design',
@@ -79,6 +87,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.design.text',
         profile_class: 'design',
         expertise_icon: 'design',
+        search_names: ['denise', 'design', 'designer', 'ui', 'ux', 'graphic', 'creative'],
     },
     {
         id: 'marketing_sales',
@@ -86,6 +95,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.marketing_sales.text',
         profile_class: 'marketing_sales',
         expertise_icon: 'marketing',
+        search_names: ['mark', 'marketing', 'sales', 'advertising', 'promotion'],
     },
     {
         id: 'science',
@@ -93,6 +103,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.science.text',
         profile_class: 'science',
         expertise_icon: 'science',
+        search_names: ['scarlett', 'science', 'scientist', 'research', 'physics', 'chemistry', 'biology'],
     },
     {
         id: 'history',
@@ -100,6 +111,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.history.text',
         profile_class: 'history',
         expertise_icon: 'history',
+        search_names: ['hiro', 'history', 'historian', 'historical', 'past', 'ancient'],
     },
     {
         id: 'cooking_food',
@@ -107,6 +119,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.cooking_food.text',
         profile_class: 'cooking_food',
         expertise_icon: 'cooking',
+        search_names: ['colin', 'cooking', 'food', 'chef', 'recipe', 'cuisine', 'kitchen'],
     },
     {
         id: 'electrical_engineering',
@@ -114,6 +127,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.electrical_engineering.text',
         profile_class: 'electrical_engineering',
         expertise_icon: 'engineering',
+        search_names: ['elton', 'electrical', 'engineering', 'electronics', 'circuits', 'engineer'],
     },
     {
         id: 'maker_prototyping',
@@ -121,6 +135,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.maker_prototyping.text',
         profile_class: 'maker_prototyping',
         expertise_icon: 'maker',
+        search_names: ['makani', 'maker', 'prototyping', 'diy', 'fabrication', '3d printing'],
     },
     {
         id: 'movies_tv',
@@ -128,6 +143,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.movies_tv.text',
         profile_class: 'movies_tv',
         expertise_icon: 'entertainment',
+        search_names: ['monika', 'movies', 'tv', 'television', 'film', 'cinema', 'entertainment'],
     },
     {
         id: 'activism',
@@ -135,6 +151,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.activism.text',
         profile_class: 'activism',
         expertise_icon: 'activism',
+        search_names: ['ace', 'activism', 'activist', 'social', 'change', 'advocacy'],
     },
     {
         id: 'general_knowledge',
@@ -142,6 +159,7 @@ export const matesMetadata: MateMetadata[] = [
         description_translation_key: 'mate_descriptions.general_knowledge.text',
         profile_class: 'general_knowledge',
         expertise_icon: 'general',
+        search_names: ['george', 'general', 'knowledge', 'trivia', 'facts', 'information'],
     },
 ];
 

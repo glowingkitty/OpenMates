@@ -1,13 +1,13 @@
 // src/components/MessageInput/extensions/MateNode.ts
 import { Node, mergeAttributes } from '@tiptap/core';
-import { mountComponent } from '../utils/editorHelpers';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MateNodeOptions {}
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         mate: {
-            setMate: (options: { name: string; id: string }) => ReturnType;
+            setMate: (options: { name: string; displayName: string; id: string }) => ReturnType;
         };
     }
 }
@@ -17,10 +17,20 @@ export const MateNode = Node.create<MateNodeOptions>({
     inline: true,
     selectable: true,
     draggable: true,
+    atom: true, // Treat as single unit for selection/deletion
+
+    // Return text for getText() calls - ensures mention contributes to text content
+    // This is critical for NewChatSuggestions filtering to work correctly
+    renderText({ node }) {
+        return `@${node.attrs.displayName || node.attrs.name}`;
+    },
 
     addAttributes() {
         return {
             name: {
+                default: null,
+            },
+            displayName: {
                 default: null,
             },
             id: {

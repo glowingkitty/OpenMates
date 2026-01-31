@@ -193,7 +193,9 @@ function getModelMentionResults(): ModelMentionResult[] {
                 model.name,
                 model.provider_name,
                 model.description,
-                model.id
+                model.id,
+                // Include search aliases (e.g., "chatgpt" for OpenAI models)
+                ...(model.search_aliases || [])
             ),
             providerName: model.provider_name,
             tier: model.tier,
@@ -208,15 +210,17 @@ function getMateMentionResults(): MateMentionResult[] {
         id: mate.id,
         type: 'mate' as const,
         displayName: mate.name_translation_key, // Will be resolved by component
-        // Mate names are single words, capitalize: "sophia" -> "Sophia"
-        mentionDisplayName: capitalizeWords(mate.id),
+        // Use first search name (the actual name like "Sophia") for display
+        mentionDisplayName: capitalizeWords(mate.search_names[0] || mate.id),
         subtitle: mate.description_translation_key,
         icon: 'mate-profile',
         iconStyle: mate.profile_class,
         mentionSyntax: `@mate:${mate.id}`,
         searchTerms: buildSearchTerms(
             mate.id,
-            mate.profile_class
+            mate.profile_class,
+            // Include all search names (name + expertise keywords)
+            ...mate.search_names
         ),
         profileClass: mate.profile_class,
         nameTranslationKey: mate.name_translation_key,

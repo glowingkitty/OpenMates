@@ -1208,12 +1208,13 @@
                 .run();
         } else if (result.type === 'mate') {
             // Use the mate node which shows profile image
-            // Shows @[profile] but serializes to @mate:id
+            // Shows @Sophia but serializes to @mate:id
             editor
                 .chain()
                 .focus()
                 .setMate({
-                    name: result.id, // mate id like "sophia"
+                    name: result.id, // mate id like "software_development"
+                    displayName: result.mentionDisplayName, // e.g., "Sophia"
                     id: crypto.randomUUID()
                 })
                 .insertContent(' ')

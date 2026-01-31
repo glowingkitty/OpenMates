@@ -29,6 +29,12 @@ export const AIModelMentionNode = Node.create<AIModelMentionNodeOptions>({
     draggable: true,
     atom: true, // Treat as a single unit for deletion
 
+    // Return text for getText() calls - ensures mention contributes to text content
+    // This is critical for NewChatSuggestions filtering to work correctly
+    renderText({ node }) {
+        return `@${node.attrs.displayName}`;
+    },
+
     addAttributes() {
         return {
             modelId: {
