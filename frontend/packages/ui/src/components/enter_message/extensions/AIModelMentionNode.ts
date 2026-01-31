@@ -81,20 +81,18 @@ export const AIModelMentionNode = Node.create<AIModelMentionNodeOptions>({
                 const node = editor.state.doc.nodeAt(pos - 1);
 
                 if (node?.type.name === 'aiModelMention') {
-                    const displayName = node.attrs.displayName;
                     const from = pos - node.nodeSize;
                     const to = pos;
 
-                    // First delete any preceding space
+                    // Delete any preceding space along with the mention
                     const beforeNode = editor.state.doc.textBetween(Math.max(0, from - 1), from);
                     const extraOffset = beforeNode === ' ' ? 1 : 0;
 
-                    // When backspacing, revert to editable @query format
+                    // Fully delete the mention node (and preceding space)
                     editor
                         .chain()
                         .focus()
                         .deleteRange({ from: from - extraOffset, to })
-                        .insertContent(`@${displayName.replace(/\s+/g, '')}`)
                         .run();
 
                     return true;
