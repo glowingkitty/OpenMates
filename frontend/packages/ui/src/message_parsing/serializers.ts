@@ -287,6 +287,11 @@ function serializeParagraph(node: any): string {
         return `@mate:${child.attrs?.name || ""}`;
       }
 
+      // Handle generic mention nodes (skills, focus modes, settings/memories) - serialize to backend format
+      if (child.type === "genericMention") {
+        return child.attrs?.mentionSyntax || "";
+      }
+
       return "";
     })
     .join("");
