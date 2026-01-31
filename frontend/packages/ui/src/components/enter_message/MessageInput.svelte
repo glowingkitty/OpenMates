@@ -1216,20 +1216,15 @@
             deleteRange: { from: atDocPosition, to: from }
         });
 
-        // Delete from @ position to cursor (includes the @, since mention node provides its own @)
-        editor.chain().focus().deleteRange({ from: atDocPosition, to: from }).run();
-
-        console.info('[MentionSelect] DEBUG: After deleteRange, doc content:', 
-            editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n')
-        );
-
         // Insert the appropriate content based on result type
+        // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
         if (result.type === 'model') {
             // Use the custom AI model mention node for visual display
             // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
             editor
                 .chain()
                 .focus()
+                .deleteRange({ from: atDocPosition, to: from })
                 .setAIModelMention({
                     modelId: result.id,
                     displayName: result.mentionDisplayName
@@ -1248,6 +1243,7 @@
             editor
                 .chain()
                 .focus()
+                .deleteRange({ from: atDocPosition, to: from })
                 .setMate({
                     name: mateResult.id, // mate id like "software_development"
                     displayName: mateResult.mentionDisplayName, // e.g., "Sophia"
@@ -1263,6 +1259,7 @@
             editor
                 .chain()
                 .focus()
+                .deleteRange({ from: atDocPosition, to: from })
                 .setGenericMention({
                     mentionType: result.type as 'skill' | 'focus_mode' | 'settings_memory',
                     displayName: result.mentionDisplayName,
