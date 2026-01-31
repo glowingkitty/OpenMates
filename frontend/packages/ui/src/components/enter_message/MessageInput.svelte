@@ -1185,14 +1185,34 @@
         const { from } = editor.state.selection;
 
         // Calculate the range to replace (from @ to cursor)
-        // We need to account for TipTap's document structure
-        const docText = editor.state.doc.textBetween(0, editor.state.doc.content.size);
-        const atPosInDoc = docText.lastIndexOf('@', from);
+        // IMPORTANT: textBetween gives us a string, but deleteRange expects document positions.
+        // We need to get text ONLY up to cursor position, then find @ in that substring.
+        // The string length will match the character offset from start of content.
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+        const atIndexInText = textBeforeCursor.lastIndexOf('@');
 
-        if (atPosInDoc === -1) return;
+        if (atIndexInText === -1) return;
 
-        // Delete the @query first
-        editor.chain().focus().deleteRange({ from: atPosInDoc + 1, to: from }).run();
+        // Calculate the actual document position of the @ character
+        // Since textBeforeCursor is the text from doc start to cursor,
+        // and the string index of @ gives us the offset from start,
+        // we need to account for the paragraph node structure.
+        // In a simple paragraph: pos 0 = doc start, pos 1 = paragraph start, pos 2+ = text
+        // So document position of @ = 1 (paragraph start) + atIndexInText + 1 (for paragraph node)
+        // Actually, for a simple doc with one paragraph:
+        // textBetween(0, from) returns text starting from the first text node
+        // The offset in the returned string corresponds to positions starting at 1 (after paragraph open)
+        // So the document position of character at string index i is: 1 + i
+        // However, this depends on document structure. A more robust approach:
+        // The cursor is at 'from', and we typed (textBeforeCursor.length - atIndexInText - 1) chars after @
+        // So @ is at: from - (textBeforeCursor.length - atIndexInText)
+        const charsAfterAt = textBeforeCursor.length - atIndexInText;
+        const atDocPosition = from - charsAfterAt;
+
+        // Delete from after @ (atDocPosition + 1) to cursor (from), keeping the @ character
+        // Then insert the mention node which will replace the @
+        // Actually, we should delete the @ too since the mention node will display @ModelName
+        editor.chain().focus().deleteRange({ from: atDocPosition, to: from }).run();
 
         // Insert the appropriate content based on result type
         if (result.type === 'model') {
