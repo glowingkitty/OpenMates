@@ -3336,12 +3336,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
 
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
-                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-for-everyone') {
+                        // CRITICAL: Check if ANY chat is selected in activeChatStore, not just demo-for-everyone
+                        // This prevents overwriting draft chats or other non-demo chats that are being loaded
+                        if (!currentChat?.chat_id && !$activeChatStore) {
                             activeChatStore.setActiveChat('demo-for-everyone');
                             loadChat(welcomeChat);
                             console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
-                            console.info("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                            console.info("[ActiveChat] [NON-AUTH] Fallback: Chat already selected, skipping", { currentChatId: currentChat?.chat_id, storeValue: $activeChatStore });
                         }
                     }, 100);
                 }
