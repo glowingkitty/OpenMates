@@ -260,7 +260,17 @@ function serializeParagraph(node: any): string {
     if (child.type === 'webEmbed' || child.type === 'videoEmbed') {
       return child.attrs?.url || '';
     }
-    
+
+    // Handle AI model mention nodes - serialize to backend format
+    if (child.type === 'aiModelMention') {
+      return `@ai-model:${child.attrs?.modelId || ''}`;
+    }
+
+    // Handle mate mention nodes - serialize to backend format
+    if (child.type === 'mate') {
+      return `@mate:${child.attrs?.name || ''}`;
+    }
+
     return '';
   }).join('');
 }

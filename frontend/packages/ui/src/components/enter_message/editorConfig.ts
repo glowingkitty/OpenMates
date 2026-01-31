@@ -2,6 +2,7 @@
 import StarterKit from '@tiptap/starter-kit';
 import { CustomPlaceholder } from './extensions/Placeholder';
 import { MateNode } from './extensions/MateNode';
+import { AIModelMentionNode } from './extensions/AIModelMentionNode';
 // Legacy embed nodes no longer needed with unified architecture
 // import * as EmbedNodes from "./extensions/embeds";
 import { Embed } from './extensions/Embed'; // Import unified Embed extension
@@ -33,6 +34,7 @@ export function getEditorExtensions() {
         }),
         Embed, // Use unified Embed extension
         MateNode,
+        AIModelMentionNode, // For @ai-model:id mentions
         // CustomPlaceholder uses reactive text store, no need to override with static text
         CustomPlaceholder,
         createKeyboardHandlingExtension()

@@ -51,24 +51,8 @@
 
     // Update results when query changes
     $effect(() => {
-        console.debug('[MentionDropdown] Query changed:', { query, show });
         results = searchMentions(query, 4);
-        console.debug('[MentionDropdown] Search results:', {
-            resultCount: results.length,
-            results: results.map(r => ({ id: r.id, type: r.type, displayName: r.displayName }))
-        });
         selectedIndex = 0; // Reset selection when results change
-    });
-
-    // Debug when show changes
-    $effect(() => {
-        console.debug('[MentionDropdown] Show state changed:', {
-            show,
-            hasResults,
-            resultCount: results.length,
-            positionX,
-            positionY
-        });
     });
 
     // Handle keyboard navigation

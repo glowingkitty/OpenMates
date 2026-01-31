@@ -1146,20 +1146,9 @@
         // This properly handles the document structure and gives us the actual character position
         const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
 
-        console.debug('[MessageInput] checkMentionTrigger called:', {
-            from,
-            textBeforeCursor,
-            textLength: textBeforeCursor.length
-        });
-
         // Extract the query after @ if we're in mention mode
         // Pass full length as cursor position since we only have text up to cursor
         const query = extractMentionQuery(textBeforeCursor, textBeforeCursor.length);
-
-        console.debug('[MessageInput] extractMentionQuery result:', {
-            query,
-            isInMentionMode: query !== null
-        });
 
         if (query !== null) {
             // We're in mention mode - show dropdown
@@ -1175,16 +1164,9 @@
                 // Since we use bottom positioning and the dropdown is in the wrapper,
                 // bottom: wrapperHeight + gap positions it above the wrapper
                 mentionDropdownY = wrapperRect.height + 8;
-
-                console.debug('[MessageInput] Dropdown position calculated:', {
-                    wrapperHeight: wrapperRect.height,
-                    mentionDropdownX,
-                    mentionDropdownY
-                });
             }
 
             showMentionDropdown = true;
-            console.debug('[MessageInput] Setting showMentionDropdown = true, query =', mentionQuery);
         } else {
             // Not in mention mode - hide dropdown
             showMentionDropdown = false;
@@ -1194,36 +1176,41 @@
 
     /**
      * Handle selection of a mention result from the dropdown.
-     * Replaces the @query with the selected mention syntax.
+     * Replaces the @query with a styled mention node (for models) or mention syntax (for others).
      */
     function handleMentionSelectCallback(result: AnyMentionResult) {
         if (!editor) return;
 
         const { from } = editor.state.selection;
-        const editorText = editor.getText();
-        
-        // Find the @ position to replace
-        const beforeCursor = editorText.substring(0, from);
-        const lastAtIndex = beforeCursor.lastIndexOf('@');
-        
-        if (lastAtIndex === -1) return;
-        
+
         // Calculate the range to replace (from @ to cursor)
         // We need to account for TipTap's document structure
         const docText = editor.state.doc.textBetween(0, editor.state.doc.content.size);
         const atPosInDoc = docText.lastIndexOf('@', from);
-        
+
         if (atPosInDoc === -1) return;
-        
-        // Replace @query with the mention syntax + space
-        // Add 1 to positions because ProseMirror uses 1-based positions for some operations
-        editor
-            .chain()
-            .focus()
-            .deleteRange({ from: atPosInDoc + 1, to: from })
-            .insertContent(result.mentionSyntax + ' ')
-            .run();
-        
+
+        // Delete the @query first
+        editor.chain().focus().deleteRange({ from: atPosInDoc + 1, to: from }).run();
+
+        // Insert the appropriate content based on result type
+        if (result.type === 'model') {
+            // Use the custom AI model mention node for visual display
+            // This shows the friendly name but serializes to @ai-model:id
+            editor
+                .chain()
+                .focus()
+                .setAIModelMention({
+                    modelId: result.id,
+                    displayName: result.displayName
+                })
+                .insertContent(' ')
+                .run();
+        } else {
+            // For other types, insert the mention syntax directly
+            editor.chain().focus().insertContent(result.mentionSyntax + ' ').run();
+        }
+
         // Close dropdown
         showMentionDropdown = false;
         mentionQuery = '';

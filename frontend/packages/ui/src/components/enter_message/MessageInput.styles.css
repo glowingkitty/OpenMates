@@ -391,8 +391,20 @@
     transition: background-color 0.2s; 
 }
 
-:global(.ProseMirror .mate-mention-node:hover) { 
-    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); 
+:global(.ProseMirror .mate-mention-node:hover) {
+    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+/* AI Model mention node - displayed as a styled pill */
+:global(.ProseMirror .ai-model-mention) {
+    display: inline;
+    background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    color: var(--color-primary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+    cursor: default;
+    white-space: nowrap;
 }
 
 :global(.embed-wrapper.show-copied::after) { 
