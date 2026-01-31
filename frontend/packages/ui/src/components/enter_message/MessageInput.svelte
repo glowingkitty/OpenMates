@@ -1196,19 +1196,41 @@
         // Insert the appropriate content based on result type
         if (result.type === 'model') {
             // Use the custom AI model mention node for visual display
-            // This shows the friendly name but serializes to @ai-model:id
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
             editor
                 .chain()
                 .focus()
                 .setAIModelMention({
                     modelId: result.id,
-                    displayName: result.displayName
+                    displayName: result.mentionDisplayName
+                })
+                .insertContent(' ')
+                .run();
+        } else if (result.type === 'mate') {
+            // Use the mate node which shows profile image
+            // Shows @[profile] but serializes to @mate:id
+            editor
+                .chain()
+                .focus()
+                .setMate({
+                    name: result.id, // mate id like "sophia"
+                    id: crypto.randomUUID()
                 })
                 .insertContent(' ')
                 .run();
         } else {
-            // For other types, insert the mention syntax directly
-            editor.chain().focus().insertContent(result.mentionSyntax + ' ').run();
+            // Use generic mention node for skills, focus modes, and settings/memories
+            // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
+            editor
+                .chain()
+                .focus()
+                .setGenericMention({
+                    mentionType: result.type as 'skill' | 'focus_mode' | 'settings_memory',
+                    displayName: result.mentionDisplayName,
+                    mentionSyntax: result.mentionSyntax
+                })
+                .insertContent(' ')
+                .run();
         }
 
         // Close dropdown

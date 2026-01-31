@@ -407,6 +407,34 @@
     white-space: nowrap;
 }
 
+/* Generic mention styles (skills, focus modes, settings/memories) */
+:global(.ProseMirror .generic-mention) {
+    display: inline;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+    cursor: default;
+    white-space: nowrap;
+}
+
+/* Skill mentions - blue tint */
+:global(.ProseMirror .generic-mention.mention-skill) {
+    background-color: color-mix(in srgb, var(--color-blue) 15%, transparent);
+    color: var(--color-blue);
+}
+
+/* Focus mode mentions - purple tint */
+:global(.ProseMirror .generic-mention.mention-focus-mode) {
+    background-color: color-mix(in srgb, var(--color-purple) 15%, transparent);
+    color: var(--color-purple);
+}
+
+/* Settings/memory mentions - green tint */
+:global(.ProseMirror .generic-mention.mention-settings-memory) {
+    background-color: color-mix(in srgb, var(--color-green) 15%, transparent);
+    color: var(--color-green);
+}
+
 :global(.embed-wrapper.show-copied::after) { 
     content: 'Copied!'; 
     position: absolute; 

@@ -23,15 +23,17 @@ export interface MentionResult {
     id: string;
     /** Type of mentionable item */
     type: MentionType;
-    /** Primary display text (may be translation key) */
+    /** Primary display text for dropdown (may be translation key) */
     displayName: string;
+    /** Hyphenated display name for editor (e.g., '@Claude-4.5-Opus') */
+    mentionDisplayName: string;
     /** Secondary display text (description or subtitle) */
     subtitle: string;
     /** Icon or image identifier for display */
     icon: string;
     /** Additional icon class or color gradient */
     iconStyle?: string;
-    /** The mention syntax to insert (e.g., '@ai-model:claude-4-sonnet') */
+    /** The mention syntax for backend (e.g., '@ai-model:claude-4-sonnet') */
     mentionSyntax: string;
     /** Search keywords for matching (lowercase) */
     searchTerms: string[];
@@ -107,6 +109,25 @@ export type AnyMentionResult =
     | SettingsMemoryMentionResult;
 
 /**
+ * Convert a name to hyphenated format for mention display.
+ * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
+ * e.g., "Get Docs" -> "Get-Docs"
+ */
+function toHyphenatedName(name: string): string {
+    return name.replace(/\s+/g, '-');
+}
+
+/**
+ * Capitalize first letter of each word for display.
+ * e.g., "get-docs" -> "Get-Docs"
+ */
+function capitalizeWords(str: string): string {
+    return str.split('-').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join('-');
+}
+
+/**
  * Build search terms from a string by extracting words and variations.
  */
 function buildSearchTerms(...strings: (string | undefined)[]): string[] {
@@ -162,6 +183,8 @@ function getModelMentionResults(): ModelMentionResult[] {
             id: model.id,
             type: 'model' as const,
             displayName: model.name,
+            // Hyphenated for editor display: "Claude 4.5 Opus" -> "Claude-4.5-Opus"
+            mentionDisplayName: toHyphenatedName(model.name),
             subtitle: model.provider_name,
             icon: model.logo_svg,
             // Backend syntax for processing - the actual text stored/sent
@@ -185,6 +208,8 @@ function getMateMentionResults(): MateMentionResult[] {
         id: mate.id,
         type: 'mate' as const,
         displayName: mate.name_translation_key, // Will be resolved by component
+        // Mate names are single words, capitalize: "sophia" -> "Sophia"
+        mentionDisplayName: capitalizeWords(mate.id),
         subtitle: mate.description_translation_key,
         icon: 'mate-profile',
         iconStyle: mate.profile_class,
@@ -204,18 +229,25 @@ function getMateMentionResults(): MateMentionResult[] {
 function getSkillMentionResults(): SkillMentionResult[] {
     const results: SkillMentionResult[] = [];
     const apps = appSkillsStore.apps;
-    
+
     for (const [appId, app] of Object.entries(apps)) {
         const appIcon = app.icon_image || 'default-app.svg';
-        
+        // Capitalize app name: "code" -> "Code"
+        const appDisplayName = capitalizeWords(appId);
+
         for (const skill of app.skills) {
+            // Hyphenated: "Code-Get-Docs" (app name + skill id with hyphens)
+            const skillDisplayName = capitalizeWords(skill.id.replace(/_/g, '-'));
+
             results.push({
                 id: `${appId}:${skill.id}`,
                 type: 'skill' as const,
                 displayName: skill.name_translation_key,
+                // Format: "App-Skill-Name" e.g., "Code-Get-Docs"
+                mentionDisplayName: `${appDisplayName}-${skillDisplayName}`,
                 subtitle: skill.description_translation_key,
                 icon: appIcon,
-                iconStyle: app.icon_colorgradient 
+                iconStyle: app.icon_colorgradient
                     ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
                     : undefined,
                 mentionSyntax: `@skill:${appId}:${skill.id}`,
@@ -229,7 +261,7 @@ function getSkillMentionResults(): SkillMentionResult[] {
             });
         }
     }
-    
+
     return results;
 }
 
@@ -239,18 +271,25 @@ function getSkillMentionResults(): SkillMentionResult[] {
 function getFocusModeMentionResults(): FocusModeMentionResult[] {
     const results: FocusModeMentionResult[] = [];
     const apps = appSkillsStore.apps;
-    
+
     for (const [appId, app] of Object.entries(apps)) {
         const appIcon = app.icon_image || 'default-app.svg';
-        
+        // Capitalize app name: "web" -> "Web"
+        const appDisplayName = capitalizeWords(appId);
+
         for (const focusMode of app.focus_modes) {
+            // Hyphenated: "Web-Research" (app name + focus mode id with hyphens)
+            const focusDisplayName = capitalizeWords(focusMode.id.replace(/_/g, '-'));
+
             results.push({
                 id: `${appId}:${focusMode.id}`,
                 type: 'focus_mode' as const,
                 displayName: focusMode.name_translation_key,
+                // Format: "App-FocusMode" e.g., "Web-Research"
+                mentionDisplayName: `${appDisplayName}-${focusDisplayName}`,
                 subtitle: focusMode.description_translation_key,
                 icon: appIcon,
-                iconStyle: app.icon_colorgradient 
+                iconStyle: app.icon_colorgradient
                     ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
                     : undefined,
                 mentionSyntax: `@focus:${appId}:${focusMode.id}`,
@@ -264,7 +303,7 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
             });
         }
     }
-    
+
     return results;
 }
 
@@ -275,34 +314,43 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
 function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
     const results: SettingsMemoryMentionResult[] = [];
     const apps = appSkillsStore.apps;
-    
+
     // Get user's settings/memories entries grouped by app
     const storeState = get(appSettingsMemoriesStore);
     const userEntriesByApp = new Set<string>();
-    
+
     // Track which app:item_type combinations have user data
     storeState.entries.forEach((entry: { app_id: string; item_type: string }) => {
         userEntriesByApp.add(`${entry.app_id}:${entry.item_type}`);
     });
-    
+
     for (const [appId, app] of Object.entries(apps)) {
         const appIcon = app.icon_image || 'default-app.svg';
-        
+        // Capitalize app name: "code" -> "Code"
+        const appDisplayName = capitalizeWords(appId);
+
         for (const memory of app.settings_and_memories) {
             // Only include if user has entries for this memory type
             const hasUserData = userEntriesByApp.has(`${appId}:${memory.id}`);
             if (!hasUserData) continue;
-            
+
+            // Hyphenated: "Code-Projects" (app name + memory id with hyphens)
+            const memoryDisplayName = capitalizeWords(memory.id.replace(/_/g, '-'));
+
             results.push({
                 id: `${appId}:${memory.id}`,
                 type: 'settings_memory' as const,
                 displayName: memory.name_translation_key,
+                // Format: "App-MemoryName" e.g., "Code-Projects"
+                mentionDisplayName: `${appDisplayName}-${memoryDisplayName}`,
                 subtitle: memory.description_translation_key,
                 icon: appIcon,
-                iconStyle: app.icon_colorgradient 
+                iconStyle: app.icon_colorgradient
                     ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
                     : undefined,
-                mentionSyntax: `@memory:${appId}:${memory.id}`,
+                // Include memory type in syntax so backend knows the specific type
+                // Format: @memory:app_id:memory_id:memory_type
+                mentionSyntax: `@memory:${appId}:${memory.id}:${memory.type}`,
                 searchTerms: buildSearchTerms(
                     memory.id,
                     appId,
@@ -314,7 +362,7 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
             });
         }
     }
-    
+
     return results;
 }
 
