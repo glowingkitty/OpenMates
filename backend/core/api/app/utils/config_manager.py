@@ -141,5 +141,31 @@ class ConfigManager:
         logger.warning(f"Model '{model_id}' not found in provider config for '{provider_id}'.")
         return None
 
+    def find_provider_for_model(self, model_id: str) -> Optional[str]:
+        """
+        Searches all provider configurations to find which provider defines a given model ID.
+        
+        This is useful when a user specifies a model without a provider prefix (e.g., 
+        "claude-haiku-4-5-20251001" instead of "anthropic/claude-haiku-4-5-20251001").
+        
+        Args:
+            model_id: The model ID to search for (without provider prefix).
+            
+        Returns:
+            The provider_id if found, None otherwise.
+        """
+        if not self._provider_configs:
+            logger.warning(f"No provider configurations loaded when searching for model '{model_id}'.")
+            return None
+        
+        for provider_id, provider_config in self._provider_configs.items():
+            for model in provider_config.get("models", []):
+                if isinstance(model, dict) and model.get("id") == model_id:
+                    logger.info(f"Found model '{model_id}' in provider '{provider_id}'.")
+                    return provider_id
+        
+        logger.warning(f"Model '{model_id}' not found in any provider configuration.")
+        return None
+
 # Create a singleton instance for easy import across the application.
 config_manager = ConfigManager()

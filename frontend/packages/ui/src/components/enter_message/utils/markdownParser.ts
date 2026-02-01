@@ -1,5 +1,6 @@
 // Markdown Parser for converting markdown text to TipTap JSON
-import MarkdownIt from 'markdown-it';
+import MarkdownIt from "markdown-it";
+import { modelsMetadata } from "../../../data/modelsMetadata";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
@@ -15,9 +16,11 @@ const md = new MarkdownIt({
 
 // Override the link renderer to prevent target="_blank" for internal links
 // This is called for markdown links like [text](url)
-const defaultLinkRender = md.renderer.rules.link_open || ((tokens, idx, options, env, self) => {
-  return self.renderToken(tokens, idx, options);
-});
+const defaultLinkRender =
+  md.renderer.rules.link_open ||
+  ((tokens, idx, options, env, self) => {
+    return self.renderToken(tokens, idx, options);
+  });
 
 /**
  * Check if a href is an internal hash-based link
@@ -27,30 +30,30 @@ const defaultLinkRender = md.renderer.rules.link_open || ((tokens, idx, options,
  */
 function isInternalHashLink(href: string): boolean {
   if (!href) return false;
-  const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+  const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
   return (
-    normalizedHref.startsWith('#chat-id=') ||
-    normalizedHref.startsWith('#settings') ||
-    normalizedHref.includes('#chat-id=') ||
-    normalizedHref.includes('#settings/')
+    normalizedHref.startsWith("#chat-id=") ||
+    normalizedHref.startsWith("#settings") ||
+    normalizedHref.includes("#chat-id=") ||
+    normalizedHref.includes("#settings/")
   );
 }
 
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
-  const href = token.attrGet('href');
-  
+  const href = token.attrGet("href");
+
   // Check if this is an internal hash-based link (chat or settings)
   if (href && isInternalHashLink(href)) {
     // Remove target attribute if present (markdown-it linkify might add it)
-    token.attrSet('target', null);
+    token.attrSet("target", null);
     // Remove rel attributes that might include nofollow
-    const rel = token.attrGet('rel');
+    const rel = token.attrGet("rel");
     if (rel) {
-      token.attrSet('rel', null);
+      token.attrSet("rel", null);
     }
   }
-  
+
   return defaultLinkRender(tokens, idx, options, env, self);
 };
 
@@ -60,11 +63,14 @@ const mathFormulas = new Map<string, { tex: string; display: boolean }>();
 
 // Helper function to extract math formulas from markdown and replace with placeholders
 // This preserves the LaTeX formula for TipTap Mathematics extension
-function extractMathFormulas(markdownText: string): { processed: string; formulas: Map<string, { tex: string; display: boolean }> } {
+function extractMathFormulas(markdownText: string): {
+  processed: string;
+  formulas: Map<string, { tex: string; display: boolean }>;
+} {
   const formulas = new Map<string, { tex: string; display: boolean }>();
   let processed = markdownText;
   let placeholderCounter = 0;
-  
+
   // Extract block math: $$...$$
   // Use a regex that handles multi-line block math
   processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
@@ -73,80 +79,146 @@ function extractMathFormulas(markdownText: string): { processed: string; formula
     placeholderCounter++;
     return placeholder;
   });
-  
+
   // Extract inline math: $...$ (but not $$...$$)
   // Use negative lookahead/lookbehind to avoid matching block math
-  processed = processed.replace(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g, (match, formula) => {
-    const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
-    formulas.set(placeholder, { tex: formula.trim(), display: false });
-    placeholderCounter++;
-    return placeholder;
-  });
-  
+  processed = processed.replace(
+    /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g,
+    (match, formula) => {
+      const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
+      formulas.set(placeholder, { tex: formula.trim(), display: false });
+      placeholderCounter++;
+      return placeholder;
+    },
+  );
+
   return { processed, formulas };
 }
 
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 function preprocessMarkdown(markdownText: string): string {
   // First extract math formulas
-  const { processed: textWithMathExtracted, formulas } = extractMathFormulas(markdownText);
+  const { processed: textWithMathExtracted, formulas } =
+    extractMathFormulas(markdownText);
   // Store formulas globally for use in convertNodeToTiptap
   mathFormulas.clear();
   formulas.forEach((value, key) => mathFormulas.set(key, value));
-  
+
   // Split the text by double newlines and process each section
   const sections = textWithMathExtracted.split(/\n\n+/);
   const processedSections: string[] = [];
-  
+
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i].trim();
     if (section) {
       processedSections.push(section);
     }
-    
+
     // Add empty paragraph marker between sections (except for the last one)
     if (i < sections.length - 1) {
-      processedSections.push('<!-- EMPTY_PARAGRAPH -->');
+      processedSections.push("<!-- EMPTY_PARAGRAPH -->");
     }
   }
-  
-  return processedSections.join('\n\n');
+
+  return processedSections.join("\n\n");
 }
 
 // Helper function to convert HTML to TipTap JSON
 function htmlToTiptapJson(html: string): any {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  
+  const doc = parser.parseFromString(html, "text/html");
+
   return convertNodeToTiptap(doc.body);
+}
+
+/**
+ * Parse text containing @ai-model:model-id mentions and split into text and aiModelMention nodes.
+ * Returns an array of TipTap nodes (text and aiModelMention nodes).
+ */
+function parseAIModelMentions(text: string): any[] {
+  const result: any[] = [];
+  // Match @ai-model:model-id pattern (model-id is alphanumeric with hyphens)
+  const aiModelPattern = /@ai-model:([a-zA-Z0-9_-]+)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = aiModelPattern.exec(text)) !== null) {
+    // Add text before the mention
+    if (match.index > lastIndex) {
+      const textBefore = text.slice(lastIndex, match.index);
+      if (textBefore) {
+        result.push({ type: "text", text: textBefore });
+      }
+    }
+
+    // Add the AI model mention node
+    const modelId = match[1];
+    const model = modelsMetadata.find((m) => m.id === modelId);
+    const displayName = model?.name || modelId; // Use human-friendly name if found, otherwise raw ID
+
+    result.push({
+      type: "aiModelMention",
+      attrs: {
+        modelId: modelId,
+        displayName: displayName,
+      },
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text after the last mention
+  if (lastIndex < text.length) {
+    const textAfter = text.slice(lastIndex);
+    if (textAfter) {
+      result.push({ type: "text", text: textAfter });
+    }
+  }
+
+  return result;
 }
 
 function convertNodeToTiptap(node: Node): any {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
     if (!text) return null;
-    
+
     // Only skip text nodes that are just whitespace/newlines if they're not inside a paragraph
     // This allows empty paragraphs to be preserved for proper spacing
     const parentElement = node.parentElement;
-    if (text.trim() === '' && parentElement?.tagName.toLowerCase() !== 'p') {
+    if (text.trim() === "" && parentElement?.tagName.toLowerCase() !== "p") {
       return null;
     }
-    
-    return { type: 'text', text };
+
+    // Check for @ai-model: mentions in the text
+    if (text.includes("@ai-model:")) {
+      const parsedNodes = parseAIModelMentions(text);
+      // If only one node and it's a text node, return it directly
+      if (parsedNodes.length === 1 && parsedNodes[0].type === "text") {
+        return parsedNodes[0];
+      }
+      // Return array of nodes (will be spread by caller)
+      return parsedNodes.length > 0 ? parsedNodes : { type: "text", text };
+    }
+
+    return { type: "text", text };
   }
 
   if (node.nodeType === Node.COMMENT_NODE) {
     const comment = node.textContent;
-    if (comment === ' EMPTY_PARAGRAPH ') {
+    if (comment === " EMPTY_PARAGRAPH ") {
       return {
-        type: 'paragraph',
-        content: []
+        type: "paragraph",
+        content: [],
       };
     }
     // Check if this is a math formula placeholder
     // Comment text content is just the text between <!-- and -->, so we need to match the pattern
-    if (comment && (comment.trim().startsWith('MATH_BLOCK_') || comment.trim().startsWith('MATH_INLINE_'))) {
+    if (
+      comment &&
+      (comment.trim().startsWith("MATH_BLOCK_") ||
+        comment.trim().startsWith("MATH_INLINE_"))
+    ) {
       const trimmedComment = comment.trim();
       // Try to find the math data - the key includes the full comment syntax
       const fullCommentKey = `<!-- ${trimmedComment} -->`;
@@ -156,10 +228,10 @@ function convertNodeToTiptap(node: Node): any {
         // TipTap Mathematics extension creates two node types: 'inlineMath' and 'blockMath'
         // Both use 'latex' attribute (not 'tex')
         return {
-          type: mathData.display ? 'blockMath' : 'inlineMath',
+          type: mathData.display ? "blockMath" : "inlineMath",
           attrs: {
-            latex: mathData.tex
-          }
+            latex: mathData.tex,
+          },
         };
       }
     }
@@ -177,34 +249,42 @@ function convertNodeToTiptap(node: Node): any {
   // Handle KaTeX-rendered math elements before processing children
   // This is a fallback in case comment nodes don't work
   // Some renderers (like legacy markdown-it-katex) render math to <span class="katex"> or <div class="katex-display">
-  if (tagName === 'span' && element.classList.contains('katex') && !element.classList.contains('katex-display')) {
+  if (
+    tagName === "span" &&
+    element.classList.contains("katex") &&
+    !element.classList.contains("katex-display")
+  ) {
     // Inline math - try to extract LaTeX from data attribute or aria-label
-    const latex = element.getAttribute('data-latex') || 
-                 element.getAttribute('data-tex') || 
-                 element.getAttribute('aria-label') ||
-                 element.textContent?.trim() || '';
+    const latex =
+      element.getAttribute("data-latex") ||
+      element.getAttribute("data-tex") ||
+      element.getAttribute("aria-label") ||
+      element.textContent?.trim() ||
+      "";
     if (latex) {
       return {
-        type: 'inlineMath',
+        type: "inlineMath",
         attrs: {
-          latex: latex
-        }
+          latex: latex,
+        },
       };
     }
   }
-  
-  if (tagName === 'div' && element.classList.contains('katex-display')) {
+
+  if (tagName === "div" && element.classList.contains("katex-display")) {
     // Block math - try to extract LaTeX
-    const latex = element.getAttribute('data-latex') || 
-                 element.getAttribute('data-tex') || 
-                 element.getAttribute('aria-label') ||
-                 element.textContent?.trim() || '';
+    const latex =
+      element.getAttribute("data-latex") ||
+      element.getAttribute("data-tex") ||
+      element.getAttribute("aria-label") ||
+      element.textContent?.trim() ||
+      "";
     if (latex) {
       return {
-        type: 'blockMath',
+        type: "blockMath",
         attrs: {
-          latex: latex
-        }
+          latex: latex,
+        },
       };
     }
   }
@@ -223,32 +303,36 @@ function convertNodeToTiptap(node: Node): any {
 
   // Handle different HTML elements
   switch (tagName) {
-    case 'body':
-    case 'div':
+    case "body":
+    case "div":
       return content.length > 0 ? content : null;
 
-    case 'p':
+    case "p":
       // Always create paragraphs, even if empty (for \n\n spacing)
       // Filter out empty text nodes but PRESERVE whitespace-only text nodes
       // that appear between other content (these are word separators, e.g., space between bold and link)
       const paragraphContent = content.filter((item, index, arr) => {
-        if (item && item.type === 'text') {
+        if (item && item.type === "text") {
           // Remove empty text nodes - not allowed in ProseMirror
-          if (item.text === '') {
+          if (item.text === "") {
             return false;
           }
           // For whitespace-only text nodes, only filter if they're at the start or end
           // Whitespace BETWEEN inline elements (like bold and links) must be preserved
           // Example: "**Bold:** [Link](url)" - the space between :</strong> and <a> is important
-          if (item.text.trim() === '') {
+          if (item.text.trim() === "") {
             // Check if this is leading or trailing whitespace
             const isFirst = index === 0;
             const isLast = index === arr.length - 1;
-            
+
             // Check if there's actual content before/after this whitespace node
-            const hasContentBefore = arr.slice(0, index).some(i => i && (i.type !== 'text' || i.text?.trim() !== ''));
-            const hasContentAfter = arr.slice(index + 1).some(i => i && (i.type !== 'text' || i.text?.trim() !== ''));
-            
+            const hasContentBefore = arr
+              .slice(0, index)
+              .some((i) => i && (i.type !== "text" || i.text?.trim() !== ""));
+            const hasContentAfter = arr
+              .slice(index + 1)
+              .some((i) => i && (i.type !== "text" || i.text?.trim() !== ""));
+
             // Remove leading/trailing whitespace, but keep internal whitespace (word separators)
             if (isFirst || isLast || !hasContentBefore || !hasContentAfter) {
               return false;
@@ -259,124 +343,128 @@ function convertNodeToTiptap(node: Node): any {
         }
         return true;
       });
-      
+
       // For empty paragraphs, create a proper empty paragraph structure
       if (paragraphContent.length === 0) {
         return {
-          type: 'paragraph',
-          content: []
+          type: "paragraph",
+          content: [],
         };
       }
-      
+
       return {
-        type: 'paragraph',
-        content: paragraphContent
+        type: "paragraph",
+        content: paragraphContent,
       };
 
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
+    case "h1":
+    case "h2":
+    case "h3":
+    case "h4":
+    case "h5":
+    case "h6":
       // Filter out empty text nodes from heading content
-      const headingContent = content.filter(item => {
-        return !(item && item.type === 'text' && item.text === '');
+      const headingContent = content.filter((item) => {
+        return !(item && item.type === "text" && item.text === "");
       });
       return {
-        type: 'heading',
+        type: "heading",
         attrs: { level: parseInt(tagName.charAt(1)) },
-        content: headingContent.length > 0 ? headingContent : []
+        content: headingContent.length > 0 ? headingContent : [],
       };
 
-    case 'strong':
-    case 'b':
-      return content.map(item => ({
+    case "strong":
+    case "b":
+      return content.map((item) => ({
         ...item,
-        marks: [...(item.marks || []), { type: 'bold' }]
+        marks: [...(item.marks || []), { type: "bold" }],
       }));
 
-    case 'em':
-    case 'i':
-      return content.map(item => ({
+    case "em":
+    case "i":
+      return content.map((item) => ({
         ...item,
-        marks: [...(item.marks || []), { type: 'italic' }]
+        marks: [...(item.marks || []), { type: "italic" }],
       }));
 
-    case 'code':
-      if (element.parentElement?.tagName.toLowerCase() === 'pre') {
+    case "code":
+      if (element.parentElement?.tagName.toLowerCase() === "pre") {
         // This is a code block, handle it in the 'pre' case
         return content;
       } else {
         // This is inline code
-        return content.map(item => ({
+        return content.map((item) => ({
           ...item,
-          marks: [...(item.marks || []), { type: 'code' }]
+          marks: [...(item.marks || []), { type: "code" }],
         }));
       }
 
-    case 'pre':
-      const codeElement = element.querySelector('code');
-      const codeText = codeElement ? codeElement.textContent || '' : element.textContent || '';
-      
+    case "pre":
+      const codeElement = element.querySelector("code");
+      const codeText = codeElement
+        ? codeElement.textContent || ""
+        : element.textContent || "";
+
       // Extract language from the code element's class (markdown-it sets it as 'language-xxx')
       // This is critical for matching code blocks with embed nodes
       // Supports ALL programming languages - any valid language identifier after ```
       let language: string | undefined;
       if (codeElement) {
-        const classList = codeElement.className.split(' ');
+        const classList = codeElement.className.split(" ");
         for (const cls of classList) {
-          if (cls.startsWith('language-')) {
+          if (cls.startsWith("language-")) {
             // Extract the language name after 'language-' prefix
             // This handles any language: python, javascript, rust, go, c++, etc.
-            language = cls.replace('language-', '');
+            language = cls.replace("language-", "");
             break;
           }
         }
       }
-      
+
       // Always include attrs object for consistent structure
       // language can be undefined for plain code blocks (```)
       return {
-        type: 'codeBlock',
+        type: "codeBlock",
         attrs: { language: language || undefined },
-        content: [{ type: 'text', text: codeText }]
+        content: [{ type: "text", text: codeText }],
       };
 
-    case 's':
-    case 'del':
-    case 'strike':
-      return content.map(item => ({
+    case "s":
+    case "del":
+    case "strike":
+      return content.map((item) => ({
         ...item,
-        marks: [...(item.marks || []), { type: 'strike' }]
+        marks: [...(item.marks || []), { type: "strike" }],
       }));
 
-    case 'u':
-      return content.map(item => ({
+    case "u":
+      return content.map((item) => ({
         ...item,
-        marks: [...(item.marks || []), { type: 'underline' }]
+        marks: [...(item.marks || []), { type: "underline" }],
       }));
 
-    case 'mark':
-      return content.map(item => ({
+    case "mark":
+      return content.map((item) => ({
         ...item,
-        marks: [...(item.marks || []), { type: 'highlight' }]
+        marks: [...(item.marks || []), { type: "highlight" }],
       }));
 
-    case 'a':
-      const href = element.getAttribute('href');
-      const target = element.getAttribute('target');
+    case "a":
+      const href = element.getAttribute("href");
+      const target = element.getAttribute("target");
 
       if (href) {
         // Check if this is an internal hash-based link (chat or settings deep links)
-        const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+        const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
         const isInternal = isInternalHashLink(href);
 
         // Build link attributes
         let finalHref: string;
         if (isInternal) {
           // For internal links, ensure they start with #
-          finalHref = normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '');
+          finalHref = normalizedHref.startsWith("#")
+            ? normalizedHref
+            : "#" + normalizedHref.replace(/^\/+/, "");
         } else {
           // For external links, use the href as-is
           finalHref = href;
@@ -391,84 +479,91 @@ function convertNodeToTiptap(node: Node): any {
         }
         // Internal links should not have target attribute
 
-        return content.map(item => ({
+        return content.map((item) => ({
           ...item,
-          marks: [...(item.marks || []), { type: 'link', attrs: linkAttrs }]
+          marks: [...(item.marks || []), { type: "link", attrs: linkAttrs }],
         }));
       }
       return content;
 
-    case 'ul':
+    case "ul":
       return {
-        type: 'bulletList',
-        content: content.filter(item => item && item.type === 'listItem')
+        type: "bulletList",
+        content: content.filter((item) => item && item.type === "listItem"),
       };
 
-    case 'ol':
+    case "ol":
       // Preserve the start attribute for ordered lists to maintain proper numbering
-      const startAttr = element.getAttribute('start');
+      const startAttr = element.getAttribute("start");
       const attrs = startAttr ? { start: parseInt(startAttr) } : undefined;
-      
+
       return {
-        type: 'orderedList',
+        type: "orderedList",
         attrs,
-        content: content.filter(item => item && item.type === 'listItem')
+        content: content.filter((item) => item && item.type === "listItem"),
       };
 
-    case 'li':
+    case "li":
       // Handle list items more carefully
       const listItemContent: any[] = [];
       let currentParagraphContent: any[] = [];
-      
+
       for (const item of content) {
         if (!item) continue;
-        
-        if (item.type === 'bulletList' || item.type === 'orderedList') {
+
+        if (item.type === "bulletList" || item.type === "orderedList") {
           // If we have accumulated paragraph content, wrap it in a paragraph first
           if (currentParagraphContent.length > 0) {
             listItemContent.push({
-              type: 'paragraph',
-              content: currentParagraphContent
+              type: "paragraph",
+              content: currentParagraphContent,
             });
             currentParagraphContent = [];
           }
           // Add the nested list
           listItemContent.push(item);
-        } else if (item.type === 'paragraph') {
+        } else if (item.type === "paragraph") {
           // If we have accumulated paragraph content, wrap it first
           if (currentParagraphContent.length > 0) {
             listItemContent.push({
-              type: 'paragraph',
-              content: currentParagraphContent
+              type: "paragraph",
+              content: currentParagraphContent,
             });
             currentParagraphContent = [];
           }
           // Add the paragraph
           listItemContent.push(item);
-        } else if (item.type === 'heading') {
+        } else if (item.type === "heading") {
           // Headers inside list items should be converted to bold text
           if (item.content && Array.isArray(item.content)) {
             const boldContent = item.content.map((textItem: any) => ({
               ...textItem,
-              marks: [...(textItem.marks || []), { type: 'bold' }]
+              marks: [...(textItem.marks || []), { type: "bold" }],
             }));
             currentParagraphContent.push(...boldContent);
           }
-        } else if (item.type === 'blockquote') {
+        } else if (item.type === "blockquote") {
           // Blockquotes inside list items should be flattened to paragraph content
           if (item.content && Array.isArray(item.content)) {
             for (const blockquoteItem of item.content) {
-              if (blockquoteItem.type === 'paragraph' && blockquoteItem.content) {
+              if (
+                blockquoteItem.type === "paragraph" &&
+                blockquoteItem.content
+              ) {
                 currentParagraphContent.push(...blockquoteItem.content);
               }
             }
           }
-        } else if (item.type === 'codeBlock' || item.type === 'table' || item.type === 'horizontalRule') {
+        } else if (
+          item.type === "codeBlock" ||
+          item.type === "table" ||
+          item.type === "horizontalRule"
+        ) {
           // Other block-level elements should not be inside list items in TipTap
           // Convert them to paragraph content or skip
           if (item.content && Array.isArray(item.content)) {
             currentParagraphContent.push(...item.content);
-          } else if (item.type === 'horizontalRule') {
+          } else if (item.type === "horizontalRule") {
             // Skip horizontal rules inside list items
             continue;
           }
@@ -477,107 +572,116 @@ function convertNodeToTiptap(node: Node): any {
           currentParagraphContent.push(item);
         }
       }
-      
+
       // If we have remaining paragraph content, wrap it
       if (currentParagraphContent.length > 0) {
         listItemContent.push({
-          type: 'paragraph',
-          content: currentParagraphContent
+          type: "paragraph",
+          content: currentParagraphContent,
         });
       }
-      
+
       return {
-        type: 'listItem',
+        type: "listItem",
         // Empty list items should have an empty paragraph, not a paragraph with an empty text node
-        content: listItemContent.length > 0 ? listItemContent : [{ type: 'paragraph', content: [] }]
+        content:
+          listItemContent.length > 0
+            ? listItemContent
+            : [{ type: "paragraph", content: [] }],
       };
 
-    case 'blockquote':
+    case "blockquote":
       return {
-        type: 'blockquote',
+        type: "blockquote",
         // Empty blockquotes should have an empty paragraph, not a paragraph with an empty text node
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
+        content:
+          content.length > 0 ? content : [{ type: "paragraph", content: [] }],
       };
 
-    case 'table':
+    case "table":
       return {
-        type: 'table',
-        content: content.filter(item => item && item.type === 'tableRow')
+        type: "table",
+        content: content.filter((item) => item && item.type === "tableRow"),
       };
 
-    case 'thead':
-    case 'tbody':
-      return content.filter(item => item && item.type === 'tableRow');
+    case "thead":
+    case "tbody":
+      return content.filter((item) => item && item.type === "tableRow");
 
-    case 'tr':
+    case "tr":
       return {
-        type: 'tableRow',
-        content: content.filter(item => item && (item.type === 'tableHeader' || item.type === 'tableCell'))
+        type: "tableRow",
+        content: content.filter(
+          (item) =>
+            item && (item.type === "tableHeader" || item.type === "tableCell"),
+        ),
       };
 
-    case 'th':
+    case "th":
       return {
-        type: 'tableHeader',
+        type: "tableHeader",
         // Empty table headers should have an empty paragraph, not a paragraph with an empty text node
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
+        content:
+          content.length > 0 ? content : [{ type: "paragraph", content: [] }],
       };
 
-    case 'td':
+    case "td":
       return {
-        type: 'tableCell',
+        type: "tableCell",
         // Empty table cells should have an empty paragraph, not a paragraph with an empty text node
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
+        content:
+          content.length > 0 ? content : [{ type: "paragraph", content: [] }],
       };
 
-    case 'br':
-      return { type: 'hardBreak' };
+    case "br":
+      return { type: "hardBreak" };
 
-    case 'hr':
-      return { type: 'horizontalRule' };
+    case "hr":
+      return { type: "horizontalRule" };
 
-    case 'img':
+    case "img":
       // Convert markdown image to embed node for static images
       // This is used for legal document SVG images from the static folder
-      const src = element.getAttribute('src');
-      const alt = element.getAttribute('alt') || '';
-      
+      const src = element.getAttribute("src");
+      const alt = element.getAttribute("alt") || "";
+
       if (src) {
         // Generate a unique ID for the embed node
         // Use a simple UUID-like ID (can't import generateUUID here as it's in a different package)
         const embedId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Check if this is a static file (starts with /images/)
         // Static images should be rendered as embed nodes with type 'image'
-        if (src.startsWith('/images/') || src.startsWith('/static/')) {
+        if (src.startsWith("/images/") || src.startsWith("/static/")) {
           return {
-            type: 'embed',
+            type: "embed",
             attrs: {
               id: embedId,
-              type: 'image',
-              status: 'finished',
+              type: "image",
+              status: "finished",
               contentRef: null,
               url: src, // Use url attribute for the image source
-              filename: alt || src.split('/').pop() || 'image.svg' // Use alt text or filename as filename
-            }
+              filename: alt || src.split("/").pop() || "image.svg", // Use alt text or filename as filename
+            },
           };
         }
-        
+
         // For external URLs, also create an embed node
-        if (src.startsWith('http://') || src.startsWith('https://')) {
+        if (src.startsWith("http://") || src.startsWith("https://")) {
           return {
-            type: 'embed',
+            type: "embed",
             attrs: {
               id: embedId,
-              type: 'image',
-              status: 'finished',
+              type: "image",
+              status: "finished",
               contentRef: null,
               url: src,
-              filename: alt || src.split('/').pop() || 'image'
-            }
+              filename: alt || src.split("/").pop() || "image",
+            },
           };
         }
       }
-      
+
       // If no src, return nothing
       return null;
 
@@ -592,11 +696,11 @@ function mergeOrderedLists(content: any[]): any[] {
   const merged: any[] = [];
   let currentOrderedList: any = null;
   let expectedStart = 1;
-  
+
   for (const item of content) {
-    if (item && item.type === 'orderedList') {
+    if (item && item.type === "orderedList") {
       const itemStart = item.attrs?.start || 1;
-      
+
       if (currentOrderedList && itemStart === expectedStart) {
         // This list continues the previous one, merge them
         currentOrderedList.content.push(...item.content);
@@ -619,12 +723,12 @@ function mergeOrderedLists(content: any[]): any[] {
       expectedStart = 1; // Reset expected start for next potential list
     }
   }
-  
+
   // Don't forget to push the last list if there is one
   if (currentOrderedList) {
     merged.push(currentOrderedList);
   }
-  
+
   return merged;
 }
 
@@ -632,102 +736,103 @@ function mergeOrderedLists(content: any[]): any[] {
 // Empty text nodes are not allowed in ProseMirror/Tiptap
 function removeEmptyTextNodes(item: any): any {
   if (!item) return item;
-  
+
   // If it's an empty text node, filter it out
-  if (item.type === 'text' && item.text === '') {
+  if (item.type === "text" && item.text === "") {
     return null;
   }
-  
+
   // If the item has content, recursively process it
   if (item.content && Array.isArray(item.content)) {
     const filteredContent = item.content
       .map((child: any) => removeEmptyTextNodes(child))
       .filter((child: any) => child !== null);
-    
+
     return {
       ...item,
-      content: filteredContent
+      content: filteredContent,
     };
   }
-  
+
   return item;
 }
 
 // Helper function to clean and validate TipTap document structure
 function cleanTiptapDocument(content: any[]): any[] {
   const cleaned: any[] = [];
-  
+
   for (const item of content) {
     if (!item) continue;
-    
+
     // Skip text nodes at document level (they should be inside paragraphs)
-    if (item.type === 'text') {
+    if (item.type === "text") {
       // Wrap standalone text in a paragraph
       cleaned.push({
-        type: 'paragraph',
-        content: [item]
+        type: "paragraph",
+        content: [item],
       });
       continue;
     }
-    
+
     // Keep horizontal rules at document level
-    if (item.type === 'horizontalRule') {
+    if (item.type === "horizontalRule") {
       cleaned.push(item);
       continue;
     }
-    
+
     // Keep blockquotes at document level
-    if (item.type === 'blockquote') {
+    if (item.type === "blockquote") {
       cleaned.push(item);
       continue;
     }
-    
+
     // Ensure proper document structure - no block elements inside inline elements
-    if (item.type === 'listItem' && item.content) {
+    if (item.type === "listItem" && item.content) {
       // Validate list item content
       const validContent: any[] = [];
       for (const listContent of item.content) {
-        if (listContent && (
-          listContent.type === 'paragraph' || 
-          listContent.type === 'bulletList' || 
-          listContent.type === 'orderedList'
-        )) {
+        if (
+          listContent &&
+          (listContent.type === "paragraph" ||
+            listContent.type === "bulletList" ||
+            listContent.type === "orderedList")
+        ) {
           validContent.push(listContent);
         }
       }
       if (validContent.length > 0) {
         cleaned.push({
           ...item,
-          content: validContent
+          content: validContent,
         });
       }
-    } else if (item.type === 'bulletList' || item.type === 'orderedList') {
+    } else if (item.type === "bulletList" || item.type === "orderedList") {
       // Validate list content
       if (item.content && item.content.length > 0) {
-        const validListItems = item.content.filter((listItem: any) => 
-          listItem && listItem.type === 'listItem'
+        const validListItems = item.content.filter(
+          (listItem: any) => listItem && listItem.type === "listItem",
         );
         if (validListItems.length > 0) {
           cleaned.push({
             ...item,
-            content: validListItems
+            content: validListItems,
           });
         }
       }
-    } else if (item.type === 'table') {
+    } else if (item.type === "table") {
       // Validate table content
       if (item.content && item.content.length > 0) {
-        const validRows = item.content.filter((row: any) => 
-          row && row.type === 'tableRow'
+        const validRows = item.content.filter(
+          (row: any) => row && row.type === "tableRow",
         );
         if (validRows.length > 0) {
           cleaned.push({
             ...item,
-            content: validRows
+            content: validRows,
           });
         }
       }
-    } else if (item.type === 'paragraph') {
+    } else if (item.type === "paragraph") {
       // Always keep paragraphs, even empty ones for spacing
       cleaned.push(item);
     } else {
@@ -735,24 +840,24 @@ function cleanTiptapDocument(content: any[]): any[] {
       cleaned.push(item);
     }
   }
-  
+
   // Merge consecutive ordered lists to preserve numbering
   return mergeOrderedLists(cleaned);
 }
 
 // Main function to parse markdown text to TipTap JSON
 export function parseMarkdownToTiptap(markdownText: string): any {
-  if (!markdownText || typeof markdownText !== 'string') {
+  if (!markdownText || typeof markdownText !== "string") {
     // Return a document with an empty paragraph (no text node)
     // Empty text nodes are not allowed in ProseMirror/Tiptap
     return {
-      type: 'doc',
+      type: "doc",
       content: [
         {
-          type: 'paragraph',
-          content: []
-        }
-      ]
+          type: "paragraph",
+          content: [],
+        },
+      ],
     };
   }
 
@@ -760,11 +865,11 @@ export function parseMarkdownToTiptap(markdownText: string): any {
     // Pre-process markdown to handle double newlines
     const processedMarkdown = preprocessMarkdown(markdownText);
     // console.log('Preprocessed markdown:', processedMarkdown); // Debug log
-    
+
     // Convert markdown to HTML
     let html = md.render(processedMarkdown);
     // console.log('Generated HTML:', html); // Debug log
-    
+
     // Post-process HTML to remove target="_blank" from internal links
     // This handles cases where markdown-it or other plugins add target="_blank"
     // Use a more robust regex that handles attributes in any order
@@ -772,96 +877,109 @@ export function parseMarkdownToTiptap(markdownText: string): any {
       // Extract href from attributes
       const hrefMatch = attrs.match(/href=["']([^"']*?)["']/);
       if (!hrefMatch) return match; // No href, keep as-is
-      
+
       const href = hrefMatch[1];
       // Check if this is an internal hash-based link (chat or settings)
-      const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+      const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
       if (isInternalHashLink(href)) {
         // Remove target and rel attributes from internal links
         let cleanedAttrs = attrs
-          .replace(/\s*target=["'][^"']*["']/gi, '')
-          .replace(/\s*rel=["'][^"']*["']/gi, '')
+          .replace(/\s*target=["'][^"']*["']/gi, "")
+          .replace(/\s*rel=["'][^"']*["']/gi, "")
           .trim();
-        
+
         // Normalize href to start with # (not /#)
-        const finalHref = normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '');
-        
+        const finalHref = normalizedHref.startsWith("#")
+          ? normalizedHref
+          : "#" + normalizedHref.replace(/^\/+/, "");
+
         // Replace href with normalized version
-        cleanedAttrs = cleanedAttrs.replace(/href=["'][^"']*["']/, `href="${finalHref}"`);
-        
+        cleanedAttrs = cleanedAttrs.replace(
+          /href=["'][^"']*["']/,
+          `href="${finalHref}"`,
+        );
+
         // Add data-internal attribute for identification
-        if (!cleanedAttrs.includes('data-internal')) {
+        if (!cleanedAttrs.includes("data-internal")) {
           cleanedAttrs += ' data-internal="true"';
         }
-        
+
         return `<a ${cleanedAttrs}>`;
       }
       return match; // Keep external links as-is
     });
-    
+
     // Convert HTML to TipTap JSON
     const content = htmlToTiptapJson(html);
     // console.log('Converted to TipTap JSON:', content); // Debug log
-    
+
     // Ensure we have a valid document structure
-    const docContent = Array.isArray(content) ? content : (content ? [content] : []);
-    
+    const docContent = Array.isArray(content)
+      ? content
+      : content
+        ? [content]
+        : [];
+
     // Filter out null/undefined items and clean the structure
-    const filteredContent = docContent.filter(item => item !== null && item !== undefined);
+    const filteredContent = docContent.filter(
+      (item) => item !== null && item !== undefined,
+    );
     // Remove any empty text nodes that might have slipped through
-    const contentWithoutEmptyText = filteredContent.map(item => removeEmptyTextNodes(item)).filter(item => item !== null);
+    const contentWithoutEmptyText = filteredContent
+      .map((item) => removeEmptyTextNodes(item))
+      .filter((item) => item !== null);
     const cleanedContent = cleanTiptapDocument(contentWithoutEmptyText);
-    
+
     if (cleanedContent.length === 0) {
       cleanedContent.push({
-        type: 'paragraph',
-        content: [{ type: 'text', text: markdownText }]
+        type: "paragraph",
+        content: [{ type: "text", text: markdownText }],
       });
     }
 
     const result = {
-      type: 'doc',
-      content: cleanedContent
+      type: "doc",
+      content: cleanedContent,
     };
-    
+
     // console.log('Final TipTap JSON:', JSON.stringify(result, null, 2)); // Debug log
     return result;
   } catch (error) {
-    console.error('Error parsing markdown:', error);
-    
+    console.error("Error parsing markdown:", error);
+
     // Fallback: return the text as a simple paragraph
     return {
-      type: 'doc',
+      type: "doc",
       content: [
         {
-          type: 'paragraph',
-          content: [{ type: 'text', text: markdownText }]
-        }
-      ]
+          type: "paragraph",
+          content: [{ type: "text", text: markdownText }],
+        },
+      ],
     };
   }
 }
 
 // Helper function to detect if content is likely markdown
 export function isMarkdownContent(content: any): boolean {
-  if (typeof content === 'string') {
+  if (typeof content === "string") {
     // Check for common markdown patterns
     const markdownPatterns = [
-      /^#{1,6}\s+/m,           // Headers
-      /\*\*.*?\*\*/,           // Bold
-      /\*.*?\*/,               // Italic
-      /_.*?_/,                 // Italic/Underline
-      /`.*?`/,                 // Inline code
-      /```[\s\S]*?```/,        // Code blocks
-      /^\s*[-*+]\s+/m,         // Bullet lists
-      /^\s*\d+\.\s+/m,         // Numbered lists
-      /^\s*>\s+/m,             // Blockquotes
-      /\[.*?\]\(.*?\)/,        // Links
-      /\|.*?\|/,               // Tables
+      /^#{1,6}\s+/m, // Headers
+      /\*\*.*?\*\*/, // Bold
+      /\*.*?\*/, // Italic
+      /_.*?_/, // Italic/Underline
+      /`.*?`/, // Inline code
+      /```[\s\S]*?```/, // Code blocks
+      /^\s*[-*+]\s+/m, // Bullet lists
+      /^\s*\d+\.\s+/m, // Numbered lists
+      /^\s*>\s+/m, // Blockquotes
+      /\[.*?\]\(.*?\)/, // Links
+      /\|.*?\|/, // Tables
     ];
-    
-    return markdownPatterns.some(pattern => pattern.test(content));
+
+    return markdownPatterns.some((pattern) => pattern.test(content));
   }
-  
+
   return false;
 }

@@ -5,6 +5,7 @@
     import { text } from '@repo/ui';
     import { Embed } from '../components/enter_message/extensions/Embed';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
+    import { AIModelMentionNode } from '../components/enter_message/extensions/AIModelMentionNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
@@ -492,6 +493,7 @@
             }),
             Embed,
             MateNode,
+            AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
@@ -896,6 +898,22 @@
     /* Ensure mate mentions are still clickable */
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
+    }
+
+    /* AI Model mention styling - uses AI app gradient for consistent look */
+    :global(.read-only-message .ai-model-mention) {
+        display: inline;
+        background: linear-gradient(
+            135deg,
+            var(--color-app-ai-start) 0%,
+            var(--color-app-ai-end) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 500;
+        cursor: default;
+        white-space: nowrap;
     }
 
     /* Dark mode support for custom headings */

@@ -38,6 +38,9 @@ from backend.apps.ai.utils.model_selector import ModelSelector
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
+# Import ConfigManager for model provider resolution
+from backend.core.api.app.utils.config_manager import config_manager
+
 logger = logging.getLogger(__name__)
 
 class PreprocessingResult(BaseModel):
@@ -858,15 +861,32 @@ async def handle_preprocessing(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id}"
             )
         else:
-            # User provided only model_id - we'll trust it and let main_processor handle resolution
-            logger.warning(
+            # User provided only model_id without provider prefix - try to resolve the provider
+            logger.info(
                 f"{log_prefix} USER_OVERRIDE: Model '{override_model_id}' specified without provider. "
-                f"Will attempt to resolve during main processing."
+                f"Attempting to resolve provider from config."
             )
-            selected_llm_for_main_id = override_model_id
-            selected_llm_for_main_name = override_model_id
-            model_override_applied = True
-            model_selection_reason = f"User override (no provider): {override_model_id}"
+            resolved_provider = config_manager.find_provider_for_model(override_model_id)
+            if resolved_provider:
+                selected_llm_for_main_id = f"{resolved_provider}/{override_model_id}"
+                selected_llm_for_main_name = override_model_id
+                model_override_applied = True
+                model_selection_reason = f"User override (provider resolved): {selected_llm_for_main_id}"
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
+                    f"Full model ID: {selected_llm_for_main_id}"
+                )
+            else:
+                # Could not resolve provider - this will fail billing preflight, but let it proceed
+                # so the error message is clear about the missing provider
+                logger.warning(
+                    f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
+                    f"Model not found in any provider configuration. This will likely fail billing validation."
+                )
+                selected_llm_for_main_id = override_model_id
+                selected_llm_for_main_name = override_model_id
+                model_override_applied = True
+                model_selection_reason = f"User override (unresolved provider): {override_model_id}"
 
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
