@@ -1094,27 +1094,43 @@ async def handle_preprocessing(
                 )
 
     # --- Apply User Mate Override (@mate:...) if specified ---
-    # User can force a specific mate/persona using @mate:{mate_id}
-    # This overrides the automatic mate selection based on category
+    # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
+    # This overrides the automatic mate selection based on LLM-detected category.
+    # IMPORTANT: Users can specify either the mate ID (e.g., @mate:sophia) or the 
+    # category name (e.g., @mate:software_development). We check both.
     if user_overrides and user_overrides.mate_id:
-        override_mate_id = user_overrides.mate_id
-        # Validate that the mate exists
-        override_mate = next((mate for mate in all_mates if mate.id == override_mate_id), None)
+        override_value = user_overrides.mate_id
+        override_mate = None
+        
+        # First, try to match by mate ID (e.g., @mate:sophia)
+        override_mate = next((mate for mate in all_mates if mate.id == override_value), None)
+        
+        # If no match by ID, try to match by category (e.g., @mate:software_development)
+        if not override_mate:
+            override_mate = next((mate for mate in all_mates if mate.category == override_value), None)
+            if override_mate:
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
+                    f"Resolved to mate_id='{override_mate.id}'"
+                )
+        
         if override_mate:
-            selected_mate_id = override_mate_id
-            # Also update category to match the mate's category for consistency
+            selected_mate_id = override_mate.id
+            # Update category to match the mate's category for consistency
             if override_mate.category:
                 validated_category = override_mate.category
                 llm_analysis_args["category"] = validated_category
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied mate override. "
-                f"mate_id={selected_mate_id}, category={validated_category}"
+                f"mate_id={selected_mate_id}, category={validated_category} "
+                f"(user specified: @mate:{override_value})"
             )
         else:
             logger.warning(
                 f"{log_prefix} USER_OVERRIDE: Invalid mate override. "
-                f"Mate '{override_mate_id}' not found in available mates. "
+                f"'{override_value}' not found as mate ID or category. "
                 f"Available mates: {[m.id for m in all_mates]}. "
+                f"Available categories: {[m.category for m in all_mates]}. "
                 f"Keeping automatic selection: {selected_mate_id}"
             )
     
