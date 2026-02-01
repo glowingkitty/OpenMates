@@ -4,7 +4,7 @@
 
 OpenMates automatically monitors the health of all critical services:
 - **LLM Providers** (Anthropic, Cerebras, Google, OpenAI, OpenRouter, Groq) + Brave Search
-- **External Services** (Stripe, Sightengine, Mailjet, AWS Bedrock, Vercel)
+- **External Services** (Stripe, Sightengine, Brevo, AWS Bedrock, Vercel)
 - **Internal App Services** (API servers and Celery workers)
 
 Health checks run periodically via Celery Beat and can be queried via the `/health` and `/v1/health` API endpoints.
@@ -107,7 +107,7 @@ Returns the overall health status of all services.
 |---------|--------------|---|
 | **Stripe** | `stripe.Account.retrieve()` | `kv/data/providers/stripe:api_key` |
 | **Sightengine** | GET `/api/moderation/list` | `kv/data/providers/sightengine:{api_user,api_secret}` |
-| **Mailjet** | GET `/v3.1/webhookevents` | `kv/data/providers/mailjet:{api_key,api_secret}` |
+| **Brevo** | GET `/v3/account` | `kv/data/providers/brevo:api_key` |
 | **AWS Bedrock** | `boto3.list_foundation_models()` | `kv/data/providers/aws:{access_key_id,secret_access_key,region}` |
 | **Vercel Domain** | HTTP GET (follow redirects) | `VERCEL_DOMAIN` environment variable |
 
@@ -183,7 +183,7 @@ Logs automatically filter sensitive data (API keys, email addresses, etc.).
      - Verify worker health via Celery inspection (with retry)
    - Store combined result in cache (10 minute TTL)
 4. **External Service Checks** (every 5 minutes):
-   - Check Stripe, Sightengine, Mailjet, AWS Bedrock, Vercel concurrently
+   - Check Stripe, Sightengine, Brevo, AWS Bedrock, Vercel concurrently
    - Fetch credentials from Vault (except Vercel domain from env var)
    - Perform lightweight API calls or HTTP requests
    - Measure response time
@@ -209,7 +209,7 @@ Configure monitoring to alert on:
 2. **App Degraded** - Any app status = `degraded`
 3. **External Service Down** - Any external service status = `unhealthy`
    - Stripe payment processing unavailable
-   - Email service (Mailjet) unavailable
+   - Email service (Brevo) unavailable
    - Content moderation (Sightengine) unavailable
    - LLM inference via AWS Bedrock unavailable
    - Frontend (Vercel domain) unavailable

@@ -11,6 +11,11 @@ models:
   - id: "gemini-3-flash-preview"
     name: "Gemini 3 Flash Preview"
     description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter)."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-3-flash-preview
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "gemini-3-flash"
+      openrouter: "google/gemini-3-flash-preview"
     reasoning: true
     input_types:
       - text
@@ -48,6 +53,11 @@ models:
   - id: "gemini-3-pro-preview" # Official model ID
     name: "Gemini 3 Pro Preview"
     description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities"
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-3-pro-preview
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "gemini-3-pro"
+      openrouter: "google/gemini-3-pro-preview"
     reasoning: true
     input_types:
       - text
@@ -89,6 +99,11 @@ models:
   - id: "gemini-flash-latest"
     name: "Gemini Flash Latest"
     description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-flash-latest
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "gemini-2.5-flash-preview"
+      openrouter: "google/gemini-flash-latest"
     reasoning: true
     input_types:
       - text
@@ -123,6 +138,10 @@ models:
   - id: "gemini-3-pro-image-preview"
     name: "Gemini 3 Pro Image Preview"
     description: "High-end native image generation from Google, optimized for quality."
+    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    allow_auto_select: false  # Image model - not for text generation auto-selection
+    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+      openrouter: "google/gemini-3-pro-image-preview"
     input_types:
       - text
     output_types:

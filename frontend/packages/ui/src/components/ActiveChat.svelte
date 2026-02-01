@@ -57,7 +57,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
-    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
@@ -3319,7 +3319,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 2. No current chat is loaded
             // 3. No chat is in the activeChatStore (to avoid duplicate loading)
             // 4. Not in signup process
-            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
+            // 5. Not in "new chat" mode (phasedSyncState sentinel value)
+            // 6. No existing sessionStorage drafts (user has unsaved work)
+            const isInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
+            const hasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
+            
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
                 const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
                 if (welcomeDemo) {
@@ -3334,17 +3339,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug("[ActiveChat] [NON-AUTH] Skipping welcome chat - deep link processing in progress");
                             return;
                         }
+                        
+                        // Re-check new chat mode and drafts after delay (user might have started typing)
+                        const isStillInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
+                        const stillHasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
+                        if (isStillInNewChatMode || stillHasSessionStorageDrafts) {
+                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Skipping - user is in new chat mode or has drafts", { isStillInNewChatMode, stillHasSessionStorageDrafts });
+                            return;
+                        }
 
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
-                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-for-everyone') {
+                        // CRITICAL: Check if ANY chat is selected in activeChatStore, not just demo-for-everyone
+                        // This prevents overwriting draft chats or other non-demo chats that are being loaded
+                        if (!currentChat?.chat_id && !$activeChatStore) {
                             activeChatStore.setActiveChat('demo-for-everyone');
                             loadChat(welcomeChat);
                             console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
-                            console.info("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                            console.info("[ActiveChat] [NON-AUTH] Fallback: Chat already selected, skipping", { currentChatId: currentChat?.chat_id, storeValue: $activeChatStore });
                         }
                     }, 100);
                 }
+            } else if (!$authStore.isAuthenticated && (isInNewChatMode || hasSessionStorageDrafts)) {
+                console.debug("[ActiveChat] [NON-AUTH] Fallback skipped - user has draft or is in new chat mode", { isInNewChatMode, hasSessionStorageDrafts });
             }
         };
 
@@ -4306,16 +4323,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
-                                <!-- Background container for new chat button to ensure visibility -->
-                                <div class="new-chat-button-wrapper">
-                                    <button 
-                                        class="clickable-icon icon_create top-button" 
+                                <!-- New chat CTA button: same color as Send, pill shape, white icon; label visible on larger screens only -->
+                                <div class="new-chat-button-wrapper new-chat-cta-wrapper">
+                                    <button
+                                        class="new-chat-cta-button"
                                         aria-label={$text('chat.new_chat.text')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
+                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                        <span class="new-chat-cta-label">{$text('chat.new_chat.text')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -5308,6 +5326,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         min-width: 0;
         height: 100%;
         overflow: hidden;
+        container-type: inline-size;
+        container-name: chat-side;
     }
 
     .top-buttons {
@@ -5347,6 +5367,77 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    /* New chat CTA: no extra wrapper background so the pill button stands out */
+    .new-chat-cta-wrapper {
+        background-color: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text.
+       Override global button styles from buttons.css (min-width, height, padding, filter). */
+    .new-chat-cta-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 9999px;
+        background-color: var(--color-button-primary);
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out;
+        filter: none;
+        margin-right: 0;
+    }
+
+    .new-chat-cta-button:hover {
+        background-color: var(--color-button-primary-hover);
+    }
+
+    .new-chat-cta-button:active {
+        background-color: var(--color-button-primary-pressed);
+    }
+
+    .new-chat-cta-button .new-chat-cta-icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        background: white;
+        -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
+        mask-image: url('@openmates/ui/static/icons/create.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    /* "New chat" label: visible when chat-side is wide enough */
+    .new-chat-cta-label {
+        white-space: nowrap;
+    }
+
+    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport) */
+    @container chat-side (max-width: 550px) {
+        .new-chat-cta-label {
+            display: none;
+        }
+
+        /* Circle shape: override global button min-width/height so we can use fixed size */
+        .new-chat-cta-button {
+            min-width: 0;
+            width: 36px;
+            height: 36px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
     }
 
     .login-wrapper {

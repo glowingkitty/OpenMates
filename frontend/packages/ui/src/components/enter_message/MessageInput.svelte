@@ -51,6 +51,12 @@
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
+    import MentionDropdown from './MentionDropdown.svelte';
+    import {
+        extractMentionQuery,
+        type AnyMentionResult,
+        type MateMentionResult
+    } from './services/mentionSearchService';
     import {
         processFiles,
         handleDrop as handleFileDrop,
@@ -114,6 +120,12 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let isMessageFieldFocused = $state(false);
+    
+    // --- Mention Dropdown State ---
+    let showMentionDropdown = $state(false);
+    let mentionQuery = $state('');
+
+    let mentionDropdownY = $state(0);
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
@@ -1113,7 +1125,10 @@
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
                 flushSaveDraft();
-                if (isContentEmptyExceptMention(editor)) {
+                // Only reset to initial content if the editor is TRULY empty (no content at all)
+                // Do NOT reset if it contains mentions - those are valid draft content
+                // that should be preserved even though they can't be sent alone
+                if (editor.isEmpty) {
                     editor.commands.setContent(getInitialContent());
                     hasContent = false;
                 }
@@ -1122,6 +1137,152 @@
                 return;
             }
         }, 150); // Slightly longer delay to allow for quick focus regains
+    }
+
+    /**
+     * Check for @ mention trigger and update the dropdown state.
+     * Shows the mention dropdown when user types @ at start of word.
+     */
+    function checkMentionTrigger(editor: Editor) {
+        const { from } = editor.state.selection;
+
+        // Get text from document start to cursor position using ProseMirror's textBetween
+        // This properly handles the document structure and gives us the actual character position
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+
+        // Extract the query after @ if we're in mention mode
+        // Pass full length as cursor position since we only have text up to cursor
+        const query = extractMentionQuery(textBeforeCursor, textBeforeCursor.length);
+
+        if (query !== null) {
+            // We're in mention mode - show dropdown
+            mentionQuery = query;
+
+            // Calculate dropdown position based on cursor/caret
+            // The dropdown is OUTSIDE .message-field but INSIDE .message-input-wrapper
+            // Position it at the top of the wrapper (above the entire message field)
+            // The dropdown is horizontally centered via CSS transform
+            if (messageInputWrapper) {
+                const wrapperRect = messageInputWrapper.getBoundingClientRect();
+                // Position dropdown at the top of the wrapper + small gap
+                // Since we use bottom positioning and the dropdown is in the wrapper,
+                // bottom: wrapperHeight + gap positions it above the wrapper
+                mentionDropdownY = wrapperRect.height + 8;
+            }
+
+            showMentionDropdown = true;
+        } else {
+            // Not in mention mode - hide dropdown
+            showMentionDropdown = false;
+            mentionQuery = '';
+        }
+    }
+
+    /**
+     * Handle selection of a mention result from the dropdown.
+     * Replaces the @query with a styled mention node (for models) or mention syntax (for others).
+     */
+    function handleMentionSelectCallback(result: AnyMentionResult) {
+        if (!editor) return;
+
+        const { from } = editor.state.selection;
+
+        // Calculate the range to replace (from @ to cursor)
+        // IMPORTANT: textBetween gives us a string, but deleteRange expects document positions.
+        // We need to get text ONLY up to cursor position, then find @ in that substring.
+        // The string length will match the character offset from start of content.
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+        const atIndexInText = textBeforeCursor.lastIndexOf('@');
+
+        console.info('[MentionSelect] DEBUG: Starting mention selection', {
+            resultType: result.type,
+            resultId: result.id,
+            from,
+            textBeforeCursor,
+            atIndexInText
+        });
+
+        if (atIndexInText === -1) {
+            console.warn('[MentionSelect] DEBUG: @ not found in text before cursor!');
+            return;
+        }
+
+        // Calculate the actual document position of the @ character
+        // The cursor is at 'from', and we typed (textBeforeCursor.length - atIndexInText) chars including @
+        // So @ is at: from - (textBeforeCursor.length - atIndexInText)
+        const charsAfterAt = textBeforeCursor.length - atIndexInText;
+        const atDocPosition = from - charsAfterAt;
+
+        console.info('[MentionSelect] DEBUG: Calculated positions', {
+            charsAfterAt,
+            atDocPosition,
+            deleteRange: { from: atDocPosition, to: from }
+        });
+
+        // Insert the appropriate content based on result type
+        // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
+        if (result.type === 'model') {
+            // Use the custom AI model mention node for visual display
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setAIModelMention({
+                    modelId: result.id,
+                    displayName: result.mentionDisplayName
+                })
+                .insertContent(' ')
+                .run();
+            
+            // Debug: Log the editor state after insertion
+            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
+                JSON.stringify(editor.getJSON(), null, 2)
+            );
+        } else if (result.type === 'mate') {
+            // Use the mate node which shows @Name with gradient color
+            // Shows @Sophia but serializes to @mate:id
+            const mateResult = result as MateMentionResult;
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setMate({
+                    name: mateResult.id, // mate id like "software_development"
+                    displayName: mateResult.mentionDisplayName, // e.g., "Sophia"
+                    id: crypto.randomUUID(),
+                    colorStart: mateResult.colorStart,
+                    colorEnd: mateResult.colorEnd
+                })
+                .insertContent(' ')
+                .run();
+        } else {
+            // Use generic mention node for skills, focus modes, and settings/memories
+            // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setGenericMention({
+                    mentionType: result.type as 'skill' | 'focus_mode' | 'settings_memory',
+                    displayName: result.mentionDisplayName,
+                    mentionSyntax: result.mentionSyntax
+                })
+                .insertContent(' ')
+                .run();
+        }
+
+        // Close dropdown
+        showMentionDropdown = false;
+        mentionQuery = '';
+    }
+
+    /**
+     * Handle closing the mention dropdown.
+     */
+    function handleMentionClose() {
+        showMentionDropdown = false;
+        mentionQuery = '';
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
@@ -1154,6 +1315,9 @@
         } catch (err) {
             console.error('[MessageInput] Failed to dispatch textchange event:', err);
         }
+
+        // Check for @ mention trigger and update dropdown state
+        checkMentionTrigger(editor);
 
         tick().then(() => {
             checkScrollable();
@@ -2022,6 +2186,17 @@
             <MapsView on:close={() => showMaps = false} on:locationselected={handleLocationSelected} />
         {/if}
     </div>
+
+    <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
+    <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
+    <!-- .message-field has overflow:hidden which would clip the dropdown if placed inside -->
+    <MentionDropdown
+        bind:show={showMentionDropdown}
+        query={mentionQuery}
+        positionY={mentionDropdownY}
+        onselect={handleMentionSelectCallback}
+        onclose={handleMentionClose}
+    />
 </div>
 
 <!-- Keyboard Shortcuts Listener -->

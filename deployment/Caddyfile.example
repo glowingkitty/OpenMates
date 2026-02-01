@@ -51,7 +51,7 @@
 	# --- Request Routing ---
 
 	# Define matchers
-	@health_path path /health /v1/health /v1/server # Health check and server info endpoints (public, no auth required)
+	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
 	@options_method method OPTIONS # Renamed for clarity
 
 	# --- PUBLIC DEVELOPER API MATCHERS ---
@@ -115,6 +115,12 @@
 		method OPTIONS
 	}
 
+	# Health API endpoints OPTIONS (for /v1/health/* subpaths like /history and /incidents)
+	@health_api_options {
+		path /v1/health/*
+		method OPTIONS
+	}
+
 	# Route requests using explicit handlers
 	route {
 		# === INTERNAL WEBAPP ROUTES (Origin restriction enforced) ===
@@ -157,6 +163,15 @@
 			header Access-Control-Allow-Origin "*"
 			header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, PUT, OPTIONS"
 			header Access-Control-Allow-Headers "Accept, Content-Type, Authorization"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 4a. Handle OPTIONS preflight for health API endpoints
+		handle @health_api_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type"
 			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
 			respond 204
 		}

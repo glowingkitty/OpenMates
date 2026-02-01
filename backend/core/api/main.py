@@ -21,7 +21,7 @@ from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 import httpx  # noqa: E402 # For service discovery
-from typing import Dict, List, Any  # noqa: E402 # For type hinting
+from typing import Dict, List, Any, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
@@ -520,7 +520,36 @@ async def lifespan(app: FastAPI):
             # Don't fail startup - will fallback to disk loading on first request
     else:
         logger.warning("CacheService not available in app.state. Cannot preload AI configuration files.")
-    
+
+    # --- Preload leaderboard data into cache ---
+    # This ensures model rankings are available before first AI request
+    # If no leaderboard data exists, trigger generation asynchronously
+    logger.info("Preloading leaderboard data into cache...")
+    if hasattr(app.state, 'cache_service'):
+        try:
+            from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
+            leaderboard_data = await get_leaderboard_data()
+            if leaderboard_data:
+                ranked_count = len(leaderboard_data.get("rankings", []))
+                logger.info(f"Successfully preloaded leaderboard data with {ranked_count} ranked models.")
+            else:
+                # No leaderboard data exists - trigger generation asynchronously
+                logger.warning("No leaderboard data available. Triggering initial leaderboard generation...")
+                try:
+                    task_result = celery_app.send_task(
+                        "leaderboard.update_daily",
+                        queue="leaderboard",
+                        kwargs={"category": "text"}
+                    )
+                    logger.info(f"Initial leaderboard generation task queued. Task ID: {task_result.id}")
+                except Exception as e_task:
+                    logger.warning(f"Failed to queue leaderboard generation task: {e_task}")
+        except Exception as e_leaderboard:
+            logger.warning(f"Failed to preload leaderboard data during startup: {e_leaderboard}")
+            # Don't fail startup - leaderboard is optional for model selection
+    else:
+        logger.warning("CacheService not available in app.state. Cannot preload leaderboard data.")
+
     # --- Perform other async initializations ---
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
     logger.info("Initializing S3 service...")
@@ -1340,6 +1369,118 @@ def create_app() -> FastAPI:
             "apps": apps_health,
             "external_services": external_services_health
         }
+
+    # Health history endpoint - provides historical health data for incident analysis
+    # Public endpoint (no auth required) - enables status pages and monitoring
+    @app.get("/v1/health/history", dependencies=[])  # No dependencies (public endpoint)
+    @limiter.limit("60/minute")
+    async def health_history(
+        request: Request,
+        service_type: Optional[str] = None,
+        service_id: Optional[str] = None,
+        since: Optional[int] = None,
+        limit: int = 100
+    ):
+        """
+        Get historical health events for incident analysis.
+        
+        This endpoint returns health status change events, allowing you to see
+        when and how often services went down over time. Only status transitions
+        are recorded (e.g., healthy → unhealthy), not every health check.
+        
+        Query Parameters:
+            service_type: Filter by service type ('provider', 'app', 'external')
+            service_id: Filter by service identifier (e.g., 'openrouter', 'ai', 'stripe')
+            since: Only include events after this Unix timestamp
+            limit: Maximum number of events to return (default 100, max 1000)
+        
+        Returns:
+            Dict with:
+            - events: List of health events sorted by created_at descending
+            - total: Number of events returned
+            - filters: Applied filters
+        """
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        
+        # Validate service_type if provided
+        valid_service_types = {'provider', 'app', 'external'}
+        if service_type and service_type not in valid_service_types:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid service_type. Must be one of: {', '.join(valid_service_types)}"
+            )
+        
+        # Query health events
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            events = await directus.health_event.get_health_history(
+                service_type=service_type,
+                service_id=service_id,
+                since_timestamp=since,
+                limit=min(max(1, limit), 1000)
+            )
+            
+            return {
+                "events": events,
+                "total": len(events),
+                "filters": {
+                    "service_type": service_type,
+                    "service_id": service_id,
+                    "since": since,
+                    "limit": limit
+                }
+            }
+        finally:
+            await directus.close()
+
+    # Health incident summary endpoint - provides aggregated incident statistics
+    # Public endpoint (no auth required) - enables status pages and monitoring
+    @app.get("/v1/health/incidents", dependencies=[])  # No dependencies (public endpoint)
+    @limiter.limit("60/minute")
+    async def health_incident_summary(
+        request: Request,
+        service_type: Optional[str] = None,
+        since: Optional[int] = None
+    ):
+        """
+        Get aggregated incident statistics for all services.
+        
+        This endpoint provides a summary view of service incidents, including:
+        - Total incident count per service
+        - Total downtime duration per service
+        - Last incident timestamp
+        
+        Query Parameters:
+            service_type: Filter by service type ('provider', 'app', 'external')
+            since: Only include events after this Unix timestamp
+        
+        Returns:
+            Dict with incident statistics aggregated by service.
+        """
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.services.cache import CacheService
+        
+        # Validate service_type if provided
+        valid_service_types = {'provider', 'app', 'external'}
+        if service_type and service_type not in valid_service_types:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid service_type. Must be one of: {', '.join(valid_service_types)}"
+            )
+        
+        # Get incident summary
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            summary = await directus.health_event.get_incident_summary(
+                since_timestamp=since,
+                service_type=service_type
+            )
+            return summary
+        finally:
+            await directus.close()
 
     # Server information endpoint - public endpoint (no auth required)
     # Included in OpenAPI docs - useful for clients to determine server type

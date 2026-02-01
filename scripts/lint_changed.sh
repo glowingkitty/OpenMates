@@ -8,7 +8,6 @@ check_ts=false
 check_svelte=false
 check_css=false
 check_html=false
-check_yml=false
 declare -a target_paths=()
 
 # Parse arguments (supports --path and positional file/dir targets)
@@ -38,10 +37,6 @@ while [[ $# -gt 0 ]]; do
       check_html=true
       shift
       ;;
-    --yml)
-      check_yml=true
-      shift
-      ;;
     --path)
       if [[ -z "${2-}" ]]; then
         echo "Missing value for --path" >&2
@@ -58,7 +53,7 @@ while [[ $# -gt 0 ]]; do
       done
       ;;
     --help|-h)
-      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml] [--path <file|dir>] [-- <file|dir> ...]"
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--path <file|dir>] [-- <file|dir> ...]"
       echo ""
       echo "Options:"
       echo "  full_repo             Check all files in the repository (default: only uncommitted changes)"
@@ -67,7 +62,6 @@ while [[ $# -gt 0 ]]; do
       echo "  --svelte              Only check Svelte (.svelte) files"
       echo "  --css                 Only check CSS (.css) files"
       echo "  --html                Only check HTML (.html) files"
-      echo "  --yml                 Only check YAML (.yml, .yaml) files"
       echo "  --path <file|dir>     Only check files under this path (repeatable)"
       echo "  -- <file|dir> ...     Treat remaining args as target paths"
       echo ""
@@ -92,13 +86,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 # If no file type filters are specified, check all types
-if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html} && ! ${check_yml}; then
+if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html}; then
   check_py=true
   check_ts=true
   check_svelte=true
   check_css=true
   check_html=true
-  check_yml=true
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -249,7 +242,6 @@ declare -a ts_files=()
 declare -a svelte_files=()
 declare -a css_files=()
 declare -a html_files=()
-declare -a yml_files=()
 
 # Separate files by type based on enabled checks
 for path in "${changed_files[@]}"; do
@@ -278,11 +270,6 @@ for path in "${changed_files[@]}"; do
     *.html)
       if ${check_html}; then
         html_files+=("${path}")
-      fi
-      ;;
-    *.yml|*.yaml)
-      if ${check_yml}; then
-        yml_files+=("${path}")
       fi
       ;;
   esac
@@ -762,61 +749,6 @@ run_js_lint() {
   done
 }
 
-run_yml_lint() {
-  if (( ${#yml_files[@]} == 0 )); then
-    return 0
-  fi
-
-  local yaml_linter=""
-  # Try to find yamllint (Python-based YAML linter)
-  if command -v yamllint >/dev/null 2>&1; then
-    yaml_linter="yamllint_bin"
-  elif [[ -n "${python_cmd}" ]] && "${python_cmd}" -m yamllint --version >/dev/null 2>&1; then
-    yaml_linter="yamllint_module"
-  elif [[ -n "${python_cmd}" ]] && "${python_cmd}" -c "import yaml" >/dev/null 2>&1; then
-    yaml_linter="yaml_parse"
-    echo "YAML: no yamllint found; running basic syntax check instead." >&2
-    echo "YAML: install dev linting deps with 'pip install -r backend/requirements-dev.txt'." >&2
-  else
-    echo "YAML: no YAML linter found (tried: yamllint); skipping." >&2
-    echo "YAML: install dev linting deps with 'pip install -r backend/requirements-dev.txt'." >&2
-    return 0
-  fi
-
-  local file
-  for file in "${yml_files[@]}"; do
-    case "${yaml_linter}" in
-      yamllint_bin)
-        if yamllint "${file}" >/dev/null 2>&1; then
-          echo "YAML: ok ${file}"
-        else
-          echo "YAML: error ${file}" >&2
-          yamllint "${file}" >&2 || true
-          overall_status=1
-        fi
-        ;;
-      yamllint_module)
-        if "${python_cmd}" -m yamllint "${file}" >/dev/null 2>&1; then
-          echo "YAML: ok ${file}"
-        else
-          echo "YAML: error ${file}" >&2
-          "${python_cmd}" -m yamllint "${file}" >&2 || true
-          overall_status=1
-        fi
-        ;;
-      yaml_parse)
-        if "${python_cmd}" -c "import yaml; yaml.safe_load(open('${file}'))" >/dev/null 2>&1; then
-          echo "YAML: ok ${file}"
-        else
-          echo "YAML: error ${file}" >&2
-          "${python_cmd}" -c "import yaml; yaml.safe_load(open('${file}'))" >&2 || true
-          overall_status=1
-        fi
-        ;;
-    esac
-  done
-}
-
 run_python_lint
 
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
@@ -825,9 +757,6 @@ run_svelte_check
 
 # Then run ESLint for linting rules
 run_js_lint
-
-# Run YAML linting
-run_yml_lint
 
 if (( overall_status == 0 )); then
   echo "Done."

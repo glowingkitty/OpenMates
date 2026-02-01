@@ -2,3 +2,5 @@
 
 export * from './MateNode';
 export * from './Placeholder';
+export * from './AIModelMentionNode';
+export * from './GenericMentionNode';

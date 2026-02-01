@@ -40,6 +40,9 @@ from backend.apps.ai.processing.preprocessor import handle_preprocessing, Prepro
 from backend.apps.ai.processing.postprocessor import handle_postprocessing, PostProcessingResult
 from .stream_consumer import _consume_main_processing_stream
 
+# Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
+from backend.core.api.app.utils.override_parser import parse_overrides_from_messages, UserOverrides
+
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
 
@@ -626,11 +629,57 @@ async def _async_process_ai_skill_ask_task(
     else:
         logger.debug(f"[Task ID: {task_id}] No app_settings_memories_metadata provided by client.")
 
+    # --- Step 0: Parse User Overrides (@ Mentioning) ---
+    # Parse user messages for override syntax like @ai-model:claude-opus, @mate:coder, etc.
+    # These overrides allow users to manually select AI models, mates, skills, or focus modes.
+    # The overrides are applied later in preprocessing to skip automatic selection where specified.
+    user_overrides: Optional[UserOverrides] = None
+    try:
+        if request_data.message_history:
+            # Convert AIHistoryMessage objects to dicts for parsing
+            message_dicts = [
+                {"role": msg.role, "content": msg.content}
+                for msg in request_data.message_history
+            ]
+            user_overrides, cleaned_messages = parse_overrides_from_messages(
+                message_dicts,
+                log_prefix=f"[Task ID: {task_id}]"
+            )
+
+            if user_overrides and user_overrides.has_overrides:
+                logger.info(
+                    f"[Task ID: {task_id}] USER_OVERRIDE: Detected user overrides. "
+                    f"model_id={user_overrides.model_id}, "
+                    f"model_provider={user_overrides.model_provider}, "
+                    f"mate_id={user_overrides.mate_id}, "
+                    f"skills={user_overrides.skills}, "
+                    f"focus_modes={user_overrides.focus_modes}"
+                )
+
+                # Update the last user message with cleaned content (override syntax removed)
+                # This ensures the LLM sees the actual query without the override commands
+                if cleaned_messages:
+                    for i in range(len(request_data.message_history) - 1, -1, -1):
+                        if request_data.message_history[i].role == "user":
+                            # Update the content of the Pydantic model directly
+                            request_data.message_history[i].content = cleaned_messages[i]["content"]
+                            logger.debug(
+                                f"[Task ID: {task_id}] Updated last user message content "
+                                f"after removing override syntax. New length: {len(cleaned_messages[i]['content'])}"
+                            )
+                            break
+    except Exception as e_override:
+        logger.warning(
+            f"[Task ID: {task_id}] Failed to parse user overrides (non-fatal): {e_override}. "
+            f"Proceeding without overrides."
+        )
+        user_overrides = None
+
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
     logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
     logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
-    
+
     preprocessing_result: Optional[PreprocessingResult] = None
     try:
         if not cache_service_instance:
@@ -646,7 +695,8 @@ async def _async_process_ai_skill_ask_task(
             directus_service=directus_service_instance, # Passed for reuse
             encryption_service=encryption_service_instance, # Passed for reuse
             user_app_settings_and_memories_metadata=user_app_memories_metadata,
-            discovered_apps_metadata=discovered_apps_metadata  # Pass discovered apps for tool preselection
+            discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
+            user_overrides=user_overrides  # Pass user overrides from @ mentioning syntax
         )
 
         # --- Cache debug data for preprocessing stage ---

@@ -1025,7 +1025,7 @@ async def handle_main_processing(
                     for focus in app_metadata.focuses:
                         if focus.id == mode_id:
                             # Get translated description
-                            description = translation_service.get_translation(focus.description_translation_key) or focus.description_translation_key
+                            description = translation_service.get_nested_translation(focus.description_translation_key) or focus.description_translation_key
                             focus_mode_descriptions.append(f"- {focus_id}: {description}")
                             break
             except Exception as e:
@@ -1119,8 +1119,30 @@ async def handle_main_processing(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    # === BUILD MODEL FALLBACK LIST ===
+    # Create ordered list of models to try: primary -> secondary -> fallback
+    # This enables automatic retry with different models if the primary fails
+    models_to_try: List[str] = []
+    if preprocessing_results.selected_main_llm_model_id:
+        models_to_try.append(preprocessing_results.selected_main_llm_model_id)
+    if preprocessing_results.selected_secondary_model_id:
+        if preprocessing_results.selected_secondary_model_id not in models_to_try:
+            models_to_try.append(preprocessing_results.selected_secondary_model_id)
+    if preprocessing_results.selected_fallback_model_id:
+        if preprocessing_results.selected_fallback_model_id not in models_to_try:
+            models_to_try.append(preprocessing_results.selected_fallback_model_id)
+
+    # Track which model we're currently using (may change if we need to fallback)
+    current_model_index = 0
+    current_model_id = models_to_try[0] if models_to_try else preprocessing_results.selected_main_llm_model_id
+
+    logger.info(
+        f"{log_prefix} MODEL_FALLBACK: Prepared {len(models_to_try)} model(s) to try: {models_to_try}. "
+        f"Starting with: {current_model_id}"
+    )
+
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
-    
+
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
@@ -1169,16 +1191,54 @@ async def handle_main_processing(
             iteration_system_prompt = full_system_prompt + budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
-        llm_stream = call_main_llm_stream(
-            task_id=task_id,
-            system_prompt=iteration_system_prompt,
-            message_history=current_message_history,
-            model_id=preprocessing_results.selected_main_llm_model_id,
-            temperature=preprocessing_results.llm_response_temp,
-            secrets_manager=secrets_manager,
-            tools=available_tools_for_llm if not force_no_tools else None,
-            tool_choice=current_tool_choice
-        )
+        # === MODEL FALLBACK RETRY LOGIC ===
+        # Try models in sequence until one succeeds or all fail
+        # This handles transient API errors, rate limits, and model availability issues
+        llm_stream = None
+        model_fallback_attempts = 0
+        last_model_error = None
+
+        while current_model_index < len(models_to_try):
+            try:
+                current_model_id = models_to_try[current_model_index]
+                model_fallback_attempts += 1
+
+                if model_fallback_attempts > 1:
+                    logger.warning(
+                        f"{log_prefix} MODEL_FALLBACK: Attempting fallback model #{current_model_index + 1}: {current_model_id} "
+                        f"(previous error: {last_model_error})"
+                    )
+
+                llm_stream = call_main_llm_stream(
+                    task_id=task_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    model_id=current_model_id,  # Use current_model_id from fallback list
+                    temperature=preprocessing_results.llm_response_temp,
+                    secrets_manager=secrets_manager,
+                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tool_choice=current_tool_choice
+                )
+                # Stream created successfully - break out of retry loop
+                break
+
+            except Exception as model_error:
+                last_model_error = str(model_error)
+                logger.error(
+                    f"{log_prefix} MODEL_FALLBACK: Model {current_model_id} failed: {model_error}. "
+                    f"Trying next model..."
+                )
+                current_model_index += 1
+
+                # If we've exhausted all models, raise the last error
+                if current_model_index >= len(models_to_try):
+                    logger.error(
+                        f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models failed. "
+                        f"Last error: {last_model_error}"
+                    )
+                    raise RuntimeError(
+                        f"All models failed. Tried: {models_to_try}. Last error: {last_model_error}"
+                    ) from model_error
 
         current_turn_text_buffer = []
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall]] = []

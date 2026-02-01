@@ -457,6 +457,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     user_message_id = redis_payload.get("user_message_id")
                     category = redis_payload.get("category")
                     model_name = redis_payload.get("model_name") # Extract model_name
+                    provider_name = redis_payload.get("provider_name") # Extract provider_name (e.g., "Anthropic API", "Cerebras")
                     title = redis_payload.get("title") # Extract title
 
                     # Title is optional in the payload for now, but other fields are essential
@@ -464,7 +465,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}")
                         continue
 
-                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
+                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Provider Name: {provider_name}, Title: {title}")
 
                     client_payload = {
                         "chat_id": chat_id,
@@ -472,6 +473,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "user_message_id": user_message_id,
                         "category": category,
                         "model_name": model_name, # Include model_name in the client payload
+                        "provider_name": provider_name, # Include provider_name in the client payload (e.g., "Anthropic API", "Cerebras")
                         "title": title, # Include title in the client payload
                         "icon_names": redis_payload.get("icon_names", []), # Include icon names in the client payload
                         # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message

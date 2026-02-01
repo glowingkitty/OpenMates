@@ -2,51 +2,51 @@
 
 /* TipTap decoration-based highlighting styles for unclosed blocks */
 :global(.ProseMirror .unclosed-block-code) {
-    color: var(--color-app-code-start) !important;
+  color: var(--color-app-code-start) !important;
 }
 
 :global(.ProseMirror .unclosed-block-table) {
-    color: var(--color-app-sheets-start) !important;
+  color: var(--color-app-sheets-start) !important;
 }
 
 :global(.ProseMirror .unclosed-block-url) {
-    color: var(--color-app-web-start) !important;
+  color: var(--color-app-web-start) !important;
 }
 
 :global(.ProseMirror .unclosed-block-html) {
-    color: var(--color-app-docs-start) !important;
+  color: var(--color-app-docs-start) !important;
 }
 
 :global(.ProseMirror .unclosed-block-video) {
-    color: var(--color-app-videos-start) !important;
-    text-decoration: none !important;
+  color: var(--color-app-videos-start) !important;
+  text-decoration: none !important;
 }
 
 /* Ensure YouTube URLs are red and not underlined even if they have link styling */
 :global(.ProseMirror .unclosed-block-video a),
 :global(.ProseMirror a.unclosed-block-video) {
-    color: var(--color-app-videos-start) !important;
-    text-decoration: none !important;
+  color: var(--color-app-videos-start) !important;
+  text-decoration: none !important;
 }
 
 :global(.ProseMirror .unclosed-block-markdown) {
-    color: #6A737D !important;
+  color: #6a737d !important;
 }
 
 /* Style all links in the ProseMirror editor */
 /* Default: web app start color for regular URLs */
 :global(.ProseMirror a.markdown-link),
 :global(.ProseMirror a) {
-    color: var(--color-app-web-start) !important;
-    text-decoration: none !important;
-    transition: none !important;
+  color: var(--color-app-web-start) !important;
+  text-decoration: none !important;
+  transition: none !important;
 }
 
 /* Hover states - maintain color and no underline */
 :global(.ProseMirror a.markdown-link:hover),
 :global(.ProseMirror a:hover) {
-    color: var(--color-app-web-start) !important;
-    text-decoration: none !important;
+  color: var(--color-app-web-start) !important;
+  text-decoration: none !important;
 }
 
 /* YouTube URLs: video app start color */
@@ -59,8 +59,8 @@
 :global(.ProseMirror a[href*="youtube.com/v/"]),
 :global(.ProseMirror a[href*="youtube.com/embed/"]),
 :global(.ProseMirror a[href*="youtu.be/"]) {
-    color: var(--color-app-videos-start) !important;
-    text-decoration: none !important;
+  color: var(--color-app-videos-start) !important;
+  text-decoration: none !important;
 }
 
 /* YouTube URLs hover states - maintain video color and no underline */
@@ -72,435 +72,514 @@
 :global(.ProseMirror a[href*="youtube.com/v/"]:hover),
 :global(.ProseMirror a[href*="youtube.com/embed/"]:hover),
 :global(.ProseMirror a[href*="youtu.be/"]:hover) {
-    color: var(--color-app-videos-start) !important;
-    text-decoration: none !important;
+  color: var(--color-app-videos-start) !important;
+  text-decoration: none !important;
 }
 
 /* Embed styles moved to EmbeddPreview.styles.css */
 
-
 /* Group styles moved to EmbeddPreview.styles.css */
 
 /* Base wrapper */
-.message-input-wrapper { 
-    width: 100%; 
-    position: relative; 
-    /* Show text cursor when hovering over clickable areas */
-    cursor: text;
-    /* Ensure MessageInput is always on top of FollowUpSuggestions gradient */
-    z-index: 100;
+.message-input-wrapper {
+  width: 100%;
+  position: relative;
+  /* Show text cursor when hovering over clickable areas */
+  cursor: text;
+  /* Ensure MessageInput is always on top of FollowUpSuggestions gradient */
+  z-index: 100;
 }
 
 /* Main message field container */
 .message-field {
-    width: 100%; 
-    min-height: 100px; 
-    background-color: var(--color-grey-blue);
-    border-radius: 24px; 
-    padding: 0 0 60px 0; 
-    box-sizing: border-box;
-    position: relative; 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out, min-height 0.3s ease-in-out;
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden;
-    will-change: padding-bottom, max-height, height;
-    /* Show text cursor for the input field */
-    cursor: text;
+  width: 100%;
+  min-height: 100px;
+  background-color: var(--color-grey-blue);
+  border-radius: 24px;
+  padding: 0 0 60px 0;
+  box-sizing: border-box;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition:
+    padding-bottom 0.3s ease-in-out,
+    max-height 0.3s ease-in-out,
+    height 0.3s ease-in-out,
+    min-height 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  will-change: padding-bottom, max-height, height;
+  /* Show text cursor for the input field */
+  cursor: text;
 }
 
 /* Buttons should have pointer cursor instead of text cursor */
 .message-field button {
-    cursor: pointer !important;
+  cursor: pointer !important;
 }
 
 /* Compact mode when action buttons are hidden */
 .message-field.compact {
-    min-height: 60px;
-    padding: 0 0 10px 0;
+  min-height: 60px;
+  padding: 0 0 10px 0;
 }
 
-.message-field.recording-active { 
-    /* Adjust padding when recording is active to accommodate RecordAudio component */
-    padding-bottom: 120px; 
+.message-field.recording-active {
+  /* Adjust padding when recording is active to accommodate RecordAudio component */
+  padding-bottom: 120px;
 }
 
 /* Scrollable area */
 .scrollable-content {
-    flex-grow: 1; 
-    width: 100%; 
-    overflow-y: auto; 
-    position: relative;
-    padding-top: 1em; 
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
-    overflow-x: hidden; 
-    box-sizing: border-box;
-    transition: max-height 0.3s ease-in-out;
+  flex-grow: 1;
+  width: 100%;
+  overflow-y: auto;
+  position: relative;
+  padding-top: 1em;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent)
+    transparent;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  transition: max-height 0.3s ease-in-out;
 }
 
 /* Editor content wrapper */
 .content-wrapper {
-    display: flex; 
-    flex-direction: column; 
-    width: 100%;
-    box-sizing: border-box; 
-    min-height: 40px; 
-    padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 1rem;
 }
 
 /* Tiptap editor element */
 .editor-content {
-    box-sizing: border-box; 
-    width: 100%; 
-    min-height: 2em;
-    position: relative; 
-    transition: all 0.2s ease-in-out; 
-    flex-grow: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2em;
+  position: relative;
+  transition: all 0.2s ease-in-out;
+  flex-grow: 1;
 }
 
 /* Tiptap ProseMirror base styles */
 :global(.ProseMirror) {
-    outline: none !important; 
-    white-space: pre-wrap; 
-    word-wrap: break-word;
-    padding: 0.5rem 0; 
-    min-height: 2em; 
-    max-width: 100%; 
-    box-sizing: border-box;
-    color: var(--color-font-primary); 
-    line-height: 1.6; 
-    caret-color: var(--color-primary);
+  outline: none !important;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  padding: 0.5rem 0;
+  min-height: 2em;
+  max-width: 100%;
+  box-sizing: border-box;
+  color: var(--color-font-primary);
+  line-height: 1.6;
+  caret-color: var(--color-primary);
 }
 
-:global(.ProseMirror p) { 
-    margin: 0 0 0.5em 0; 
-    min-height: 1.6em; 
+:global(.ProseMirror p) {
+  margin: 0 0 0.5em 0;
+  min-height: 1.6em;
 }
 
-:global(.ProseMirror p:last-child) { 
-    margin-bottom: 0; 
+:global(.ProseMirror p:last-child) {
+  margin-bottom: 0;
 }
 
 /* Placeholder styling */
 :global(.ProseMirror p.is-editor-empty:first-child::before) {
-    content: attr(data-placeholder); 
-    float: left; 
-    color: var(--color-font-tertiary);
-    pointer-events: none; 
-    height: 0; 
-    display: block; 
-    opacity: 1; 
-    width: 100%;
-    text-align: center; 
-    position: absolute; 
-    left: 0; 
-    right: 0; 
-    top: 0.5rem;
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-font-tertiary);
+  pointer-events: none;
+  height: 0;
+  display: block;
+  opacity: 1;
+  width: 100%;
+  text-align: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0.5rem;
 }
 
-:global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-    text-align: left; 
-    position: relative; 
-    float: none; 
-    width: auto; 
-    padding-left: 0; 
-    top: 0;
+:global(
+  .ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before
+) {
+  text-align: left;
+  position: relative;
+  float: none;
+  width: auto;
+  padding-left: 0;
+  top: 0;
 }
 
-:global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-    display: none; /* Hide placeholder when focused and empty */
+:global(
+  .ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before
+) {
+  display: none; /* Hide placeholder when focused and empty */
 }
 
 /* Fullscreen button */
 .fullscreen-button {
-    position: absolute; 
-    top: 10px; 
-    right: 15px; 
-    opacity: 0.5;
-    transition: opacity 0.2s ease-in-out; 
-    z-index: 10; 
-    background: none;
-    border: none; 
-    padding: 5px; 
-    cursor: pointer;
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+  background: none;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
 }
 
-.fullscreen-button:hover { 
-    opacity: 1; 
+.fullscreen-button:hover {
+  opacity: 1;
 }
 
-.clickable-icon { /* General style for icon buttons */
-    background: none; 
-    border: none; 
-    padding: 0; 
-    cursor: pointer;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
+.clickable-icon {
+  /* General style for icon buttons */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Drag & Drop overlay styles */
 .message-field.drag-over {
-    background-color: var(--color-grey-30) !important; 
-    border: 2px dashed var(--color-primary);
-    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-grey-30) !important;
+  border: 2px dashed var(--color-primary);
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
 .message-field.drag-over::after {
-    content: 'Drop files here'; 
-    position: absolute; 
-    top: 0; 
-    left: 0; 
-    right: 0; 
-    bottom: 60px;
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    font-size: 1.1em;
-    font-weight: 500; 
-    color: var(--color-primary); 
-    background: rgba(255, 255, 255, 0.8);
-    z-index: 5; 
-    pointer-events: none; 
-    border-radius: 22px;
+  content: "Drop files here";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 22px;
 }
 
 /* Unified embed styles moved to EmbeddPreview.styles.css */
 
 @keyframes processingPulse {
-    0%, 100% { border-left-color: var(--color-primary); }
-    50% { border-left-color: color-mix(in srgb, var(--color-primary) 50%, transparent); }
+  0%,
+  100% {
+    border-left-color: var(--color-primary);
+  }
+  50% {
+    border-left-color: color-mix(
+      in srgb,
+      var(--color-primary) 50%,
+      transparent
+    );
+  }
 }
 
 /* Legacy Embed Specific Styles (Keep for backward compatibility) */
-:global(.ProseMirror .embed-wrapper) { 
-    display: inline-block; 
-    margin: 4px 2px; 
-    vertical-align: bottom; 
-    max-width: 100%; 
-    cursor: pointer; 
-    position: relative; 
+:global(.ProseMirror .embed-wrapper) {
+  display: inline-block;
+  margin: 4px 2px;
+  vertical-align: bottom;
+  max-width: 100%;
+  cursor: pointer;
+  position: relative;
 }
 
-:global(.ProseMirror .image-embed-node) { 
-    max-width: 300px; 
-    max-height: 200px; 
-    border-radius: 12px; 
-    overflow: hidden; 
-    display: block; 
-    background-color: var(--color-grey-10); 
+:global(.ProseMirror .image-embed-node) {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: block;
+  background-color: var(--color-grey-10);
 }
 
-:global(.ProseMirror .image-embed-node img) { 
-    display: block; 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; 
+:global(.ProseMirror .image-embed-node img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-:global(.ProseMirror .file-like-embed) { 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 8px; 
-    background-color: var(--color-grey-20); 
-    padding: 8px 12px; 
-    border-radius: 16px; 
-    max-width: 250px; 
-    height: 40px; 
-    box-sizing: border-box; 
+:global(.ProseMirror .file-like-embed) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-grey-20);
+  padding: 8px 12px;
+  border-radius: 16px;
+  max-width: 250px;
+  height: 40px;
+  box-sizing: border-box;
 }
 
-:global(.ProseMirror .file-like-embed:hover) { 
-    background-color: var(--color-grey-30); 
+:global(.ProseMirror .file-like-embed:hover) {
+  background-color: var(--color-grey-30);
 }
 
-:global(.ProseMirror .file-like-embed .embed-icon) { 
-    font-size: 20px; 
-    flex-shrink: 0; 
-    color: var(--color-font-secondary); 
+:global(.ProseMirror .file-like-embed .embed-icon) {
+  font-size: 20px;
+  flex-shrink: 0;
+  color: var(--color-font-secondary);
 }
 
-:global(.ProseMirror .file-like-embed .embed-filename) { 
-    font-size: 14px; 
-    color: var(--color-font-primary); 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-    flex-grow: 1; 
+:global(.ProseMirror .file-like-embed .embed-filename) {
+  font-size: 14px;
+  color: var(--color-font-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
 }
 
-:global(.ProseMirror .media-embed) { 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 8px; 
-    background-color: var(--color-grey-20); 
-    padding: 8px 12px; 
-    border-radius: 16px; 
-    max-width: 300px; 
-    height: 40px; 
-    box-sizing: border-box; 
+:global(.ProseMirror .media-embed) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-grey-20);
+  padding: 8px 12px;
+  border-radius: 16px;
+  max-width: 300px;
+  height: 40px;
+  box-sizing: border-box;
 }
 
-:global(.ProseMirror .media-embed:hover) { 
-    background-color: var(--color-grey-30); 
+:global(.ProseMirror .media-embed:hover) {
+  background-color: var(--color-grey-30);
 }
 
-:global(.ProseMirror .media-embed .embed-icon) { 
-    font-size: 20px; 
-    flex-shrink: 0; 
-    color: var(--color-font-secondary); 
+:global(.ProseMirror .media-embed .embed-icon) {
+  font-size: 20px;
+  flex-shrink: 0;
+  color: var(--color-font-secondary);
 }
 
-:global(.ProseMirror .media-embed .media-details) { 
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden; 
-    flex-grow: 1; 
+:global(.ProseMirror .media-embed .media-details) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-grow: 1;
 }
 
-:global(.ProseMirror .media-embed .embed-filename) { 
-    font-size: 14px; 
-    color: var(--color-font-primary); 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
+:global(.ProseMirror .media-embed .embed-filename) {
+  font-size: 14px;
+  color: var(--color-font-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-:global(.ProseMirror .media-embed .embed-duration) { 
-    font-size: 12px; 
-    color: var(--color-font-secondary); 
+:global(.ProseMirror .media-embed .embed-duration) {
+  font-size: 12px;
+  color: var(--color-font-secondary);
 }
 
-:global(.ProseMirror .web-preview-node) { 
-    display: block; 
-    max-width: 400px; 
+:global(.ProseMirror .web-preview-node) {
+  display: block;
+  max-width: 400px;
 }
 
-:global(.ProseMirror .mate-mention-node) { 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 4px; 
-    background-color: color-mix(in srgb, var(--color-primary) 15%, transparent); 
-    color: var(--color-primary); 
-    padding: 2px 6px; 
-    border-radius: 4px; 
-    font-weight: 500; 
-    cursor: pointer; 
-    transition: background-color 0.2s; 
+/* Mate mention node - uses mate's custom gradient color from mates.yml */
+/* The color is applied via inline CSS custom properties --mate-color-start and --mate-color-end */
+:global(.ProseMirror .mate-mention),
+:global(.ProseMirror .mate-mention-node) {
+  display: inline;
+  /* Default to AI app gradient, overridden by inline styles for specific mates */
+  background: linear-gradient(
+    135deg,
+    var(--mate-color-start, var(--color-app-ai-start)) 0%,
+    var(--mate-color-end, var(--color-app-ai-end)) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-:global(.ProseMirror .mate-mention-node:hover) { 
-    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); 
+:global(.ProseMirror .mate-mention:hover),
+:global(.ProseMirror .mate-mention-node:hover) {
+  opacity: 0.8;
 }
 
-:global(.embed-wrapper.show-copied::after) { 
-    content: 'Copied!'; 
-    position: absolute; 
-    bottom: 100%; 
-    left: 50%; 
-    transform: translateX(-50%) translateY(-5px); 
-    background-color: var(--color-grey-100); 
-    color: var(--color-grey-0); 
-    padding: 3px 8px; 
-    border-radius: 4px; 
-    font-size: 12px; 
-    white-space: nowrap; 
-    z-index: 10; 
-    animation: fadeOut 2s forwards; 
+/* AI Model mention node - uses AI app gradient */
+:global(.ProseMirror .ai-model-mention) {
+  display: inline;
+  background: linear-gradient(
+    135deg,
+    var(--color-app-ai-start) 0%,
+    var(--color-app-ai-end) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+  cursor: default;
+  white-space: nowrap;
 }
 
-@keyframes fadeOut { 
-    0% { opacity: 1; } 
-    80% { opacity: 1; } 
-    100% { opacity: 0; } 
+/* Generic mention styles (skills, focus modes, settings/memories) */
+/* Uses custom properties set inline based on the app's color gradient */
+:global(.ProseMirror .generic-mention) {
+  display: inline;
+  /* Default gradient, overridden by inline styles based on app */
+  background: linear-gradient(
+    135deg,
+    var(--mention-color-start, var(--color-primary-start)) 0%,
+    var(--mention-color-end, var(--color-primary-end)) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 500;
+  cursor: default;
+  white-space: nowrap;
+}
+
+/* Skill mentions - use app's gradient via custom properties */
+:global(.ProseMirror .generic-mention.mention-skill) {
+  /* Gradient already set via custom properties from inline styles */
+}
+
+/* Focus mode mentions - use app's gradient via custom properties */
+:global(.ProseMirror .generic-mention.mention-focus-mode) {
+  /* Gradient already set via custom properties from inline styles */
+}
+
+/* Settings/memory mentions - use app's gradient via custom properties */
+:global(.ProseMirror .generic-mention.mention-settings-memory) {
+  /* Gradient already set via custom properties from inline styles */
+}
+
+:global(.embed-wrapper.show-copied::after) {
+  content: "Copied!";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  background-color: var(--color-grey-100);
+  color: var(--color-grey-0);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Stop Processing Button - positioned in bottom right of message field */
 /* Override global button styles from buttons.css */
 .stop-processing-button {
-    position: absolute;
-    bottom: 20px;
-    right: 15px;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Reset global button styles from buttons.css */
-    background: none !important;
-    background-color: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    border-radius: 0 !important;
-    min-width: auto !important;
-    margin-right: 0 !important;
-    filter: none !important;
-    cursor: pointer;
-    z-index: 20;
-    transition: transform 0.3s ease-in-out;
-    /* Ensure button is visible and not hidden */
-    visibility: visible;
-    opacity: 1;
+  position: absolute;
+  bottom: 20px;
+  right: 15px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Reset global button styles from buttons.css */
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  min-width: auto !important;
+  margin-right: 0 !important;
+  filter: none !important;
+  cursor: pointer;
+  z-index: 20;
+  transition: transform 0.3s ease-in-out;
+  /* Ensure button is visible and not hidden */
+  visibility: visible;
+  opacity: 1;
 }
 
 .stop-processing-button.shifted-left {
-    transform: translateX(-130px);
+  transform: translateX(-130px);
 }
 
 /* Override global button hover/active states from buttons.css */
 .stop-processing-button:hover {
-    background: none !important;
-    background-color: transparent !important;
-    scale: 1 !important; /* Override scale: 1.02 from buttons.css */
+  background: none !important;
+  background-color: transparent !important;
+  scale: 1 !important; /* Override scale: 1.02 from buttons.css */
 }
 
 .stop-processing-button:active {
-    background: none !important;
-    background-color: transparent !important;
-    scale: 1 !important; /* Override scale: 0.98 from buttons.css */
-    filter: none !important;
+  background: none !important;
+  background-color: transparent !important;
+  scale: 1 !important; /* Override scale: 0.98 from buttons.css */
+  filter: none !important;
 }
 
 /* Stop processing button icon */
 /* More specific selector to override general .clickable-icon rules */
 .stop-processing-button .clickable-icon.icon_stop_processing {
-    width: 28px;
-    height: 28px;
-    /* If using mask-image, set background-color to red for the mask */
-    /* If SVG already has color, this can be removed */
-    background-color: red !important;
-    transition: background-color 0.2s ease;
-    /* Ensure mask-image is properly applied */
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
+  width: 28px;
+  height: 28px;
+  /* If using mask-image, set background-color to red for the mask */
+  /* If SVG already has color, this can be removed */
+  background-color: red !important;
+  transition: background-color 0.2s ease;
+  /* Ensure mask-image is properly applied */
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 .stop-processing-button:hover .clickable-icon.icon_stop_processing {
-    background-color: darkred !important;
+  background-color: darkred !important;
 }
 
 /* Queued message indicator - shown when a message is queued due to active AI task */
 .queued-message-indicator {
-    position: absolute;
-    bottom: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--color-yellow-warning, #ffa500);
-    color: var(--color-text-primary, #000);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    white-space: nowrap;
-    z-index: 25;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    pointer-events: none;
-    max-width: calc(100% - 40px);
-    text-align: center;
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-yellow-warning, #ffa500);
+  color: var(--color-text-primary, #000);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 25;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  max-width: calc(100% - 40px);
+  text-align: center;
 }

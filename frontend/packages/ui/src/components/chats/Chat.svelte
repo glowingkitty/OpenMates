@@ -27,6 +27,9 @@
     getValidIconName, 
     getLucideIcon
   } from '../../utils/categoryUtils';
+  import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
+  import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
+  import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -118,6 +121,94 @@
   }
 
   /**
+   * Convert a name to hyphenated format for mention display.
+   * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
+   */
+  function toHyphenatedName(name: string): string {
+    return name.replace(/\s+/g, '-');
+  }
+
+  /**
+   * Capitalize first letter of each word for display.
+   * e.g., "get-docs" -> "Get-Docs"
+   */
+  function capitalizeWords(str: string): string {
+    return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+  }
+
+  /**
+   * Convert backend mention syntax to human-readable display names.
+   * This ensures draft previews show "@Claude-4.5-Opus" instead of "@ai-model:claude-4-sonnet"
+   */
+  function convertMentionSyntaxToDisplayName(text: string): string {
+    // Replace @ai-model:{id} with @Model-Name
+    text = text.replace(/@ai-model:([^\s]+)/g, (match, modelId) => {
+      const model = modelsMetadata.find(m => m.id === modelId);
+      if (model) {
+        return `@${toHyphenatedName(model.name)}`;
+      }
+      return match;
+    });
+    
+    // Replace @mate:{id} with @MateName
+    text = text.replace(/@mate:([^\s]+)/g, (match, mateId) => {
+      const mate = matesMetadata.find(m => m.id === mateId);
+      if (mate) {
+        const displayName = capitalizeWords(mate.search_names[0] || mate.id);
+        return `@${displayName}`;
+      }
+      return match;
+    });
+    
+    // Replace @skill:{app_id}:{skill_id} with @App-Skill-Name
+    text = text.replace(/@skill:([^:]+):([^\s]+)/g, (match, appId, skillId) => {
+      const apps = appSkillsStore.apps;
+      const app = apps[appId];
+      if (app) {
+        const skill = app.skills.find(s => s.id === skillId);
+        if (skill) {
+          const appDisplayName = capitalizeWords(appId);
+          const skillDisplayName = capitalizeWords(skillId.replace(/_/g, '-'));
+          return `@${appDisplayName}-${skillDisplayName}`;
+        }
+      }
+      return match;
+    });
+    
+    // Replace @focus:{app_id}:{focus_id} with @App-Focus-Name
+    text = text.replace(/@focus:([^:]+):([^\s]+)/g, (match, appId, focusId) => {
+      const apps = appSkillsStore.apps;
+      const app = apps[appId];
+      if (app) {
+        const focusMode = app.focus_modes.find(f => f.id === focusId);
+        if (focusMode) {
+          const appDisplayName = capitalizeWords(appId);
+          const focusDisplayName = capitalizeWords(focusId.replace(/_/g, '-'));
+          return `@${appDisplayName}-${focusDisplayName}`;
+        }
+      }
+      return match;
+    });
+    
+    // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
+    text = text.replace(/@memory:([^:]+):([^:]+):([^\s]+)/g, (match, appId, memoryId) => {
+      const apps = appSkillsStore.apps;
+      const app = apps[appId];
+      if (app) {
+        const memory = app.settings_and_memories.find(m => m.id === memoryId);
+        if (memory) {
+          const appDisplayName = capitalizeWords(appId);
+          const memoryDisplayName = capitalizeWords(memoryId.replace(/_/g, '-'));
+          return `@${appDisplayName}-${memoryDisplayName}`;
+        }
+      }
+      return match;
+    });
+    
+    return text;
+  }
+
+  /**
    * Extract text from markdown, replacing json_embed blocks with their URLs
    * and code blocks with readable placeholders for better display in chat previews
    */
@@ -126,6 +217,10 @@
     
     try {
       let displayText = markdown;
+      
+      // Convert backend mention syntax to human-readable display names
+      // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
+      displayText = convertMentionSyntaxToDisplayName(displayText);
       
       // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
       displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
@@ -1487,6 +1582,11 @@
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
+                  {:else if chat.is_shared}
+                    <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                    <div class="share-badge" title="This chat is shared">
+                      <LucideIcons.Share2 size={10} color="white" />
+                    </div>
                   {/if}
                 </div>
               </div>
@@ -1508,6 +1608,11 @@
                       <div class="unread-badge">
                         {chat.unread_count > 9 ? '9+' : chat.unread_count}
                       </div>
+                    {:else if chat.is_shared}
+                      <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                      <div class="share-badge" title="This chat is shared">
+                        <LucideIcons.Share2 size={10} color="white" />
+                      </div>
                     {/if}
                   </div>
                 </div>
@@ -1526,6 +1631,11 @@
                     {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
                         {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                      </div>
+                    {:else if chat.is_shared}
+                      <!-- Share indicator badge: shown when chat is shared (has active share link) -->
+                      <div class="share-badge" title="This chat is shared">
+                        <LucideIcons.Share2 size={10} color="white" />
                       </div>
                     {/if}
                   </div>
@@ -1741,6 +1851,23 @@
     font-size: 14px;
     font-weight: 500;
     border: 2px solid var(--color-background);
+  }
+
+  /* Share badge: indicates that this chat has an active share link */
+  .share-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    background: var(--color-grey-60);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--color-background);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
 
   .incognito-label {
