@@ -20,12 +20,14 @@ This document consolidates all coding standards, guidelines, and instructions fo
 12. [Internationalization (i18n)](#internationalization-i18n)
 13. [Key Files by Domain](#key-files-by-domain)
 14. [Docker Debug Mode](#docker-debug-mode)
+15. [Frontend Development Workflow](#frontend-development-workflow)
 
 ---
 
 ## Project Overview
 
 OpenMates is a multi-platform application with:
+
 - **Frontend**: Svelte 5/SvelteKit, TypeScript, CSS Custom Properties
 - **Backend**: Python with FastAPI
 - **Database**: PostgreSQL with Directus CMS
@@ -61,6 +63,7 @@ OpenMates/
 ## Core Principles
 
 ### Code Quality
+
 - Write clean, readable, and maintainable code
 - Follow existing patterns in the codebase
 - Add comprehensive comments explaining business logic and architecture decisions
@@ -68,17 +71,20 @@ OpenMates/
 - Keep functions small and focused on single responsibility
 
 ### Design Philosophy
+
 - **KISS Principle**: Keep it simple - avoid over-engineering and unnecessary complexity
 - **Extensibility**: Design code to be easily extended later without major refactoring
 - **Clean Code**: Remove all unused functions, variables, imports, and dead code
 - **No Silent Failures**: Never hide errors with fallbacks - all errors must be visible and logged
 
 ### Comments and Documentation
+
 - Ensure every file has detailed comments explaining what the code does
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
 ### Logging Rule
+
 - **Only remove debugging logs after the user confirms the issue is fixed**
 - Do not remove logs assuming you fixed the issue - wait for confirmation
 
@@ -89,6 +95,7 @@ OpenMates/
 ### Svelte 5 Requirements (CRITICAL)
 
 **USE SVELTE 5 RUNES ONLY:**
+
 - `$state()` for reactive state
 - `$derived()` for computed values
 - `$effect()` for side effects
@@ -102,19 +109,19 @@ OpenMates/
 <script lang="ts">
   // Imports first
   import { onMount } from 'svelte';
-  
+
   // Props interface
   interface Props {
     title: string;
     isVisible?: boolean;
   }
-  
+
   // Props with defaults using Svelte 5 runes
   let { title, isVisible = true }: Props = $props();
-  
+
   // Local state using Svelte 5 runes
   let isLoading = $state(false);
-  
+
   // Derived/computed values using Svelte 5 runes (NOT $:)
   let displayTitle = $derived(title.toUpperCase());
 </script>
@@ -134,12 +141,14 @@ OpenMates/
 ```
 
 ### TypeScript Standards
+
 - Use strict type checking
 - Define interfaces for all props and data structures
 - Use type assertions sparingly
 - Prefer `interface` over `type` for object shapes
 
 ### Styling Guidelines
+
 - Use CSS custom properties defined in `frontend/packages/ui/src/styles/theme.css`
 - Follow the existing design system with predefined color variables
 - Reference existing CSS files: `theme.css`, `buttons.css`, `cards.css`, `chat.css`, `fields.css`
@@ -147,12 +156,14 @@ OpenMates/
 - Follow mobile-first responsive design
 
 ### State Management
+
 - Use Svelte stores for global state
 - Prefer local component state when possible
 - Use derived stores for computed values
 - Implement proper store subscriptions and cleanup
 
 ### Error Handling
+
 - **NEVER use fallback values to hide errors**
 - Use try-catch blocks for async operations
 - Always log errors with `console.error()` for debugging
@@ -163,12 +174,14 @@ OpenMates/
 ## Backend Standards (Python/FastAPI)
 
 ### Python Code Style
+
 - Follow PEP 8 style guidelines
 - Use type hints for all function parameters and return values
 - Use `logger.debug()` or `logger.info()` instead of `print()` statements
 - Add comprehensive docstrings for all functions and classes
 
 ### FastAPI Best Practices
+
 - Use dependency injection for database connections and services
 - Implement proper request/response models with Pydantic
 - Use async/await for I/O operations
@@ -176,6 +189,7 @@ OpenMates/
 - Use background tasks for non-critical operations
 
 ### Error Handling (CRITICAL)
+
 - **NEVER use fallback values to hide errors** - all errors must be visible
 - **NO silent failures** - if an operation fails, log it and raise an exception
 - Always use proper exception handling with logging
@@ -197,6 +211,7 @@ except Exception as e:
 ```
 
 ### Database Patterns
+
 - Use repository pattern for data access
 - Implement proper connection pooling
 - Use transactions for multi-step operations
@@ -204,6 +219,7 @@ except Exception as e:
 - Define Directus models in YAML files under `backend/core/directus/schemas/`
 
 ### Security Best Practices
+
 - Validate all input data
 - Use environment variables for sensitive configuration
 - Implement proper authentication and authorization
@@ -221,6 +237,7 @@ except Exception as e:
 The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors.
 
 **File type options:**
+
 - `--py` - Python files (.py)
 - `--ts` - TypeScript files (.ts, .tsx)
 - `--svelte` - Svelte files (.svelte)
@@ -228,10 +245,12 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 - `--html` - HTML files (.html)
 
 **Targeting options (always use these):**
+
 - `--path <file|dir>` - Limit checks to a specific file or directory (repeatable)
 - `-- <file|dir> ...` - Treat remaining args as target paths
 
 **Examples:**
+
 ```bash
 ./scripts/lint_changed.sh --py --path backend/core/api              # Only Python changes in API
 ./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui # Only UI frontend changes
@@ -239,6 +258,7 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 ```
 
 ### Best Practices
+
 - Always limit checks to the specific files or folders you touched
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
 - **CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors
@@ -249,11 +269,13 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 ## Git Commit Best Practices
 
 ### Commit Message Format
+
 Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
 **Format:** `<type>: <description>`
 
 **Types:**
+
 - `feat`: A new feature
 - `fix`: A bug fix
 - `docs`: Documentation only changes
@@ -267,6 +289,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 - `revert`: Reverts a previous commit
 
 **Rules:**
+
 - **Scope**: NEVER add all files (`git add .`). Only add files modified in the current session.
 - **No Co-authors**: NEVER add `--trailer` flags or `Co-authored-by` lines.
 - Use imperative present tense: "change" not "changed"
@@ -274,6 +297,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 - No dot (.) at the end of the title
 
 **Example:**
+
 ```bash
 feat: add user authentication flow
 
@@ -283,6 +307,7 @@ feat: add user authentication flow
 ```
 
 ### Pre-commit Checklist
+
 - [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
 - [ ] Fix all linter and type errors
 - [ ] Remove temporary `console.log` or `print` statements (unless permanent)
@@ -325,15 +350,15 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1
 
 ### Where to Look First (by Problem Type)
 
-| Problem Type | Check First | Then Check |
-|-------------|-------------|------------|
-| AI response issues | `task-worker`, `app-ai-worker` | `api` (WebSocket logs) |
-| Login/auth failures | `api` | `cms` (Directus logs) |
-| Payment issues | `api` | `task-worker` (async jobs) |
-| Sync/cache issues | `api` (PHASE1, SYNC_CACHE) | `cache` (Dragonfly) |
-| WebSocket disconnects | `api` | Browser console |
-| Scheduled task failures | `task-scheduler` | `task-worker` |
-| User data issues | `cms`, `cms-database` | `api` |
+| Problem Type            | Check First                    | Then Check                 |
+| ----------------------- | ------------------------------ | -------------------------- |
+| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)     |
+| Login/auth failures     | `api`                          | `cms` (Directus logs)      |
+| Payment issues          | `api`                          | `task-worker` (async jobs) |
+| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)        |
+| WebSocket disconnects   | `api`                          | Browser console            |
+| Scheduled task failures | `task-scheduler`               | `task-worker`              |
+| User data issues        | `cms`, `cms-database`          | `api`                      |
 
 ### Quick Debug Commands
 
@@ -445,12 +470,14 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled 
 ### Test Creation Consent Requirements
 
 **NEVER create test files without the user's explicit consent.** This applies to:
+
 - Unit tests (pytest, vitest)
 - Integration tests
 - End-to-end tests (Playwright)
 - Test fixtures or mocks
 
 **What to do instead:**
+
 1. When you identify a situation where tests might be valuable, make a **brief natural-language suggestion** describing what the tests could cover
 2. Do NOT include code examples in test suggestions
 3. Wait for the user to explicitly ask you to create the tests before writing any test code
@@ -458,6 +485,7 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled 
 
 **Exception - When user explicitly requests TDD:**
 If the user says "use TDD" or explicitly asks to write tests first, follow the full TDD cycle:
+
 1. 🔴 **Red**: Write a failing test that describes the desired behavior
 2. 🟢 **Green**: Write the minimal code to make the test pass
 3. 🔵 **Refactor**: Improve the code while keeping tests green
@@ -467,7 +495,8 @@ If the user says "use TDD" or explicitly asks to write tests first, follow the f
 When creating tests (with consent), ensure they meet these criteria:
 
 #### Good Tests Should:
-- **Test behavior, not implementation**: Verify *what* happens, not *how*
+
+- **Test behavior, not implementation**: Verify _what_ happens, not _how_
 - **Be independent**: Each test runs in isolation, no shared state
 - **Cover edge cases**: Empty inputs, null values, boundary conditions, error paths
 - **Use descriptive names**: `test_encrypt_message_with_empty_content_returns_empty_encrypted_blob`
@@ -476,6 +505,7 @@ When creating tests (with consent), ensure they meet these criteria:
 - **Use meaningful assertions**: Verify the specific behavior you care about
 
 #### Tests to AVOID (Low Value):
+
 - Testing private implementation details that may change
 - Tests that duplicate framework/library tests
 - Mocking so heavily that nothing real is tested
@@ -483,6 +513,7 @@ When creating tests (with consent), ensure they meet these criteria:
 - Trivial getter/setter tests with no logic
 
 #### End-to-End Tests Should:
+
 - **Test user journeys**, not individual components
 - **Use stable selectors**: `data-testid` attributes, not CSS classes
 - **Be deterministic**: No flaky timing-dependent assertions
@@ -490,25 +521,26 @@ When creating tests (with consent), ensure they meet these criteria:
 
 ### Test Location Standards
 
-| Test Type | Location | Naming |
-|-----------|----------|--------|
-| Python unit tests | `backend/apps/<app>/tests/` or `backend/core/*/tests/` | `test_*.py` |
-| TypeScript unit tests | `frontend/packages/ui/src/**/__tests__/` | `*.test.ts` |
-| Playwright E2E tests | `frontend/apps/web_app/tests/` | `*.spec.ts` |
-| REST API external tests | `backend/tests/` | `test_rest_api_*.py` |
+| Test Type               | Location                                               | Naming               |
+| ----------------------- | ------------------------------------------------------ | -------------------- |
+| Python unit tests       | `backend/apps/<app>/tests/` or `backend/core/*/tests/` | `test_*.py`          |
+| TypeScript unit tests   | `frontend/packages/ui/src/**/__tests__/`               | `*.test.ts`          |
+| Playwright E2E tests    | `frontend/apps/web_app/tests/`                         | `*.spec.ts`          |
+| REST API external tests | `backend/tests/`                                       | `test_rest_api_*.py` |
 
 ### Running Tests After Changes
 
-| Change Type | Run These Tests |
-|-------------|-----------------|
-| Backend API endpoint | `pytest -s backend/tests/test_rest_api_external.py` |
-| Backend business logic | `pytest backend/apps/<app>/tests/` |
-| Frontend component | `npm run test:unit -- <component>.test.ts` |
-| Full user flow | Playwright E2E for that flow |
+| Change Type            | Run These Tests                                     |
+| ---------------------- | --------------------------------------------------- |
+| Backend API endpoint   | `pytest -s backend/tests/test_rest_api_external.py` |
+| Backend business logic | `pytest backend/apps/<app>/tests/`                  |
+| Frontend component     | `npm run test:unit -- <component>.test.ts`          |
+| Full user flow         | Playwright E2E for that flow                        |
 
 ### Test Commands
 
 **Backend:**
+
 ```bash
 # Run all external REST API tests
 /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
@@ -518,6 +550,7 @@ When creating tests (with consent), ensure they meet these criteria:
 ```
 
 **Frontend:**
+
 ```bash
 # Run frontend unit tests
 cd frontend/apps/web_app && npm run test:unit
@@ -527,6 +560,7 @@ npm run test:unit -- --coverage
 ```
 
 **End-to-End (Playwright):**
+
 ```bash
 docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
@@ -537,6 +571,7 @@ docker compose -f docker-compose.playwright.yml run --rm \
 ```
 
 ### Pre-Commit Test Checklist (When Tests Exist)
+
 - [ ] Tests actually fail when the code is broken (not just passing trivially)
 - [ ] Tests cover the happy path AND at least one error path
 - [ ] Tests don't depend on external services (mock them)
@@ -550,6 +585,7 @@ docker compose -f docker-compose.playwright.yml run --rm \
 ### Document Structure
 
 Every documentation file MUST include:
+
 1. **Title** (H1) - Clear, descriptive title
 2. **Status Badge** - Implementation status
 3. **Last Updated** - Date of last significant update
@@ -567,17 +603,22 @@ Brief overview of what this document describes.
 ### Code-Documentation Synchronization
 
 #### When Modifying Code
+
 When modifying functions, classes, or modules that are referenced in architecture docs:
+
 1. **Search for references**: `rg "filename.ts" docs/architecture/`
 2. **Update any stale references**: If you renamed, moved, or deleted the referenced code
 3. **Update doc descriptions**: If the behavior changed significantly
 
 #### Documentation Reference Format
+
 Use relative paths with function/class anchors (NOT line numbers, NO copy & pasted code blocks):
+
 - ✅ `[cryptoService.ts#decryptChatData()](../../frontend/packages/ui/src/services/cryptoService.ts)`
 - ❌ `cryptoService.ts:200-250` (line numbers become stale)
 
 #### Critical Architecture Docs to Keep in Sync
+
 - `docs/architecture/sync.md` → Sync and encryption flows
 - `docs/architecture/message_processing.md` → AI message handling
 - `docs/architecture/payment_processing.md` → Billing flows
@@ -585,17 +626,23 @@ Use relative paths with function/class anchors (NOT line numbers, NO copy & past
 ### DRY Principle for Documentation
 
 **Link Instead of Repeating:**
+
 ```markdown
 <!-- ❌ BAD: Repeating details -->
+
 ## How Messages Are Processed
+
 The message processing system uses a multi-phase approach...
 
 <!-- ✅ GOOD: Link to canonical source -->
+
 ## Message Processing
+
 For details, see [Message Processing Architecture](../architecture/message_processing.md)
 ```
 
 ### Navigation
+
 Every document MUST end with "Read Next" links to related documentation.
 
 ---
@@ -603,22 +650,27 @@ Every document MUST end with "Read Next" links to related documentation.
 ## Logging and Error Handling
 
 ### Backend (Python)
+
 - **Use `logging`**: Always use `logger.debug()` or `logger.info()` instead of `print()`
 - **Initialization**: Use `logger = logging.getLogger(__name__)` at the module level
 - **No Silent Failures**: Never use silent fallbacks. Log errors or raise exceptions.
 
 ### Frontend (Svelte/TypeScript)
+
 - **Use `console.log()`**: Preferred for debugging
 - **Error visibility**: Ensure errors are visible in the console
 
 ### Correlation IDs
+
 **Always include in logs:**
+
 ```python
 logger.info(f"[Task ID: {task_id}] Processing message {message_id} for chat {chat_id}")
 logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 ```
 
 ### Structured Logging Prefixes
+
 - `[PERF]` - Timing
 - `[TASK]` - Celery tasks
 - `[SYNC]` - Sync operations
@@ -626,6 +678,7 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 - `[ERROR]` - Errors
 
 ### Guidelines
+
 - **Keep Logs**: Only remove debugging logs after the user confirms the issue is fixed
 - **Comments**: Add extensive comments explaining complex logic and architectural choices
 - **Cache First**: Update server cache BEFORE Directus/disk to ensure data consistency
@@ -635,6 +688,7 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 ## Internationalization (i18n)
 
 ### Guidelines
+
 - **NEVER use hardcoded text** for user-facing strings in frontend or backend
 - **ALWAYS use the translation system** for all user-facing content
 - **Source of Truth**: `.yml` files in `frontend/packages/ui/src/i18n/sources/`
@@ -642,6 +696,7 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 ### Adding Translations
 
 1. Add new keys to the appropriate `.yml` file:
+
 ```yaml
 key_name:
   context: Description of how the text is used
@@ -652,6 +707,7 @@ key_name:
 2. Run `npm run build:translations` in `frontend/packages/ui`
 
 ### Usage
+
 - **Frontend**: Use the `$text` store: `$text('namespace.key.text')`
 - **Backend**: Use `TranslationService` to resolve translations
 - **Metadata**: Use `name_translation_key` instead of hardcoded strings
@@ -661,26 +717,31 @@ key_name:
 ## Key Files by Domain
 
 ### Authentication & Security
+
 - Login flow: `backend/core/api/app/routes/auth_routes/auth_login.py`
 - Crypto service: `frontend/packages/ui/src/services/cryptoService.ts`
 - Key storage: `frontend/packages/ui/src/services/cryptoKeyStorage.ts`
 
 ### Chat & Sync
+
 - Sync architecture: `docs/architecture/sync.md`
 - Phased sync service: `frontend/packages/ui/src/services/PhasedSyncService.ts`
 - Cache warming: `backend/core/api/app/tasks/user_cache_tasks.py`
 - WebSocket handlers: `backend/core/api/app/routes/websockets.py`
 
 ### AI Processing
+
 - Message processing: `backend/core/api/app/services/message_processor.py`
 - AI handlers: `backend/apps/ai/handlers/`
 - AI app config: `backend/apps/ai/config.yml`
 
 ### Payments & Usage
+
 - Payment processing: `backend/core/api/app/services/payment_service.py`
 - Usage tracking: `backend/core/api/app/services/usage_service.py`
 
 ### Frontend Components
+
 - Chat components: `frontend/packages/ui/src/components/chats/`
 - Message components: `frontend/packages/ui/src/components/messages/`
 - App store: `frontend/packages/ui/src/components/apps/`
@@ -690,20 +751,25 @@ key_name:
 ## Docker Debug Mode
 
 ### Overview
+
 When debugging in Docker Compose environments, debug logging instrumentation must account for containerized execution paths and volume mounts.
 
 ### Volume Mount Configuration
+
 Add this mount to services that may execute code with debug instrumentation:
+
 ```yaml
 volumes:
   - ../../.cursor:/app/.cursor
 ```
 
 ### Log Path in Containers
+
 - **Container path**: `/app/.cursor/debug.log`
 - **Host path**: `{workspace_root}/.cursor/debug.log`
 
 ### Non-Blocking Debug Logging
+
 All debug logging instrumentation MUST be wrapped in try-except blocks:
 
 ```python
@@ -721,10 +787,34 @@ except Exception:
 ```
 
 ### Verification
+
 After adding volume mounts:
+
 1. Restart affected services: `docker-compose restart <service-name>`
 2. Verify the mount: `docker exec <container-name> ls -la /app/.cursor`
 3. Test debug logging by triggering the instrumented code path
+
+---
+
+## Frontend Development Workflow
+
+### No Local Dev Server (CRITICAL)
+
+**DO NOT run `pnpm dev` or `npm run dev`** - there is no local development server running on the server.
+
+**Default deployment workflow:**
+
+1. Make frontend code changes
+2. Run linter to verify changes: `./scripts/lint_changed.sh --ts --svelte --path frontend/`
+3. Commit and push changes to git
+4. The web app is **automatically built and deployed** when changes are pushed
+
+**Only start a dev server if:**
+
+- The user **explicitly and specifically** requests running a local dev server
+- The user says something like "start the dev server" or "run pnpm dev"
+
+**Never assume** a dev server is needed - the CI/CD pipeline handles building and deploying frontend changes automatically.
 
 ---
 
