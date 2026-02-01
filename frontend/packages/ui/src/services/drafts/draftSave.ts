@@ -7,7 +7,6 @@ import {
   type WebSocketStatus,
 } from "../../stores/websocketStatusStore";
 import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
-import { isContentEmptyExceptMention } from "../../components/enter_message/utils";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
@@ -547,7 +546,10 @@ export const saveDraftDebounced = debounce(
       // AND we're not in the middle of a context switch
       // AND the chat ID matches the current context (to prevent deleting wrong chat's draft)
       // AND we're not switching to a demo chat (which might have no draft initially)
-      if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
+      // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
+      // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
+      // but for DRAFTS, a mention alone IS valid content that should be saved.
+      if (editor.isEmpty) {
         // CRITICAL: Never delete drafts during context switches - this prevents deleting the wrong chat's draft
         // when switching between demo chats. The isSwitchingContext flag is set for 200ms after setCurrentChatContext,
         // which should be enough time for the context switch to complete.
@@ -769,7 +771,11 @@ export const saveDraftDebounced = debounce(
     });
 
     // If content is empty, treat as clearing/deleting the draft
-    if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
+    // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
+    // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
+    // but for DRAFTS, a mention alone IS valid content that should be saved.
+    // The user might be in the middle of composing a message after selecting a model mention.
+    if (editor.isEmpty) {
       console.info(
         "[DraftService] Editor content is empty. Triggering draft deletion process.",
       );
