@@ -1125,7 +1125,10 @@
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
                 flushSaveDraft();
-                if (isContentEmptyExceptMention(editor)) {
+                // Only reset to initial content if the editor is TRULY empty (no content at all)
+                // Do NOT reset if it contains mentions - those are valid draft content
+                // that should be preserved even though they can't be sent alone
+                if (editor.isEmpty) {
                     editor.commands.setContent(getInitialContent());
                     hasContent = false;
                 }
