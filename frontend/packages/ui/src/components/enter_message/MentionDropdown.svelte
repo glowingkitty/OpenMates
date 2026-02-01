@@ -231,9 +231,9 @@
                     <!-- Icon -->
                     <div class="result-icon">
                         {#if result.type === 'model'}
-                            <!-- Provider logo -->
+                            <!-- Provider logo - icon is already a resolved URL from getProviderIconUrl() -->
                             <img 
-                                src="/{result.icon}" 
+                                src={result.icon} 
                                 alt={result.subtitle}
                                 class="provider-logo"
                             />

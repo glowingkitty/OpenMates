@@ -5,6 +5,7 @@
 
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
+import { getProviderIconUrl } from "../../../data/providerIcons";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
@@ -197,7 +198,7 @@ function getModelMentionResults(): ModelMentionResult[] {
         // Hyphenated for editor display: "Claude 4.5 Opus" -> "Claude-4.5-Opus"
         mentionDisplayName: toHyphenatedName(model.name),
         subtitle: model.provider_name,
-        icon: model.logo_svg,
+        icon: getProviderIconUrl(model.logo_svg),
         // Backend syntax for processing - the actual text stored/sent
         mentionSyntax: `@ai-model:${model.id}`,
         searchTerms: buildSearchTerms(
