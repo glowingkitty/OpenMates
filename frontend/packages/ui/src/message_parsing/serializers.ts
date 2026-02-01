@@ -14,12 +14,6 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
     return "";
   }
 
-  // Debug: Log the full document structure
-  console.info(
-    "[Serializer] tipTapToCanonicalMarkdown input doc:",
-    JSON.stringify(doc, null, 2),
-  );
-
   const lines: string[] = [];
 
   for (const node of doc.content) {
