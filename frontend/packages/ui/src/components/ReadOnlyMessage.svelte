@@ -6,6 +6,7 @@
     import { Embed } from '../components/enter_message/extensions/Embed';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { AIModelMentionNode } from '../components/enter_message/extensions/AIModelMentionNode';
+    import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
@@ -494,6 +495,7 @@
             Embed,
             MateNode,
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
+            GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
@@ -914,6 +916,57 @@
         font-weight: 500;
         cursor: default;
         white-space: nowrap;
+    }
+
+    /* Mate mention styling - uses mate's custom gradient color via CSS custom properties */
+    :global(.read-only-message .mate-mention) {
+        display: inline;
+        background: linear-gradient(
+            135deg,
+            var(--mate-color-start, var(--color-app-ai-start)) 0%,
+            var(--mate-color-end, var(--color-app-ai-end)) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    :global(.read-only-message .mate-mention:hover) {
+        opacity: 0.8;
+    }
+
+    /* Generic mention styling (skills, focus modes, settings/memories) */
+    :global(.read-only-message .generic-mention) {
+        display: inline;
+        background: linear-gradient(
+            135deg,
+            var(--mention-color-start, var(--color-primary-start)) 0%,
+            var(--mention-color-end, var(--color-primary-end)) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 500;
+        cursor: default;
+        white-space: nowrap;
+    }
+
+    /* Skill mentions */
+    :global(.read-only-message .generic-mention.mention-skill) {
+        /* Uses gradient from inline custom properties */
+    }
+
+    /* Focus mode mentions */
+    :global(.read-only-message .generic-mention.mention-focus-mode) {
+        /* Uses gradient from inline custom properties */
+    }
+
+    /* Settings/memory mentions */
+    :global(.read-only-message .generic-mention.mention-settings-memory) {
+        /* Uses gradient from inline custom properties */
     }
 
     /* Dark mode support for custom headings */

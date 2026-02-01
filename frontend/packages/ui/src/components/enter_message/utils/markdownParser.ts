@@ -1,6 +1,7 @@
 // Markdown Parser for converting markdown text to TipTap JSON
 import MarkdownIt from "markdown-it";
 import { modelsMetadata } from "../../../data/modelsMetadata";
+import { matesMetadata } from "../../../data/matesMetadata";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
@@ -132,17 +133,35 @@ function htmlToTiptapJson(html: string): any {
 }
 
 /**
- * Parse text containing @ai-model:model-id mentions and split into text and aiModelMention nodes.
- * Returns an array of TipTap nodes (text and aiModelMention nodes).
+ * Parse text containing all mention types:
+ * - @ai-model:{model_id} or @ai-model:{model_id}:{provider}
+ * - @mate:{mate_id}
+ * - @skill:{app_id}:{skill_id}
+ * - @focus:{app_id}:{focus_id}
+ * - @memory:{app_id}:{memory_id}:{type}
+ *
+ * This is a unified parser that handles all mention types in order of appearance.
+ * Returns an array of TipTap nodes.
  */
-function parseAIModelMentions(text: string): any[] {
+function parseMentions(text: string): any[] {
   const result: any[] = [];
-  // Match @ai-model:model-id pattern (model-id is alphanumeric with hyphens)
-  const aiModelPattern = /@ai-model:([a-zA-Z0-9_-]+)/g;
+
+  // Combined pattern to match all mention types
+  // Group 1: mention type (ai-model, mate, skill, focus, memory)
+  // Group 2+: variable parts depending on type
+  // Pattern breakdown:
+  // - @ai-model:id or @ai-model:id:provider
+  // - @mate:id
+  // - @skill:app:id
+  // - @focus:app:id
+  // - @memory:app:id:type
+  const mentionPattern =
+    /@(ai-model|mate|skill|focus|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
+
   let lastIndex = 0;
   let match;
 
-  while ((match = aiModelPattern.exec(text)) !== null) {
+  while ((match = mentionPattern.exec(text)) !== null) {
     // Add text before the mention
     if (match.index > lastIndex) {
       const textBefore = text.slice(lastIndex, match.index);
@@ -151,18 +170,98 @@ function parseAIModelMentions(text: string): any[] {
       }
     }
 
-    // Add the AI model mention node
-    const modelId = match[1];
-    const model = modelsMetadata.find((m) => m.id === modelId);
-    const displayName = model?.name || modelId; // Use human-friendly name if found, otherwise raw ID
+    const mentionType = match[1]; // "ai-model", "mate", "skill", "focus", or "memory"
+    const part1 = match[2]; // First ID part
+    const part2 = match[3]; // Second ID part (optional)
+    // part3 (match[4]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
 
-    result.push({
-      type: "aiModelMention",
-      attrs: {
-        modelId: modelId,
-        displayName: displayName,
-      },
-    });
+    // Get the full matched text for mentionSyntax
+    const fullMatch = match[0];
+
+    switch (mentionType) {
+      case "ai-model": {
+        // @ai-model:model_id or @ai-model:model_id:provider
+        const modelId = part1;
+        const model = modelsMetadata.find((m) => m.id === modelId);
+        const displayName = model?.name || modelId;
+        result.push({
+          type: "aiModelMention",
+          attrs: {
+            modelId: modelId,
+            displayName: displayName,
+          },
+        });
+        break;
+      }
+
+      case "mate": {
+        // @mate:mate_id
+        const mateId = part1;
+        const mate = matesMetadata.find((m) => m.id === mateId);
+        result.push({
+          type: "mate",
+          attrs: {
+            name: mateId,
+            displayName: mate?.search_names[0] || mateId,
+            id: crypto.randomUUID(),
+            colorStart: mate?.color_start || "#666666",
+            colorEnd: mate?.color_end || "#999999",
+          },
+        });
+        break;
+      }
+
+      case "skill": {
+        // @skill:app_id:skill_id
+        const appId = part1;
+        const skillId = part2 || "";
+        // Create a human-readable display name from the IDs
+        // Convert underscores to spaces and capitalize
+        const displayName = formatMentionDisplayName(appId, skillId);
+        result.push({
+          type: "genericMention",
+          attrs: {
+            mentionType: "skill",
+            displayName: displayName,
+            mentionSyntax: fullMatch,
+          },
+        });
+        break;
+      }
+
+      case "focus": {
+        // @focus:app_id:focus_id
+        const appId = part1;
+        const focusId = part2 || "";
+        const displayName = formatMentionDisplayName(appId, focusId);
+        result.push({
+          type: "genericMention",
+          attrs: {
+            mentionType: "focus_mode",
+            displayName: displayName,
+            mentionSyntax: fullMatch,
+          },
+        });
+        break;
+      }
+
+      case "memory": {
+        // @memory:app_id:memory_id:type
+        // Note: part3 contains the memory type (e.g., "list") but we use fullMatch for syntax
+        const appId = part1;
+        const memoryId = part2 || "";
+        const displayName = formatMentionDisplayName(appId, memoryId);
+        result.push({
+          type: "genericMention",
+          attrs: {
+            mentionType: "settings_memory",
+            displayName: displayName,
+            mentionSyntax: fullMatch,
+          },
+        });
+        break;
+      }
+    }
 
     lastIndex = match.index + match[0].length;
   }
@@ -178,6 +277,24 @@ function parseAIModelMentions(text: string): any[] {
   return result;
 }
 
+/**
+ * Format a display name from app and item IDs.
+ * Converts snake_case to Title-Case with hyphens for reliable parsing.
+ * Example: ("code", "get_docs") => "Code-Get-Docs"
+ */
+function formatMentionDisplayName(appId: string, itemId: string): string {
+  const formatPart = (str: string) =>
+    str
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join("-");
+
+  if (itemId) {
+    return `${formatPart(appId)}-${formatPart(itemId)}`;
+  }
+  return formatPart(appId);
+}
+
 function convertNodeToTiptap(node: Node): any {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -190,9 +307,16 @@ function convertNodeToTiptap(node: Node): any {
       return null;
     }
 
-    // Check for @ai-model: mentions in the text
-    if (text.includes("@ai-model:")) {
-      const parsedNodes = parseAIModelMentions(text);
+    // Check for any mention types in the text
+    // Supported: @ai-model:, @mate:, @skill:, @focus:, @memory:
+    if (
+      text.includes("@ai-model:") ||
+      text.includes("@mate:") ||
+      text.includes("@skill:") ||
+      text.includes("@focus:") ||
+      text.includes("@memory:")
+    ) {
+      const parsedNodes = parseMentions(text);
       // If only one node and it's a text node, return it directly
       if (parsedNodes.length === 1 && parsedNodes[0].type === "text") {
         return parsedNodes[0];
