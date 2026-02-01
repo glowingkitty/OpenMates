@@ -167,5 +167,48 @@ class ConfigManager:
         logger.warning(f"Model '{model_id}' not found in any provider configuration.")
         return None
 
+    def get_model_display_name(self, model_id: str, provider_id: Optional[str] = None) -> Optional[str]:
+        """
+        Gets the human-readable display name for a model ID.
+        
+        This is useful for showing friendly names like "Claude Haiku 4.5" instead of 
+        technical IDs like "claude-haiku-4-5-20251001" in the UI.
+        
+        Args:
+            model_id: The model ID to look up (without provider prefix).
+            provider_id: Optional provider ID to search within. If not provided,
+                        searches all providers.
+            
+        Returns:
+            The human-readable model name if found, None otherwise.
+        """
+        if not self._provider_configs:
+            logger.warning(f"No provider configurations loaded when looking up name for model '{model_id}'.")
+            return None
+        
+        # If provider_id is specified, search only that provider
+        if provider_id:
+            provider_config = self.get_provider_config(provider_id)
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_id:
+                        model_name = model.get("name")
+                        if model_name:
+                            logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{provider_id}'.")
+                            return model_name
+            return None
+        
+        # Search all providers
+        for pid, provider_config in self._provider_configs.items():
+            for model in provider_config.get("models", []):
+                if isinstance(model, dict) and model.get("id") == model_id:
+                    model_name = model.get("name")
+                    if model_name:
+                        logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{pid}'.")
+                        return model_name
+        
+        logger.debug(f"No display name found for model '{model_id}'.")
+        return None
+
 # Create a singleton instance for easy import across the application.
 config_manager = ConfigManager()

@@ -844,21 +844,25 @@ async def handle_preprocessing(
         if "/" in override_model_id:
             # User provided full model reference (e.g., "anthropic/claude-opus-4-5-20251101")
             selected_llm_for_main_id = override_model_id
-            # Extract model name for display
-            selected_llm_for_main_name = override_model_id.split("/")[-1]
+            # Extract model ID without provider prefix and look up human-readable name
+            raw_model_id = override_model_id.split("/")[-1]
+            provider_id = override_model_id.split("/")[0]
+            # Look up human-readable name from config (e.g., "Claude Haiku 4.5" instead of "claude-haiku-4-5-20251001")
+            selected_llm_for_main_name = config_manager.get_model_display_name(raw_model_id, provider_id) or raw_model_id
             model_override_applied = True
             model_selection_reason = f"User override: {selected_llm_for_main_id}"
             logger.info(
-                f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id}"
+                f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
             selected_llm_for_main_id = f"{override_provider}/{override_model_id}"
-            selected_llm_for_main_name = override_model_id
+            # Look up human-readable name from config
+            selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, override_provider) or override_model_id
             model_override_applied = True
             model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
             logger.info(
-                f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id}"
+                f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
         else:
             # User provided only model_id without provider prefix - try to resolve the provider
@@ -869,12 +873,13 @@ async def handle_preprocessing(
             resolved_provider = config_manager.find_provider_for_model(override_model_id)
             if resolved_provider:
                 selected_llm_for_main_id = f"{resolved_provider}/{override_model_id}"
-                selected_llm_for_main_name = override_model_id
+                # Look up human-readable name from config
+                selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, resolved_provider) or override_model_id
                 model_override_applied = True
                 model_selection_reason = f"User override (provider resolved): {selected_llm_for_main_id}"
                 logger.info(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
-                    f"Full model ID: {selected_llm_for_main_id}"
+                    f"Full model ID: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
                 )
             else:
                 # Could not resolve provider - this will fail billing preflight, but let it proceed
