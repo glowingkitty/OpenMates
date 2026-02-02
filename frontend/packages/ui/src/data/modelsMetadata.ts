@@ -18,7 +18,7 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-01-31T15:11:37.898Z
+// **Generated**: 2026-02-02T13:08:46.248Z
 // **Models included**: 16
 
 /**
@@ -43,6 +43,8 @@ export interface AIModelMetadata {
     input_types: ('text' | 'image' | 'video' | 'audio')[];
     /** Supported output types */
     output_types: ('text' | 'image')[];
+    /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
+    for_app_skill?: string;
     /** Whether this is a reasoning/thinking model */
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
@@ -70,6 +72,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "CN",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "standard",
     },
     {
@@ -82,6 +85,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "standard",
     },
     {
@@ -94,6 +98,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "premium",
     },
     {
@@ -106,6 +111,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "premium",
     },
     {
@@ -118,6 +124,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text"],
         output_types: ["image"],
+        for_app_skill: "images.generate_draft",
         tier: "economy",
     },
     {
@@ -130,6 +137,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image","video","audio"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         reasoning: true,
         tier: "standard",
     },
@@ -143,6 +151,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text"],
         output_types: ["image"],
+        for_app_skill: "images.generate",
         tier: "economy",
     },
     {
@@ -155,6 +164,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image","video","audio"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         reasoning: true,
         tier: "premium",
     },
@@ -168,6 +178,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image","video","audio"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         reasoning: true,
         tier: "standard",
     },
@@ -181,6 +192,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "FR",
         input_types: ["text"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "standard",
     },
     {
@@ -193,6 +205,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "FR",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "standard",
     },
     {
@@ -205,6 +218,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "FR",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "economy",
     },
     {
@@ -217,6 +231,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "premium",
     },
     {
@@ -229,6 +244,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "economy",
     },
     {
@@ -241,6 +257,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "US",
         input_types: ["text"],
         output_types: ["text"],
+        for_app_skill: "ai.safety_check",
         tier: "economy",
     },
     {
@@ -253,6 +270,7 @@ export const modelsMetadata: AIModelMetadata[] = [
         country_origin: "CN",
         input_types: ["text","image"],
         output_types: ["text"],
+        for_app_skill: "ai.ask",
         tier: "standard",
     },
 ];

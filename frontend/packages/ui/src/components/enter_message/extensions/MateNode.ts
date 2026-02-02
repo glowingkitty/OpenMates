@@ -106,22 +106,21 @@ export const MateNode = Node.create<MateNodeOptions>({
         const node = editor.state.doc.nodeAt(pos - 1);
 
         if (node?.type.name === "mate") {
-          const name = node.attrs.name;
           const from = pos - node.nodeSize;
           const to = pos;
 
-          // First delete any preceding space
+          // Delete any preceding space along with the mention
           const beforeNode = editor.state.doc.textBetween(
             Math.max(0, from - 1),
             from,
           );
           const extraOffset = beforeNode === " " ? 1 : 0;
 
+          // Fully delete the mention node (and preceding space)
           editor
             .chain()
             .focus()
             .deleteRange({ from: from - extraOffset, to })
-            .insertContent(`@${name}`)
             .run();
 
           return true;

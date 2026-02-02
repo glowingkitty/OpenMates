@@ -231,9 +231,9 @@
                     <!-- Icon -->
                     <div class="result-icon">
                         {#if result.type === 'model'}
-                            <!-- Provider logo -->
+                            <!-- Provider logo - icon is already a resolved URL from getProviderIconUrl() -->
                             <img 
-                                src="/{result.icon}" 
+                                src={result.icon} 
                                 alt={result.subtitle}
                                 class="provider-logo"
                             />
@@ -290,7 +290,7 @@
     .mention-dropdown {
         position: absolute;
         z-index: 1000;
-        background: var(--color-grey-0);
+        background: var(--color-grey-blue);
         border-radius: 16px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         min-width: 380px;

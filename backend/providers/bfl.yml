@@ -11,6 +11,7 @@ models:
   - id: "flux-schnell"
     name: "FLUX.1 Schnell"
     description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency."
+    for_app_skill: "images.generate_draft" # This model is for draft image generation (fast)
     input_types:
       - text
     output_types:

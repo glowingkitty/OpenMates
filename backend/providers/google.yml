@@ -11,9 +11,10 @@ models:
   - id: "gemini-3-flash-preview"
     name: "Gemini 3 Flash Preview"
     description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter)."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-3-flash-preview
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:gemini-3-flash-preview
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3-flash"
       openrouter: "google/gemini-3-flash-preview"
     reasoning: true
@@ -53,9 +54,10 @@ models:
   - id: "gemini-3-pro-preview" # Official model ID
     name: "Gemini 3 Pro Preview"
     description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities"
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-3-pro-preview
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:gemini-3-pro-preview
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3-pro"
       openrouter: "google/gemini-3-pro-preview"
     reasoning: true
@@ -78,7 +80,7 @@ models:
         name: "OpenRouter API"
         model_id: "google/gemini-3-pro-preview"
     pricing:
-      tokens: 
+      tokens:
         input:
           per_credit_unit: 170 # 1 credit per 170 input tokens (for <=200K tokens: $2.00/M)
         output:
@@ -99,9 +101,10 @@ models:
   - id: "gemini-flash-latest"
     name: "Gemini Flash Latest"
     description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Enable after manual testing via @ai-model:gemini-flash-latest
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:gemini-flash-latest
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-2.5-flash-preview"
       openrouter: "google/gemini-flash-latest"
     reasoning: true
@@ -119,7 +122,7 @@ models:
         model_id: "gemini-flash-latest" # Google Vertex AI uses the model ID as-is (points to gemini-2.5-flash-preview-09-2025)
     pricing:
       tokens:
-        input: 
+        input:
           per_credit_unit: 1100 # 1 credit per 1100 input tokens ($0.30/M)
         output:
           per_credit_unit: 130 # 1 credit per 130 output tokens ($2.50/M)
@@ -138,9 +141,10 @@ models:
   - id: "gemini-3-pro-image-preview"
     name: "Gemini 3 Pro Image Preview"
     description: "High-end native image generation from Google, optimized for quality."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Image model - not for text generation auto-selection
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "images.generate" # This model is for image generation skill
+    allow_auto_select: false # Image model - not for text generation auto-selection
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
       openrouter: "google/gemini-3-pro-image-preview"
     input_types:
       - text
@@ -163,7 +167,7 @@ models:
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
-# 
+#
 # Where:
 # - credit_value_usd = 0.001 (110 USD / 110,000 credits)
 # - markup = 3 (3x your cost)

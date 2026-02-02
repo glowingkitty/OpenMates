@@ -134,6 +134,9 @@ function parseProviderYaml(providerId, filePath) {
         country_origin: model.country_origin || "US",
         input_types: model.input_types || ["text"],
         output_types: model.output_types || ["text"],
+        // for_app_skill indicates which app skill this model is designed for
+        // e.g., "ai.ask" for text generation, "images.generate" for image generation
+        for_app_skill: model.for_app_skill || null,
         tier: tier,
       };
 
@@ -192,6 +195,13 @@ function generateTypeScript(models) {
       lines.push(
         `        output_types: ${JSON.stringify(model.output_types)},`,
       );
+
+      // Add for_app_skill if present
+      if (model.for_app_skill) {
+        lines.push(
+          `        for_app_skill: ${JSON.stringify(model.for_app_skill)},`,
+        );
+      }
 
       if (model.reasoning) {
         lines.push(`        reasoning: true,`);
@@ -255,6 +265,8 @@ export interface AIModelMetadata {
     input_types: ('text' | 'image' | 'video' | 'audio')[];
     /** Supported output types */
     output_types: ('text' | 'image')[];
+    /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
+    for_app_skill?: string;
     /** Whether this is a reasoning/thinking model */
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */

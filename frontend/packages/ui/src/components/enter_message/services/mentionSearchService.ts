@@ -2,13 +2,19 @@
 //
 // Service for searching across all mentionable items in the @ dropdown.
 // Provides unified search across AI models, mates, app skills, focus modes, and settings/memories.
+//
+// IMPORTANT: Search terms include translations for the current UI language, allowing users
+// to search for mates/categories in their own language (e.g., searching "Gerd" in German
+// will find the business_development mate whose German name is "Gerd").
 
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
+import { getProviderIconUrl } from "../../../data/providerIcons";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
+import { text } from "../../../i18n/translations";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -81,6 +87,10 @@ export interface SkillMentionResult extends MentionResult {
   appId: string;
   /** App icon gradient or image */
   appIcon: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -92,6 +102,10 @@ export interface FocusModeMentionResult extends MentionResult {
   appId: string;
   /** App icon gradient or image */
   appIcon: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -105,6 +119,10 @@ export interface SettingsMemoryMentionResult extends MentionResult {
   appIcon: string;
   /** Memory type (e.g., 'list', 'single') */
   memoryType: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -178,7 +196,8 @@ function calculateMatchScore(query: string, terms: string[]): number {
 
 /**
  * Convert AI model metadata to mention results.
- * Filters out models whose provider is unhealthy (if health data is available).
+ * Filters to only include models for the "ai.ask" skill (text generation models).
+ * Also filters out models whose provider is unhealthy (if health data is available).
  *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
@@ -188,6 +207,8 @@ function getModelMentionResults(): ModelMentionResult[] {
 
   return (
     modelsMetadata
+      // Filter to only include models for the "ai.ask" skill (excludes image generation models)
+      .filter((model) => model.for_app_skill === "ai.ask")
       // Filter by provider health (offline-first: shows all if health data unavailable)
       .filter((model) => checkProviderHealthy(model.provider_id))
       .map((model) => ({
@@ -197,7 +218,7 @@ function getModelMentionResults(): ModelMentionResult[] {
         // Hyphenated for editor display: "Claude 4.5 Opus" -> "Claude-4.5-Opus"
         mentionDisplayName: toHyphenatedName(model.name),
         subtitle: model.provider_name,
-        icon: model.logo_svg,
+        icon: getProviderIconUrl(model.logo_svg),
         // Backend syntax for processing - the actual text stored/sent
         mentionSyntax: `@ai-model:${model.id}`,
         searchTerms: buildSearchTerms(
@@ -216,37 +237,61 @@ function getModelMentionResults(): ModelMentionResult[] {
 
 /**
  * Convert mate metadata to mention results.
+ * Includes translated names and descriptions in search terms so users can search
+ * in their current UI language (e.g., "Gerd" finds business_development in German).
  */
 function getMateMentionResults(): MateMentionResult[] {
-  return matesMetadata.map((mate) => ({
-    id: mate.id,
-    type: "mate" as const,
-    displayName: mate.name_translation_key, // Will be resolved by component
-    // Use first search name (the actual name like "Sophia") for display
-    mentionDisplayName: capitalizeWords(mate.search_names[0] || mate.id),
-    subtitle: mate.description_translation_key,
-    icon: "mate-profile",
-    iconStyle: mate.profile_class,
-    mentionSyntax: `@mate:${mate.id}`,
-    searchTerms: buildSearchTerms(
+  // Get the current translation function from the text store
+  const $text = get(text);
+
+  return matesMetadata.map((mate) => {
+    // Resolve translated name and description for search indexing
+    // This allows searching by the mate's name in the current UI language
+    const translatedName = $text(mate.name_translation_key);
+    const translatedDescription = $text(mate.description_translation_key);
+
+    // Build search terms including both English keywords and translated values
+    const searchTerms = buildSearchTerms(
       mate.id,
       mate.profile_class,
-      // Include all search names (name + expertise keywords)
+      // Include all search names (English name + expertise keywords)
       ...mate.search_names,
-    ),
-    profileClass: mate.profile_class,
-    nameTranslationKey: mate.name_translation_key,
-    colorStart: mate.color_start,
-    colorEnd: mate.color_end,
-  }));
+      // Include translated name (e.g., "Gerd" for business_development in German)
+      translatedName,
+      // Include translated description for expertise searches
+      // (e.g., "Geschäftsentwicklung" for business development in German)
+      translatedDescription,
+    );
+
+    return {
+      id: mate.id,
+      type: "mate" as const,
+      displayName: mate.name_translation_key, // Will be resolved by component
+      // Use translated name for display in the mention editor
+      mentionDisplayName: capitalizeWords(
+        translatedName || mate.search_names[0] || mate.id,
+      ),
+      subtitle: mate.description_translation_key,
+      icon: "mate-profile",
+      iconStyle: mate.profile_class,
+      mentionSyntax: `@mate:${mate.id}`,
+      searchTerms,
+      profileClass: mate.profile_class,
+      nameTranslationKey: mate.name_translation_key,
+      colorStart: mate.color_start,
+      colorEnd: mate.color_end,
+    };
+  });
 }
 
 /**
  * Convert app skills to mention results.
+ * Includes translated names in search terms for localized search.
  */
 function getSkillMentionResults(): SkillMentionResult[] {
   const results: SkillMentionResult[] = [];
   const apps = appSkillsStore.apps;
+  const $text = get(text);
 
   for (const [appId, app] of Object.entries(apps)) {
     const appIcon = app.icon_image || "default-app.svg";
@@ -256,6 +301,10 @@ function getSkillMentionResults(): SkillMentionResult[] {
     for (const skill of app.skills) {
       // Hyphenated: "Code-Get-Docs" (app name + skill id with hyphens)
       const skillDisplayName = capitalizeWords(skill.id.replace(/_/g, "-"));
+
+      // Resolve translated name and description for search indexing
+      const translatedName = $text(skill.name_translation_key);
+      const translatedDescription = $text(skill.description_translation_key);
 
       results.push({
         id: `${appId}:${skill.id}`,
@@ -269,9 +318,18 @@ function getSkillMentionResults(): SkillMentionResult[] {
           ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
           : undefined,
         mentionSyntax: `@skill:${appId}:${skill.id}`,
-        searchTerms: buildSearchTerms(skill.id, appId, app.name),
+        searchTerms: buildSearchTerms(
+          skill.id,
+          appId,
+          app.name,
+          // Include translated names for localized search
+          translatedName,
+          translatedDescription,
+        ),
         appId,
         appIcon,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }
@@ -281,10 +339,12 @@ function getSkillMentionResults(): SkillMentionResult[] {
 
 /**
  * Convert focus modes to mention results.
+ * Includes translated names in search terms for localized search.
  */
 function getFocusModeMentionResults(): FocusModeMentionResult[] {
   const results: FocusModeMentionResult[] = [];
   const apps = appSkillsStore.apps;
+  const $text = get(text);
 
   for (const [appId, app] of Object.entries(apps)) {
     const appIcon = app.icon_image || "default-app.svg";
@@ -294,6 +354,12 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
     for (const focusMode of app.focus_modes) {
       // Hyphenated: "Web-Research" (app name + focus mode id with hyphens)
       const focusDisplayName = capitalizeWords(focusMode.id.replace(/_/g, "-"));
+
+      // Resolve translated name and description for search indexing
+      const translatedName = $text(focusMode.name_translation_key);
+      const translatedDescription = $text(
+        focusMode.description_translation_key,
+      );
 
       results.push({
         id: `${appId}:${focusMode.id}`,
@@ -307,9 +373,18 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
           ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
           : undefined,
         mentionSyntax: `@focus:${appId}:${focusMode.id}`,
-        searchTerms: buildSearchTerms(focusMode.id, appId, app.name),
+        searchTerms: buildSearchTerms(
+          focusMode.id,
+          appId,
+          app.name,
+          // Include translated names for localized search
+          translatedName,
+          translatedDescription,
+        ),
         appId,
         appIcon,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }
@@ -320,10 +395,12 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
 /**
  * Convert settings/memories metadata to mention results.
  * Only includes memory types that the user has entries for.
+ * Includes translated names in search terms for localized search.
  */
 function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
   const results: SettingsMemoryMentionResult[] = [];
   const apps = appSkillsStore.apps;
+  const $text = get(text);
 
   // Get user's settings/memories entries grouped by app
   const storeState = get(appSettingsMemoriesStore);
@@ -347,6 +424,10 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
       // Hyphenated: "Code-Projects" (app name + memory id with hyphens)
       const memoryDisplayName = capitalizeWords(memory.id.replace(/_/g, "-"));
 
+      // Resolve translated name and description for search indexing
+      const translatedName = $text(memory.name_translation_key);
+      const translatedDescription = $text(memory.description_translation_key);
+
       results.push({
         id: `${appId}:${memory.id}`,
         type: "settings_memory" as const,
@@ -361,10 +442,19 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
         // Include memory type in syntax so backend knows the specific type
         // Format: @memory:app_id:memory_id:memory_type
         mentionSyntax: `@memory:${appId}:${memory.id}:${memory.type}`,
-        searchTerms: buildSearchTerms(memory.id, appId, app.name),
+        searchTerms: buildSearchTerms(
+          memory.id,
+          appId,
+          app.name,
+          // Include translated names for localized search
+          translatedName,
+          translatedDescription,
+        ),
         appId,
         appIcon,
         memoryType: memory.type,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }

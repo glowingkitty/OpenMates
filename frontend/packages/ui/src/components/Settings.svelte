@@ -1752,7 +1752,7 @@ changes to the documentation (to keep the documentation up to date).
     }
     
     .language-icon-container {
-        background-color: var(--color-primary);
+        background-color: var(--color-grey-20);
         display: flex;
         align-items: center;
         justify-content: center;

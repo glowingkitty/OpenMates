@@ -24,12 +24,12 @@ complete_signup_info:
   zh: 一旦您通过购买使用额度或兑换礼品卡完成了注册流程，您就可以开始使用 OpenMates 了！
 auto_delete_warning:
   context: Email body warning for account created confirmation
-  en: 'Please note: Accounts that haven''t completed the signup process will be automatically deleted after 7 days.'
-  de: 'Bitte beachte: Konten, die den Registrierungsprozess nicht abgeschlossen haben, werden nach 7 Tagen automatisch gelöscht.'
-  es: 'Ten en cuenta: Las cuentas que no hayan completado el process de registro se eliminarán automáticamente después de 7 días.'
-  fr: 'Remarque : les comptes qui n''ont pas terminé le processus d''inscription seront automatiquement supprimés après 7 jours.'
-  ja: '注意：サインアップが完了していないアカウントは、7日後に自動的に削除されます。'
-  zh: '请注意：未完成注册流程的账户将在 7 天后自动删除。'
+  en: "Please note: Accounts that haven't completed the signup process will be automatically deleted after 7 days."
+  de: "Bitte beachte: Konten, die den Registrierungsprozess nicht abgeschlossen haben, werden nach 7 Tagen automatisch gelöscht."
+  es: "Ten en cuenta: Las cuentas que no hayan completado el process de registro se eliminarán automáticamente después de 7 días."
+  fr: "Remarque : les comptes qui n'ont pas terminé le processus d'inscription seront automatiquement supprimés après 7 jours."
+  ja: "注意：サインアップが完了していないアカウントは、7日後に自動的に削除されます。"
+  zh: "请注意：未完成注册流程的账户将在 7 天后自动删除。"
 want_to_delete_account:
   context: Email body link text for account deletion
   en: Want to delete your account?
@@ -53,192 +53,192 @@ confirm_your_email_address:
   zh: 确认您的电子邮件地址
   es: Confirma tu dirección de correo electrónico
   fr: Confirmez votre adresse e-mail
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: メールアドレスを確認
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Bekräfta din e-postadress'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Bekräfta din e-postadress"
   verified_by_human: []
 this_is_your_email_code:
   context: Email subject & header for email address confirmation
-  en: '{code} is your E-mail address confirmation code'
-  de: '{code} ist dein E-Mail-Bestätigungscode'
-  zh: '{code} 是您的电子邮件地址确认码'
-  es: '{code} es tu código de confirmación de dirección de correo electrónico'
+  en: "{code} is your E-mail address confirmation code"
+  de: "{code} ist dein E-Mail-Bestätigungscode"
+  zh: "{code} 是您的电子邮件地址确认码"
+  es: "{code} es tu código de confirmación de dirección de correo electrónico"
   fr: "{code} est votre code de confirmation d'adresse e-mail"
-  pt: ''
-  ru: ''
-  ja: '{code} はあなたのメールアドレス確認コードです'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: '{code} är din bekräftelsekod för e-postadressen'
+  pt: ""
+  ru: ""
+  ja: "{code} はあなたのメールアドレス確認コードです"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "{code} är din bekräftelsekod för e-postadressen"
   verified_by_human: []
 to_chat_to_your_mates:
   context: subheader in email
-  en: 'To chat to your
+  en: "To chat to your
 
     <mark>digital team mates</mark>
 
-    '
-  de: 'Um mit deinen
+    "
+  de: "Um mit deinen
 
     <mark>digitalen Kollegen</mark> zu chatten
 
-    '
-  zh: '与您的
+    "
+  zh: "与您的
 
     <mark>数字团队伙伴</mark>聊天
 
-    '
-  es: 'Para chatear con tus
+    "
+  es: "Para chatear con tus
 
     <mark>compañeros digitales</mark>
 
-    '
-  fr: 'Pour discuter avec vos
+    "
+  fr: "Pour discuter avec vos
 
     <mark>collègues numériques</mark>
 
-    '
-  pt: ''
-  ru: ''
-  ja: '<mark>デジタルチームメイト</mark>と
+    "
+  pt: ""
+  ru: ""
+  ja: "<mark>デジタルチームメイト</mark>と
 
     チャットするには
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'För att chatta med dina
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "För att chatta med dina
 
     <mark>digitala teammedlemmar</mark>
 
-    '
+    "
   verified_by_human: []
 enter_this_code:
   context: Instruction above the code in email
-  en: 'Enter this one time code:'
-  de: 'Gib diesen Einmalcode ein:'
+  en: "Enter this one time code:"
+  de: "Gib diesen Einmalcode ein:"
   zh: 输入此一次性验证码：
-  es: 'Ingresa este código de un solo uso:'
-  fr: 'Saisissez ce code unique :'
-  pt: ''
-  ru: ''
-  ja: 'このワンタイムコードを入力してください:'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Ange denna engångskod:'
+  es: "Ingresa este código de un solo uso:"
+  fr: "Saisissez ce code unique :"
+  pt: ""
+  ru: ""
+  ja: "このワンタイムコードを入力してください:"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Ange denna engångskod:"
   verified_by_human: []
 on_openmates:
-  context: 'Instruction under the code in email. As in message: ''Enter this one time code: 123456 on openmates.org'''
+  context: "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
   en: on <a href='https://openmates.org'>openmates.org</a>
   de: auf <a href='https://openmates.org'>openmates.org</a>
   zh: 在 <a href='https://openmates.org'>openmates.org</a>
   es: en <a href='https://openmates.org'>openmates.org</a>
   fr: sur <a href='https://openmates.org'>openmates.org</a>
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: <a href='https://openmates.org'>openmates.org</a>で
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
   sv: på <a href='https://openmates.org'>openmates.org</a>
   verified_by_human: []
 did_not_request_email:
   context: Message at the end of the email
-  en: 'You did not request this email?
+  en: "You did not request this email?
 
-    Then <a href=''{block_list_url}''>click here</a> to block future emails.
+    Then <a href='{block_list_url}'>click here</a> to block future emails.
 
-    '
-  de: 'Du hast diese E-Mail nicht angefordert?
+    "
+  de: "Du hast diese E-Mail nicht angefordert?
 
-    Dann <a href=''{block_list_url}''>klicke hier</a>, um zukünftige E-Mails zu blockieren.
+    Dann <a href='{block_list_url}'>klicke hier</a>, um zukünftige E-Mails zu blockieren.
 
-    '
-  zh: '您没有请求此电子邮件？
+    "
+  zh: "您没有请求此电子邮件？
 
-    请<a href=''{block_list_url}''>点击此处</a>阻止未来的电子邮件。
+    请<a href='{block_list_url}'>点击此处</a>阻止未来的电子邮件。
 
-    '
-  es: '¿No solicitaste este correo electrónico?
+    "
+  es: "¿No solicitaste este correo electrónico?
 
-    Entonces <a href=''{block_list_url}''>haz clic aquí</a> para bloquear correos futuros.
+    Entonces <a href='{block_list_url}'>haz clic aquí</a> para bloquear correos futuros.
 
-    '
-  fr: 'Vous n''avez pas demandé cet e-mail ?
+    "
+  fr: "Vous n'avez pas demandé cet e-mail ?
 
-    Alors <a href=''{block_list_url}''>cliquez ici</a> pour bloquer les e-mails futurs.
+    Alors <a href='{block_list_url}'>cliquez ici</a> pour bloquer les e-mails futurs.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'このメールをリクエストしていませんか？
+    "
+  pt: ""
+  ru: ""
+  ja: "このメールをリクエストしていませんか？
 
-    今後のメールをブロックするには<a href=''{block_list_url}''>ここをクリック</a>してください。
+    今後のメールをブロックするには<a href='{block_list_url}'>ここをクリック</a>してください。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Begärde du inte detta e-postmeddelande?
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Begärde du inte detta e-postmeddelande?
 
-    Då kan du <a href=''{block_list_url}''>klicka här</a> för att blockera framtida e-postmeddelanden.
+    Då kan du <a href='{block_list_url}'>klicka här</a> för att blockera framtida e-postmeddelanden.
 
-    '
+    "
   verified_by_human: []
 this_email_was_sent_by:
   context: text in the footer of the email
@@ -247,44 +247,44 @@ this_email_was_sent_by:
   zh: 此电子邮件由 OpenMates 发送。
   es: Este correo fue enviado por OpenMates.
   fr: Cet e-mail a été envoyé par OpenMates.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: このメールはOpenMatesから送信されました。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Detta e-postmeddelande skickades av OpenMates.'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Detta e-postmeddelande skickades av OpenMates."
   verified_by_human: []
 this_email_was_sent_by_self_hosted:
   context: text in the footer of the email for self-hosted versions
-  en: 'This email was sent by a self hosted version of OpenMates. Which is independently run &amp; maintained. Check OpenMates.org for the official cloud edition.'
-  de: 'Diese E-Mail wurde von einer selbst gehosteten Version von OpenMates gesendet. Diese wird unabhängig betrieben &amp; gewartet. Besuche OpenMates.org für die offizielle Cloud-Version.'
-  zh: '此电子邮件由 OpenMates 的自托管版本发送。该版本独立运行和维护。访问 OpenMates.org 获取官方云版本。'
-  es: 'Este correo fue enviado por una versión auto alojada de OpenMates. Que es ejecutada y mantenida de forma independiente. Consulta OpenMates.org para la edición oficial en la nube.'
+  en: "This email was sent by a self hosted version of OpenMates. Which is independently run &amp; maintained. Check OpenMates.org for the official cloud edition."
+  de: "Diese E-Mail wurde von einer selbst gehosteten Version von OpenMates gesendet. Diese wird unabhängig betrieben &amp; gewartet. Besuche OpenMates.org für die offizielle Cloud-Version."
+  zh: "此电子邮件由 OpenMates 的自托管版本发送。该版本独立运行和维护。访问 OpenMates.org 获取官方云版本。"
+  es: "Este correo fue enviado por una versión auto alojada de OpenMates. Que es ejecutada y mantenida de forma independiente. Consulta OpenMates.org para la edición oficial en la nube."
   fr: "Cet e-mail a été envoyé par une version auto-hébergée de OpenMates. Qui est gérée et maintenue de manière indépendante. Consultez OpenMates.org pour l'édition cloud officielle."
-  pt: ''
-  ru: ''
-  ja: 'このメールは、OpenMatesのセルフホスト版から送信されました。これは独立して運営・保守されています。公式クラウド版についてはOpenMates.orgをご確認ください。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Detta e-postmeddelande skickades av en självhostad version av OpenMates. Som körs och underhålls oberoende. Kolla OpenMates.org för den officiella molneditionen.'
+  pt: ""
+  ru: ""
+  ja: "このメールは、OpenMatesのセルフホスト版から送信されました。これは独立して運営・保守されています。公式クラウド版についてはOpenMates.orgをご確認ください。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Detta e-postmeddelande skickades av en självhostad version av OpenMates. Som körs och underhålls oberoende. Kolla OpenMates.org för den officiella molneditionen."
   verified_by_human: []
 legal:
   context: Legal section header
@@ -293,21 +293,21 @@ legal:
   zh: 法律声明
   es: Legal
   fr: Juridique
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 法的情報
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Juridiskt'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Juridiskt"
   verified_by_human: []
 imprint:
   context: Imprint legal link
@@ -316,21 +316,21 @@ imprint:
   zh: 版本说明
   es: Aviso legal
   fr: Mentions légales
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: インプリント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Impressum'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Impressum"
   verified_by_human: []
 privacy:
   context: Privacy policy link
@@ -339,21 +339,21 @@ privacy:
   zh: 隐私政策
   es: Privacidad
   fr: Confidentialité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: プライバシー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Integritet'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Integritet"
   verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
@@ -362,21 +362,21 @@ terms_and_conditions:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 利用規約
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Användarvillkor'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Användarvillkor"
   verified_by_human: []
 contact:
   context: Contact section header
@@ -385,21 +385,21 @@ contact:
   zh: 联系方式
   es: Contacto
   fr: Contact
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: お問い合わせ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: 'Kontakt'
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: "Kontakt"
   verified_by_human: []
 discord:
   context: Discord contact link
@@ -408,159 +408,414 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: Discord
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
-instagram:
-  context: Instagram link in email footer
-  en: Instagram
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+# Test failure notification email translations
+test_failure_notification.title:
+  context: Email subject for test failure notification
+  en: "E2E Test Alert: {test_name} - {status}"
+  de: "E2E-Test-Warnung: {test_name} - {status}"
+  zh: "E2E测试警报：{test_name} - {status}"
+  es: "Alerta de prueba E2E: {test_name} - {status}"
+  fr: "Alerte test E2E : {test_name} - {status}"
+  pt: "Alerta de teste E2E: {test_name} - {status}"
+  ru: "Уведомление E2E теста: {test_name} - {status}"
+  ja: "E2Eテストアラート: {test_name} - {status}"
+  ko: "E2E 테스트 알림: {test_name} - {status}"
+  it: "Avviso test E2E: {test_name} - {status}"
+  tr: "E2E Test Uyarısı: {test_name} - {status}"
+  vi: "Cảnh báo kiểm tra E2E: {test_name} - {status}"
+  id: "Peringatan Tes E2E: {test_name} - {status}"
+  pl: "Alarm testu E2E: {test_name} - {status}"
+  nl: "E2E-testwaarschuwing: {test_name} - {status}"
+  ar: "تنبيه اختبار E2E: {test_name} - {status}"
+  hi: "E2E परीक्षण अलर्ट: {test_name} - {status}"
+  th: "การแจ้งเตือนการทดสอบ E2E: {test_name} - {status}"
+  cs: "Upozornění E2E testu: {test_name} - {status}"
+  sv: "E2E-testvarning: {test_name} - {status}"
   verified_by_human: []
+test_failure_notification.header:
+  context: Header text in test failure notification email body
+  en: E2E Test Failure Alert
+  de: E2E-Test-Fehlerwarnung
+  zh: E2E测试失败警报
+  es: Alerta de fallo de prueba E2E
+  fr: Alerte d'échec de test E2E
+  pt: Alerta de falha de teste E2E
+  ru: Уведомление о сбое E2E теста
+  ja: E2Eテスト失敗アラート
+  ko: E2E 테스트 실패 알림
+  it: Avviso di fallimento test E2E
+  tr: E2E Test Başarısızlık Uyarısı
+  vi: Cảnh báo kiểm tra E2E thất bại
+  id: Peringatan Kegagalan Tes E2E
+  pl: Alarm niepowodzenia testu E2E
+  nl: E2E-testfoutwaarschuwing
+  ar: تنبيه فشل اختبار E2E
+  hi: E2E परीक्षण विफलता अलर्ट
+  th: การแจ้งเตือนการทดสอบ E2E ล้มเหลว
+  cs: Upozornění na selhání E2E testu
+  sv: E2E-testfelsvarning
+  verified_by_human: []
+test_failure_notification.environment_label:
+  context: Label for environment in test failure notification email
+  en: Environment
+  de: Umgebung
+  zh: 环境
+  es: Entorno
+  fr: Environnement
+  pt: Ambiente
+  ru: Окружение
+  ja: 環境
+  ko: 환경
+  it: Ambiente
+  tr: Ortam
+  vi: Môi trường
+  id: Lingkungan
+  pl: Środowisko
+  nl: Omgeving
+  ar: البيئة
+  hi: वातावरण
+  th: สภาพแวดล้อม
+  cs: Prostředí
+  sv: Miljö
+  verified_by_human: []
+test_failure_notification.test_file_label:
+  context: Label for test file in test failure notification email
+  en: Test File
+  de: Testdatei
+  zh: 测试文件
+  es: Archivo de prueba
+  fr: Fichier de test
+  pt: Arquivo de teste
+  ru: Тестовый файл
+  ja: テストファイル
+  ko: 테스트 파일
+  it: File di test
+  tr: Test dosyası
+  vi: Tệp kiểm tra
+  id: File tes
+  pl: Plik testowy
+  nl: Testbestand
+  ar: ملف الاختبار
+  hi: परीक्षण फ़ाइल
+  th: ไฟล์ทดสอบ
+  cs: Testovací soubor
+  sv: Testfil
+  verified_by_human: []
+test_failure_notification.test_name_label:
+  context: Label for test name in test failure notification email
+  en: Test Name
+  de: Testname
+  zh: 测试名称
+  es: Nombre de la prueba
+  fr: Nom du test
+  pt: Nome do teste
+  ru: Название теста
+  ja: テスト名
+  ko: 테스트 이름
+  it: Nome del test
+  tr: Test adı
+  vi: Tên kiểm tra
+  id: Nama tes
+  pl: Nazwa testu
+  nl: Testnaam
+  ar: اسم الاختبار
+  hi: परीक्षण का नाम
+  th: ชื่อการทดสอบ
+  cs: Název testu
+  sv: Testnamn
+  verified_by_human: []
+test_failure_notification.status_label:
+  context: Label for test status in test failure notification email
+  en: Status
+  de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Status
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  verified_by_human: []
+test_failure_notification.timestamp_label:
+  context: Label for timestamp in test failure notification email
+  en: Timestamp
+  de: Zeitstempel
+  zh: 时间戳
+  es: Marca de tiempo
+  fr: Horodatage
+  pt: Carimbo de data/hora
+  ru: Временная метка
+  ja: タイムスタンプ
+  ko: 타임스탬프
+  it: Timestamp
+  tr: Zaman damgası
+  vi: Dấu thời gian
+  id: Stempel waktu
+  pl: Znacznik czasu
+  nl: Tijdstempel
+  ar: الطابع الزمني
+  hi: समय स्टैम्प
+  th: ตราเวลา
+  cs: Časová značka
+  sv: Tidsstämpel
+  verified_by_human: []
+test_failure_notification.duration_label:
+  context: Label for test duration in test failure notification email
+  en: Duration
+  de: Dauer
+  zh: 持续时间
+  es: Duración
+  fr: Durée
+  pt: Duração
+  ru: Продолжительность
+  ja: 所要時間
+  ko: 소요 시간
+  it: Durata
+  tr: Süre
+  vi: Thời gian
+  id: Durasi
+  pl: Czas trwania
+  nl: Duur
+  ar: المدة
+  hi: अवधि
+  th: ระยะเวลา
+  cs: Délka
+  sv: Längd
+  verified_by_human: []
+test_failure_notification.error_label:
+  context: Label for error message in test failure notification email
+  en: Error Message
+  de: Fehlermeldung
+  zh: 错误消息
+  es: Mensaje de error
+  fr: Message d'erreur
+  pt: Mensagem de erro
+  ru: Сообщение об ошибке
+  ja: エラーメッセージ
+  ko: 오류 메시지
+  it: Messaggio di errore
+  tr: Hata mesajı
+  vi: Thông báo lỗi
+  id: Pesan kesalahan
+  pl: Komunikat błędu
+  nl: Foutmelding
+  ar: رسالة الخطأ
+  hi: त्रुटि संदेश
+  th: ข้อความแสดงข้อผิดพลาด
+  cs: Chybová zpráva
+  sv: Felmeddelande
+  verified_by_human: []
+test_failure_notification.console_logs_label:
+  context: Label for console logs in test failure notification email
+  en: Console Logs (Last 20)
+  de: Konsolenprotokolle (Letzte 20)
+  zh: 控制台日志（最后20条）
+  es: Registros de consola (Últimos 20)
+  fr: Journaux de console (20 derniers)
+  pt: Logs do console (Últimos 20)
+  ru: Логи консоли (Последние 20)
+  ja: コンソールログ（最新20件）
+  ko: 콘솔 로그 (최근 20개)
+  it: Log della console (Ultimi 20)
+  tr: Konsol günlükleri (Son 20)
+  vi: Nhật ký bảng điều khiển (20 mục cuối)
+  id: Log konsol (20 terakhir)
+  pl: Logi konsoli (Ostatnie 20)
+  nl: Consolelogboeken (Laatste 20)
+  ar: سجلات وحدة التحكم (آخر 20)
+  hi: कंसोल लॉग (अंतिम 20)
+  th: บันทึกคอนโซล (20 รายการล่าสุด)
+  cs: Protokoly konzole (Posledních 20)
+  sv: Konsolloggar (Senaste 20)
+  verified_by_human: []
+test_failure_notification.network_activities_label:
+  context: Label for network activities in test failure notification email
+  en: Network Activities (Last 20)
+  de: Netzwerkaktivitäten (Letzte 20)
+  zh: 网络活动（最后20条）
+  es: Actividades de red (Últimas 20)
+  fr: Activités réseau (20 dernières)
+  pt: Atividades de rede (Últimas 20)
+  ru: Сетевая активность (Последние 20)
+  ja: ネットワークアクティビティ（最新20件）
+  ko: 네트워크 활동 (최근 20개)
+  it: Attività di rete (Ultime 20)
+  tr: Ağ etkinlikleri (Son 20)
+  vi: Hoạt động mạng (20 mục cuối)
+  id: Aktivitas jaringan (20 terakhir)
+  pl: Aktywność sieciowa (Ostatnie 20)
+  nl: Netwerkactiviteiten (Laatste 20)
+  ar: أنشطة الشبكة (آخر 20)
+  hi: नेटवर्क गतिविधियां (अंतिम 20)
+  th: กิจกรรมเครือข่าย (20 รายการล่าสุด)
+  cs: Síťové aktivity (Posledních 20)
+  sv: Nätverksaktiviteter (Senaste 20)
+  verified_by_human: []
+test_failure_notification.footer_note:
+  context: Footer note in test failure notification email
+  en: This notification was sent by the automated E2E test monitoring system.
+  de: Diese Benachrichtigung wurde vom automatisierten E2E-Testüberwachungssystem gesendet.
+  zh: 此通知由自动E2E测试监控系统发送。
+  es: Esta notificación fue enviada por el sistema automatizado de monitoreo de pruebas E2E.
+  fr: Cette notification a été envoyée par le système de surveillance automatisé des tests E2E.
+  pt: Esta notificação foi enviada pelo sistema automatizado de monitoramento de testes E2E.
+  ru: Это уведомление было отправлено автоматизированной системой мониторинга E2E тестов.
+  ja: この通知は自動E2Eテスト監視システムから送信されました。
+  ko: 이 알림은 자동화된 E2E 테스트 모니터링 시스템에서 전송되었습니다.
+  it: Questa notifica è stata inviata dal sistema automatizzato di monitoraggio dei test E2E.
+  tr: Bu bildirim otomatik E2E test izleme sistemi tarafından gönderildi.
+  vi: Thông báo này được gửi bởi hệ thống giám sát kiểm tra E2E tự động.
+  id: Pemberitahuan ini dikirim oleh sistem pemantauan tes E2E otomatis.
+  pl: To powiadomienie zostało wysłane przez zautomatyzowany system monitorowania testów E2E.
+  nl: Deze melding is verzonden door het geautomatiseerde E2E-testmonitoringsysteem.
+  ar: تم إرسال هذا الإشعار بواسطة نظام مراقبة اختبار E2E الآلي.
+  hi: यह अधिसूचना स्वचालित E2E परीक्षण निगरानी प्रणाली द्वारा भेजी गई थी।
+  th: การแจ้งเตือนนี้ถูกส่งโดยระบบตรวจสอบการทดสอบ E2E อัตโนมัติ
+  cs: Toto oznámení bylo zasláno automatizovaným systémem monitorování E2E testů.
+  sv: Detta meddelande skickades av det automatiserade E2E-testövervakningssystemet.
+  verified_by_human: []
+
 github:
   context: GitHub link in email footer
   en: GitHub
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
   en: Mastodon
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 pixelfed:
   context: Pixelfed contact link
   en: Pixelfed
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 element:
   context: Element contact link
   en: Element X
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 meetup:
   context: Meetup contact link
   en: Meetup
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email:
   context: Email contact link
@@ -569,21 +824,21 @@ email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: メール
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 made_in_eu:
   context: Footer text indicating EU origin
@@ -592,21 +847,21 @@ made_in_eu:
   zh: 在欧盟制造
   es: Hecho en la UE
   fr: Fabriqué dans l'UE
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: EUで開発
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 legal_update:
   context: Email subject & header for legal update
@@ -615,68 +870,68 @@ legal_update:
   zh: 法律更新
   es: Actualización legal
   fr: Mise à jour juridique
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 法的アップデート
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 we_made_some_changes_privacy_policy:
   context: Email header for privacy policy update
-  en: 'We made some changes to our
+  en: "We made some changes to our
 
     <mark>privacy policy</mark>
 
-    '
-  de: 'Wir haben Änderungen an unserer
+    "
+  de: "Wir haben Änderungen an unserer
 
     <mark>Datenschutzerklärung</mark> vorgenommen
 
-    '
-  zh: '我们对
+    "
+  zh: "我们对
 
     <mark>隐私政策</mark>进行了一些更改
 
-    '
-  es: 'Hemos realizado cambios en nuestra
+    "
+  es: "Hemos realizado cambios en nuestra
 
     <mark>política de privacidad</mark>
 
-    '
-  fr: 'Nous avons apporté des modifications à notre
+    "
+  fr: "Nous avons apporté des modifications à notre
 
     <mark>politique de confidentialité</mark>
 
-    '
-  pt: ''
-  ru: ''
-  ja: '<mark>プライバシーポリシー</mark>に
+    "
+  pt: ""
+  ru: ""
+  ja: "<mark>プライバシーポリシー</mark>に
 
     変更を加えました
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 you_can_see_the_new_privacy_policy:
   context: Email body for privacy policy update
@@ -685,21 +940,21 @@ you_can_see_the_new_privacy_policy:
   zh: 您可以在 <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> 查看新的隐私政策
   es: Puedes ver la nueva política de privacidad en <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
   fr: Vous pouvez consulter la nouvelle politique de confidentialité sur <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 新しいプライバシーポリシーは<a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>でご確認いただけます
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 purchase_confirmation:
   context: Email subject & header for purchase confirmation
@@ -708,21 +963,21 @@ purchase_confirmation:
   zh: 购买确认
   es: Confirmación de compra
   fr: Confirmation d'achat
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 購入確認
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 support_contribution_confirmation:
   context: Email subject & header for support contribution confirmation
@@ -731,21 +986,21 @@ support_contribution_confirmation:
   zh: 感谢您支持 OpenMates（收据 {receipt_id}）
   es: Gracias por apoyar a OpenMates (Recibo {receipt_id})
   fr: Merci de soutenir OpenMates (Reçu {receipt_id})
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: OpenMates へのご支援ありがとうございます（領収書 {receipt_id}）
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 thanks_for_purchase:
   context: email subheader for purchase confirmation
@@ -754,21 +1009,21 @@ thanks_for_purchase:
   zh: 感谢您的购买！
   es: ¡Gracias por tu compra!
   fr: Merci pour votre achat !
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ご購入ありがとうございます！
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 thanks_for_support:
   context: email subheader for support contribution confirmation
@@ -777,67 +1032,67 @@ thanks_for_support:
   zh: 感谢您支持 OpenMates。
   es: Gracias por apoyar a OpenMates.
   fr: Merci de soutenir OpenMates.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: OpenMates を支援していただきありがとうございます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 support_amount_line:
   context: email line showing paid support amount
-  en: 'Support amount: {support_amount}'
-  de: 'Unterstützungsbetrag: {support_amount}'
-  zh: '支持金额：{support_amount}'
-  es: 'Importe de apoyo: {support_amount}'
-  fr: 'Montant du soutien : {support_amount}'
-  pt: ''
-  ru: ''
-  ja: '支援金額：{support_amount}'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "Support amount: {support_amount}"
+  de: "Unterstützungsbetrag: {support_amount}"
+  zh: "支持金额：{support_amount}"
+  es: "Importe de apoyo: {support_amount}"
+  fr: "Montant du soutien : {support_amount}"
+  pt: ""
+  ru: ""
+  ja: "支援金額：{support_amount}"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 receipt_id_line:
   context: email line showing receipt id
-  en: 'Receipt ID: {receipt_id}'
-  de: 'Beleg-ID: {receipt_id}'
-  zh: '收据编号：{receipt_id}'
-  es: 'ID de recibo: {receipt_id}'
-  fr: 'ID du reçu : {receipt_id}'
-  pt: ''
-  ru: ''
-  ja: '領収書ID：{receipt_id}'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "Receipt ID: {receipt_id}"
+  de: "Beleg-ID: {receipt_id}"
+  zh: "收据编号：{receipt_id}"
+  es: "ID de recibo: {receipt_id}"
+  fr: "ID du reçu : {receipt_id}"
+  pt: ""
+  ru: ""
+  ja: "領収書ID：{receipt_id}"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 receipt_pdf_attached:
   context: email body informing that receipt PDF is attached
@@ -846,21 +1101,21 @@ receipt_pdf_attached:
   zh: 您的收据 PDF 已附在此电子邮件中。
   es: Tu recibo en PDF está adjunto a este correo electrónico.
   fr: Votre reçu PDF est joint à cet e-mail.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 領収書PDFはこのメールに添付されています。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 invoice_pdf_attached:
   context: Email body for purchase confirmation
@@ -869,44 +1124,44 @@ invoice_pdf_attached:
   zh: 发票 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
   es: Puedes encontrar el PDF de la factura adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
   fr: Vous trouverez la facture PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 請求書のPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 click_here_for_refund:
   context: Refund instructions text in email body
-  en: 'Want a refund? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Click here</a> to request a refund for unused credits within 14 days after purchase.'
-  de: 'Möchtest du eine Rückerstattung? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Klicke hier</a>, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.'
-  zh: '想要退款？<a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>点击这里</a>在购买后14天内申请未使用点数的退款。'
-  es: '¿Quieres un reembolso? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Haz clic aquí</a> para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra.'
-  fr: 'Vous souhaitez un remboursement ? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Cliquez ici</a> pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat.'
-  pt: ''
-  ru: ''
-  ja: '返金をご希望ですか？<a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>ここをクリック</a>購入後14日以内の未使用クレジットの返金をリクエストするには。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "Want a refund? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Click here</a> to request a refund for unused credits within 14 days after purchase."
+  de: "Möchtest du eine Rückerstattung? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Klicke hier</a>, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern."
+  zh: "想要退款？<a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>点击这里</a>在购买后14天内申请未使用点数的退款。"
+  es: "¿Quieres un reembolso? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Haz clic aquí</a> para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra."
+  fr: "Vous souhaitez un remboursement ? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Cliquez ici</a> pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l'achat."
+  pt: ""
+  ru: ""
+  ja: "返金をご希望ですか？<a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>ここをクリック</a>購入後14日以内の未使用クレジットの返金をリクエストするには。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refund_confirmation:
   context: Email subject & header for refund confirmation
@@ -915,21 +1170,21 @@ refund_confirmation:
   zh: 退款确认（贷记单 {credit_note_id}）
   es: Confirmación de reembolso (Nota de crédito {credit_note_id})
   fr: Confirmation de remboursement (Note de crédit {credit_note_id})
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 返金確認（クレジットノート {credit_note_id}）
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refund_processed:
   context: Email subheader for refund confirmation
@@ -938,21 +1193,21 @@ refund_processed:
   zh: 您的退款已成功处理！
   es: ¡Tu reembolso ha sido procesado exitosamente!
   fr: Votre remboursement a été traité avec succès !
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 返金が正常に処理されました！
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credit_note_pdf_attached:
   context: Email body for refund confirmation
@@ -961,21 +1216,21 @@ credit_note_pdf_attached:
   zh: 贷记单 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
   es: Puedes encontrar el PDF de la nota de crédito adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
   fr: Vous trouverez la note de crédit PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: クレジットノートのPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refund_amount:
   context: Refund amount label in email
@@ -984,21 +1239,21 @@ refund_amount:
   zh: 退款金额
   es: Monto del reembolso
   fr: Montant du remboursement
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 返金額
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refund_processing_time:
   context: Information about refund processing time
@@ -1007,251 +1262,251 @@ refund_processing_time:
   zh: 退款将在5-10个工作日内退回到您的原始付款方式。
   es: El reembolso se acreditará a tu método de pago original en un plazo de 5 a 10 días hábiles.
   fr: Le remboursement sera crédité sur votre méthode de paiement d'origine dans un délai de 5 à 10 jours ouvrables.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 返金は5〜10営業日以内に元の支払い方法に返金されます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 withdrawal_waiver_notice:
   context: Legal notice about withdrawal waiver in purchase confirmation email
-  en: 'You have expressly requested that we begin providing the digital service before the withdrawal period ends. You acknowledge that your right of withdrawal expires once you start using the service. Purchased gift cards are excluded and cannot be refunded once they have been used.'
-  de: 'Sie haben ausdrücklich verlangt, dass wir mit der Bereitstellung des digitalen Dienstes beginnen, bevor die Widerrufsfrist endet. Sie erkennen an, dass Ihr Widerrufsrecht erlischt, sobald Sie mit der Nutzung des Dienstes beginnen. Gekaufte Geschenkkarten sind ausgeschlossen und können nach Verwendung nicht erstattet werden.'
-  zh: '您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。'
-  es: 'Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas.'
-  fr: 'Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées.'
-  pt: ''
-  ru: ''
-  ja: 'お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "You have expressly requested that we begin providing the digital service before the withdrawal period ends. You acknowledge that your right of withdrawal expires once you start using the service. Purchased gift cards are excluded and cannot be refunded once they have been used."
+  de: "Sie haben ausdrücklich verlangt, dass wir mit der Bereitstellung des digitalen Dienstes beginnen, bevor die Widerrufsfrist endet. Sie erkennen an, dass Ihr Widerrufsrecht erlischt, sobald Sie mit der Nutzung des Dienstes beginnen. Gekaufte Geschenkkarten sind ausgeschlossen und können nach Verwendung nicht erstattet werden."
+  zh: "您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。"
+  es: "Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas."
+  fr: "Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées."
+  pt: ""
+  ru: ""
+  ja: "お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 signup_milestone:
   context: Email subject & header for signup milestone notification
   en: User Signup Milestone Reached
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 milestone_reached:
   context: Congratulatory message for signup milestone
   en: A user signup milestone has been reached!
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 milestone_count:
   context: Label for displaying the total user count in milestone email
   en: Total Users
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 milestone_message:
   context: Message about platform growth in milestone email
   en: Your platform is growing! This milestone indicates increasing user adoption.
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 milestone_date:
   context: Label for the date when milestone was reached
   en: Date Reached
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter_milestone:
   context: Email subject & header for newsletter milestone notification
   en: Newsletter Milestone Reached
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter_milestone_reached:
   context: Congratulatory message for newsletter milestone
   en: A newsletter subscription milestone has been reached!
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter_subscriber_count:
   context: Label for displaying the total newsletter subscriber count in milestone email
   en: Total Newsletter Subscribers
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter_milestone_message:
   context: Message about newsletter growth in milestone email
   en: Your newsletter is growing! This milestone indicates increasing subscriber engagement and reach.
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert:
   context: Email pre-header for security alert
@@ -1260,21 +1515,21 @@ security_alert:
   zh: 安全警报
   es: Alerta de seguridad
   fr: Alerte de sécurité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: セキュリティアラート
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 login_from_new_device:
   context: Email header for login from new device
@@ -1283,103 +1538,103 @@ login_from_new_device:
   zh: 从新设备登录
   es: Inicio de sesión desde un nuevo dispositivo
   fr: Connexion depuis un nouvel appareil
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 新しいデバイスからのログイン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_login_from_new_device:
   context: Email subject for login from new device
-  en: 'Security Alert: Login from a new device'
-  de: 'Sicherheitswarnung: Anmeldung von einem neuen Gerät'
+  en: "Security Alert: Login from a new device"
+  de: "Sicherheitswarnung: Anmeldung von einem neuen Gerät"
   zh: 安全警报：从新设备登录
-  es: 'Alerta de seguridad: Inicio de sesión desde un nuevo dispositivo'
-  fr: 'Alerte de sécurité : Connexion depuis un nouvel appareil'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: 新しいデバイスからのログイン'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Inicio de sesión desde un nuevo dispositivo"
+  fr: "Alerte de sécurité : Connexion depuis un nouvel appareil"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: 新しいデバイスからのログイン"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 device_details:
   context: Device details in email body
-  en: 'On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),
+  en: "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),
 
     from a {device_type}
 
     with {operating_system}:
 
-    '
-  de: 'Am {DD}.{MM}.{YYYY} um {time} ({timezone_name}),
+    "
+  de: "Am {DD}.{MM}.{YYYY} um {time} ({timezone_name}),
 
     von einem {device_type}
 
     mit {operating_system}:
 
-    '
-  zh: '在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，
+    "
+  zh: "在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，
 
     来自一个 {device_type}
 
     使用 {operating_system}：
 
-    '
-  es: 'En {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),
+    "
+  es: "En {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),
 
     desde un {device_type}
 
     con {operating_system}:
 
-    '
-  fr: 'Sur {YYYY}/{MM}/{DD} à {time} ({timezone_name}),
+    "
+  fr: "Sur {YYYY}/{MM}/{DD} à {time} ({timezone_name}),
 
     depuis un {device_type}
 
     avec {operating_system} :
 
-    '
-  pt: ''
-  ru: ''
-  ja: '{YYYY}/{MM}/{DD} {time} ({timezone_name})に、
+    "
+  pt: ""
+  ru: ""
+  ja: "{YYYY}/{MM}/{DD} {time} ({timezone_name})に、
 
     {device_type}から
 
     {operating_system}でログインしました。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 computer:
   context: Device type - computer
@@ -1388,21 +1643,21 @@ computer:
   zh: 电脑
   es: Computadora
   fr: ordinateur
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: コンピュータ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 phone:
   context: Device type - phone
@@ -1411,21 +1666,21 @@ phone:
   zh: 手机
   es: Teléfono
   fr: téléphone
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: スマートフォン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 tablet:
   context: Device type - tablet
@@ -1434,21 +1689,21 @@ tablet:
   zh: 平板电脑
   es: Tablet
   fr: tablette
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: タブレット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 vr_headset:
   context: Device type - VR headset
@@ -1457,21 +1712,21 @@ vr_headset:
   zh: VR头戴设备
   es: Visor de VR
   fr: casque VR
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: VRヘッドセット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 unknown_os:
   context: Device type - unknown operating system
@@ -1480,21 +1735,21 @@ unknown_os:
   zh: 未知操作系统
   es: sistema operativo desconocido
   fr: système d'exploitation inconnu
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 不明なOS
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 from_unknown_location:
   context: fallback text if location cannot be determined based on IP address
@@ -1503,213 +1758,213 @@ from_unknown_location:
   zh: 来自未知位置
   es: desde una ubicación desconocida
   fr: depuis un lieu inconnu
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 不明な場所から
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 area_around:
   context: Used in 'Area around Berlin, Germany'
-  en: 'Area around
+  en: "Area around
 
     {city}, {country}
 
-    '
-  de: 'Bereich um
+    "
+  de: "Bereich um
 
     {city}, {country}
 
-    '
-  zh: '{city}，{country}
+    "
+  zh: "{city}，{country}
 
     周边地区
 
-    '
-  es: 'Área alrededor de
+    "
+  es: "Área alrededor de
 
     {city}, {country}
 
-    '
-  fr: 'Région autour de
+    "
+  fr: "Région autour de
 
     {city}, {country}
 
-    '
-  pt: ''
-  ru: ''
-  ja: '{country}、{city}
+    "
+  pt: ""
+  ru: ""
+  ja: "{country}、{city}
 
     周辺
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 area_is_estimate:
   context: Explainer text for location estimate
-  en: 'The area is an estimate based on the IP address.
+  en: "The area is an estimate based on the IP address.
 
     Do you use a VPN? Then you will likely be shown
 
     in a different location than you actually are.
 
-    '
-  de: 'Der Bereich ist eine Schätzung basierend auf der IP-Adresse.
+    "
+  de: "Der Bereich ist eine Schätzung basierend auf der IP-Adresse.
 
     Verwendest du ein VPN? Dann wirst du wahrscheinlich
 
     an einem anderen Ort angezeigt, als du tatsächlich bist.
 
-    '
-  zh: '该区域是基于IP地址的估计。
+    "
+  zh: "该区域是基于IP地址的估计。
 
     您使用VPN吗？如果是，您可能会
 
     显示在与实际位置不同的地方。
 
-    '
-  es: 'El área es una estimación basada en la dirección IP.
+    "
+  es: "El área es una estimación basada en la dirección IP.
 
     ¿Usas una VPN? Entonces probablemente se te mostrará
 
     en una ubicación diferente a la que realmente estás.
 
-    '
-  fr: 'La localisation est une estimation basée sur l''adresse IP.
+    "
+  fr: "La localisation est une estimation basée sur l'adresse IP.
 
     Utilisez-vous un VPN ? Si oui, vous apparaîtrez probablement
 
     à un endroit différent de votre emplacement réel.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'この場所はIPアドレスに基づく推定です。
+    "
+  pt: ""
+  ru: ""
+  ja: "この場所はIPアドレスに基づく推定です。
 
     VPNを使用していますか？その場合、
 
     実際の場所とは異なる場所が表示されている可能性があります。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 if_this_wasnt_you_react:
   context: Security advice in email body
-  en: 'If this was you, you can ignore this e-mail.
+  en: "If this was you, you can ignore this e-mail.
 
-    If this wasn''t you, react immediately:
+    If this wasn't you, react immediately:
 
-    <a href=''{logout_link}''>Click here to report this urgent incident.</a>
+    <a href='{logout_link}'>Click here to report this urgent incident.</a>
 
-    '
-  de: 'Wenn das du warst, kannst du diese E-Mail ignorieren.
+    "
+  de: "Wenn das du warst, kannst du diese E-Mail ignorieren.
 
     Wenn das nicht du warst, reagiere sofort:
 
-    <a href=''{logout_link}''>Klicke hier, um diesen Vorfall zu melden.</a>
+    <a href='{logout_link}'>Klicke hier, um diesen Vorfall zu melden.</a>
 
-    '
-  zh: '如果是您本人操作，可以忽略此电子邮件。
+    "
+  zh: "如果是您本人操作，可以忽略此电子邮件。
 
     如果不是您，请立即采取行动：
 
-    <a href=''{logout_link}''>点击此处报告此紧急事件。</a>
+    <a href='{logout_link}'>点击此处报告此紧急事件。</a>
 
-    '
-  es: 'Si fuiste tú, puedes ignorar este correo electrónico.
+    "
+  es: "Si fuiste tú, puedes ignorar este correo electrónico.
 
     Si no fuiste tú, reacciona inmediatamente:
 
-    <a href=''{logout_link}''>Haz clic aquí para reportar este incidente urgente.</a>
+    <a href='{logout_link}'>Haz clic aquí para reportar este incidente urgente.</a>
 
-    '
-  fr: 'Si c''était vous, vous pouvez ignorer cet e-mail.
+    "
+  fr: "Si c'était vous, vous pouvez ignorer cet e-mail.
 
-    Si ce n''était pas vous, réagissez immédiatement :
+    Si ce n'était pas vous, réagissez immédiatement :
 
-    <a href=''{logout_link}''>Cliquez ici pour signaler cet incident urgent.</a>
+    <a href='{logout_link}'>Cliquez ici pour signaler cet incident urgent.</a>
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'あなた自身の操作であれば、このメールは無視してください。
+    "
+  pt: ""
+  ru: ""
+  ja: "あなた自身の操作であれば、このメールは無視してください。
 
     あなたの操作でない場合は、すぐに対応してください：
 
-    <a href=''{logout_link}''>ここをクリックして、この緊急事態を報告してください。</a>
+    <a href='{logout_link}'>ここをクリックして、この緊急事態を報告してください。</a>
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email_subject_someone_accessed_my_account:
   context: Email subject for account access report
-  en: 'Urgent: Unauthorized access to my account'
-  de: 'Dringend: Unbefugter Zugriff auf mein Konto'
+  en: "Urgent: Unauthorized access to my account"
+  de: "Dringend: Unbefugter Zugriff auf mein Konto"
   zh: 紧急：未经授权访问我的账户
-  es: 'Urgente: Acceso no autorizado a mi cuenta'
-  fr: 'Urgent : Accès non autorisé à mon compte'
-  pt: ''
-  ru: ''
+  es: "Urgente: Acceso no autorizado a mi cuenta"
+  fr: "Urgent : Accès non autorisé à mon compte"
+  pt: ""
+  ru: ""
   ja: 緊急：アカウントへの不正アクセス
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email_body_someone_accessed_my_account_from_new_device:
   context: Email body for account access report
-  en: 'Hello.
+  en: "Hello.
 
     Someone accessed my account without my permission!
 
@@ -1732,8 +1987,8 @@ email_body_someone_accessed_my_account_from_new_device:
 
     Thanks.
 
-    '
-  de: 'Hallo.
+    "
+  de: "Hallo.
 
     Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!
 
@@ -1756,8 +2011,8 @@ email_body_someone_accessed_my_account_from_new_device:
 
     Danke.
 
-    '
-  zh: '您好。
+    "
+  zh: "您好。
 
     有人在未经我许可的情况下访问了我的账户！
 
@@ -1780,8 +2035,8 @@ email_body_someone_accessed_my_account_from_new_device:
 
     谢谢。
 
-    '
-  es: 'Hola.
+    "
+  es: "Hola.
 
     ¡Alguien ha accedido a mi cuenta sin mi permiso!
 
@@ -1804,10 +2059,10 @@ email_body_someone_accessed_my_account_from_new_device:
 
     Gracias.
 
-    '
-  fr: 'Bonjour.
+    "
+  fr: "Bonjour.
 
-    Quelqu''un a accédé à mon compte sans ma permission !
+    Quelqu'un a accédé à mon compte sans ma permission !
 
     Voici les détails :
 
@@ -1816,22 +2071,22 @@ email_body_someone_accessed_my_account_from_new_device:
 
     Appareil : {device_type}
 
-    Système d''exploitation : {operating_system}
+    Système d'exploitation : {operating_system}
 
     Localisation : {city}, {country}
 
     E-mail du compte : {account_email}
 
 
-    Merci de m''aider à sécuriser mon compte.
+    Merci de m'aider à sécuriser mon compte.
 
 
     Merci.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'こんにちは。
+    "
+  pt: ""
+  ru: ""
+  ja: "こんにちは。
 
     誰かが私の許可なくアカウントにアクセスしました！
 
@@ -1854,23 +2109,23 @@ email_body_someone_accessed_my_account_from_new_device:
 
     よろしくお願いいたします。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email_body_someone_accessed_my_account_recovery_key:
   context: Email body for account access report
-  en: 'Hello.
+  en: "Hello.
 
     Someone accessed my account without my permission using my recovery key!
 
@@ -1885,267 +2140,272 @@ email_body_someone_accessed_my_account_recovery_key:
 
     Thanks.
 
-    '
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_backup_code_was_used:
   context: Email subject for backup code usage for login
-  en: 'Security Alert: Backup code was used'
-  de: 'Sicherheitswarnung: Backup-Code wurde verwendet'
+  en: "Security Alert: Backup code was used"
+  de: "Sicherheitswarnung: Backup-Code wurde verwendet"
   zh: 安全警报：已使用备用码
-  es: 'Alerta de seguridad: Se utilizó un código de respaldo'
-  fr: 'Alerte de sécurité : Un code de secours a été utilisé'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: バックアップコードが使用されました'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Se utilizó un código de respaldo"
+  fr: "Alerte de sécurité : Un code de secours a été utilisé"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: バックアップコードが使用されました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_recovery_key_was_used:
   context: Email subject for recovery key usage for login
-  en: 'Security Alert: Recovery key was used'
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "Security Alert: Recovery key was used"
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 backup_code_was_used:
   context: Email header for backup code usage for login
-  en: 'Backup code
+  en: "Backup code
 
     was used
 
-    '
-  de: 'Backup-Code
+    "
+  de: "Backup-Code
 
     wurde verwendet
 
-    '
-  zh: '已使用
+    "
+  zh: "已使用
 
     备用码
 
-    '
-  es: 'Se utilizó un
+    "
+  es: "Se utilizó un
 
     código de respaldo
 
-    '
-  fr: 'Un code de secours
+    "
+  fr: "Un code de secours
 
     a été utilisé
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'バックアップコード
+    "
+  pt: ""
+  ru: ""
+  ja: "バックアップコード
 
     が使用されました
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 a_backup_code_was_used:
   context: Email body for backup code usage for login
-  en: 'A backup code was used successfully together with your email address and password to login to your account.
+  en:
+    "A backup code was used successfully together with your email address and password to login to your account.
 
     This code is invalid now:
 
-    '
-  de: 'Ein Backup-Code wurde zusammen mit deiner E-Mail-Adresse und deinem Passwort erfolgreich verwendet, zum Einloggen in dein Konto.
+    "
+  de:
+    "Ein Backup-Code wurde zusammen mit deiner E-Mail-Adresse und deinem Passwort erfolgreich verwendet, zum Einloggen in dein Konto.
 
     Dieser Code ist jetzt ungültig:
 
-    '
-  zh: '一个备用码已与您的电子邮件地址和密码一起成功用于登录您的账户。
+    "
+  zh: "一个备用码已与您的电子邮件地址和密码一起成功用于登录您的账户。
 
     此码现已失效：
 
-    '
-  es: 'Un código de respaldo se utilizó correctamente junto con tu dirección de correo electrónico y contraseña para iniciar sesión en tu cuenta.
+    "
+  es:
+    "Un código de respaldo se utilizó correctamente junto con tu dirección de correo electrónico y contraseña para iniciar sesión en tu cuenta.
 
     Este código ya no es válido:
 
-    '
-  fr: 'Un code de secours a été utilisé avec succès avec votre adresse e-mail et votre mot de passe pour vous connecter à votre compte.
+    "
+  fr:
+    "Un code de secours a été utilisé avec succès avec votre adresse e-mail et votre mot de passe pour vous connecter à votre compte.
 
     Ce code est maintenant invalide :
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'バックアップコードが、あなたのメールアドレスとパスワードと共に、アカウントへのログインに正常に使用されました。
+    "
+  pt: ""
+  ru: ""
+  ja:
+    "バックアップコードが、あなたのメールアドレスとパスワードと共に、アカウントへのログインに正常に使用されました。
 
     このコードは現在無効です:
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 recovery_key_was_used:
   context: Email header for recovery key usage for login
-  en: 'Recovery key
+  en: "Recovery key
 
     was used
 
-    '
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 recovery_key_security_info:
   context: Email body for recovery key usage for login
   en: Your recovery key was used successfully together with your email address to login to your account.
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 reset_2fa_info:
   context: Email body for backup code usage for login
-  en: 'Lost access to your 2FA app?
+  en: "Lost access to your 2FA app?
 
     Reset 2FA in your OpenMates settings.
 
-    '
-  de: 'Zugang zu deiner 2FA-App verloren?
+    "
+  de: "Zugang zu deiner 2FA-App verloren?
 
     Setze 2FA in deinen OpenMates Einstellungen zurück.
 
-    '
-  zh: '失去对您双重认证应用的访问权限？
+    "
+  zh: "失去对您双重认证应用的访问权限？
 
     在您的OpenMates设置中重置双重认证。
 
-    '
-  es: '¿Perdiste acceso a tu aplicación 2FA?
+    "
+  es: "¿Perdiste acceso a tu aplicación 2FA?
 
     Restablece 2FA en tu configuración de OpenMates.
 
-    '
-  fr: 'Vous avez perdu l''accès à votre application 2FA ?
+    "
+  fr: "Vous avez perdu l'accès à votre application 2FA ?
 
     Réinitialisez la 2FA dans vos paramètres OpenMates.
 
-    '
-  pt: ''
-  ru: ''
-  ja: '2FAアプリへのアクセスを失いましたか？
+    "
+  pt: ""
+  ru: ""
+  ja: "2FAアプリへのアクセスを失いましたか？
 
     OpenMatesの設定で2FAをリセットしてください。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email_body_someone_accessed_my_account_backup_code:
   context: Email body for account access report
-  en: 'Hello.
+  en: "Hello.
 
     Someone accessed my account without my permission!
 
@@ -2164,8 +2424,8 @@ email_body_someone_accessed_my_account_backup_code:
 
     Thanks.
 
-    '
-  de: 'Hallo.
+    "
+  de: "Hallo.
 
     Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!
 
@@ -2184,8 +2444,8 @@ email_body_someone_accessed_my_account_backup_code:
 
     Danke.
 
-    '
-  zh: '您好。
+    "
+  zh: "您好。
 
     有人在未经我许可的情况下访问了我的账户！
 
@@ -2204,8 +2464,8 @@ email_body_someone_accessed_my_account_backup_code:
 
     谢谢。
 
-    '
-  es: 'Hola.
+    "
+  es: "Hola.
 
     ¡Alguien ha accedido a mi cuenta sin mi permiso!
 
@@ -2224,10 +2484,10 @@ email_body_someone_accessed_my_account_backup_code:
 
     Gracias.
 
-    '
-  fr: 'Bonjour.
+    "
+  fr: "Bonjour.
 
-    Quelqu''un a accédé à mon compte sans ma permission !
+    Quelqu'un a accédé à mon compte sans ma permission !
 
     Voici les détails :
 
@@ -2239,15 +2499,15 @@ email_body_someone_accessed_my_account_backup_code:
     E-mail du compte : {account_email}
 
 
-    Merci de m''aider à sécuriser mon compte.
+    Merci de m'aider à sécuriser mon compte.
 
 
     Merci.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'こんにちは。
+    "
+  pt: ""
+  ru: ""
+  ja: "こんにちは。
 
     誰かが私の許可なくアカウントにアクセスしました！
 
@@ -2266,19 +2526,19 @@ email_body_someone_accessed_my_account_backup_code:
 
     よろしくお願いいたします。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 your_email_address_was_changed:
   context: Email header for email address change
@@ -2287,67 +2547,67 @@ your_email_address_was_changed:
   zh: 您的电子邮件地址已更改
   es: Tu dirección de correo electrónico fue cambiada
   fr: Votre adresse e-mail a été modifiée
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: メールアドレスが変更されました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_email_address_changed:
   context: Email subject for email address change
-  en: 'Security Alert: Your Email address was changed'
-  de: 'Sicherheitswarnung: Deine E-Mail-Adresse wurde geändert'
+  en: "Security Alert: Your Email address was changed"
+  de: "Sicherheitswarnung: Deine E-Mail-Adresse wurde geändert"
   zh: 安全警报：您的电子邮件地址已更改
-  es: 'Alerta de seguridad: Tu dirección de correo electrónico fue cambiada'
-  fr: 'Alerte de sécurité : Votre adresse e-mail a été modifiée'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: メールアドレスが変更されました'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Tu dirección de correo electrónico fue cambiada"
+  fr: "Alerte de sécurité : Votre adresse e-mail a été modifiée"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: メールアドレスが変更されました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 this_is_your_new_address:
   context: Email body for email address change
-  en: 'This is your new email address:'
-  de: 'Dies ist deine neue E-Mail-Adresse:'
+  en: "This is your new email address:"
+  de: "Dies ist deine neue E-Mail-Adresse:"
   zh: 这是您的新电子邮件地址：
-  es: 'Esta es tu nueva dirección de correo electrónico:'
-  fr: 'Voici votre nouvelle adresse e-mail :'
-  pt: ''
-  ru: ''
-  ja: 'これがあなたの新しいメールアドレスです:'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Esta es tu nueva dirección de correo electrónico:"
+  fr: "Voici votre nouvelle adresse e-mail :"
+  pt: ""
+  ru: ""
+  ja: "これがあなたの新しいメールアドレスです:"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 your_password_was_changed:
   context: Email header for password change
@@ -2356,44 +2616,44 @@ your_password_was_changed:
   zh: 您的密码已更改
   es: Tu contraseña fue cambiada
   fr: Votre mot de passe a été modifié
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: パスワードが変更されました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_password_changed:
   context: Email subject for password change
-  en: 'Security Alert: Your password was changed'
-  de: 'Sicherheitswarnung: Dein Passwort wurde geändert'
+  en: "Security Alert: Your password was changed"
+  de: "Sicherheitswarnung: Dein Passwort wurde geändert"
   zh: 安全警报：您的密码已更改
-  es: 'Alerta de seguridad: Tu contraseña fue cambiada'
-  fr: 'Alerte de sécurité : Votre mot de passe a été modifié'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: パスワードが変更されました'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Tu contraseña fue cambiada"
+  fr: "Alerte de sécurité : Votre mot de passe a été modifié"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: パスワードが変更されました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_advice:
   context: Email pre-header for security advice
@@ -2402,21 +2662,21 @@ security_advice:
   zh: 安全建议
   es: Consejo de seguridad
   fr: Conseil de sécurité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: セキュリティアドバイス
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 generate_unique_passwords:
   context: Security advice in email body
@@ -2425,21 +2685,21 @@ generate_unique_passwords:
   zh: 为每个网站生成并保存一个独特的密码在您的密码管理器中。
   es: Genera y guarda una contraseña única para cada sitio web en tu gestor de contraseñas.
   fr: Générez et enregistrez un mot de passe unique pour chaque site web dans votre gestionnaire de mots de passe.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: パスワードマネージャーで各サイト用の固有のパスワードを生成して保存してください。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 your_2fa_app_was_changed:
   context: Email header for 2FA app change
@@ -2448,67 +2708,67 @@ your_2fa_app_was_changed:
   zh: 您的双重认证应用已更改
   es: Tu aplicación 2FA fue cambiada
   fr: Votre application 2FA a été modifiée
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 2FAアプリが変更されました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_2fa_app_changed:
   context: Email subject for 2FA app change
-  en: 'Security Alert: Your 2FA app was changed'
-  de: 'Sicherheitswarnung: Deine 2FA-App wurde geändert'
+  en: "Security Alert: Your 2FA app was changed"
+  de: "Sicherheitswarnung: Deine 2FA-App wurde geändert"
   zh: 安全警报：您的双重认证应用已更改
-  es: 'Alerta de seguridad: Tu aplicación 2FA fue cambiada'
-  fr: 'Alerte de sécurité : Votre application 2FA a été modifiée'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: 2FAアプリが変更されました'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Tu aplicación 2FA fue cambiada"
+  fr: "Alerte de sécurité : Votre application 2FA a été modifiée"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: 2FAアプリが変更されました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 this_is_your_new_2fa_app:
   context: Email body for 2FA app change
-  en: 'This is your new 2FA app:'
-  de: 'Dies ist deine neue 2FA-App:'
+  en: "This is your new 2FA app:"
+  de: "Dies ist deine neue 2FA-App:"
   zh: 这是您的新双重认证应用：
-  es: 'Esta es tu nueva aplicación 2FA:'
-  fr: 'Voici votre nouvelle application 2FA :'
-  pt: ''
-  ru: ''
-  ja: 'これがあなたの新しい2FAアプリです:'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Esta es tu nueva aplicación 2FA:"
+  fr: "Voici votre nouvelle application 2FA :"
+  pt: ""
+  ru: ""
+  ja: "これがあなたの新しい2FAアプリです:"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 new_invite_codes_created:
   context: Email header for new invite codes
@@ -2517,44 +2777,44 @@ new_invite_codes_created:
   zh: 已创建新的邀请码
   es: Nuevos códigos de invitación creados
   fr: Nouveaux codes d'invitation créés
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 新しい招待コードが作成されました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 security_alert_new_invite_codes:
   context: Email subject for new invite codes
-  en: 'Security Alert: New invite codes created'
-  de: 'Sicherheitswarnung: Neue Einladungscodes erstellt'
+  en: "Security Alert: New invite codes created"
+  de: "Sicherheitswarnung: Neue Einladungscodes erstellt"
   zh: 安全警报：已创建新的邀请码
-  es: 'Alerta de seguridad: Nuevos códigos de invitación creados'
-  fr: 'Alerte de sécurité : Nouveaux codes d''invitation créés'
-  pt: ''
-  ru: ''
-  ja: 'セキュリティアラート: 新しい招待コードが作成されました'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  es: "Alerta de seguridad: Nuevos códigos de invitación creados"
+  fr: "Alerte de sécurité : Nouveaux codes d'invitation créés"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート: 新しい招待コードが作成されました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 new_codes_created:
   context: Email body for new invite codes
@@ -2563,68 +2823,68 @@ new_codes_created:
   zh: 您已创建 {count} 个新的邀请码，供新用户加入您的服务器。
   es: Has creado {count} nuevos códigos de invitación para que nuevos usuarios se unan a tu servidor.
   fr: Vous avez créé {count} nouveaux codes d'invitation pour que de nouveaux utilisateurs rejoignent votre serveur.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 新しいユーザーがサーバーに参加できるように{count}個の招待コードを作成しました。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 if_this_wasnt_you_react_invite_codes:
   context: Security advice in email body for new invite codes
-  en: 'If this wasn''t you, react immediately!
+  en: "If this wasn't you, react immediately!
 
-    <a href=''{logout_link_delete_invite_codes}''>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>
+    <a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>
 
-    '
-  de: 'Wenn du das nicht warst, reagiere sofort!
+    "
+  de: "Wenn du das nicht warst, reagiere sofort!
 
-    <a href=''{logout_link_delete_invite_codes}''>Klicke hier, um die Einladungscodes zu löschen, alle verbundenen Geräte abzumelden & deine Anmeldedaten zurückzusetzen.</a>
+    <a href='{logout_link_delete_invite_codes}'>Klicke hier, um die Einladungscodes zu löschen, alle verbundenen Geräte abzumelden & deine Anmeldedaten zurückzusetzen.</a>
 
-    '
-  zh: '如果这不是您的操作，请立即采取行动！
+    "
+  zh: "如果这不是您的操作，请立即采取行动！
 
-    <a href=''{logout_link_delete_invite_codes}''>点击此处删除邀请码，登出所有已连接设备并重置您的登录数据。</a>
+    <a href='{logout_link_delete_invite_codes}'>点击此处删除邀请码，登出所有已连接设备并重置您的登录数据。</a>
 
-    '
-  es: 'Si no fuiste tú, ¡reacciona inmediatamente!
+    "
+  es: "Si no fuiste tú, ¡reacciona inmediatamente!
 
-    <a href=''{logout_link_delete_invite_codes}''>Haz clic aquí para eliminar los códigos de invitación, cerrar sesión en todos los dispositivos conectados y restablecer tus datos de inicio de sesión.</a>
+    <a href='{logout_link_delete_invite_codes}'>Haz clic aquí para eliminar los códigos de invitación, cerrar sesión en todos los dispositivos conectados y restablecer tus datos de inicio de sesión.</a>
 
-    '
-  fr: 'Si ce n''était pas vous, réagissez immédiatement !
+    "
+  fr: "Si ce n'était pas vous, réagissez immédiatement !
 
-    <a href=''{logout_link_delete_invite_codes}''>Cliquez ici pour supprimer les codes d''invitation, déconnecter tous les appareils connectés et réinitialiser vos données de connexion.</a>
+    <a href='{logout_link_delete_invite_codes}'>Cliquez ici pour supprimer les codes d'invitation, déconnecter tous les appareils connectés et réinitialiser vos données de connexion.</a>
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'これがあなたではない場合、すぐに対応してください！
+    "
+  pt: ""
+  ru: ""
+  ja: "これがあなたではない場合、すぐに対応してください！
 
-    <a href=''{logout_link_delete_invite_codes}''>ここをクリックして、招待コードを削除し、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>
+    <a href='{logout_link_delete_invite_codes}'>ここをクリックして、招待コードを削除し、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter_confirmation_request.title:
   context: Newsletter confirmation email title
@@ -2674,26 +2934,26 @@ newsletter_confirmation_request.subtitle:
   verified_by_human: []
 newsletter_confirmation_request.description:
   context: Newsletter confirmation email description
-  en: 'Thank you for subscribing! Please confirm your email address to receive updates about OpenMates, including new signup availability, feature updates, and important announcements.'
-  de: 'Vielen Dank für Ihr Abonnement! Bitte bestätigen Sie Ihre E-Mail-Adresse, um Updates über OpenMates zu erhalten, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen.'
-  zh: '感谢您的订阅！请确认您的电子邮件地址，以接收有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。'
-  es: '¡Gracias por suscribirte! Por favor, confirma tu dirección de correo electrónico para recibir actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes.'
-  fr: 'Merci de vous être abonné ! Veuillez confirmer votre adresse e-mail pour recevoir des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes.'
-  pt: 'Obrigado por se inscrever! Por favor, confirme seu endereço de e-mail para receber atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes.'
-  ru: 'Спасибо за подписку! Пожалуйста, подтвердите свой адрес электронной почты, чтобы получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления.'
-  ja: 'ご購読ありがとうございます！メールアドレスを確認して、新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ってください。'
-  ko: '구독해 주셔서 감사합니다! 이메일 주소를 확인하여 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받으세요.'
-  it: 'Grazie per esserti iscritto! Conferma il tuo indirizzo email per ricevere aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti.'
-  tr: 'Abone olduğunuz için teşekkürler! Yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler almak için e-posta adresinizi onaylayın.'
-  vi: 'Cảm ơn bạn đã đăng ký! Vui lòng xác nhận địa chỉ email của bạn để nhận cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng.'
-  id: 'Terima kasih telah berlangganan! Silakan konfirmasi alamat email Anda untuk menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting.'
-  pl: 'Dziękujemy za subskrypcję! Proszę potwierdzić swój adres e-mail, aby otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia.'
-  nl: 'Bedankt voor je abonnement! Bevestig je e-mailadres om updates over OpenMates te ontvangen, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen.'
-  ar: 'شكرًا لك على الاشتراك! يرجى تأكيد عنوان بريدك الإلكتروني لتلقي تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة.'
-  hi: 'सदस्यता लेने के लिए धन्यवाद! कृपया OpenMates के बारे में अपडेट प्राप्त करने के लिए अपना ईमेल पता पुष्टि करें, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।'
-  th: 'ขอบคุณที่สมัครรับจดหมายข่าว! กรุณายืนยันที่อยู่อีเมลของคุณเพื่อรับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ'
-  cs: 'Děkujeme za předplatné! Potvrďte prosím svou e-mailovou adresu, abyste mohli dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení.'
-  sv: 'Tack för att du prenumerar! Bekräfta din e-postadress för att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden.'
+  en: "Thank you for subscribing! Please confirm your email address to receive updates about OpenMates, including new signup availability, feature updates, and important announcements."
+  de: "Vielen Dank für Ihr Abonnement! Bitte bestätigen Sie Ihre E-Mail-Adresse, um Updates über OpenMates zu erhalten, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen."
+  zh: "感谢您的订阅！请确认您的电子邮件地址，以接收有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。"
+  es: "¡Gracias por suscribirte! Por favor, confirma tu dirección de correo electrónico para recibir actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes."
+  fr: "Merci de vous être abonné ! Veuillez confirmer votre adresse e-mail pour recevoir des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes."
+  pt: "Obrigado por se inscrever! Por favor, confirme seu endereço de e-mail para receber atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes."
+  ru: "Спасибо за подписку! Пожалуйста, подтвердите свой адрес электронной почты, чтобы получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления."
+  ja: "ご購読ありがとうございます！メールアドレスを確認して、新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ってください。"
+  ko: "구독해 주셔서 감사합니다! 이메일 주소를 확인하여 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받으세요."
+  it: "Grazie per esserti iscritto! Conferma il tuo indirizzo email per ricevere aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti."
+  tr: "Abone olduğunuz için teşekkürler! Yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler almak için e-posta adresinizi onaylayın."
+  vi: "Cảm ơn bạn đã đăng ký! Vui lòng xác nhận địa chỉ email của bạn để nhận cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng."
+  id: "Terima kasih telah berlangganan! Silakan konfirmasi alamat email Anda untuk menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting."
+  pl: "Dziękujemy za subskrypcję! Proszę potwierdzić swój adres e-mail, aby otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia."
+  nl: "Bedankt voor je abonnement! Bevestig je e-mailadres om updates over OpenMates te ontvangen, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen."
+  ar: "شكرًا لك على الاشتراك! يرجى تأكيد عنوان بريدك الإلكتروني لتلقي تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة."
+  hi: "सदस्यता लेने के लिए धन्यवाद! कृपया OpenMates के बारे में अपडेट प्राप्त करने के लिए अपना ईमेल पता पुष्टि करें, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।"
+  th: "ขอบคุณที่สมัครรับจดหมายข่าว! กรุณายืนยันที่อยู่อีเมลของคุณเพื่อรับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ"
+  cs: "Děkujeme za předplatné! Potvrďte prosím svou e-mailovou adresu, abyste mohli dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení."
+  sv: "Tack för att du prenumerar! Bekräfta din e-postadress för att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden."
   verified_by_human: []
 newsletter_confirmation_request.confirm_button:
   context: Newsletter confirmation button text
@@ -2720,49 +2980,49 @@ newsletter_confirmation_request.confirm_button:
   verified_by_human: []
 newsletter_confirmation_request.did_not_request:
   context: Text before unsubscribe link in newsletter confirmation email
-  en: 'I did not request this email.'
-  de: 'Ich habe diese E-Mail nicht angefordert.'
-  zh: '我没有请求此电子邮件。'
-  es: 'No solicité este correo electrónico.'
-  fr: 'Je n''ai pas demandé cet e-mail.'
-  pt: 'Eu não solicitei este e-mail.'
-  ru: 'Я не запрашивал это письмо.'
-  ja: 'このメールはリクエストしていません。'
-  ko: '이 이메일을 요청하지 않았습니다.'
-  it: 'Non ho richiesto questa email.'
-  tr: 'Bu e-postayı talep etmedim.'
-  vi: 'Tôi không yêu cầu email này.'
-  id: 'Saya tidak meminta email ini.'
-  pl: 'Nie prosiłem o ten e-mail.'
-  nl: 'Ik heb deze e-mail niet aangevraagd.'
-  ar: 'لم أطلب هذا البريد الإلكتروني.'
-  hi: 'मैंने यह ईमेल नहीं मांगा।'
-  th: 'ฉันไม่ได้ขออีเมลนี้'
-  cs: 'Tento e-mail jsem nepožádal.'
-  sv: 'Jag begärde inte detta e-postmeddelande.'
+  en: "I did not request this email."
+  de: "Ich habe diese E-Mail nicht angefordert."
+  zh: "我没有请求此电子邮件。"
+  es: "No solicité este correo electrónico."
+  fr: "Je n'ai pas demandé cet e-mail."
+  pt: "Eu não solicitei este e-mail."
+  ru: "Я не запрашивал это письмо."
+  ja: "このメールはリクエストしていません。"
+  ko: "이 이메일을 요청하지 않았습니다."
+  it: "Non ho richiesto questa email."
+  tr: "Bu e-postayı talep etmedim."
+  vi: "Tôi không yêu cầu email này."
+  id: "Saya tidak meminta email ini."
+  pl: "Nie prosiłem o ten e-mail."
+  nl: "Ik heb deze e-mail niet aangevraagd."
+  ar: "لم أطلب هذا البريد الإلكتروني."
+  hi: "मैंने यह ईमेल नहीं मांगा।"
+  th: "ฉันไม่ได้ขออีเมลนี้"
+  cs: "Tento e-mail jsem nepožádal."
+  sv: "Jag begärde inte detta e-postmeddelande."
   verified_by_human: []
 newsletter_confirmation_request.unsubscribe_link:
   context: Unsubscribe link text in newsletter confirmation email
-  en: 'Never message me again'
-  de: 'Mir niemals wieder eine Nachricht senden'
-  zh: '不要再给我发消息'
-  es: 'Nunca me vuelvas a enviar un mensaje'
-  fr: 'Ne plus jamais me contacter'
-  pt: 'Nunca mais me envie mensagens'
-  ru: 'Больше никогда не отправлять мне сообщения'
-  ja: '二度とメッセージを送らないでください'
-  ko: '다시는 메시지를 보내지 마세요'
-  it: 'Non inviarmi mai più messaggi'
-  tr: 'Bana bir daha asla mesaj gönderme'
-  vi: 'Đừng bao giờ gửi tin nhắn cho tôi nữa'
-  id: 'Jangan pernah mengirim pesan kepada saya lagi'
-  pl: 'Nigdy więcej nie wysyłaj mi wiadomości'
-  nl: 'Stuur me nooit meer een bericht'
-  ar: 'لا تراسلني مرة أخرى'
-  hi: 'कभी भी मुझे फिर से संदेश न भेजें'
-  th: 'อย่าส่งข้อความหาฉันอีก'
-  cs: 'Už mi nikdy neposílej zprávy'
-  sv: 'Skicka mig aldrig meddelanden igen'
+  en: "Never message me again"
+  de: "Mir niemals wieder eine Nachricht senden"
+  zh: "不要再给我发消息"
+  es: "Nunca me vuelvas a enviar un mensaje"
+  fr: "Ne plus jamais me contacter"
+  pt: "Nunca mais me envie mensagens"
+  ru: "Больше никогда не отправлять мне сообщения"
+  ja: "二度とメッセージを送らないでください"
+  ko: "다시는 메시지를 보내지 마세요"
+  it: "Non inviarmi mai più messaggi"
+  tr: "Bana bir daha asla mesaj gönderme"
+  vi: "Đừng bao giờ gửi tin nhắn cho tôi nữa"
+  id: "Jangan pernah mengirim pesan kepada saya lagi"
+  pl: "Nigdy więcej nie wysyłaj mi wiadomości"
+  nl: "Stuur me nooit meer een bericht"
+  ar: "لا تراسلني مرة أخرى"
+  hi: "कभी भी मुझे फिर से संदेश न भेजें"
+  th: "อย่าส่งข้อความหาฉันอีก"
+  cs: "Už mi nikdy neposílej zprávy"
+  sv: "Skicka mig aldrig meddelanden igen"
   verified_by_human: []
 newsletter_confirmation_request.subject:
   context: Newsletter confirmation email subject line
@@ -2858,95 +3118,95 @@ newsletter_confirmed.subtitle:
   verified_by_human: []
 newsletter_confirmed.description:
   context: Newsletter confirmed email description
-  en: 'Thank you for confirming your subscription! You''ll now receive updates about OpenMates, including new signup availability, feature updates, and important announcements.'
-  de: 'Vielen Dank, dass Sie Ihr Abonnement bestätigt haben! Sie erhalten nun Updates über OpenMates, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen.'
-  zh: '感谢您确认订阅！您现在将收到有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。'
-  es: '¡Gracias por confirmar tu suscripción! Ahora recibirás actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes.'
-  fr: 'Merci d''avoir confirmé votre abonnement ! Vous recevrez désormais des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes.'
-  pt: 'Obrigado por confirmar sua inscrição! Agora você receberá atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes.'
-  ru: 'Спасибо за подтверждение подписки! Теперь вы будете получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления.'
-  ja: 'ご購読の確認ありがとうございます！新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ります。'
-  ko: '구독을 확인해 주셔서 감사합니다! 이제 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받게 됩니다.'
-  it: 'Grazie per aver confermato la tua iscrizione! Ora riceverai aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti.'
-  tr: 'Aboneliğinizi onayladığınız için teşekkürler! Artık yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler alacaksınız.'
-  vi: 'Cảm ơn bạn đã xác nhận đăng ký! Bây giờ bạn sẽ nhận được cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng.'
-  id: 'Terima kasih telah mengonfirmasi langganan Anda! Anda sekarang akan menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting.'
-  pl: 'Dziękujemy za potwierdzenie subskrypcji! Teraz będziesz otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia.'
-  nl: 'Bedankt voor het bevestigen van je abonnement! Je ontvangt nu updates over OpenMates, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen.'
-  ar: 'شكرًا لك على تأكيد اشتراكك! ستتلقى الآن تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة.'
-  hi: 'अपनी सदस्यता की पुष्टि करने के लिए धन्यवाद! अब आप OpenMates के बारे में अपडेट प्राप्त करेंगे, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।'
-  th: 'ขอบคุณที่ยืนยันการสมัครสมาชิก! ตอนนี้คุณจะได้รับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ'
-  cs: 'Děkujeme za potvrzení předplatného! Nyní budete dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení.'
-  sv: 'Tack för att du bekräftade din prenumeration! Du kommer nu att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden.'
+  en: "Thank you for confirming your subscription! You'll now receive updates about OpenMates, including new signup availability, feature updates, and important announcements."
+  de: "Vielen Dank, dass Sie Ihr Abonnement bestätigt haben! Sie erhalten nun Updates über OpenMates, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen."
+  zh: "感谢您确认订阅！您现在将收到有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。"
+  es: "¡Gracias por confirmar tu suscripción! Ahora recibirás actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes."
+  fr: "Merci d'avoir confirmé votre abonnement ! Vous recevrez désormais des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes."
+  pt: "Obrigado por confirmar sua inscrição! Agora você receberá atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes."
+  ru: "Спасибо за подтверждение подписки! Теперь вы будете получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления."
+  ja: "ご購読の確認ありがとうございます！新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ります。"
+  ko: "구독을 확인해 주셔서 감사합니다! 이제 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받게 됩니다."
+  it: "Grazie per aver confermato la tua iscrizione! Ora riceverai aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti."
+  tr: "Aboneliğinizi onayladığınız için teşekkürler! Artık yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler alacaksınız."
+  vi: "Cảm ơn bạn đã xác nhận đăng ký! Bây giờ bạn sẽ nhận được cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng."
+  id: "Terima kasih telah mengonfirmasi langganan Anda! Anda sekarang akan menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting."
+  pl: "Dziękujemy za potwierdzenie subskrypcji! Teraz będziesz otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia."
+  nl: "Bedankt voor het bevestigen van je abonnement! Je ontvangt nu updates over OpenMates, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen."
+  ar: "شكرًا لك على تأكيد اشتراكك! ستتلقى الآن تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة."
+  hi: "अपनी सदस्यता की पुष्टि करने के लिए धन्यवाद! अब आप OpenMates के बारे में अपडेट प्राप्त करेंगे, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।"
+  th: "ขอบคุณที่ยืนยันการสมัครสมาชิก! ตอนนี้คุณจะได้รับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ"
+  cs: "Děkujeme za potvrzení předplatného! Nyní budete dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení."
+  sv: "Tack för att du bekräftade din prenumeration! Du kommer nu att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden."
   verified_by_human: []
 newsletter_confirmed.social_media_text:
   context: Text before social media buttons in newsletter confirmed email
-  en: 'Also check out our social media channels:'
-  de: 'Schauen Sie auch in unsere Social-Media-Kanäle:'
-  zh: '也请查看我们的社交媒体频道：'
-  es: 'También consulta nuestros canales de redes sociales:'
-  fr: 'Consultez également nos réseaux sociaux :'
-  pt: 'Também confira nossos canais de mídia social:'
-  ru: 'Также посетите наши каналы в социальных сетях:'
-  ja: 'ソーシャルメディアチャンネルもご覧ください：'
-  ko: '소셜 미디어 채널도 확인하세요:'
-  it: 'Controlla anche i nostri canali social:'
-  tr: 'Sosyal medya kanallarımıza da göz atın:'
-  vi: 'Cũng hãy xem các kênh truyền thông xã hội của chúng tôi:'
-  id: 'Juga lihat saluran media sosial kami:'
-  pl: 'Sprawdź także nasze kanały w mediach społecznościowych:'
-  nl: 'Bekijk ook onze sociale media kanalen:'
-  ar: 'تحقق أيضًا من قنواتنا على وسائل التواصل الاجتماعي:'
-  hi: 'हमारे सोशल मीडिया चैनल भी देखें:'
-  th: 'ตรวจสอบช่องทางโซเชียลมีเดียของเราด้วย:'
-  cs: 'Podívejte se také na naše kanály na sociálních sítích:'
-  sv: 'Kolla också in våra sociala mediekanaler:'
+  en: "Also check out our social media channels:"
+  de: "Schauen Sie auch in unsere Social-Media-Kanäle:"
+  zh: "也请查看我们的社交媒体频道："
+  es: "También consulta nuestros canales de redes sociales:"
+  fr: "Consultez également nos réseaux sociaux :"
+  pt: "Também confira nossos canais de mídia social:"
+  ru: "Также посетите наши каналы в социальных сетях:"
+  ja: "ソーシャルメディアチャンネルもご覧ください："
+  ko: "소셜 미디어 채널도 확인하세요:"
+  it: "Controlla anche i nostri canali social:"
+  tr: "Sosyal medya kanallarımıza da göz atın:"
+  vi: "Cũng hãy xem các kênh truyền thông xã hội của chúng tôi:"
+  id: "Juga lihat saluran media sosial kami:"
+  pl: "Sprawdź także nasze kanały w mediach społecznościowych:"
+  nl: "Bekijk ook onze sociale media kanalen:"
+  ar: "تحقق أيضًا من قنواتنا على وسائل التواصل الاجتماعي:"
+  hi: "हमारे सोशल मीडिया चैनल भी देखें:"
+  th: "ตรวจสอบช่องทางโซเชียลมีเดียของเราด้วย:"
+  cs: "Podívejte se také na naše kanály na sociálních sítích:"
+  sv: "Kolla också in våra sociala mediekanaler:"
   verified_by_human: []
 newsletter_confirmed.unsubscribe_text:
   context: Text before unsubscribe link in newsletter confirmed email
   en: "Don't want to receive our newsletter anymore?"
-  de: 'Möchten Sie unseren Newsletter nicht mehr erhalten?'
-  zh: '不想再收到我们的时事通讯？'
-  es: '¿Ya no quieres recibir nuestro boletín?'
-  fr: 'Vous ne souhaitez plus recevoir notre newsletter ?'
-  pt: ''
-  ru: ''
-  ja: 'ニュースレターの受信を停止しますか？'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: 'ไม่ต้องการรับจดหมายข่าวของเราอีกต่อไป?'
-  cs: 'Nechcete už dostávat náš newsletter?'
-  sv: 'Vill du inte längre få vårt nyhetsbrev?'
+  de: "Möchten Sie unseren Newsletter nicht mehr erhalten?"
+  zh: "不想再收到我们的时事通讯？"
+  es: "¿Ya no quieres recibir nuestro boletín?"
+  fr: "Vous ne souhaitez plus recevoir notre newsletter ?"
+  pt: ""
+  ru: ""
+  ja: "ニュースレターの受信を停止しますか？"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: "ไม่ต้องการรับจดหมายข่าวของเราอีกต่อไป?"
+  cs: "Nechcete už dostávat náš newsletter?"
+  sv: "Vill du inte längre få vårt nyhetsbrev?"
   verified_by_human: []
 newsletter_confirmed.unsubscribe_link:
   context: Unsubscribe link text in newsletter confirmed email
-  en: 'Unsubscribe here'
-  de: 'Hier abmelden'
-  zh: '在此退订'
-  es: 'Darse de baja aquí'
-  fr: 'Se désabonner ici'
-  pt: ''
-  ru: ''
-  ja: 'ここで配信停止'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: 'ยกเลิกการสมัครสมาชิกที่นี่'
-  cs: 'Zde se odhlásit'
-  sv: 'Avprenumerera här'
+  en: "Unsubscribe here"
+  de: "Hier abmelden"
+  zh: "在此退订"
+  es: "Darse de baja aquí"
+  fr: "Se désabonner ici"
+  pt: ""
+  ru: ""
+  ja: "ここで配信停止"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: "ยกเลิกการสมัครสมาชิกที่นี่"
+  cs: "Zde se odhlásit"
+  sv: "Avprenumerera här"
   verified_by_human: []
 newsletter.subject:
   context: Newsletter email subject line
@@ -3019,26 +3279,26 @@ newsletter.default_content:
   verified_by_human: []
 newsletter.social_media_text:
   context: Text above social media buttons in newsletter
-  en: 'Follow us on social media:'
-  de: 'Folgen Sie uns in den sozialen Medien:'
-  zh: '在社交媒体上关注我们：'
-  es: 'Síguenos en las redes sociales:'
-  fr: 'Suivez-nous sur les réseaux sociaux :'
-  pt: 'Siga-nos nas redes sociais:'
-  ru: 'Следите за нами в социальных сетях:'
-  ja: 'ソーシャルメディアでフォローしてください：'
-  ko: '소셜 미디어에서 팔로우하세요:'
-  it: 'Seguici sui social media:'
-  tr: 'Sosyal medyada bizi takip edin:'
-  vi: 'Theo dõi chúng tôi trên mạng xã hội:'
-  id: 'Ikuti kami di media sosial:'
-  pl: 'Śledź nas w mediach społecznościowych:'
-  nl: 'Volg ons op sociale media:'
-  ar: 'تابعنا على وسائل التواصل الاجتماعي:'
-  hi: 'सोशल मीडिया पर हमें फॉलो करें:'
-  th: 'ติดตามเราบนโซเชียลมีเดีย:'
-  cs: 'Sledujte nás na sociálních sítích:'
-  sv: 'Följ oss på sociala medier:'
+  en: "Follow us on social media:"
+  de: "Folgen Sie uns in den sozialen Medien:"
+  zh: "在社交媒体上关注我们："
+  es: "Síguenos en las redes sociales:"
+  fr: "Suivez-nous sur les réseaux sociaux :"
+  pt: "Siga-nos nas redes sociais:"
+  ru: "Следите за нами в социальных сетях:"
+  ja: "ソーシャルメディアでフォローしてください："
+  ko: "소셜 미디어에서 팔로우하세요:"
+  it: "Seguici sui social media:"
+  tr: "Sosyal medyada bizi takip edin:"
+  vi: "Theo dõi chúng tôi trên mạng xã hội:"
+  id: "Ikuti kami di media sosial:"
+  pl: "Śledź nas w mediach społecznościowych:"
+  nl: "Volg ons op sociale media:"
+  ar: "تابعنا على وسائل التواصل الاجتماعي:"
+  hi: "सोशल मीडिया पर हमें फॉलो करें:"
+  th: "ติดตามเราบนโซเชียลมีเดีย:"
+  cs: "Sledujte nás na sociálních sítích:"
+  sv: "Följ oss på sociala medier:"
   verified_by_human: []
 newsletter.unsubscribe_text:
   context: Text before unsubscribe link in newsletter
@@ -3088,26 +3348,26 @@ newsletter.unsubscribe_link:
   verified_by_human: []
 issue_report.title:
   context: Email subject for issue report email
-  en: 'Issue reported: {issue_title}'
-  de: 'Problem gemeldet: {issue_title}'
-  zh: '报告的问题：{issue_title}'
-  es: 'Problema reportado: {issue_title}'
-  fr: 'Problème signalé : {issue_title}'
-  pt: 'Problema reportado: {issue_title}'
-  ru: 'Сообщена проблема: {issue_title}'
-  ja: '報告された問題：{issue_title}'
-  ko: '보고된 문제: {issue_title}'
-  it: 'Problema segnalato: {issue_title}'
-  tr: 'Bildirilen sorun: {issue_title}'
-  vi: 'Sự cố đã báo cáo: {issue_title}'
-  id: 'Masalah dilaporkan: {issue_title}'
-  pl: 'Zgłoszony problem: {issue_title}'
-  nl: 'Probleem gemeld: {issue_title}'
-  ar: 'تم الإبلاغ عن المشكلة: {issue_title}'
-  hi: 'रिपोर्ट की गई समस्या: {issue_title}'
-  th: 'รายงานปัญหา: {issue_title}'
-  cs: 'Nahlášený problém: {issue_title}'
-  sv: 'Rapporterat problem: {issue_title}'
+  en: "Issue reported: {issue_title}"
+  de: "Problem gemeldet: {issue_title}"
+  zh: "报告的问题：{issue_title}"
+  es: "Problema reportado: {issue_title}"
+  fr: "Problème signalé : {issue_title}"
+  pt: "Problema reportado: {issue_title}"
+  ru: "Сообщена проблема: {issue_title}"
+  ja: "報告された問題：{issue_title}"
+  ko: "보고된 문제: {issue_title}"
+  it: "Problema segnalato: {issue_title}"
+  tr: "Bildirilen sorun: {issue_title}"
+  vi: "Sự cố đã báo cáo: {issue_title}"
+  id: "Masalah dilaporkan: {issue_title}"
+  pl: "Zgłoszony problem: {issue_title}"
+  nl: "Probleem gemeld: {issue_title}"
+  ar: "تم الإبلاغ عن المشكلة: {issue_title}"
+  hi: "रिपोर्ट की गई समस्या: {issue_title}"
+  th: "รายงานปัญหา: {issue_title}"
+  cs: "Nahlášený problém: {issue_title}"
+  sv: "Rapporterat problem: {issue_title}"
   verified_by_human: []
 issue_report.header:
   context: Header text in issue report email body
@@ -3295,26 +3555,26 @@ issue_report.location_label:
   verified_by_human: []
 community_share_notification.subject:
   context: Email subject for community share notification
-  en: 'New chat suggested for community: {chat_title}'
-  de: 'Neuer Chat für die Community vorgeschlagen: {chat_title}'
-  zh: '社区建议的新聊天：{chat_title}'
-  es: 'Nuevo chat sugerido para la comunidad: {chat_title}'
-  fr: 'Nouveau chat suggéré pour la communauté : {chat_title}'
-  pt: 'Novo chat sugerido para a comunidade: {chat_title}'
-  ru: 'Новый чат предложен для сообщества: {chat_title}'
-  ja: 'コミュニティに提案された新しいチャット: {chat_title}'
-  ko: '커뮤니티에 제안된 새로운 채팅: {chat_title}'
-  it: 'Nuova chat suggerita per la comunità: {chat_title}'
-  tr: 'Topluluk için önerilen yeni sohbet: {chat_title}'
-  vi: 'Cuộc trò chuyện mới được đề xuất cho cộng đồng: {chat_title}'
-  id: 'Obrolan baru disarankan untuk komunitas: {chat_title}'
-  pl: 'Nowy czat zasugerowany dla społeczności: {chat_title}'
-  nl: 'Nieuwe chat voorgesteld voor de community: {chat_title}'
-  ar: 'تم اقتراح دردشة جديدة للمجتمع: {chat_title}'
-  hi: 'समुदाय के लिए नया चैट सुझाव: {chat_title}'
-  th: 'แชทใหม่ที่แนะนำสำหรับชุมชน: {chat_title}'
-  cs: 'Nový chat navržený pro komunitu: {chat_title}'
-  sv: 'Ny chatt föreslagen för communityn: {chat_title}'
+  en: "New chat suggested for community: {chat_title}"
+  de: "Neuer Chat für die Community vorgeschlagen: {chat_title}"
+  zh: "社区建议的新聊天：{chat_title}"
+  es: "Nuevo chat sugerido para la comunidad: {chat_title}"
+  fr: "Nouveau chat suggéré pour la communauté : {chat_title}"
+  pt: "Novo chat sugerido para a comunidade: {chat_title}"
+  ru: "Новый чат предложен для сообщества: {chat_title}"
+  ja: "コミュニティに提案された新しいチャット: {chat_title}"
+  ko: "커뮤니티에 제안된 새로운 채팅: {chat_title}"
+  it: "Nuova chat suggerita per la comunità: {chat_title}"
+  tr: "Topluluk için önerilen yeni sohbet: {chat_title}"
+  vi: "Cuộc trò chuyện mới được đề xuất cho cộng đồng: {chat_title}"
+  id: "Obrolan baru disarankan untuk komunitas: {chat_title}"
+  pl: "Nowy czat zasugerowany dla społeczności: {chat_title}"
+  nl: "Nieuwe chat voorgesteld voor de community: {chat_title}"
+  ar: "تم اقتراح دردشة جديدة للمجتمع: {chat_title}"
+  hi: "समुदाय के लिए नया चैट सुझाव: {chat_title}"
+  th: "แชทใหม่ที่แนะนำสำหรับชุมชน: {chat_title}"
+  cs: "Nový chat navržený pro komunitu: {chat_title}"
+  sv: "Ny chatt föreslagen för communityn: {chat_title}"
 community_share_notification.header:
   context: Header text in community share notification email body
   en: New chat suggested for community
@@ -3476,44 +3736,44 @@ account_recovery_title:
   zh: 账户重置
   es: Restablecer cuenta
   fr: Réinitialisation du compte
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アカウントリセット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 account_recovery_description:
   context: Email description for account recovery
-  en: 'You requested to reset your account. WARNING: This will permanently delete all your chats, settings, and memories.'
-  de: 'Du hast eine Kontozurücksetzung angefordert. WARNUNG: Dadurch werden alle deine Chats, Einstellungen und Erinnerungen dauerhaft gelöscht.'
-  zh: '您请求重置账户。警告：这将永久删除您的所有聊天记录、设置和回忆。'
-  es: 'Has solicitado restablecer tu cuenta. ADVERTENCIA: Esto eliminará permanentemente todos tus chats, configuraciones y recuerdos.'
-  fr: 'Vous avez demandé la réinitialisation de votre compte. AVERTISSEMENT : Cela supprimera définitivement tous vos chats, paramètres et souvenirs.'
-  pt: ''
-  ru: ''
-  ja: 'アカウントのリセットをリクエストしました。警告：すべてのチャット、設定、メモリーが永久に削除されます。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "You requested to reset your account. WARNING: This will permanently delete all your chats, settings, and memories."
+  de: "Du hast eine Kontozurücksetzung angefordert. WARNUNG: Dadurch werden alle deine Chats, Einstellungen und Erinnerungen dauerhaft gelöscht."
+  zh: "您请求重置账户。警告：这将永久删除您的所有聊天记录、设置和回忆。"
+  es: "Has solicitado restablecer tu cuenta. ADVERTENCIA: Esto eliminará permanentemente todos tus chats, configuraciones y recuerdos."
+  fr: "Vous avez demandé la réinitialisation de votre compte. AVERTISSEMENT : Cela supprimera définitivement tous vos chats, paramètres et souvenirs."
+  pt: ""
+  ru: ""
+  ja: "アカウントのリセットをリクエストしました。警告：すべてのチャット、設定、メモリーが永久に削除されます。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 code_valid_15_minutes:
   context: Information about code validity in recovery email
@@ -3522,19 +3782,19 @@ code_valid_15_minutes:
   zh: 此代码在15分钟内有效。
   es: Este código es válido durante 15 minutos.
   fr: Ce code est valide pendant 15 minutes.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: このコードは15分間有効です。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []

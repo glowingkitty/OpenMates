@@ -680,6 +680,7 @@
         align-items: center;
         gap: 0.75rem; /* Add gap between sign in button and language icon */
         transition: opacity 0.2s ease, visibility 0.2s ease;
+        margin-right: 10px;
         /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
     }
 
@@ -695,9 +696,11 @@
         padding: 8px 12px;
         border-radius: 8px;
         background-color: var(--color-button-primary);
+        color: white;
         cursor: pointer;
         transition: all 0.2s ease;
         white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
     .login-signup-button:hover {
@@ -707,5 +710,6 @@
     .login-signup-button:active {
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
+        box-shadow: none;
     }
 </style>

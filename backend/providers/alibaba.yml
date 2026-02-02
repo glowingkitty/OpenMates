@@ -11,9 +11,10 @@ models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen3 235B A22B (2507)"
     description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance."
-    country_origin: "CN"  # ISO 3166-1 alpha-2 country code for model origin (China)
-    allow_auto_select: false  # Enable after manual testing via @ai-model:qwen3-235b-a22b-2507
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:qwen3-235b-a22b-2507
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "qwen3-235b-a22b"
       openrouter: "qwen/qwen3-235b-a22b-2507"
     input_types:
@@ -21,14 +22,14 @@ models:
       - image
     output_types:
       - text
-    default_server: "cerebras"  # Default to Cerebras for ultra-fast inference
+    default_server: "cerebras" # Default to Cerebras for ultra-fast inference
     servers:
       - id: "cerebras"
         name: "Cerebras"
-        model_id: "qwen-3-235b-a22b-instruct-2507"  # Direct Cerebras model identifier (Preview model)
+        model_id: "qwen-3-235b-a22b-instruct-2507" # Direct Cerebras model identifier (Preview model)
       - id: "openrouter"
         name: "OpenRouter"
-        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier (fallback when Cerebras is unavailable)
+        model_id: "qwen/qwen3-235b-a22b-2507" # OpenRouter's model identifier (fallback when Cerebras is unavailable)
     # Note: Google Vertex AI removed as fallback - model was not accessible (404 errors).
     # OpenRouter is now the primary fallback with auto-provider selection.
     pricing:
