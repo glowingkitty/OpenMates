@@ -2,7 +2,7 @@ name_translation_key: ai.text
 description_translation_key: ai.description.text
 icon_image: |
   ai.svg
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 providers:
   - Mistral
   - Cerebras
@@ -131,8 +131,7 @@ skills:
       # Model Selection Configuration
       # When false, uses hardcoded models from default_llms below.
       # When true, uses intelligent auto-selection based on leaderboard rankings.
-      # Set to false until all models have been manually tested via @ai-model:xxx
-      enable_auto_model_selection: false
+      enable_auto_model_selection: true
       default_llms:
         preprocessing_model: mistral/mistral-small-latest
         # main_processing_simple: google/gemini-3-flash-preview

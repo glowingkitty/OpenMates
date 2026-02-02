@@ -14,8 +14,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     # Allow this model to be selected by the intelligent auto-selection system.
-    # Set to false to exclude from auto-selection until manually tested.
-    allow_auto_select: false
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-haiku-4-5-20251001" # Exact LMArena model name (if listed)
       openrouter: "anthropic/claude-haiku-4-5-20251001"
@@ -60,7 +59,7 @@ models:
     description: "Optimal balance of intelligence, cost, and speed."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:claude-sonnet-4-5-20250929
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-sonnet-4-5-20250929" # Exact LMArena model name
       openrouter: "anthropic/claude-sonnet-4-5-20250929"
@@ -106,7 +105,7 @@ models:
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:claude-opus-4-5-20251101
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-opus-4-5-20251101" # Exact LMArena model name
       openrouter: "anthropic/claude-opus-4-5-20251101"

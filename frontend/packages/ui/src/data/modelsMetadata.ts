@@ -25,264 +25,267 @@
  * AI model metadata structure for frontend display.
  */
 export interface AIModelMetadata {
-    /** Unique model identifier (matches provider YAML) */
-    id: string;
-    /** Display name for the model */
-    name: string;
-    /** Brief description of the model's capabilities */
-    description: string;
-    /** Provider ID (anthropic, openai, google, mistral, etc.) */
-    provider_id: string;
-    /** Provider display name */
-    provider_name: string;
-    /** Path to provider logo SVG (relative to static/) */
-    logo_svg: string;
-    /** ISO 3166-1 alpha-2 country code for model origin */
-    country_origin: string;
-    /** Supported input types */
-    input_types: ('text' | 'image' | 'video' | 'audio')[];
-    /** Supported output types */
-    output_types: ('text' | 'image')[];
-    /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
-    for_app_skill?: string;
-    /** Whether this is a reasoning/thinking model */
-    reasoning?: boolean;
-    /** Model tier for cost indication: economy, standard, premium */
-    tier: 'economy' | 'standard' | 'premium';
-    /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
-    search_aliases?: string[];
+  /** Unique model identifier (matches provider YAML) */
+  id: string;
+  /** Display name for the model */
+  name: string;
+  /** Brief description of the model's capabilities */
+  description: string;
+  /** Provider ID (anthropic, openai, google, mistral, etc.) */
+  provider_id: string;
+  /** Provider display name */
+  provider_name: string;
+  /** Path to provider logo SVG (relative to static/) */
+  logo_svg: string;
+  /** ISO 3166-1 alpha-2 country code for model origin */
+  country_origin: string;
+  /** Supported input types */
+  input_types: ("text" | "image" | "video" | "audio")[];
+  /** Supported output types */
+  output_types: ("text" | "image")[];
+  /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
+  for_app_skill?: string;
+  /** Whether this is a reasoning/thinking model */
+  reasoning?: boolean;
+  /** Model tier for cost indication: economy, standard, premium */
+  tier: "economy" | "standard" | "premium";
+  /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
+  search_aliases?: string[];
 }
 
 /**
  * Static models metadata for the @ mention dropdown.
- * 
+ *
  * This data is generated at build time from backend provider YAML files.
  * All text-capable models are included here.
- * 
+ *
  * At runtime, models are filtered based on provider health checks.
  */
 export const modelsMetadata: AIModelMetadata[] = [
-    {
-        id: "qwen3-235b-a22b-2507",
-        name: "Qwen3 235B A22B (2507)",
-        description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
-        provider_id: "alibaba",
-        provider_name: "Alibaba",
-        logo_svg: "icons/alibaba.svg",
-        country_origin: "CN",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-    },
-    {
-        id: "claude-haiku-4-5-20251001",
-        name: "Claude Haiku 4.5",
-        description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-    },
-    {
-        id: "claude-opus-4-5-20251101",
-        name: "Claude Opus 4.5",
-        description: "Most powerful Claude model for highly complex tasks, research, and creative writing.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-    },
-    {
-        id: "claude-sonnet-4-5-20250929",
-        name: "Claude Sonnet 4.5",
-        description: "Optimal balance of intelligence, cost, and speed.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-    },
-    {
-        id: "flux-schnell",
-        name: "FLUX.1 Schnell",
-        description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency.",
-        provider_id: "bfl",
-        provider_name: "Black Forest Labs",
-        logo_svg: "icons/bfl.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["image"],
-        for_app_skill: "images.generate_draft",
-        tier: "economy",
-    },
-    {
-        id: "gemini-3-flash-preview",
-        name: "Gemini 3 Flash Preview",
-        description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter).",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
-    },
-    {
-        id: "gemini-3-pro-image-preview",
-        name: "Gemini 3 Pro Image Preview",
-        description: "High-end native image generation from Google, optimized for quality.",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["image"],
-        for_app_skill: "images.generate",
-        tier: "economy",
-    },
-    {
-        id: "gemini-3-pro-preview",
-        name: "Gemini 3 Pro Preview",
-        description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "premium",
-    },
-    {
-        id: "gemini-flash-latest",
-        name: "Gemini Flash Latest",
-        description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets.",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
-    },
-    {
-        id: "devstral-2512",
-        name: "Devstral 2",
-        description: "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-    },
-    {
-        id: "mistral-medium-latest",
-        name: "Mistral Medium",
-        description: "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-    },
-    {
-        id: "mistral-small-latest",
-        name: "Mistral Small",
-        description: "Mistral AI's fast and cost-effective model, optimized for low latency.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "economy",
-    },
-    {
-        id: "gpt-5.2",
-        name: "GPT-5.2",
-        description: "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-    },
-    {
-        id: "gpt-oss-120b",
-        name: "GPT-OSS-120b",
-        description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter.",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "economy",
-    },
-    {
-        id: "gpt-oss-safeguard-20b",
-        name: "GPT-OSS-Safeguard-20b",
-        description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference.",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.safety_check",
-        tier: "economy",
-    },
-    {
-        id: "zai-glm-4.7",
-        name: "GLM 4.7",
-        description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras.",
-        provider_id: "zai",
-        provider_name: "Z.ai",
-        logo_svg: "icons/zai.svg",
-        country_origin: "CN",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-    },
+  {
+    id: "qwen3-235b-a22b-2507",
+    name: "Qwen3 235B A22B (2507)",
+    description:
+      "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
+    provider_id: "alibaba",
+    provider_name: "Alibaba",
+    logo_svg: "icons/alibaba.svg",
+    country_origin: "CN",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+  },
+  {
+    id: "claude-haiku-4-5-20251001",
+    name: "Claude Haiku 4.5",
+    description:
+      "Fastest and most affordable Claude model. Ideal for simple tasks and health checks.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+  },
+  {
+    id: "claude-opus-4-5-20251101",
+    name: "Claude Opus 4.5",
+    description:
+      "Most powerful Claude model for highly complex tasks, research, and creative writing.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+  },
+  {
+    id: "claude-sonnet-4-5-20250929",
+    name: "Claude Sonnet 4.5",
+    description: "Optimal balance of intelligence, cost, and speed.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+  },
+  {
+    id: "flux-schnell",
+    name: "FLUX.1 Schnell",
+    description:
+      "The fastest high-quality image generation model from BFL, optimized for speed and efficiency.",
+    provider_id: "bfl",
+    provider_name: "Black Forest Labs",
+    logo_svg: "icons/bfl.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate_draft",
+    tier: "economy",
+  },
+  {
+    id: "gemini-3-flash-preview",
+    name: "Gemini 3 Flash Preview",
+    description:
+      "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter).",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text", "image", "video", "audio"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "standard",
+  },
+  {
+    id: "gemini-3-pro-image-preview",
+    name: "Gemini 3 Pro Image Preview",
+    description:
+      "High-end native image generation from Google, optimized for quality.",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate",
+    tier: "economy",
+  },
+  {
+    id: "gemini-3-pro-preview",
+    name: "Gemini 3 Pro Preview",
+    description:
+      "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text", "image", "video", "audio"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "premium",
+  },
+
+  {
+    id: "devstral-2512",
+    name: "Devstral 2",
+    description:
+      "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+  },
+  {
+    id: "mistral-medium-latest",
+    name: "Mistral Medium",
+    description:
+      "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+  },
+  {
+    id: "mistral-small-latest",
+    name: "Mistral Small",
+    description:
+      "Mistral AI's fast and cost-effective model, optimized for low latency.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "economy",
+  },
+  {
+    id: "gpt-5.2",
+    name: "GPT-5.2",
+    description:
+      "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+  },
+  {
+    id: "gpt-oss-120b",
+    name: "GPT-OSS-120b",
+    description:
+      "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter.",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "economy",
+  },
+  {
+    id: "gpt-oss-safeguard-20b",
+    name: "GPT-OSS-Safeguard-20b",
+    description:
+      "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference.",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.safety_check",
+    tier: "economy",
+  },
+  {
+    id: "zai-glm-4.7",
+    name: "GLM 4.7",
+    description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras.",
+    provider_id: "zai",
+    provider_name: "Z.ai",
+    logo_svg: "icons/zai.svg",
+    country_origin: "CN",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+  },
 ];
 
 /**
  * Get models metadata as a record keyed by model ID.
  */
 export function getModelsById(): Record<string, AIModelMetadata> {
-    return modelsMetadata.reduce((acc, model) => {
-        acc[model.id] = model;
-        return acc;
-    }, {} as Record<string, AIModelMetadata>);
+  return modelsMetadata.reduce(
+    (acc, model) => {
+      acc[model.id] = model;
+      return acc;
+    },
+    {} as Record<string, AIModelMetadata>,
+  );
 }
 
 /**
@@ -290,5 +293,5 @@ export function getModelsById(): Record<string, AIModelMetadata> {
  * @param count - Number of models to return (default: 4)
  */
 export function getTopModels(count: number = 4): AIModelMetadata[] {
-    return modelsMetadata.slice(0, count);
+  return modelsMetadata.slice(0, count);
 }
