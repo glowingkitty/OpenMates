@@ -11,12 +11,13 @@ models:
   - id: "claude-haiku-4-5-20251001" # Official model ID
     name: "Claude Haiku 4.5"
     description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     # Allow this model to be selected by the intelligent auto-selection system.
     # Set to false to exclude from auto-selection until manually tested.
     allow_auto_select: false
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-haiku-4-5-20251001"  # Exact LMArena model name (if listed)
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-haiku-4-5-20251001" # Exact LMArena model name (if listed)
       openrouter: "anthropic/claude-haiku-4-5-20251001"
     input_types:
       - text
@@ -33,11 +34,11 @@ models:
         name: "Anthropic API"
         model_id: "claude-haiku-4-5-20251001" # Direct API uses the model ID as-is
     pricing: # Model-specific base pricing (example structure)
-      tokens: 
+      tokens:
         input:
           per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
         output:
-          per_credit_unit: 70  # 1 credit per 70 output tokens (cheaper than Sonnet)
+          per_credit_unit: 70 # 1 credit per 70 output tokens (cheaper than Sonnet)
     costs:
       input_per_million_token:
         price: 1.00
@@ -57,10 +58,11 @@ models:
   - id: "claude-sonnet-4-5-20250929" # Official model ID
     name: "Claude Sonnet 4.5"
     description: "Optimal balance of intelligence, cost, and speed."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Enable after manual testing via @ai-model:claude-sonnet-4-5-20250929
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-sonnet-4-5-20250929"  # Exact LMArena model name
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:claude-sonnet-4-5-20250929
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-sonnet-4-5-20250929" # Exact LMArena model name
       openrouter: "anthropic/claude-sonnet-4-5-20250929"
     input_types:
       - text
@@ -78,11 +80,11 @@ models:
         model_id: "claude-sonnet-4-5-20250929" # Direct API uses the model ID as-is
     # Full reference for API calls would be "anthropic/claude-sonnet-4-20250514" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
-      tokens: 
+      tokens:
         input:
           per_credit_unit: 110 # 1 credit per 110 input tokens
         output:
-          per_credit_unit: 20  # 1 credit per 20 output tokens
+          per_credit_unit: 20 # 1 credit per 20 output tokens
     costs:
       input_per_million_token:
         price: 3.00
@@ -102,10 +104,11 @@ models:
   - id: "claude-opus-4-5-20251101" # Official model ID
     name: "Claude Opus 4.5"
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
-    country_origin: "US"  # ISO 3166-1 alpha-2 country code for model origin
-    allow_auto_select: false  # Enable after manual testing via @ai-model:claude-opus-4-5-20251101
-    external_ids:  # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-opus-4-5-20251101"  # Exact LMArena model name
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Enable after manual testing via @ai-model:claude-opus-4-5-20251101
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "claude-opus-4-5-20251101" # Exact LMArena model name
       openrouter: "anthropic/claude-opus-4-5-20251101"
     input_types:
       - text
@@ -121,11 +124,11 @@ models:
         name: "OpenRouter API"
         model_id: "anthropic/claude-opus-4.5" # OpenRouter model identifier
     pricing: # Model-specific base pricing
-      tokens: 
+      tokens:
         input:
           per_credit_unit: 70 # 1 credit per 70 input tokens
         output:
-          per_credit_unit: 15  # 1 credit per 15 output tokens
+          per_credit_unit: 15 # 1 credit per 15 output tokens
     costs:
       input_per_million_token:
         price: 5.00
@@ -142,11 +145,10 @@ models:
         price: 0.50
         currency: USD
 
-
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
-# 
+#
 # Where:
 # - credit_value_usd = 0.001 (110 USD / 110,000 credits)
 # - markup = 3 (3x your cost)
