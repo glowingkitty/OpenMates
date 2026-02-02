@@ -87,6 +87,10 @@ export interface SkillMentionResult extends MentionResult {
   appId: string;
   /** App icon gradient or image */
   appIcon: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -98,6 +102,10 @@ export interface FocusModeMentionResult extends MentionResult {
   appId: string;
   /** App icon gradient or image */
   appIcon: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -111,6 +119,10 @@ export interface SettingsMemoryMentionResult extends MentionResult {
   appIcon: string;
   /** Memory type (e.g., 'list', 'single') */
   memoryType: string;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
 }
 
 /**
@@ -184,7 +196,8 @@ function calculateMatchScore(query: string, terms: string[]): number {
 
 /**
  * Convert AI model metadata to mention results.
- * Filters out models whose provider is unhealthy (if health data is available).
+ * Filters to only include models for the "ai.ask" skill (text generation models).
+ * Also filters out models whose provider is unhealthy (if health data is available).
  *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
@@ -194,6 +207,8 @@ function getModelMentionResults(): ModelMentionResult[] {
 
   return (
     modelsMetadata
+      // Filter to only include models for the "ai.ask" skill (excludes image generation models)
+      .filter((model) => model.for_app_skill === "ai.ask")
       // Filter by provider health (offline-first: shows all if health data unavailable)
       .filter((model) => checkProviderHealthy(model.provider_id))
       .map((model) => ({
@@ -313,6 +328,8 @@ function getSkillMentionResults(): SkillMentionResult[] {
         ),
         appId,
         appIcon,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }
@@ -366,6 +383,8 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
         ),
         appId,
         appIcon,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }
@@ -434,6 +453,8 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
         appId,
         appIcon,
         memoryType: memory.type,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
       });
     }
   }
