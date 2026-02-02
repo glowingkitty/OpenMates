@@ -884,10 +884,13 @@ export async function inspectEmbed(
   lines.push(separator);
 
   // Get embed directly from store by ID
+  // IMPORTANT: IndexedDB embeds are stored with contentRef key "embed:{embed_id}"
+  // so we need to use the prefixed key for lookup
+  const contentRef = `embed:${embedId}`;
   const embed = await getFromStore<Record<string, unknown>>(
     db,
     EMBEDS_STORE,
-    embedId,
+    contentRef,
   );
 
   lines.push("");
@@ -964,7 +967,8 @@ export async function inspectEmbed(
   try {
     // Dynamic import to avoid circular dependencies
     const { embedStore } = await import("./embedStore");
-    const inMemoryEmbed = await embedStore.get(embedId);
+    // embedStore.get() expects contentRef format "embed:{embed_id}"
+    const inMemoryEmbed = await embedStore.get(contentRef);
 
     if (inMemoryEmbed) {
       lines.push(`  ✓ Found in embedStore memory cache`);
