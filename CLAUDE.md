@@ -465,6 +465,64 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled 
 
 ---
 
+## Admin Debug API (Remote Debugging)
+
+Remote debugging endpoints when SSH access is unavailable. Requires admin API key.
+
+**Base URLs:** `https://api.openmates.org` (prod) or `https://api.dev.openmates.org` (dev)
+
+### Query Logs
+
+```bash
+# Get logs from specific services
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/logs?services=api,task-worker&lines=50&since_minutes=30"
+
+# Search for errors
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/logs?search=ERROR&since_minutes=60"
+```
+
+**Allowed services:** `api`, `cms`, `cms-database`, `task-worker`, `task-scheduler`, `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-images`, `app-ai-worker`, `app-web-worker`, `app-images-worker`, `cache`
+
+### Inspect Data
+
+```bash
+# Inspect a chat
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/chat/<chat_id>"
+
+# Inspect a user by email
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/user/<email>"
+
+# Inspect an embed
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/embed/<embed_id>"
+
+# Inspect last AI requests (filter by chat_id optional)
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/last-requests?chat_id=<chat_id>"
+```
+
+### Issue Reports
+
+```bash
+# List issues
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues?search=login&include_processed=true"
+
+# Get issue with logs
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>?include_logs=true"
+
+# Delete issue
+curl -X DELETE -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>"
+```
+
+---
+
 ## Testing Policy
 
 ### Test Creation Consent Requirements

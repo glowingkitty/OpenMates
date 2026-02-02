@@ -30,6 +30,7 @@ from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
 from backend.core.api.app.routes import demo_chat  # noqa: E402 # Import demo chat router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
+from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -1214,6 +1215,7 @@ def create_app() -> FastAPI:
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
     app.include_router(demo_chat.router, include_in_schema=False)  # Demo chat router - public access
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
+    app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     
