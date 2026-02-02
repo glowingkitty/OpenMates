@@ -2,6 +2,7 @@
 # Handles the consumption of the main processing stream for AI tasks.
 
 import logging
+import re
 import time
 import httpx
 import asyncio
@@ -39,6 +40,46 @@ logger = logging.getLogger(__name__)
 
 # Type alias for usage metadata
 UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+
+# Regex pattern to match <tool_call>...</tool_call> blocks
+# Some LLMs (e.g., Qwen3) output tool calls as XML text IN ADDITION to proper function calling.
+# This causes the tool call text to appear in the user-visible response, which is confusing.
+# We strip these blocks from the text content to keep the response clean.
+_TOOL_CALL_XML_PATTERN = re.compile(
+    r'<tool_call>\s*.*?\s*</tool_call>',
+    re.DOTALL | re.IGNORECASE
+)
+
+def _strip_tool_call_xml_from_text(text: str) -> str:
+    """
+    Strip <tool_call>...</tool_call> XML blocks from text content.
+    
+    Some LLMs (notably Qwen3) output tool calls as XML text in their response content,
+    in addition to using proper function calling APIs. This causes the raw tool call
+    JSON to appear in the user-visible message, which is confusing and ugly.
+    
+    This function removes these blocks while preserving the rest of the content.
+    
+    Args:
+        text: The text content that may contain <tool_call> XML blocks
+        
+    Returns:
+        The text with <tool_call> blocks removed and excess whitespace cleaned up
+    """
+    if not text or '<tool_call>' not in text.lower():
+        return text
+    
+    # Remove <tool_call>...</tool_call> blocks
+    cleaned = _TOOL_CALL_XML_PATTERN.sub('', text)
+    
+    # Clean up any resulting double newlines or excess whitespace
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = cleaned.strip()
+    
+    if cleaned != text:
+        logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
+    
+    return cleaned
 
 def _create_redis_payload(
     task_id: str,
@@ -1093,6 +1134,15 @@ async def _consume_main_processing_stream(
                 if chunk.strip().startswith("[ERROR"):
                     logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
                     chunk = "chat.an_error_occured.text"
+                
+                # Strip <tool_call>...</tool_call> XML blocks from text content
+                # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling
+                # This ensures the raw tool call JSON doesn't appear in the user-visible response
+                chunk = _strip_tool_call_xml_from_text(chunk)
+                
+                # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
+                if not chunk:
+                    continue
                 
                 # Code block detection and embed creation
                 # Detect code block opening: ```language or ```language:filename
