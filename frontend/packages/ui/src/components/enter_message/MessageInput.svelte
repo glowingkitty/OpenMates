@@ -1105,6 +1105,10 @@
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
         }
+        
+        // Re-check mention trigger when focus is regained
+        // This ensures the dropdown reappears if cursor is right after '@'
+        checkMentionTrigger(editor);
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
@@ -1124,6 +1128,12 @@
             if (editor && !editor.isDestroyed && !editor.isFocused && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
+                
+                // Close the mention dropdown when editor loses focus
+                // It will reopen when focus is regained if cursor is after '@'
+                showMentionDropdown = false;
+                mentionQuery = '';
+                
                 flushSaveDraft();
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content

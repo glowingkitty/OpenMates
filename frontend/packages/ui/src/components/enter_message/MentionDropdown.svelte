@@ -290,7 +290,7 @@
     .mention-dropdown {
         position: absolute;
         z-index: 1000;
-        background: var(--color-grey-0);
+        background: var(--color-grey-blue);
         border-radius: 16px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         min-width: 380px;

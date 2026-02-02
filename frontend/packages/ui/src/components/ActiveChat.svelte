@@ -5377,13 +5377,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text.
-       Override global button styles from buttons.css (min-width, height, padding, filter). */
+       Override global button styles from buttons.css (min-width, height, padding, filter).
+       Height (41px) matches the icon buttons next to it (.new-chat-button-wrapper has 8px padding + 25px icon). */
     .new-chat-cta-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
         min-width: 0;
+        height: 41px;
         padding: 8px 16px;
         border: none;
         border-radius: 9999px;
@@ -5391,17 +5393,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: white;
         font-weight: 500;
         cursor: pointer;
-        transition: background-color 0.15s ease-in-out;
-        filter: none;
+        transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         margin-right: 0;
     }
 
     .new-chat-cta-button:hover {
         background-color: var(--color-button-primary-hover);
+        transform: scale(1.02);
     }
 
     .new-chat-cta-button:active {
         background-color: var(--color-button-primary-pressed);
+        transform: scale(0.98);
+        box-shadow: none;
     }
 
     .new-chat-cta-button .new-chat-cta-icon {
@@ -5430,11 +5435,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             display: none;
         }
 
-        /* Circle shape: override global button min-width/height so we can use fixed size */
+        /* Circle shape: match .new-chat-button-wrapper height (41px) */
         .new-chat-cta-button {
             min-width: 0;
-            width: 36px;
-            height: 36px;
+            width: 41px;
+            height: 41px;
             padding: 8px;
             box-sizing: border-box;
         }
