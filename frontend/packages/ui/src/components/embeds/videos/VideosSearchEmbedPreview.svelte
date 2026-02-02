@@ -347,6 +347,7 @@
                     class="channel-thumbnail"
                     style="z-index: {channelThumbnailResults.length - index};"
                     loading="lazy"
+                    crossorigin="anonymous"
                     onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                 {/if}

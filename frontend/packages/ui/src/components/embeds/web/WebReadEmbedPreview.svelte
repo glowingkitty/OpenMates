@@ -304,6 +304,7 @@
             src={faviconUrl()} 
             alt="" 
             class="title-favicon"
+            crossorigin="anonymous"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         {/if}

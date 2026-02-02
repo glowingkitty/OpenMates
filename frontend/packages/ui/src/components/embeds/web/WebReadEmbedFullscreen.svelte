@@ -346,6 +346,8 @@
               node.setAttribute('src', proxiedSrc);
               console.debug(`[WebReadEmbedFullscreen] Proxied image: ${originalSrc.substring(0, 50)}...`);
             }
+            // Enable service worker caching for cross-origin images
+            node.setAttribute('crossorigin', 'anonymous');
           }
         }
       });
@@ -498,6 +500,7 @@
             src={faviconUrl()} 
             alt="" 
             class="file-widget-favicon"
+            crossorigin="anonymous"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         {/if}

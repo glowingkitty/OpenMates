@@ -101,7 +101,7 @@
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
     {#if faviconUrl}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
-        <img src={faviconUrl} alt="" class="favicon-image-mobile" />
+        <img src={faviconUrl} alt="" class="favicon-image-mobile" crossorigin="anonymous" />
       </div>
     {:else}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
@@ -158,6 +158,7 @@
             alt="" 
             class="title-favicon" 
             class:circular={faviconIsCircular}
+            crossorigin="anonymous"
             onerror={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }} 
