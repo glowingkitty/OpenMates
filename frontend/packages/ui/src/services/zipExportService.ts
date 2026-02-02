@@ -7,41 +7,56 @@
  * - Separate transcript files for each video transcript embed
  */
 
-import JSZip from 'jszip';
-import type { Chat, Message } from '../types/chat';
-import { convertChatToYaml, generateChatFilename } from './chatExportService';
-import { extractEmbedReferences, loadEmbeds, decodeToonContent } from './embedResolver';
-import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers';
-import { parseCodeEmbedContent } from '../components/embeds/code/codeEmbedContent';
+import JSZip from "jszip";
+import type { Chat, Message } from "../types/chat";
+import { convertChatToYaml, generateChatFilename } from "./chatExportService";
+import {
+  extractEmbedReferences,
+  loadEmbeds,
+  decodeToonContent,
+} from "./embedResolver";
+import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
+import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 
 /**
  * Converts a single message to markdown format
  */
 async function convertMessageToMarkdown(message: Message): Promise<string> {
   try {
-    const timestamp = new Date(message.created_at * 1000).toISOString();
-    const role = message.role === 'assistant' ? 'Assistant' : 'You';
+    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
+    const timestampMs =
+      message.created_at < 1e12
+        ? message.created_at * 1000
+        : message.created_at;
+    const timestamp = new Date(timestampMs).toISOString();
+    const role = message.role === "assistant" ? "Assistant" : "You";
 
-    let content = '';
-    if (typeof message.content === 'string') {
+    let content = "";
+    if (typeof message.content === "string") {
       content = message.content;
-    } else if (message.content && typeof message.content === 'object') {
+    } else if (message.content && typeof message.content === "object") {
       content = tipTapToCanonicalMarkdown(message.content);
     }
 
     return `## ${role} - ${timestamp}\n\n${content}\n\n`;
   } catch (error) {
-    console.error('[ZipExportService] Error converting message to markdown:', error);
-    return '';
+    console.error(
+      "[ZipExportService] Error converting message to markdown:",
+      error,
+    );
+    return "";
   }
 }
 
 /**
  * Converts chat messages to markdown format
  */
-async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<string> {
+async function convertChatToMarkdown(
+  chat: Chat,
+  messages: Message[],
+): Promise<string> {
   try {
-    let markdown = '';
+    let markdown = "";
 
     // Add title header
     if (chat.title) {
@@ -49,9 +64,12 @@ async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<s
     }
 
     // Add metadata
-    const createdDate = new Date(chat.created_at * 1000).toISOString();
+    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
+    const timestampMs =
+      chat.created_at < 1e12 ? chat.created_at * 1000 : chat.created_at;
+    const createdDate = new Date(timestampMs).toISOString();
     markdown += `*Created: ${createdDate}*\n\n`;
-    markdown += '---\n\n';
+    markdown += "---\n\n";
 
     // Add all messages
     for (const message of messages) {
@@ -61,8 +79,11 @@ async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<s
 
     return markdown;
   } catch (error) {
-    console.error('[ZipExportService] Error converting chat to markdown:', error);
-    return '';
+    console.error(
+      "[ZipExportService] Error converting chat to markdown:",
+      error,
+    );
+    return "";
   }
 }
 
@@ -72,13 +93,18 @@ async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<s
  * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
  * @returns Array of code embed data
  */
-async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<string> = new Set()): Promise<Array<{
-  embed_id: string;
-  language: string;
-  filename?: string;
-  content: string;
-  file_path?: string;
-}>> {
+async function loadCodeEmbedsRecursively(
+  embedIds: string[],
+  loadedEmbedIds: Set<string> = new Set(),
+): Promise<
+  Array<{
+    embed_id: string;
+    language: string;
+    filename?: string;
+    content: string;
+    file_path?: string;
+  }>
+> {
   const codeEmbeds: Array<{
     embed_id: string;
     language: string;
@@ -88,13 +114,13 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
   }> = [];
 
   // Filter out already loaded embeds
-  const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+  const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
   if (newEmbedIds.length === 0) {
     return codeEmbeds;
   }
 
   // Mark these as being loaded
-  newEmbedIds.forEach(id => loadedEmbedIds.add(id));
+  newEmbedIds.forEach((id) => loadedEmbedIds.add(id));
 
   // Load embeds from EmbedStore
   const loadedEmbeds = await loadEmbeds(newEmbedIds);
@@ -102,7 +128,7 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
   // Process each embed
   for (const embed of loadedEmbeds) {
     try {
-      if (!embed.content || typeof embed.content !== 'string') {
+      if (!embed.content || typeof embed.content !== "string") {
         continue;
       }
 
@@ -110,27 +136,40 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
       const decodedContent = await decodeToonContent(embed.content);
 
       // If this is a code embed, process it
-      if (embed.type === 'code' && decodedContent && typeof decodedContent === 'object') {
-        const rawCodeContent = decodedContent.code || decodedContent.content || '';
-        const hintLanguage = decodedContent.language || decodedContent.lang || 'text';
+      if (
+        embed.type === "code" &&
+        decodedContent &&
+        typeof decodedContent === "object"
+      ) {
+        const rawCodeContent =
+          decodedContent.code || decodedContent.content || "";
+        const hintLanguage =
+          decodedContent.language || decodedContent.lang || "text";
         const hintFilename = decodedContent.filename || undefined;
-        
+
         // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
         // This also strips the header line from the code content
-        const parsed = parseCodeEmbedContent(rawCodeContent, { language: hintLanguage, filename: hintFilename });
+        const parsed = parseCodeEmbedContent(rawCodeContent, {
+          language: hintLanguage,
+          filename: hintFilename,
+        });
         const codeContent = parsed.code;
         const language = parsed.language || hintLanguage;
         // Get filename from parsed header if not already provided
         const filename = hintFilename || parsed.filename || undefined;
-        
+
         // Get file_path from embed-level field (stored in EmbedStore) OR TOON content OR parsed filename
         // Priority: embed.file_path > decodedContent.file_path > parsed.filename (if it contains path separator)
         // The filename can be a full path when specified as `language:path/to/file.ext` in markdown
         let filePath = embed.file_path || decodedContent.file_path || undefined;
-        
+
         // If no explicit file_path but filename contains path separators, use filename as path
         const filenameForPath = filename || parsed.filename;
-        if (!filePath && filenameForPath && (filenameForPath.includes('/') || filenameForPath.includes('\\'))) {
+        if (
+          !filePath &&
+          filenameForPath &&
+          (filenameForPath.includes("/") || filenameForPath.includes("\\"))
+        ) {
           filePath = filenameForPath;
         }
 
@@ -140,7 +179,7 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
             language,
             filename,
             content: codeContent,
-            file_path: filePath
+            file_path: filePath,
           });
         }
       }
@@ -149,13 +188,15 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
       const childEmbedIds: string[] = [];
 
       // Check for embed_ids in the decoded content (for composite embeds)
-      if (decodedContent && typeof decodedContent === 'object') {
+      if (decodedContent && typeof decodedContent === "object") {
         // Check if decoded content has embed_ids (could be array or pipe-separated string)
         if (Array.isArray(decodedContent.embed_ids)) {
           childEmbedIds.push(...decodedContent.embed_ids);
-        } else if (typeof decodedContent.embed_ids === 'string') {
+        } else if (typeof decodedContent.embed_ids === "string") {
           // Handle pipe-separated string format
-          childEmbedIds.push(...decodedContent.embed_ids.split('|').filter(id => id.trim()));
+          childEmbedIds.push(
+            ...decodedContent.embed_ids.split("|").filter((id) => id.trim()),
+          );
         }
       }
 
@@ -169,17 +210,27 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
 
       // Recursively load child embeds
       if (uniqueChildEmbedIds.length > 0) {
-        console.debug('[ZipExportService] Loading nested embeds for code processing:', {
-          parentEmbedId: embed.embed_id,
-          childCount: uniqueChildEmbedIds.length,
-          childIds: uniqueChildEmbedIds
-        });
+        console.debug(
+          "[ZipExportService] Loading nested embeds for code processing:",
+          {
+            parentEmbedId: embed.embed_id,
+            childCount: uniqueChildEmbedIds.length,
+            childIds: uniqueChildEmbedIds,
+          },
+        );
 
-        const childCodeEmbeds = await loadCodeEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
+        const childCodeEmbeds = await loadCodeEmbedsRecursively(
+          uniqueChildEmbedIds,
+          loadedEmbedIds,
+        );
         codeEmbeds.push(...childCodeEmbeds);
       }
     } catch (error) {
-      console.warn('[ZipExportService] Error processing embed for code extraction:', embed.embed_id, error);
+      console.warn(
+        "[ZipExportService] Error processing embed for code extraction:",
+        embed.embed_id,
+        error,
+      );
     }
   }
 
@@ -189,22 +240,27 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
 /**
  * Gets all code embeds from a chat including nested embeds
  */
-async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
-  embed_id: string;
-  language: string;
-  filename?: string;
-  content: string;
-  file_path?: string;
-}>> {
+async function getCodeEmbedsForChat(messages: Message[]): Promise<
+  Array<{
+    embed_id: string;
+    language: string;
+    filename?: string;
+    content: string;
+    file_path?: string;
+  }>
+> {
   try {
     // Extract all embed references from messages
-    const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
+    const embedRefs = new Map<
+      string,
+      { type: string; embed_id: string; version?: number }
+    >();
 
     for (const message of messages) {
-      let markdownContent = '';
-      if (typeof message.content === 'string') {
+      let markdownContent = "";
+      if (typeof message.content === "string") {
         markdownContent = message.content;
-      } else if (message.content && typeof message.content === 'object') {
+      } else if (message.content && typeof message.content === "object") {
         markdownContent = tipTapToCanonicalMarkdown(message.content);
       }
 
@@ -225,7 +281,7 @@ async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
     const embedIds = Array.from(embedRefs.keys());
     return await loadCodeEmbedsRecursively(embedIds);
   } catch (error) {
-    console.error('[ZipExportService] Error getting code embeds:', error);
+    console.error("[ZipExportService] Error getting code embeds:", error);
     return [];
   }
 }
@@ -236,11 +292,16 @@ async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
  * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
  * @returns Array of video transcript embed data
  */
-async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<string> = new Set()): Promise<Array<{
-  embed_id: string;
-  filename: string;
-  content: string;
-}>> {
+async function loadVideoTranscriptEmbedsRecursively(
+  embedIds: string[],
+  loadedEmbedIds: Set<string> = new Set(),
+): Promise<
+  Array<{
+    embed_id: string;
+    filename: string;
+    content: string;
+  }>
+> {
   const transcriptEmbeds: Array<{
     embed_id: string;
     filename: string;
@@ -248,13 +309,13 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
   }> = [];
 
   // Filter out already loaded embeds
-  const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+  const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
   if (newEmbedIds.length === 0) {
     return transcriptEmbeds;
   }
 
   // Mark these as being loaded
-  newEmbedIds.forEach(id => loadedEmbedIds.add(id));
+  newEmbedIds.forEach((id) => loadedEmbedIds.add(id));
 
   // Load embeds from EmbedStore
   const loadedEmbeds = await loadEmbeds(newEmbedIds);
@@ -262,7 +323,7 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
   // Process each embed
   for (const embed of loadedEmbeds) {
     try {
-      if (!embed.content || typeof embed.content !== 'string') {
+      if (!embed.content || typeof embed.content !== "string") {
         continue;
       }
 
@@ -271,11 +332,12 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
 
       // If this is a video transcript embed, process it
       if (
-        embed.type === 'app_skill_use' &&
+        embed.type === "app_skill_use" &&
         decodedContent &&
-        typeof decodedContent === 'object' &&
-        decodedContent.app_id === 'videos' &&
-        (decodedContent.skill_id === 'get_transcript' || decodedContent.skill_id === 'get-transcript')
+        typeof decodedContent === "object" &&
+        decodedContent.app_id === "videos" &&
+        (decodedContent.skill_id === "get_transcript" ||
+          decodedContent.skill_id === "get-transcript")
       ) {
         // Extract results array from decoded content
         const results = decodedContent.results || decodedContent.data || [];
@@ -284,10 +346,12 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
           // Format transcript as markdown
           const transcriptText = results
             .filter((r: any) => {
-              return r.transcript || r.formatted_transcript || r.text || r.content;
+              return (
+                r.transcript || r.formatted_transcript || r.text || r.content
+              );
             })
             .map((r: any) => {
-              let content = '';
+              let content = "";
 
               if (r.metadata?.title) {
                 content += `# ${r.metadata.title}\n\n`;
@@ -301,23 +365,31 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
                 content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
               }
 
-              const transcript = r.transcript || r.formatted_transcript || r.text || r.content || '';
+              const transcript =
+                r.transcript ||
+                r.formatted_transcript ||
+                r.text ||
+                r.content ||
+                "";
               content += transcript;
 
               return content;
             })
-            .join('\n\n---\n\n');
+            .join("\n\n---\n\n");
 
           if (transcriptText) {
             // Generate filename from first result's title or URL
-            let filename = 'transcript.md';
+            let filename = "transcript.md";
             const firstResult = results[0];
             if (firstResult?.metadata?.title) {
-              filename = `${firstResult.metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
+              filename = `${firstResult.metadata.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_transcript.md`;
             } else if (firstResult?.url) {
               try {
                 const urlObj = new URL(firstResult.url);
-                const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop() || 'video';
+                const videoId =
+                  urlObj.searchParams.get("v") ||
+                  urlObj.pathname.split("/").pop() ||
+                  "video";
                 filename = `${videoId}_transcript.md`;
               } catch (e) {
                 filename = `${embed.embed_id}_transcript.md`;
@@ -329,7 +401,7 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
             transcriptEmbeds.push({
               embed_id: embed.embed_id,
               filename,
-              content: transcriptText
+              content: transcriptText,
             });
           }
         }
@@ -339,13 +411,15 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
       const childEmbedIds: string[] = [];
 
       // Check for embed_ids in the decoded content (for composite embeds)
-      if (decodedContent && typeof decodedContent === 'object') {
+      if (decodedContent && typeof decodedContent === "object") {
         // Check if decoded content has embed_ids (could be array or pipe-separated string)
         if (Array.isArray(decodedContent.embed_ids)) {
           childEmbedIds.push(...decodedContent.embed_ids);
-        } else if (typeof decodedContent.embed_ids === 'string') {
+        } else if (typeof decodedContent.embed_ids === "string") {
           // Handle pipe-separated string format
-          childEmbedIds.push(...decodedContent.embed_ids.split('|').filter(id => id.trim()));
+          childEmbedIds.push(
+            ...decodedContent.embed_ids.split("|").filter((id) => id.trim()),
+          );
         }
       }
 
@@ -359,17 +433,28 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
 
       // Recursively load child embeds
       if (uniqueChildEmbedIds.length > 0) {
-        console.debug('[ZipExportService] Loading nested embeds for transcript processing:', {
-          parentEmbedId: embed.embed_id,
-          childCount: uniqueChildEmbedIds.length,
-          childIds: uniqueChildEmbedIds
-        });
+        console.debug(
+          "[ZipExportService] Loading nested embeds for transcript processing:",
+          {
+            parentEmbedId: embed.embed_id,
+            childCount: uniqueChildEmbedIds.length,
+            childIds: uniqueChildEmbedIds,
+          },
+        );
 
-        const childTranscriptEmbeds = await loadVideoTranscriptEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
+        const childTranscriptEmbeds =
+          await loadVideoTranscriptEmbedsRecursively(
+            uniqueChildEmbedIds,
+            loadedEmbedIds,
+          );
         transcriptEmbeds.push(...childTranscriptEmbeds);
       }
     } catch (error) {
-      console.warn('[ZipExportService] Error processing embed for transcript extraction:', embed.embed_id, error);
+      console.warn(
+        "[ZipExportService] Error processing embed for transcript extraction:",
+        embed.embed_id,
+        error,
+      );
     }
   }
 
@@ -381,20 +466,25 @@ async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEm
  * Extracts video transcript embeds (app_skill_use with app_id='videos' and skill_id='get_transcript')
  * and formats them as markdown files similar to VideoTranscriptEmbedFullscreen handleDownload
  */
-async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Array<{
-  embed_id: string;
-  filename: string;
-  content: string;
-}>> {
+async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<
+  Array<{
+    embed_id: string;
+    filename: string;
+    content: string;
+  }>
+> {
   try {
     // Extract all embed references from messages
-    const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
+    const embedRefs = new Map<
+      string,
+      { type: string; embed_id: string; version?: number }
+    >();
 
     for (const message of messages) {
-      let markdownContent = '';
-      if (typeof message.content === 'string') {
+      let markdownContent = "";
+      if (typeof message.content === "string") {
         markdownContent = message.content;
-      } else if (message.content && typeof message.content === 'object') {
+      } else if (message.content && typeof message.content === "object") {
         markdownContent = tipTapToCanonicalMarkdown(message.content);
       }
 
@@ -415,7 +505,10 @@ async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Arr
     const embedIds = Array.from(embedRefs.keys());
     return await loadVideoTranscriptEmbedsRecursively(embedIds);
   } catch (error) {
-    console.error('[ZipExportService] Error getting video transcript embeds:', error);
+    console.error(
+      "[ZipExportService] Error getting video transcript embeds:",
+      error,
+    );
     return [];
   }
 }
@@ -425,28 +518,28 @@ async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Arr
  */
 function getFileExtensionForLanguage(language: string): string {
   const extensions: Record<string, string> = {
-    'javascript': 'js',
-    'typescript': 'ts',
-    'python': 'py',
-    'java': 'java',
-    'cpp': 'cpp',
-    'c': 'c',
-    'rust': 'rs',
-    'go': 'go',
-    'ruby': 'rb',
-    'php': 'php',
-    'swift': 'swift',
-    'kotlin': 'kt',
-    'yaml': 'yml',
-    'xml': 'xml',
-    'markdown': 'md',
-    'bash': 'sh',
-    'shell': 'sh',
-    'sql': 'sql',
-    'json': 'json',
-    'css': 'css',
-    'html': 'html',
-    'dockerfile': 'Dockerfile'
+    javascript: "js",
+    typescript: "ts",
+    python: "py",
+    java: "java",
+    cpp: "cpp",
+    c: "c",
+    rust: "rs",
+    go: "go",
+    ruby: "rb",
+    php: "php",
+    swift: "swift",
+    kotlin: "kt",
+    yaml: "yml",
+    xml: "xml",
+    markdown: "md",
+    bash: "sh",
+    shell: "sh",
+    sql: "sql",
+    json: "json",
+    css: "css",
+    html: "html",
+    dockerfile: "Dockerfile",
   };
 
   return extensions[language.toLowerCase()] || language.toLowerCase();
@@ -455,15 +548,21 @@ function getFileExtensionForLanguage(language: string): string {
 /**
  * Downloads a single chat as a zip with yml, markdown, and code files
  */
-export async function downloadChatAsZip(chat: Chat, messages: Message[]): Promise<void> {
+export async function downloadChatAsZip(
+  chat: Chat,
+  messages: Message[],
+): Promise<void> {
   try {
-    console.debug('[ZipExportService] Starting zip download for chat:', chat.chat_id);
+    console.debug(
+      "[ZipExportService] Starting zip download for chat:",
+      chat.chat_id,
+    );
 
     const zip = new JSZip();
 
     // Generate filename base (without extension)
-    const filename = await generateChatFilename(chat, '');
-    const filenameWithoutExt = filename.replace(/\.[^.]+$/, '');
+    const filename = await generateChatFilename(chat, "");
+    const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
 
     // Add YAML file
     const yamlContent = await convertChatToYaml(chat, messages, false);
@@ -501,9 +600,9 @@ export async function downloadChatAsZip(chat: Chat, messages: Message[]): Promis
     }
 
     // Generate and download zip
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = `${filenameWithoutExt}.zip`;
     document.body.appendChild(link);
@@ -511,19 +610,29 @@ export async function downloadChatAsZip(chat: Chat, messages: Message[]): Promis
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug('[ZipExportService] Zip download completed for chat:', chat.chat_id);
+    console.debug(
+      "[ZipExportService] Zip download completed for chat:",
+      chat.chat_id,
+    );
   } catch (error) {
-    console.error('[ZipExportService] Error downloading chat as zip:', error);
-    throw new Error('Failed to download chat as zip');
+    console.error("[ZipExportService] Error downloading chat as zip:", error);
+    throw new Error("Failed to download chat as zip");
   }
 }
 
 /**
  * Downloads multiple chats as a zip with folders for each chat
  */
-export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string, Message[]>): Promise<void> {
+export async function downloadChatsAsZip(
+  chats: Chat[],
+  messagesMap: Map<string, Message[]>,
+): Promise<void> {
   try {
-    console.debug('[ZipExportService] Starting bulk zip download for', chats.length, 'chats');
+    console.debug(
+      "[ZipExportService] Starting bulk zip download for",
+      chats.length,
+      "chats",
+    );
 
     const zip = new JSZip();
     let successCount = 0;
@@ -534,13 +643,16 @@ export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string,
         const messages = messagesMap.get(chat.chat_id) || [];
 
         // Generate filename base (without extension)
-        const filename = await generateChatFilename(chat, '');
-        const filenameWithoutExt = filename.replace(/\.[^.]+$/, '');
+        const filename = await generateChatFilename(chat, "");
+        const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
 
         // Create folder for this chat
         const chatFolder = zip.folder(filenameWithoutExt);
         if (!chatFolder) {
-          console.warn('[ZipExportService] Failed to create folder for chat:', chat.chat_id);
+          console.warn(
+            "[ZipExportService] Failed to create folder for chat:",
+            chat.chat_id,
+          );
           continue;
         }
 
@@ -570,7 +682,8 @@ export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string,
         }
 
         // Add video transcript embeds as separate files
-        const transcriptEmbeds = await getVideoTranscriptEmbedsForChat(messages);
+        const transcriptEmbeds =
+          await getVideoTranscriptEmbedsForChat(messages);
         for (const transcriptEmbed of transcriptEmbeds) {
           // Store transcripts in a transcripts folder
           const filePath = `transcripts/${transcriptEmbed.filename}`;
@@ -579,23 +692,31 @@ export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string,
 
         successCount++;
       } catch (error) {
-        console.warn('[ZipExportService] Error processing chat for bulk download:', chat.chat_id, error);
+        console.warn(
+          "[ZipExportService] Error processing chat for bulk download:",
+          chat.chat_id,
+          error,
+        );
       }
     }
 
     if (successCount === 0) {
-      throw new Error('No chats could be downloaded');
+      throw new Error("No chats could be downloaded");
     }
 
     // Generate and download zip
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
 
     // Use current date/time for bulk download filename
     const now = new Date();
-    const zipDateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
+    const zipDateStr = now
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:-]/g, "-")
+      .replace("T", "_");
     link.download = `chats_${zipDateStr}.zip`;
 
     document.body.appendChild(link);
@@ -603,9 +724,13 @@ export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string,
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug('[ZipExportService] Bulk zip download completed:', successCount, 'chats');
+    console.debug(
+      "[ZipExportService] Bulk zip download completed:",
+      successCount,
+      "chats",
+    );
   } catch (error) {
-    console.error('[ZipExportService] Error in bulk zip download:', error);
+    console.error("[ZipExportService] Error in bulk zip download:", error);
     throw error;
   }
 }
@@ -625,13 +750,15 @@ export interface CodeFileData {
  * Parses each code file to extract filename from language:filepath header if present
  */
 export async function downloadCodeFilesAsZip(
-  codeFiles: CodeFileData[]
+  codeFiles: CodeFileData[],
 ): Promise<void> {
   try {
-    console.debug('[ZipExportService] Downloading code files as zip:', { fileCount: codeFiles.length });
+    console.debug("[ZipExportService] Downloading code files as zip:", {
+      fileCount: codeFiles.length,
+    });
 
     if (codeFiles.length === 0) {
-      throw new Error('No code files to download');
+      throw new Error("No code files to download");
     }
 
     // If only one file, download it directly without zip
@@ -647,13 +774,16 @@ export async function downloadCodeFilesAsZip(
     // Add each code file to the zip
     for (let i = 0; i < codeFiles.length; i++) {
       const file = codeFiles[i];
-      
+
       // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
       // This also strips the header line from the code content
-      const parsed = parseCodeEmbedContent(file.code, { language: file.language, filename: file.filename });
+      const parsed = parseCodeEmbedContent(file.code, {
+        language: file.language,
+        filename: file.filename,
+      });
       const finalCode = parsed.code;
       const finalLanguage = parsed.language || file.language;
-      
+
       // Determine filename - use provided filename or extract from parsed header
       let downloadFilename: string;
       if (file.filename) {
@@ -672,7 +802,7 @@ export async function downloadCodeFilesAsZip(
       // Ensure unique filenames by appending index if needed
       let finalFilename = downloadFilename;
       if (usedFilenames.has(downloadFilename.toLowerCase())) {
-        const ext = downloadFilename.lastIndexOf('.');
+        const ext = downloadFilename.lastIndexOf(".");
         if (ext > 0) {
           finalFilename = `${downloadFilename.slice(0, ext)}_${i + 1}${downloadFilename.slice(ext)}`;
         } else {
@@ -686,25 +816,36 @@ export async function downloadCodeFilesAsZip(
     }
 
     // Generate and download zip
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    
+
     // Generate zip filename with timestamp
     const now = new Date();
-    const zipDateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
+    const zipDateStr = now
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:-]/g, "-")
+      .replace("T", "_");
     link.download = `code_files_${zipDateStr}.zip`;
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug('[ZipExportService] Code files zip download completed:', codeFiles.length, 'files');
+    console.debug(
+      "[ZipExportService] Code files zip download completed:",
+      codeFiles.length,
+      "files",
+    );
   } catch (error) {
-    console.error('[ZipExportService] Error downloading code files as zip:', error);
-    throw new Error('Failed to download code files');
+    console.error(
+      "[ZipExportService] Error downloading code files as zip:",
+      error,
+    );
+    throw new Error("Failed to download code files");
   }
 }
 
@@ -715,15 +856,18 @@ export async function downloadCodeFilesAsZip(
 export async function downloadCodeFile(
   codeContent: string,
   language: string,
-  filename?: string
+  filename?: string,
 ): Promise<void> {
   try {
-    console.debug('[ZipExportService] Downloading code file:', { language, filename });
+    console.debug("[ZipExportService] Downloading code file:", {
+      language,
+      filename,
+    });
 
     // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
     // This also strips the header line from the code content
     const parsed = parseCodeEmbedContent(codeContent, { language, filename });
-    
+
     // Use parsed values - the parser extracts filename from header if not already provided
     const finalCode = parsed.code;
     const finalLanguage = parsed.language || language;
@@ -743,16 +887,16 @@ export async function downloadCodeFile(
       downloadFilename = `code_snippet.${ext}`;
     }
 
-    console.debug('[ZipExportService] Resolved download filename:', { 
-      originalFilename: filename, 
+    console.debug("[ZipExportService] Resolved download filename:", {
+      originalFilename: filename,
       parsedFilename: parsed.filename,
-      downloadFilename 
+      downloadFilename,
     });
 
     // Create blob and download with the parsed (header-stripped) code
-    const blob = new Blob([finalCode], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([finalCode], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = downloadFilename;
     document.body.appendChild(link);
@@ -760,9 +904,12 @@ export async function downloadCodeFile(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug('[ZipExportService] Code file download completed:', downloadFilename);
+    console.debug(
+      "[ZipExportService] Code file download completed:",
+      downloadFilename,
+    );
   } catch (error) {
-    console.error('[ZipExportService] Error downloading code file:', error);
-    throw new Error('Failed to download code file');
+    console.error("[ZipExportService] Error downloading code file:", error);
+    throw new Error("Failed to download code file");
   }
 }
