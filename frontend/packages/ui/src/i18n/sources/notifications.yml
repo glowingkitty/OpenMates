@@ -1,0 +1,188 @@
+# Notifications translations
+# Used for system notifications, chat message notifications, and notification settings
+
+# Settings > Chat menu item
+settings:
+  chat:
+    text:
+      context: Chat settings menu title
+      en: Chat
+      de: Chat
+    notifications:
+      text:
+        context: Notifications submenu title
+        en: Notifications
+        de: Benachrichtigungen
+      enabled:
+        context: Status text when notifications are enabled
+        en: Enabled
+        de: Aktiviert
+      disabled:
+        context: Status text when notifications are disabled
+        en: Disabled
+        de: Deaktiviert
+      blocked:
+        context: Status text when notifications are blocked by browser
+        en: Blocked by browser
+        de: Vom Browser blockiert
+      enable:
+        text:
+          context: Push notifications toggle title
+          en: Push Notifications
+          de: Push-Benachrichtigungen
+      permission_granted:
+        text:
+          context: Permission status when granted
+          en: Permission granted
+          de: Berechtigung erteilt
+      permission_denied:
+        text:
+          context: Permission status when denied
+          en: Permission denied in browser settings
+          de: Berechtigung in Browser-Einstellungen verweigert
+      permission_default:
+        text:
+          context: Permission status when not yet requested
+          en: Permission not yet requested
+          de: Berechtigung noch nicht angefragt
+      not_supported:
+        text:
+          context: Warning when push notifications are not supported
+          en: Push notifications are not supported on this browser or device.
+          de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+      denied_info:
+        text:
+          context: Info text when permission is denied
+          en: To enable notifications, please allow them in your browser settings and refresh the page.
+          de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+      categories:
+        text:
+          context: Section title for notification categories
+          en: Notification Types
+          de: Benachrichtigungstypen
+      new_messages:
+        text:
+          context: New messages notification toggle
+          en: New Messages
+          de: Neue Nachrichten
+      new_messages_desc:
+        text:
+          context: Description for new messages notifications
+          en: When an assistant completes a response
+          de: Wenn ein Assistent eine Antwort abgeschlossen hat
+      server_events:
+        text:
+          context: Server events notification toggle
+          en: Server Events
+          de: Server-Ereignisse
+      server_events_desc:
+        text:
+          context: Description for server event notifications
+          en: Connection issues and maintenance alerts
+          de: Verbindungsprobleme und Wartungsmeldungen
+      software_updates:
+        text:
+          context: Software updates notification toggle
+          en: Software Updates
+          de: Software-Updates
+      software_updates_desc:
+        text:
+          context: Description for software update notifications
+          en: When new versions are available
+          de: Wenn neue Versionen verfügbar sind
+
+auto_logout:
+  title:
+    context: Title for auto logout notification
+    en: Auto logout
+    de: Automatische Abmeldung
+  consider_stay_logged_in:
+    context: Message suggesting to enable stay logged in
+    en: "Consider activating 'Stay logged in'."
+    de: "Erwägen Sie, 'Eingeloggt bleiben' zu aktivieren."
+  during_login:
+    context: Secondary message about when to enable the setting
+    en: During login, to remain connected.
+    de: Beim Einloggen, um verbunden zu bleiben.
+
+connection:
+  title:
+    context: Title for connection problem notification
+    en: "Can't connect to server."
+    de: "Verbindung zum Server nicht möglich."
+  trying_to_reconnect:
+    context: Message about reconnection attempt
+    en: Trying to reconnect for {seconds} seconds.
+    de: Versuche seit {seconds} Sekunden die Verbindung wiederherzustellen.
+  offline_mode:
+    context: Secondary message about offline mode activation
+    en: Else Offline Mode will be activated.
+    de: Andernfalls wird der Offline-Modus aktiviert.
+
+software_update:
+  title:
+    context: Title for software update notification
+    en: Software update available
+    de: Software-Update verfügbar
+  new_version:
+    context: Message about new version availability
+    en: OpenMates {version} is available now.
+    de: OpenMates {version} ist jetzt verfügbar.
+  check_settings:
+    context: Secondary message about where to install update
+    en: Check your server settings to install it.
+    de: Überprüfen Sie Ihre Server-Einstellungen zur Installation.
+
+chat_message:
+  new_ai_response:
+    context: Default message for new AI response notification
+    en: New AI response ready
+    de: Neue KI-Antwort bereit
+
+click_to_respond:
+  context: Button text for reply action in chat notification
+  en: Click here to respond
+  de: Hier klicken zum Antworten
+
+# Push notification permission banner
+push:
+  banner_title:
+    context: Title for the push notification permission banner
+    en: Want to receive notifications when your assistant responds?
+    de: Möchten Sie Benachrichtigungen erhalten, wenn Ihr Assistent antwortet?
+  banner_subtitle:
+    context: Subtitle explaining the benefit
+    en: "Even when you're not in the app."
+    de: "Auch wenn Sie nicht in der App sind."
+  enable_btn:
+    context: Button to enable notifications
+    en: Enable Notifications
+    de: Benachrichtigungen aktivieren
+  not_yet_btn:
+    context: Button to dismiss the banner temporarily
+    en: Not Yet
+    de: Noch nicht
+  requesting:
+    context: Loading state while requesting permission
+    en: Requesting...
+    de: Wird angefragt...
+  ios_install_title:
+    context: Title for iOS PWA installation instructions
+    en: Install OpenMates First
+    de: Installieren Sie zuerst OpenMates
+  ios_install_step1:
+    context: Step 1 for iOS installation
+    en: 1. Tap the Share button in Safari
+    de: 1. Tippen Sie auf die Teilen-Schaltfläche in Safari
+  ios_install_step2:
+    context: Step 2 for iOS installation
+    en: 2. Select "Add to Home Screen"
+    de: 2. Wählen Sie "Zum Home-Bildschirm"
+  ios_install_step3:
+    context: Step 3 for iOS installation
+    en: 3. Open OpenMates from your home screen
+    de: 3. Öffnen Sie OpenMates vom Home-Bildschirm
+  ios_install_step4:
+    context: Step 4 for iOS installation
+    en: 4. Then you can enable notifications
+    de: 4. Dann können Sie Benachrichtigungen aktivieren

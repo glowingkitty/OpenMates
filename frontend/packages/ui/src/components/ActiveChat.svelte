@@ -76,6 +76,8 @@
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import { appSettingsMemoriesPermissionStore } from '../stores/appSettingsMemoriesPermissionStore'; // Import for clearing permission dialog on chat switch
+    import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
+    import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -1443,6 +1445,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    
+    // Track if user has sent a message this session (for push notification banner)
+    // Banner should show after user's first message is sent
+    let userSentFirstMessage = $state(false);
 
     // Track container width for responsive design (JS-based instead of CSS media queries)
     let containerWidth = $state(0);
@@ -2309,6 +2315,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This ensures suggestions show the default 3 when input is focused again
         liveInputText = '';
         console.debug("[ActiveChat] handleSendMessage: Reset liveInputText after sending message");
+        
+        // Mark that user has sent first message this session (triggers push notification banner)
+        if (!userSentFirstMessage) {
+            userSentFirstMessage = true;
+            console.debug("[ActiveChat] handleSendMessage: User sent first message, banner can now show");
+        }
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
         
@@ -4472,6 +4484,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {$text('settings.incognito_mode_applies_to_new_chats_only.text', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
                                 </span>
                             </div>
+                        {/if}
+
+                        <!-- Push notification permission banner - shows after user sends first message -->
+                        <!-- Only shown when: push is supported, permission not decided, user sent first message -->
+                        {#if $shouldShowPushBanner && userSentFirstMessage && currentChat}
+                            <PushNotificationBanner />
                         {/if}
 
                         <!-- Follow-up suggestions when input is focused -->

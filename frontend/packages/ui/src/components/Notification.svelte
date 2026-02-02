@@ -2,25 +2,35 @@
     import { slide } from 'svelte/transition';
     import { notificationStore, type Notification } from '../stores/notificationStore';
     
+    // Import icons.css for clickable-icon classes
+    import '../styles/icons.css';
+    
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
     
     /**
-     * Get the appropriate CSS class based on notification type
+     * Get the CSS icon class based on notification type
+     * Uses existing icon classes from icons.css
      * @param type The notification type
-     * @returns CSS class string for styling
+     * @returns CSS class name for the icon
      */
-    function getNotificationClass(type: string): string {
+    function getNotificationIconClass(type: string): string {
         switch (type) {
+            case 'auto_logout':
+                return 'icon_logout';
+            case 'connection':
+                return 'icon_cloud';
+            case 'software_update':
+                return 'icon_download';
             case 'success':
-                return 'notification-success';
+                return 'icon_check';
             case 'warning':
-                return 'notification-warning';
+                return 'icon_warning';
             case 'error':
-                return 'notification-error';
+                return 'icon_warning';
             case 'info':
             default:
-                return 'notification-info';
+                return 'icon_announcement';
         }
     }
     
@@ -31,11 +41,17 @@
     function handleDismiss(): void {
         notificationStore.removeNotification(notification.id);
     }
+    
+    // Get the appropriate icon class
+    let iconClass = $derived(getNotificationIconClass(notification.type));
 </script>
 
 <!-- Notification wrapper with slide-in animation from top -->
 <div
     class="notification"
+    class:notification-auto-logout={notification.type === 'auto_logout'}
+    class:notification-connection={notification.type === 'connection'}
+    class:notification-software-update={notification.type === 'software_update'}
     class:notification-success={notification.type === 'success'}
     class:notification-warning={notification.type === 'warning'}
     class:notification-error={notification.type === 'error'}
@@ -44,33 +60,47 @@
     role="alert"
     aria-live="polite"
 >
-    <div class="notification-content">
-        <span class="notification-message">{notification.message}</span>
+    <!-- Header row with bell/announcement icon, title, and close button -->
+    <div class="notification-header">
+        <span class="clickable-icon icon_announcement notification-bell-icon"></span>
+        <span class="notification-title">{notification.title || ''}</span>
         <button
             class="notification-dismiss"
             onclick={handleDismiss}
             aria-label="Dismiss notification"
         >
-            <div class="clickable-icon icon_close"></div>
+            <span class="clickable-icon icon_close"></span>
         </button>
+    </div>
+    
+    <!-- Content row with type icon and message -->
+    <div class="notification-content">
+        <div class="notification-icon">
+            <span class="clickable-icon {iconClass} notification-type-icon"></span>
+        </div>
+        <div class="notification-message-wrapper">
+            <span class="notification-message-primary">{notification.message}</span>
+            {#if notification.messageSecondary}
+                <span class="notification-message-secondary">{notification.messageSecondary}</span>
+            {/if}
+        </div>
     </div>
 </div>
 
 <style>
     .notification {
-        /* Position at top of main-content, centered horizontally */
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10000; /* High z-index to appear above all content */
+        /* Position relative - parent container handles absolute positioning */
+        position: relative;
+        
+        /* Figma design: 430px or 100% viewport width, with 5px margin on smaller screens */
+        width: 430px;
+        max-width: calc(100vw - 10px);
         
         /* Base styling */
-        min-width: 300px;
-        max-width: 600px;
-        padding: 16px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 12px 16px;
+        border-radius: 12px;
+        background-color: var(--color-grey-20);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
         /* Animation for slide-in */
         animation: slideInFromTop 0.3s ease-out;
@@ -78,27 +108,37 @@
     
     @keyframes slideInFromTop {
         from {
-            transform: translateX(-50%) translateY(-100%);
+            transform: translateY(-100%);
             opacity: 0;
         }
         to {
-            transform: translateX(-50%) translateY(0);
+            transform: translateY(0);
             opacity: 1;
         }
     }
     
-    .notification-content {
+    /* Header row */
+    .notification-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
+        gap: 8px;
+        margin-bottom: 8px;
     }
     
-    .notification-message {
+    /* Bell/announcement icon in header - grey color, smaller size */
+    .notification-bell-icon {
+        width: 16px;
+        height: 16px;
+        background: var(--color-grey-50);
+        flex-shrink: 0;
+    }
+    
+    .notification-title {
         flex: 1;
-        font-size: 14px;
-        line-height: 1.5;
-        color: var(--color-font-primary);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-grey-50);
+        line-height: 1.4;
     }
     
     .notification-dismiss {
@@ -113,66 +153,88 @@
         flex-shrink: 0;
     }
     
+    .notification-dismiss :global(.clickable-icon) {
+        width: 20px;
+        height: 20px;
+        background: var(--color-primary-start);
+    }
+    
     .notification-dismiss:hover {
         opacity: 1;
     }
     
-    .notification-dismiss .clickable-icon {
-        width: 18px;
-        height: 18px;
+    /* Content row */
+    .notification-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
     }
     
-    /* Type-specific styling */
-    .notification-success {
-        background-color: var(--color-success-light, #d4edda);
-        border-left: 4px solid var(--color-success, #28a745);
-        color: var(--color-success-dark, #155724);
+    .notification-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background-color: var(--color-grey-30);
+        flex-shrink: 0;
     }
     
-    .notification-warning {
-        background-color: var(--color-warning-light, #fff3cd);
-        border-left: 4px solid var(--color-warning, #ffc107);
-        color: var(--color-warning-dark, #856404);
+    /* Type-specific icon styling - larger size inside the icon box */
+    .notification-type-icon {
+        width: 24px;
+        height: 24px;
+        background: var(--color-primary-start);
     }
     
-    .notification-error {
-        background-color: var(--color-error-light, #f8d7da);
-        border-left: 4px solid var(--color-error, #dc3545);
-        color: var(--color-error-dark, #721c24);
+    .notification-message-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
     }
     
-    .notification-info {
-        background-color: var(--color-info-light, #d1ecf1);
-        border-left: 4px solid var(--color-info, #17a2b8);
-        color: var(--color-info-dark, #0c5460);
+    .notification-message-primary {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+        color: var(--color-primary-start);
     }
     
-    /* Ensure notification text is readable on colored backgrounds */
-    .notification-success .notification-message,
-    .notification-warning .notification-message,
-    .notification-error .notification-message,
-    .notification-info .notification-message {
-        color: inherit;
+    .notification-message-secondary {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.4;
+        color: var(--color-font-primary);
     }
     
-    /* Mobile responsiveness */
-    @media (max-width: 730px) {
+    /* Type-specific icon background colors */
+    .notification-auto-logout .notification-icon,
+    .notification-connection .notification-icon,
+    .notification-software-update .notification-icon,
+    .notification-info .notification-icon {
+        background-color: var(--color-grey-30);
+    }
+    
+    .notification-success .notification-icon {
+        background-color: rgba(40, 167, 69, 0.15);
+    }
+    
+    .notification-warning .notification-icon {
+        background-color: rgba(255, 193, 7, 0.15);
+    }
+    
+    .notification-error .notification-icon {
+        background-color: rgba(220, 53, 69, 0.15);
+    }
+    
+    /* Mobile responsiveness - 5px margin on each side */
+    @media (max-width: 440px) {
         .notification {
-            left: 10px;
-            right: 10px;
-            max-width: none;
-            transform: none;
-        }
-        
-        @keyframes slideInFromTop {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            width: calc(100vw - 10px);
+            margin: 0 5px;
         }
     }
 </style>

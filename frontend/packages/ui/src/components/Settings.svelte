@@ -103,6 +103,9 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsSupportMonthly from './settings/support/SettingsSupportMonthly.svelte';
     // Import report issue settings component
     import SettingsReportIssue from './settings/SettingsReportIssue.svelte';
+    // Import chat settings components
+    import SettingsChat from './settings/SettingsChat.svelte';
+    import SettingsChatNotifications from './settings/chat/SettingsChatNotifications.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -163,6 +166,8 @@ changes to the documentation (to keep the documentation up to date).
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
         'usage': SettingsUsage,
+        'chat': SettingsChat,
+        'chat/notifications': SettingsChatNotifications,
         'billing': SettingsBilling,
         'billing/buy-credits': SettingsBuyCredits,
         'billing/buy-credits/payment': SettingsBuyCreditsPayment,
