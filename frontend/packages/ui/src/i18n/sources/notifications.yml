@@ -1,18 +1,16 @@
 # Notifications translations
 # Used for system notifications, chat message notifications, and notification settings
 
-# Settings > Chat menu item
+# Settings > Chat menu item (settings.chat.text)
 settings:
   chat:
-    text:
-      context: Chat settings menu title
-      en: Chat
-      de: Chat
+    context: Chat settings menu title
+    en: Chat
+    de: Chat
     notifications:
-      text:
-        context: Notifications submenu title
-        en: Notifications
-        de: Benachrichtigungen
+      context: Notifications submenu title
+      en: Notifications
+      de: Benachrichtigungen
       enabled:
         context: Status text when notifications are enabled
         en: Enabled
@@ -26,70 +24,57 @@ settings:
         en: Blocked by browser
         de: Vom Browser blockiert
       enable:
-        text:
-          context: Push notifications toggle title
-          en: Push Notifications
-          de: Push-Benachrichtigungen
+        context: Push notifications toggle title
+        en: Push Notifications
+        de: Push-Benachrichtigungen
       permission_granted:
-        text:
-          context: Permission status when granted
-          en: Permission granted
-          de: Berechtigung erteilt
+        context: Permission status when granted
+        en: Permission granted
+        de: Berechtigung erteilt
       permission_denied:
-        text:
-          context: Permission status when denied
-          en: Permission denied in browser settings
-          de: Berechtigung in Browser-Einstellungen verweigert
+        context: Permission status when denied
+        en: Permission denied in browser settings
+        de: Berechtigung in Browser-Einstellungen verweigert
       permission_default:
-        text:
-          context: Permission status when not yet requested
-          en: Permission not yet requested
-          de: Berechtigung noch nicht angefragt
+        context: Permission status when not yet requested
+        en: Permission not yet requested
+        de: Berechtigung noch nicht angefragt
       not_supported:
-        text:
-          context: Warning when push notifications are not supported
-          en: Push notifications are not supported on this browser or device.
-          de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+        context: Warning when push notifications are not supported
+        en: Push notifications are not supported on this browser or device.
+        de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
       denied_info:
-        text:
-          context: Info text when permission is denied
-          en: To enable notifications, please allow them in your browser settings and refresh the page.
-          de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+        context: Info text when permission is denied
+        en: To enable notifications, please allow them in your browser settings and refresh the page.
+        de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
       categories:
-        text:
-          context: Section title for notification categories
-          en: Notification Types
-          de: Benachrichtigungstypen
+        context: Section title for notification categories
+        en: Notification Types
+        de: Benachrichtigungstypen
       new_messages:
-        text:
-          context: New messages notification toggle
-          en: New Messages
-          de: Neue Nachrichten
+        context: New messages notification toggle
+        en: New Messages
+        de: Neue Nachrichten
       new_messages_desc:
-        text:
-          context: Description for new messages notifications
-          en: When an assistant completes a response
-          de: Wenn ein Assistent eine Antwort abgeschlossen hat
+        context: Description for new messages notifications
+        en: When an assistant completes a response
+        de: Wenn ein Assistent eine Antwort abgeschlossen hat
       server_events:
-        text:
-          context: Server events notification toggle
-          en: Server Events
-          de: Server-Ereignisse
+        context: Server events notification toggle
+        en: Server Events
+        de: Server-Ereignisse
       server_events_desc:
-        text:
-          context: Description for server event notifications
-          en: Connection issues and maintenance alerts
-          de: Verbindungsprobleme und Wartungsmeldungen
+        context: Description for server event notifications
+        en: Connection issues and maintenance alerts
+        de: Verbindungsprobleme und Wartungsmeldungen
       software_updates:
-        text:
-          context: Software updates notification toggle
-          en: Software Updates
-          de: Software-Updates
+        context: Software updates notification toggle
+        en: Software Updates
+        de: Software-Updates
       software_updates_desc:
-        text:
-          context: Description for software update notifications
-          en: When new versions are available
-          de: Wenn neue Versionen verfügbar sind
+        context: Description for software update notifications
+        en: When new versions are available
+        de: Wenn neue Versionen verfügbar sind
 
 auto_logout:
   title:

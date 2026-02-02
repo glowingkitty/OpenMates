@@ -13,10 +13,10 @@ Chat Settings - Notification preferences and chat-related settings
     // Get current notification status for subtitle display
     let notificationStatus = $derived(
         $pushNotificationStore.permission === 'granted' && $pushNotificationStore.enabled
-            ? $text('settings.chat.notifications_enabled.text', { default: 'Enabled' })
+            ? $text('settings.chat.notifications.enabled.text', { default: 'Enabled' })
             : $pushNotificationStore.permission === 'denied'
-                ? $text('settings.chat.notifications_blocked.text', { default: 'Blocked by browser' })
-                : $text('settings.chat.notifications_disabled.text', { default: 'Disabled' })
+                ? $text('settings.chat.notifications.blocked.text', { default: 'Blocked by browser' })
+                : $text('settings.chat.notifications.disabled.text', { default: 'Disabled' })
     );
     
     /**
