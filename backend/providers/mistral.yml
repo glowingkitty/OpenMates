@@ -94,6 +94,47 @@ models:
         currency: USD
         max_context: 128000
 
+  - id: "ministral-8b-2512" # Official model ID - Ministral 3 8B
+    name: "Ministral 3 8B"
+    description: >-
+      A powerful and efficient model offering best-in-class text generation
+      with excellent speed. Ideal for preprocessing and postprocessing tasks.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: false # Not for auto-selection - for preprocessing/postprocessing only
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "ministral-8b-2512"
+      openrouter: "mistralai/ministral-8b-2512"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "ministral-8b-2512" # Direct Mistral API model ID
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/ministral-8b-2512"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 2222 # 1 credit per ~2222 input tokens (calculated from $0.15/M)
+        output:
+          per_credit_unit: 2222 # 1 credit per ~2222 output tokens (calculated from $0.15/M)
+    costs:
+      input_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000 # Max context window
+      output_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000
+
   - id: "devstral-2512" # Official model ID
     name: "Devstral 2"
     description: >-
