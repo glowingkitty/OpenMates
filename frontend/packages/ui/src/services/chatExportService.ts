@@ -55,8 +55,11 @@ export async function generateChatFilename(
   extension: string = "yaml",
 ): Promise<string> {
   // Use chat's creation timestamp instead of current time
-  // chat.created_at is a Unix timestamp (in seconds)
-  const chatDate = new Date(chat.created_at * 1000);
+  // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
+  // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
+  const timestampMs =
+    chat.created_at < 1e12 ? chat.created_at * 1000 : chat.created_at;
+  const chatDate = new Date(timestampMs);
   const dateStr = chatDate
     .toISOString()
     .slice(0, 19)
@@ -453,9 +456,15 @@ export async function convertChatToYaml(
  */
 async function convertMessageToYaml(message: Message): Promise<any> {
   try {
+    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
+    // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
+    const timestampMs =
+      message.created_at < 1e12
+        ? message.created_at * 1000
+        : message.created_at;
     const messageData: any = {
       role: message.role,
-      completed_at: new Date(message.created_at * 1000).toISOString(), // When the message was completed
+      completed_at: new Date(timestampMs).toISOString(), // When the message was completed
     };
 
     // Add assistant category if available
@@ -529,9 +538,14 @@ async function convertMessageToYaml(message: Message): Promise<any> {
     return messageData;
   } catch (error) {
     console.error("[ChatExportService] Error processing message:", error);
+    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
+    const errorTimestampMs =
+      message.created_at < 1e12
+        ? message.created_at * 1000
+        : message.created_at;
     return {
       role: message.role,
-      completed_at: new Date(message.created_at * 1000).toISOString(),
+      completed_at: new Date(errorTimestampMs).toISOString(),
       content: "[Error processing message]",
     };
   }
