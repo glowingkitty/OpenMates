@@ -53,7 +53,7 @@
         // Wait for exit animation to complete before removing
         setTimeout(() => {
             notificationStore.removeNotification(notification.id);
-        }, 300);
+        }, 200);
     }
     
     /**
@@ -108,7 +108,7 @@
             isExiting = true;
             setTimeout(() => {
                 notificationStore.removeNotification(notification.id);
-            }, 300);
+            }, 200);
         } else {
             // Snap back
             dragOffset = 0;
@@ -207,7 +207,7 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
         /* Animation for slide-in from outside viewport with opacity */
-        animation: slideInFromTop 0.3s ease-out forwards;
+        animation: slideInFromTop 0.2s ease-out forwards;
         
         /* Smooth transition for drag gestures when not actively dragging */
         transition: transform 0.2s ease-out, opacity 0.2s ease-out;
@@ -228,7 +228,7 @@
     
     /* Exit animation - slide out to top with opacity fade */
     .notification-exiting {
-        animation: slideOutToTop 0.3s ease-in forwards;
+        animation: slideOutToTop 0.2s ease-in forwards;
     }
     
     @keyframes slideInFromTop {
