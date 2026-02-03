@@ -1111,7 +1111,12 @@
               <button 
                 type="button"
                 class="category-badge"
-                onclick={() => window.location.hash = `settings/app_store/${cat.appId}/settings_memories/${cat.itemType}`}
+                onclick={() => {
+                  // Navigate to app settings/memories category via deep link
+                  const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;
+                  settingsDeepLink.set(path);
+                  panelState.openSettings();
+                }}
               >
                 <Icon 
                   name={cat.appId} 
