@@ -170,6 +170,15 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return attrs.url || "";
 
     case "code-code":
+      // Check if this is a proper embed with embed_id (stored in EmbedStore)
+      if (attrs.contentRef?.startsWith("embed:")) {
+        // Serialize to proper embed reference format - this allows drafts to restore the embed
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify({ type: "code", embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+
+      // Legacy/preview mode: Serialize code blocks with inline content
       const languagePrefix = attrs.language ? `${attrs.language}` : "";
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : "";
       // Include the actual code content if available (stored in attrs.code for preview embeds)
