@@ -816,9 +816,14 @@
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
   
+  // Flag to temporarily suppress auto-clear when user manually marks as unread
+  // This prevents the effect from immediately clearing the unread state
+  let suppressAutoClear = $state(false);
+  
   // Clear unread count when chat becomes active (user is viewing it)
+  // But NOT if we just marked it as unread (suppressAutoClear flag)
   $effect(() => {
-    if (isActive && chat?.chat_id && unreadCount > 0) {
+    if (isActive && chat?.chat_id && unreadCount > 0 && !suppressAutoClear) {
       unreadMessagesStore.clearUnread(chat.chat_id);
     }
   });
@@ -983,6 +988,9 @@
         break;
       case 'markUnread':
         handleMarkUnread();
+        break;
+      case 'markRead':
+        handleMarkRead();
         break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
@@ -1389,6 +1397,7 @@
   /**
    * Mark chat as unread handler
    * Sets unread_count to 1 and syncs across devices via chatSyncService
+   * Note: Always sets to 1, never increments beyond 1
    */
   async function handleMarkUnread() {
     if (!chat) return;
@@ -1398,10 +1407,16 @@
     try {
       console.debug('[Chat] Marking chat as unread:', chatIdToMarkUnread);
 
-      // Set unread count to 1 (marking as unread)
+      // Set unread count to 1 (marking as unread) - always 1, never increment
       const newUnreadCount = 1;
 
-      // Update local unread store for immediate UI feedback
+      // Suppress auto-clear so the effect doesn't immediately clear this
+      // The flag will be cleared when user navigates away and back
+      suppressAutoClear = true;
+
+      // Clear existing count first (to ensure we set to exactly 1, not increment)
+      unreadMessagesStore.clearUnread(chatIdToMarkUnread);
+      // Then set to 1
       unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
 
       // Update the chat in IndexedDB
@@ -1426,6 +1441,52 @@
     } catch (error) {
       console.error('[Chat] Error marking chat as unread:', error);
       notificationStore.error('Failed to mark chat as unread. Please try again.');
+    }
+  }
+
+  /**
+   * Mark chat as read handler
+   * Sets unread_count to 0 and syncs across devices via chatSyncService
+   */
+  async function handleMarkRead() {
+    if (!chat) return;
+
+    const chatIdToMarkRead = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Marking chat as read:', chatIdToMarkRead);
+
+      // Set unread count to 0 (marking as read)
+      const newUnreadCount = 0;
+
+      // Clear the suppress flag since user is marking as read
+      suppressAutoClear = false;
+
+      // Clear local unread store for immediate UI feedback
+      unreadMessagesStore.clearUnread(chatIdToMarkRead);
+
+      // Update the chat in IndexedDB
+      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      await chatDB.updateChat(updatedChat);
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToMarkRead, unread_count: newUnreadCount }
+      }));
+
+      // Send update to server via chatSyncService to sync across devices
+      if (chatSyncService) {
+        await chatSyncService.sendChatReadStatus(chatIdToMarkRead, newUnreadCount);
+      }
+
+      console.debug('[Chat] Chat marked as read successfully:', chatIdToMarkRead);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error marking chat as read:', error);
+      notificationStore.error('Failed to mark chat as read. Please try again.');
     }
   }
 
@@ -1762,6 +1823,7 @@
     on:pin={handleContextMenuAction}
     on:unpin={handleContextMenuAction}
     on:markUnread={handleContextMenuAction}
+    on:markRead={handleContextMenuAction}
     on:delete={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
@@ -1900,7 +1962,7 @@
     right: -2px;
     width: 21px;
     height: 21px;
-    background: var(--color-primary);
+    background: var(--color-button-primary);
     color: white;
     border-radius: 50%;
     display: flex;

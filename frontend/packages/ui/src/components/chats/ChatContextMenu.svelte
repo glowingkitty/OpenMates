@@ -30,8 +30,11 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead', detail: string): void;
     } = createEventDispatcher();
+    
+    // Derive if chat is currently unread (has unread_count > 0)
+    let isUnread = $derived(chat ? (chat.unread_count > 0) : false);
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
@@ -414,13 +417,23 @@
             {/if}
 
             {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
-                <button
-                    class="menu-item mark-unread"
-                    onclick={(event) => handleButtonClick('markUnread', event)}
-                >
-                    <div class="clickable-icon icon_mail"></div>
-                    {$text('chats.context_menu.mark_unread.text', { default: 'Mark unread' })}
-                </button>
+                {#if isUnread}
+                    <button
+                        class="menu-item mark-read"
+                        onclick={(event) => handleButtonClick('markRead', event)}
+                    >
+                        <div class="clickable-icon icon_mail"></div>
+                        {$text('chats.context_menu.mark_read.text', { default: 'Mark read' })}
+                    </button>
+                {:else}
+                    <button
+                        class="menu-item mark-unread"
+                        onclick={(event) => handleButtonClick('markUnread', event)}
+                    >
+                        <div class="clickable-icon icon_mail"></div>
+                        {$text('chats.context_menu.mark_unread.text', { default: 'Mark unread' })}
+                    </button>
+                {/if}
             {/if}
 
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}

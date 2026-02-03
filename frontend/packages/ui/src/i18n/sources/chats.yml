@@ -283,6 +283,30 @@ context_menu.mark_unread:
   sv: Markera som oläst
   verified_by_human: []
 
+context_menu.mark_read:
+  context: Menu option to mark a chat as read
+  en: Mark read
+  de: Als gelesen markieren
+  zh: 标为已读
+  es: Marcar como leído
+  fr: Marquer comme lu
+  pt: Marcar como lida
+  ru: Пометить как прочитанное
+  ja: 既読にする
+  ko: 읽음으로 표시
+  it: Segna come letto
+  tr: Okundu olarak işaretle
+  vi: Đánh dấu đã đọc
+  id: Tandai sudah dibaca
+  pl: Oznacz jako przeczytane
+  nl: Markeren als gelezen
+  ar: وضع علامة كمقروء
+  hi: पठित के रूप में चिह्नित करें
+  th: ทำเครื่องหมายว่าอ่านแล้ว
+  cs: Označit jako přečtené
+  sv: Markera som läst
+  verified_by_human: []
+
 context_menu.hide:
   context: Menu option to hide a chat (make it a hidden chat)
   en: Hide
