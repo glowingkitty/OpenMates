@@ -23,8 +23,8 @@
     } from '../stores/pushNotificationStore';
     import { pushNotificationService } from '../services/pushNotificationService';
     
-    // Import icons.css for clickable-icon classes
-    import '../styles/icons.css';
+    // Note: icons.css is loaded globally via index.ts and +layout.svelte
+    // No need to import it here - global icon classes (clickable-icon, icon_*) are available
     
     const dispatch = createEventDispatcher();
     

@@ -18,8 +18,8 @@
     import StarterKit from '@tiptap/starter-kit';
     import Placeholder from '@tiptap/extension-placeholder';
     
-    // Import icons.css for clickable-icon classes
-    import '../styles/icons.css';
+    // Note: icons.css is loaded globally via index.ts and +layout.svelte
+    // No need to import it here - global icon classes (clickable-icon, icon_*) are available
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
@@ -264,7 +264,8 @@
     }
     
     /* Bell/announcement icon in header - grey color, smaller size */
-    .notification-bell-icon {
+    /* Use :global() to ensure mask-image from icons.css is applied */
+    .notification-header :global(.notification-bell-icon) {
         width: 16px;
         height: 16px;
         background: var(--color-grey-50);
@@ -341,7 +342,8 @@
     }
     
     /* User icon inside avatar placeholder */
-    .avatar-user-icon {
+    /* Use :global() to ensure mask-image from icons.css is applied */
+    .avatar-placeholder :global(.avatar-user-icon) {
         width: 24px;
         height: 24px;
         background: var(--color-grey-60);
@@ -362,7 +364,8 @@
     }
     
     /* AI sparkle icon inside badge */
-    .avatar-badge-icon {
+    /* Use :global() to ensure mask-image from icons.css is applied */
+    .avatar-badge :global(.avatar-badge-icon) {
         width: 10px;
         height: 10px;
         background: white;

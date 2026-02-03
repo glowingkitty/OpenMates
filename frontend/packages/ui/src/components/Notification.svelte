@@ -2,8 +2,8 @@
     import { slide } from 'svelte/transition';
     import { notificationStore, type Notification } from '../stores/notificationStore';
     
-    // Import icons.css for clickable-icon classes
-    import '../styles/icons.css';
+    // Note: icons.css is loaded globally via index.ts and +layout.svelte
+    // No need to import it here - global icon classes (clickable-icon, icon_*) are available
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
@@ -126,7 +126,8 @@
     }
     
     /* Bell/announcement icon in header - grey color, smaller size */
-    .notification-bell-icon {
+    /* Use :global() to ensure mask-image from icons.css is applied */
+    .notification-header :global(.notification-bell-icon) {
         width: 16px;
         height: 16px;
         background: var(--color-grey-50);
@@ -182,7 +183,8 @@
     }
     
     /* Type-specific icon styling - larger size inside the icon box */
-    .notification-type-icon {
+    /* Use :global() to ensure mask-image from icons.css is applied */
+    .notification-icon :global(.notification-type-icon) {
         width: 24px;
         height: 24px;
         background: var(--color-primary-start);
