@@ -1000,11 +1000,33 @@
                             
                             // Wrap in markdown code block for preview rendering
                             const markdownBlock = `\`\`\`markdown\n${text}\n\`\`\``;
-                            editor.commands.insertContent(markdownBlock);
+                            
+                            // CRITICAL: Update originalMarkdown directly with the code block
+                            // This ensures the unified parser sees the proper markdown syntax
+                            // TipTap's insertContent doesn't preserve code fence structure
+                            const currentMarkdown = originalMarkdown || '';
+                            originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + markdownBlock;
+                            
+                            // Parse and render the updated markdown with embeds
+                            const parsedDoc = parse_message(originalMarkdown, 'write', { 
+                                unifiedParsingEnabled: true 
+                            });
+                            
+                            if (parsedDoc && parsedDoc.content) {
+                                isConvertingEmbeds = true;
+                                try {
+                                    editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                                    // Move cursor to end after inserting
+                                    editor.commands.focus('end');
+                                } finally {
+                                    isConvertingEmbeds = false;
+                                }
+                            }
                             
                             console.debug('[MessageInput] Converted multi-line paste to markdown code embed:', {
                                 lineCount: text.split('\n').length,
-                                charCount: text.length
+                                charCount: text.length,
+                                originalMarkdownLength: originalMarkdown.length
                             });
                             return true; // Prevent default paste handling
                         }
