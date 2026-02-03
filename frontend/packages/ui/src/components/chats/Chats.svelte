@@ -2651,30 +2651,36 @@ async function updateChatListFromDBInternal(force = false) {
 			ontouchstart={handleTouchStart}
 			ontouchmove={handleTouchMove}
 		>
-			{#if syncing}
-			<div class="syncing-indicator">{$text('activity.syncing.text')}</div>
-		{:else if syncComplete}
-			<div class="sync-complete-indicator">{$text('activity.sync_complete.text')}</div>
-		{/if}
-		
-		<!-- Show hidden chats button (clickable text styled like group-title) - always visible when not unlocked -->
+			<!-- Sync status / Show hidden chats toggle area -->
+		<!-- When syncing: show syncing indicator with shimmer animation in place of "Show hidden chats" button -->
+		<!-- When not syncing: show "Show hidden chats" button (fades in after sync completes) -->
 		{#if !hiddenChatState.isUnlocked}
 			{#if !showInlineUnlock}
 				<div class="show-hidden-chats-container">
-					<button
-						type="button"
-						class="show-hidden-chats-button"
-						onclick={() => {
-							showInlineUnlock = true;
-							// Focus input after a brief delay
-							setTimeout(() => {
-								inlineUnlockInput?.focus();
-							}, 100);
-						}}
-					>
-						<span class="clickable-icon icon_hidden"></span>
-						<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
-					</button>
+					{#if syncing}
+						<!-- Syncing indicator with shimmer animation (replaces "Show hidden chats" during sync) -->
+						<div class="syncing-inline-indicator" aria-live="polite">
+							<span class="clickable-icon icon_reload syncing-icon"></span>
+							<span class="syncing-text">{$text('activity.syncing.text')}</span>
+						</div>
+					{:else}
+						<!-- Show hidden chats button (fades in after sync completes) -->
+						<button
+							type="button"
+							class="show-hidden-chats-button"
+							class:fade-in={syncComplete || !syncing}
+							onclick={() => {
+								showInlineUnlock = true;
+								// Focus input after a brief delay
+								setTimeout(() => {
+									inlineUnlockInput?.focus();
+								}, 100);
+							}}
+						>
+							<span class="clickable-icon icon_hidden"></span>
+							<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
+						</button>
+					{/if}
 				</div>
 			{:else}
 				<!-- Inline unlock form -->
@@ -3126,34 +3132,78 @@ async function updateChatListFromDBInternal(force = false) {
         flex-shrink: 0;
     }
 
-    .no-chats-indicator,
-    .syncing-indicator,
-    .sync-complete-indicator {
+    /* Fade-in animation for show hidden chats button after sync completes */
+    .show-hidden-chats-button.fade-in {
+        animation: fadeInQuick 0.15s ease-out;
+    }
+
+    @keyframes fadeInQuick {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    /* Inline syncing indicator - replaces "Show hidden chats" button during sync */
+    .syncing-inline-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85em; /* Match group-title font size */
+        font-weight: 500; /* Match group-title font weight */
+        text-transform: uppercase; /* Match group-title text transform */
+        letter-spacing: 0.5px; /* Match group-title letter spacing */
+        animation: fadeInQuick 0.15s ease-out;
+    }
+
+    /* Syncing icon with rotation animation */
+    .syncing-inline-indicator .syncing-icon {
+        flex-shrink: 0;
+        animation: syncIconSpin 1.2s linear infinite;
+        /* Apply shimmer gradient to icon */
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
+        mask-image: url("@openmates/ui/static/icons/reload.svg");
+    }
+
+    @keyframes syncIconSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Syncing text with shimmer gradient animation (same as ActiveChat "Processing...") */
+    .syncing-inline-indicator .syncing-text {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: syncingShimmer 1.5s infinite linear;
+    }
+
+    @keyframes syncingShimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .no-chats-indicator {
         text-align: center;
         padding: 12px 20px;
         color: var(--color-grey-60);
         font-style: italic;
-    }
-
-    .syncing-indicator,
-    .sync-complete-indicator {
-        background-color: var(--color-grey-15);
-        border-radius: 8px;
-        margin: 8px;
-        font-weight: 500;
-        font-size: 0.9em;
-    }
-
-    .sync-complete-indicator {
-        background-color: var(--color-success-bg, var(--color-grey-15));
-        color: var(--color-success-text, var(--color-grey-70));
-        animation: fadeOut 1s ease-in-out;
-    }
-
-    @keyframes fadeOut {
-        0% { opacity: 1; }
-        70% { opacity: 1; }
-        100% { opacity: 0; }
     }
 
     .chat-item {
