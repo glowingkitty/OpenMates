@@ -820,12 +820,25 @@
   // This prevents the effect from immediately clearing the unread state
   let suppressAutoClear = $state(false);
   
+  // Track previous active state to detect when user navigates away
+  let wasActive = $state(false);
+  
   // Clear unread count when chat becomes active (user is viewing it)
   // But NOT if we just marked it as unread (suppressAutoClear flag)
   $effect(() => {
     if (isActive && chat?.chat_id && unreadCount > 0 && !suppressAutoClear) {
       unreadMessagesStore.clearUnread(chat.chat_id);
     }
+  });
+  
+  // Reset suppressAutoClear when user navigates away from the chat
+  // This ensures that when user opens the chat again, it will be marked as read
+  $effect(() => {
+    if (wasActive && !isActive) {
+      // User navigated away from this chat, reset the suppress flag
+      suppressAutoClear = false;
+    }
+    wasActive = isActive;
   });
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
