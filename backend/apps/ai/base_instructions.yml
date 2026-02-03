@@ -19,6 +19,7 @@ preprocess_request_tool:
       1.  **harmful_or_illegal**: Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
           - Score from 0.0 (no harm to others/illegality) to 10.0 (extremely harmful to others/illegal). Requests >= 7.0 may be auto-rejected.
           - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction (e.g., "safer use practices for X substance," "understanding risks of Y activity") and requests for producing illegal items/substances or performing illegal acts. Harm reduction queries, if clearly for informational/safety purposes and not promoting illegal acts, should generally receive a lower harmful_or_illegal score than direct requests for illicit production/activity.
+          - **Right to Repair & Device Ownership**: Requests about modifying, jailbreaking, rooting, unlocking, or repairing devices the user owns are NOT harmful. Users have the right to control their own hardware and software. This includes: jailbreaking phones/tablets, rooting Android devices, unlocking bootloaders, installing custom firmware/ROMs, bypassing manufacturer restrictions on owned devices, repairing hardware, and similar device ownership activities. These should score 0.0-1.0 unless there's clear intent to harm others (e.g., bypassing security to access someone else's device).
       2.  **category**: Determine the primary subject matter or domain of the user's request by selecting the most appropriate category from the dynamically provided list.
           - Choose the most fitting category from the following list of valid categories which will be dynamically provided: {CATEGORIES_LIST}.
           - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology' as the category.** This is critical for routing the user to appropriate support. Such requests are not "harmful_or_illegal" in the sense of blocking, but require specialized handling.
@@ -117,7 +118,7 @@ preprocess_request_tool:
           description: "A concise, relevant title for the user's request (max 5-7 words)."
         harmful_or_illegal:
           type: "number"
-          description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context."
+          description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
         category:
           type: "string"
           description: "Most fitting category for the request, chosen from the dynamically provided {CATEGORIES_LIST}. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' for unclear topics."
