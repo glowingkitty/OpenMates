@@ -1088,11 +1088,37 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
             if not current_message_in_history:
                 logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
+                
+                # CRITICAL FIX: Resolve embed references in the current message content
+                # The content_plain may contain embed references like {"type": "code", "embed_id": "..."}
+                # These need to be replaced with actual embed content for the AI to understand
+                resolved_current_content = content_plain
+                try:
+                    from backend.core.api.app.services.embed_service import EmbedService
+                    embed_service = EmbedService(
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service
+                    )
+                    resolved_current_content = await embed_service.resolve_embed_references_in_content(
+                        content=content_plain,
+                        chat_id=chat_id,
+                        user_id=user_id,
+                        encryption_service=encryption_service,
+                        user_vault_key_id=user_vault_key_id
+                    )
+                    if resolved_current_content != content_plain:
+                        logger.info(f"Resolved embed references in current user message {message_id}. "
+                                   f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
+                except Exception as e_resolve:
+                    logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
+                    resolved_current_content = content_plain
+                
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
                         sender_name=final_sender_name, # Current message's sender_name
-                        content=content_plain, # Tiptap JSON
+                        content=resolved_current_content, # Resolved content with embeds replaced
                         created_at=client_timestamp_unix
                     )
                 )
