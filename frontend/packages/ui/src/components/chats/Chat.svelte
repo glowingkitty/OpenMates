@@ -1069,10 +1069,10 @@
     try {
       console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
       
-      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       // For drafts-only chats, messages will be empty array
-      const messages = isDemoChat(chat.chat_id)
-        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+      const messages = isPublicChat(chat.chat_id)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
