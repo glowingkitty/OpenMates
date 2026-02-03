@@ -1108,9 +1108,10 @@
           <span class="summary-label">{$text('chat.permissions.included_summary.text') || 'Included App settings & memories'}:</span>
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
-              <a 
-                href="#settings/app_store/{cat.appId}/settings_memories/{cat.itemType}"
+              <button 
+                type="button"
                 class="category-badge"
+                onclick={() => window.location.hash = `settings/app_store/${cat.appId}/settings_memories/${cat.itemType}`}
               >
                 <Icon 
                   name={cat.appId} 
@@ -1119,7 +1120,7 @@
                   noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
-              </a>
+              </button>
             {/each}
           </div>
         {:else if appSettingsMemoriesResponse.action === 'rejected'}
@@ -1314,6 +1315,8 @@
     text-decoration: none;
     cursor: pointer;
     transition: background-color 0.15s ease;
+    border: none;
+    font-family: inherit;
   }
   
   .category-badge:hover {
