@@ -48,6 +48,8 @@
     
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
+    // Code embed service - creates proper embeds for pasted code/text
+    import { createCodeEmbedFromPastedText } from './services/codeEmbedService';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -989,8 +991,9 @@
                             return true; // Prevent default paste handling
                         }
                         
-                        // Check for multi-line text - convert to markdown code embed for readability
+                        // Check for multi-line text - create a proper code embed for readability
                         // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
+                        // and stored in EmbedStore (encrypted, synced to server)
                         const isMultiLine = text.includes('\n');
                         const isAlreadyCodeBlock = text.trim().startsWith('```');
                         
@@ -998,38 +1001,53 @@
                             event.preventDefault();
                             event.stopPropagation();
                             
-                            // Wrap in markdown code block for preview rendering
-                            const markdownBlock = `\`\`\`markdown\n${text}\n\`\`\``;
+                            // Check for VS Code editor data to detect the programming language
+                            // VS Code includes a 'vscode-editor-data' MIME type with JSON containing the 'mode' (language)
+                            const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
                             
-                            // CRITICAL: Update originalMarkdown directly with the code block
-                            // This ensures the unified parser sees the proper markdown syntax
-                            // TipTap's insertContent doesn't preserve code fence structure
-                            const currentMarkdown = originalMarkdown || '';
-                            originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + markdownBlock;
-                            
-                            // Parse and render the updated markdown with embeds
-                            const parsedDoc = parse_message(originalMarkdown, 'write', { 
-                                unifiedParsingEnabled: true 
-                            });
-                            
-                            if (parsedDoc && parsedDoc.content) {
-                                isConvertingEmbeds = true;
-                                try {
-                                    editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
-                                    // Move cursor to end after inserting
-                                    editor.commands.focus('end');
-                                } finally {
-                                    isConvertingEmbeds = false;
+                            // Create a proper embed in EmbedStore (async)
+                            // This follows the same pattern as URL embeds
+                            // Pass VS Code editor data for automatic language detection
+                            createCodeEmbedFromPastedText({ text, vsCodeEditorData }).then(async (embedResult) => {
+                                console.info('[MessageInput] Created code embed for pasted text:', {
+                                    embed_id: embedResult.embed_id,
+                                    lineCount: text.split('\n').length,
+                                    charCount: text.length
+                                });
+                                
+                                // Update originalMarkdown with the embed reference
+                                const currentMarkdown = originalMarkdown || '';
+                                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
+                                
+                                // Parse and render the updated markdown with the embed reference
+                                const parsedDoc = parse_message(originalMarkdown, 'write', { 
+                                    unifiedParsingEnabled: true 
+                                });
+                                
+                                if (parsedDoc && parsedDoc.content) {
+                                    isConvertingEmbeds = true;
+                                    try {
+                                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                                        // Move cursor to end after inserting
+                                        editor.commands.focus('end');
+                                    } finally {
+                                        isConvertingEmbeds = false;
+                                    }
                                 }
-                            }
-                            
-                            console.debug('[MessageInput] Converted multi-line paste to markdown code embed:', {
-                                lineCount: text.split('\n').length,
-                                charCount: text.length,
-                                originalMarkdownLength: originalMarkdown.length,
-                                originalMarkdownPreview: originalMarkdown.substring(0, 200),
-                                parsedDocContent: parsedDoc?.content ? JSON.stringify(parsedDoc.content.slice(0, 2)) : 'NO CONTENT'
+                                
+                                // Update hasContent state
+                                hasContent = !isContentEmptyExceptMention(editor);
+                                
+                                console.debug('[MessageInput] Inserted code embed reference:', {
+                                    embed_id: embedResult.embed_id,
+                                    originalMarkdownLength: originalMarkdown.length
+                                });
+                            }).catch((error) => {
+                                console.error('[MessageInput] Failed to create code embed:', error);
+                                // Fallback: insert as plain text if embed creation fails
+                                editor.commands.insertContent(text);
                             });
+                            
                             return true; // Prevent default paste handling
                         }
                     }
