@@ -30,7 +30,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
@@ -411,6 +411,16 @@
                         {$text('chats.context_menu.pin.text', { default: 'Pin' })}
                     </button>
                 {/if}
+            {/if}
+
+            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+                <button
+                    class="menu-item mark-unread"
+                    onclick={(event) => handleButtonClick('markUnread', event)}
+                >
+                    <div class="clickable-icon icon_mail"></div>
+                    {$text('chats.context_menu.mark_unread.text', { default: 'Mark unread' })}
+                </button>
             {/if}
 
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}

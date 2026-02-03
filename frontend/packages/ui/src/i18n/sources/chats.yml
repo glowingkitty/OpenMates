@@ -259,6 +259,30 @@ context_menu.unpin:
   sv: Lossa
   verified_by_human: []
 
+context_menu.mark_unread:
+  context: Menu option to mark a chat as unread
+  en: Mark unread
+  de: Als ungelesen markieren
+  zh: 标为未读
+  es: Marcar como no leído
+  fr: Marquer comme non lu
+  pt: Marcar como não lida
+  ru: Пометить как непрочитанное
+  ja: 未読にする
+  ko: 읽지 않음으로 표시
+  it: Segna come non letto
+  tr: Okunmadı olarak işaretle
+  vi: Đánh dấu chưa đọc
+  id: Tandai belum dibaca
+  pl: Oznacz jako nieprzeczytane
+  nl: Markeren als ongelezen
+  ar: وضع علامة كغير مقروء
+  hi: अपठित के रूप में चिह्नित करें
+  th: ทำเครื่องหมายว่ายังไม่ได้อ่าน
+  cs: Označit jako nepřečtené
+  sv: Markera som oläst
+  verified_by_human: []
+
 context_menu.hide:
   context: Menu option to hide a chat (make it a hidden chat)
   en: Hide
@@ -773,7 +797,7 @@ hidden_chats.show_hidden_chats:
   pt: "Mostrar chats ocultos"
   ru: "Показать скрытые чаты"
   ja: "非表示チャットを表示"
-  ko: "숨겨진 채팅 표시" 
+  ko: "숨겨진 채팅 표시"
   it: "Mostra chat nascoste"
   tr: "Gizli sohbetleri göster"
   vi: "Hiển thị cuộc trò chuyện ẩn"

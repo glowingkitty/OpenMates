@@ -4,6 +4,7 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
   import { notificationStore } from '../../stores/notificationStore';
+  import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
@@ -812,6 +813,16 @@
 
   let isActive = $derived(activeChatId === chat?.chat_id);
   
+  // Get unread count from store for this chat
+  let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
+  
+  // Clear unread count when chat becomes active (user is viewing it)
+  $effect(() => {
+    if (isActive && chat?.chat_id && unreadCount > 0) {
+      unreadMessagesStore.clearUnread(chat.chat_id);
+    }
+  });
+  
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
   
@@ -969,6 +980,9 @@
         break;
       case 'unpin':
         handleUnpinChat();
+        break;
+      case 'markUnread':
+        handleMarkUnread();
         break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
@@ -1373,6 +1387,49 @@
   }
 
   /**
+   * Mark chat as unread handler
+   * Sets unread_count to 1 and syncs across devices via chatSyncService
+   */
+  async function handleMarkUnread() {
+    if (!chat) return;
+
+    const chatIdToMarkUnread = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Marking chat as unread:', chatIdToMarkUnread);
+
+      // Set unread count to 1 (marking as unread)
+      const newUnreadCount = 1;
+
+      // Update local unread store for immediate UI feedback
+      unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
+
+      // Update the chat in IndexedDB
+      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      await chatDB.updateChat(updatedChat);
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToMarkUnread, unread_count: newUnreadCount }
+      }));
+
+      // Send update to server via chatSyncService to sync across devices
+      if (chatSyncService) {
+        await chatSyncService.sendChatReadStatus(chatIdToMarkUnread, newUnreadCount);
+      }
+
+      console.debug('[Chat] Chat marked as unread successfully:', chatIdToMarkUnread);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error marking chat as unread:', error);
+      notificationStore.error('Failed to mark chat as unread. Please try again.');
+    }
+  }
+
+  /**
    * Delete chat handler
    * Expected behavior for DEMO CHATS:
    * - Add chat to hidden_demo_chats in user profile
@@ -1578,11 +1635,11 @@
                       <IconComponent size={16} color="white" />
                     {/if}
                   </div>
-                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                    <div class="unread-badge">
-                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
-                    </div>
-                  {:else if chat.is_shared}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                      <div class="unread-badge">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </div>
+                    {:else if chat.is_shared}
                     <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                     <div class="share-badge" title="This chat is shared">
                       <LucideIcons.Share2 size={10} color="white" />
@@ -1604,9 +1661,9 @@
                     <div class="category-icon">
                       <IconComponent size={16} color="white" />
                     </div>
-                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
-                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
@@ -1628,9 +1685,9 @@
                     <div class="category-icon">
                       <LucideIcons.HelpCircle size={16} color="white" />
                     </div>
-                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
-                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
@@ -1704,6 +1761,7 @@
     on:unhide={handleContextMenuAction}
     on:pin={handleContextMenuAction}
     on:unpin={handleContextMenuAction}
+    on:markUnread={handleContextMenuAction}
     on:delete={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
