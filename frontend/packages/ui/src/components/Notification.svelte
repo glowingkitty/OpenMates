@@ -1,9 +1,24 @@
 <script lang="ts">
-    import { slide } from 'svelte/transition';
     import { notificationStore, type Notification } from '../stores/notificationStore';
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
+    
+    // State for swipe-to-dismiss gesture
+    let isDragging = $state(false);
+    let startY = $state(0);
+    let currentY = $state(0);
+    let dragOffset = $state(0);
+    let isExiting = $state(false);
+    let notificationElement: HTMLDivElement | null = $state(null);
+    
+    // Threshold for swipe dismissal (pixels)
+    const SWIPE_THRESHOLD = 50;
+    // Velocity threshold for fast swipes (pixels per ms)
+    const VELOCITY_THRESHOLD = 0.3;
+    
+    // Track swipe timing for velocity calculation
+    let swipeStartTime = 0;
     
     /**
      * Get the icon type for CSS styling based on notification type
@@ -30,19 +45,107 @@
     }
     
     /**
-     * Handle notification dismissal
-     * Removes the notification from the store when user clicks dismiss
+     * Handle notification dismissal with exit animation
+     * Triggers exit animation then removes the notification from the store
      */
     function handleDismiss(): void {
-        notificationStore.removeNotification(notification.id);
+        isExiting = true;
+        // Wait for exit animation to complete before removing
+        setTimeout(() => {
+            notificationStore.removeNotification(notification.id);
+        }, 300);
+    }
+    
+    /**
+     * Handle touch/mouse start for swipe gesture
+     */
+    function handlePointerDown(event: PointerEvent): void {
+        // Only track vertical swipes
+        isDragging = true;
+        startY = event.clientY;
+        currentY = event.clientY;
+        dragOffset = 0;
+        swipeStartTime = Date.now();
+        
+        // Capture pointer for consistent tracking
+        (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    }
+    
+    /**
+     * Handle touch/mouse move for swipe gesture
+     */
+    function handlePointerMove(event: PointerEvent): void {
+        if (!isDragging) return;
+        
+        currentY = event.clientY;
+        const delta = currentY - startY;
+        
+        // Only allow upward swipes (negative delta) for dismissal
+        // Add resistance for downward swipes
+        if (delta < 0) {
+            dragOffset = delta;
+        } else {
+            // Rubber band effect for downward drag
+            dragOffset = delta * 0.3;
+        }
+    }
+    
+    /**
+     * Handle touch/mouse end for swipe gesture
+     */
+    function handlePointerUp(event: PointerEvent): void {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        
+        // Calculate swipe velocity
+        const swipeTime = Date.now() - swipeStartTime;
+        const velocity = Math.abs(dragOffset) / swipeTime;
+        
+        // Dismiss if swiped far enough OR fast enough (upward only)
+        if (dragOffset < -SWIPE_THRESHOLD || (dragOffset < 0 && velocity > VELOCITY_THRESHOLD)) {
+            // Animate out and dismiss
+            isExiting = true;
+            setTimeout(() => {
+                notificationStore.removeNotification(notification.id);
+            }, 300);
+        } else {
+            // Snap back
+            dragOffset = 0;
+        }
+        
+        // Release pointer capture
+        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+    }
+    
+    /**
+     * Handle pointer cancel (e.g., touch interrupted)
+     */
+    function handlePointerCancel(event: PointerEvent): void {
+        isDragging = false;
+        dragOffset = 0;
+        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
     }
     
     // Get the appropriate icon type
     let iconType = $derived(getNotificationIconType(notification.type));
+    
+    // Compute transform style for drag gesture
+    let dragStyle = $derived(
+        isDragging || dragOffset !== 0
+            ? `transform: translateY(${dragOffset}px); opacity: ${Math.max(0.3, 1 - Math.abs(dragOffset) / 150)};`
+            : ''
+    );
 </script>
 
-<!-- Notification wrapper with slide-in animation from top -->
+<!-- 
+    Notification wrapper with:
+    - Slide-in from top with opacity transition on mount
+    - Slide-out to top with opacity fade on dismiss
+    - Swipe-to-dismiss gesture (swipe up to dismiss, like iOS)
+-->
 <div
+    bind:this={notificationElement}
     class="notification"
     class:notification-auto-logout={notification.type === 'auto_logout'}
     class:notification-connection={notification.type === 'connection'}
@@ -51,9 +154,15 @@
     class:notification-warning={notification.type === 'warning'}
     class:notification-error={notification.type === 'error'}
     class:notification-info={notification.type === 'info'}
-    transition:slide={{ axis: 'y', duration: 300 }}
+    class:notification-exiting={isExiting}
+    class:notification-dragging={isDragging}
+    style={dragStyle}
     role="alert"
     aria-live="polite"
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointercancel={handlePointerCancel}
 >
     <!-- Header row with reminder icon, title, and close button -->
     <div class="notification-header">
@@ -97,18 +206,52 @@
         background-color: var(--color-grey-30);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
-        /* Animation for slide-in */
-        animation: slideInFromTop 0.3s ease-out;
+        /* Animation for slide-in from outside viewport with opacity */
+        animation: slideInFromTop 0.3s ease-out forwards;
+        
+        /* Smooth transition for drag gestures when not actively dragging */
+        transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        
+        /* Enable touch manipulation for swipe gestures */
+        touch-action: pan-x;
+        cursor: grab;
+        
+        /* Prevent text selection during drag */
+        user-select: none;
+    }
+    
+    /* Remove transition during active drag for responsive feel */
+    .notification-dragging {
+        transition: none;
+        cursor: grabbing;
+    }
+    
+    /* Exit animation - slide out to top with opacity fade */
+    .notification-exiting {
+        animation: slideOutToTop 0.3s ease-in forwards;
     }
     
     @keyframes slideInFromTop {
         from {
-            transform: translateY(-100%);
+            /* Start from outside viewport (above) */
+            transform: translateY(calc(-100% - 20px));
             opacity: 0;
         }
         to {
             transform: translateY(0);
             opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutToTop {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            /* Exit to outside viewport (above) */
+            transform: translateY(calc(-100% - 20px));
+            opacity: 0;
         }
     }
     
