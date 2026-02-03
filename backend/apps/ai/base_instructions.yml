@@ -45,7 +45,11 @@ preprocess_request_tool:
       7.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      8.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
+      8.  **china_model_sensitive**: Detect if the request involves politically sensitive topics where Chinese-origin AI models may provide biased or censored responses.
+          - Set TRUE for: China-specific political topics (Taiwan independence, Tibet, Tiananmen, CCP criticism, Xi Jinping, Uyghurs, Hong Kong protests, Falun Gong), comparative political system questions (e.g., "Is democracy better than communism?", "Are authoritarian regimes more efficient?"), criticism of one-party governance or authoritarianism, human rights in authoritarian contexts, internet censorship/Great Firewall topics.
+          - Set FALSE for: Cultural/travel/food/language/business questions about China, neutral factual queries (e.g., "What is China's population?"), historical topics without political sensitivity, educational questions about political systems without value judgment.
+          - When TRUE, China-origin models (DeepSeek, Qwen, etc.) will be excluded from model selection to ensure unbiased responses.
+      9.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - **PRINCIPLE: Data minimization - only load what's needed for the specific request.**
           - Include keys when the user's query explicitly or implicitly refers to information likely stored under those item keys.
@@ -56,7 +60,7 @@ preprocess_request_tool:
             - "remind me what [specific info]", "what have I told you about [specific topic]?" → load targeted keys
           - **Never load data just because it's available** - maintain privacy through minimization.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
-      9.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
+      10. **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
           - Available skills (format: `app_id-skill_id`): {AVAILABLE_APP_SKILLS}
           - Include skills that might help fulfill the request. When in doubt, include them.
           
@@ -94,13 +98,13 @@ preprocess_request_tool:
           
           - If no specific skills are relevant, return an empty list: [].
           - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
-      10. **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
+      11. **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
           - Available focus modes (format: `app_id-focus_id`): {AVAILABLE_FOCUS_MODES}
           - Include focus modes when the user's request would benefit from specialized behavior (e.g., in-depth research, code writing, fact checking).
           - Match focus modes based on their names and descriptions from the available list.
           - If no focus mode would help, if the available list is empty, or if user explicitly asks for normal mode, return an empty list: [].
           - **Important**: Only select focus modes that are actually listed in the provided {AVAILABLE_FOCUS_MODES} list. Do not invent focus mode names.
-      11. **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
+      12. **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
           - Common preview types include: 'code' (for syntax-highlighted code blocks), 'math' (for mathematical formulas and equations), 'music' (for music notation or sheet music), 'website' (for embedded website previews), 'image' (for image previews), etc.
           - Select preview types that match the content likely to be generated for this user's request.
           - Each preview type requires specific YAML structure generation by the main LLM to be properly parsed in the frontend.
@@ -134,6 +138,13 @@ preprocess_request_tool:
         misuse_risk:
           type: "integer"
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
+        china_model_sensitive:
+          type: "boolean"
+          description: |
+            Set to TRUE if the request involves topics where Chinese-origin AI models may provide biased or censored responses.
+            TRUE for: China-specific political topics (Taiwan, Tibet, Tiananmen, CCP, Xi Jinping, Uyghurs, Hong Kong, Falun Gong), comparative political system questions (democracy vs communism/authoritarianism), criticism of one-party governance, human rights in authoritarian contexts, internet censorship topics.
+            FALSE for: Cultural/travel/food/language/business questions about China, neutral factual queries, non-sensitive historical topics, educational questions without value judgment.
+            When TRUE, China-origin models will be excluded from model selection.
         load_app_settings_and_memories:
           type: "array"
           description: "List of app settings and memory item keys (e.g., 'app_id:item_key' with colon separator) to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
@@ -178,6 +189,7 @@ preprocess_request_tool:
         - "task_area"
         - "user_unhappy"
         - "misuse_risk"
+        - "china_model_sensitive"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
         - "relevant_focus_modes"
@@ -209,18 +221,18 @@ base_ethics_instruction: |
 
 base_temporal_awareness_instruction: |
   **CRITICAL: Temporal Awareness**
-  
+
   You are provided with the current date and time. You MUST use this to accurately distinguish between past and future events.
-  
+
   **For FUTURE-related queries** (upcoming, future, next, coming, soon, will be, scheduled):
   - ONLY include events, dates, or information that occurs AFTER the current date and time
   - Filter out anything that has already occurred or is in the past
   - Check all dates in search results against the current date
-  
+
   **For PAST-related queries** (past, recent, last, previous, already happened):
   - ONLY include events, dates, or information that occurred BEFORE the current date and time
   - Filter out future events when answering about past events
-  
+
   **General rules:**
   - Always compare dates in search results against the current date
   - When uncertain, explicitly state the temporal relationship: "Based on the current date of [date], [event] is [past/future]"
@@ -229,40 +241,40 @@ base_temporal_awareness_instruction: |
 # Code block formatting instructions for proper parsing and rendering
 base_code_block_instruction: |
   **CRITICAL: Code Block Formatting Rules**
-  
+
   When outputting code blocks, you MUST follow these exact formatting rules for proper parsing and rendering:
-  
+
   **1. Language MUST be on the opening fence line:**
   ✅ CORRECT: ```python
   ❌ WRONG: ```
              python
-  
+
   The language identifier must immediately follow the triple backticks with NO newline between them.
-  
+
   **2. Filename format (optional but recommended for file-specific code):**
   Use the format: ```language:filename.ext
-  
+
   Examples:
   - ```python:main.py
   - ```javascript:index.js
   - ```typescript:utils/helpers.ts
   - ```css:styles/theme.css
-  
+
   **3. Supported language identifiers:**
   Use lowercase language names: python, javascript, typescript, java, cpp, c, rust, go, ruby, php, swift, kotlin, yaml, xml, markdown, bash, shell, sql, json, css, html, dockerfile, etc.
-  
+
   **4. Complete example:**
   ```python:hello_world.py
   # Simple Hello World program
   print("Hello, World!")
   ```
-  
+
   **5. For code without a specific file:**
   Just use the language without filename:
   ```python
   x = 42
   ```
-  
+
   **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
 # Capabilities instruction - dynamically shows what apps are available
@@ -316,7 +328,7 @@ base_proactive_skill_usage_instruction: |
   **Web Search Limitation:** Make only ONE search per request. Multiple searches allowed ONLY when user explicitly asks (e.g., "compare X and Y", "search for several things") or a research focus mode is active.
 
   When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
-  
+
   **CRITICAL: Only use skills that are actually provided in your function calling interface.** If no relevant skill is available for a query, honestly tell the user what you can and cannot do.
 
 creator_and_used_model_instruction: |
@@ -395,6 +407,27 @@ postprocess_response_tool:
           items:
             type: "string"
           maxItems: 5
+        relevant_settings_memory_categories:
+          type: "array"
+          description: |
+            Up to 3 settings/memory category IDs where NEW entries could be created based on the conversation.
+            ONLY include categories if the conversation clearly reveals user preferences, facts, or information worth remembering.
+
+            Selection criteria:
+            - User explicitly stated a preference, fact about themselves, or interest (e.g., "I love Python", "I'm planning a trip to Japan")
+            - Information is concrete and specific enough to create a meaningful entry
+            - The category exists in the provided list of available categories
+
+            DO NOT include categories if:
+            - User was just asking questions without revealing personal preferences
+            - Information is too vague or general to create a useful entry
+            - The conversation is purely informational without personal context
+
+            Return an EMPTY array [] if no categories are clearly relevant.
+            Format: ["app_id.item_type", ...] (e.g., ["code.preferred_tech", "travel.trips"])
+          items:
+            type: "string"
+          maxItems: 3
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"
@@ -407,7 +440,7 @@ url_correction_tool:
     description: |
       Correct an assistant response by removing broken URLs and, when appropriate, asking if the user wants the chatbot to search for that topic.
       This function is called when URL validation detects broken links (404 errors) in the assistant's response.
-      
+
       Your task:
       - Remove broken links completely (don't keep them)
       - Consider whether it makes sense to ask about searching for that topic
@@ -415,17 +448,17 @@ url_correction_tool:
       - If not appropriate (e.g., the link wasn't essential), just remove it without adding a question
       - Maintain all other content exactly as-is
       - Keep the same markdown formatting and structure
-      
+
       Decision criteria for asking about search:
       - Ask about search if: The link was to documentation, reference material, articles, or resources that would be valuable to find
       - Don't ask about search if: The link was just an example, a footnote, or not essential to the response
       - Use natural, conversational language when asking
-      
+
       Examples:
       - "You can find more in the [Python docs](broken-link)" → "You can find more information about Python. Would you like me to search for Python documentation?"
       - "See [this article](broken-link) for details" → "I can search for more details about this topic if you'd like. Should I do that?"
       - "Example: [example.com](broken-link)" → "Example: example.com" (just remove link, no search question needed)
-      
+
       Important:
       - Remove broken links completely, don't keep them
       - Only add search questions when it makes sense contextually
@@ -443,7 +476,7 @@ url_correction_tool:
 
 url_correction_system_prompt: |
   You are a URL correction assistant. Your ONLY task is to fix broken links in an assistant response by removing them and, when appropriate, asking if the user wants the chatbot to search for that topic.
-  
+
   **Your task:**
   - Remove broken URLs completely (don't keep them)
   - Consider whether it makes sense to ask about searching
@@ -451,34 +484,34 @@ url_correction_system_prompt: |
   - If not appropriate, just remove the link without adding anything
   - Maintain all other content exactly as-is
   - Keep the same markdown formatting
-  
+
   **When to ask about search:**
   - Ask if the link was to documentation, reference material, articles, tutorials, or resources
   - Ask if finding that information would be valuable to the user
   - Examples: "Would you like me to search for Python documentation?" or "I can search for more information about this topic if you'd like"
-  
+
   **When NOT to ask about search:**
   - Don't ask if the link was just an example or illustration
   - Don't ask if the link was a footnote or not essential
   - Don't ask if removing the link doesn't impact the response meaning
   - Just remove the link cleanly without adding a question
-  
+
   **Examples:**
-  
+
   Good (ask about search):
   - Original: "You can find more in the [Python asyncio documentation](broken-link)"
   - Corrected: "You can find more information about Python asyncio. Would you like me to search for Python asyncio documentation?"
-  
+
   - Original: "See [this article about async programming](broken-link) for details"
   - Corrected: "I can search for information about async programming if you'd like. Should I do that?"
-  
+
   Good (just remove, no search question):
   - Original: "Example URL: [example.com](broken-link)"
   - Corrected: "Example URL: example.com"
-  
+
   - Original: "The link [here](broken-link) shows an example"
   - Corrected: "The example shows..." (remove reference to link entirely)
-  
+
   **Important:**
   - Remove broken links completely
   - Only add search questions when contextually appropriate
@@ -490,19 +523,19 @@ url_correction_system_prompt: |
 
 base_app_settings_memories_usage_instruction: |
   **CRITICAL: Using App Settings and Memories**
-  
+
   When the section "--- Relevant Information from Your App Settings and Memories ---" appears in your context, you MUST:
-  
+
   1. **Actively use this information** - This data is provided specifically because it's relevant to the user's request. Treat it as authoritative information about the user.
-  
+
   2. **Reference it in your responses** - When the user asks about themselves, their preferences, what you know about them, or topics related to the stored data, you MUST reference this information explicitly.
-  
+
   3. **Do NOT claim ignorance** - If app settings/memories are provided, you DO have information about the user. Never say "I don't know anything about you" or "I don't have personal data about you" when this section is present.
-  
+
   4. **Be specific** - Use the actual values from the data. For example, if preferred_tech shows "Python", say "You prefer Python" not "I might have some preferences stored."
-  
+
   5. **Acknowledge the source** - You can mention this comes from "your settings" or "what you've shared with me" to clarify where the information comes from.
-  
+
   Examples of correct usage:
   - User: "What do you know about me?" → "Based on your settings, I know that you prefer working with ..."
   - User: "What's my favorite tech?" → "According to your preferences, your favorite technologies are ..."
@@ -550,3 +583,67 @@ base_url_sourcing_instruction: |
   - User shares a URL and asks about it, you reference that exact URL they provided
 
   **Remember:** It's better to not include a URL at all than to hallucinate or guess a URL that might be wrong. Your credibility depends on accuracy, not on having links for everything.
+
+# Phase 2: Memory Generation Tool
+# This tool is used after Phase 1 (category selection in post-processing) to generate
+# actual settings/memory entries with proper schema compliance.
+generate_settings_memories_tool:
+  type: "function"
+  function:
+    name: "generate_settings_memory_entries"
+    description: |
+      Generate suggested settings/memory entries based on the conversation.
+
+      This is Phase 2 of the settings/memories suggestion pipeline. Phase 1 has already
+      identified relevant categories - now you need to generate actual entries for those categories.
+
+      **CRITICAL PRINCIPLES:**
+
+      1. **Only fill fields you're CERTAIN about**
+         - If the user said "I love Python", fill name: "Python" but DON'T assume proficiency
+         - If the user mentioned "planning a trip to Japan", fill destination: "Japan" but DON'T guess dates
+         - Leave uncertain fields EMPTY - the user can add them later
+         
+      2. **Extract explicit information only**
+         - User: "I prefer React over Vue" → name: "React" ✓
+         - User: "I've been using Python for 5 years" → DO NOT assume "expert" level
+         - User: "Thinking about learning Rust" → This is interest, not preference - consider if appropriate
+         
+      3. **suggested_title is for deduplication**
+         - Use the most identifying value (usually the 'name' field)
+         - Keep it short and recognizable
+         - Will be compared against existing entries on the client
+         
+      4. **Quality over quantity**
+         - Better to suggest 1 high-quality entry than 3 uncertain ones
+         - If nothing concrete was mentioned, return an empty array
+         - Maximum 3 suggestions per response
+    parameters:
+      type: "object"
+      properties:
+        suggested_entries:
+          type: "array"
+          description: "Up to 3 suggested settings/memory entries. Return empty array if nothing concrete to suggest."
+          items:
+            type: "object"
+            properties:
+              app_id:
+                type: "string"
+                description: "App ID (e.g., 'code', 'travel')"
+              item_type:
+                type: "string"
+                description: "Category ID within the app (e.g., 'preferred_tech', 'trips')"
+              suggested_title:
+                type: "string"
+                description: "Short title for client-side deduplication (e.g., 'Python', 'Japan Trip')"
+              item_value:
+                type: "object"
+                description: "Entry data matching category schema. ONLY include fields you're certain about."
+            required:
+              - "app_id"
+              - "item_type"
+              - "suggested_title"
+              - "item_value"
+          maxItems: 3
+      required:
+        - "suggested_entries"

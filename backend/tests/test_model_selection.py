@@ -2,13 +2,15 @@
 #
 # Unit tests for the AI model selection system:
 # - ModelSelector: Intelligent model selection based on leaderboard rankings
-# - China sensitivity detection: Filtering CN models for sensitive content
 # - Override parser: User @ai-model:xxx syntax parsing
+#
+# Note: China sensitivity detection is now handled by the preprocessing LLM
+# via the `china_model_sensitive` field, not by keyword matching.
 #
 # Run with: /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_model_selection.py
 
 import pytest
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -238,102 +240,6 @@ class TestModelSelector:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# China Sensitivity Detection Tests
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestChinaSensitivity:
-    """Tests for China-sensitive content detection."""
-
-    def test_detects_tiananmen(self):
-        """Should detect Tiananmen Square references."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "What happened at Tiananmen Square in 1989?"}]
-        assert is_china_related(messages) is True
-
-    def test_detects_taiwan(self):
-        """Should detect Taiwan references."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "Is Taiwan an independent country?"}]
-        assert is_china_related(messages) is True
-
-    def test_detects_xinjiang(self):
-        """Should detect Xinjiang/Uyghur references."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "Tell me about the Uyghur situation in Xinjiang"}]
-        assert is_china_related(messages) is True
-
-    def test_detects_hong_kong(self):
-        """Should detect Hong Kong political references."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "What is the one country two systems policy in Hong Kong?"}]
-        assert is_china_related(messages) is True
-
-    def test_detects_xi_jinping(self):
-        """Should detect Xi Jinping references."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "What is Xi Jinping's policy on Taiwan?"}]
-        assert is_china_related(messages) is True
-
-    def test_detects_chinese_characters(self):
-        """Should detect Chinese character keywords."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "天安门事件是什么?"}]
-        assert is_china_related(messages) is True
-
-    def test_does_not_detect_unrelated_content(self):
-        """Should NOT flag unrelated content."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": "What is the capital of France?"}]
-        assert is_china_related(messages) is False
-
-    def test_does_not_detect_assistant_messages(self):
-        """Should only check user messages, not assistant."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [
-            {"role": "assistant", "content": "The Tiananmen Square protests..."},
-            {"role": "user", "content": "Thanks for the information."}
-        ]
-        # Assistant message contains keyword, but should not be checked
-        assert is_china_related(messages) is False
-
-    def test_get_matched_keywords(self):
-        """Should return list of matched keywords."""
-        from backend.core.api.app.services.china_sensitivity import get_matched_keywords
-
-        messages = [{"role": "user", "content": "What happened in Taiwan and Tibet?"}]
-        matched = get_matched_keywords(messages)
-
-        assert "taiwan" in matched
-        assert "tibet" in matched
-
-    def test_empty_messages(self):
-        """Should handle empty message list."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        assert is_china_related([]) is False
-        assert is_china_related(None) is False
-
-    def test_word_boundary_matching(self):
-        """Should use word boundaries to avoid false positives."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        # "china" should match, but not partial matches like "machinery"
-        messages_with_china = [{"role": "user", "content": "Tell me about China"}]
-        assert is_china_related(messages_with_china) is True
-
-        # Should not match "porcelain china" as a material context
-        # (though this is a known edge case - the word "china" is flagged conservatively)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Override Parser Tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -450,25 +356,24 @@ class TestOverrideParser:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Integration Tests (ModelSelector + ChinaSensitivity)
+# Integration Tests (ModelSelector + china_related flag)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestModelSelectionIntegration:
-    """Integration tests combining model selection with sensitivity detection."""
+    """Integration tests for model selection with china_related flag.
+    
+    Note: The china_related flag is now determined by the preprocessing LLM
+    via the `china_model_sensitive` field, not by keyword matching.
+    These tests verify that ModelSelector correctly handles the flag.
+    """
 
-    def test_full_selection_flow_china_sensitive(self, mock_leaderboard_data):
-        """Test complete flow: detect sensitivity → select non-CN model."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
+    def test_selection_with_china_sensitive_flag_true(self, mock_leaderboard_data):
+        """When china_model_sensitive=True from LLM, CN models should be excluded."""
         from backend.apps.ai.utils.model_selector import ModelSelector
 
-        # User asks about Taiwan
-        messages = [{"role": "user", "content": "What is the political status of Taiwan?"}]
+        # Simulate: LLM returned china_model_sensitive=True
+        china_related = True
 
-        # Step 1: Detect sensitivity
-        china_related = is_china_related(messages)
-        assert china_related is True
-
-        # Step 2: Select model with CN filter
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(
             task_area="general",
@@ -480,19 +385,13 @@ class TestModelSelectionIntegration:
         assert result.primary_model_id not in ["qwen3-max", "deepseek-v3"]
         assert result.filtered_cn_models is True
 
-    def test_full_selection_flow_non_sensitive(self, mock_leaderboard_data):
-        """Test complete flow: non-sensitive content allows all models."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
+    def test_selection_with_china_sensitive_flag_false(self, mock_leaderboard_data):
+        """When china_model_sensitive=False from LLM, CN models are eligible."""
         from backend.apps.ai.utils.model_selector import ModelSelector
 
-        # User asks about Python
-        messages = [{"role": "user", "content": "How do I write a Python function?"}]
+        # Simulate: LLM returned china_model_sensitive=False
+        china_related = False
 
-        # Step 1: Detect sensitivity
-        china_related = is_china_related(messages)
-        assert china_related is False
-
-        # Step 2: Select model without CN filter
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(
             task_area="code",
@@ -558,14 +457,6 @@ class TestEdgeCases:
 
         # All CN models filtered, should use fallback
         assert result.primary_model_id == DEFAULT_FALLBACK_MODEL
-
-    def test_china_sensitivity_with_none_content(self):
-        """Should handle None content in messages."""
-        from backend.core.api.app.services.china_sensitivity import is_china_related
-
-        messages = [{"role": "user", "content": None}]
-        # Should not crash
-        assert is_china_related(messages) is False
 
     def test_override_parser_with_special_characters(self):
         """Should handle special characters in message."""
