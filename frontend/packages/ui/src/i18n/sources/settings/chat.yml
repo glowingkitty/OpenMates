@@ -1,0 +1,97 @@
+# Chat settings translations
+# Used in Settings > Chat menu
+# Namespace: settings, key prefix: chat (from filename)
+# Keys should NOT include "chat." prefix - the build script adds it automatically
+# All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
+
+# Settings > Chat menu item (becomes settings.chat.text)
+chat:
+  context: Chat settings menu title
+  en: Chat
+  de: Chat
+
+# Notifications submenu (becomes settings.chat.notifications.text)
+notifications:
+  context: Notifications submenu title
+  en: Notifications
+  de: Benachrichtigungen
+
+notifications.enabled:
+  context: Status text when notifications are enabled
+  en: Enabled
+  de: Aktiviert
+
+notifications.disabled:
+  context: Status text when notifications are disabled
+  en: Disabled
+  de: Deaktiviert
+
+notifications.blocked:
+  context: Status text when notifications are blocked by browser
+  en: Blocked by browser
+  de: Vom Browser blockiert
+
+notifications.enable:
+  context: Push notifications toggle title
+  en: Push Notifications
+  de: Push-Benachrichtigungen
+
+notifications.permission_granted:
+  context: Permission status when granted
+  en: Permission granted
+  de: Berechtigung erteilt
+
+notifications.permission_denied:
+  context: Permission status when denied
+  en: Permission denied in browser settings
+  de: Berechtigung in Browser-Einstellungen verweigert
+
+notifications.permission_default:
+  context: Permission status when not yet requested
+  en: Permission not yet requested
+  de: Berechtigung noch nicht angefragt
+
+notifications.not_supported:
+  context: Warning when push notifications are not supported
+  en: Push notifications are not supported on this browser or device.
+  de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+
+notifications.denied_info:
+  context: Info text when permission is denied
+  en: To enable notifications, please allow them in your browser settings and refresh the page.
+  de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+
+notifications.categories:
+  context: Section title for notification categories
+  en: Notification Types
+  de: Benachrichtigungstypen
+
+notifications.new_messages:
+  context: New messages notification toggle
+  en: New Messages
+  de: Neue Nachrichten
+
+notifications.new_messages_desc:
+  context: Description for new messages notifications
+  en: When an assistant completes a response
+  de: Wenn ein Assistent eine Antwort abgeschlossen hat
+
+notifications.server_events:
+  context: Server events notification toggle
+  en: Server Events
+  de: Server-Ereignisse
+
+notifications.server_events_desc:
+  context: Description for server event notifications
+  en: Connection issues and maintenance alerts
+  de: Verbindungsprobleme und Wartungsmeldungen
+
+notifications.software_updates:
+  context: Software updates notification toggle
+  en: Software Updates
+  de: Software-Updates
+
+notifications.software_updates_desc:
+  context: Description for software update notifications
+  en: When new versions are available
+  de: Wenn neue Versionen verfügbar sind
