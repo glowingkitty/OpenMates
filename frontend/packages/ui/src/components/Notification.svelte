@@ -2,35 +2,30 @@
     import { slide } from 'svelte/transition';
     import { notificationStore, type Notification } from '../stores/notificationStore';
     
-    // Note: icons.css is loaded globally via index.ts and +layout.svelte
-    // No need to import it here - global icon classes (clickable-icon, icon_*) are available
-    
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
     
     /**
-     * Get the CSS icon class based on notification type
-     * Uses existing icon classes from icons.css
+     * Get the icon type for CSS styling based on notification type
      * @param type The notification type
-     * @returns CSS class name for the icon
+     * @returns Icon type identifier for data attribute
      */
-    function getNotificationIconClass(type: string): string {
+    function getNotificationIconType(type: string): string {
         switch (type) {
             case 'auto_logout':
-                return 'icon_logout';
+                return 'logout';
             case 'connection':
-                return 'icon_cloud';
+                return 'cloud';
             case 'software_update':
-                return 'icon_download';
+                return 'download';
             case 'success':
-                return 'icon_check';
+                return 'check';
             case 'warning':
-                return 'icon_warning';
             case 'error':
-                return 'icon_warning';
+                return 'warning';
             case 'info':
             default:
-                return 'icon_announcement';
+                return 'reminder';
         }
     }
     
@@ -42,8 +37,8 @@
         notificationStore.removeNotification(notification.id);
     }
     
-    // Get the appropriate icon class
-    let iconClass = $derived(getNotificationIconClass(notification.type));
+    // Get the appropriate icon type
+    let iconType = $derived(getNotificationIconType(notification.type));
 </script>
 
 <!-- Notification wrapper with slide-in animation from top -->
@@ -60,23 +55,23 @@
     role="alert"
     aria-live="polite"
 >
-    <!-- Header row with bell/announcement icon, title, and close button -->
+    <!-- Header row with reminder icon, title, and close button -->
     <div class="notification-header">
-        <span class="clickable-icon icon_announcement notification-bell-icon"></span>
+        <span class="notification-bell-icon"></span>
         <span class="notification-title">{notification.title || ''}</span>
         <button
             class="notification-dismiss"
             onclick={handleDismiss}
             aria-label="Dismiss notification"
         >
-            <span class="clickable-icon icon_close"></span>
+            <span class="notification-close-icon"></span>
         </button>
     </div>
     
     <!-- Content row with type icon and message -->
     <div class="notification-content">
         <div class="notification-icon">
-            <span class="clickable-icon {iconClass} notification-type-icon"></span>
+            <span class="notification-type-icon" data-icon-type={iconType}></span>
         </div>
         <div class="notification-message-wrapper">
             <span class="notification-message-primary">{notification.message}</span>
@@ -99,7 +94,7 @@
         /* Base styling */
         padding: 12px 16px;
         border-radius: 12px;
-        background-color: var(--color-grey-20);
+        background-color: var(--color-grey-30);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
         /* Animation for slide-in */
@@ -125,13 +120,21 @@
         margin-bottom: 8px;
     }
     
-    /* Bell/announcement icon in header - grey color, smaller size */
-    /* Use :global() to ensure mask-image from icons.css is applied */
-    .notification-header :global(.notification-bell-icon) {
+    /* Bell/reminder icon in header - grey color, smaller size */
+    .notification-bell-icon {
+        display: inline-block;
         width: 16px;
         height: 16px;
         background: var(--color-grey-50);
         flex-shrink: 0;
+        -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
+        mask-image: url('@openmates/ui/static/icons/reminder.svg');
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        mask-size: contain;
     }
     
     .notification-title {
@@ -154,10 +157,20 @@
         flex-shrink: 0;
     }
     
-    .notification-dismiss :global(.clickable-icon) {
+    /* Close icon in dismiss button */
+    .notification-close-icon {
+        display: inline-block;
         width: 20px;
         height: 20px;
-        background: var(--color-primary-start);
+        background: var(--color-grey-90);
+        -webkit-mask-image: url('@openmates/ui/static/icons/close.svg');
+        mask-image: url('@openmates/ui/static/icons/close.svg');
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        mask-size: contain;
     }
     
     .notification-dismiss:hover {
@@ -178,16 +191,53 @@
         width: 40px;
         height: 40px;
         border-radius: 10px;
-        background-color: var(--color-grey-30);
+        background-color: var(--color-grey-40);
         flex-shrink: 0;
     }
     
     /* Type-specific icon styling - larger size inside the icon box */
-    /* Use :global() to ensure mask-image from icons.css is applied */
-    .notification-icon :global(.notification-type-icon) {
+    .notification-type-icon {
+        display: inline-block;
         width: 24px;
         height: 24px;
-        background: var(--color-primary-start);
+        background: var(--color-grey-90);
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        mask-size: contain;
+    }
+    
+    /* Icon type masks based on data attribute */
+    .notification-type-icon[data-icon-type="reminder"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
+        mask-image: url('@openmates/ui/static/icons/reminder.svg');
+    }
+    
+    .notification-type-icon[data-icon-type="logout"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/logout.svg');
+        mask-image: url('@openmates/ui/static/icons/logout.svg');
+    }
+    
+    .notification-type-icon[data-icon-type="cloud"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/cloud.svg');
+        mask-image: url('@openmates/ui/static/icons/cloud.svg');
+    }
+    
+    .notification-type-icon[data-icon-type="download"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/download.svg');
+        mask-image: url('@openmates/ui/static/icons/download.svg');
+    }
+    
+    .notification-type-icon[data-icon-type="check"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+    }
+    
+    .notification-type-icon[data-icon-type="warning"] {
+        -webkit-mask-image: url('@openmates/ui/static/icons/warning.svg');
+        mask-image: url('@openmates/ui/static/icons/warning.svg');
     }
     
     .notification-message-wrapper {
@@ -202,14 +252,14 @@
         font-size: 14px;
         font-weight: 500;
         line-height: 1.4;
-        color: var(--color-primary-start);
+        color: var(--color-grey-90);
     }
     
     .notification-message-secondary {
         font-size: 14px;
         font-weight: 600;
         line-height: 1.4;
-        color: var(--color-font-primary);
+        color: var(--color-grey-90);
     }
     
     /* Type-specific icon background colors */
@@ -217,7 +267,7 @@
     .notification-connection .notification-icon,
     .notification-software-update .notification-icon,
     .notification-info .notification-icon {
-        background-color: var(--color-grey-30);
+        background-color: var(--color-grey-40);
     }
     
     .notification-success .notification-icon {
