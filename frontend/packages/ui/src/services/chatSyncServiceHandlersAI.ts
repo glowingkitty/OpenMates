@@ -4,6 +4,10 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed } from "./embedResolver"; // Import storeEmbed
 import type { EmbedType } from "../message_parsing/types";
+import type { SuggestedSettingsMemoryEntry } from "../types/apps";
+import { activeChatStore } from "../stores/activeChatStore";
+import { notificationStore } from "../stores/notificationStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode: ((toonString: string) => unknown) | null = null;
@@ -1256,10 +1260,10 @@ export function handleAITypingEndedImpl(
   );
 }
 
-export function handleAIMessageReadyImpl(
+export async function handleAIMessageReadyImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AIMessageReadyPayload,
-): void {
+): Promise<void> {
   console.debug("[ChatSyncService:AI] Received 'ai_message_ready':", payload);
   serviceInstance.dispatchEvent(
     new CustomEvent("aiMessageCompletedOnServer", { detail: payload }),
@@ -1279,6 +1283,56 @@ export function handleAIMessageReadyImpl(
     console.info(
       `[ChatSyncService:AI] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`,
     );
+
+    // Check if this message is for a background chat (not currently active)
+    // If so, show a notification and increment unread count
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== payload.chat_id) {
+      console.debug(
+        `[ChatSyncService:AI] AI message completed for background chat ${payload.chat_id} (active: ${activeChatId})`,
+      );
+
+      // Increment unread count for this chat
+      unreadMessagesStore.incrementUnread(payload.chat_id);
+
+      // Try to get chat title and message preview for the notification
+      try {
+        const chat = await chatDB.getChat(payload.chat_id);
+        if (chat) {
+          // Get decrypted title if available
+          let chatTitle = "New message";
+          if (chat.title) {
+            chatTitle = chat.title;
+          } else if (chat.encrypted_title) {
+            // The title will be decrypted by the chatMetadataCache in Chat.svelte
+            // For notification, we use a generic title for now
+            chatTitle = "Chat"; // TODO: Decrypt title if needed
+          }
+
+          // Show notification for background chat message
+          // Message preview would come from the AI response - for now use generic text
+          // The actual message content isn't available here yet (it's in the payload)
+          notificationStore.chatMessage(
+            payload.chat_id,
+            chatTitle,
+            "New AI response ready", // TODO: Extract preview from message content when available
+            undefined, // avatarUrl - could be set based on mate category
+          );
+        }
+      } catch (error) {
+        console.warn(
+          "[ChatSyncService:AI] Error fetching chat for notification:",
+          error,
+        );
+        // Still show a notification even if we can't get chat details
+        notificationStore.chatMessage(
+          payload.chat_id,
+          "New message",
+          "New AI response ready",
+          undefined,
+        );
+      }
+    }
   }
 }
 
@@ -1425,7 +1479,8 @@ export function handlePostProcessingMetadataStoredImpl(
 
 /**
  * Handle post-processing completed event from the server.
- * This includes follow-up suggestions, new chat suggestions, summary, and tags.
+ * This includes follow-up suggestions, new chat suggestions, summary, tags,
+ * and suggested settings/memories entries.
  */
 export async function handlePostProcessingCompletedImpl(
   serviceInstance: ChatSynchronizationService,
@@ -1438,6 +1493,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
+    suggested_settings_memories?: SuggestedSettingsMemoryEntry[]; // Optional: Settings/memories suggestions from Phase 2
   },
 ): Promise<void> {
   console.info(
@@ -1451,6 +1507,7 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
+    let encryptedSettingsMemoriesSuggestions: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
@@ -1545,12 +1602,34 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
+    // Encrypt and save settings/memories suggestions (overwrites previous suggestions)
+    // These are shown to user as suggestion cards with "Add" and "Reject" options
+    if (
+      payload.suggested_settings_memories &&
+      payload.suggested_settings_memories.length > 0
+    ) {
+      // Encrypt the suggestions array as JSON string with chat key
+      const suggestionsJson = JSON.stringify(
+        payload.suggested_settings_memories.slice(0, 3), // Max 3 suggestions
+      );
+      encryptedSettingsMemoriesSuggestions = await encryptWithChatKey(
+        suggestionsJson,
+        chatKey,
+      );
+      chat.encrypted_settings_memories_suggestions =
+        encryptedSettingsMemoriesSuggestions;
+      console.debug(
+        `[ChatSyncService:AI] Saved ${payload.suggested_settings_memories.length} settings/memories suggestions for chat ${payload.chat_id}`,
+      );
+    }
+
     // Update chat with all encrypted metadata at once
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
-      encryptedTopRecommendedApps
+      encryptedTopRecommendedApps ||
+      encryptedSettingsMemoriesSuggestions
     ) {
       await chatDB.updateChat(chat);
       console.debug(
@@ -1564,7 +1643,8 @@ export async function handlePostProcessingCompletedImpl(
       encryptedNewChatSuggestions.length > 0 ||
       encryptedChatSummary ||
       encryptedChatTags ||
-      encryptedTopRecommendedApps
+      encryptedTopRecommendedApps ||
+      encryptedSettingsMemoriesSuggestions
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
@@ -1576,6 +1656,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
+        encryptedSettingsMemoriesSuggestions || "",
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
@@ -1599,10 +1680,12 @@ export async function handlePostProcessingCompletedImpl(
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
         harmfulResponse: payload.harmful_response,
+        // Include settings/memories suggestions for UI to display suggestion cards
+        suggestedSettingsMemories: payload.suggested_settings_memories || [],
       },
     });
     console.info(
-      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} suggestions`,
+      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions and ${payload.suggested_settings_memories?.length || 0} settings/memories suggestions`,
     );
     serviceInstance.dispatchEvent(event);
     console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);

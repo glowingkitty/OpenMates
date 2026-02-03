@@ -32,6 +32,7 @@ from .handlers.websocket_handlers.store_embed_handler import handle_store_embed 
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
+from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler import handle_reject_settings_memory_suggestion # Handler for rejecting settings/memory suggestions
 
 logger = logging.getLogger(__name__)
 
@@ -504,6 +505,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
 
                     # Forward entire payload to client (includes suggestions, summary, tags)
+                    # Note: suggested_settings_memories is sent as plaintext - client encrypts with chat key
                     client_payload = {
                         "chat_id": chat_id,
                         "task_id": task_id,
@@ -511,7 +513,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "new_chat_request_suggestions": redis_payload.get("new_chat_request_suggestions", []),
                         "chat_summary": redis_payload.get("chat_summary", ""),
                         "chat_tags": redis_payload.get("chat_tags", []),
-                        "harmful_response": redis_payload.get("harmful_response", 0.0)
+                        "harmful_response": redis_payload.get("harmful_response", 0.0),
+                        # Suggested settings/memories entries (Phase 2 output)
+                        # Each entry: {app_id, item_type, suggested_title, item_value}
+                        "suggested_settings_memories": redis_payload.get("suggested_settings_memories", []),
                     }
 
                     await manager.broadcast_to_user_specific_event(
@@ -519,7 +524,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         event_name=client_event_name, # "post_processing_completed"
                         payload=client_payload
                     )
-                    logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} suggestions")
+                    memory_suggestions_count = len(client_payload.get('suggested_settings_memories', []))
+                    logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} suggestions, {memory_suggestions_count} memory suggestions")
 
                 # Handle skill_execution_status event
                 elif internal_event_type == "skill_execution_status":
@@ -1282,6 +1288,20 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     directus_service=directus_service,
                     user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "reject_settings_memory_suggestion":
+                # Handle rejection of settings/memory suggestions for cross-device sync
+                logger.debug(f"Handling reject_settings_memory_suggestion with payload: {payload}")
+                await handle_reject_settings_memory_suggestion(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )

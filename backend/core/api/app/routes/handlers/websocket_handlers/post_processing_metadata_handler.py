@@ -36,7 +36,8 @@ async def handle_post_processing_metadata(
         "encrypted_new_chat_suggestions": ["...", "..."],  // Array of encrypted strings (max 6)
         "encrypted_chat_summary": "...",  // Encrypted summary
         "encrypted_chat_tags": "...",  // Encrypted array of tags (max 10)
-        "encrypted_top_recommended_apps_for_chat": "..."  // Optional: Encrypted array of up to 5 app IDs
+        "encrypted_top_recommended_apps_for_chat": "...",  // Optional: Encrypted array of up to 5 app IDs
+        "encrypted_settings_memories_suggestions": "..."  // Optional: Encrypted array of settings/memories suggestions
     }
 
     All fields are encrypted CLIENT-SIDE (not server-encrypted) for zero-knowledge storage.
@@ -48,6 +49,7 @@ async def handle_post_processing_metadata(
         encrypted_chat_summary = payload.get("encrypted_chat_summary")
         encrypted_chat_tags = payload.get("encrypted_chat_tags")
         encrypted_top_recommended_apps_for_chat = payload.get("encrypted_top_recommended_apps_for_chat")
+        encrypted_settings_memories_suggestions = payload.get("encrypted_settings_memories_suggestions")
 
         if not chat_id:
             logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -99,6 +101,10 @@ async def handle_post_processing_metadata(
 
         if encrypted_top_recommended_apps_for_chat:
             chat_update_fields["encrypted_top_recommended_apps_for_chat"] = encrypted_top_recommended_apps_for_chat
+
+        # Store settings/memories suggestions (overwrites previous - only most recent kept)
+        if encrypted_settings_memories_suggestions:
+            chat_update_fields["encrypted_settings_memories_suggestions"] = encrypted_settings_memories_suggestions
 
         if not chat_update_fields:
             logger.warning(f"No metadata fields to update for chat {chat_id}")

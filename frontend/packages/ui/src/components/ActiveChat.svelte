@@ -576,6 +576,8 @@
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = [];
+                settingsMemoriesSuggestions = [];
+                rejectedSuggestionHashes = null;
                 showWelcome = true;
                 isAtBottom = false;
                 
@@ -1298,9 +1300,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    // Handler for when user adds a settings/memories suggestion
+    // Removes the suggestion from the list so it no longer displays
+    function handleSettingsMemorySuggestionAdded(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
+        console.info('[ActiveChat] Settings/memories suggestion added:', suggestion.suggested_title);
+        // Remove the added suggestion from the list
+        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
+            s => !(s.app_id === suggestion.app_id && 
+                   s.item_type === suggestion.item_type && 
+                   s.suggested_title === suggestion.suggested_title)
+        );
+    }
+
+    // Handler for when user rejects a settings/memories suggestion
+    // Removes the suggestion from the list (hash is already persisted by the SettingsMemoriesSuggestions component)
+    function handleSettingsMemorySuggestionRejected(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
+        console.info('[ActiveChat] Settings/memories suggestion rejected:', suggestion.suggested_title);
+        // Remove the rejected suggestion from the list
+        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
+            s => !(s.app_id === suggestion.app_id && 
+                   s.item_type === suggestion.item_type && 
+                   s.suggested_title === suggestion.suggested_title)
+        );
+    }
+
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
+        const { chatId, followUpSuggestions: newSuggestions, suggestedSettingsMemories: newSettingsMemories } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -1308,7 +1334,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             newSuggestionsCount: newSuggestions?.length || 0,
             newSuggestionsType: typeof newSuggestions,
             isArray: Array.isArray(newSuggestions),
-            currentFollowUpCount: followUpSuggestions.length
+            currentFollowUpCount: followUpSuggestions.length,
+            newSettingsMemoriesCount: newSettingsMemories?.length || 0
         });
 
         // CRITICAL FIX: Always reload suggestions from database for the current chat
@@ -1372,6 +1399,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
                     }
+                    
+                    // Load settings/memories suggestions from database
+                    // These are shown as suggestion cards below the AI response
+                    rejectedSuggestionHashes = freshChat.rejected_suggestion_hashes ?? null;
+                    
+                    if (freshChat.encrypted_settings_memories_suggestions) {
+                        try {
+                            const chatKey = chatDB.getOrGenerateChatKey(chatId);
+                            const { decryptWithChatKey } = await import('../services/cryptoService');
+                            const decryptedJson = await decryptWithChatKey(
+                                freshChat.encrypted_settings_memories_suggestions,
+                                chatKey
+                            );
+                            
+                            if (decryptedJson) {
+                                const parsed = JSON.parse(decryptedJson);
+                                if (Array.isArray(parsed) && parsed.length > 0) {
+                                    settingsMemoriesSuggestions = parsed;
+                                    console.info('[ActiveChat] ✅ Loaded settings/memories suggestions from database:', parsed.length);
+                                } else {
+                                    settingsMemoriesSuggestions = [];
+                                }
+                            } else {
+                                settingsMemoriesSuggestions = [];
+                            }
+                        } catch (decryptError) {
+                            console.error('[ActiveChat] Failed to decrypt settings/memories suggestions:', decryptError);
+                            // Fallback to event data
+                            if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
+                                settingsMemoriesSuggestions = newSettingsMemories;
+                                console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event');
+                            } else {
+                                settingsMemoriesSuggestions = [];
+                            }
+                        }
+                    } else if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
+                        // Fallback: use suggestions from event if database doesn't have them yet
+                        settingsMemoriesSuggestions = newSettingsMemories;
+                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database not updated yet)');
+                    } else {
+                        settingsMemoriesSuggestions = [];
+                        console.debug('[ActiveChat] No settings/memories suggestions found');
+                    }
                 } else {
                     console.warn('[ActiveChat] Chat not found in database after post-processing:', chatId);
                     // Fallback: use suggestions from event if chat not found
@@ -1379,13 +1449,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = newSuggestions;
                         console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (chat not in DB):', $state.snapshot(followUpSuggestions));
                     }
+                    if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
+                        settingsMemoriesSuggestions = newSettingsMemories;
+                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (chat not in DB)');
+                    }
                 }
             } catch (error) {
-                console.error('[ActiveChat] Failed to reload follow-up suggestions from database after post-processing:', error);
+                console.error('[ActiveChat] Failed to reload suggestions from database after post-processing:', error);
                 // Fallback: use suggestions from event if database reload fails
                 if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
                     followUpSuggestions = newSuggestions;
                     console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (database error):', $state.snapshot(followUpSuggestions));
+                }
+                if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
+                    settingsMemoriesSuggestions = newSettingsMemories;
+                    console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database error)');
                 }
             }
         } else {
@@ -1445,6 +1523,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    
+    // Track settings/memories suggestions for the current chat
+    // These are suggested entries generated during AI post-processing Phase 2
+    // Shown as horizontally scrollable cards below the last AI response
+    let settingsMemoriesSuggestions = $state<import('../types/apps').SuggestedSettingsMemoryEntry[]>([]);
+    
+    // Track rejected suggestion hashes for client-side filtering
+    let rejectedSuggestionHashes = $state<string[] | null>(null);
     
     // Track if user has sent a message this session (for push notification banner)
     // Banner should show after user's first message is sent
@@ -1688,13 +1774,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     // Reactive variable for typing indicator text
-    // Shows: "Processing..." when user message is being processed
+    // Shows: "Sending..." when user message is being sent to server
+    // Then shows: "Processing..." when server received message and is processing
     // Then shows: "{mate} is typing...<br>Powered by {model_name} via {provider_name}" when AI is responding
     // Using Svelte 5 $derived for typing indicator text
     let typingIndicatorText = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
+        
+        // Check if there's a sending message (user message being sent to server)
+        const hasSendingMessage = currentMessages.some(m => 
+            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
+        );
         
         // Check if there's a processing message (user message waiting for AI to start)
         const hasProcessingMessage = currentMessages.some(m => 
@@ -1703,6 +1795,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Debug logging for typing indicator
         console.debug('[ActiveChat] Typing indicator check:', {
+            hasSendingMessage,
             hasProcessingMessage,
             isTyping: currentTypingStatus?.isTyping,
             typingChatId: currentTypingStatus?.chatId,
@@ -1711,6 +1804,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             modelName: currentTypingStatus?.modelName,
             providerName: currentTypingStatus?.providerName
         });
+        
+        // Show "Sending..." if there's a user message being sent
+        if (hasSendingMessage) {
+            const result = $text('enter_message.sending.text');
+            console.debug('[ActiveChat] Showing sending indicator:', result);
+            return result;
+        }
         
         // Show "Processing..." if there's a user message in processing state
         if (hasProcessingMessage) {
@@ -1750,6 +1850,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Split typing indicator into safe text lines for rendering without {@html}.
     let typingIndicatorParts = $derived.by(() => {
         return typingIndicatorText ? splitHtmlLineBreaks(typingIndicatorText) : [];
+    });
+
+    // Track the current status type for CSS styling (shimmer animation)
+    // Returns: 'sending' | 'processing' | 'typing' | null
+    let typingIndicatorStatusType = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        
+        const hasSendingMessage = currentMessages.some(m => 
+            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
+        );
+        if (hasSendingMessage) return 'sending';
+        
+        const hasProcessingMessage = currentMessages.some(m => 
+            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
+        );
+        if (hasProcessingMessage) return 'processing';
+        
+        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
+            return 'typing';
+        }
+        
+        return null;
     });
 
 
@@ -2310,6 +2432,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
+        
+        // Hide settings/memories suggestions when user sends a new message
+        // New suggestions will be generated during post-processing
+        settingsMemoriesSuggestions = [];
         
         // Reset live input text to clear search term for suggestions
         // This ensures suggestions show the default 3 when input is focused again
@@ -3108,6 +3234,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             followUpSuggestions = [];
         }
 
+        // Load settings/memories suggestions from chat metadata
+        // ARCHITECTURE: Settings/memories suggestions are always encrypted for real chats
+        // Public chats don't have settings/memories suggestions (they're demo content)
+        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_settings_memories_suggestions) {
+            // Load rejected hashes first (these are stored in cleartext)
+            rejectedSuggestionHashes = currentChat.rejected_suggestion_hashes ?? null;
+            
+            try {
+                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                const { decryptWithChatKey } = await import('../services/cryptoService');
+                const decryptedJson = await decryptWithChatKey(
+                    currentChat.encrypted_settings_memories_suggestions,
+                    chatKey
+                );
+                
+                if (decryptedJson) {
+                    const parsed = JSON.parse(decryptedJson);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        settingsMemoriesSuggestions = parsed;
+                        console.debug('[ActiveChat] Loaded settings/memories suggestions from database:', parsed.length);
+                    } else {
+                        settingsMemoriesSuggestions = [];
+                    }
+                } else {
+                    settingsMemoriesSuggestions = [];
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Failed to load settings/memories suggestions:', error);
+                settingsMemoriesSuggestions = [];
+            }
+        } else {
+            // Public chats or chats without suggestions - clear the state
+            settingsMemoriesSuggestions = [];
+            rejectedSuggestionHashes = null;
+        }
+
         if (chatHistoryRef) {
             // Update messages
             chatHistoryRef.updateMessages(currentMessages);
@@ -3623,6 +3785,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
+                settingsMemoriesSuggestions = []; // Clear settings/memories suggestions
+                rejectedSuggestionHashes = null;
                 showWelcome = true; // Show welcome screen for new demo chat
                 isAtBottom = false;
                 
@@ -4438,6 +4602,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         containerWidth={effectiveChatWidth}
                         currentChatId={currentChat?.chat_id}
                         {thinkingContentByTask}
+                        {settingsMemoriesSuggestions}
+                        {rejectedSuggestionHashes}
+                        onSuggestionAdded={handleSettingsMemorySuggestionAdded}
+                        onSuggestionRejected={handleSettingsMemorySuggestionRejected}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}
@@ -4449,7 +4617,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper">
                     {#if typingIndicatorParts.length > 0}
-                        <div class="typing-indicator" transition:fade={{ duration: 200 }}>
+                        <div 
+                            class="typing-indicator"
+                            class:status-sending={typingIndicatorStatusType === 'sending'}
+                            class:status-processing={typingIndicatorStatusType === 'processing'}
+                            class:status-typing={typingIndicatorStatusType === 'typing'}
+                            transition:fade={{ duration: 200 }}
+                        >
                             {#each typingIndicatorParts as part, index}
                                 <span>{part}</span>{#if index < typingIndicatorParts.length - 1}<br>{/if}
                             {/each}
@@ -5130,6 +5304,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 4px 0;
         height: 20px; /* Allocate space to prevent layout shift */
         font-style: italic;
+    }
+    
+    /* Shimmer animation for status indicators (Sending..., Processing..., is typing...) */
+    .typing-indicator.status-sending,
+    .typing-indicator.status-processing,
+    .typing-indicator.status-typing {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: typing-indicator-shimmer 1.5s infinite linear;
+    }
+    
+    @keyframes typing-indicator-shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
     
     .sync-loading-message {

@@ -366,9 +366,9 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 ## Post-Processing
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+**Status**: ✅ **PARTIALLY IMPLEMENTED** - Follow-up suggestions, settings/memories suggestions, and URL validation are implemented. Chat summary and tags are planned.
 
-**Planned Implementation**: Future dedicated post-processing module (to be created)
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
 **Overview**: Post-processing analyzes the last user message and assistant response to generate contextual suggestions, settings/memories suggestions, and metadata.
 
@@ -463,59 +463,102 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 ## Settings/Memories Suggestions
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - Part of main processing system prompt optimization
+**Status**: ✅ **IMPLEMENTED** - Two-phase post-processing pipeline with UI integration
 
-**Overview**: The main processing system prompt is optimized to detect when relevant settings/memories should be saved, updated, or deleted based on the conversation context. The assistant includes natural language suggestions in its response, which are then picked up by post-processing to generate follow-up request suggestions.
+**Overview**: Post-processing analyzes the conversation to suggest relevant settings/memories entries that users might want to save. Suggestions appear as horizontally-scrollable cards below the AI response, where users can either add them to their data or reject them (tracked via SHA-256 hashes for privacy).
 
-### Flow
+### Architecture
 
-1. **Pre-Processing**: Provides relevant app settings/memories entries to main processing (see [Tool Preselection](#tool-preselection))
-   - Includes existing entries that might be relevant to the conversation
-   - Includes available settings/memories categories and their schemas
-   - Includes dynamically generated skills for managing settings/memories
+The settings/memories suggestions feature uses a **two-phase post-processing pipeline**:
 
-2. **Main Processing**: System prompt is optimized to:
-   - Analyze conversation context against relevant settings/memories
-   - Detect if new entries should be saved (e.g., user mentions watching a movie, visiting a restaurant)
-   - Detect if existing entries should be updated (e.g., user changes a rating, updates preferences)
-   - Detect if entries should be deleted (e.g., user wants to remove something from a list)
-   - Include natural language suggestions in the response when appropriate
-   - Example: "Would you like me to save 'Inception' to your watched movies list?"
-   - Example: "Should I update your rating for 'The Matrix' to 9.5?"
-   - Example: "Would you like me to remove 'Old Restaurant' from your favorites?"
+#### Phase 1: Category Selection
 
-3. **Post-Processing**: Generates follow-up request suggestions
-   - Analyzes the main processing response for settings/memories suggestions
-   - Extracts natural language suggestions about saving/updating/deleting entries
-   - Converts them into actionable follow-up request suggestions
-   - These appear as quick action buttons in the UI
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
-4. **User Interaction**: User clicks on follow-up suggestion
-   - User confirms by clicking the suggestion (e.g., "Save Inception to watched movies")
-   - This triggers a new message with the confirmation
-   - Main processing receives the confirmation and calls the appropriate skill:
-     - `{app_id}.settings_memories_add_{category}` for new entries
-     - `{app_id}.settings_memories_update_{category}` for updates (with entry_id and changed fields)
-     - `{app_id}.settings_memories_delete_{category}` for deletions (with entry_id)
-   - Skill execution follows the zero-knowledge encryption flow (see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow))
+- Analyzes the last user message and assistant response
+- Selects up to 3 relevant category IDs from the user's available settings/memories categories
+- Output: `relevant_new_app_settings_and_memories` array of category IDs (e.g., `["ai:preferred_technologies", "travel:upcoming_trips"]`)
 
-### System Prompt Optimization
+#### Phase 2: Suggestion Generation
 
-The main processing system prompt includes instructions to:
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
-- Monitor conversation for data that matches available settings/memories categories
-- Suggest saving data when it would be valuable for future personalization
-- Suggest updating entries when user provides corrections or new information
-- Suggest deleting entries when user indicates they want something removed
-- Use natural, conversational language for suggestions (not technical skill names)
-- Only suggest when it adds clear value to the user experience
+- Takes the category IDs from Phase 1
+- For each category, generates a suggested entry with:
+  - `app_id`: The app this belongs to (e.g., `"ai"`)
+  - `item_type`: The category ID (e.g., `"preferred_technologies"`)
+  - `suggested_title`: Human-readable title (e.g., `"Python"`)
+  - `item_value`: Pre-filled form data matching the category schema
+- Output: `suggested_settings_memories` array of `SuggestedSettingsMemoryEntry` objects (max 3)
 
-### Integration with Follow-up Suggestions
+### Data Flow
 
-- Post-processing automatically extracts settings/memories suggestions from the main response
-- These are converted into follow-up request suggestions that appear as quick action buttons
-- Users can click to confirm, which triggers skill execution
-- Follow-up suggestions also reference newly-created/updated entries for personalization
+```
+Backend Phase 2 (postprocessor.py)
+    ↓ generates suggestions
+WebSocket (websockets.py)
+    ↓ sends to client via post_processing_completed event
+chatSyncServiceHandlersAI.ts
+    ↓ encrypts and stores in IndexedDB, syncs to Directus
+ActiveChat.svelte
+    ↓ loads from DB, manages state
+ChatHistory.svelte
+    ↓ renders SettingsMemoriesSuggestions component
+User Action
+    ↓ Add: creates entry via appSettingsMemoriesStore
+    ↓ Reject: adds SHA-256 hash, syncs via WebSocket
+```
+
+### Frontend Implementation
+
+**Key Files**:
+
+- State management: [`frontend/packages/ui/src/components/ActiveChat.svelte`](../../frontend/packages/ui/src/components/ActiveChat.svelte) - Manages `settingsMemoriesSuggestions` and `rejectedSuggestionHashes` state
+- Rendering: [`frontend/packages/ui/src/components/ChatHistory.svelte`](../../frontend/packages/ui/src/components/ChatHistory.svelte) - Passes suggestions to UI component
+- UI component: [`frontend/packages/ui/src/components/SettingsMemoriesSuggestions.svelte`](../../frontend/packages/ui/src/components/SettingsMemoriesSuggestions.svelte) - Horizontally-scrollable cards with Add/Reject buttons
+- AI handler: [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts) - Encrypts and stores suggestions
+
+**UI Behavior**:
+
+- Suggestions appear as cards below the last assistant message (only when not streaming)
+- Each card shows: app icon, category name, suggested title, Add/Reject buttons
+- Cards are horizontally scrollable when multiple suggestions exist
+- Privacy notice explains data is stored encrypted on user's device
+
+### Rejection Tracking (Zero-Knowledge)
+
+**Privacy-First Design**: Rejected suggestions are tracked using SHA-256 hashes to maintain zero-knowledge architecture:
+
+- Hash format: `SHA256("app_id:item_type:title.toLowerCase()")`
+- Only hashes are stored (server never sees cleartext rejection data)
+- Hashes stored in `rejected_suggestion_hashes` array on chat record
+- Client-side filtering uses hashes to hide previously rejected suggestions
+
+**Backend Handler**: [`backend/core/api/app/routes/handlers/websocket_handlers/reject_settings_memory_suggestion_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/reject_settings_memory_suggestion_handler.py)
+
+- Validates hash format (64-char hex string)
+- Verifies chat ownership
+- Persists to Directus via Celery task
+- Broadcasts rejection to other devices for cross-device sync
+
+### Storage
+
+**IndexedDB/Directus Chat Fields**:
+
+- `encrypted_settings_memories_suggestions`: Encrypted array of `SuggestedSettingsMemoryEntry` objects
+- `rejected_suggestion_hashes`: Array of SHA-256 hash strings (cleartext, not sensitive)
+
+**Type Definition**: [`frontend/packages/ui/src/types/apps.ts`](../../frontend/packages/ui/src/types/apps.ts) - `SuggestedSettingsMemoryEntry` interface
+
+### Integration with Existing Settings/Memories
+
+When user clicks "Add":
+
+1. `SettingsMemoriesSuggestions` component calls `appSettingsMemoriesStore.createEntry()`
+2. Entry is encrypted with master key and stored in IndexedDB
+3. Entry is synced to Directus via WebSocket
+4. Suggestion is removed from the displayed list
+5. Future AI requests will include the new entry in relevant context
 
 ## Topic specific post-processing
 
