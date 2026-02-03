@@ -219,85 +219,114 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
 
 /**
  * Serialize paragraph node to markdown
+ *
+ * IMPORTANT: Embeds that produce block-level markdown (like code fences) need to be
+ * separated from surrounding text with double newlines. Otherwise the markdown parser
+ * won't recognize the code fence properly.
  */
 function serializeParagraph(node: any): string {
   if (!node.content) return "";
 
-  return node.content
-    .map((child: any) => {
-      if (child.type === "text") {
-        let text = child.text || "";
+  // First pass: serialize all children and track which are block-level embeds
+  const serializedParts: { content: string; isBlockEmbed: boolean }[] = [];
 
-        // Apply marks
-        if (child.marks) {
-          for (const mark of child.marks) {
-            switch (mark.type) {
-              case "bold":
-                text = `**${text}**`;
-                break;
-              case "italic":
-                text = `*${text}*`;
-                break;
-              case "code":
-                text = `\`${text}\``;
-                break;
-              case "link":
-                // If the link text is the same as the href (plain URL), output just the URL
-                // This preserves user input without adding unnecessary markdown link syntax
-                const href = mark.attrs?.href || "";
-                if (text === href || text.trim() === href.trim()) {
-                  // Plain URL - output as-is without markdown link syntax
-                  text = href;
-                } else {
-                  // Actual markdown link with different text - use markdown syntax
-                  text = `[${text}](${href})`;
-                }
-                break;
-            }
+  for (const child of node.content) {
+    if (child.type === "text") {
+      let text = child.text || "";
+
+      // Apply marks
+      if (child.marks) {
+        for (const mark of child.marks) {
+          switch (mark.type) {
+            case "bold":
+              text = `**${text}**`;
+              break;
+            case "italic":
+              text = `*${text}*`;
+              break;
+            case "code":
+              text = `\`${text}\``;
+              break;
+            case "link":
+              // If the link text is the same as the href (plain URL), output just the URL
+              // This preserves user input without adding unnecessary markdown link syntax
+              const href = mark.attrs?.href || "";
+              if (text === href || text.trim() === href.trim()) {
+                // Plain URL - output as-is without markdown link syntax
+                text = href;
+              } else {
+                // Actual markdown link with different text - use markdown syntax
+                text = `[${text}](${href})`;
+              }
+              break;
           }
         }
-
-        return text;
       }
 
+      serializedParts.push({ content: text, isBlockEmbed: false });
+    } else if (child.type === "embed") {
       // Handle inline unified embed nodes
-      if (child.type === "embed") {
-        // For all embed types, use the standard serialization logic
-        return serializeEmbedToMarkdown(child.attrs || {});
-      }
-
+      // For all embed types, use the standard serialization logic
+      const embedMarkdown = serializeEmbedToMarkdown(child.attrs || {});
+      // Check if this embed produces block-level markdown (contains code fences)
+      const isBlockEmbed = embedMarkdown.includes("```");
+      serializedParts.push({ content: embedMarkdown, isBlockEmbed });
+    } else if (child.type === "hardBreak") {
       // Handle hard breaks to ensure proper line separation
-      if (child.type === "hardBreak") {
-        return "\n";
-      }
-
+      serializedParts.push({ content: "\n", isBlockEmbed: false });
+    } else if (child.type === "webEmbed" || child.type === "videoEmbed") {
       // Legacy support for old embed node types (if any still exist)
-      if (child.type === "webEmbed" || child.type === "videoEmbed") {
-        return child.attrs?.url || "";
-      }
-
+      serializedParts.push({
+        content: child.attrs?.url || "",
+        isBlockEmbed: false,
+      });
+    } else if (child.type === "aiModelMention") {
       // Handle AI model mention nodes - serialize to backend format
-      if (child.type === "aiModelMention") {
-        console.info(
-          "[Serializer] Found aiModelMention node, modelId:",
-          child.attrs?.modelId,
-        );
-        return `@ai-model:${child.attrs?.modelId || ""}`;
-      }
-
+      console.info(
+        "[Serializer] Found aiModelMention node, modelId:",
+        child.attrs?.modelId,
+      );
+      serializedParts.push({
+        content: `@ai-model:${child.attrs?.modelId || ""}`,
+        isBlockEmbed: false,
+      });
+    } else if (child.type === "mate") {
       // Handle mate mention nodes - serialize to backend format
-      if (child.type === "mate") {
-        return `@mate:${child.attrs?.name || ""}`;
-      }
-
+      serializedParts.push({
+        content: `@mate:${child.attrs?.name || ""}`,
+        isBlockEmbed: false,
+      });
+    } else if (child.type === "genericMention") {
       // Handle generic mention nodes (skills, focus modes, settings/memories) - serialize to backend format
-      if (child.type === "genericMention") {
-        return child.attrs?.mentionSyntax || "";
-      }
+      serializedParts.push({
+        content: child.attrs?.mentionSyntax || "",
+        isBlockEmbed: false,
+      });
+    }
+  }
 
-      return "";
-    })
-    .join("");
+  // Second pass: join parts with proper separation
+  // Block-level embeds need double newlines before and after them
+  let result = "";
+  for (let i = 0; i < serializedParts.length; i++) {
+    const part = serializedParts[i];
+    const prevPart = i > 0 ? serializedParts[i - 1] : null;
+
+    if (part.content === "") continue;
+
+    // Add separator if needed
+    if (result.length > 0) {
+      if (part.isBlockEmbed || (prevPart && prevPart.isBlockEmbed)) {
+        // Block embeds need double newline separation
+        result += "\n\n";
+      }
+      // Otherwise no separator (inline content)
+    }
+
+    result += part.content;
+  }
+
+  return result;
 }
 
 /**
