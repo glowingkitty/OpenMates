@@ -974,9 +974,10 @@
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
                 handlePaste: (view, event, slice) => {
-                    // Check for chat YAML with embedded link (highest priority)
                     const text = event.clipboardData?.getData('text/plain');
+                    
                     if (text) {
+                        // Check for chat YAML with embedded link (highest priority)
                         const chatLink = extractChatLinkFromYAML(text);
                         if (chatLink) {
                             // We found a chat link in YAML format
@@ -985,6 +986,26 @@
                             event.stopPropagation();
                             editor.commands.insertContent(chatLink + ' ');
                             console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
+                            return true; // Prevent default paste handling
+                        }
+                        
+                        // Check for multi-line text - convert to markdown code embed for readability
+                        // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
+                        const isMultiLine = text.includes('\n');
+                        const isAlreadyCodeBlock = text.trim().startsWith('```');
+                        
+                        if (isMultiLine && !isAlreadyCodeBlock) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            // Wrap in markdown code block for preview rendering
+                            const markdownBlock = `\`\`\`markdown\n${text}\n\`\`\``;
+                            editor.commands.insertContent(markdownBlock);
+                            
+                            console.debug('[MessageInput] Converted multi-line paste to markdown code embed:', {
+                                lineCount: text.split('\n').length,
+                                charCount: text.length
+                            });
                             return true; // Prevent default paste handling
                         }
                     }
