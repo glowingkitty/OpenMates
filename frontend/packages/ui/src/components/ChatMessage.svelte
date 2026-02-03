@@ -1108,7 +1108,10 @@
           <span class="summary-label">{$text('chat.permissions.included_summary.text') || 'Included App settings & memories'}:</span>
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
-              <span class="category-badge">
+              <a 
+                href="#settings/app_store/{cat.appId}/settings_memories/{cat.itemType}"
+                class="category-badge"
+              >
                 <Icon 
                   name={cat.appId} 
                   type="app" 
@@ -1116,7 +1119,7 @@
                   noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
-              </span>
+              </a>
             {/each}
           </div>
         {:else if appSettingsMemoriesResponse.action === 'rejected'}
@@ -1308,6 +1311,13 @@
     background: var(--color-grey-15, #f5f5f5);
     border-radius: 12px;
     padding: 4px 10px 4px 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  
+  .category-badge:hover {
+    background: var(--color-grey-20, #e8e8e8);
   }
   
   .badge-text {
@@ -1325,6 +1335,10 @@
   @media (prefers-color-scheme: dark) {
     .category-badge {
       background: var(--color-grey-25, #2a2a2a);
+    }
+    
+    .category-badge:hover {
+      background: var(--color-grey-30, #3a3a3a);
     }
     
     .badge-text {

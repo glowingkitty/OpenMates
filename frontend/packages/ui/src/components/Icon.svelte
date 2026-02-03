@@ -629,7 +629,8 @@
 
   /* No animation - icon is immediately visible without fade-in */
   .icon.no-animation {
-    opacity: 1;
-    animation: none;
+    opacity: 1 !important;
+    animation: none !important;
+    animation-delay: 0 !important;
   }
 </style>
