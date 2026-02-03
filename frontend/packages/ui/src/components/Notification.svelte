@@ -425,11 +425,14 @@
         background-color: rgba(220, 53, 69, 0.15);
     }
     
-    /* Mobile responsiveness - 5px margin on each side */
-    @media (max-width: 440px) {
+    /* Mobile responsiveness - ensure notification fits within viewport */
+    @media (max-width: 450px) {
         .notification {
-            width: calc(100vw - 10px);
-            margin: 0 5px;
+            /* Use 100% of container width minus safe margins */
+            width: calc(100vw - 20px);
+            max-width: calc(100vw - 20px);
+            /* Reduce padding slightly on very small screens */
+            padding: 10px 12px;
         }
     }
 </style>
