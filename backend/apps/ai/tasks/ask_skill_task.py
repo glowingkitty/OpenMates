@@ -338,6 +338,8 @@ async def _async_process_ai_skill_ask_task(
     task_was_soft_limited = False
 
     # --- Initialize services ---
+    # PERFORMANCE OPTIMIZATION: Use worker-level cache service for connection pooling
+    # This eliminates ~100-200ms of Redis connection overhead per task
     secrets_manager = None
     cache_service_instance = None
     directus_service_instance = None
@@ -348,9 +350,17 @@ async def _async_process_ai_skill_ask_task(
         await secrets_manager.initialize()
         logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
 
-        cache_service_instance = CacheService()
-        await cache_service_instance.client 
-        logger.info(f"[Task ID: {task_id}] CacheService initialized.")
+        # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
+        # Falls back to creating a new instance if the worker-level service is unavailable
+        try:
+            from backend.core.api.app.tasks.celery_config import get_worker_cache_service
+            cache_service_instance = await get_worker_cache_service()
+            logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
+        except Exception as e:
+            logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
+            cache_service_instance = CacheService()
+            await cache_service_instance.client 
+            logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
         
         encryption_service_instance = EncryptionService(
             cache_service=cache_service_instance

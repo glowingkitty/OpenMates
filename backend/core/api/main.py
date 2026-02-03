@@ -264,49 +264,67 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for a
     
     logger.info(f"Service Discovery: Will check {len(apps_to_check)} app(s): {apps_to_check}")
     
-    async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
-        for app_id in apps_to_check:
-            # Construct hostname by prepending "app-" to the app_id
-            hostname = f"app-{app_id}"
-            metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-            logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+    # PERFORMANCE OPTIMIZATION: Fetch all app metadata in parallel instead of sequentially
+    # This reduces discovery time from N*timeout to max(timeout) for N apps
+    async def fetch_app_metadata(client: httpx.AsyncClient, app_id: str) -> tuple[str, Optional[AppYAML], Optional[str]]:
+        """Fetch metadata for a single app. Returns (app_id, metadata, error_message)."""
+        hostname = f"app-{app_id}"
+        metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
+        logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+        
+        try:
+            response = await client.get(metadata_url)
+            response.raise_for_status()
+            app_metadata_json = response.json()
             
-            try:
-                response = await client.get(metadata_url)
-                response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
-                app_metadata_json = response.json()
-                try:
-                    # Filter components by stage before parsing
-                    filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
-                    
-                    # If no valid components after filtering, skip this app
-                    if filtered_metadata_json is None:
-                        logger.info(f"Service Discovery: App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
-                        continue
-                    
-                    # Parse the filtered metadata
-                    app_yaml_data = AppYAML(**filtered_metadata_json)
-                    # Ensure the app_id matches the service name
-                    if app_yaml_data.id and app_yaml_data.id != app_id:
-                        logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
-                                       f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
-                    app_yaml_data.id = app_id # Standardize the ID to the service name
-                    
-                    # Include the app with filtered components
-                    discovered_metadata[app_id] = app_yaml_data
-                    logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
-                        
-                except Exception as pydantic_error:
-                    logger.error(f"Service Discovery: Metadata for app '{app_id}' from {metadata_url} is invalid or does not match AppYAML schema. Error: {pydantic_error}. Data: {app_metadata_json}")
-
-            except httpx.HTTPStatusError as e:
-                # Log as warning, not error - app might not be running yet
-                logger.warning(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. App service may not be running.")
-            except httpx.RequestError as e:
-                # Log as warning - app service might not be available
-                logger.warning(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}. App service may not be running.")
-            except Exception as e:
-                logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
+            # Filter components by stage before parsing
+            filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
+            
+            # If no valid components after filtering, skip this app
+            if filtered_metadata_json is None:
+                return (app_id, None, f"App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
+            
+            # Parse the filtered metadata
+            app_yaml_data = AppYAML(**filtered_metadata_json)
+            # Ensure the app_id matches the service name
+            if app_yaml_data.id and app_yaml_data.id != app_id:
+                logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
+                               f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
+            app_yaml_data.id = app_id
+            
+            return (app_id, app_yaml_data, None)
+            
+        except httpx.HTTPStatusError as e:
+            return (app_id, None, f"HTTP error {e.response.status_code}. App service may not be running.")
+        except httpx.RequestError as e:
+            return (app_id, None, f"Request error: {e}. App service may not be running.")
+        except Exception as e:
+            logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
+            return (app_id, None, f"Unexpected error: {e}")
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        # Fetch all app metadata in parallel
+        import asyncio
+        tasks = [fetch_app_metadata(client, app_id) for app_id in apps_to_check]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Service Discovery: Unexpected exception during parallel fetch: {result}")
+                continue
+            
+            app_id, app_yaml_data, error_msg = result
+            
+            if app_yaml_data is not None:
+                discovered_metadata[app_id] = app_yaml_data
+                logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
+            elif error_msg:
+                # Log at appropriate level based on error type
+                if "excluded" in error_msg:
+                    logger.info(f"Service Discovery: {error_msg}")
+                else:
+                    logger.warning(f"Service Discovery: App '{app_id}': {error_msg}")
     
     logger.info(f"Service Discovery: Completed. Discovered and included {len(discovered_metadata)} app(s) successfully.")
     return discovered_metadata

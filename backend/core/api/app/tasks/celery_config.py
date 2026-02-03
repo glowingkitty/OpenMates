@@ -16,6 +16,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.cache import CacheService as _CacheService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
@@ -48,6 +49,42 @@ invoice_ninja_service: Optional[InvoiceNinjaService] = None
 invoice_template_service: Optional[InvoiceTemplateService] = None
 
 
+# ===========================================================================
+# WORKER-LEVEL SERVICE POOL for connection reuse across tasks
+# ===========================================================================
+# PERFORMANCE OPTIMIZATION: Reuse service connections across tasks instead of
+# reinitializing them for every task. This eliminates ~200-500ms of initialization
+# overhead per task.
+#
+# These services are initialized once per worker process and reused across tasks.
+# They are NOT thread-safe, but Celery prefork workers use separate processes.
+
+# Worker-level cache service instance (reused across tasks)
+_worker_cache_service: Optional[_CacheService] = None
+
+
+async def get_worker_cache_service() -> _CacheService:
+    """
+    Get the worker-level CacheService instance, creating it if needed.
+    
+    This provides connection pooling for Redis/Dragonfly across tasks.
+    The connection is established once per worker process and reused.
+    
+    Returns:
+        CacheService: The worker-level cache service instance
+    """
+    global _worker_cache_service
+    
+    if _worker_cache_service is None:
+        logger.info("[PERF] Creating worker-level CacheService (first task in this worker)")
+        _worker_cache_service = _CacheService()
+        # Ensure the client is connected
+        await _worker_cache_service.client
+        logger.info("[PERF] Worker-level CacheService initialized and connected")
+    
+    return _worker_cache_service
+
+
 # --- Centralized Task Configuration ---
 # Define task groups, their modules, and associated queues in one place.
 # This simplifies adding new task types.
@@ -63,6 +100,7 @@ TASK_CONFIG = [
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
     {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
+    {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -275,33 +313,50 @@ app.conf.update(
     task_ignore_result=False,
 )
 
-def _worker_needs_invoice_services():
+def _get_worker_queues() -> set:
     """
-    Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
-    These services are only needed for workers that handle email, user_init, or persistence queues.
-    They are NOT needed for app-specific workers (app_ai, app_web, etc.).
+    Get the queues this worker is consuming from environment or command line.
+    Workers are started with --queues argument in docker-compose.
     """
-    # Get the queues this worker is consuming from environment or command line
-    # Workers are started with --queues argument in docker-compose
     worker_queues_str = os.getenv('CELERY_QUEUES', '')
     if not worker_queues_str:
         # Try to get from command line arguments if available
-        import sys
         for i, arg in enumerate(sys.argv):
             if arg == '--queues' and i + 1 < len(sys.argv):
                 worker_queues_str = sys.argv[i + 1]
                 break
     
     if worker_queues_str:
-        worker_queues = [q.strip() for q in worker_queues_str.split(',')]
+        return {q.strip() for q in worker_queues_str.split(',')}
+    return set()
+
+
+def _worker_needs_invoice_services():
+    """
+    Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
+    These services are only needed for workers that handle email, user_init, or persistence queues.
+    They are NOT needed for app-specific workers (app_ai, app_web, etc.).
+    """
+    worker_queues = _get_worker_queues()
+    
+    if worker_queues:
         # Invoice services are only needed for these queues
         queues_needing_invoice_services = {'email', 'user_init', 'persistence'}
-        return bool(set(worker_queues) & queues_needing_invoice_services)
+        return bool(worker_queues & queues_needing_invoice_services)
     
     # Default: assume invoice services are needed if we can't determine queues
     # This is safer than skipping initialization
     logger.warning("Could not determine worker queues, initializing invoice services by default")
     return True
+
+
+def _worker_needs_ai_services():
+    """
+    Check if this worker needs AI provider services pre-warmed.
+    Only the app-ai-worker (app_ai queue) needs AI services.
+    """
+    worker_queues = _get_worker_queues()
+    return 'app_ai' in worker_queues
 
 async def initialize_services():
     """
@@ -355,6 +410,100 @@ async def initialize_services():
         # Subsequent tasks will create a new client for their own event loops.
         await secrets_manager.aclose()
         logger.info("SecretsManager httpx client closed after worker service initialization.")
+
+
+async def prewarm_ai_services():
+    """
+    PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients at worker startup.
+    
+    This eliminates the cold-start delay on the first AI request after a restart.
+    Without pre-warming, the first request must:
+    1. Initialize SecretsManager and connect to Vault (~100-300ms)
+    2. Fetch API keys for each provider (~50-100ms each)
+    3. Initialize SDK clients (OpenAI, Anthropic, etc.) (~50-100ms each)
+    
+    By pre-warming, subsequent tasks can immediately use the initialized clients.
+    
+    Only runs on app-ai-worker (workers with app_ai queue).
+    """
+    if not _worker_needs_ai_services():
+        logger.info("Skipping AI services pre-warming - not an app-ai-worker")
+        return
+    
+    logger.info("[PERF] Pre-warming AI provider services for app-ai-worker...")
+    start_time = asyncio.get_event_loop().time()
+    secrets_manager = None
+    
+    try:
+        # Initialize SecretsManager to fetch API keys
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+        logger.info("[PERF] SecretsManager initialized for AI pre-warming")
+        
+        # Import and initialize each AI provider client
+        # These imports are done lazily to avoid circular imports and minimize memory
+        # if this code path is never reached (e.g., on non-AI workers)
+        providers_initialized = []
+        providers_failed = []
+        
+        # OpenAI client
+        try:
+            from backend.apps.ai.llm_providers.openai_client import initialize_openai_client
+            await initialize_openai_client(secrets_manager)
+            providers_initialized.append("openai")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm OpenAI client: {e}")
+            providers_failed.append("openai")
+        
+        # Anthropic client (includes AWS Bedrock setup)
+        try:
+            from backend.apps.ai.llm_providers.anthropic_client import initialize_anthropic_client
+            await initialize_anthropic_client(secrets_manager)
+            providers_initialized.append("anthropic")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Anthropic client: {e}")
+            providers_failed.append("anthropic")
+        
+        # Google client (Vertex AI)
+        try:
+            from backend.apps.ai.llm_providers.google_client import initialize_google_client
+            await initialize_google_client(secrets_manager)
+            providers_initialized.append("google")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Google client: {e}")
+            providers_failed.append("google")
+        
+        # Mistral client
+        try:
+            from backend.apps.ai.llm_providers.mistral_client import initialize_mistral_client
+            await initialize_mistral_client(secrets_manager)
+            providers_initialized.append("mistral")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Mistral client: {e}")
+            providers_failed.append("mistral")
+        
+        # Groq client
+        try:
+            from backend.apps.ai.llm_providers.groq_client import initialize_groq_client
+            await initialize_groq_client(secrets_manager)
+            providers_initialized.append("groq")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Groq client: {e}")
+            providers_failed.append("groq")
+        
+        elapsed = asyncio.get_event_loop().time() - start_time
+        logger.info(
+            f"[PERF] AI provider pre-warming completed in {elapsed:.3f}s. "
+            f"Initialized: {providers_initialized}. Failed: {providers_failed}"
+        )
+        
+    except Exception as e:
+        logger.error(f"[PERF] AI services pre-warming failed: {e}", exc_info=True)
+    finally:
+        # Close the secrets manager httpx client - tasks will create their own
+        if secrets_manager:
+            await secrets_manager.aclose()
+            logger.info("[PERF] SecretsManager closed after AI pre-warming")
 
 
 # ===========================================================================
@@ -579,6 +728,9 @@ def init_worker_process(*args, **kwargs):
     
     Uses lazy initialization for ConfigManager - it will be initialized on first access
     via the singleton pattern. This saves memory if the worker never needs it.
+    
+    PERFORMANCE OPTIMIZATION: For app-ai-worker, pre-warms AI provider clients to eliminate
+    cold-start delay on the first AI request after a restart.
     """
     setup_celery_logging()
     logger.info("Worker process initializing...")
@@ -592,6 +744,10 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
+    
+    # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
+    # This eliminates the cold-start delay on the first AI request after restart
+    asyncio.run(prewarm_ai_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
@@ -831,6 +987,20 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM UTC
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
         'kwargs': {'category': 'text'},  # Default to overall text category
+    },
+    # E2E Test Automation - hourly test runs for development environment
+    'e2e-tests-dev-hourly': {
+        'task': 'e2e_tests.run_dev_tests',
+        'schedule': crontab(minute=0),  # Every hour at minute 0
+        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
+    },
+    # E2E Test Automation - signup tests run less frequently (once per day)
+    # These consume Mailosaur credits and create real accounts
+    'e2e-tests-signup-daily': {
+        'task': 'e2e_tests.run_signup_tests',
+        'schedule': crontab(hour=6, minute=30),  # Daily at 6:30 AM UTC
+        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
+        'kwargs': {'environment': 'development'},
     },
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
