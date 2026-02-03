@@ -1113,6 +1113,7 @@
                   name={cat.appId} 
                   type="app" 
                   size="22px"
+                  noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </span>

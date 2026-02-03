@@ -16,7 +16,8 @@
     borderColor = undefined,
     onClick = undefined,
     className = '',
-    noMargin = false
+    noMargin = false,
+    noAnimation = false
   }: {
     name?: string;
     type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder';
@@ -30,6 +31,7 @@
     onClick?: (() => void) | undefined;
     className?: string;
     noMargin?: boolean;
+    noAnimation?: boolean;
   } = $props();
 
   // Create a reactive variable for the lowercase name using $derived (Svelte 5 runes mode)
@@ -119,6 +121,8 @@
     type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
     // Add placeholder class
     type === 'placeholder' ? 'placeholder-icon' : '',
+    // Add no-animation class to disable fade-in animation
+    noAnimation ? 'no-animation' : '',
     // The rest remains unchanged
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
@@ -621,5 +625,11 @@
   
   .icon.placeholder-icon::before {
     background-image: none;
+  }
+
+  /* No animation - icon is immediately visible without fade-in */
+  .icon.no-animation {
+    opacity: 1;
+    animation: none;
   }
 </style>
