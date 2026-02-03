@@ -820,7 +820,14 @@ export class GroupRenderer implements EmbedRenderer {
       // Preview embed - code is stored temporarily in item attributes
       codeContent = item.code || "";
       console.debug(
-        "[GroupRenderer] Rendering preview code embed with inline code content",
+        "[GroupRenderer] mountCodePreview: preview embed code content",
+        {
+          hasCode: !!item.code,
+          codeLength: item.code?.length || 0,
+          codePreview: item.code?.substring(0, 100) || "NO CODE",
+          itemKeys: Object.keys(item),
+          contentRef: item.contentRef,
+        },
       );
     } else {
       // Real embed - code comes from decodedContent (loaded from EmbedStore)

@@ -1026,7 +1026,9 @@
                             console.debug('[MessageInput] Converted multi-line paste to markdown code embed:', {
                                 lineCount: text.split('\n').length,
                                 charCount: text.length,
-                                originalMarkdownLength: originalMarkdown.length
+                                originalMarkdownLength: originalMarkdown.length,
+                                originalMarkdownPreview: originalMarkdown.substring(0, 200),
+                                parsedDocContent: parsedDoc?.content ? JSON.stringify(parsedDoc.content.slice(0, 2)) : 'NO CONTENT'
                             });
                             return true; // Prevent default paste handling
                         }
