@@ -4,9 +4,12 @@ icon_image: |
   ai.svg
 last_updated: "2025-11-12"
 providers:
-  - Mistral
+  - Alibaba
+  - Anthropic
   - Cerebras
-  - Z.ai
+  - Google
+  - Mistral
+  - OpenAI
 
 settings_and_memories:
   - id: communication_style
@@ -125,8 +128,12 @@ skills:
     class_path: |
       ai.skills.ask_skill.AskSkill
     providers:
+      - Alibaba
+      - Anthropic
       - Cerebras
+      - Google
       - Mistral
+      - OpenAI
     skill_config:
       # Model Selection Configuration
       # When false, uses hardcoded models from default_llms below.

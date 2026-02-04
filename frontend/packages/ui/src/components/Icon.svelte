@@ -278,6 +278,8 @@
     --icon-url-3dmodels: url('@openmates/ui/static/icons/3dmodels.svg');
     --icon-url-activism: url('@openmates/ui/static/icons/activism.svg');
     --icon-url-ai: url('@openmates/ui/static/icons/ai.svg');
+    --icon-url-alibaba: url('@openmates/ui/static/icons/alibaba.svg');
+    --icon-url-anthropic: url('@openmates/ui/static/icons/anthropic.svg');
     --icon-url-announcement: url('@openmates/ui/static/icons/announcement.svg');
     --icon-url-anonym: url('@openmates/ui/static/icons/anonym.svg');
     --icon-url-app: url('@openmates/ui/static/icons/app.svg');
@@ -423,6 +425,7 @@
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
     --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
+    --icon-url-zai: url('@openmates/ui/static/icons/zai.svg');
     --icon-url-context7: url('@openmates/ui/static/icons/context7.svg');
   }
 
