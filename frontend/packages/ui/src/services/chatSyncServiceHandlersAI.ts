@@ -3,6 +3,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed } from "./embedResolver"; // Import storeEmbed
+import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
 import type { EmbedType } from "../message_parsing/types";
 import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -1642,6 +1643,8 @@ export async function handlePostProcessingCompletedImpl(
       encryptedSettingsMemoriesSuggestions
     ) {
       await chatDB.updateChat(chat);
+      // CRITICAL: Invalidate metadata cache so context menu shows updated summary
+      chatMetadataCache.invalidateChat(payload.chat_id);
       console.debug(
         `[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`,
       );
