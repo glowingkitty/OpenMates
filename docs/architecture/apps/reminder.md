@@ -1,6 +1,6 @@
 # Reminder App Architecture
 
-> **Status**: In Development  
+> **Status**: ✅ Implemented  
 > **Last Updated**: 2026-02-04
 
 The Reminder app allows users to schedule reminders that can either create a new chat or send a follow-up message in an existing chat. Reminders support both specific times and random times within configurable windows, with optional repeating schedules.
@@ -27,56 +27,17 @@ The Reminder app allows users to schedule reminders that can either create a new
 
 ### Reminder Cache Entry
 
-```python
-{
-    # Identity
-    "reminder_id": str,          # UUID, primary key
-    "user_id": str,              # For vault_key_id lookup and WebSocket routing
-    "vault_key_id": str,         # User's vault key for decryption
+The reminder data model includes:
 
-    # Encrypted Content (vault-encrypted with user's key)
-    "encrypted_prompt": str,             # The reminder message/prompt
-    "encrypted_chat_history": str | None, # Only for existing_chat target (JSON array)
-    "encrypted_new_chat_title": str | None, # Only for new_chat target
+- **Identity fields**: `reminder_id`, `user_id`, `vault_key_id`
+- **Encrypted content**: `encrypted_prompt`, `encrypted_chat_history` (for existing chat), `encrypted_new_chat_title` (for new chat)
+- **Trigger configuration**: `trigger_type` (specific/random), `trigger_at` (Unix timestamp), `random_config` (date range and time window)
+- **Target configuration**: `target_type` (new_chat/existing_chat), `target_chat_id`
+- **Repeat configuration**: `type` (daily/weekly/monthly/custom), interval settings, end conditions
+- **Metadata**: `created_at`, `created_in_chat_id`, `occurrence_count`
+- **Status**: pending, fired, or cancelled
 
-    # Trigger Configuration
-    "trigger_type": "specific" | "random",
-    "trigger_at": int,           # Unix timestamp - calculated at creation
-
-    # For random triggers (stored for recalculation on repeat)
-    "random_config": {
-        "start_date": str,       # YYYY-MM-DD
-        "end_date": str,         # YYYY-MM-DD
-        "time_window_start": str, # HH:MM (24h format)
-        "time_window_end": str,   # HH:MM (24h format)
-        "timezone": str           # e.g., "Europe/Berlin"
-    } | None,
-
-    # Target Configuration
-    "target_type": "new_chat" | "existing_chat",
-    "target_chat_id": str | None,  # Only for existing_chat
-
-    # Repeat Configuration
-    "repeat_config": {
-        "type": "daily" | "weekly" | "monthly" | "custom",
-        "interval": int | None,      # For custom: every N units
-        "interval_unit": "days" | "weeks" | "months" | None,
-        "day_of_week": int | None,   # For weekly: 0=Monday, 6=Sunday
-        "day_of_month": int | None,  # For monthly: 1-31
-        "time_of_day": str,          # HH:MM - time for repeating reminders
-        "end_date": str | None,      # Optional end date
-        "max_occurrences": int | None # Optional max repeat count
-    } | None,
-
-    # Metadata
-    "created_at": int,           # Unix timestamp
-    "created_in_chat_id": str,   # Chat where reminder was created
-    "occurrence_count": int,     # Times fired (for repeating)
-
-    # Status
-    "status": "pending" | "fired" | "cancelled"
-}
-```
+For the complete data model and cache operations, see [cache_reminder_mixin.py](../../../backend/core/api/app/services/cache_reminder_mixin.py).
 
 ### Cache Key Patterns
 
@@ -167,34 +128,21 @@ Cancels a pending reminder.
 
 ### Celery Beat Schedule
 
-```python
-'process-due-reminders': {
-    'task': 'reminder.process_due_reminders',
-    'schedule': timedelta(seconds=60),  # Every minute
-    'options': {'queue': 'reminder'},
-}
-```
+The reminder processing task runs every 60 seconds via Celery Beat. See [celery_config.py](../../../backend/core/api/app/tasks/celery_config.py) for the beat schedule configuration.
 
 ### Reminder Processing Flow
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Every 60 seconds                              │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Query ZSET: ZRANGEBYSCORE reminders:schedule 0 {now}        │
-│  2. For each due reminder:                                       │
-│     ├─ Decrypt prompt (and chat_history if existing_chat)       │
-│     ├─ Execute target action:                                    │
-│     │   ├─ new_chat: Create chat + system message               │
-│     │   └─ existing_chat: Restore history + system message      │
-│     ├─ Send notification (WebSocket + email if configured)      │
-│     ├─ If repeating:                                            │
-│     │   ├─ Calculate next trigger_at                            │
-│     │   ├─ Update ZSET score                                    │
-│     │   └─ Increment occurrence_count                           │
-│     └─ If one-time: Delete reminder                             │
-└─────────────────────────────────────────────────────────────────┘
-```
+The `process_due_reminders` task executes the following steps every 60 seconds:
+
+1. **Query due reminders**: Fetch all reminders with `trigger_at <= now` from the sorted set
+2. **For each due reminder**:
+   - Decrypt prompt (and chat history if targeting an existing chat)
+   - Execute the target action (create new chat or send message to existing chat)
+   - Send notifications (WebSocket + email if configured)
+   - If repeating: calculate next trigger time, update schedule, increment occurrence count
+   - If one-time: delete the reminder
+
+See [tasks.py](../../../backend/apps/reminder/tasks.py) for the complete processing implementation.
 
 ### Target Actions
 
@@ -217,20 +165,18 @@ Cancels a pending reminder.
 
 ## System Message Format
 
-Reminder messages use a distinctive format:
-
-```
-🔔 **Reminder**
-
-{prompt}
-
----
-*Reminder set on {created_date}*
-```
+Reminder messages are delivered as system messages with:
 
 - Role: `system`
-- Includes metadata identifying it as a reminder
-- Frontend renders as a notification card
+- A distinctive header with reminder emoji
+- The reminder prompt content
+- A footer showing when the reminder was originally set
+- Metadata identifying it as a reminder for frontend rendering
+
+The frontend renders these as notification cards. See the embed components:
+
+- [ReminderEmbedPreview.svelte](../../../frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte)
+- [ReminderEmbedFullscreen.svelte](../../../frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedFullscreen.svelte)
 
 ## Disk Spillover (Persistence Safety)
 
@@ -238,27 +184,14 @@ Reminder messages use a distinctive format:
 
 Location: `/shared/cache/pending_reminders_backup.json`
 
-```json
-{
-  "timestamp": 1704067200,
-  "version": 1,
-  "reminders": [
-    {
-      "reminder_id": "...",
-      "user_id": "...",
-      "vault_key_id": "...",
-      "encrypted_prompt": "...",
-      "trigger_at": 1704153600,
-      ...
-    }
-  ]
-}
-```
+The backup file contains a timestamped JSON object with version information and an array of reminder entries (all sensitive data remains vault-encrypted).
 
 ### Lifecycle Hooks
 
 - **Startup**: `cache_service.restore_reminders_from_disk()` - Restore pending reminders
 - **Shutdown**: `cache_service.dump_reminders_to_disk()` - Save pending reminders
+
+See [cache_reminder_mixin.py](../../../backend/core/api/app/services/cache_reminder_mixin.py) for the backup/restore implementation.
 
 ## WebSocket Events
 
@@ -279,6 +212,8 @@ The reminder app integrates with the existing notification system:
 - If not, skill response includes recommendation to set up email
 - When reminder fires, sends email notification via existing email service
 
+See [reminder_notification_email_task.py](../../../backend/core/api/app/tasks/email_tasks/reminder_notification_email_task.py) for the email task implementation and [reminder-notification.mjml](../../../backend/core/api/templates/email/reminder-notification.mjml) for the email template.
+
 ### Other Apps
 
 The reminder app can be used by other apps for scheduled actions:
@@ -290,24 +225,28 @@ The reminder app can be used by other apps for scheduled actions:
 
 ## File Structure
 
-```
-backend/apps/reminder/
-├── __init__.py
-├── app.yml                      # App configuration
-├── skills/
-│   ├── __init__.py
-│   ├── set_reminder_skill.py    # Create reminders
-│   ├── list_reminders_skill.py  # List user's reminders
-│   └── cancel_reminder_skill.py # Cancel reminders
-├── tasks.py                     # Celery tasks
-└── utils.py                     # Time calculation helpers
+### Backend
 
-backend/core/api/app/services/
-└── cache_reminder_mixin.py      # Cache operations
+| File                                                                                                                       | Description                               |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [app.yml](../../../backend/apps/reminder/app.yml)                                                                          | App configuration and metadata            |
+| [set_reminder_skill.py](../../../backend/apps/reminder/skills/set_reminder_skill.py)                                       | Create reminders skill                    |
+| [list_reminders_skill.py](../../../backend/apps/reminder/skills/list_reminders_skill.py)                                   | List user's reminders skill               |
+| [cancel_reminder_skill.py](../../../backend/apps/reminder/skills/cancel_reminder_skill.py)                                 | Cancel reminders skill                    |
+| [tasks.py](../../../backend/apps/reminder/tasks.py)                                                                        | Celery tasks for processing due reminders |
+| [utils.py](../../../backend/apps/reminder/utils.py)                                                                        | Time calculation helpers                  |
+| [cache_reminder_mixin.py](../../../backend/core/api/app/services/cache_reminder_mixin.py)                                  | Cache operations for reminders            |
+| [reminder_notification_email_task.py](../../../backend/core/api/app/tasks/email_tasks/reminder_notification_email_task.py) | Email notification task                   |
+| [reminder-notification.mjml](../../../backend/core/api/templates/email/reminder-notification.mjml)                         | Email template                            |
 
-frontend/packages/ui/src/i18n/sources/
-└── reminder.yml                 # Translations
-```
+### Frontend
+
+| File                                                                                                                          | Description                                 |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [ReminderEmbedPreview.svelte](../../../frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte)       | Preview embed component                     |
+| [ReminderEmbedFullscreen.svelte](../../../frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedFullscreen.svelte) | Fullscreen embed with cancel functionality  |
+| [reminder.yml](../../../frontend/packages/ui/src/i18n/sources/app_skills/reminder.yml)                                        | Skill translations                          |
+| [embeds.yml](../../../frontend/packages/ui/src/i18n/sources/embeds.yml)                                                       | Embed translations (includes reminder keys) |
 
 ## Security Considerations
 
@@ -332,3 +271,11 @@ frontend/packages/ui/src/i18n/sources/
 - **Smart scheduling**: AI suggests optimal reminder times based on user patterns
 - **Snooze functionality**: Allow users to postpone reminders
 - **Reminder templates**: Pre-defined reminder patterns for common use cases
+
+---
+
+## Read Next
+
+- [Sync Architecture](../sync.md) - How data syncs between frontend and backend
+- [Message Processing](../message_processing.md) - How AI messages are processed
+- [Apps Overview](../apps.md) - General app architecture
