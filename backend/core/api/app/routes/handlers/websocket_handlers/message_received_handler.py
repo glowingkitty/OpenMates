@@ -1170,6 +1170,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
         
+        # Get user's timezone for AI context (used for reminders, scheduling, time-aware responses)
+        user_timezone = await cache_service.get_user_timezone(user_id)
+        user_preferences_dict = {}
+        if user_timezone:
+            user_preferences_dict["timezone"] = user_timezone
+            logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
+        
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1180,7 +1187,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
-            user_preferences={},
+            user_preferences=user_preferences_dict,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client  # Client-provided metadata (source of truth)
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")

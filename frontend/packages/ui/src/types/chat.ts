@@ -228,6 +228,7 @@ export interface SetActiveChatPayload {
 
 export interface CancelAITaskPayload {
   task_id: string;
+  chat_id?: string; // Optional: When provided, allows server to clear active task marker immediately
 }
 
 export interface StoreEmbedPayload {

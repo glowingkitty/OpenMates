@@ -14,7 +14,7 @@ instructions:
         When setting reminders:
         - For specific times, use ISO 8601 datetime format
         - For random times, specify a date range and optional daily time window
-        - Always include the user's timezone
+        - Use the user's timezone from the system prompt by default. Only ask if not available or if the user explicitly mentions a different timezone.
         - Ask the user if they want a new chat or follow-up in current chat
         
         If the user doesn't have email notifications configured, recommend they set it up

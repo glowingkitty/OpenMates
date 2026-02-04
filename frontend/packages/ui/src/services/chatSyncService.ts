@@ -653,8 +653,11 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendSetActiveChat(chatId: string | null): Promise<void> {
     await senders.sendSetActiveChatImpl(this, chatId);
   }
-  public async sendCancelAiTask(taskId: string): Promise<void> {
-    await senders.sendCancelAiTaskImpl(this, taskId);
+  public async sendCancelAiTask(
+    taskId: string,
+    chatId?: string,
+  ): Promise<void> {
+    await senders.sendCancelAiTaskImpl(this, taskId, chatId);
   }
   /**
    * Cancel a specific skill execution without stopping the entire AI response.

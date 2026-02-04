@@ -21,6 +21,17 @@ class DarkModeUpdateRequest(BaseModel):
             }
         }
 
+class TimezoneUpdateRequest(BaseModel):
+    """Request model for updating user's timezone setting."""
+    timezone: str  # IANA timezone format, e.g., 'Europe/Berlin', 'America/New_York'
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "timezone": "Europe/Berlin"
+            }
+        }
+
 class AutoTopUpLowBalanceRequest(BaseModel):
     enabled: bool
     threshold: int

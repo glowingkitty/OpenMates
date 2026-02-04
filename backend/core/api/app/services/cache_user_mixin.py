@@ -39,6 +39,29 @@ class UserCacheMixin:
             logger.error(f"Error getting vault_key_id from cache for user '{user_id}': {str(e)}")
             return None
 
+    async def get_user_timezone(self, user_id: str) -> Optional[str]:
+        """
+        Get user's timezone from cache.
+        Returns None if user not in cache or timezone not set.
+        The timezone is in IANA format (e.g., 'Europe/Berlin', 'America/New_York').
+        """
+        try:
+            user_data = await self.get_user_by_id(user_id)
+            if not user_data or not isinstance(user_data, dict):
+                logger.debug(f"No cached user data found for user {user_id}")
+                return None
+            
+            timezone = user_data.get("timezone")
+            if timezone:
+                logger.debug(f"Retrieved timezone '{timezone}' from cache for user {user_id}")
+            else:
+                logger.debug(f"User {user_id} in cache but no timezone found")
+            
+            return timezone
+        except Exception as e:
+            logger.error(f"Error getting timezone from cache for user '{user_id}': {str(e)}")
+            return None
+
     async def get_user_by_token(self, refresh_token: str) -> Optional[Dict]:
         """Get user data from cache by refresh token."""
         try:

@@ -1550,6 +1550,7 @@ export async function sendStoreAppSettingsMemoriesEntryImpl(
 export async function sendCancelAiTaskImpl(
   serviceInstance: ChatSynchronizationService,
   taskId: string,
+  chatId?: string,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     notificationStore.error("Cannot cancel AI task: Not connected to server.");
@@ -1557,6 +1558,10 @@ export async function sendCancelAiTaskImpl(
   }
   if (!taskId) return;
   const payload: CancelAITaskPayload = { task_id: taskId };
+  // Include chat_id if available so server can clear active task marker immediately
+  if (chatId) {
+    payload.chat_id = chatId;
+  }
   try {
     await webSocketService.sendMessage("cancel_ai_task", payload);
   } catch {

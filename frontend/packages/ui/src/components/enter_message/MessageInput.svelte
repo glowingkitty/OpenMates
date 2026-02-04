@@ -1554,7 +1554,7 @@
             cancelRequestedWhileAwaiting = false;
             awaitingAITaskStart = false;
             activeAITaskId = null;
-            void chatSyncService.sendCancelAiTask(taskId);
+            void chatSyncService.sendCancelAiTask(taskId, currentChatId ?? undefined);
         }
     }
 
@@ -1628,7 +1628,8 @@
             
             // Send cancellation request to backend
             // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
-            await chatSyncService.sendCancelAiTask(taskId);
+            // Pass currentChatId so server can clear active task marker immediately
+            await chatSyncService.sendCancelAiTask(taskId, currentChatId);
         }
     }
     

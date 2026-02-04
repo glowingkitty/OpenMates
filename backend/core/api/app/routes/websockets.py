@@ -1086,7 +1086,8 @@ async def websocket_endpoint(
                     manager=manager,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    cache_service=cache_service
                 )
             elif message_type == "cancel_skill":
                 # Handle request to cancel an individual skill execution

@@ -24,6 +24,12 @@ directus_users:
       type: boolean
       note: "Is dark mode enabled?"
 
+    timezone:
+      type: string
+      length: 64
+      nullable: true
+      note: "User's timezone (IANA format, e.g., 'Europe/Berlin', 'America/New_York'). Auto-detected from browser on login, can be manually set in account settings. Used for reminders, scheduling, and time-sensitive features."
+
     encrypted_email_address:
       type: string
       length: 512

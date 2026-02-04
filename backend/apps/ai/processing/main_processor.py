@@ -799,6 +799,12 @@ async def handle_main_processing(
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
     prompt_parts.append(f"Current date and time: {date_time_str}")
+    
+    # Add user's timezone to the system prompt if available
+    # This allows the AI to provide timezone-aware responses (e.g., reminders, scheduling)
+    user_timezone = request_data.user_preferences.get("timezone") if request_data.user_preferences else None
+    if user_timezone:
+        prompt_parts.append(f"User's timezone: {user_timezone}")
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))

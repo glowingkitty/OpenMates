@@ -60,6 +60,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "vault_key_version": user_data.get("vault_key_version"),
             "language": user_data.get("language", "en"),
             "darkmode": user_data.get("darkmode", False),
+            "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),
