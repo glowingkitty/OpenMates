@@ -603,6 +603,11 @@ export async function handleAIBackgroundResponseCompletedImpl(
       await processEmbedsFromContent(payload.full_content);
     }
 
+    // CRITICAL: Retrieve thinking content from buffer if available
+    // Thinking content was buffered separately via aiThinkingChunk/aiThinkingComplete events
+    // and must be attached to the final message for persistence and cross-device sync.
+    const thinkingEntry = thinkingBufferByMessageId.get(payload.message_id);
+
     // Create the completed AI message
     // CRITICAL: Store AI response as markdown string, not Tiptap JSON
     // Tiptap JSON is only for UI rendering, never stored in database
@@ -619,6 +624,11 @@ export async function handleAIBackgroundResponseCompletedImpl(
       // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
       // Do NOT set encrypted_* fields here as they should only exist after encryption
       encrypted_content: "", // Will be set by encryption
+      // Attach thinking content from buffer (for thinking models like Gemini, Claude)
+      thinking_content: thinkingEntry?.content || undefined,
+      thinking_signature: thinkingEntry?.signature || undefined,
+      thinking_token_count: thinkingEntry?.totalTokens ?? undefined,
+      has_thinking: !!thinkingEntry?.content,
     };
 
     // Save message to IndexedDB or incognito service
