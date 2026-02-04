@@ -1,7 +1,6 @@
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { fly } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
@@ -97,16 +96,38 @@
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
-    // Animation parameters - now direction-aware
-    const getFlyParams = (isIn: boolean, dir: string) => {
+    /**
+     * Custom transition that combines fly (slide) + fade (opacity).
+     * This creates a smooth "push aside" effect where:
+     * - Forward navigation: old view slides left + fades out, new view slides in from right + fades in
+     * - Backward navigation: old view slides right + fades out, new view slides in from left + fades in
+     * 
+     * @param node - The DOM element to animate
+     * @param params - { isIn: boolean, dir: string } - whether entering and direction
+     */
+    function flyFade(node: Element, { isIn, dir }: { isIn: boolean; dir: string }) {
+        const duration = 350;
+        const x = dir === 'forward' 
+            ? (isIn ? 300 : -300)  // Forward: enter from right (+300), exit to left (-300)
+            : (isIn ? -300 : 300); // Backward: enter from left (-300), exit to right (+300)
+        
         return {
-            duration: 400,
-            x: dir === 'forward' ? 
-                (isIn ? 300 : -300) : 
-                (isIn ? -300 : 300),
-            easing: cubicOut
+            duration,
+            easing: cubicOut,
+            css: (t: number) => {
+                // t goes from 0 to 1 for 'in' transitions, 1 to 0 for 'out' transitions
+                const translateX = (1 - t) * x;
+                return `
+                    transform: translateX(${translateX}px);
+                    opacity: ${t};
+                `;
+            }
         };
-    };
+    }
+    
+    // Helper functions to get transition params for in/out
+    const getInParams = (dir: string) => ({ isIn: true, dir });
+    const getOutParams = (dir: string) => ({ isIn: false, dir });
 
     // Track views that should be present in the DOM
     let visibleViews = $state(new Set([activeSettingsView]));
@@ -139,6 +160,8 @@
         visibleViews = new Set([...visibleViews]);
         
         // Schedule cleanup after the animation completes
+        // Duration matches the flyFade transition duration (350ms) + small buffer
+        const TRANSITION_DURATION = 350;
         setTimeout(() => {
             if (inTransition && oldView !== newView) {
                 // Clean up the old view if it's not the current view
@@ -146,7 +169,7 @@
                 visibleViews = new Set([...visibleViews]);
                 inTransition = false;
             }
-        }, getFlyParams(true, direction).duration + 50); // Add a small buffer
+        }, TRANSITION_DURATION + 50);
     }
 
     const dispatch = createEventDispatcher();
@@ -306,8 +329,8 @@
         <div 
             class="settings-items"
             class:active={activeSettingsView === 'main'}
-            in:fly={getFlyParams(true, direction)}
-            out:fly={getFlyParams(false, direction)}
+            in:flyFade={getInParams(direction)}
+            out:flyFade={getOutParams(direction)}
             style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
             onoutroend={() => handleAnimationComplete('main')}
         >
@@ -418,8 +441,8 @@
             <div 
                 class="settings-submenu-content"
                 class:active={activeSettingsView === key}
-                in:fly={getFlyParams(true, direction)}
-                out:fly={getFlyParams(false, direction)}
+                in:flyFade={getInParams(direction)}
+                out:flyFade={getOutParams(direction)}
                 style="z-index: {activeSettingsView === key ? 2 : 1};"
                 onoutroend={() => handleAnimationComplete(key)}
             >
@@ -558,13 +581,11 @@
         width: 100%;
         pointer-events: none;
         /* 
-         * IMPORTANT: Do NOT use CSS transitions here!
-         * Svelte's in:fly and out:fly transitions handle the enter/exit animations.
-         * Adding CSS transitions causes a visual glitch where both animation systems
-         * conflict, briefly showing the old view (e.g., full App Store) during navigation.
-         * 
-         * The opacity and transform are controlled entirely by Svelte transitions.
+         * Background ensures content behind doesn't show through during transitions.
+         * The custom flyFade Svelte transition handles opacity and transform animations.
+         * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
          */
+        background-color: var(--color-grey-10, #1a1a1a);
     }
     
     .settings-items.active,
