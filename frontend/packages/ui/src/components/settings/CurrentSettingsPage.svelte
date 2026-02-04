@@ -556,16 +556,19 @@
         position: absolute;
         left: 0;
         width: 100%;
-        opacity: 0;
         pointer-events: none;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        /* 
+         * IMPORTANT: Do NOT use CSS transitions here!
+         * Svelte's in:fly and out:fly transitions handle the enter/exit animations.
+         * Adding CSS transitions causes a visual glitch where both animation systems
+         * conflict, briefly showing the old view (e.g., full App Store) during navigation.
+         * 
+         * The opacity and transform are controlled entirely by Svelte transitions.
+         */
     }
     
     .settings-items.active,
     .settings-submenu-content.active {
-        opacity: 1;
         pointer-events: auto;
-        transform: translateX(0);
     }
 </style>
