@@ -2292,9 +2292,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /**
      * Handle thinking content chunks from thinking models.
      * Accumulates thinking content and triggers UI update.
+     * 
+     * CRITICAL FIX: Creates a placeholder assistant message when thinking arrives
+     * before the main AI response stream. This ensures the thinking/reasoning
+     * content is displayed immediately rather than waiting for the first text chunk.
      */
     function handleAiThinkingChunk(event: CustomEvent) {
-        const chunk = event.detail as { task_id: string; chat_id: string; content: string };
+        const chunk = event.detail as { task_id: string; chat_id: string; content: string; message_id?: string };
         
         // Only process if for current chat
         if (chunk.chat_id !== currentChat?.chat_id) {
@@ -2302,13 +2306,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         
-        console.log(`[ActiveChat] 🧠 Thinking chunk received | task_id: ${chunk.task_id} | length: ${chunk.content?.length || 0}`);
+        // Use message_id if available, otherwise fall back to task_id (they should be the same)
+        const messageId = chunk.message_id || chunk.task_id;
         
-        // Update thinking content map
-        const existing = thinkingContentByTask.get(chunk.task_id);
+        console.log(`[ActiveChat] 🧠 Thinking chunk received | task_id: ${chunk.task_id} | message_id: ${messageId} | length: ${chunk.content?.length || 0}`);
+        
+        // CRITICAL: Check if an assistant message exists for this task_id/message_id
+        // If not, create a placeholder message so the thinking content can be displayed
+        // This fixes the issue where thinking content doesn't show until the main response starts
+        const existingMessage = currentMessages.find(m => m.message_id === messageId);
+        if (!existingMessage) {
+            // Get model name from typing status if available
+            const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
+            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+            
+            // Create a placeholder assistant message for the thinking phase
+            const placeholderMessage: ChatMessageModel = {
+                message_id: messageId,
+                chat_id: chunk.chat_id,
+                role: 'assistant',
+                category: fallbackCategory,
+                model_name: fallbackModelName,
+                content: '', // Empty content - thinking will be shown via thinkingContentByTask
+                status: 'streaming', // Mark as streaming so UI shows appropriate state
+                created_at: Math.floor(Date.now() / 1000),
+                encrypted_content: '',
+            };
+            
+            console.log(`[ActiveChat] 🧠 Created placeholder message for thinking | message_id: ${messageId}`);
+            currentMessages = [...currentMessages, placeholderMessage];
+        }
+        
+        // Update thinking content map using message_id (same as task_id)
+        const existing = thinkingContentByTask.get(messageId);
         const newContent = (existing?.content || '') + (chunk.content || '');
         
-        thinkingContentByTask.set(chunk.task_id, {
+        thinkingContentByTask.set(messageId, {
             content: newContent,
             isStreaming: true,
             signature: existing?.signature,
@@ -2329,7 +2362,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Marks thinking as complete (no longer streaming).
      */
     function handleAiThinkingComplete(event: CustomEvent) {
-        const payload = event.detail as { task_id: string; chat_id: string; signature?: string; total_tokens?: number };
+        const payload = event.detail as { task_id: string; chat_id: string; message_id?: string; signature?: string; total_tokens?: number };
         
         // Only process if for current chat
         if (payload.chat_id !== currentChat?.chat_id) {
@@ -2337,12 +2370,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         
-        console.log(`[ActiveChat] 🧠 Thinking complete | task_id: ${payload.task_id} | tokens: ${payload.total_tokens || 'unknown'}`);
+        // Use message_id if available, otherwise fall back to task_id (they should be the same)
+        const messageId = payload.message_id || payload.task_id;
+        
+        console.log(`[ActiveChat] 🧠 Thinking complete | task_id: ${payload.task_id} | message_id: ${messageId} | tokens: ${payload.total_tokens || 'unknown'}`);
         
         // Mark thinking as complete (no longer streaming)
-        const existing = thinkingContentByTask.get(payload.task_id);
+        const existing = thinkingContentByTask.get(messageId);
         if (existing) {
-            thinkingContentByTask.set(payload.task_id, {
+            thinkingContentByTask.set(messageId, {
                 content: existing.content,
                 isStreaming: false,
                 signature: payload.signature ?? existing.signature,
