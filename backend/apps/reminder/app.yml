@@ -1,0 +1,155 @@
+name_translation_key: reminder.text
+description_translation_key: reminder.description.text
+icon_image: reminder.svg
+category: productivity
+last_updated: "2026-02-04"
+
+instructions:
+  - instruction: |
+      **Reminder Skills**
+      - **set-reminder**: Schedule a reminder for a specific time or random time within a date/time range.
+        The reminder can either create a new chat or send a follow-up in the current chat.
+        Supports one-time and repeating reminders (daily, weekly, monthly, custom interval).
+        
+        When setting reminders:
+        - For specific times, use ISO 8601 datetime format
+        - For random times, specify a date range and optional daily time window
+        - Always include the user's timezone
+        - Ask the user if they want a new chat or follow-up in current chat
+        
+        If the user doesn't have email notifications configured, recommend they set it up
+        to ensure they receive reminder notifications even when not actively using the app.
+
+skills:
+  - id: set-reminder
+    name_translation_key: reminder.set_reminder.text
+    description_translation_key: reminder.set_reminder.description.text
+    stage: development
+    class_path: backend.apps.reminder.skills.set_reminder_skill.SetReminderSkill
+    tool_schema:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The reminder message/prompt that will be shown when the reminder fires
+
+        trigger_type:
+          type: string
+          enum:
+            - specific
+            - random
+          description: "'specific' for exact datetime, 'random' for random time within a window"
+
+        trigger_datetime:
+          type: string
+          description: "ISO 8601 datetime for specific trigger (e.g., '2026-02-05T14:30:00'). Required if trigger_type is 'specific'."
+
+        random_start_date:
+          type: string
+          description: "Start date for random window (YYYY-MM-DD). Required if trigger_type is 'random'."
+
+        random_end_date:
+          type: string
+          description: "End date for random window (YYYY-MM-DD). Required if trigger_type is 'random'."
+
+        random_time_start:
+          type: string
+          description: "Earliest time of day for random trigger (HH:MM, 24h format, e.g., '10:00'). Optional for random triggers."
+
+        random_time_end:
+          type: string
+          description: "Latest time of day for random trigger (HH:MM, 24h format, e.g., '14:00'). Optional for random triggers."
+
+        timezone:
+          type: string
+          description: "User's timezone (e.g., 'Europe/Berlin', 'America/New_York'). Required."
+
+        target_type:
+          type: string
+          enum:
+            - new_chat
+            - existing_chat
+          default: new_chat
+          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat"
+
+        new_chat_title:
+          type: string
+          description: "Title for the new chat. Required if target_type is 'new_chat'."
+
+        repeat:
+          type: object
+          description: "Configuration for repeating reminders. Omit for one-time reminders."
+          properties:
+            type:
+              type: string
+              enum:
+                - daily
+                - weekly
+                - monthly
+                - custom
+              description: "Type of repeat schedule"
+            interval:
+              type: integer
+              minimum: 1
+              description: "For custom type: repeat every N units"
+            interval_unit:
+              type: string
+              enum:
+                - days
+                - weeks
+                - months
+              description: "For custom type: unit of the interval"
+            day_of_week:
+              type: integer
+              minimum: 0
+              maximum: 6
+              description: "For weekly type: 0=Monday, 6=Sunday"
+            day_of_month:
+              type: integer
+              minimum: 1
+              maximum: 31
+              description: "For monthly type: day of the month (1-31)"
+            end_date:
+              type: string
+              description: "Optional: stop repeating after this date (YYYY-MM-DD)"
+            max_occurrences:
+              type: integer
+              minimum: 1
+              description: "Optional: maximum number of times to fire"
+          required:
+            - type
+
+      required:
+        - prompt
+        - trigger_type
+        - timezone
+
+  - id: list-reminders
+    name_translation_key: reminder.list_reminders.text
+    description_translation_key: reminder.list_reminders.description.text
+    stage: development
+    class_path: backend.apps.reminder.skills.list_reminders_skill.ListRemindersSkill
+    tool_schema:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - pending
+            - all
+          default: pending
+          description: "Filter reminders by status. 'pending' shows only upcoming reminders."
+
+  - id: cancel-reminder
+    name_translation_key: reminder.cancel_reminder.text
+    description_translation_key: reminder.cancel_reminder.description.text
+    stage: development
+    class_path: backend.apps.reminder.skills.cancel_reminder_skill.CancelReminderSkill
+    tool_schema:
+      type: object
+      properties:
+        reminder_id:
+          type: string
+          description: "ID of the reminder to cancel"
+      required:
+        - reminder_id

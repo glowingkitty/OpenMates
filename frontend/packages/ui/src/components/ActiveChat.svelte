@@ -29,6 +29,7 @@
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
+    import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -56,6 +57,7 @@
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
+    import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
@@ -1835,9 +1837,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             
             // Use translation key with placeholders for model and provider names
             // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
+            // Apply getModelDisplayName to convert technical IDs (e.g., "gemini-3-pro-preview") to human-readable names ("Gemini 3 Pro")
+            const displayModelName = modelName ? getModelDisplayName(modelName) : '';
             const result = $text('enter_message.is_typing_powered_by.text')
                 .replace('{mate}', mateName)
-                .replace('{model_name}', modelName)
+                .replace('{model_name}', displayModelName)
                 .replace('{provider_name}', providerName);
             
             console.debug('[ActiveChat] AI typing indicator text generated:', result);
@@ -5047,6 +5051,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/await}
                     {/if}
+                {:else if embedFullscreenData.embedType === 'reminder-set-reminder'}
+                    <!-- Reminder Fullscreen -->
+                    {@const reminderId = coerceString(embedFullscreenData.decodedContent?.reminder_id ?? embedFullscreenData.attrs?.reminderId, '')}
+                    {@const triggerAtFormatted = coerceString(embedFullscreenData.decodedContent?.trigger_at_formatted ?? embedFullscreenData.attrs?.triggerAtFormatted, '')}
+                    {@const triggerAt = coerceNumber(embedFullscreenData.decodedContent?.trigger_at ?? embedFullscreenData.attrs?.triggerAt, 0)}
+                    {@const targetType = (embedFullscreenData.decodedContent?.target_type ?? embedFullscreenData.attrs?.targetType) as 'new_chat' | 'existing_chat' | undefined}
+                    {@const isRepeating = Boolean(embedFullscreenData.decodedContent?.is_repeating ?? embedFullscreenData.attrs?.isRepeating)}
+                    {@const message = coerceString(embedFullscreenData.decodedContent?.message ?? embedFullscreenData.attrs?.message, '')}
+                    {@const emailNotificationWarning = coerceString(embedFullscreenData.decodedContent?.email_notification_warning ?? embedFullscreenData.attrs?.emailNotificationWarning, '')}
+                    {@const error = coerceString(embedFullscreenData.decodedContent?.error ?? embedFullscreenData.attrs?.error, '')}
+                    <ReminderEmbedFullscreen 
+                        reminderId={reminderId || undefined}
+                        triggerAtFormatted={triggerAtFormatted || undefined}
+                        triggerAt={triggerAt || undefined}
+                        targetType={targetType}
+                        {isRepeating}
+                        message={message || undefined}
+                        emailNotificationWarning={emailNotificationWarning || undefined}
+                        error={error || undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else}
                     <!-- Fallback for unknown embed types -->
                     <div class="embed-fullscreen-fallback">

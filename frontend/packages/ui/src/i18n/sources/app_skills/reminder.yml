@@ -1,0 +1,184 @@
+reminder:
+  context: App name for the Reminder app
+  en: Reminder
+  de: Erinnerung
+  zh: 提醒
+  es: Recordatorio
+  fr: Rappel
+  pt: Lembrete
+  ru: Напоминание
+  ja: リマインダー
+  ko: 리마인더
+  it: Promemoria
+  tr: Hatırlatıcı
+  vi: Nhắc nhở
+  id: Pengingat
+  pl: Przypomnienie
+  nl: Herinnering
+  ar: تذكير
+  hi: अनुस्मारक
+  th: การแจ้งเตือน
+  cs: Připomínka
+  sv: Påminnelse
+  verified_by_human: [en, de]
+reminder.description:
+  context: Description for the Reminder app
+  en: Schedule reminders for specific times or random times within date ranges.
+  de: Plane Erinnerungen für bestimmte Zeiten oder zufällige Zeiten innerhalb von Zeiträumen.
+  zh: 安排特定时间或日期范围内随机时间的提醒。
+  es: Programa recordatorios para tiempos específicos o aleatorios dentro de rangos de fechas.
+  fr: Planifiez des rappels pour des heures spécifiques ou aléatoires dans des plages de dates.
+  pt: Agende lembretes para horários específicos ou aleatórios dentro de intervalos de datas.
+  ru: Планируйте напоминания на определённое или случайное время в диапазоне дат.
+  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。
+  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요.
+  it: Pianifica promemoria per orari specifici o casuali all'interno di intervalli di date.
+  tr: Belirli zamanlar veya tarih aralıkları içinde rastgele zamanlar için hatırlatıcılar planlayın.
+  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày.
+  id: Jadwalkan pengingat untuk waktu tertentu atau waktu acak dalam rentang tanggal.
+  pl: Zaplanuj przypomnienia na określone lub losowe godziny w zakresie dat.
+  nl: Plan herinneringen voor specifieke tijden of willekeurige tijden binnen datumbereiken.
+  ar: جدولة التذكيرات لأوقات محددة أو عشوائية ضمن نطاقات التاريخ.
+  hi: विशिष्ट समय या तिथि सीमाओं के भीतर यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें।
+  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือเวลาสุ่มภายในช่วงวันที่
+  cs: Naplánujte připomínky na konkrétní časy nebo náhodné časy v rámci rozsahu dat.
+  sv: Schemalägg påminnelser för specifika tider eller slumpmässiga tider inom datumintervall.
+  verified_by_human: [en, de]
+reminder.set_reminder:
+  context: Skill name for setting a reminder
+  en: Set Reminder
+  de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  verified_by_human: [en, de]
+reminder.set_reminder.description:
+  context: Description for set reminder skill
+  en: Schedule a reminder for a specific time or random time within a date range. Supports repeating reminders.
+  de: Plane eine Erinnerung für eine bestimmte Zeit oder zufällige Zeit innerhalb eines Datumsbereichs. Unterstützt wiederkehrende Erinnerungen.
+  zh: 安排特定时间或日期范围内随机时间的提醒。支持重复提醒。
+  es: Programa un recordatorio para un tiempo específico o aleatorio dentro de un rango de fechas. Soporta recordatorios repetitivos.
+  fr: Planifiez un rappel pour une heure spécifique ou aléatoire dans une plage de dates. Prend en charge les rappels répétitifs.
+  pt: Agende um lembrete para um horário específico ou aleatório dentro de um intervalo de datas. Suporta lembretes repetitivos.
+  ru: Запланируйте напоминание на определённое или случайное время в диапазоне дат. Поддерживает повторяющиеся напоминания.
+  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。繰り返しリマインダーをサポート。
+  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요. 반복 알림을 지원합니다.
+  it: Pianifica un promemoria per un orario specifico o casuale all'interno di un intervallo di date. Supporta promemoria ripetuti.
+  tr: Belirli bir zaman veya tarih aralığı içinde rastgele bir zaman için hatırlatıcı planlayın. Tekrarlayan hatırlatıcıları destekler.
+  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày. Hỗ trợ nhắc nhở lặp lại.
+  id: Jadwalkan pengingat untuk waktu tertentu atau acak dalam rentang tanggal. Mendukung pengingat berulang.
+  pl: Zaplanuj przypomnienie na określoną lub losową godzinę w zakresie dat. Obsługuje powtarzające się przypomnienia.
+  nl: Plan een herinnering voor een specifieke of willekeurige tijd binnen een datumbereik. Ondersteunt herhalende herinneringen.
+  ar: جدولة تذكير لوقت محدد أو عشوائي ضمن نطاق تاريخ. يدعم التذكيرات المتكررة.
+  hi: तिथि सीमा के भीतर विशिष्ट या यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें। दोहराए जाने वाले अनुस्मारकों का समर्थन करता है।
+  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือสุ่มภายในช่วงวันที่ รองรับการแจ้งเตือนซ้ำ
+  cs: Naplánujte připomínku na konkrétní nebo náhodný čas v rámci rozsahu dat. Podporuje opakující se připomínky.
+  sv: Schemalägg en påminnelse för en specifik eller slumpmässig tid inom ett datumintervall. Stöder återkommande påminnelser.
+  verified_by_human: [en, de]
+reminder.list_reminders:
+  context: Skill name for listing reminders
+  en: List Reminders
+  de: Erinnerungen auflisten
+  zh: 列出提醒
+  es: Listar recordatorios
+  fr: Lister les rappels
+  pt: Listar lembretes
+  ru: Список напоминаний
+  ja: リマインダー一覧
+  ko: 알림 목록
+  it: Elenco promemoria
+  tr: Hatırlatıcıları listele
+  vi: Liệt kê nhắc nhở
+  id: Daftar pengingat
+  pl: Lista przypomnień
+  nl: Herinneringen weergeven
+  ar: قائمة التذكيرات
+  hi: अनुस्मारक सूची
+  th: รายการแจ้งเตือน
+  cs: Seznam připomínek
+  sv: Lista påminnelser
+  verified_by_human: [en, de]
+reminder.list_reminders.description:
+  context: Description for list reminders skill
+  en: View your scheduled reminders.
+  de: Zeige deine geplanten Erinnerungen an.
+  zh: 查看您计划的提醒。
+  es: Ver tus recordatorios programados.
+  fr: Voir vos rappels programmés.
+  pt: Veja seus lembretes agendados.
+  ru: Просмотр запланированных напоминаний.
+  ja: 予定されているリマインダーを表示します。
+  ko: 예약된 알림을 확인하세요.
+  it: Visualizza i tuoi promemoria programmati.
+  tr: Planlanmış hatırlatıcılarınızı görüntüleyin.
+  vi: Xem các nhắc nhở đã lên lịch của bạn.
+  id: Lihat pengingat terjadwal Anda.
+  pl: Zobacz swoje zaplanowane przypomnienia.
+  nl: Bekijk uw geplande herinneringen.
+  ar: عرض التذكيرات المجدولة الخاصة بك.
+  hi: अपने शेड्यूल किए गए अनुस्मारक देखें।
+  th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
+  cs: Zobrazit naplánované připomínky.
+  sv: Visa dina schemalagda påminnelser.
+  verified_by_human: [en, de]
+reminder.cancel_reminder:
+  context: Skill name for cancelling a reminder
+  en: Cancel Reminder
+  de: Erinnerung abbrechen
+  zh: 取消提醒
+  es: Cancelar recordatorio
+  fr: Annuler le rappel
+  pt: Cancelar lembrete
+  ru: Отменить напоминание
+  ja: リマインダーをキャンセル
+  ko: 알림 취소
+  it: Annulla promemoria
+  tr: Hatırlatıcıyı iptal et
+  vi: Hủy nhắc nhở
+  id: Batalkan pengingat
+  pl: Anuluj przypomnienie
+  nl: Herinnering annuleren
+  ar: إلغاء التذكير
+  hi: अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือน
+  cs: Zrušit připomínku
+  sv: Avbryt påminnelse
+  verified_by_human: [en, de]
+reminder.cancel_reminder.description:
+  context: Description for cancel reminder skill
+  en: Cancel a scheduled reminder.
+  de: Eine geplante Erinnerung abbrechen.
+  zh: 取消计划的提醒。
+  es: Cancelar un recordatorio programado.
+  fr: Annuler un rappel programmé.
+  pt: Cancelar um lembrete agendado.
+  ru: Отменить запланированное напоминание.
+  ja: 予定されているリマインダーをキャンセルします。
+  ko: 예약된 알림을 취소하세요.
+  it: Annulla un promemoria programmato.
+  tr: Planlanmış bir hatırlatıcıyı iptal edin.
+  vi: Hủy một nhắc nhở đã lên lịch.
+  id: Batalkan pengingat terjadwal.
+  pl: Anuluj zaplanowane przypomnienie.
+  nl: Annuleer een geplande herinnering.
+  ar: إلغاء تذكير مجدول.
+  hi: एक शेड्यूल किया गया अनुस्मारक रद्द करें।
+  th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
+  cs: Zrušit naplánovanou připomínku.
+  sv: Avbryt en schemalagd påminnelse.
+  verified_by_human: [en, de]

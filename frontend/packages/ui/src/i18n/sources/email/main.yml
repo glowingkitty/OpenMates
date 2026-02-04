@@ -424,30 +424,168 @@ discord:
   cs: ""
   sv: ""
   verified_by_human: []
-# Test failure notification email translations
-test_failure_notification.title:
-  context: Email subject for test failure notification
-  en: "E2E Test Alert: {test_name} - {status}"
-  de: "E2E-Test-Warnung: {test_name} - {status}"
-  zh: "E2E测试警报：{test_name} - {status}"
-  es: "Alerta de prueba E2E: {test_name} - {status}"
-  fr: "Alerte test E2E : {test_name} - {status}"
-  pt: "Alerta de teste E2E: {test_name} - {status}"
-  ru: "Уведомление E2E теста: {test_name} - {status}"
-  ja: "E2Eテストアラート: {test_name} - {status}"
-  ko: "E2E 테스트 알림: {test_name} - {status}"
-  it: "Avviso test E2E: {test_name} - {status}"
-  tr: "E2E Test Uyarısı: {test_name} - {status}"
-  vi: "Cảnh báo kiểm tra E2E: {test_name} - {status}"
-  id: "Peringatan Tes E2E: {test_name} - {status}"
-  pl: "Alarm testu E2E: {test_name} - {status}"
-  nl: "E2E-testwaarschuwing: {test_name} - {status}"
-  ar: "تنبيه اختبار E2E: {test_name} - {status}"
-  hi: "E2E परीक्षण अलर्ट: {test_name} - {status}"
-  th: "การแจ้งเตือนการทดสอบ E2E: {test_name} - {status}"
-  cs: "Upozornění E2E testu: {test_name} - {status}"
-  sv: "E2E-testvarning: {test_name} - {status}"
+reminder_notification.subject:
+  context: Email subject for reminder notification
+  en: "Reminder: {reminder_excerpt}"
+  de: "Erinnerung: {reminder_excerpt}"
+  zh: "提醒：{reminder_excerpt}"
+  es: "Recordatorio: {reminder_excerpt}"
+  fr: "Rappel : {reminder_excerpt}"
+  pt: "Lembrete: {reminder_excerpt}"
+  ru: "Напоминание: {reminder_excerpt}"
+  ja: "リマインダー：{reminder_excerpt}"
+  ko: "알림: {reminder_excerpt}"
+  it: "Promemoria: {reminder_excerpt}"
+  tr: "Hatırlatıcı: {reminder_excerpt}"
+  vi: "Nhắc nhở: {reminder_excerpt}"
+  id: "Pengingat: {reminder_excerpt}"
+  pl: "Przypomnienie: {reminder_excerpt}"
+  nl: "Herinnering: {reminder_excerpt}"
+  ar: "تذكير: {reminder_excerpt}"
+  hi: "अनुस्मारक: {reminder_excerpt}"
+  th: "เตือนความจำ: {reminder_excerpt}"
+  cs: "Připomínka: {reminder_excerpt}"
+  sv: "Påminnelse: {reminder_excerpt}"
   verified_by_human: []
+reminder_notification.header:
+  context: Header text in reminder notification email body
+  en: Your Reminder
+  de: Deine Erinnerung
+  zh: 您的提醒
+  es: Tu recordatorio
+  fr: Votre rappel
+  pt: Seu lembrete
+  ru: Ваше напоминание
+  ja: あなたのリマインダー
+  ko: 알림
+  it: Il tuo promemoria
+  tr: Hatırlatıcınız
+  vi: Nhắc nhở của bạn
+  id: Pengingat Anda
+  pl: Twoje przypomnienie
+  nl: Je herinnering
+  ar: تذكيرك
+  hi: आपका अनुस्मारक
+  th: การเตือนความจำของคุณ
+  cs: Vaše připomínka
+  sv: Din påminnelse
+  verified_by_human: []
+reminder_notification.description:
+  context: Description text in reminder notification email body
+  en: A reminder you set has been triggered. Here's what you wanted to remember.
+  de: Eine von dir gesetzte Erinnerung wurde ausgelöst. Hier ist, woran du dich erinnern wolltest.
+  zh: 您设置的提醒已触发。以下是您想要记住的内容。
+  es: Se ha activado un recordatorio que configuraste. Aquí está lo que querías recordar.
+  fr: Un rappel que vous avez défini a été déclenché. Voici ce dont vous vouliez vous souvenir.
+  pt: Um lembrete que você definiu foi acionado. Aqui está o que você queria lembrar.
+  ru: Напоминание, которое вы установили, сработало. Вот что вы хотели запомнить.
+  ja: 設定したリマインダーがトリガーされました。覚えておきたかったことはこちらです。
+  ko: 설정한 알림이 트리거되었습니다. 기억하고 싶었던 내용입니다.
+  it: Un promemoria che hai impostato è stato attivato. Ecco cosa volevi ricordare.
+  tr: Ayarladığınız bir hatırlatıcı tetiklendi. İşte hatırlamak istediğiniz şey.
+  vi: Một nhắc nhở bạn đã đặt đã được kích hoạt. Đây là những gì bạn muốn nhớ.
+  id: Pengingat yang Anda atur telah dipicu. Inilah yang ingin Anda ingat.
+  pl: Przypomnienie, które ustawiłeś, zostało uruchomione. Oto, co chciałeś zapamiętać.
+  nl: Een herinnering die je hebt ingesteld is geactiveerd. Hier is wat je wilde onthouden.
+  ar: تم تفعيل تذكير قمت بتعيينه. إليك ما أردت تذكره.
+  hi: आपके द्वारा सेट किया गया एक अनुस्मारक ट्रिगर हो गया है। यहाँ वह है जो आप याद रखना चाहते थे।
+  th: การเตือนความจำที่คุณตั้งไว้ถูกเรียกใช้แล้ว นี่คือสิ่งที่คุณต้องการจำ
+  cs: Připomínka, kterou jste nastavili, byla spuštěna. Zde je to, co jste si chtěli zapamatovat.
+  sv: En påminnelse du ställde in har utlösts. Här är vad du ville komma ihåg.
+  verified_by_human: []
+reminder_notification.reminder_label:
+  context: Label for the reminder content
+  en: Your reminder
+  de: Deine Erinnerung
+  zh: 您的提醒
+  es: Tu recordatorio
+  fr: Votre rappel
+  pt: Seu lembrete
+  ru: Ваше напоминание
+  ja: あなたのリマインダー
+  ko: 알림 내용
+  it: Il tuo promemoria
+  tr: Hatırlatıcınız
+  vi: Nhắc nhở của bạn
+  id: Pengingat Anda
+  pl: Twoje przypomnienie
+  nl: Je herinnering
+  ar: تذكيرك
+  hi: आपका अनुस्मारक
+  th: การเตือนความจำของคุณ
+  cs: Vaše připomínka
+  sv: Din påminnelse
+  verified_by_human: []
+reminder_notification.chat_label:
+  context: Label for the chat name
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Discussion
+  pt: Chat
+  ru: Чат
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: الدردشة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
+  verified_by_human: []
+reminder_notification.trigger_time_label:
+  context: Label for when the reminder was triggered
+  en: Triggered at
+  de: Ausgelöst am
+  zh: 触发时间
+  es: Activado a las
+  fr: Déclenché à
+  pt: Acionado em
+  ru: Сработало в
+  ja: トリガー時刻
+  ko: 트리거 시간
+  it: Attivato alle
+  tr: Tetikleme zamanı
+  vi: Kích hoạt lúc
+  id: Dipicu pada
+  pl: Uruchomiono o
+  nl: Geactiveerd om
+  ar: تم التفعيل في
+  hi: ट्रिगर किया गया
+  th: เรียกใช้เมื่อ
+  cs: Spuštěno v
+  sv: Utlöst kl
+  verified_by_human: []
+reminder_notification.open_chat_button:
+  context: Button text to open the chat with the reminder
+  en: Open Chat
+  de: Chat öffnen
+  zh: 打开聊天
+  es: Abrir chat
+  fr: Ouvrir la discussion
+  pt: Abrir Chat
+  ru: Открыть чат
+  ja: チャットを開く
+  ko: 채팅 열기
+  it: Apri chat
+  tr: Sohbeti aç
+  vi: Mở trò chuyện
+  id: Buka Obrolan
+  pl: Otwórz czat
+  nl: Chat openen
+  ar: فتح الدردشة
+  hi: चैट खोलें
+  th: เปิดแชท
+  cs: Otevřít chat
+  sv: Öppna chatt
+  verified_by_human: []
+
 test_failure_notification.header:
   context: Header text in test failure notification email body
   en: E2E Test Failure Alert

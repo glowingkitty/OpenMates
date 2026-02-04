@@ -101,6 +101,7 @@ TASK_CONFIG = [
     {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
+    {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -769,6 +770,8 @@ task_routes = {
     "app.tasks.persistence_tasks.*": {'queue': 'persistence'},
     # Demo tasks use custom names like "demo.*"
     "demo.*": {'queue': 'demo'},
+    # Reminder tasks use custom names like "reminder.*"
+    "reminder.*": {'queue': 'reminder'},
     # Add other explicitly named tasks here as needed
 }
 
@@ -1008,5 +1011,11 @@ app.conf.beat_schedule = {
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
     #     'options': {'queue': 'persistence'},  # Route to persistence queue
     # },
+    # Reminder processing - checks for due reminders every minute
+    'process-due-reminders': {
+        'task': 'reminder.process_due_reminders',
+        'schedule': timedelta(seconds=60),  # Every 60 seconds
+        'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
 }
 app.conf.timezone = 'UTC'

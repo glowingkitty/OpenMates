@@ -54,6 +54,7 @@
     import WebsiteEmbedPreview from '../../embeds/web/WebsiteEmbedPreview.svelte';
     import VideoEmbedPreview from '../../embeds/videos/VideoEmbedPreview.svelte';
     import CodeEmbedPreview from '../../embeds/code/CodeEmbedPreview.svelte';
+    import ReminderEmbedPreview from '../../embeds/reminder/ReminderEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -273,6 +274,25 @@
                         filename: decodedContent.filename || embedContext?.filename,
                         lineCount: decodedContent.lineCount || embedContext?.lineCount || 0,
                         status,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'reminder' && (skillId === 'set_reminder' || skillId === 'set-reminder')) {
+                // Reminder embed
+                return {
+                    component: ReminderEmbedPreview,
+                    props: {
+                        id: embedId,
+                        reminderId: decodedContent.reminder_id,
+                        triggerAtFormatted: decodedContent.trigger_at_formatted,
+                        triggerAt: decodedContent.trigger_at,
+                        targetType: decodedContent.target_type,
+                        isRepeating: decodedContent.is_repeating || false,
+                        message: decodedContent.message,
+                        emailNotificationWarning: decodedContent.email_notification_warning,
+                        status: status,
+                        error: decodedContent.error,
                         isMobile: false,
                         onFullscreen: () => {}
                     }

@@ -21,6 +21,7 @@
     import VideoTranscriptEmbedPreview from '../../../components/embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import CodeGetDocsEmbedPreview from '../../../components/embeds/code/CodeGetDocsEmbedPreview.svelte';
     import CodeEmbedPreview from '../../../components/embeds/code/CodeEmbedPreview.svelte';
+    import ReminderEmbedPreview from '../../../components/embeds/reminder/ReminderEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -415,6 +416,27 @@
                         filename: decodedContent.filename,
                         lineCount: decodedContent.line_count || 0,
                         codeContent: codeContent,
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Reminder app: set-reminder skill
+            if (embedAppId === 'reminder' && (skillId === 'set_reminder' || skillId === 'set-reminder')) {
+                return {
+                    component: ReminderEmbedPreview,
+                    props: {
+                        id: embedId,
+                        reminderId: decodedContent.reminder_id,
+                        triggerAtFormatted: decodedContent.trigger_at_formatted,
+                        triggerAt: decodedContent.trigger_at,
+                        targetType: decodedContent.target_type,
+                        isRepeating: decodedContent.is_repeating || false,
+                        message: decodedContent.message,
+                        emailNotificationWarning: decodedContent.email_notification_warning,
+                        status: status,
+                        error: decodedContent.error,
                         isMobile: false,
                         onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
                     }
