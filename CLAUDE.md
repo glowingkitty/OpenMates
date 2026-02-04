@@ -751,22 +751,74 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 - **ALWAYS use the translation system** for all user-facing content
 - **Source of Truth**: `.yml` files in `frontend/packages/ui/src/i18n/sources/`
 
-### Adding Translations
+### Adding Translations (CRITICAL - READ CAREFULLY)
 
-1. Add new keys to the appropriate `.yml` file:
+**FLAT KEYS ONLY - NEVER USE NESTED YAML STRUCTURES**
+
+Translation files use **dot notation IN THE KEY NAME** as a flat structure. Each translation entry is a top-level key.
+
+```yaml
+# ✅ CORRECT - flat keys with dots in the key name
+button.submit:
+  context: Submit button text
+  en: Submit
+  de: Absenden
+
+button.cancel:
+  context: Cancel button text
+  en: Cancel
+  de: Abbrechen
+
+dialog.title:
+  context: Dialog title
+  en: Confirm Action
+  de: Aktion bestätigen
+```
+
+```yaml
+# ❌ WRONG - nested YAML structure (NEVER DO THIS)
+button:
+  submit:
+    context: Submit button text
+    en: Submit
+    de: Absenden
+  cancel:
+    context: Cancel button text
+    en: Cancel
+    de: Abbrechen
+
+dialog:
+  title:
+    context: Dialog title
+    en: Confirm Action
+    de: Aktion bestätigen
+```
+
+**Why this matters:** Nested structures break the translation build system. The key `button.submit` is looked up as a literal string, not as `button` → `submit`.
+
+### Translation Entry Structure
+
+Every translation entry MUST have this exact structure:
 
 ```yaml
 key_name:
-  context: Description of how the text is used
+  context: Description of how/where the text is used
   en: English text
   de: German translation
+  # ... other languages
+  verified_by_human: []
 ```
 
-2. Run `npm run build:translations` in `frontend/packages/ui`
+### Adding New Translations - Step by Step
+
+1. Open the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`
+2. Add your new key as a **top-level entry** (not nested under another key)
+3. Include `context`, `en`, and ideally `de` at minimum
+4. Run `npm run build:translations` in `frontend/packages/ui`
 
 ### Usage
 
-- **Frontend**: Use the `$text` store: `$text('namespace.key.text')`
+- **Frontend**: Use the `$text` store: `$text('filename.key_name.text')` (e.g., `$text('chats.context_menu.download.text')`)
 - **Backend**: Use `TranslationService` to resolve translations
 - **Metadata**: Use `name_translation_key` instead of hardcoded strings
 
