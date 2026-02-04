@@ -4,14 +4,16 @@
   Displays AI thinking/reasoning content from thinking models (Gemini, Anthropic Claude, etc.)
   
   Features:
-  - Collapsed by default showing "Thinking..." or "Thought process"
-  - Expandable to show full thinking content
+  - Shows last 3 lines of thinking as preview while streaming (gives user glimpse of activity)
+  - Once streaming completes, preview is hidden (collapsed by default)
+  - Expandable to show full thinking content when clicked
   - Streaming support with shimmer animation on icon and text
   - Uses ReadOnlyMessage for markdown rendering
   
   Visual Design:
   - reasoning.svg icon on the left with shimmer during streaming
   - "Thinking..." text during streaming, "Thought process" when done
+  - Last 3 lines preview shown below header during streaming
   - dropdown.svg icon on the right that rotates 180° when expanded
   - Hover color change to indicate clickability (when not streaming)
   
@@ -56,6 +58,32 @@
     // Track if we have content to show
     const hasContent = $derived(!!thinkingContent && thinkingContent.length > 0);
     
+    // Extract the last 3 lines for streaming preview
+    // This gives users a glimpse of what the model is thinking while processing
+    const last3Lines = $derived.by(() => {
+        if (!thinkingContent || !isStreaming) return null;
+        
+        // Split by newlines and filter out empty lines
+        const lines = thinkingContent.split('\n').filter(line => line.trim().length > 0);
+        
+        if (lines.length === 0) return null;
+        
+        // Get the last 3 non-empty lines
+        const lastLines = lines.slice(-3);
+        return lastLines.join('\n');
+    });
+    
+    // Parse the last 3 lines for preview display during streaming
+    const parsedPreviewContent = $derived.by(() => {
+        if (!last3Lines) return null;
+        try {
+            return parse_message(last3Lines, 'read', { unifiedParsingEnabled: true });
+        } catch (error) {
+            console.error('[ThinkingSection] Error parsing preview content:', error);
+            return null;
+        }
+    });
+    
     function toggleExpanded() {
         isExpanded = !isExpanded;
     }
@@ -80,7 +108,17 @@
             <div class="expand-icon" class:rotated={isExpanded}></div>
         </button>
         
-        <!-- Expanded Content -->
+        <!-- Streaming Preview: Show last 3 lines while processing -->
+        {#if isStreaming && parsedPreviewContent && !isExpanded}
+            <div class="thinking-preview" transition:slide={{ duration: 150 }}>
+                <ReadOnlyMessage 
+                    content={parsedPreviewContent}
+                    isStreaming={true}
+                />
+            </div>
+        {/if}
+        
+        <!-- Expanded Content: Full thinking content when user clicks to expand -->
         {#if isExpanded && parsedThinkingContent}
             <div class="thinking-content" transition:slide={{ duration: 200 }}>
                 <ReadOnlyMessage 
@@ -221,6 +259,41 @@
         transform: rotate(180deg);
     }
     
+    /* Streaming preview: shows last 3 lines while processing */
+    .thinking-preview {
+        padding: 8px 14px 12px;
+        border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text-tertiary, #777);
+        max-height: 80px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    /* Fade effect at the top of preview to indicate there's more content above */
+    .thinking-preview::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        background: linear-gradient(
+            to bottom,
+            var(--color-surface-secondary, rgba(0, 0, 0, 0.03)) 0%,
+            transparent 100%
+        );
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    /* Override ReadOnlyMessage styles for preview */
+    .thinking-preview :global(.tiptap-editor) {
+        font-size: 12px;
+        opacity: 0.75;
+    }
+    
     .thinking-content {
         padding: 0 14px 14px;
         border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
@@ -266,5 +339,18 @@
     :global(.dark) .thinking-content {
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
         color: var(--color-text-secondary, #bbb);
+    }
+    
+    :global(.dark) .thinking-preview {
+        border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+        color: var(--color-text-tertiary, #888);
+    }
+    
+    :global(.dark) .thinking-preview::before {
+        background: linear-gradient(
+            to bottom,
+            var(--color-surface-secondary, rgba(255, 255, 255, 0.03)) 0%,
+            transparent 100%
+        );
     }
 </style>
