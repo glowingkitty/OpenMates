@@ -20,7 +20,7 @@ ai:
   th: AI
   cs: AI
   sv: AI
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 ai.description:
   context: Description for the AI app
   en: Ask questions, brainstorm ideas & more.
@@ -43,7 +43,7 @@ ai.description:
   th: ถามคำถาม สร้างไอเดีย และอื่นๆ
   cs: Pokládejte otázky, generujte nápady a další.
   sv: Ställ frågor, brainstorma idéer och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 ai.skills.ask:
   context: Skill name for AI ask skill
   en: Ask
@@ -66,7 +66,7 @@ ai.skills.ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 ai.skills.ask.description:
   context: Description for AI ask skill
   en: Ask a question, using text, images, and other media.
@@ -89,7 +89,7 @@ ai.skills.ask.description:
   th: ถามคำถามโดยใช้ข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Položte otázku pomocí textu, obrázků a dalších médií.
   sv: Ställ en fråga med text, bilder och annat media.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 web:
   context: App name for the Web app
   en: Web
@@ -112,7 +112,7 @@ web:
   th: เว็บ
   cs: Internet
   sv: Internet
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 web.description:
   context: Description for the Web app
   en: Browse websites, research topics & more.
@@ -135,7 +135,7 @@ web.description:
   th: เรียกดูเว็บไซต์ วิจัยหัวข้อ และอื่นๆ
   cs: Procházejte webové stránky, zkoumejte témata a další.
   sv: Bläddra på webbplatser, forskning om ämnen och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 web.skills.search:
   context: Skill name for web search
   en: Search
@@ -158,7 +158,7 @@ web.skills.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 web.skills.search.description:
   context: Description for web search skill
   en: Search the web.
@@ -181,7 +181,7 @@ web.skills.search.description:
   th: ค้นหาเว็บ
   cs: Hledat na webu.
   sv: Sök på webben.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 mail:
   context: App name for the Mail app (handles both email and physical mail)
   en: Mail
@@ -204,7 +204,7 @@ mail:
   th: ไปรษณีย์
   cs: Pošta
   sv: Post
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 mail.description:
   context: Description for the Mail app
   en: Send, manage, and compose emails.
@@ -227,7 +227,7 @@ mail.description:
   th: ส่ง จัดการ และเขียนอีเมล
   cs: Posílejte, spravujte a vytvářejte e-maily.
   sv: Skicka, hantera och skriv e-post.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 life_coaching:
   context: App name for the Life coaching app
   en: Life coaching
@@ -250,7 +250,7 @@ life_coaching:
   th: การโค้ชชีวิต
   cs: Life coaching
   sv: Livscoaching
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 life_coaching.description:
   context: Description for the Life coaching app
   en: Plan your next steps in life.
@@ -273,7 +273,7 @@ life_coaching.description:
   th: วางแผนขั้นตอนต่อไปในชีวิตของคุณ
   cs: Naplánujte si další kroky v životě.
   sv: Planera dina nästa steg i livet.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 videos:
   context: App name for the Videos app
   en: Videos
@@ -296,7 +296,7 @@ videos:
   th: วิดีโอ
   cs: Videa
   sv: Videor
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 videos.description:
   context: Description for the Videos app
   en: Create & search videos, get transcripts & more.
@@ -319,7 +319,7 @@ videos.description:
   th: สร้างและค้นหาวิดีโอ รับสำเนา และอื่นๆ
   cs: Vytvářejte a vyhledávejte videa, získejte přepisy a další.
   sv: Skapa och sök videor, få transkriptioner och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 tv:
   context: App name for the TV app
   en: TV
@@ -342,7 +342,7 @@ tv:
   th: ทีวี
   cs: TV
   sv: TV
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 tv.description:
   context: Description for the TV app
   en: Track movies you've watched, TV shows you're watching, and build your to-watch list.
@@ -365,7 +365,7 @@ tv.description:
   th: ติดตามภาพยนตร์ที่คุณดู รายการทีวีที่คุณกำลังดู และสร้างรายการที่ต้องดู
   cs: Sledujte filmy, které jste viděli, seriály, které sledujete, a vytvořte si seznam k sledování.
   sv: Spåra filmer du har sett, TV-program du tittar på och bygg din att-se-lista.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 travel:
   context: App name for the Travel app
   en: Travel
@@ -388,7 +388,7 @@ travel:
   th: การเดินทาง
   cs: Cestování
   sv: Resor
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 travel.description:
   context: Description for the Travel app
   en: Plan, book and manage your trips.
@@ -411,7 +411,7 @@ travel.description:
   th: วางแผน จอง และจัดการการเดินทางของคุณ
   cs: Plánujte, rezervujte a spravujte své cesty.
   sv: Planera, boka och hantera dina resor.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 study:
   context: App name for the Study app
   en: Study
@@ -434,7 +434,7 @@ study:
   th: การศึกษา
   cs: Studium
   sv: Studier
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 study.description:
   context: Description for the Study app
   en: Learn topics, prepare for exams, and discover your perfect degree path.
@@ -457,7 +457,7 @@ study.description:
   th: เรียนรู้หัวข้อ เตรียมสอบ และค้นหาเส้นทางปริญญาที่สมบูรณ์แบบของคุณ
   cs: Učte se témata, připravte se na zkoušky a objevte svou dokonalou cestu k titulu.
   sv: Lär dig ämnen, förbered dig för tentor och upptäck din perfekta examen.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 plants:
   context: App name for the Plants app
   en: Plants
@@ -480,7 +480,7 @@ plants:
   th: พืช
   cs: Rostliny
   sv: Växter
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 plants.description:
   context: Description for the Plants app
   en: Keep track of your plants, watering schedules, and fertilizing needs. Get reminders and care tips for your plant collection.
@@ -503,7 +503,7 @@ plants.description:
   th: ติดตามพืชของคุณ ตารางการรดน้ำ และความต้องการปุ๋ย รับการแจ้งเตือนและเคล็ดลับการดูแลสำหรับคอลเลกชันพืชของคุณ
   cs: Sledujte své rostliny, zavlažovací plány a potřeby hnojení. Získejte připomínky a tipy na péči o vaši sbírku rostlin.
   sv: Håll koll på dina växter, vattningsscheman och gödningsbehov. Få påminnelser och vårdtips för din växtsamling.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 pcb_design:
   context: App name for the PCB design app
   en: PCB design
@@ -526,7 +526,7 @@ pcb_design:
   th: การออกแบบ PCB
   cs: Návrh desek plošných spojů
   sv: PCB-design
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 pcb_design.description:
   context: Description for the PCB design app
   en: Plan, create & debug your PCB designs.
@@ -549,7 +549,7 @@ pcb_design.description:
   th: วางแผน สร้าง และดีบักการออกแบบ PCB ของคุณ
   cs: Plánujte, vytvářejte a laděte své návrhy desek plošných spojů.
   sv: Planera, skapa och felsök dina PCB-design.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 nutrition:
   context: App name for the Nutrition app
   en: Nutrition
@@ -572,7 +572,7 @@ nutrition:
   th: โภชนาการ
   cs: Výživa
   sv: Nutrition
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 nutrition.description:
   context: Description for the Nutrition app
   en: Keep track of what you eat and drink, find tasty recipes and more.
@@ -595,7 +595,7 @@ nutrition.description:
   th: ติดตามสิ่งที่คุณกินและดื่ม ค้นหาสูตรอาหารแสนอร่อย และอื่นๆ
   cs: Sledujte, co jíte a pijete, najděte chutné recepty a další.
   sv: Håll koll på vad du äter och dricker, hitta goda recept och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images:
   context: App name for the Images app
   en: Images
@@ -618,7 +618,7 @@ images:
   th: รูปภาพ
   cs: Obrázky
   sv: Bilder
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images.description:
   context: Description for the Images app
   en: Generate images, modify and resize them and more.
@@ -641,7 +641,7 @@ images.description:
   th: สร้างภาพ แก้ไขและปรับขนาด และอื่นๆ
   cs: Generujte obrázky, upravujte a měňte jejich velikost a další.
   sv: Generera bilder, modifiera och ändra storlek på dem och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images.skills.generate:
   context: Skill name for image generation
   en: Generate
@@ -664,7 +664,7 @@ images.skills.generate:
   th: สร้าง
   cs: Generovat
   sv: Generera
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images.skills.generate.description:
   context: Description for image generation skill
   en: Generate an image based on a prompt and/or images.
@@ -687,7 +687,7 @@ images.skills.generate.description:
   th: สร้างภาพตามคำแนะนำและ/หรือภาพ
   cs: Vygenerujte obrázek na základě výzvy a/nebo obrázků.
   sv: Generera en bild baserat på en prompt och/eller bilder.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images.skills.generate_draft:
   context: Skill name for draft image generation
   en: Generate Draft
@@ -710,7 +710,7 @@ images.skills.generate_draft:
   th: สร้างฉบับร่าง
   cs: Generovat koncept
   sv: Generera utkast
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 images.skills.generate_draft.description:
   context: Description for draft image generation skill
   en: Quickly generate a draft image.
@@ -733,7 +733,7 @@ images.skills.generate_draft.description:
   th: สร้างภาพฉบับร่างอย่างรวดเร็ว
   cs: Rychle generovat koncept obrázku.
   sv: Generera snabbt en utkastbild.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 health:
   context: App name for the Health app
   en: Health
@@ -756,7 +756,7 @@ health:
   th: สุขภาพ
   cs: Zdraví
   sv: Hälsa
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 health.description:
   context: Description for the Health app
   en: Everything to improve your health and well being.
@@ -779,7 +779,7 @@ health.description:
   th: ทุกอย่างเพื่อปรับปรุงสุขภาพและความเป็นอยู่ที่ดีของคุณ
   cs: Vše pro zlepšení vašeho zdraví a pohody.
   sv: Allt för att förbättra din hälsa och välbefinnande.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 fitness:
   context: App name for the Fitness app
   en: Fitness
@@ -802,7 +802,7 @@ fitness:
   th: ฟิตเนส
   cs: Fitness
   sv: Fitness
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 fitness.description:
   context: Description for the Fitness app
   en: Stay fit, keep moving, stay healthy.
@@ -825,7 +825,7 @@ fitness.description:
   th: รักษาความฟิต เคลื่อนไหวอยู่เสมอ รักษาสุขภาพ
   cs: Zůstaňte fit, pokračujte v pohybu, zůstaňte zdraví.
   sv: Håll dig i form, fortsätt röra dig, håll dig frisk.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 code:
   context: App name for the Code app
   en: Code
@@ -848,7 +848,7 @@ code:
   th: โค้ด
   cs: Kód
   sv: Kod
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 code.description:
   context: Description for the Code app
   en: Write, test, improve and execute code.
@@ -871,7 +871,7 @@ code.description:
   th: เขียน ทดสอบ ปรับปรุง และรันโค้ด
   cs: Pište, testujte, vylepšujte a spouštějte kód.
   sv: Skriv, testa, förbättra och kör kod.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 books:
   context: App name for the Books app
   en: Books
@@ -894,7 +894,7 @@ books:
   th: หนังสือ
   cs: Knihy
   sv: Böcker
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 books.description:
   context: Description for the Books app
   en: Manage your ebooks, translate them and more.
@@ -917,7 +917,7 @@ books.description:
   th: จัดการอีบุ๊กของคุณ แปล และอื่นๆ
   cs: Spravujte své e-knihy, překládejte je a další.
   sv: Hantera dina e-böcker, översätt dem och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps:
   context: App name for the Maps app
   en: Maps
@@ -940,7 +940,7 @@ maps:
   th: แผนที่
   cs: Mapy
   sv: Kartor
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps.description:
   context: Description for the Maps app
   en: Search for places, get directions & more.
@@ -963,7 +963,7 @@ maps.description:
   th: ค้นหาสถานที่ รับเส้นทาง และอื่นๆ
   cs: Hledejte místa, získejte směry a další.
   sv: Sök efter platser, få vägbeskrivningar och mer.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps.favorite_places:
   context: Setting name for favorite places in Maps app
   en: Favorite places
@@ -986,7 +986,7 @@ maps.favorite_places:
   th: สถานที่โปรด
   cs: Oblíbená místa
   sv: Favoritplatser
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps.favorite_places.description:
   context: Description for favorite places setting in Maps app
   en: Your saved favorite places for quick access.
@@ -1009,7 +1009,7 @@ maps.favorite_places.description:
   th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
   cs: Vaše uložená oblíbená místa pro rychlý přístup.
   sv: Dina sparade favoritplatser för snabb åtkomst.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps.search:
   context: Skill name for search in Maps app
   en: Search
@@ -1032,7 +1032,7 @@ maps.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 maps.search.description:
   context: Description for search skill in Maps app
   en: Search for places, businesses, and locations.
@@ -1055,7 +1055,7 @@ maps.search.description:
   th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
   cs: Hledejte místa, podniky a lokace.
   sv: Sök efter platser, företag och platser.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news:
   context: App name for the News app
   en: News
@@ -1078,7 +1078,7 @@ news:
   th: ข่าว
   cs: Zprávy
   sv: Nyheter
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news.description:
   context: Description for the News app
   en: Stay informed with the latest news and articles.
@@ -1101,7 +1101,7 @@ news.description:
   th: ติดตามข่าวสารด้วยข่าวและบทความล่าสุด
   cs: Zůstaňte informováni s nejnovějšími zprávami a články.
   sv: Håll dig informerad med de senaste nyheterna och artiklarna.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news.search:
   context: Skill name for search in News app
   en: Search
@@ -1124,7 +1124,7 @@ news.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news.search.description:
   context: Description for search skill in News app
   en: Search for news articles and stories.
@@ -1147,7 +1147,7 @@ news.search.description:
   th: ค้นหาบทความข่าวและเรื่องราว
   cs: Hledejte novinové články a příběhy.
   sv: Sök efter nyhetsartiklar och berättelser.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news.understand_the_news:
   context: Focus name for understanding the news in News app
   en: Understand the news
@@ -1170,7 +1170,7 @@ news.understand_the_news:
   th: เข้าใจข่าว
   cs: Porozumět zprávám
   sv: Förstå nyheterna
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 news.understand_the_news.description:
   context: Description for understand the news focus in News app
   en: Get help understanding current events and news articles.
@@ -1193,4 +1193,188 @@ news.understand_the_news.description:
   th: รับความช่วยเหลือในการทำความเข้าใจเหตุการณ์ปัจจุบันและบทความข่าว
   cs: Získejte pomoc s porozuměním aktuálním událostem a novinovým článkům.
   sv: Få hjälp med att förstå aktuella händelser och nyhetsartiklar.
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
+reminder:
+  context: App name for the Reminder app
+  en: Reminder
+  de: Erinnerung
+  zh: 提醒
+  es: Recordatorio
+  fr: Rappel
+  pt: Lembrete
+  ru: Напоминание
+  ja: リマインダー
+  ko: 리마인더
+  it: Promemoria
+  tr: Hatırlatıcı
+  vi: Nhắc nhở
+  id: Pengingat
+  pl: Przypomnienie
+  nl: Herinnering
+  ar: تذكير
+  hi: अनुस्मारक
+  th: การแจ้งเตือน
+  cs: Připomínka
+  sv: Påminnelse
+  verified_by_human: [en, de]
+reminder.description:
+  context: Description for the Reminder app
+  en: Schedule reminders for specific times or random times within date ranges.
+  de: Plane Erinnerungen für bestimmte Zeiten oder zufällige Zeiten innerhalb von Zeiträumen.
+  zh: 安排特定时间或日期范围内随机时间的提醒。
+  es: Programa recordatorios para tiempos específicos o aleatorios dentro de rangos de fechas.
+  fr: Planifiez des rappels pour des heures spécifiques ou aléatoires dans des plages de dates.
+  pt: Agende lembretes para horários específicos ou aleatórios dentro de intervalos de datas.
+  ru: Планируйте напоминания на определённое или случайное время в диапазоне дат.
+  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。
+  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요.
+  it: Pianifica promemoria per orari specifici o casuali all'interno di intervalli di date.
+  tr: Belirli zamanlar veya tarih aralıkları içinde rastgele zamanlar için hatırlatıcılar planlayın.
+  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày.
+  id: Jadwalkan pengingat untuk waktu tertentu atau waktu acak dalam rentang tanggal.
+  pl: Zaplanuj przypomnienia na określone lub losowe godziny w zakresie dat.
+  nl: Plan herinneringen voor specifieke tijden of willekeurige tijden binnen datumbereiken.
+  ar: جدولة التذكيرات لأوقات محددة أو عشوائية ضمن نطاقات التاريخ.
+  hi: विशिष्ट समय या तिथि सीमाओं के भीतर यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें।
+  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือเวลาสุ่มภายในช่วงวันที่
+  cs: Naplánujte připomínky na konkrétní časy nebo náhodné časy v rámci rozsahu dat.
+  sv: Schemalägg påminnelser för specifika tider eller slumpmässiga tider inom datumintervall.
+  verified_by_human: [en, de]
+reminder.skills.set_reminder:
+  context: Skill name for setting a reminder
+  en: Set Reminder
+  de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  verified_by_human: [en, de]
+reminder.skills.set_reminder.description:
+  context: Description for set reminder skill
+  en: Schedule a reminder for a specific time or random time within a date range. Supports repeating reminders.
+  de: Plane eine Erinnerung für eine bestimmte Zeit oder zufällige Zeit innerhalb eines Datumsbereichs. Unterstützt wiederkehrende Erinnerungen.
+  zh: 安排特定时间或日期范围内随机时间的提醒。支持重复提醒。
+  es: Programa un recordatorio para un tiempo específico o aleatorio dentro de un rango de fechas. Soporta recordatorios repetitivos.
+  fr: Planifiez un rappel pour une heure spécifique ou aléatoire dans une plage de dates. Prend en charge les rappels répétitifs.
+  pt: Agende um lembrete para um horário específico ou aleatório dentro de um intervalo de datas. Suporta lembretes repetitivos.
+  ru: Запланируйте напоминание на определённое или случайное время в диапазоне дат. Поддерживает повторяющиеся напоминания.
+  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。繰り返しリマインダーをサポート。
+  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요. 반복 알림을 지원합니다.
+  it: Pianifica un promemoria per un orario specifico o casuale all'interno di un intervallo di date. Supporta promemoria ripetuti.
+  tr: Belirli bir zaman veya tarih aralığı içinde rastgele bir zaman için hatırlatıcı planlayın. Tekrarlayan hatırlatıcıları destekler.
+  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày. Hỗ trợ nhắc nhở lặp lại.
+  id: Jadwalkan pengingat untuk waktu tertentu atau acak dalam rentang tanggal. Mendukung pengingat berulang.
+  pl: Zaplanuj przypomnienie na określoną lub losową godzinę w zakresie dat. Obsługuje powtarzające się przypomnienia.
+  nl: Plan een herinnering voor een specifieke of willekeurige tijd binnen een datumbereik. Ondersteunt herhalende herinneringen.
+  ar: جدولة تذكير لوقت محدد أو عشوائي ضمن نطاق تاريخ. يدعم التذكيرات المتكررة.
+  hi: तिथि सीमा के भीतर विशिष्ट या यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें। दोहराए जाने वाले अनुस्मारकों का समर्थन करता है।
+  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือสุ่มภายในช่วงวันที่ รองรับการแจ้งเตือนซ้ำ
+  cs: Naplánujte připomínku na konkrétní nebo náhodný čas v rámci rozsahu dat. Podporuje opakující se připomínky.
+  sv: Schemalägg en påminnelse för en specifik eller slumpmässig tid inom ett datumintervall. Stöder återkommande påminnelser.
+  verified_by_human: [en, de]
+reminder.skills.list_reminders:
+  context: Skill name for listing reminders
+  en: List Reminders
+  de: Erinnerungen auflisten
+  zh: 列出提醒
+  es: Listar recordatorios
+  fr: Lister les rappels
+  pt: Listar lembretes
+  ru: Список напоминаний
+  ja: リマインダー一覧
+  ko: 알림 목록
+  it: Elenco promemoria
+  tr: Hatırlatıcıları listele
+  vi: Liệt kê nhắc nhở
+  id: Daftar pengingat
+  pl: Lista przypomnień
+  nl: Herinneringen weergeven
+  ar: قائمة التذكيرات
+  hi: अनुस्मारक सूची
+  th: รายการแจ้งเตือน
+  cs: Seznam připomínek
+  sv: Lista påminnelser
+  verified_by_human: [en, de]
+reminder.skills.list_reminders.description:
+  context: Description for list reminders skill
+  en: View your scheduled reminders.
+  de: Zeige deine geplanten Erinnerungen an.
+  zh: 查看您计划的提醒。
+  es: Ver tus recordatorios programados.
+  fr: Voir vos rappels programmés.
+  pt: Veja seus lembretes agendados.
+  ru: Просмотр запланированных напоминаний.
+  ja: 予定されているリマインダーを表示します。
+  ko: 예약된 알림을 확인하세요.
+  it: Visualizza i tuoi promemoria programmati.
+  tr: Planlanmış hatırlatıcılarınızı görüntüleyin.
+  vi: Xem các nhắc nhở đã lên lịch của bạn.
+  id: Lihat pengingat terjadwal Anda.
+  pl: Zobacz swoje zaplanowane przypomnienia.
+  nl: Bekijk uw geplande herinneringen.
+  ar: عرض التذكيرات المجدولة الخاصة بك.
+  hi: अपने शेड्यूल किए गए अनुस्मारक देखें।
+  th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
+  cs: Zobrazit naplánované připomínky.
+  sv: Visa dina schemalagda påminnelser.
+  verified_by_human: [en, de]
+reminder.skills.cancel_reminder:
+  context: Skill name for cancelling a reminder
+  en: Cancel Reminder
+  de: Erinnerung abbrechen
+  zh: 取消提醒
+  es: Cancelar recordatorio
+  fr: Annuler le rappel
+  pt: Cancelar lembrete
+  ru: Отменить напоминание
+  ja: リマインダーをキャンセル
+  ko: 알림 취소
+  it: Annulla promemoria
+  tr: Hatırlatıcıyı iptal et
+  vi: Hủy nhắc nhở
+  id: Batalkan pengingat
+  pl: Anuluj przypomnienie
+  nl: Herinnering annuleren
+  ar: إلغاء التذكير
+  hi: अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือน
+  cs: Zrušit připomínku
+  sv: Avbryt påminnelse
+  verified_by_human: [en, de]
+reminder.skills.cancel_reminder.description:
+  context: Description for cancel reminder skill
+  en: Cancel a scheduled reminder.
+  de: Eine geplante Erinnerung abbrechen.
+  zh: 取消计划的提醒。
+  es: Cancelar un recordatorio programado.
+  fr: Annuler un rappel programmé.
+  pt: Cancelar um lembrete agendado.
+  ru: Отменить запланированное напоминание.
+  ja: 予定されているリマインダーをキャンセルします。
+  ko: 예약된 알림을 취소하세요.
+  it: Annulla un promemoria programmato.
+  tr: Planlanmış bir hatırlatıcıyı iptal edin.
+  vi: Hủy một nhắc nhở đã lên lịch.
+  id: Batalkan pengingat terjadwal.
+  pl: Anuluj zaplanowane przypomnienie.
+  nl: Annuleer een geplande herinnering.
+  ar: إلغاء تذكير مجدول.
+  hi: एक शेड्यूल किया गया अनुस्मारक रद्द करें।
+  th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
+  cs: Zrušit naplánovanou připomínku.
+  sv: Avbryt en schemalagd påminnelse.
+  verified_by_human: [en, de]

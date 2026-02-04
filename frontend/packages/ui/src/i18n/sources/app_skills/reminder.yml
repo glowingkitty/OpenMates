@@ -1,50 +1,4 @@
-reminder:
-  context: App name for the Reminder app
-  en: Reminder
-  de: Erinnerung
-  zh: 提醒
-  es: Recordatorio
-  fr: Rappel
-  pt: Lembrete
-  ru: Напоминание
-  ja: リマインダー
-  ko: 리마인더
-  it: Promemoria
-  tr: Hatırlatıcı
-  vi: Nhắc nhở
-  id: Pengingat
-  pl: Przypomnienie
-  nl: Herinnering
-  ar: تذكير
-  hi: अनुस्मारक
-  th: การแจ้งเตือน
-  cs: Připomínka
-  sv: Påminnelse
-  verified_by_human: [en, de]
-reminder.description:
-  context: Description for the Reminder app
-  en: Schedule reminders for specific times or random times within date ranges.
-  de: Plane Erinnerungen für bestimmte Zeiten oder zufällige Zeiten innerhalb von Zeiträumen.
-  zh: 安排特定时间或日期范围内随机时间的提醒。
-  es: Programa recordatorios para tiempos específicos o aleatorios dentro de rangos de fechas.
-  fr: Planifiez des rappels pour des heures spécifiques ou aléatoires dans des plages de dates.
-  pt: Agende lembretes para horários específicos ou aleatórios dentro de intervalos de datas.
-  ru: Планируйте напоминания на определённое или случайное время в диапазоне дат.
-  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。
-  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요.
-  it: Pianifica promemoria per orari specifici o casuali all'interno di intervalli di date.
-  tr: Belirli zamanlar veya tarih aralıkları içinde rastgele zamanlar için hatırlatıcılar planlayın.
-  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày.
-  id: Jadwalkan pengingat untuk waktu tertentu atau waktu acak dalam rentang tanggal.
-  pl: Zaplanuj przypomnienia na określone lub losowe godziny w zakresie dat.
-  nl: Plan herinneringen voor specifieke tijden of willekeurige tijden binnen datumbereiken.
-  ar: جدولة التذكيرات لأوقات محددة أو عشوائية ضمن نطاقات التاريخ.
-  hi: विशिष्ट समय या तिथि सीमाओं के भीतर यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें।
-  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือเวลาสุ่มภายในช่วงวันที่
-  cs: Naplánujte připomínky na konkrétní časy nebo náhodné časy v rámci rozsahu dat.
-  sv: Schemalägg påminnelser för specifika tider eller slumpmässiga tider inom datumintervall.
-  verified_by_human: [en, de]
-reminder.set_reminder:
+set_reminder:
   context: Skill name for setting a reminder
   en: Set Reminder
   de: Erinnerung setzen
@@ -67,7 +21,7 @@ reminder.set_reminder:
   cs: Nastavit připomínku
   sv: Ställ in påminnelse
   verified_by_human: [en, de]
-reminder.set_reminder.description:
+set_reminder.description:
   context: Description for set reminder skill
   en: Schedule a reminder for a specific time or random time within a date range. Supports repeating reminders.
   de: Plane eine Erinnerung für eine bestimmte Zeit oder zufällige Zeit innerhalb eines Datumsbereichs. Unterstützt wiederkehrende Erinnerungen.
@@ -90,7 +44,7 @@ reminder.set_reminder.description:
   cs: Naplánujte připomínku na konkrétní nebo náhodný čas v rámci rozsahu dat. Podporuje opakující se připomínky.
   sv: Schemalägg en påminnelse för en specifik eller slumpmässig tid inom ett datumintervall. Stöder återkommande påminnelser.
   verified_by_human: [en, de]
-reminder.list_reminders:
+list_reminders:
   context: Skill name for listing reminders
   en: List Reminders
   de: Erinnerungen auflisten
@@ -113,7 +67,7 @@ reminder.list_reminders:
   cs: Seznam připomínek
   sv: Lista påminnelser
   verified_by_human: [en, de]
-reminder.list_reminders.description:
+list_reminders.description:
   context: Description for list reminders skill
   en: View your scheduled reminders.
   de: Zeige deine geplanten Erinnerungen an.
@@ -136,7 +90,7 @@ reminder.list_reminders.description:
   cs: Zobrazit naplánované připomínky.
   sv: Visa dina schemalagda påminnelser.
   verified_by_human: [en, de]
-reminder.cancel_reminder:
+cancel_reminder:
   context: Skill name for cancelling a reminder
   en: Cancel Reminder
   de: Erinnerung abbrechen
@@ -159,7 +113,7 @@ reminder.cancel_reminder:
   cs: Zrušit připomínku
   sv: Avbryt påminnelse
   verified_by_human: [en, de]
-reminder.cancel_reminder.description:
+cancel_reminder.description:
   context: Description for cancel reminder skill
   en: Cancel a scheduled reminder.
   de: Eine geplante Erinnerung abbrechen.
