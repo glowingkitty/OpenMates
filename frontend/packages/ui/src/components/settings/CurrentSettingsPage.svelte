@@ -117,9 +117,15 @@
             css: (t: number) => {
                 // t goes from 0 to 1 for 'in' transitions, 1 to 0 for 'out' transitions
                 const translateX = (1 - t) * x;
+                
+                // Only fade OUT the exiting view (isIn=false), keep incoming view fully opaque
+                // This prevents the incoming view's semi-transparent background from showing
+                // the outgoing content underneath during the fade-in phase
+                const opacity = isIn ? 1 : t;
+                
                 return `
                     transform: translateX(${translateX}px);
-                    opacity: ${t};
+                    opacity: ${opacity};
                 `;
             }
         };
