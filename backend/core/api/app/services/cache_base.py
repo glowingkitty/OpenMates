@@ -141,6 +141,32 @@ class CacheServiceBase:
             logger.error(f"Cache SET error for key '{key}': {str(e)}")
             return False
 
+    async def close(self) -> None:
+        """
+        Close the Redis client connection.
+        
+        CRITICAL: Call this method before the event loop closes (e.g., at the end of 
+        asyncio.run() in Celery tasks). The async Redis client maintains connections
+        that are bound to a specific event loop. If not properly closed, subsequent
+        tasks using asyncio.run() will fail with "Event loop is closed" errors because
+        the cached client references a closed event loop.
+        
+        This method:
+        1. Gracefully closes the Redis connection pool
+        2. Resets the client reference so a new client can be created for the next event loop
+        """
+        if self._client is not None:
+            try:
+                await self._client.aclose()
+                logger.debug("Redis client connection closed successfully")
+            except Exception as e:
+                logger.warning(f"Error closing Redis client: {e}")
+            finally:
+                # Reset client reference so next task creates a fresh client
+                # bound to its own event loop
+                self._client = None
+                self._connection_error = False
+
     async def delete(self, key: str) -> bool:
         """Delete a value from cache"""
         try:
