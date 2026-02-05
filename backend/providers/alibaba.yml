@@ -9,7 +9,7 @@ logo_svg: "logos/alibaba.svg"
 
 models:
   - id: "qwen3-235b-a22b-2507"
-    name: "Qwen3 235B A22B (2507)"
+    name: "Qwen 3 256b"
     description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)

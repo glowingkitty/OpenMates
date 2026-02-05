@@ -1,0 +1,66 @@
+# backend/providers/deepseek.yml
+# DeepSeek provider configuration.
+# DeepSeek models can be accessed via Google Vertex AI (MaaS) as primary, with OpenRouter as fallback.
+
+provider_id: "deepseek"
+name: "DeepSeek"
+description: "DeepSeek AI - High-performance reasoning and agent models"
+logo_svg: "logos/deepseek.svg"
+
+models:
+  - id: "deepseek-v3.2"
+    name: "DeepSeek V3.2"
+    description: "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    allow_auto_select: true
+    reasoning: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "deepseek-v3.2"
+      openrouter: "deepseek/deepseek-v3.2"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "google" # Google Vertex AI as primary (MaaS)
+    servers:
+      - id: "google"
+        name: "Google Vertex AI (MaaS)"
+        model_id: "deepseek-ai/deepseek-v3.2-maas" # Google Vertex AI MaaS model identifier (publisher/model-id format)
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "deepseek/deepseek-v3.2" # OpenRouter's model identifier (fallback)
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 1300 # Based on $0.25/M input: 333.33 / 0.25 = 1333, rounded to 1300
+        output:
+          per_credit_unit: 875 # Based on $0.38/M output: 333.33 / 0.38 = 877, rounded to 875
+    costs:
+      input_per_million_token:
+        price: 0.25
+        currency: USD
+        max_context: 163840
+      output_per_million_token:
+        price: 0.38
+        currency: USD
+        max_context: 163840
+    features:
+      knowledge_cutoff: "2025-01"
+      max_output_tokens: 65536
+      tool_use: true
+      streaming: true
+
+# Pricing Formula:
+# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
+# 2. Tokens per credit = credit_value_usd / cost_per_token
+#
+# Where:
+# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
+# - markup = 3 (3x your cost)
+#
+# Simplified: tokens_per_credit = 333.33 / your_cost_per_million
+#
+# Examples for DeepSeek V3.2:
+# - Input ($0.25/M): 333.33 / 0.25 = 1333 tokens/credit -> round to 1300
+# - Output ($0.38/M): 333.33 / 0.38 = 877 tokens/credit -> round to 875
