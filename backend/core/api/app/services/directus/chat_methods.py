@@ -415,21 +415,46 @@ class ChatMethods:
                 )
                 return None
             
-            # VALIDATION: Check if encrypted_content is valid base64
-            # This prevents storing malformed encryption data that can't be decrypted later
+            # VALIDATION: Check if encrypted_content is valid
+            # Accept both:
+            # 1. Pure base64 (client-side encrypted data)
+            # 2. Vault transit format "vault:v1:<base64>" (server-side encrypted, e.g., reminders)
             import base64
-            try:
-                # Attempt to decode as base64 to validate format
-                decoded_bytes = base64.b64decode(encrypted_content, validate=True)
-                logger.debug(
-                    f"✅ Message {message_id} (role={role}): encrypted_content is valid base64 "
-                    f"({len(decoded_bytes)} bytes after decoding)"
-                )
-            except Exception as e:
+            is_valid_encryption = False
+            
+            # Check for Vault transit format (server-side encryption for system messages like reminders)
+            if encrypted_content.startswith("vault:"):
+                # Vault transit ciphertext format: vault:v<version>:<base64_ciphertext>
+                parts = encrypted_content.split(":", 2)
+                if len(parts) == 3 and parts[1].startswith("v"):
+                    try:
+                        # Validate the base64 portion of the Vault ciphertext
+                        decoded_bytes = base64.b64decode(parts[2], validate=True)
+                        is_valid_encryption = True
+                        logger.debug(
+                            f"✅ Message {message_id} (role={role}): encrypted_content is valid Vault transit format "
+                            f"({len(decoded_bytes)} bytes in ciphertext portion)"
+                        )
+                    except Exception:
+                        pass  # Will be caught by the rejection below
+            else:
+                # Standard base64 validation for client-side encrypted data
+                try:
+                    decoded_bytes = base64.b64decode(encrypted_content, validate=True)
+                    is_valid_encryption = True
+                    logger.debug(
+                        f"✅ Message {message_id} (role={role}): encrypted_content is valid base64 "
+                        f"({len(decoded_bytes)} bytes after decoding)"
+                    )
+                except Exception:
+                    pass  # Will be caught by the rejection below
+            
+            if not is_valid_encryption:
                 logger.error(
                     f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
-                    f"encrypted_content is not valid base64. This indicates incomplete or corrupted client-side encryption. "
-                    f"Error: {e}. This is a CRITICAL zero-knowledge architecture violation!"
+                    f"encrypted_content is not valid base64 or Vault transit format. "
+                    f"This indicates incomplete or corrupted encryption. "
+                    f"This is a CRITICAL zero-knowledge architecture violation!"
                 )
                 return None  # Reject the message
             
