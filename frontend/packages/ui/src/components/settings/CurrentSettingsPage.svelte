@@ -585,7 +585,7 @@
          * The custom flyFade Svelte transition handles opacity and transform animations.
          * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
          */
-        background-color: var(--color-grey-10, #1a1a1a);
+        background-color: var(--color-grey-20);
     }
     
     .settings-items.active,
