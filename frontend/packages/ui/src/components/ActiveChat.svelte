@@ -5251,6 +5251,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Rounded edges to look like a separate card (chat remains in main container) */
         border-radius: 17px;
         overflow: hidden;
+        /* Ensure background is always visible during animation */
+        background-color: var(--color-grey-20);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
     
     /* Smooth width animation when entering side-by-side mode */
@@ -5265,12 +5268,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             max-width: 100%;
             min-width: 0;
             border-radius: 0;
+            box-shadow: none;
         }
         to {
             flex: 0 0 400px;
             max-width: 400px;
             min-width: 400px;
             border-radius: 17px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         }
     }
     
@@ -5325,18 +5330,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     /* Smooth width/opacity animation when entering side-by-side mode */
-    /* The panel grows from 0 to flex:1 while chat shrinks simultaneously */
+    /* Panel grows from right edge: starts with 0 width, expands leftward as chat shrinks */
+    /* Using clip-path to reveal from right to left while maintaining flex layout */
     .fullscreen-embed-container.side-panel.side-by-side-animating {
         animation: panelGrow 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     
     @keyframes panelGrow {
         from {
-            flex: 0 0 0;
+            /* Start fully clipped (invisible) from the left side */
+            clip-path: inset(0 0 0 100%);
             opacity: 0;
         }
         to {
-            flex: 1;
+            /* End fully visible */
+            clip-path: inset(0 0 0 0);
             opacity: 1;
         }
     }
@@ -5379,11 +5387,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         height: 100%;
     }
     
-    /* Chat wrapper in side-by-side mode should look like a card */
-    .active-chat-container.side-by-side-active .chat-wrapper.side-by-side-chat {
-        background-color: var(--color-grey-20);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-    }
+    /* Chat wrapper in side-by-side mode - background/shadow now in base .side-by-side-chat class */
+    /* to ensure visibility during animation */
 
     .center-content {
         position: absolute;
