@@ -975,6 +975,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const triggerAt = decodedContent?.trigger_at;
     const targetType = decodedContent?.target_type;
     const isRepeating = decodedContent?.is_repeating || false;
+    const prompt = decodedContent?.prompt || "";
     const message = decodedContent?.message || "";
     const emailNotificationWarning =
       decodedContent?.email_notification_warning || "";
@@ -1014,6 +1015,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           triggerAt,
           targetType,
           isRepeating,
+          prompt,
           message,
           emailNotificationWarning,
           status: status as "processing" | "finished" | "error",

@@ -58,6 +58,7 @@ class SetReminderResponse(BaseModel):
     trigger_at_formatted: Optional[str] = Field(None, description="Human-readable trigger time")
     target_type: Optional[str] = Field(None, description="'new_chat' or 'existing_chat'")
     is_repeating: bool = Field(default=False, description="Whether this is a repeating reminder")
+    prompt: Optional[str] = Field(None, description="The reminder prompt/content (echoed back for display)")
     message: Optional[str] = Field(None, description="Confirmation or informational message")
     email_notification_warning: Optional[str] = Field(None, description="Warning if email notifications not set up")
     error: Optional[str] = Field(None, description="Error message if creation failed")
@@ -435,6 +436,7 @@ class SetReminderSkill(BaseSkill):
                 trigger_at_formatted=trigger_at_formatted,
                 target_type=target_type,
                 is_repeating=is_repeating,
+                prompt=prompt,  # Echo back the prompt for embed display
                 message=message,
                 email_notification_warning=email_warning
             )

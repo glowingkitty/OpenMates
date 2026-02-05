@@ -28,6 +28,7 @@
     trigger_at_formatted?: string;
     target_type?: 'new_chat' | 'existing_chat';
     is_repeating?: boolean;
+    prompt?: string;
     message?: string;
     email_notification_warning?: string;
     error?: string;
@@ -50,6 +51,8 @@
     targetType?: 'new_chat' | 'existing_chat';
     /** Whether this is a repeating reminder */
     isRepeating?: boolean;
+    /** The reminder prompt/content */
+    prompt?: string;
     /** Confirmation message from the skill */
     message?: string;
     /** Warning about email notifications */
@@ -68,12 +71,10 @@
   
   let {
     id,
-    reminderId: reminderIdProp,
     triggerAtFormatted: triggerAtFormattedProp,
-    triggerAt: triggerAtProp,
     targetType: targetTypeProp,
     isRepeating: isRepeatingProp = false,
-    message: messageProp,
+    prompt: promptProp,
     emailNotificationWarning: emailWarningProp,
     status: statusProp,
     error: errorProp,
@@ -83,12 +84,10 @@
   }: Props = $props();
   
   // Local reactive state - can be updated via onEmbedDataUpdated callback
-  let localReminderId = $state<string | undefined>(undefined);
   let localTriggerAtFormatted = $state<string | undefined>(undefined);
-  let localTriggerAt = $state<number | undefined>(undefined);
   let localTargetType = $state<'new_chat' | 'existing_chat' | undefined>(undefined);
   let localIsRepeating = $state<boolean>(false);
-  let localMessage = $state<string | undefined>(undefined);
+  let localPrompt = $state<string | undefined>(undefined);
   let localEmailWarning = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localError = $state<string | undefined>(undefined);
@@ -96,12 +95,10 @@
   
   // Initialize local state from props
   $effect(() => {
-    localReminderId = reminderIdProp;
     localTriggerAtFormatted = triggerAtFormattedProp;
-    localTriggerAt = triggerAtProp;
     localTargetType = targetTypeProp;
     localIsRepeating = isRepeatingProp || false;
-    localMessage = messageProp;
+    localPrompt = promptProp;
     localEmailWarning = emailWarningProp;
     localStatus = statusProp || 'processing';
     localError = errorProp;
@@ -109,12 +106,10 @@
   });
   
   // Use local state as source of truth
-  let reminderId = $derived(localReminderId);
   let triggerAtFormatted = $derived(localTriggerAtFormatted);
-  let triggerAt = $derived(localTriggerAt);
   let targetType = $derived(localTargetType);
   let isRepeating = $derived(localIsRepeating);
-  let message = $derived(localMessage);
+  let prompt = $derived(localPrompt);
   let emailWarning = $derived(localEmailWarning);
   let status = $derived(localStatus);
   let error = $derived(localError);
@@ -131,10 +126,12 @@
     return $text('apps.reminder.skills.set_reminder.text');
   });
   
-  // Build status text
+  // Build status text - use default "Processing..." for processing state (handled by BasicInfosBar)
+  // Only provide custom status text for completed state (showing trigger time)
   let statusText = $derived.by(() => {
     if (status === 'processing') {
-      return $text('embeds.reminder.scheduling.text');
+      // Return undefined to use default "Processing..." from BasicInfosBar
+      return undefined;
     }
     if (status === 'error') {
       return $text('embeds.reminder.error.text');
@@ -176,12 +173,10 @@
     if (data.decodedContent) {
       const content = data.decodedContent as ReminderData;
       
-      if (content.reminder_id) localReminderId = content.reminder_id;
       if (content.trigger_at_formatted) localTriggerAtFormatted = content.trigger_at_formatted;
-      if (content.trigger_at) localTriggerAt = content.trigger_at;
       if (content.target_type) localTargetType = content.target_type;
       if (typeof content.is_repeating === 'boolean') localIsRepeating = content.is_repeating;
-      if (content.message) localMessage = content.message;
+      if (content.prompt) localPrompt = content.prompt;
       if (content.email_notification_warning) localEmailWarning = content.email_notification_warning;
       if (content.error) localError = content.error;
       
@@ -191,6 +186,20 @@
       }
     }
   }
+  
+  /**
+   * Truncate prompt to first 3 lines with ellipsis
+   */
+  let promptPreview = $derived.by(() => {
+    if (!prompt) return '';
+    const lines = prompt.split('\n').slice(0, 3);
+    const truncated = lines.join('\n');
+    // Add ellipsis if there are more lines or text is truncated
+    if (prompt.split('\n').length > 3 || truncated.length > 150) {
+      return truncated.substring(0, 150) + '...';
+    }
+    return truncated;
+  });
 </script>
 
 <UnifiedEmbedPreview
@@ -205,7 +214,7 @@
   {onFullscreen}
   showStatus={true}
   customStatusText={statusText}
-  showSkillIcon={false}
+  showSkillIcon={true}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
@@ -222,6 +231,13 @@
       {:else if status === 'finished' && !error}
         <!-- Finished state: show reminder details -->
         <div class="reminder-content">
+          <!-- Prompt preview (first 3 lines with ellipsis) -->
+          {#if promptPreview}
+            <div class="reminder-prompt">
+              <span class="prompt-text">{promptPreview}</span>
+            </div>
+          {/if}
+          
           <!-- Trigger time -->
           {#if triggerAtFormatted}
             <div class="reminder-time">
@@ -327,6 +343,27 @@
     flex-direction: column;
     gap: 10px;
     width: 100%;
+  }
+  
+  /* Prompt preview */
+  .reminder-prompt {
+    padding: 8px 10px;
+    background: var(--color-grey-10, #f5f5f5);
+    border-radius: 6px;
+    border-left: 3px solid var(--color-app-reminder, #FF9500);
+  }
+  
+  .prompt-text {
+    font-size: 13px;
+    color: var(--color-grey-80, #333);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   /* Trigger time */
@@ -448,6 +485,14 @@
   }
   
   /* Dark mode support */
+  :global(.dark) .reminder-prompt {
+    background: var(--color-grey-90, #1a1a1a);
+  }
+  
+  :global(.dark) .prompt-text {
+    color: var(--color-grey-20, #eaeaea);
+  }
+  
   :global(.dark) .reminder-time {
     color: var(--color-grey-20, #eaeaea);
   }
