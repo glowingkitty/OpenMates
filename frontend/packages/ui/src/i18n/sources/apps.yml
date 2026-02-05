@@ -345,26 +345,26 @@ tv:
   verified_by_human: [en, de]
 tv.description:
   context: Description for the TV app
-  en: Track movies you've watched, TV shows you're watching, and build your to-watch list.
-  de: Verfolge Filme, die du gesehen hast, TV-Serien, die du schaust, und erstelle deine Watchlist.
-  zh: 追踪你看过的电影、正在看的电视节目，并建立你的待看清单。
-  es: Rastrea las películas que has visto, las series de TV que estás viendo y crea tu lista de pendientes.
-  fr: Suivez les films que vous avez regardés, les séries TV que vous regardez et créez votre liste à regarder.
-  pt: Acompanhe filmes que você assistiu, séries de TV que está assistindo e crie sua lista de desejos.
-  ru: Отслеживайте просмотренные фильмы, смотрите сериалы и создавайте список к просмотру.
-  ja: 見た映画、見ているテレビ番組を追跡し、視聴リストを作成する。
-  ko: 본 영화, 시청 중인 TV 프로그램을 추적하고 시청 목록을 만드세요.
-  it: Traccia i film che hai visto, le serie TV che stai guardando e crea la tua lista da guardare.
-  tr: İzlediğiniz filmleri, izlediğiniz TV dizilerini takip edin ve izleme listenizi oluşturun.
-  vi: Theo dõi phim bạn đã xem, chương trình TV bạn đang xem và tạo danh sách xem của bạn.
-  id: Lacak film yang telah ditonton, acara TV yang sedang ditonton, dan buat daftar tontonan.
-  pl: Śledź obejrzane filmy, oglądane seriale i twórz swoją listę do obejrzenia.
-  nl: Volg films die je hebt bekeken, TV-series die je bekijkt en maak je kijklijst.
-  ar: تتبع الأفلام التي شاهدتها والبرامج التلفزيونية التي تشاهدها وأنشئ قائمة المشاهدة.
-  hi: आपके द्वारा देखे गए फिल्मों, आपके द्वारा देखे जा रहे टीवी शो को ट्रैक करें और अपनी देखने की सूची बनाएं।
-  th: ติดตามภาพยนตร์ที่คุณดู รายการทีวีที่คุณกำลังดู และสร้างรายการที่ต้องดู
-  cs: Sledujte filmy, které jste viděli, seriály, které sledujete, a vytvořte si seznam k sledování.
-  sv: Spåra filmer du har sett, TV-program du tittar på och bygg din att-se-lista.
+  en: Track movies, shows & build your watchlist.
+  de: Verfolge Filme, Serien und deine Watchlist.
+  zh: 追踪电影、节目并建立观看清单。
+  es: Rastrea películas, series y tu lista de pendientes.
+  fr: Suivez films, séries et votre liste à regarder.
+  pt: Acompanhe filmes, séries e sua lista de desejos.
+  ru: Отслеживайте фильмы, сериалы и список к просмотру.
+  ja: 映画、番組を追跡し、視聴リストを作成。
+  ko: 영화, 프로그램 및 시청 목록을 추적하세요.
+  it: Traccia film, serie e la tua lista da guardare.
+  tr: Filmleri, dizileri ve izleme listenizi takip edin.
+  vi: Theo dõi phim, chương trình và danh sách xem.
+  id: Lacak film, acara TV, dan daftar tontonan Anda.
+  pl: Śledź filmy, seriale i swoją listę do obejrzenia.
+  nl: Volg films, series en je kijklijst.
+  ar: تتبع الأفلام والبرامج وقائمة المشاهدة.
+  hi: फिल्में, शो और वॉचलिस्ट ट्रैक करें।
+  th: ติดตามหนัง รายการ และรายการที่ต้องดู
+  cs: Sledujte filmy, seriály a seznam k zhlédnutí.
+  sv: Följ filmer, serier och din att-se-lista.
   verified_by_human: [en, de]
 travel:
   context: App name for the Travel app
@@ -437,26 +437,26 @@ study:
   verified_by_human: [en, de]
 study.description:
   context: Description for the Study app
-  en: Learn topics, prepare for exams, and discover your perfect degree path.
-  de: Lerne Themen, bereite dich auf Prüfungen vor und entdecke deinen perfekten Studienweg.
-  zh: 学习主题、准备考试并发现你的完美学位路径。
-  es: Aprende temas, prepárate para exámenes y descubre tu camino de grado perfecto.
-  fr: Apprenez des sujets, préparez-vous aux examens et découvrez votre parcours de diplôme parfait.
-  pt: Aprenda tópicos, prepare-se para exames e descubra seu caminho de graduação perfeito.
-  ru: Изучайте темы, готовьтесь к экзаменам и найдите свой идеальный путь к степени.
-  ja: トピックを学び、試験に備え、完璧な学位の道を見つける。
-  ko: 주제를 배우고, 시험을 준비하고, 완벽한 학위 경로를 발견하세요.
-  it: Impara argomenti, preparati per gli esami e scopri il tuo percorso di laurea perfetto.
-  tr: Konuları öğrenin, sınavlara hazırlanın ve mükemmel derece yolunuzu keşfedin.
-  vi: Học các chủ đề, chuẩn bị cho kỳ thi và khám phá con đường bằng cấp hoàn hảo của bạn.
-  id: Pelajari topik, persiapkan ujian, dan temukan jalur gelar yang sempurna.
-  pl: Ucz się tematów, przygotowuj się do egzaminów i odkryj swoją idealną ścieżkę studiów.
-  nl: Leer onderwerpen, bereid je voor op examens en ontdek je perfecte graadpad.
-  ar: تعلم المواضيع واستعد للامتحانات واكتشف مسار شهادتك المثالي.
-  hi: विषय सीखें, परीक्षाओं की तैयारी करें और अपना सही डिग्री पथ खोजें।
-  th: เรียนรู้หัวข้อ เตรียมสอบ และค้นหาเส้นทางปริญญาที่สมบูรณ์แบบของคุณ
-  cs: Učte se témata, připravte se na zkoušky a objevte svou dokonalou cestu k titulu.
-  sv: Lär dig ämnen, förbered dig för tentor och upptäck din perfekta examen.
+  en: Learn topics, prepare for exams & more.
+  de: Lerne Themen, bereite dich auf Prüfungen vor.
+  zh: 学习主题、准备考试等。
+  es: Aprende temas, prepárate para exámenes y más.
+  fr: Apprenez des sujets, préparez-vous aux examens.
+  pt: Aprenda tópicos e prepare-se para exames.
+  ru: Изучайте темы и готовьтесь к экзаменам.
+  ja: トピックを学び、試験に備えるなど。
+  ko: 주제를 배우고 시험을 준비하세요.
+  it: Impara argomenti e preparati per gli esami.
+  tr: Konuları öğrenin ve sınavlara hazırlanın.
+  vi: Học các chủ đề và chuẩn bị cho kỳ thi.
+  id: Pelajari topik dan persiapkan ujian.
+  pl: Ucz się tematów i przygotuj się do egzaminów.
+  nl: Leer onderwerpen en bereid je voor op examens.
+  ar: تعلم المواضيع واستعد للامتحانات.
+  hi: विषय सीखें और परीक्षाओं की तैयारी करें।
+  th: เรียนรู้หัวข้อและเตรียมสอบ
+  cs: Učte se témata a připravte se na zkoušky.
+  sv: Lär dig ämnen och förbered dig för tentor.
   verified_by_human: [en, de]
 plants:
   context: App name for the Plants app
@@ -483,26 +483,26 @@ plants:
   verified_by_human: [en, de]
 plants.description:
   context: Description for the Plants app
-  en: Keep track of your plants, watering schedules, and fertilizing needs. Get reminders and care tips for your plant collection.
-  de: Behalte deine Pflanzen, Bewässerungspläne und Düngebedarf im Auge. Erhalte Erinnerungen und Pflegetipps für deine Pflanzensammlung.
-  zh: 跟踪你的植物、浇水时间表和施肥需求。获取植物收藏的提醒和护理技巧。
-  es: Realiza un seguimiento de tus plantas, horarios de riego y necesidades de fertilización. Obtén recordatorios y consejos de cuidado para tu colección de plantas.
-  fr: Suivez vos plantes, les horaires d'arrosage et les besoins en fertilisation. Recevez des rappels et des conseils d'entretien pour votre collection de plantes.
-  pt: Acompanhe suas plantas, horários de rega e necessidades de fertilização. Receba lembretes e dicas de cuidados para sua coleção de plantas.
-  ru: Отслеживайте свои растения, графики полива и потребности в удобрении. Получайте напоминания и советы по уходу за вашей коллекцией растений.
-  ja: 植物、水やりスケジュール、施肥の必要性を追跡する。植物コレクションのリマインダーとケアのヒントを取得する。
-  ko: 식물, 물주기 일정 및 비료 필요성을 추적하세요. 식물 컬렉션에 대한 알림 및 관리 팁을 받으세요.
-  it: Tieni traccia delle tue piante, degli orari di irrigazione e delle esigenze di fertilizzazione. Ricevi promemoria e consigli per la cura della tua collezione di piante.
-  tr: Bitkilerinizi, sulama programlarınızı ve gübreleme ihtiyaçlarınızı takip edin. Bitki koleksiyonunuz için hatırlatıcılar ve bakım ipuçları alın.
-  vi: Theo dõi cây trồng, lịch tưới nước và nhu cầu bón phân của bạn. Nhận lời nhắc và mẹo chăm sóc cho bộ sưu tập cây trồng của bạn.
-  id: Lacak tanaman Anda, jadwal penyiraman, dan kebutuhan pemupukan. Dapatkan pengingat dan tips perawatan untuk koleksi tanaman Anda.
-  pl: Śledź swoje rośliny, harmonogramy podlewania i potrzeby nawożenia. Otrzymuj przypomnienia i porady dotyczące pielęgnacji swojej kolekcji roślin.
-  nl: Houd je planten, bewateringsschema's en bemestingsbehoeften bij. Ontvang herinneringen en verzorgingstips voor je plantencollectie.
-  ar: تتبع نباتاتك وجداول الري واحتياجات التسميد. احصل على تذكيرات ونصائح العناية لمجموعة نباتاتك.
-  hi: अपने पौधों, पानी देने के कार्यक्रम और उर्वरक की जरूरतों पर नज़र रखें। अपने पौधों के संग्रह के लिए अनुस्मारक और देखभाल युक्तियां प्राप्त करें।
-  th: ติดตามพืชของคุณ ตารางการรดน้ำ และความต้องการปุ๋ย รับการแจ้งเตือนและเคล็ดลับการดูแลสำหรับคอลเลกชันพืชของคุณ
-  cs: Sledujte své rostliny, zavlažovací plány a potřeby hnojení. Získejte připomínky a tipy na péči o vaši sbírku rostlin.
-  sv: Håll koll på dina växter, vattningsscheman och gödningsbehov. Få påminnelser och vårdtips för din växtsamling.
+  en: Track your plants, watering & care needs.
+  de: Verfolge deine Pflanzen und Pflegebedarf.
+  zh: 追踪植物、浇水和护理需求。
+  es: Rastrea tus plantas y necesidades de cuidado.
+  fr: Suivez vos plantes et leurs besoins en soins.
+  pt: Acompanhe suas plantas e cuidados necessários.
+  ru: Отслеживайте растения и уход за ними.
+  ja: 植物と手入れの必要性を追跡する。
+  ko: 식물과 관리 필요성을 추적하세요.
+  it: Tieni traccia delle piante e delle cure necessarie.
+  tr: Bitkilerinizi ve bakım ihtiyaçlarını takip edin.
+  vi: Theo dõi cây trồng và nhu cầu chăm sóc.
+  id: Lacak tanaman dan kebutuhan perawatannya.
+  pl: Śledź rośliny i potrzeby pielęgnacyjne.
+  nl: Volg je planten en verzorgingsbehoeften.
+  ar: تتبع نباتاتك واحتياجات العناية بها.
+  hi: पौधों और देखभाल की जरूरतों को ट्रैक करें।
+  th: ติดตามพืชและความต้องการการดูแล
+  cs: Sledujte rostliny a potřeby péče.
+  sv: Följ dina växter och vårdbehov.
   verified_by_human: [en, de]
 pcb_design:
   context: App name for the PCB design app
@@ -575,26 +575,26 @@ nutrition:
   verified_by_human: [en, de]
 nutrition.description:
   context: Description for the Nutrition app
-  en: Keep track of what you eat and drink, find tasty recipes and more.
-  de: Behalte im Auge, was du isst und trinkst, finde leckere Rezepte und mehr.
-  zh: 跟踪你的饮食，找到美味的食谱等。
-  es: Realiza un seguimiento de lo que comes y bebes, encuentra recetas deliciosas y más.
-  fr: Suivez ce que vous mangez et buvez, trouvez de délicieuses recettes et plus encore.
-  pt: Acompanhe o que você come e bebe, encontre receitas saborosas e muito mais.
-  ru: Отслеживайте, что вы едите и пьете, находите вкусные рецепты и многое другое.
-  ja: 食べ物や飲み物を追跡し、おいしいレシピを見つけるなど。
-  ko: 먹고 마시는 것을 추적하고 맛있는 레시피를 찾으세요.
-  it: Tieni traccia di ciò che mangi e bevi, trova ricette gustose e altro ancora.
-  tr: Yediğiniz ve içtiğiniz şeyleri takip edin, lezzetli tarifler bulun ve daha fazlası.
-  vi: Theo dõi những gì bạn ăn và uống, tìm công thức nấu ăn ngon và hơn thế nữa.
-  id: Lacak apa yang Anda makan dan minum, temukan resep lezat, dan lainnya.
-  pl: Śledź to, co jesz i pijesz, znajdź smaczne przepisy i nie tylko.
-  nl: Houd bij wat je eet en drinkt, vind lekkere recepten en meer.
-  ar: تتبع ما تأكله وتشربه وابحث عن وصفات لذيذة والمزيد.
-  hi: आप जो खाते-पीते हैं उस पर नज़र रखें, स्वादिष्ट व्यंजन खोजें और बहुत कुछ।
-  th: ติดตามสิ่งที่คุณกินและดื่ม ค้นหาสูตรอาหารแสนอร่อย และอื่นๆ
-  cs: Sledujte, co jíte a pijete, najděte chutné recepty a další.
-  sv: Håll koll på vad du äter och dricker, hitta goda recept och mer.
+  en: Track meals, find recipes & eat healthier.
+  de: Verfolge Mahlzeiten, finde Rezepte & iss gesünder.
+  zh: 跟踪饮食、寻找食谱、吃得更健康。
+  es: Rastrea comidas, encuentra recetas y come mejor.
+  fr: Suivez vos repas, trouvez des recettes et mangez mieux.
+  pt: Acompanhe refeições, encontre receitas e coma melhor.
+  ru: Отслеживайте питание, находите рецепты и ешьте здоровее.
+  ja: 食事を追跡し、レシピを見つけ、健康的に食べる。
+  ko: 식사를 추적하고 레시피를 찾고 건강하게 드세요.
+  it: Traccia i pasti, trova ricette e mangia più sano.
+  tr: Öğünleri takip edin, tarifler bulun ve sağlıklı yiyin.
+  vi: Theo dõi bữa ăn, tìm công thức và ăn uống lành mạnh.
+  id: Lacak makanan, temukan resep, dan makan lebih sehat.
+  pl: Śledź posiłki, znajdź przepisy i jedz zdrowiej.
+  nl: Volg maaltijden, vind recepten en eet gezonder.
+  ar: تتبع الوجبات وابحث عن وصفات وتناول طعامًا صحيًا.
+  hi: भोजन ट्रैक करें, रेसिपी खोजें और स्वस्थ खाएं।
+  th: ติดตามมื้ออาหาร หาสูตร และกินอย่างสุขภาพ
+  cs: Sledujte jídla, najděte recepty a jezte zdravěji.
+  sv: Följ måltider, hitta recept och ät hälsosammare.
   verified_by_human: [en, de]
 images:
   context: App name for the Images app
@@ -1265,26 +1265,26 @@ reminder:
   verified_by_human: [en, de]
 reminder.description:
   context: Description for the Reminder app
-  en: Schedule reminders for specific times or random times within date ranges.
-  de: Plane Erinnerungen für bestimmte Zeiten oder zufällige Zeiten innerhalb von Zeiträumen.
-  zh: 安排特定时间或日期范围内随机时间的提醒。
-  es: Programa recordatorios para tiempos específicos o aleatorios dentro de rangos de fechas.
-  fr: Planifiez des rappels pour des heures spécifiques ou aléatoires dans des plages de dates.
-  pt: Agende lembretes para horários específicos ou aleatórios dentro de intervalos de datas.
-  ru: Планируйте напоминания на определённое или случайное время в диапазоне дат.
-  ja: 特定の時間や日付範囲内のランダムな時間にリマインダーをスケジュールします。
-  ko: 특정 시간 또는 날짜 범위 내 랜덤 시간에 알림을 예약하세요.
-  it: Pianifica promemoria per orari specifici o casuali all'interno di intervalli di date.
-  tr: Belirli zamanlar veya tarih aralıkları içinde rastgele zamanlar için hatırlatıcılar planlayın.
-  vi: Lên lịch nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên trong phạm vi ngày.
-  id: Jadwalkan pengingat untuk waktu tertentu atau waktu acak dalam rentang tanggal.
-  pl: Zaplanuj przypomnienia na określone lub losowe godziny w zakresie dat.
-  nl: Plan herinneringen voor specifieke tijden of willekeurige tijden binnen datumbereiken.
-  ar: جدولة التذكيرات لأوقات محددة أو عشوائية ضمن نطاقات التاريخ.
-  hi: विशिष्ट समय या तिथि सीमाओं के भीतर यादृच्छिक समय के लिए अनुस्मारक शेड्यूल करें।
-  th: กำหนดการแจ้งเตือนสำหรับเวลาเฉพาะหรือเวลาสุ่มภายในช่วงวันที่
-  cs: Naplánujte připomínky na konkrétní časy nebo náhodné časy v rámci rozsahu dat.
-  sv: Schemalägg påminnelser för specifika tider eller slumpmässiga tider inom datumintervall.
+  en: Set reminders for specific or random times.
+  de: Setze Erinnerungen für bestimmte Zeiten.
+  zh: 设置特定或随机时间的提醒。
+  es: Establece recordatorios para horarios fijos o aleatorios.
+  fr: Définissez des rappels pour des heures fixes ou aléatoires.
+  pt: Defina lembretes para horários fixos ou aleatórios.
+  ru: Устанавливайте напоминания на определенное время.
+  ja: 特定またはランダムな時間にリマインダーを設定。
+  ko: 특정 또는 무작위 시간에 알림을 설정하세요.
+  it: Imposta promemoria per orari specifici o casuali.
+  tr: Belirli veya rastgele saatler için hatırlatıcı ayarlayın.
+  vi: Đặt nhắc nhở cho thời gian cụ thể hoặc ngẫu nhiên.
+  id: Atur pengingat untuk waktu tertentu atau acak.
+  pl: Ustaw przypomnienia na określone lub losowe godziny.
+  nl: Stel herinneringen in voor vaste of willekeurige tijden.
+  ar: اضبط تذكيرات لأوقات محددة أو عشوائية.
+  hi: विशिष्ट या यादृच्छिक समय के लिए रिमाइंडर सेट करें।
+  th: ตั้งการเตือนสำหรับเวลาที่กำหนดหรือสุ่ม
+  cs: Nastavte připomínky na konkrétní nebo náhodné časy.
+  sv: Ställ in påminnelser för specifika eller slumpmässiga tider.
   verified_by_human: [en, de]
 reminder.skills.set_reminder:
   context: Skill name for setting a reminder
