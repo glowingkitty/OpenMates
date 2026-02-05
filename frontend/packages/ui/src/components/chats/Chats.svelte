@@ -1191,6 +1191,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
+		// DEBUG: Log sync state on mount to diagnose syncing indicator issue
+		console.debug('[Chats] onMount sync state:', {
+			isAuthenticated: $authStore.isAuthenticated,
+			initialSyncCompleted: $phasedSyncState.initialSyncCompleted,
+			syncing: syncing, // derived value
+			expectedSyncing: $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted
+		});
+		
 		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
