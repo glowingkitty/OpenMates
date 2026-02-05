@@ -9,10 +9,11 @@ logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 
 models:
   - id: "gemini-3-flash-preview"
-    name: "Gemini 3 Flash Preview"
+    name: "Gemini 3 Flash"
     description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter)."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-17" # Model release date (Gemini 3 Flash preview release)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3-flash"
@@ -30,9 +31,11 @@ models:
       - id: "google_ai_studio"
         name: "Google AI Studio"
         model_id: "gemini-3-flash-preview"
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "google/gemini-3-flash-preview"
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
@@ -52,10 +55,11 @@ models:
       knowledge_cutoff: "2025-01"
 
   - id: "gemini-3-pro-preview" # Official model ID
-    name: "Gemini 3 Pro Preview"
+    name: "Gemini 3 Pro"
     description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities"
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-17" # Model release date (Gemini 3 Pro preview release)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3-pro"
@@ -68,17 +72,20 @@ models:
       - audio
     output_types:
       - text
-    default_server: "google" # Default server for this model
+    default_server: "google_ai_studio" # Changed from Vertex AI - AI Studio has more generous rate limits
     servers:
-      - id: "google"
-        name: "Google Vertex AI"
-        model_id: "gemini-3-pro-preview" # Google Vertex AI uses the model ID as-is
       - id: "google_ai_studio"
         name: "Google AI Studio"
         model_id: "gemini-3-pro-preview"
+        region: "US" # Server region for UI display
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "gemini-3-pro-preview" # Google Vertex AI uses the model ID as-is
+        region: "EU" # Server region for UI display (EU region for Vertex AI)
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "google/gemini-3-pro-preview"
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
@@ -99,10 +106,11 @@ models:
       # Note: For >200K tokens, pricing is $4.00/M input and $18.00/M output
 
   - id: "gemini-3-pro-image-preview"
-    name: "Gemini 3 Pro Image Preview"
+    name: "Gemini 3 Pro"
     description: "High-end native image generation from Google, optimized for quality."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "images.generate" # This model is for image generation skill
+    release_date: "2025-12-17" # Model release date (same as Gemini 3 Pro)
     allow_auto_select: false # Image model - not for text generation auto-selection
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       openrouter: "google/gemini-3-pro-image-preview"
@@ -115,6 +123,7 @@ models:
       - id: "google_ai_studio"
         name: "Google AI Studio"
         model_id: "gemini-3-pro-image-preview"
+        region: "US" # Server region for UI display
     pricing:
       per_unit:
         credits: 200
