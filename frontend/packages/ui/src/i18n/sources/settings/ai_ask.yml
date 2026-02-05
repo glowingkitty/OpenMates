@@ -1,0 +1,250 @@
+# AI Ask skill settings translations
+# Used in AiAskSkillSettings.svelte and AiAskModelDetails.svelte
+
+ai_ask_settings.pricing:
+  context: Section heading for pricing information
+  en: Pricing
+  de: Preise
+  verified_by_human: []
+
+ai_ask_settings.pricing_starting_at:
+  context: Label showing the cheapest pricing option
+  en: Starting at
+  de: Ab
+  verified_by_human: []
+
+ai_ask_settings.input_text:
+  context: Label for input text pricing
+  en: Input
+  de: Eingabe
+  verified_by_human: []
+
+ai_ask_settings.output_text:
+  context: Label for output text pricing
+  en: Output
+  de: Ausgabe
+  verified_by_human: []
+
+ai_ask_settings.per:
+  context: Separator word between credit and tokens (e.g., "1 credit per 500 tokens")
+  en: per
+  de: pro
+  verified_by_human: []
+
+ai_ask_settings.tokens:
+  context: Label for tokens unit
+  en: tokens
+  de: Tokens
+  verified_by_human: []
+
+ai_ask_settings.pricing_note:
+  context: Note explaining pricing varies by model
+  en: Prices vary by model. Premium models cost more credits per token.
+  de: Preise variieren je nach Modell. Premium-Modelle kosten mehr Credits pro Token.
+  verified_by_human: []
+
+ai_ask_settings.settings:
+  context: Section heading for settings
+  en: Settings
+  de: Einstellungen
+  verified_by_human: []
+
+ai_ask_settings.auto_select_model:
+  context: Label for auto-select model toggle
+  en: Auto-select model
+  de: Modell automatisch auswählen
+  verified_by_human: []
+
+ai_ask_settings.auto_select_description:
+  context: Description of auto-select feature
+  en: Automatically selects the best model based on your query complexity and preferences.
+  de: Wählt automatisch das beste Modell basierend auf der Komplexität Ihrer Anfrage und Ihren Präferenzen.
+  verified_by_human: []
+
+ai_ask_settings.manual_select_note:
+  context: Note about manual model selection via @ mention
+  en: You can always manually select a model using @mention in the chat.
+  de: Sie können jederzeit ein Modell manuell mit @Erwähnung im Chat auswählen.
+  verified_by_human: []
+
+ai_ask_settings.available_models:
+  context: Section heading for available models list
+  en: Available Models
+  de: Verfügbare Modelle
+  verified_by_human: []
+
+ai_ask_settings.models_description:
+  context: Description above models list
+  en: Enable or disable models for the AI Ask skill. Disabled models won't appear in @mention suggestions.
+  de: Aktivieren oder deaktivieren Sie Modelle für die AI Ask-Funktion. Deaktivierte Modelle erscheinen nicht in @Erwähnungsvorschlägen.
+  verified_by_human: []
+
+ai_ask_settings.search_placeholder:
+  context: Placeholder text for model search input
+  en: Search models...
+  de: Modelle suchen...
+  verified_by_human: []
+
+ai_ask_settings.sort_by_price:
+  context: Sort option for sorting by price (cheapest first)
+  en: Price (cheapest)
+  de: Preis (günstigste)
+  verified_by_human: []
+
+ai_ask_settings.sort_by_performance:
+  context: Sort option for sorting by performance tier
+  en: Performance
+  de: Leistung
+  verified_by_human: []
+
+ai_ask_settings.sort_by_new:
+  context: Sort option for sorting by release date (newest first)
+  en: Newest
+  de: Neueste
+  verified_by_human: []
+
+ai_ask_settings.no_models_found:
+  context: Message shown when search returns no results
+  en: No models found matching your search.
+  de: Keine Modelle gefunden, die Ihrer Suche entsprechen.
+  verified_by_human: []
+
+# Model details page translations
+
+ai_ask_model_details.model_not_found:
+  context: Error message when model is not found
+  en: Model not found.
+  de: Modell nicht gefunden.
+  verified_by_human: []
+
+ai_ask_model_details.back_to_models:
+  context: Back button text to return to models list
+  en: Back to models
+  de: Zurück zu Modellen
+  verified_by_human: []
+
+ai_ask_model_details.model_info:
+  context: Section heading for model information
+  en: Model Information
+  de: Modellinformationen
+  verified_by_human: []
+
+ai_ask_model_details.origin:
+  context: Label for model origin/provider
+  en: Origin
+  de: Herkunft
+  verified_by_human: []
+
+ai_ask_model_details.release_date:
+  context: Label for model release date
+  en: Released
+  de: Veröffentlicht
+  verified_by_human: []
+
+ai_ask_model_details.tier:
+  context: Label for model pricing tier
+  en: Tier
+  de: Stufe
+  verified_by_human: []
+
+ai_ask_model_details.tier_economy:
+  context: Economy tier label (cheapest models)
+  en: Economy
+  de: Economy
+  verified_by_human: []
+
+ai_ask_model_details.tier_standard:
+  context: Standard tier label (mid-range models)
+  en: Standard
+  de: Standard
+  verified_by_human: []
+
+ai_ask_model_details.tier_premium:
+  context: Premium tier label (most capable models)
+  en: Premium
+  de: Premium
+  verified_by_human: []
+
+ai_ask_model_details.type:
+  context: Label for model type
+  en: Type
+  de: Typ
+  verified_by_human: []
+
+ai_ask_model_details.reasoning_model:
+  context: Badge label for reasoning/thinking models
+  en: Reasoning Model
+  de: Reasoning-Modell
+  verified_by_human: []
+
+ai_ask_model_details.input_types:
+  context: Label for supported input types
+  en: Accepts
+  de: Akzeptiert
+  verified_by_human: []
+
+ai_ask_model_details.output_types:
+  context: Label for supported output types
+  en: Outputs
+  de: Ausgaben
+  verified_by_human: []
+
+ai_ask_model_details.input_type_text:
+  context: Text input type label
+  en: Text
+  de: Text
+  verified_by_human: []
+
+ai_ask_model_details.input_type_image:
+  context: Image input type label
+  en: Images
+  de: Bilder
+  verified_by_human: []
+
+ai_ask_model_details.input_type_video:
+  context: Video input type label
+  en: Video
+  de: Video
+  verified_by_human: []
+
+ai_ask_model_details.input_type_audio:
+  context: Audio input type label
+  en: Audio
+  de: Audio
+  verified_by_human: []
+
+ai_ask_model_details.output_type_text:
+  context: Text output type label
+  en: Text
+  de: Text
+  verified_by_human: []
+
+ai_ask_model_details.output_type_image:
+  context: Image output type label
+  en: Images
+  de: Bilder
+  verified_by_human: []
+
+ai_ask_model_details.pricing:
+  context: Section heading for pricing details
+  en: Pricing
+  de: Preise
+  verified_by_human: []
+
+ai_ask_model_details.servers:
+  context: Section heading for available servers
+  en: Servers
+  de: Server
+  verified_by_human: []
+
+ai_ask_model_details.servers_description:
+  context: Description explaining server options
+  en: Select which servers to use for this model. Disabled servers will be skipped during processing.
+  de: Wählen Sie die Server aus, die für dieses Modell verwendet werden sollen. Deaktivierte Server werden bei der Verarbeitung übersprungen.
+  verified_by_human: []
+
+ai_ask_model_details.default:
+  context: Badge label indicating default server
+  en: Default
+  de: Standard
+  verified_by_human: []

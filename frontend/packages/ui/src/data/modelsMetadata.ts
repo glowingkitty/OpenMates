@@ -18,8 +18,30 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-05T09:46:49.522Z
+// **Generated**: 2026-02-05T11:15:02.399Z
 // **Models included**: 17
+
+/**
+ * Server/provider information for a model.
+ */
+export interface ModelServerInfo {
+    /** Server identifier */
+    id: string;
+    /** Server display name */
+    name: string;
+    /** Server region: EU, US, or APAC */
+    region: 'EU' | 'US' | 'APAC';
+}
+
+/**
+ * Model pricing information.
+ */
+export interface ModelPricing {
+    /** Number of input tokens per 1 credit */
+    input_tokens_per_credit?: number;
+    /** Number of output tokens per 1 credit */
+    output_tokens_per_credit?: number;
+}
 
 /**
  * AI model metadata structure for frontend display.
@@ -49,6 +71,14 @@ export interface AIModelMetadata {
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
     tier: 'economy' | 'standard' | 'premium';
+    /** Release date of the model (ISO 8601 format) */
+    release_date?: string;
+    /** Available servers/providers for this model */
+    servers?: ModelServerInfo[];
+    /** Default server ID for this model */
+    default_server?: string;
+    /** Pricing information for credits per token */
+    pricing?: ModelPricing;
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
 }
@@ -74,6 +104,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-07-01",
+        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "cerebras",
+        pricing: {"input_tokens_per_credit":550,"output_tokens_per_credit":300},
     },
     {
         id: "claude-haiku-4-5-20251001",
@@ -87,6 +121,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-10-15",
+        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":350,"output_tokens_per_credit":70},
     },
     {
         id: "claude-opus-4-5-20251101",
@@ -100,6 +138,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-11-01",
+        servers: [{"id":"anthropic","name":"Anthropic API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":70,"output_tokens_per_credit":15},
     },
     {
         id: "claude-sonnet-4-5-20250929",
@@ -113,6 +155,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-09-29",
+        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":110,"output_tokens_per_credit":20},
     },
     {
         id: "flux-schnell",
@@ -126,6 +172,9 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["image"],
         for_app_skill: "images.generate_draft",
         tier: "economy",
+        release_date: "2024-08-01",
+        servers: [{"id":"fal","name":"fal.ai","region":"US"}],
+        default_server: "fal",
     },
     {
         id: "deepseek-v3.2",
@@ -139,7 +188,11 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         reasoning: true,
-        tier: "economy",
+        tier: "standard",
+        release_date: "2025-12-01",
+        servers: [{"id":"google","name":"Google Vertex AI (MaaS)","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google",
+        pricing: {"input_tokens_per_credit":600,"output_tokens_per_credit":200},
     },
     {
         id: "gemini-3-flash-preview",
@@ -154,6 +207,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         for_app_skill: "ai.ask",
         reasoning: true,
         tier: "standard",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google_ai_studio",
+        pricing: {"input_tokens_per_credit":650,"output_tokens_per_credit":110},
     },
     {
         id: "gemini-3-pro-preview",
@@ -168,6 +225,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         for_app_skill: "ai.ask",
         reasoning: true,
         tier: "premium",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"google","name":"Google Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google_ai_studio",
+        pricing: {"input_tokens_per_credit":170,"output_tokens_per_credit":30},
     },
     {
         id: "gemini-3-pro-image-preview",
@@ -181,6 +242,9 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["image"],
         for_app_skill: "images.generate",
         tier: "economy",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"}],
+        default_server: "google_ai_studio",
     },
     {
         id: "devstral-2512",
@@ -194,6 +258,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-12-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
     },
     {
         id: "ministral-8b-2512",
@@ -207,6 +275,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "economy",
+        release_date: "2025-12-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":2222,"output_tokens_per_credit":2222},
     },
     {
         id: "mistral-medium-latest",
@@ -220,6 +292,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-05-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
     },
     {
         id: "mistral-small-latest",
@@ -233,6 +309,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "economy",
+        release_date: "2025-03-15",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"google","name":"Google Cloud Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":3300,"output_tokens_per_credit":1100},
     },
     {
         id: "gpt-5.2",
@@ -246,6 +326,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-06-15",
+        servers: [{"id":"openai","name":"OpenAI API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "openai",
+        pricing: {"input_tokens_per_credit":190,"output_tokens_per_credit":25},
     },
     {
         id: "gpt-oss-120b",
@@ -259,6 +343,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "economy",
+        release_date: "2025-08-01",
+        servers: [{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "openrouter",
+        pricing: {"input_tokens_per_credit":1300,"output_tokens_per_credit":500},
     },
     {
         id: "gpt-oss-safeguard-20b",
@@ -272,6 +360,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.safety_check",
         tier: "economy",
+        release_date: "2025-04-01",
+        servers: [{"id":"groq","name":"Groq API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "groq",
+        pricing: {"input_tokens_per_credit":4400,"output_tokens_per_credit":1100},
     },
     {
         id: "zai-glm-4.7",
@@ -285,6 +377,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-12-22",
+        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "cerebras",
+        pricing: {"input_tokens_per_credit":150,"output_tokens_per_credit":120},
     },
 ];
 

@@ -3,7 +3,8 @@
      
      This component handles dynamic app_store routes:
      - app_store/{app_id} -> AppDetails
-     - app_store/{app_id}/skill/{skill_id} -> SkillDetails
+     - app_store/{app_id}/skill/{skill_id} -> SkillDetails (or AiAskSkillSettings for ai/ask)
+     - app_store/{app_id}/skill/{skill_id}/model/{model_id} -> AiAskModelDetails (for ai/ask skill only)
      - app_store/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
      - app_store/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
      - app_store/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
@@ -19,6 +20,8 @@
     import AppSettingsMemoriesCategory from './AppSettingsMemoriesCategory.svelte';
     import AppSettingsMemoriesCreateEntry from './AppSettingsMemoriesCreateEntry.svelte';
     import AppSettingsMemoriesEntryDetail from './AppSettingsMemoriesEntryDetail.svelte';
+    import AiAskSkillSettings from './AiAskSkillSettings.svelte';
+    import AiAskModelDetails from './AiAskModelDetails.svelte';
     import { createEventDispatcher } from 'svelte';
     
     interface Props {
@@ -30,6 +33,8 @@
         | { type: 'invalid'; appId: '' }
         | { type: 'app_details'; appId: string }
         | { type: 'skill_details'; appId: string; skillId: string }
+        | { type: 'ai_ask_skill_settings'; appId: string; skillId: string }
+        | { type: 'ai_ask_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
         | { type: 'settings_memories_create'; appId: string; categoryId: string }
@@ -49,8 +54,20 @@
         if (parts.length === 1) {
             // app_store/{app_id}
             return { type: 'app_details', appId: parts[0] };
+        } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'model') {
+            // app_store/{app_id}/skill/{skill_id}/model/{model_id}
+            // Special route for AI Ask skill model details
+            if (parts[0] === 'ai' && parts[2] === 'ask') {
+                return { type: 'ai_ask_model_details', appId: parts[0], skillId: parts[2], modelId: parts[4] };
+            }
+            // For other apps/skills, fall through to invalid
+            return { type: 'invalid', appId: '' };
         } else if (parts.length === 3 && parts[1] === 'skill') {
             // app_store/{app_id}/skill/{skill_id}
+            // Special route for AI Ask skill settings page
+            if (parts[0] === 'ai' && parts[2] === 'ask') {
+                return { type: 'ai_ask_skill_settings', appId: parts[0], skillId: parts[2] };
+            }
             return { type: 'skill_details', appId: parts[0], skillId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'focus') {
             // app_store/{app_id}/focus/{focus_mode_id}
@@ -98,6 +115,15 @@
         return null;
     });
     
+    // Extract AI Ask model details route info for type safety
+    let aiAskModelRouteInfo = $derived.by((): { modelId: string } | null => {
+        if (routeInfo.type === 'ai_ask_model_details') {
+            console.log('[AppDetailsWrapper] AI Ask model details route detected:', routeInfo);
+            return { modelId: routeInfo.modelId };
+        }
+        return null;
+    });
+    
     // Debug logging for route parsing
     $effect(() => {
         console.log('[AppDetailsWrapper] activeSettingsView:', activeSettingsView);
@@ -107,6 +133,12 @@
 
 {#if routeInfo.type === 'app_details'}
     <AppDetails appId={routeInfo.appId} on:openSettings={handleOpenSettings} />
+{:else if routeInfo.type === 'ai_ask_skill_settings'}
+    <AiAskSkillSettings on:openSettings={handleOpenSettings} />
+{:else if aiAskModelRouteInfo}
+    {@const route = aiAskModelRouteInfo}
+    <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
+    <AiAskModelDetails modelId={route.modelId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'focus_details'}

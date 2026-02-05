@@ -589,6 +589,17 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
             console.debug(`[Settings] Dynamically registered entry detail route: ${settingsPath}`);
         }
+        
+        // Check if this is a dynamic AI model detail route that needs to be registered
+        // Pattern: app_store/{app_id}/skill/{skill_id}/model/{model_id}
+        const modelDetailPattern = /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/;
+        if (modelDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            // Add this model detail route dynamically
+            dynamicEntryRoutes.add(settingsPath);
+            // Trigger reactivity by reassigning the Set
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+            console.debug(`[Settings] Dynamically registered model detail route: ${settingsPath}`);
+        }
 
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
@@ -619,8 +630,13 @@ changes to the documentation (to keep the documentation up to date).
                     activeSubMenuIcon = appId;
                 }
                 
-                // Check if this is a skill route (app_store/{appId}/skill/{skillId})
-                if (pathParts.length === 3 && pathParts[1] === 'skill') {
+                // Check if this is a model detail route (app_store/{appId}/skill/{skillId}/model/{modelId})
+                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                    // Model detail route - use the title from the event (model name)
+                    // The title is passed from AiAskSkillSettings when clicking a model
+                    activeSubMenuTitleKey = ''; // Title is set from event detail.title
+                } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
+                    // Skill route (app_store/{appId}/skill/{skillId})
                     const skillId = pathParts[2];
                     const skill = app.skills?.find(s => s.id === skillId);
                     if (skill && skill.name_translation_key) {
