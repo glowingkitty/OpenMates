@@ -33,7 +33,7 @@
     "update:translations": "node scripts/update-yaml-files.js",
     "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
     "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
-    "build": "echo 'Build complete - translations and metadata generated in prebuild'"
+    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
