@@ -97,93 +97,19 @@
     });
 
     /**
-     * Custom transition that combines fly (slide) + fade (opacity).
-     * This creates a smooth "push aside" effect where:
-     * - Forward navigation: old view slides left + fades out, new view slides in from right + fades in
-     * - Backward navigation: old view slides right + fades out, new view slides in from left + fades in
-     * 
-     * @param node - The DOM element to animate
-     * @param params - { isIn: boolean, dir: string } - whether entering and direction
+     * Simple slide-in transition for settings views.
+     * Only the incoming view is animated - the old view is immediately hidden.
+     * This avoids all visual glitches from overlapping views.
      */
-    function flyFade(node: Element, { isIn, dir }: { isIn: boolean; dir: string }) {
-        const duration = 350;
-        const x = dir === 'forward' 
-            ? (isIn ? 300 : -300)  // Forward: enter from right (+300), exit to left (-300)
-            : (isIn ? -300 : 300); // Backward: enter from left (-300), exit to right (+300)
+    function slideIn(node: Element, { dir }: { dir: string }) {
+        const duration = 200; // Fast, snappy animation
+        const x = dir === 'forward' ? 250 : -250;
         
         return {
             duration,
             easing: cubicOut,
-            css: (t: number) => {
-                // t goes from 0 to 1 for 'in' transitions, 1 to 0 for 'out' transitions
-                const translateX = (1 - t) * x;
-                
-                // Only fade OUT the exiting view (isIn=false), keep incoming view fully opaque
-                // This prevents the incoming view's semi-transparent background from showing
-                // the outgoing content underneath during the fade-in phase
-                const opacity = isIn ? 1 : t;
-                
-                return `
-                    transform: translateX(${translateX}px);
-                    opacity: ${opacity};
-                `;
-            }
+            css: (t: number) => `transform: translateX(${(1 - t) * x}px);`
         };
-    }
-    
-    // Helper functions to get transition params for in/out
-    const getInParams = (dir: string) => ({ isIn: true, dir });
-    const getOutParams = (dir: string) => ({ isIn: false, dir });
-
-    // Track views that should be present in the DOM
-    let visibleViews = $state(new Set([activeSettingsView]));
-    // Track the previous active view for transitions
-    let previousView = $state(activeSettingsView);
-    
-    // Keep track of transition state
-    let inTransition = false;
-    
-    // Track the direction to use for transitions
-    // This is captured when a transition starts so out-transitions use the correct direction
-    let transitionDirection = $state(direction);
-
-    // Handle view changes reactively using Svelte 5 runes
-    $effect(() => {
-        if (activeSettingsView && activeSettingsView !== previousView) {
-            handleViewChange(activeSettingsView);
-        }
-    });
-
-    // Function to properly manage view transitions
-    async function handleViewChange(newView: string) {
-        inTransition = true;
-        
-        // Capture the direction at the start of the transition
-        // This ensures both in and out transitions use the same direction
-        transitionDirection = direction;
-        
-        // Keep track of the previous view for proper transitions
-        const oldView = previousView;
-        previousView = newView;
-        
-        // Add both the current and previous view to the visible set
-        visibleViews.add(oldView);
-        visibleViews.add(newView);
-        
-        // Force reactivity
-        visibleViews = new Set([...visibleViews]);
-        
-        // Schedule cleanup after the animation completes
-        // Duration matches the flyFade transition duration (350ms) + small buffer
-        const TRANSITION_DURATION = 350;
-        setTimeout(() => {
-            if (inTransition && oldView !== newView) {
-                // Clean up the old view if it's not the current view
-                visibleViews.delete(oldView);
-                visibleViews = new Set([...visibleViews]);
-                inTransition = false;
-            }
-        }, TRANSITION_DURATION + 50);
     }
 
     const dispatch = createEventDispatcher();
@@ -222,29 +148,6 @@
     function handleLogout() {
         dispatch('logout');
     }
-    
-    // Called when an animation is complete
-    function handleAnimationComplete(view) {
-        // Only remove if it's not the active view
-        if (view !== activeSettingsView) {
-            visibleViews.delete(view);
-            visibleViews = new Set([...visibleViews]);
-        }
-    }
-    
-    // Make sure we initialize with the right view
-    onMount(() => {
-        visibleViews = new Set([activeSettingsView]);
-        previousView = activeSettingsView;
-
-        // REMOVED: Duplicate handler for 'user_credits_updated'
-        // The parent Settings.svelte already handles this event and updates the store
-        // No need to register the same handler here (was causing duplicate execution)
-        
-        return () => {
-            // Cleanup if needed
-        };
-    });
 
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
@@ -336,17 +239,11 @@
 </script>
 
 <div class="settings-content-slider" style="min-height: {sliderMinHeight};" bind:this={sliderElement}>
-	<!-- Main user info header that slides with settings items -->
-	{#if visibleViews.has('main')}
-
-        <!-- Main settings items -->
+	<!-- Main settings menu - shown only when active -->
+	{#if activeSettingsView === 'main'}
         <div 
-            class="settings-items"
-            class:active={activeSettingsView === 'main'}
-            in:flyFade={getInParams(transitionDirection)}
-            out:flyFade={getOutParams(transitionDirection)}
-            style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            onoutroend={() => handleAnimationComplete('main')}
+            class="settings-items active"
+            in:slideIn={{ dir: direction }}
         >
             <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
             <!-- Profile container that scrolls with content (appears instantly when menu opens) -->
@@ -448,24 +345,14 @@
         </div>
     {/if}
     
-    <!-- Render only needed subsettings views -->
+    <!-- Render only the active subsettings view -->
     {#each Object.entries(settingsViews) as [key, component]}
         {@const Component = component}
-        {#if visibleViews.has(key)}
+        {#if activeSettingsView === key}
             <div 
-                class="settings-submenu-content"
-                class:active={activeSettingsView === key}
-                in:flyFade={getInParams(transitionDirection)}
-                out:flyFade={getOutParams(transitionDirection)}
-                style="z-index: {activeSettingsView === key ? 2 : 1};"
-                onoutroend={() => handleAnimationComplete(key)}
+                class="settings-submenu-content active"
+                in:slideIn={{ dir: direction }}
             >
-                <!-- 
-                    Pass the component's own key as activeSettingsView, NOT the global activeSettingsView.
-                    This ensures that during exit transitions, components like AppDetailsWrapper still
-                    receive their original route (e.g., "app_store/ai") rather than the new route
-                    (e.g., "app_store" or "main"), which would cause "Invalid app route" errors.
-                -->
                 <Component 
                     activeSettingsView={key}
                     accountId={accountId}
