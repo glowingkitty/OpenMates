@@ -19,30 +19,30 @@ sign_up:
   hi: साइन अप करें
   th: สมัครสมาชิก
   cs: Registrovat
-  sv: ''
+  sv: ""
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.2 alpha
-  de: v0.2 alpha
-  zh: v0.2 测试版
-  es: v0.2 alfa
-  fr: v0.2 alpha
-  pt: v0.2 alfa
-  ru: v0.2 альфа
-  ja: v0.2 アルファ
-  ko: v0.2 알파
-  it: v0.2 alpha
-  tr: v0.2 alfa
-  vi: v0.2 alpha
-  id: v0.2 alpha
-  pl: v0.2 alpha
-  nl: v0.2 alpha
-  ar: v0.2 ألفا
-  hi: v0.2 अल्फा
-  th: v0.2 อัลฟา
-  cs: v0.2 alpha
-  sv: ''
+  en: v0.3 alpha
+  de: v0.3 alpha
+  zh: v0.3 测试版
+  es: v0.3 alfa
+  fr: v0.3 alpha
+  pt: v0.3 alfa
+  ru: v0.3 альфа
+  ja: v0.3 アルファ
+  ko: v0.3 알파
+  it: v0.3 alpha
+  tr: v0.3 alfa
+  vi: v0.3 alpha
+  id: v0.3 alpha
+  pl: v0.3 alpha
+  nl: v0.3 alpha
+  ar: v0.3 ألفا
+  hi: v0.3 अल्फा
+  th: v0.3 อัลฟา
+  cs: v0.3 alpha
+  sv: ""
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -87,7 +87,7 @@ email_ignored:
   hi: इस ई-मेल पते का उपयोग पंजीकरण के लिए नहीं किया जा सकता है। यदि आपको लगता है कि यह एक त्रुटि है, तो कृपया समर्थन से संपर्क करें।
   th: ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด
   cs: Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu.
-  sv: ''
+  sv: ""
   verified_by_human: []
 is_alpha_disclaimer:
   context: Alpha disclaimer text on alpha disclaimer page
@@ -110,7 +110,7 @@ is_alpha_disclaimer:
   hi: OpenMates वर्तमान में प्रारंभिक परीक्षकों के लिए एक अल्फा रिलीज़ है।
   th: OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน
   cs: OpenMates je v současnosti alfa verze pro rané testery.
-  sv: ''
+  sv: ""
   verified_by_human: []
 decent_stable:
   context: Statement about the stability of the alpha release
@@ -133,7 +133,7 @@ decent_stable:
   hi: यह अल्फा रिलीज़ काफी स्थिर है
   th: เวอร์ชันอัลฟานี้ค่อนข้างเสถียร
   cs: Tato alfa verze je poměrně stabilní
-  sv: ''
+  sv: ""
   verified_by_human: []
 not_all_core_features_implemented:
   context: Statement about the completeness of the alpha release
@@ -156,30 +156,30 @@ not_all_core_features_implemented:
   hi: हालांकि, अभी तक सभी मुख्य सुविधाएं लागू नहीं की गई हैं।
   th: อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด
   cs: Nicméně ještě nejsou implementovány všechny základní funkce.
-  sv: ''
+  sv: ""
   verified_by_human: []
 expect_bugs_and_missing_features:
   context: Statement about the expected state of the alpha release
-  en: 'Expect some bugs here and there and remember: AI chatbots can make mistakes.'
-  de: 'Erwarte hier und da einige Fehler und denke daran: KI-Chatbots können Fehler machen.'
-  zh: '请预期可能会出现一些错误，并记住：AI 聊天机器人可能会犯错。'
-  es: 'Espera algunos errores aquí y allá y recuerda: los chatbots de IA pueden cometer errores.'
-  fr: 'Attendez-vous à quelques bugs ici et là et rappelez-vous : les chatbots IA peuvent faire des erreurs.'
-  pt: 'Espere alguns bugs aqui e ali e lembre-se: chatbots de IA podem cometer erros.'
-  ru: 'Ожидайте некоторые ошибки здесь и там, и помните: AI-чатботы могут ошибаться.'
-  ja: 'あちこちでバグが発生する可能性があることを予期し、覚えておいてください：AIチャットボットは間違いを犯す可能性があります。'
-  ko: '여기저기 버그가 있을 수 있으며 기억하세요: AI 챗봇은 실수를 할 수 있습니다.'
-  it: 'Aspettati alcuni bug qua e là e ricorda: i chatbot AI possono commettere errori.'
-  tr: 'Burada ve orada bazı hatalar bekleyin ve unutmayın: AI sohbet robotları hata yapabilir.'
-  vi: 'Hãy mong đợi một số lỗi ở đây và đó và nhớ rằng: chatbot AI có thể mắc lỗi.'
-  id: 'Harap bersiap untuk beberapa bug di sana-sini dan ingat: chatbot AI dapat membuat kesalahan.'
-  pl: 'Oczekuj niektórych błędów tu i tam oraz pamiętaj: chatboty AI mogą popełniać błędy.'
-  nl: 'Verwacht hier en daar wat bugs en onthoud: AI-chatbots kunnen fouten maken.'
-  ar: 'توقع بعض الأخطاء هنا وهناك وتذكر: يمكن لروبوتات الدردشة بالذكاء الاصطناعي أن ترتكب أخطاء.'
-  hi: 'यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।'
-  th: 'คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้'
-  cs: 'Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby.'
-  sv: ''
+  en: "Expect some bugs here and there and remember: AI chatbots can make mistakes."
+  de: "Erwarte hier und da einige Fehler und denke daran: KI-Chatbots können Fehler machen."
+  zh: "请预期可能会出现一些错误，并记住：AI 聊天机器人可能会犯错。"
+  es: "Espera algunos errores aquí y allá y recuerda: los chatbots de IA pueden cometer errores."
+  fr: "Attendez-vous à quelques bugs ici et là et rappelez-vous : les chatbots IA peuvent faire des erreurs."
+  pt: "Espere alguns bugs aqui e ali e lembre-se: chatbots de IA podem cometer erros."
+  ru: "Ожидайте некоторые ошибки здесь и там, и помните: AI-чатботы могут ошибаться."
+  ja: "あちこちでバグが発生する可能性があることを予期し、覚えておいてください：AIチャットボットは間違いを犯す可能性があります。"
+  ko: "여기저기 버그가 있을 수 있으며 기억하세요: AI 챗봇은 실수를 할 수 있습니다."
+  it: "Aspettati alcuni bug qua e là e ricorda: i chatbot AI possono commettere errori."
+  tr: "Burada ve orada bazı hatalar bekleyin ve unutmayın: AI sohbet robotları hata yapabilir."
+  vi: "Hãy mong đợi một số lỗi ở đây và đó và nhớ rằng: chatbot AI có thể mắc lỗi."
+  id: "Harap bersiap untuk beberapa bug di sana-sini dan ingat: chatbot AI dapat membuat kesalahan."
+  pl: "Oczekuj niektórych błędów tu i tam oraz pamiętaj: chatboty AI mogą popełniać błędy."
+  nl: "Verwacht hier en daar wat bugs en onthoud: AI-chatbots kunnen fouten maken."
+  ar: "توقع بعض الأخطاء هنا وهناك وتذكر: يمكن لروبوتات الدردشة بالذكاء الاصطناعي أن ترتكب أخطاء."
+  hi: "यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।"
+  th: "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
+  cs: "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
+  sv: ""
   verified_by_human: []
 view_on_github:
   context: Button text for viewing the source code on GitHub
@@ -202,7 +202,7 @@ view_on_github:
   hi: GitHub पर OpenMates देखें
   th: ดู OpenMates บน GitHub
   cs: Zobrazit OpenMates na GitHub
-  sv: ''
+  sv: ""
   verified_by_human: []
 view_on_github_description:
   context: Description for the button text for viewing the source code on GitHub
@@ -225,7 +225,7 @@ view_on_github_description:
   hi: बग, सुविधाओं पर चर्चा करने और नए रिलीज़ पर अपडेट रहने के लिए।
   th: เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่
   cs: Pro diskusi o chybách, funkcích a aktualizacích o nových verzích.
-  sv: ''
+  sv: ""
   verified_by_human: []
 view_on_instagram:
   context: Button text for viewing the source code on Instagram
@@ -248,7 +248,7 @@ view_on_instagram:
   hi: Instagram पर OpenMates देखें
   th: ดู OpenMates บน Instagram
   cs: Zobrazit OpenMates na Instagram
-  sv: ''
+  sv: ""
   verified_by_human: []
 view_on_instagram_description:
   context: Description for the button text for viewing the source code on Instagram
@@ -271,7 +271,7 @@ view_on_instagram_description:
   hi: नए रिलीज़ और अन्य अपडेट पर अपडेट रहने के लिए।
   th: เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ
   cs: Pro aktualizace o nových verzích a dalších aktualizacích.
-  sv: ''
+  sv: ""
   verified_by_human: []
 continue_with_alpha:
   context: Button text for continuing with the alpha release
@@ -282,19 +282,19 @@ continue_with_alpha:
   fr: Continuer avec {version}
   pt: Continuar com {version}
   ru: Продолжить с {version}
-  ja: '{version}で続行'
-  ko: '{version}로 계속'
+  ja: "{version}で続行"
+  ko: "{version}로 계속"
   it: Continua con {version}
-  tr: '{version} ile devam et'
+  tr: "{version} ile devam et"
   vi: Tiếp tục với {version}
   id: Lanjutkan dengan {version}
   pl: Kontynuuj z {version}
   nl: Doorgaan met {version}
   ar: متابعة مع {version}
-  hi: '{version} के साथ जारी रखें'
+  hi: "{version} के साथ जारी रखें"
   th: ดำเนินการต่อด้วย {version}
   cs: Pokračovat s {version}
-  sv: ''
+  sv: ""
   verified_by_human: []
 server_admin:
   context: Heading on signup page indicating server admin signup
@@ -317,7 +317,7 @@ server_admin:
   hi: सर्वर व्यवस्थापक
   th: ผู้ดูแลระบบเซิร์ฟเวอร์
   cs: Správce serveru
-  sv: ''
+  sv: ""
   verified_by_human: []
 enter_personal_invite_code:
   context: Placeholder text for personal invite code input field
@@ -340,10 +340,10 @@ enter_personal_invite_code:
   hi: आमंत्रण कोड दर्ज करें
   th: ใส่รหัสเชิญ
   cs: Zadejte pozvánkový kód
-  sv: ''
+  sv: ""
   verified_by_human: []
 dont_have_personal_invite_code:
-  context: 'in message: ''Dont have a personal invite code? Members in our Discord will geet early access.'''
+  context: "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
   en: Don't have an invite code?
   de: Du hast keinen Zugangscode?
   zh: 没有个人邀请码？
@@ -363,106 +363,106 @@ dont_have_personal_invite_code:
   hi: आमंत्रण कोड नहीं है?
   th: ไม่มีรหัสเชิญ?
   cs: Nemáte pozvánkový kód?
-  sv: ''
+  sv: ""
   verified_by_human: []
 follow_us:
-  context: 'in message: ''Dont have a personal invite code? Follow us, to see when you can signup again without a code.'''
-  en: 'Follow us, to see when you can
+  context: "in message: 'Dont have a personal invite code? Follow us, to see when you can signup again without a code.'"
+  en: "Follow us, to see when you can
 
     signup again without a code.
 
-    '
-  de: 'Folge uns, um zu sehen, wann du dich
+    "
+  de: "Folge uns, um zu sehen, wann du dich
 
     erneut ohne Code registrieren kannst.
 
-    '
-  zh: '关注我们，了解何时可以
+    "
+  zh: "关注我们，了解何时可以
 
     无需代码再次注册。
 
-    '
-  es: 'Síguenos, para ver cuándo puedes
+    "
+  es: "Síguenos, para ver cuándo puedes
 
     registrarte nuevamente sin un código.
 
-    '
-  fr: 'Suivez-nous pour voir quand vous pourrez
+    "
+  fr: "Suivez-nous pour voir quand vous pourrez
 
     vous inscrire à nouveau sans code.
 
-    '
-  pt: 'Siga-nos para ver quando você pode
+    "
+  pt: "Siga-nos para ver quando você pode
 
     se cadastrar novamente sem código.
 
-    '
-  ru: 'Подпишитесь на нас, чтобы узнать, когда вы сможете
+    "
+  ru: "Подпишитесь на нас, чтобы узнать, когда вы сможете
 
     зарегистрироваться снова без кода.
 
-    '
-  ja: 'フォローして、コードなしで
+    "
+  ja: "フォローして、コードなしで
 
     再度登録できる時期を確認してください。
 
-    '
-  ko: '팔로우하여 언제 코드 없이
+    "
+  ko: "팔로우하여 언제 코드 없이
 
     다시 가입할 수 있는지 확인하세요.
 
-    '
-  it: 'Seguici per vedere quando puoi
+    "
+  it: "Seguici per vedere quando puoi
 
     registrarti di nuovo senza codice.
 
-    '
-  tr: 'Bizi takip edin, ne zaman kod olmadan
+    "
+  tr: "Bizi takip edin, ne zaman kod olmadan
 
     tekrar kayıt olabileceğinizi görün.
 
-    '
-  vi: 'Theo dõi chúng tôi để xem khi nào bạn có thể
+    "
+  vi: "Theo dõi chúng tôi để xem khi nào bạn có thể
 
     đăng ký lại mà không cần mã.
 
-    '
-  id: 'Ikuti kami untuk melihat kapan Anda bisa
+    "
+  id: "Ikuti kami untuk melihat kapan Anda bisa
 
     mendaftar lagi tanpa kode.
 
-    '
-  pl: 'Śledź nas, aby zobaczyć, kiedy możesz
+    "
+  pl: "Śledź nas, aby zobaczyć, kiedy możesz
 
     zarejestrować się ponownie bez kodu.
 
-    '
-  nl: 'Volg ons om te zien wanneer je je
+    "
+  nl: "Volg ons om te zien wanneer je je
 
     opnieuw kunt registreren zonder code.
 
-    '
-  ar: 'تابعنا لمعرفة متى يمكنك
+    "
+  ar: "تابعنا لمعرفة متى يمكنك
 
     التسجيل مرة أخرى بدون رمز.
 
-    '
-  hi: 'हमें फॉलो करें, यह देखने के लिए कि आप कब
+    "
+  hi: "हमें फॉलो करें, यह देखने के लिए कि आप कब
 
     बिना कोड के फिर से साइन अप कर सकते हैं।
 
-    '
-  th: 'ติดตามเราเพื่อดูว่าคุณสามารถ
+    "
+  th: "ติดตามเราเพื่อดูว่าคุณสามารถ
 
     สมัครสมาชิกอีกครั้งโดยไม่ต้องใช้รหัสได้เมื่อไหร่
 
-    '
-  cs: 'Sledujte nás, abyste viděli, kdy se můžete
+    "
+  cs: "Sledujte nás, abyste viděli, kdy se můžete
 
     znovu zaregistrovat bez kódu.
 
-    '
-  sv: ''
+    "
+  sv: ""
   verified_by_human: []
 open_instagram:
   context: Button text for opening OpenMates on Instagram
@@ -485,7 +485,7 @@ open_instagram:
   hi: Instagram खोलें
   th: เปิด Instagram
   cs: Otevřít Instagram
-  sv: ''
+  sv: ""
   verified_by_human: []
 open_mastodon:
   context: Button text for opening OpenMates on Mastodon
@@ -508,7 +508,7 @@ open_mastodon:
   hi: Mastodon खोलें
   th: เปิด Mastodon
   cs: Otevřít Mastodon
-  sv: ''
+  sv: ""
   verified_by_human: []
 checking_code:
   context: Text shown for the duration while the invite code is being checked
@@ -531,7 +531,7 @@ checking_code:
   hi: कोड जांचा जा रहा है...
   th: กำลังตรวจสอบรหัส...
   cs: Kontrola kódu...
-  sv: ''
+  sv: ""
   verified_by_human: []
 too_many_requests:
   context: Error message shown when too many requests have been made
@@ -554,7 +554,7 @@ too_many_requests:
   hi: आपने बहुत अधिक अनुरोध भेजे हैं। बाद में पुनः प्रयास करें।
   th: คุณส่งคำขอมากเกินไป ลองอีกครั้งในภายหลัง
   cs: Odeslali jste příliš mnoho požadavků. Zkuste to znovu později.
-  sv: ''
+  sv: ""
   verified_by_human: []
 username_too_short:
   context: Error message shown when username is too short
@@ -577,7 +577,7 @@ username_too_short:
   hi: न्यूनतम 3 वर्ण
   th: อย่างน้อย 3 ตัวอักษร
   cs: Minimálně 3 znaky
-  sv: ''
+  sv: ""
   verified_by_human: []
 username_too_long:
   context: Error message shown when username is too long
@@ -600,30 +600,30 @@ username_too_long:
   hi: 20 वर्ण से कम
   th: น้อยกว่า 20 ตัวอักษร
   cs: Méně než 20 znaků
-  sv: ''
+  sv: ""
   verified_by_human: []
 username_invalid_chars:
   context: Error message shown when username contains invalid characters
-  en: 'Allowed: letters, numbers, _, .'
-  de: 'Erlaubt: Buchstaben, Zahlen, _, .'
-  zh: '允许: 字母, 数字, _, .'
-  es: 'Permitido: letras, números, _, .'
-  fr: 'Autorisé: lettres, chiffres, _, .'
-  pt: 'Permitido: letras, números, _, .'
-  ru: 'Разрешено: буквы, цифры, _, .'
-  ja: '使用可能: 文字, 数字, _, .'
-  ko: '허용: 문자, 숫자, _, .'
-  it: 'Consentiti: lettere, numeri, _, .'
-  tr: 'İzin verilen: harfler, rakamlar, _, .'
-  vi: 'Cho phép: chữ cái, số, _, .'
-  id: 'Diizinkan: huruf, angka, _, .'
-  pl: 'Dozwolone: litery, cyfry, _, .'
-  nl: 'Toegestaan: letters, cijfers, _, .'
-  ar: 'مسموح: أحرف، أرقام، _، .'
-  hi: 'अनुमत: अक्षर, संख्याएं, _, .'
-  th: 'อนุญาต: ตัวอักษร, ตัวเลข, _, .'
-  cs: 'Povoleno: písmena, číslice, _, .'
-  sv: ''
+  en: "Allowed: letters, numbers, _, ."
+  de: "Erlaubt: Buchstaben, Zahlen, _, ."
+  zh: "允许: 字母, 数字, _, ."
+  es: "Permitido: letras, números, _, ."
+  fr: "Autorisé: lettres, chiffres, _, ."
+  pt: "Permitido: letras, números, _, ."
+  ru: "Разрешено: буквы, цифры, _, ."
+  ja: "使用可能: 文字, 数字, _, ."
+  ko: "허용: 문자, 숫자, _, ."
+  it: "Consentiti: lettere, numeri, _, ."
+  tr: "İzin verilen: harfler, rakamlar, _, ."
+  vi: "Cho phép: chữ cái, số, _, ."
+  id: "Diizinkan: huruf, angka, _, ."
+  pl: "Dozwolone: litery, cyfry, _, ."
+  nl: "Toegestaan: letters, cijfers, _, ."
+  ar: "مسموح: أحرف، أرقام، _، ."
+  hi: "अनुमत: अक्षर, संख्याएं, _, ."
+  th: "อนุญาต: ตัวอักษร, ตัวเลข, _, ."
+  cs: "Povoleno: písmena, číslice, _, ."
+  sv: ""
   verified_by_human: []
 enter_username:
   context: Placeholder text for username input field
@@ -646,7 +646,7 @@ enter_username:
   hi: उपयोगकर्ता नाम दर्ज करें
   th: ใส่ชื่อผู้ใช้
   cs: Zadejte uživatelské jméno
-  sv: ''
+  sv: ""
   verified_by_human: []
 repeat_password:
   context: Placeholder text for password repeat input field
@@ -669,7 +669,7 @@ repeat_password:
   hi: पासवर्ड दोहराएं
   th: ยืนยันรหัสผ่าน
   cs: Zopakujte heslo
-  sv: ''
+  sv: ""
   verified_by_human: []
 create_password:
   context: Instruction text for creating a new password during account recovery
@@ -692,7 +692,7 @@ create_password:
   hi: अपना नया पासवर्ड बनाएं
   th: สร้างรหัสผ่านใหม่ของคุณ
   cs: Vytvořte si nové heslo
-  sv: ''
+  sv: ""
   verified_by_human: []
 confirm_password:
   context: Placeholder text for confirm password input field during account recovery
@@ -715,7 +715,7 @@ confirm_password:
   hi: पासवर्ड की पुष्टि करें
   th: ยืนยันรหัสผ่าน
   cs: Potvrďte heslo
-  sv: ''
+  sv: ""
   verified_by_human: []
 passwords_do_not_match:
   context: Error message shown when passwords do not match
@@ -738,7 +738,7 @@ passwords_do_not_match:
   hi: पासवर्ड मेल नहीं खाते
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
-  sv: ''
+  sv: ""
   verified_by_human: []
 password_too_short:
   context: Error message shown when password is too short
@@ -761,7 +761,7 @@ password_too_short:
   hi: न्यूनतम 8 वर्ण
   th: อย่างน้อย 8 ตัวอักษร
   cs: Minimálně 8 znaků
-  sv: ''
+  sv: ""
   verified_by_human: []
 password_too_long:
   context: Error message shown when password is too long
@@ -784,7 +784,7 @@ password_too_long:
   hi: 60 वर्ण से कम
   th: น้อยกว่า 60 ตัวอักษร
   cs: Méně než 60 znaků
-  sv: ''
+  sv: ""
   verified_by_human: []
 password_needs_letter:
   context: Error message shown when password does not contain a letter
@@ -807,7 +807,7 @@ password_needs_letter:
   hi: कम से कम एक अक्षर
   th: อย่างน้อยหนึ่งตัวอักษร
   cs: Alespoň jedno písmeno
-  sv: ''
+  sv: ""
   verified_by_human: []
 password_needs_number:
   context: Error message shown when password does not contain a number
@@ -830,7 +830,7 @@ password_needs_number:
   hi: कम से कम एक संख्या
   th: อย่างน้อยหนึ่งตัวเลข
   cs: Alespoň jedna číslice
-  sv: ''
+  sv: ""
   verified_by_human: []
 password_needs_special:
   context: Error message shown when password does not contain a special character
@@ -853,10 +853,10 @@ password_needs_special:
   hi: कम से कम एक विशेष वर्ण
   th: อย่างน้อยหนึ่งอักขระพิเศษ
   cs: Alespoň jeden speciální znak
-  sv: ''
+  sv: ""
   verified_by_human: []
 agree_to:
-  context: 'in message: ''Agree to Terms of service'' and ''Agree to Privacy policy'''
+  context: "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
   en: Agree to
   de: Akzeptiere
   zh: 同意
@@ -876,10 +876,10 @@ agree_to:
   hi: सहमत हैं
   th: ยอมรับ
   cs: Souhlasím s
-  sv: ''
+  sv: ""
   verified_by_human: []
 terms_of_service:
-  context: 'in message: ''Agree to Terms of service'''
+  context: "in message: 'Agree to Terms of service'"
   en: Terms of service
   de: AGBs
   zh: 服务条款
@@ -899,10 +899,10 @@ terms_of_service:
   hi: सेवा की शर्तें
   th: เงื่อนไขการให้บริการ
   cs: Podmínky služby
-  sv: ''
+  sv: ""
   verified_by_human: []
 privacy_policy:
-  context: 'in message: ''Agree to Privacy policy'''
+  context: "in message: 'Agree to Privacy policy'"
   en: Privacy policy
   de: Datenschutzerklärung
   zh: 隐私政策
@@ -922,7 +922,7 @@ privacy_policy:
   hi: गोपनीयता नीति
   th: นโยบายความเป็นส่วนตัว
   cs: Zásady ochrany osobních údajů
-  sv: ''
+  sv: ""
   verified_by_human: []
 subscribe_to_newsletter:
   context: Toggle label for subscribing to newsletter during signup
@@ -968,7 +968,7 @@ create_new_account:
   hi: नया खाता बनाएं
   th: สร้างบัญชีใหม่
   cs: Vytvořit nový účet
-  sv: ''
+  sv: ""
   verified_by_human: []
 email_address_already_in_use:
   context: Error message shown when email address is already in use
@@ -991,7 +991,7 @@ email_address_already_in_use:
   hi: ई-मेल पता पहले से उपयोग में है
   th: ที่อยู่อีเมลถูกใช้งานแล้ว
   cs: E-mailová adresa je již používána
-  sv: ''
+  sv: ""
   verified_by_human: []
 you_received_a_one_time_code_via_email:
   context: Message shown when a one-time code has been sent via email
@@ -1014,7 +1014,7 @@ you_received_a_one_time_code_via_email:
   hi: आपने ई-मेल के माध्यम से एक वन-टाइम कोड प्राप्त किया है
   th: คุณได้รับรหัสครั้งเดียวทางอีเมล
   cs: Obdrželi jste jednorázový kód e-mailem
-  sv: ''
+  sv: ""
   verified_by_human: []
 open_mail_app:
   context: Button text for opening mail app
@@ -1037,7 +1037,7 @@ open_mail_app:
   hi: मेल ऐप खोलें
   th: เปิดแอปอีเมล
   cs: Otevřít e-mailovou aplikaci
-  sv: ''
+  sv: ""
   verified_by_human: []
 enter_one_time_code:
   context: Placeholder text for one-time code input field in email verification
@@ -1060,7 +1060,7 @@ enter_one_time_code:
   hi: 6 अंकों का वन-टाइम कोड दर्ज करें
   th: ใส่รหัส 6 หลัก
   cs: Zadejte 6místný jednorázový kód
-  sv: ''
+  sv: ""
   verified_by_human: []
 havent_received_a_code:
   context: Asking the user if they haven't received a code via email
@@ -1083,7 +1083,7 @@ havent_received_a_code:
   hi: कोड प्राप्त नहीं हुआ?
   th: ยังไม่ได้รับรหัส?
   cs: Neobdrželi jste kód?
-  sv: ''
+  sv: ""
   verified_by_human: []
 click_to_resend:
   context: Button text for resending the one-time code via email
@@ -1106,7 +1106,7 @@ click_to_resend:
   hi: फिर से भेजने के लिए यहां क्लिक करें
   th: คลิกที่นี่เพื่อส่งอีกครั้ง
   cs: Klikněte sem pro opětovné odeslání
-  sv: ''
+  sv: ""
   verified_by_human: []
 code_is_invalid:
   context: Error message shown when code is invalid
@@ -1129,30 +1129,30 @@ code_is_invalid:
   hi: कोड अमान्य है
   th: รหัสไม่ถูกต้อง
   cs: Kód je neplatný
-  sv: ''
+  sv: ""
   verified_by_human: []
 at_missing:
   context: Error message shown when @ is missing in email
-  en: '@ missing'
-  de: '@ fehlt'
+  en: "@ missing"
+  de: "@ fehlt"
   zh: 缺少@符号
   es: falta @
-  fr: '@ manquant'
-  pt: '@ faltando'
-  ru: 'Отсутствует @'
-  ja: '@記号がありません'
-  ko: '@ 누락'
-  it: '@ mancante'
-  tr: '@ eksik'
-  vi: 'Thiếu @'
-  id: '@ hilang'
-  pl: 'Brak @'
-  nl: '@ ontbreekt'
-  ar: '@ مفقود'
-  hi: '@ गायब है'
-  th: '@ ขาดหายไป'
-  cs: '@ chybí'
-  sv: ''
+  fr: "@ manquant"
+  pt: "@ faltando"
+  ru: "Отсутствует @"
+  ja: "@記号がありません"
+  ko: "@ 누락"
+  it: "@ mancante"
+  tr: "@ eksik"
+  vi: "Thiếu @"
+  id: "@ hilang"
+  pl: "Brak @"
+  nl: "@ ontbreekt"
+  ar: "@ مفقود"
+  hi: "@ गायब है"
+  th: "@ ขาดหายไป"
+  cs: "@ chybí"
+  sv: ""
   verified_by_human: []
 domain_ending_missing:
   context: Error message shown when domain ending is missing in email
@@ -1175,7 +1175,7 @@ domain_ending_missing:
   hi: डोमेन अंत गायब है
   th: ส่วนท้ายโดเมนขาดหายไป
   cs: Chybí koncovka domény
-  sv: ''
+  sv: ""
   verified_by_human: []
 skip:
   context: Button text for skipping to the next step
@@ -1198,7 +1198,7 @@ skip:
   hi: छोड़ें
   th: ข้าม
   cs: Přeskočit
-  sv: ''
+  sv: ""
   verified_by_human: []
 next:
   context: Button text for going to the next step
@@ -1221,7 +1221,7 @@ next:
   hi: अगला
   th: ถัดไป
   cs: Další
-  sv: ''
+  sv: ""
   verified_by_human: []
 upload_profile_image:
   context: Button text for uploading a profile image
@@ -1244,7 +1244,7 @@ upload_profile_image:
   hi: प्रोफ़ाइल छवि अपलोड करें
   th: อัปโหลดรูปโปรไฟล์
   cs: Nahrát profilový obrázek
-  sv: ''
+  sv: ""
   verified_by_human: []
 image_too_large:
   context: Error message shown when image is too large
@@ -1267,7 +1267,7 @@ image_too_large:
   hi: अधिकतम 2MB
   th: สูงสุด 2MB
   cs: Max 2MB
-  sv: ''
+  sv: ""
   verified_by_human: []
 image_wrong_filetype:
   context: Error message shown when image is not a supported filetype
@@ -1290,7 +1290,7 @@ image_wrong_filetype:
   hi: केवल .jpg, .jpeg, .png
   th: เฉพาะ .jpg, .jpeg, .png
   cs: Pouze .jpg, .jpeg, .png
-  sv: ''
+  sv: ""
   verified_by_human: []
 image_no_nudity_or_violence:
   context: Error message shown when image contains nudity or violence
@@ -1313,7 +1313,7 @@ image_no_nudity_or_violence:
   hi: नग्नता या हिंसा की अनुमति नहीं है
   th: ไม่อนุญาตให้มีภาพเปลือยหรือความรุนแรง
   cs: Nahota nebo násilí není povoleno
-  sv: ''
+  sv: ""
   verified_by_human: []
 profile_image:
   context: Button text for going back to upload a profile image
@@ -1336,7 +1336,7 @@ profile_image:
   hi: प्रोफ़ाइल छवि
   th: รูปโปรไฟล์
   cs: Profilový obrázek
-  sv: ''
+  sv: ""
   verified_by_human: []
 cancel_signup:
   context: text for going back to signup start page and clear data
@@ -1359,7 +1359,7 @@ cancel_signup:
   hi: साइनअप रद्द करें
   th: ยกเลิกการสมัครสมาชิก
   cs: Zrušit registraci
-  sv: ''
+  sv: ""
   verified_by_human: []
 secure_your_account:
   context: headline during signup process
@@ -1382,7 +1382,7 @@ secure_your_account:
   hi: अपने खाते को सुरक्षित करें
   th: ป้องกันบัญชีของคุณ
   cs: Zabezpečte svůj účet
-  sv: ''
+  sv: ""
   verified_by_human: []
 click_on_an_option:
   context: cta to click on an option
@@ -1405,7 +1405,7 @@ click_on_an_option:
   hi: एक विकल्प पर क्लिक करें
   th: คลิกที่ตัวเลือก
   cs: Klikněte na možnost
-  sv: ''
+  sv: ""
   verified_by_human: []
 how_to_login:
   context: Question asking how the user wants to login
@@ -1428,7 +1428,7 @@ how_to_login:
   hi: आप कैसे लॉगिन करना चाहते हैं?
   th: คุณต้องการเข้าสู่ระบบอย่างไร?
   cs: Jak se chcete přihlásit?
-  sv: ''
+  sv: ""
   verified_by_human: []
 password:
   context: password
@@ -1451,7 +1451,7 @@ password:
   hi: पासवर्ड
   th: รหัสผ่าน
   cs: Heslo
-  sv: ''
+  sv: ""
   verified_by_human: []
 passkey:
   context: passkey
@@ -1474,267 +1474,267 @@ passkey:
   hi: पासकी
   th: คีย์ผ่าน
   cs: Přístupový klíč
-  sv: ''
+  sv: ""
   verified_by_human: []
 passkey_descriptor:
   context: passkey as option descriptor
-  en: 'Most secure, phishing-proof, fastest & easiest to use.'
-  de: 'Am sichersten, phishing-sicher, am schnellsten & einfachsten zu bedienen.'
-  zh: '最安全、防网络钓鱼、最快且最易于使用。'
-  es: 'Más seguro, a prueba de phishing, más rápido y fácil de usar.'
-  fr: 'Le plus sécurisé, anti-hameçonnage, le plus rapide et le plus facile à utiliser.'
-  pt: 'Mais seguro, à prova de phishing, mais rápido e fácil de usar.'
-  ru: 'Самый безопасный, защищенный от фишинга, самый быстрый и простой в использовании.'
-  ja: '最も安全で、フィッシングに強く、最も速く、使いやすい。'
-  ko: '가장 안전하고 피싱 방지가 되며 가장 빠르고 사용하기 쉽습니다.'
-  it: 'Più sicuro, a prova di phishing, più veloce e facile da usare.'
-  tr: 'En güvenli, kimlik avına karşı korumalı, en hızlı ve kullanımı en kolay.'
-  vi: 'An toàn nhất, chống lừa đảo, nhanh nhất và dễ sử dụng nhất.'
-  id: 'Paling aman, tahan phishing, tercepat & termudah digunakan.'
-  pl: 'Najbezpieczniejsze, odporne na phishing, najszybsze i najłatwiejsze w użyciu.'
-  nl: 'Meest veilig, phishing-bestendig, snelst & makkelijkst in gebruik.'
-  ar: 'الأكثر أمانًا، ومقاوم للتصيد الاحتيالي، والأسرع والأسهل في الاستخدام.'
-  hi: 'सबसे सुरक्षित, फ़िशिंग-प्रूफ, सबसे तेज़ और उपयोग में सबसे आसान।'
-  th: 'ปลอดภัยที่สุด ป้องกันฟิชชิ่ง เร็วที่สุด และใช้งานง่ายที่สุด'
-  cs: 'Nejbezpečnější, odolné proti phishingu, nejrychlejší a nejsnadnější na použití.'
-  sv: ''
+  en: "Most secure, phishing-proof, fastest & easiest to use."
+  de: "Am sichersten, phishing-sicher, am schnellsten & einfachsten zu bedienen."
+  zh: "最安全、防网络钓鱼、最快且最易于使用。"
+  es: "Más seguro, a prueba de phishing, más rápido y fácil de usar."
+  fr: "Le plus sécurisé, anti-hameçonnage, le plus rapide et le plus facile à utiliser."
+  pt: "Mais seguro, à prova de phishing, mais rápido e fácil de usar."
+  ru: "Самый безопасный, защищенный от фишинга, самый быстрый и простой в использовании."
+  ja: "最も安全で、フィッシングに強く、最も速く、使いやすい。"
+  ko: "가장 안전하고 피싱 방지가 되며 가장 빠르고 사용하기 쉽습니다."
+  it: "Più sicuro, a prova di phishing, più veloce e facile da usare."
+  tr: "En güvenli, kimlik avına karşı korumalı, en hızlı ve kullanımı en kolay."
+  vi: "An toàn nhất, chống lừa đảo, nhanh nhất và dễ sử dụng nhất."
+  id: "Paling aman, tahan phishing, tercepat & termudah digunakan."
+  pl: "Najbezpieczniejsze, odporne na phishing, najszybsze i najłatwiejsze w użyciu."
+  nl: "Meest veilig, phishing-bestendig, snelst & makkelijkst in gebruik."
+  ar: "الأكثر أمانًا، ومقاوم للتصيد الاحتيالي، والأسرع والأسهل في الاستخدام."
+  hi: "सबसे सुरक्षित, फ़िशिंग-प्रूफ, सबसे तेज़ और उपयोग में सबसे आसान।"
+  th: "ปลอดภัยที่สุด ป้องกันฟิชชิ่ง เร็วที่สุด และใช้งานง่ายที่สุด"
+  cs: "Nejbezpečnější, odolné proti phishingu, nejrychlejší a nejsnadnější na použití."
+  sv: ""
   verified_by_human: []
 passkey_instruction_title:
   context: Passkey registration instruction title
-  en: 'Create a passkey'
-  de: 'Passkey erstellen'
-  zh: '创建通行密钥'
-  es: 'Crear una clave de acceso'
+  en: "Create a passkey"
+  de: "Passkey erstellen"
+  zh: "创建通行密钥"
+  es: "Crear una clave de acceso"
   fr: "Créer une clé d'accès"
-  pt: 'Criar uma chave de acesso'
-  ru: 'Создать ключ доступа'
-  ja: 'パスキーを作成'
-  ko: '패스키 만들기'
-  it: 'Crea una chiave di accesso'
-  tr: 'Erişim anahtarı oluştur'
-  vi: 'Tạo khóa truy cập'
-  id: 'Buat kunci akses'
-  pl: 'Utwórz klucz dostępu'
-  nl: 'Toegangssleutel maken'
-  ar: 'إنشاء مفتاح وصول'
-  hi: 'पासकी बनाएं'
-  th: 'สร้างคีย์ผ่าน'
-  cs: 'Vytvořit přístupový klíč'
-  sv: ''
+  pt: "Criar uma chave de acesso"
+  ru: "Создать ключ доступа"
+  ja: "パスキーを作成"
+  ko: "패스키 만들기"
+  it: "Crea una chiave di accesso"
+  tr: "Erişim anahtarı oluştur"
+  vi: "Tạo khóa truy cập"
+  id: "Buat kunci akses"
+  pl: "Utwórz klucz dostępu"
+  nl: "Toegangssleutel maken"
+  ar: "إنشاء مفتاح وصول"
+  hi: "पासकी बनाएं"
+  th: "สร้างคีย์ผ่าน"
+  cs: "Vytvořit přístupový klíč"
+  sv: ""
   verified_by_human: []
 passkey_instruction_text:
   context: Passkey registration instruction text
-  en: 'Click the button below to create a passkey using your device biometrics or password manager. This will allow you to sign in without a password.'
-  de: 'Klicken Sie auf die Schaltfläche unten, um einen Passkey mit Ihrer Geräte-Biometrie oder Ihrem Passwort-Manager zu erstellen. Dies ermöglicht es Ihnen, sich ohne Passwort anzumelden.'
-  zh: '点击下面的按钮，使用设备生物识别或密码管理器创建通行密钥。这将允许您无需密码即可登录。'
-  es: 'Haga clic en el botón a continuación para crear una clave de acceso usando la biometría de su dispositivo o administrador de contraseñas. Esto le permitirá iniciar sesión sin contraseña.'
+  en: "Click the button below to create a passkey using your device biometrics or password manager. This will allow you to sign in without a password."
+  de: "Klicken Sie auf die Schaltfläche unten, um einen Passkey mit Ihrer Geräte-Biometrie oder Ihrem Passwort-Manager zu erstellen. Dies ermöglicht es Ihnen, sich ohne Passwort anzumelden."
+  zh: "点击下面的按钮，使用设备生物识别或密码管理器创建通行密钥。这将允许您无需密码即可登录。"
+  es: "Haga clic en el botón a continuación para crear una clave de acceso usando la biometría de su dispositivo o administrador de contraseñas. Esto le permitirá iniciar sesión sin contraseña."
   fr: "Cliquez sur le bouton ci-dessous pour créer une clé d'accès en utilisant la biométrie de votre appareil ou gestionnaire de mots de passe. Cela vous permettra de vous connecter sans mot de passe."
-  pt: 'Clique no botão abaixo para criar uma chave de acesso usando a biometria do seu dispositivo ou gerenciador de senhas. Isso permitirá que você faça login sem senha.'
-  ru: 'Нажмите кнопку ниже, чтобы создать ключ доступа, используя биометрию вашего устройства или менеджер паролей. Это позволит вам войти без пароля.'
-  ja: '下のボタンをクリックして、デバイスの生体認証またはパスワードマネージャーを使用してパスキーを作成します。これにより、パスワードなしでサインインできます。'
-  ko: '아래 버튼을 클릭하여 기기 생체 인식 또는 비밀번호 관리자를 사용하여 패스키를 만드세요. 이를 통해 비밀번호 없이 로그인할 수 있습니다.'
-  it: 'Fai clic sul pulsante qui sotto per creare una chiave di accesso utilizzando la biometria del tuo dispositivo o il gestore di password. Questo ti permetterà di accedere senza password.'
-  tr: 'Cihaz biyometrisi veya parola yöneticisi kullanarak bir erişim anahtarı oluşturmak için aşağıdaki düğmeye tıklayın. Bu, parola olmadan oturum açmanıza olanak tanır.'
-  vi: 'Nhấp vào nút bên dưới để tạo khóa truy cập bằng sinh trắc học thiết bị hoặc trình quản lý mật khẩu của bạn. Điều này sẽ cho phép bạn đăng nhập mà không cần mật khẩu.'
-  id: 'Klik tombol di bawah untuk membuat kunci akses menggunakan biometrik perangkat atau pengelola kata sandi Anda. Ini akan memungkinkan Anda masuk tanpa kata sandi.'
-  pl: 'Kliknij przycisk poniżej, aby utworzyć klucz dostępu przy użyciu biometrii urządzenia lub menedżera haseł. Pozwoli to na logowanie bez hasła.'
-  nl: 'Klik op de knop hieronder om een toegangssleutel te maken met behulp van de biometrie van uw apparaat of wachtwoordbeheerder. Hiermee kunt u inloggen zonder wachtwoord.'
-  ar: 'انقر فوق الزر أدناه لإنشاء مفتاح وصول باستخدام القياسات الحيوية لجهازك أو مدير كلمات المرور. سيسمح لك هذا بتسجيل الدخول بدون كلمة مرور.'
-  hi: 'अपने डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासकी बनाने के लिए नीचे दिए गए बटन पर क्लिक करें। यह आपको बिना पासवर्ड के साइन इन करने की अनुमति देगा।'
-  th: 'คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน'
-  cs: 'Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla.'
-  sv: ''
+  pt: "Clique no botão abaixo para criar uma chave de acesso usando a biometria do seu dispositivo ou gerenciador de senhas. Isso permitirá que você faça login sem senha."
+  ru: "Нажмите кнопку ниже, чтобы создать ключ доступа, используя биометрию вашего устройства или менеджер паролей. Это позволит вам войти без пароля."
+  ja: "下のボタンをクリックして、デバイスの生体認証またはパスワードマネージャーを使用してパスキーを作成します。これにより、パスワードなしでサインインできます。"
+  ko: "아래 버튼을 클릭하여 기기 생체 인식 또는 비밀번호 관리자를 사용하여 패스키를 만드세요. 이를 통해 비밀번호 없이 로그인할 수 있습니다."
+  it: "Fai clic sul pulsante qui sotto per creare una chiave di accesso utilizzando la biometria del tuo dispositivo o il gestore di password. Questo ti permetterà di accedere senza password."
+  tr: "Cihaz biyometrisi veya parola yöneticisi kullanarak bir erişim anahtarı oluşturmak için aşağıdaki düğmeye tıklayın. Bu, parola olmadan oturum açmanıza olanak tanır."
+  vi: "Nhấp vào nút bên dưới để tạo khóa truy cập bằng sinh trắc học thiết bị hoặc trình quản lý mật khẩu của bạn. Điều này sẽ cho phép bạn đăng nhập mà không cần mật khẩu."
+  id: "Klik tombol di bawah untuk membuat kunci akses menggunakan biometrik perangkat atau pengelola kata sandi Anda. Ini akan memungkinkan Anda masuk tanpa kata sandi."
+  pl: "Kliknij przycisk poniżej, aby utworzyć klucz dostępu przy użyciu biometrii urządzenia lub menedżera haseł. Pozwoli to na logowanie bez hasła."
+  nl: "Klik op de knop hieronder om een toegangssleutel te maken met behulp van de biometrie van uw apparaat of wachtwoordbeheerder. Hiermee kunt u inloggen zonder wachtwoord."
+  ar: "انقر فوق الزر أدناه لإنشاء مفتاح وصول باستخدام القياسات الحيوية لجهازك أو مدير كلمات المرور. سيسمح لك هذا بتسجيل الدخول بدون كلمة مرور."
+  hi: "अपने डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासकी बनाने के लिए नीचे दिए गए बटन पर क्लिक करें। यह आपको बिना पासवर्ड के साइन इन करने की अनुमति देगा।"
+  th: "คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน"
+  cs: "Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla."
+  sv: ""
   verified_by_human: []
 create_passkey:
   context: Button text to create passkey
-  en: 'Create Passkey'
-  de: 'Passkey erstellen'
-  zh: '创建通行密钥'
-  es: 'Crear clave de acceso'
+  en: "Create Passkey"
+  de: "Passkey erstellen"
+  zh: "创建通行密钥"
+  es: "Crear clave de acceso"
   fr: "Créer une clé d'accès"
-  pt: 'Criar chave de acesso'
-  ru: 'Создать ключ доступа'
-  ja: 'パスキーを作成'
-  ko: '패스키 만들기'
-  it: 'Crea chiave di accesso'
-  tr: 'Erişim anahtarı oluştur'
-  vi: 'Tạo khóa truy cập'
-  id: 'Buat kunci akses'
-  pl: 'Utwórz klucz dostępu'
-  nl: 'Toegangssleutel maken'
-  ar: 'إنشاء مفتاح وصول'
-  hi: 'पासकी बनाएं'
-  th: 'สร้างคีย์ผ่าน'
-  cs: 'Vytvořit přístupový klíč'
-  sv: ''
+  pt: "Criar chave de acesso"
+  ru: "Создать ключ доступа"
+  ja: "パスキーを作成"
+  ko: "패스키 만들기"
+  it: "Crea chiave di accesso"
+  tr: "Erişim anahtarı oluştur"
+  vi: "Tạo khóa truy cập"
+  id: "Buat kunci akses"
+  pl: "Utwórz klucz dostępu"
+  nl: "Toegangssleutel maken"
+  ar: "إنشاء مفتاح وصول"
+  hi: "पासकी बनाएं"
+  th: "สร้างคีย์ผ่าน"
+  cs: "Vytvořit přístupový klíč"
+  sv: ""
   verified_by_human: []
 passkey_info:
   context: Information text about passkeys
-  en: 'Your passkey will be stored securely on your device or in your password manager.'
-  de: 'Ihr Passkey wird sicher auf Ihrem Gerät oder in Ihrem Passwort-Manager gespeichert.'
-  zh: '您的通行密钥将安全地存储在您的设备或密码管理器中。'
-  es: 'Su clave de acceso se almacenará de forma segura en su dispositivo o en su administrador de contraseñas.'
+  en: "Your passkey will be stored securely on your device or in your password manager."
+  de: "Ihr Passkey wird sicher auf Ihrem Gerät oder in Ihrem Passwort-Manager gespeichert."
+  zh: "您的通行密钥将安全地存储在您的设备或密码管理器中。"
+  es: "Su clave de acceso se almacenará de forma segura en su dispositivo o en su administrador de contraseñas."
   fr: "Votre clé d'accès sera stockée en toute sécurité sur votre appareil ou dans votre gestionnaire de mots de passe."
-  pt: 'Sua chave de acesso será armazenada com segurança em seu dispositivo ou em seu gerenciador de senhas.'
-  ru: 'Ваш ключ доступа будет безопасно сохранен на вашем устройстве или в менеджере паролей.'
-  ja: 'パスキーは、デバイスまたはパスワードマネージャーに安全に保存されます。'
-  ko: '패스키는 기기나 비밀번호 관리자에 안전하게 저장됩니다.'
-  it: 'La tua chiave di accesso verrà archiviata in modo sicuro sul tuo dispositivo o nel tuo gestore di password.'
-  tr: 'Erişim anahtarınız cihazınızda veya parola yöneticinizde güvenli bir şekilde saklanacaktır.'
-  vi: 'Khóa truy cập của bạn sẽ được lưu trữ an toàn trên thiết bị hoặc trong trình quản lý mật khẩu của bạn.'
-  id: 'Kunci akses Anda akan disimpan dengan aman di perangkat atau pengelola kata sandi Anda.'
-  pl: 'Twój klucz dostępu będzie bezpiecznie przechowywany na urządzeniu lub w menedżerze haseł.'
-  nl: 'Uw toegangssleutel wordt veilig opgeslagen op uw apparaat of in uw wachtwoordbeheerder.'
-  ar: 'سيتم تخزين مفتاح الوصول الخاص بك بأمان على جهازك أو في مدير كلمات المرور الخاص بك.'
-  hi: 'आपकी पासकी आपके डिवाइस या पासवर्ड मैनेजर में सुरक्षित रूप से संग्रहीत की जाएगी।'
-  th: 'คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ'
-  cs: 'Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel.'
-  sv: ''
+  pt: "Sua chave de acesso será armazenada com segurança em seu dispositivo ou em seu gerenciador de senhas."
+  ru: "Ваш ключ доступа будет безопасно сохранен на вашем устройстве или в менеджере паролей."
+  ja: "パスキーは、デバイスまたはパスワードマネージャーに安全に保存されます。"
+  ko: "패스키는 기기나 비밀번호 관리자에 안전하게 저장됩니다."
+  it: "La tua chiave di accesso verrà archiviata in modo sicuro sul tuo dispositivo o nel tuo gestore di password."
+  tr: "Erişim anahtarınız cihazınızda veya parola yöneticinizde güvenli bir şekilde saklanacaktır."
+  vi: "Khóa truy cập của bạn sẽ được lưu trữ an toàn trên thiết bị hoặc trong trình quản lý mật khẩu của bạn."
+  id: "Kunci akses Anda akan disimpan dengan aman di perangkat atau pengelola kata sandi Anda."
+  pl: "Twój klucz dostępu będzie bezpiecznie przechowywany na urządzeniu lub w menedżerze haseł."
+  nl: "Uw toegangssleutel wordt veilig opgeslagen op uw apparaat of in uw wachtwoordbeheerder."
+  ar: "سيتم تخزين مفتاح الوصول الخاص بك بأمان على جهازك أو في مدير كلمات المرور الخاص بك."
+  hi: "आपकी पासकी आपके डिवाइस या पासवर्ड मैनेजर में सुरक्षित रूप से संग्रहीत की जाएगी।"
+  th: "คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ"
+  cs: "Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel."
+  sv: ""
   verified_by_human: []
 passkey_prf_error_title:
   context: PRF error title
-  en: 'PRF Not Supported'
-  de: 'PRF nicht unterstützt'
-  zh: '不支持 PRF'
-  es: 'PRF no compatible'
-  fr: 'PRF non pris en charge'
-  pt: 'PRF não suportado'
-  ru: 'PRF не поддерживается'
-  ja: 'PRFがサポートされていません'
-  ko: 'PRF가 지원되지 않음'
-  it: 'PRF non supportato'
-  tr: 'PRF desteklenmiyor'
-  vi: 'PRF không được hỗ trợ'
-  id: 'PRF tidak didukung'
-  pl: 'PRF nieobsługiwane'
-  nl: 'PRF niet ondersteund'
-  ar: 'PRF غير مدعوم'
-  hi: 'PRF समर्थित नहीं'
-  th: 'ไม่รองรับ PRF'
-  cs: 'PRF není podporováno'
-  sv: ''
+  en: "PRF Not Supported"
+  de: "PRF nicht unterstützt"
+  zh: "不支持 PRF"
+  es: "PRF no compatible"
+  fr: "PRF non pris en charge"
+  pt: "PRF não suportado"
+  ru: "PRF не поддерживается"
+  ja: "PRFがサポートされていません"
+  ko: "PRF가 지원되지 않음"
+  it: "PRF non supportato"
+  tr: "PRF desteklenmiyor"
+  vi: "PRF không được hỗ trợ"
+  id: "PRF tidak didukung"
+  pl: "PRF nieobsługiwane"
+  nl: "PRF niet ondersteund"
+  ar: "PRF غير مدعوم"
+  hi: "PRF समर्थित नहीं"
+  th: "ไม่รองรับ PRF"
+  cs: "PRF není podporováno"
+  sv: ""
   verified_by_human: []
 passkey_prf_error_message:
   context: PRF error message
   en: "Your password manager doesn't support the PRF standard. Try another password manager or use password as a signup option instead."
-  de: 'Ihr Passwort-Manager unterstützt den PRF-Standard nicht. Versuchen Sie einen anderen Passwort-Manager oder verwenden Sie stattdessen ein Passwort als Anmeldeoption.'
-  zh: '您的密码管理器不支持 PRF 标准。请尝试另一个密码管理器，或改用密码作为注册选项。'
-  es: 'Su administrador de contraseñas no admite el estándar PRF. Pruebe con otro administrador de contraseñas o use una contraseña como opción de registro en su lugar.'
+  de: "Ihr Passwort-Manager unterstützt den PRF-Standard nicht. Versuchen Sie einen anderen Passwort-Manager oder verwenden Sie stattdessen ein Passwort als Anmeldeoption."
+  zh: "您的密码管理器不支持 PRF 标准。请尝试另一个密码管理器，或改用密码作为注册选项。"
+  es: "Su administrador de contraseñas no admite el estándar PRF. Pruebe con otro administrador de contraseñas o use una contraseña como opción de registro en su lugar."
   fr: "Votre gestionnaire de mots de passe ne prend pas en charge la norme PRF. Essayez un autre gestionnaire de mots de passe ou utilisez un mot de passe comme option d'inscription à la place."
-  pt: 'Seu gerenciador de senhas não suporta o padrão PRF. Tente outro gerenciador de senhas ou use uma senha como opção de registro.'
-  ru: 'Ваш менеджер паролей не поддерживает стандарт PRF. Попробуйте другой менеджер паролей или используйте пароль в качестве варианта регистрации.'
-  ja: 'パスワードマネージャーがPRF標準をサポートしていません。別のパスワードマネージャーを試すか、代わりにパスワードを登録オプションとして使用してください。'
-  ko: '비밀번호 관리자가 PRF 표준을 지원하지 않습니다. 다른 비밀번호 관리자를 시도하거나 대신 비밀번호를 등록 옵션으로 사용하세요.'
-  it: 'Il tuo gestore di password non supporta lo standard PRF. Prova un altro gestore di password o usa una password come opzione di registrazione.'
-  tr: 'Parola yöneticiniz PRF standardını desteklemiyor. Başka bir parola yöneticisi deneyin veya bunun yerine parola olarak kayıt seçeneğini kullanın.'
-  vi: 'Trình quản lý mật khẩu của bạn không hỗ trợ tiêu chuẩn PRF. Hãy thử trình quản lý mật khẩu khác hoặc sử dụng mật khẩu làm tùy chọn đăng ký thay thế.'
-  id: 'Pengelola kata sandi Anda tidak mendukung standar PRF. Coba pengelola kata sandi lain atau gunakan kata sandi sebagai opsi pendaftaran sebagai gantinya.'
-  pl: 'Twój menedżer haseł nie obsługuje standardu PRF. Wypróbuj inny menedżer haseł lub użyj hasła jako opcji rejestracji.'
-  nl: 'Uw wachtwoordbeheerder ondersteunt de PRF-standaard niet. Probeer een andere wachtwoordbeheerder of gebruik in plaats daarvan een wachtwoord als aanmeldingsoptie.'
-  ar: 'لا يدعم مدير كلمات المرور الخاص بك معيار PRF. جرب مدير كلمات مرور آخر أو استخدم كلمة مرور كخيار تسجيل بدلاً من ذلك.'
-  hi: 'आपका पासवर्ड मैनेजर PRF मानक का समर्थन नहीं करता है। किसी अन्य पासवर्ड मैनेजर को आज़माएं या इसके बजाय पासवर्ड को साइनअप विकल्प के रूप में उपयोग करें।'
-  th: 'ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน'
-  cs: 'Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace.'
-  sv: ''
+  pt: "Seu gerenciador de senhas não suporta o padrão PRF. Tente outro gerenciador de senhas ou use uma senha como opção de registro."
+  ru: "Ваш менеджер паролей не поддерживает стандарт PRF. Попробуйте другой менеджер паролей или используйте пароль в качестве варианта регистрации."
+  ja: "パスワードマネージャーがPRF標準をサポートしていません。別のパスワードマネージャーを試すか、代わりにパスワードを登録オプションとして使用してください。"
+  ko: "비밀번호 관리자가 PRF 표준을 지원하지 않습니다. 다른 비밀번호 관리자를 시도하거나 대신 비밀번호를 등록 옵션으로 사용하세요."
+  it: "Il tuo gestore di password non supporta lo standard PRF. Prova un altro gestore di password o usa una password come opzione di registrazione."
+  tr: "Parola yöneticiniz PRF standardını desteklemiyor. Başka bir parola yöneticisi deneyin veya bunun yerine parola olarak kayıt seçeneğini kullanın."
+  vi: "Trình quản lý mật khẩu của bạn không hỗ trợ tiêu chuẩn PRF. Hãy thử trình quản lý mật khẩu khác hoặc sử dụng mật khẩu làm tùy chọn đăng ký thay thế."
+  id: "Pengelola kata sandi Anda tidak mendukung standar PRF. Coba pengelola kata sandi lain atau gunakan kata sandi sebagai opsi pendaftaran sebagai gantinya."
+  pl: "Twój menedżer haseł nie obsługuje standardu PRF. Wypróbuj inny menedżer haseł lub użyj hasła jako opcji rejestracji."
+  nl: "Uw wachtwoordbeheerder ondersteunt de PRF-standaard niet. Probeer een andere wachtwoordbeheerder of gebruik in plaats daarvan een wachtwoord als aanmeldingsoptie."
+  ar: "لا يدعم مدير كلمات المرور الخاص بك معيار PRF. جرب مدير كلمات مرور آخر أو استخدم كلمة مرور كخيار تسجيل بدلاً من ذلك."
+  hi: "आपका पासवर्ड मैनेजर PRF मानक का समर्थन नहीं करता है। किसी अन्य पासवर्ड मैनेजर को आज़माएं या इसके बजाय पासवर्ड को साइनअप विकल्प के रूप में उपयोग करें।"
+  th: "ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน"
+  cs: "Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace."
+  sv: ""
   verified_by_human: []
 password_descriptor:
   context: passwords as option descriptor
-  en: 'Most familiar.
+  en: "Most familiar.
 
     Extra authentication via 2FA OTP app needed for better security.
 
-    '
-  de: 'Am vertrautesten.
+    "
+  de: "Am vertrautesten.
 
     Zusätzliche Authentifizierung über 2FA OTP-App erforderlich für bessere Sicherheit.
 
-    '
-  zh: '最熟悉的方式。
+    "
+  zh: "最熟悉的方式。
 
     需要通过2FA OTP应用程序进行额外身份验证以提高安全性。
 
-    '
-  es: 'Lo más familiar.
+    "
+  es: "Lo más familiar.
 
     Se necesita autenticación adicional mediante aplicación 2FA OTP para mayor seguridad.
 
-    '
-  fr: 'Le plus familier.
+    "
+  fr: "Le plus familier.
 
-    Authentification supplémentaire via l''application 2FA OTP nécessaire pour une meilleure sécurité.
+    Authentification supplémentaire via l'application 2FA OTP nécessaire pour une meilleure sécurité.
 
-    '
-  pt: 'Mais familiar.
+    "
+  pt: "Mais familiar.
 
     Autenticação extra via aplicativo 2FA OTP necessária para melhor segurança.
 
-    '
-  ru: 'Самый знакомый способ.
+    "
+  ru: "Самый знакомый способ.
 
     Требуется дополнительная аутентификация через приложение 2FA OTP для повышения безопасности.
 
-    '
-  ja: '最も一般的です。
+    "
+  ja: "最も一般的です。
 
     セキュリティ向上のため、2FA OTPアプリによる追加認証が必要です。
 
-    '
-  ko: '가장 익숙한 방식입니다.
+    "
+  ko: "가장 익숙한 방식입니다.
 
     더 나은 보안을 위해 2FA OTP 앱을 통한 추가 인증이 필요합니다.
 
-    '
-  it: 'Più familiare.
+    "
+  it: "Più familiare.
 
     Autenticazione aggiuntiva tramite app 2FA OTP necessaria per una migliore sicurezza.
 
-    '
-  tr: 'En tanıdık.
+    "
+  tr: "En tanıdık.
 
     Daha iyi güvenlik için 2FA OTP uygulaması aracılığıyla ek kimlik doğrulama gerekli.
 
-    '
-  vi: 'Quen thuộc nhất.
+    "
+  vi: "Quen thuộc nhất.
 
     Cần xác thực bổ sung qua ứng dụng 2FA OTP để bảo mật tốt hơn.
 
-    '
-  id: 'Paling familiar.
+    "
+  id: "Paling familiar.
 
     Autentikasi tambahan melalui aplikasi 2FA OTP diperlukan untuk keamanan yang lebih baik.
 
-    '
-  pl: 'Najbardziej znane.
+    "
+  pl: "Najbardziej znane.
 
     Wymagane dodatkowe uwierzytelnienie przez aplikację 2FA OTP dla lepszego bezpieczeństwa.
 
-    '
-  nl: 'Meest bekend.
+    "
+  nl: "Meest bekend.
 
     Extra authenticatie via 2FA OTP-app nodig voor betere beveiliging.
 
-    '
-  ar: 'الأكثر شيوعًا.
+    "
+  ar: "الأكثر شيوعًا.
 
     مطلوب مصادقة إضافية عبر تطبيق 2FA OTP لأمان أفضل.
 
-    '
-  hi: 'सबसे परिचित।
+    "
+  hi: "सबसे परिचित।
 
     बेहतर सुरक्षा के लिए 2FA OTP ऐप के माध्यम से अतिरिक्त प्रमाणीकरण आवश्यक है।
 
-    '
-  th: 'คุ้นเคยที่สุด
+    "
+  th: "คุ้นเคยที่สุด
 
     ต้องมีการยืนยันตัวตนเพิ่มเติมผ่านแอป 2FA OTP เพื่อความปลอดภัยที่ดีขึ้น
 
-    '
-  cs: 'Nejznámější.
+    "
+  cs: "Nejznámější.
 
     Pro lepší zabezpečení je vyžadováno dodatečné ověření prostřednictvím aplikace 2FA OTP.
 
-    '
-  sv: ''
+    "
+  sv: ""
   verified_by_human: []
 security_key:
   context: security key
@@ -1757,106 +1757,106 @@ security_key:
   hi: सुरक्षा कुंजी
   th: คีย์ความปลอดภัย
   cs: Bezpečnostní klíč
-  sv: ''
+  sv: ""
   verified_by_human: []
 security_key_descriptor:
   context: security key as option descriptor
-  en: 'Passkey alternative.
+  en: "Passkey alternative.
 
     Via dedicated hardware.
 
-    '
-  de: 'Passkey-Alternative.
+    "
+  de: "Passkey-Alternative.
 
     Über dedizierte Hardware.
 
-    '
-  zh: '通行密钥的替代方案。
+    "
+  zh: "通行密钥的替代方案。
 
     通过专用硬件。
 
-    '
-  es: 'Alternativa a Passkey.
+    "
+  es: "Alternativa a Passkey.
 
     Vía hardware dedicado.
 
-    '
-  fr: 'Alternative Passkey.
+    "
+  fr: "Alternative Passkey.
 
     Via matériel dédié.
 
-    '
-  pt: 'Alternativa a chave de acesso.
+    "
+  pt: "Alternativa a chave de acesso.
 
     Via hardware dedicado.
 
-    '
-  ru: 'Альтернатива ключу доступа.
+    "
+  ru: "Альтернатива ключу доступа.
 
     Через специальное оборудование.
 
-    '
-  ja: 'パスキーの代替。
+    "
+  ja: "パスキーの代替。
 
     専用ハードウェアを介して。
 
-    '
-  ko: '패스키 대안.
+    "
+  ko: "패스키 대안.
 
     전용 하드웨어를 통해.
 
-    '
-  it: 'Alternativa alla chiave di accesso.
+    "
+  it: "Alternativa alla chiave di accesso.
 
     Tramite hardware dedicato.
 
-    '
-  tr: 'Erişim anahtarı alternatifi.
+    "
+  tr: "Erişim anahtarı alternatifi.
 
     Özel donanım üzerinden.
 
-    '
-  vi: 'Thay thế cho khóa truy cập.
+    "
+  vi: "Thay thế cho khóa truy cập.
 
     Qua phần cứng chuyên dụng.
 
-    '
-  id: 'Alternatif kunci akses.
+    "
+  id: "Alternatif kunci akses.
 
     Melalui perangkat keras khusus.
 
-    '
-  pl: 'Alternatywa dla klucza dostępu.
+    "
+  pl: "Alternatywa dla klucza dostępu.
 
     Przez dedykowany sprzęt.
 
-    '
-  nl: 'Passkey-alternatief.
+    "
+  nl: "Passkey-alternatief.
 
     Via toegewijde hardware.
 
-    '
-  ar: 'بديل مفتاح الوصول.
+    "
+  ar: "بديل مفتاح الوصول.
 
     عبر أجهزة مخصصة.
 
-    '
-  hi: 'पासकी विकल्प।
+    "
+  hi: "पासकी विकल्प।
 
     समर्पित हार्डवेयर के माध्यम से।
 
-    '
-  th: 'ทางเลือกของคีย์การเข้าถึง
+    "
+  th: "ทางเลือกของคีย์การเข้าถึง
 
     ผ่านฮาร์ดแวร์เฉพาะ
 
-    '
-  cs: 'Alternativa přístupového klíče.
+    "
+  cs: "Alternativa přístupového klíče.
 
     Prostřednictvím vyhrazeného hardwaru.
 
-    '
-  sv: ''
+    "
+  sv: ""
   verified_by_human: []
 additional_options_follow_soon:
   context: Explainer text when password is temporary the only option.
@@ -1879,7 +1879,7 @@ additional_options_follow_soon:
   hi: पासकी और सुरक्षा कुंजी जैसे अतिरिक्त विकल्प जल्द ही आएंगे।
   th: ตัวเลือกเพิ่มเติม เช่น คีย์การเข้าถึงและคีย์ความปลอดภัยจะตามมาเร็วๆ นี้
   cs: Další možnosti, jako jsou přístupové klíče a bezpečnostní klíče, budou brzy následovat.
-  sv: ''
+  sv: ""
   verified_by_human: []
 advice:
   context: advice
@@ -1902,106 +1902,106 @@ advice:
   hi: सलाह
   th: คำแนะนำ
   cs: Rada
-  sv: ''
+  sv: ""
   verified_by_human: []
 use_your_password_manager:
   context: Advice to use a password manager for strong passwords
-  en: 'Use your password manager
+  en: "Use your password manager
 
     to generate & store a strong password.
 
-    '
-  de: 'Nutze deinen Passwortmanager
+    "
+  de: "Nutze deinen Passwortmanager
 
     um ein starkes Passwort zu generieren & zu speichern.
 
-    '
-  zh: '使用您的密码管理器
+    "
+  zh: "使用您的密码管理器
 
     生成并存储强密码。
 
-    '
-  es: 'Usa tu gestor de contraseñas
+    "
+  es: "Usa tu gestor de contraseñas
 
     para generar y almacenar una contraseña segura.
 
-    '
-  fr: 'Utilisez votre gestionnaire de mots de passe
+    "
+  fr: "Utilisez votre gestionnaire de mots de passe
 
     pour générer et stocker un mot de passe fort.
 
-    '
-  pt: 'Use seu gerenciador de senhas
+    "
+  pt: "Use seu gerenciador de senhas
 
     para gerar e armazenar uma senha forte.
 
-    '
-  ru: 'Используйте менеджер паролей
+    "
+  ru: "Используйте менеджер паролей
 
     для создания и хранения надежного пароля.
 
-    '
-  ja: 'パスワードマネージャーを使用して
+    "
+  ja: "パスワードマネージャーを使用して
 
     強力なパスワードを生成および保存します。
 
-    '
-  ko: '비밀번호 관리자를 사용하여
+    "
+  ko: "비밀번호 관리자를 사용하여
 
     강력한 비밀번호를 생성하고 저장하세요.
 
-    '
-  it: 'Usa il tuo gestore di password
+    "
+  it: "Usa il tuo gestore di password
 
     per generare e memorizzare una password forte.
 
-    '
-  tr: 'Güçlü bir şifre oluşturmak ve
+    "
+  tr: "Güçlü bir şifre oluşturmak ve
 
     saklamak için şifre yöneticinizi kullanın.
 
-    '
-  vi: 'Sử dụng trình quản lý mật khẩu của bạn
+    "
+  vi: "Sử dụng trình quản lý mật khẩu của bạn
 
     để tạo và lưu trữ mật khẩu mạnh.
 
-    '
-  id: 'Gunakan pengelola kata sandi Anda
+    "
+  id: "Gunakan pengelola kata sandi Anda
 
     untuk menghasilkan dan menyimpan kata sandi yang kuat.
 
-    '
-  pl: 'Użyj swojego menedżera haseł
+    "
+  pl: "Użyj swojego menedżera haseł
 
     aby wygenerować i przechować silne hasło.
 
-    '
-  nl: 'Gebruik je wachtwoordbeheerder
+    "
+  nl: "Gebruik je wachtwoordbeheerder
 
     om een sterk wachtwoord te genereren en op te slaan.
 
-    '
-  ar: 'استخدم مدير كلمات المرور الخاص بك
+    "
+  ar: "استخدم مدير كلمات المرور الخاص بك
 
     لإنشاء وتخزين كلمة مرور قوية.
 
-    '
-  hi: 'एक मजबूत पासवर्ड उत्पन्न करने और
+    "
+  hi: "एक मजबूत पासवर्ड उत्पन्न करने और
 
     संग्रहीत करने के लिए अपने पासवर्ड मैनेजर का उपयोग करें।
 
-    '
-  th: 'ใช้ตัวจัดการรหัสผ่านของคุณ
+    "
+  th: "ใช้ตัวจัดการรหัสผ่านของคุณ
 
     เพื่อสร้างและจัดเก็บรหัสผ่านที่แข็งแกร่ง
 
-    '
-  cs: 'Použijte svůj správce hesel
+    "
+  cs: "Použijte svůj správce hesel
 
     k vygenerování a uložení silného hesla.
 
-    '
-  sv: ''
+    "
+  sv: ""
   verified_by_human: []
 dont_have_password_manager_yet:
   context: Asking the user if they don't have a password manager yet
@@ -2024,7 +2024,7 @@ dont_have_password_manager_yet:
   hi: अभी तक पासवर्ड मैनेजर नहीं है?
   th: ยังไม่มีตัวจัดการรหัสผ่าน?
   cs: Ještě nemáte správce hesel?
-  sv: ''
+  sv: ""
   verified_by_human: []
 click_here_to_show_password_managers:
   context: Button text for showing password managers
@@ -2074,7 +2074,7 @@ backup_key:
   verified_by_human: []
 backup_key_info:
   context: Message explaining the importance of having a backup key for account access
-  en: 'Don''t loose access to your account
+  en: "Don't loose access to your account
 
     if you loose your Security Key:
 
@@ -2082,18 +2082,19 @@ backup_key_info:
 
     as a backup</bold>
 
-    '
-  de: 'Verliere nicht den Zugang zu deinem Konto, falls du deinen Sicherheitsschlüssel verlierst:
+    "
+  de:
+    "Verliere nicht den Zugang zu deinem Konto, falls du deinen Sicherheitsschlüssel verlierst:
 
     <bold>Füge einen zweiten Sicherheitsschlüssel als Backup hinzu</bold>
 
-    '
-  zh: '如果您丢失了安全密钥，请不要失去对账户的访问权限：
+    "
+  zh: "如果您丢失了安全密钥，请不要失去对账户的访问权限：
 
     <bold>添加第二个安全密钥作为备份</bold>
 
-    '
-  es: 'No pierdas el acceso a tu cuenta
+    "
+  es: "No pierdas el acceso a tu cuenta
 
     si pierdes tu llave de seguridad:
 
@@ -2101,7 +2102,7 @@ backup_key_info:
 
     como respaldo</bold>
 
-    '
+    "
   fr: "Ne perdez pas l'accès à votre compte
 
     si vous perdez votre clé de sécurité :
@@ -2111,7 +2112,7 @@ backup_key_info:
     comme sauvegarde</bold>
 
     "
-  pt: 'Não perca o acesso à sua conta
+  pt: "Não perca o acesso à sua conta
 
     se você perder sua Chave de Segurança:
 
@@ -2119,8 +2120,8 @@ backup_key_info:
 
     como backup</bold>
 
-    '
-  ru: 'Не теряйте доступ к своему аккаунту,
+    "
+  ru: "Не теряйте доступ к своему аккаунту,
 
     если вы потеряете ключ безопасности:
 
@@ -2128,22 +2129,22 @@ backup_key_info:
 
     в качестве резервной копии</bold>
 
-    '
-  ja: 'アカウントへのアクセスを失わないでください
+    "
+  ja: "アカウントへのアクセスを失わないでください
 
     セキュリティキーを紛失した場合：
 
     <bold>バックアップとして2番目のセキュリティキーを追加</bold>
 
-    '
-  ko: '보안 키를 분실한 경우
+    "
+  ko: "보안 키를 분실한 경우
 
     계정 액세스를 잃지 마세요:
 
     <bold>백업으로 두 번째 보안 키를 추가하세요</bold>
 
-    '
-  it: 'Non perdere l''accesso al tuo account
+    "
+  it: "Non perdere l'accesso al tuo account
 
     se perdi la tua Chiave di Sicurezza:
 
@@ -2151,15 +2152,15 @@ backup_key_info:
 
     come backup</bold>
 
-    '
-  tr: 'Güvenlik Anahtarınızı kaybederseniz
+    "
+  tr: "Güvenlik Anahtarınızı kaybederseniz
 
     hesabınıza erişimi kaybetmeyin:
 
     <bold>Yedek olarak ikinci bir Güvenlik Anahtarı ekleyin</bold>
 
-    '
-  vi: 'Đừng mất quyền truy cập vào tài khoản của bạn
+    "
+  vi: "Đừng mất quyền truy cập vào tài khoản của bạn
 
     nếu bạn mất Khóa Bảo mật:
 
@@ -2167,8 +2168,8 @@ backup_key_info:
 
     làm bản sao lưu</bold>
 
-    '
-  id: 'Jangan kehilangan akses ke akun Anda
+    "
+  id: "Jangan kehilangan akses ke akun Anda
 
     jika Anda kehilangan Kunci Keamanan:
 
@@ -2176,8 +2177,8 @@ backup_key_info:
 
     sebagai cadangan</bold>
 
-    '
-  pl: 'Nie trać dostępu do swojego konta,
+    "
+  pl: "Nie trać dostępu do swojego konta,
 
     jeśli stracisz Klucz Bezpieczeństwa:
 
@@ -2185,8 +2186,8 @@ backup_key_info:
 
     jako kopię zapasową</bold>
 
-    '
-  nl: 'Verlies geen toegang tot je account
+    "
+  nl: "Verlies geen toegang tot je account
 
     als je je Beveiligingssleutel verliest:
 
@@ -2194,8 +2195,8 @@ backup_key_info:
 
     als back-up</bold>
 
-    '
-  ar: 'لا تفقد الوصول إلى حسابك
+    "
+  ar: "لا تفقد الوصول إلى حسابك
 
     إذا فقدت مفتاح الأمان:
 
@@ -2203,8 +2204,8 @@ backup_key_info:
 
     كنسخة احتياطية</bold>
 
-    '
-  hi: 'अपने खाते तक पहुंच न खोएं
+    "
+  hi: "अपने खाते तक पहुंच न खोएं
 
     यदि आप अपनी सुरक्षा कुंजी खो देते हैं:
 
@@ -2212,8 +2213,8 @@ backup_key_info:
 
     बैकअप के रूप में</bold>
 
-    '
-  th: 'อย่าสูญเสียการเข้าถึงบัญชีของคุณ
+    "
+  th: "อย่าสูญเสียการเข้าถึงบัญชีของคุณ
 
     หากคุณสูญเสียคีย์ความปลอดภัย:
 
@@ -2221,8 +2222,8 @@ backup_key_info:
 
     เป็นการสำรอง</bold>
 
-    '
-  cs: 'Neztrácejte přístup ke svému účtu,
+    "
+  cs: "Neztrácejte přístup ke svému účtu,
 
     pokud ztratíte Bezpečnostní klíč:
 
@@ -2230,8 +2231,8 @@ backup_key_info:
 
     jako zálohu</bold>
 
-    '
-  sv: 'Förlora inte åtkomst till ditt konto
+    "
+  sv: "Förlora inte åtkomst till ditt konto
 
     om du tappar bort din Säkerhetsnyckel:
 
@@ -2239,7 +2240,7 @@ backup_key_info:
 
     som säkerhetskopia</bold>
 
-    '
+    "
   verified_by_human: []
 add_backup_key:
   context: Button text for adding a backup key
@@ -2266,106 +2267,106 @@ add_backup_key:
   verified_by_human: []
 or_skip_backup_key:
   context: Text for skipping the backup key step
-  en: 'Or click ''Skip'' in the top right
+  en: "Or click 'Skip' in the top right
 
     and add a backup key later.
 
-    '
-  de: 'Oder klicke auf ‚Überspringen‘ oben rechts
+    "
+  de: "Oder klicke auf ‚Überspringen‘ oben rechts
 
     und füge später einen Backup-Schlüssel hinzu.
 
-    '
-  zh: '或点击右上角的''跳过''
+    "
+  zh: "或点击右上角的'跳过'
 
     稍后添加备份密钥。
 
-    '
-  es: 'O haz clic en ''Omitir'' en la parte superior derecha
+    "
+  es: "O haz clic en 'Omitir' en la parte superior derecha
 
     y añade una llave de respaldo más tarde.
 
-    '
+    "
   fr: "Ou cliquez sur 'Passer' en haut à droite
 
     et ajoutez une clé de sauvegarde plus tard.
 
     "
-  pt: 'Ou clique em ''Pular'' no canto superior direito
+  pt: "Ou clique em 'Pular' no canto superior direito
 
     e adicione uma chave de backup mais tarde.
 
-    '
-  ru: 'Или нажмите ''Пропустить'' в правом верхнем углу
+    "
+  ru: "Или нажмите 'Пропустить' в правом верхнем углу
 
     и добавьте резервный ключ позже.
 
-    '
-  ja: 'バックアップキーをスキップするか、
+    "
+  ja: "バックアップキーをスキップするか、
 
     後で追加するには右上の「スキップ」をクリックしてください。
 
-    '
-  ko: '또는 오른쪽 상단의 ''건너뛰기''를 클릭하고
+    "
+  ko: "또는 오른쪽 상단의 '건너뛰기'를 클릭하고
 
     나중에 백업 키를 추가하세요.
 
-    '
-  it: 'Oppure clicca su ''Salta'' in alto a destra
+    "
+  it: "Oppure clicca su 'Salta' in alto a destra
 
     e aggiungi una chiave di backup più tardi.
 
-    '
-  tr: 'Veya sağ üstteki ''Atla''ya tıklayın
+    "
+  tr: "Veya sağ üstteki 'Atla'ya tıklayın
 
     ve daha sonra bir yedek anahtar ekleyin.
 
-    '
-  vi: 'Hoặc nhấp vào ''Bỏ qua'' ở góc trên bên phải
+    "
+  vi: "Hoặc nhấp vào 'Bỏ qua' ở góc trên bên phải
 
     và thêm khóa dự phòng sau.
 
-    '
-  id: 'Atau klik ''Lewati'' di kanan atas
+    "
+  id: "Atau klik 'Lewati' di kanan atas
 
     dan tambahkan kunci cadangan nanti.
 
-    '
-  pl: 'Lub kliknij ''Pomiń'' w prawym górnym rogu
+    "
+  pl: "Lub kliknij 'Pomiń' w prawym górnym rogu
 
     i dodaj klucz zapasowy później.
 
-    '
-  nl: 'Of klik op ''Overslaan'' rechtsboven
+    "
+  nl: "Of klik op 'Overslaan' rechtsboven
 
     en voeg later een back-upsleutel toe.
 
-    '
-  ar: 'أو انقر على ''تخطي'' في أعلى اليمين
+    "
+  ar: "أو انقر على 'تخطي' في أعلى اليمين
 
     وأضف مفتاح نسخ احتياطي لاحقًا.
 
-    '
-  hi: 'या शीर्ष दाईं ओर ''छोड़ें'' पर क्लिक करें
+    "
+  hi: "या शीर्ष दाईं ओर 'छोड़ें' पर क्लिक करें
 
     और बाद में बैकअप कुंजी जोड़ें।
 
-    '
-  th: 'หรือคลิก ''ข้าม'' ที่มุมขวาบน
+    "
+  th: "หรือคลิก 'ข้าม' ที่มุมขวาบน
 
     และเพิ่มคีย์สำรองในภายหลัง
 
-    '
-  cs: 'Nebo klikněte na ''Přeskočit'' vpravo nahoře
+    "
+  cs: "Nebo klikněte na 'Přeskočit' vpravo nahoře
 
     a přidejte zálohovací klíč později.
 
-    '
-  sv: 'Eller klicka på ''Hoppa över'' längst upp till höger
+    "
+  sv: "Eller klicka på 'Hoppa över' längst upp till höger
 
     och lägg till en säkerhetskopia senare.
 
-    '
+    "
   verified_by_human: []
 one_time_codes:
   context: Title for setting up 2FA for securing account
@@ -2506,7 +2507,7 @@ add_to_2fa_app:
   sv: Lägg till i 2FA-appen
   verified_by_human: []
 or:
-  context: 'in message: ''Add to 2FA app or Scan via 2FA app'''
+  context: "in message: 'Add to 2FA app or Scan via 2FA app'"
   en: or
   de: oder
   zh: 或
@@ -2783,14 +2784,14 @@ upload_profile_picture:
   verified_by_human: []
 allows_you_to_log_in_without_tfa:
   context: Message explaining the purpose of backup codes
-  en: 'Login to your account,
+  en: "Login to your account,
 
-    even if you don''t have access to
+    even if you don't have access to
 
     {tfa_app}
 
-    '
-  de: 'Melde dich bei deinem Konto an,
+    "
+  de: "Melde dich bei deinem Konto an,
 
     auch wenn du keinen Zugriff auf
 
@@ -2798,120 +2799,120 @@ allows_you_to_log_in_without_tfa:
 
     hast.
 
-    '
-  zh: '登录您的账户，
+    "
+  zh: "登录您的账户，
 
     即使您无法访问
 
     {tfa_app}
 
-    '
+    "
 
-  es: 'Te permite iniciar sesión sin 2FA,
+  es: "Te permite iniciar sesión sin 2FA,
 
     incluso si no tienes acceso a
 
     {tfa_app}
 
-    '
+    "
 
-  fr: 'Connectez-vous à votre compte,
+  fr: "Connectez-vous à votre compte,
 
-    même si vous n''avez pas accès à
+    même si vous n'avez pas accès à
 
     {tfa_app}
 
-    '
+    "
 
-  pt: 'Faça login na sua conta,
+  pt: "Faça login na sua conta,
 
     mesmo que você não tenha acesso ao
 
     {tfa_app}
 
-    '
+    "
 
-  ru: 'Войдите в свой аккаунт,
+  ru: "Войдите в свой аккаунт,
 
     даже если у вас нет доступа к
 
     {tfa_app}
 
-    '
+    "
 
-  ja: 'アカウントにログインできます。
+  ja: "アカウントにログインできます。
 
     {tfa_app}
 
     にアクセスできない場合でも。
 
-    '
+    "
 
-  ko: '계정에 로그인하세요.
+  ko: "계정에 로그인하세요.
 
     {tfa_app}
 
     에 액세스할 수 없어도.
 
-    '
+    "
 
-  it: 'Accedi al tuo account,
+  it: "Accedi al tuo account,
 
     anche se non hai accesso a
 
     {tfa_app}
 
-    '
+    "
 
-  tr: 'Hesabınıza giriş yapın,
+  tr: "Hesabınıza giriş yapın,
 
     {tfa_app}
 
     uygulamasına erişiminiz olmasa bile.
 
-    '
+    "
 
-  vi: 'Đăng nhập vào tài khoản của bạn,
+  vi: "Đăng nhập vào tài khoản của bạn,
 
     ngay cả khi bạn không có quyền truy cập vào
 
     {tfa_app}
 
-    '
+    "
 
-  id: 'Masuk ke akun Anda,
+  id: "Masuk ke akun Anda,
 
     bahkan jika Anda tidak memiliki akses ke
 
     {tfa_app}
 
-    '
+    "
 
-  pl: 'Zaloguj się na swoje konto,
+  pl: "Zaloguj się na swoje konto,
 
     nawet jeśli nie masz dostępu do
 
     {tfa_app}
 
-    '
+    "
 
-  nl: 'Log in op je account,
+  nl: "Log in op je account,
 
     zelfs als je geen toegang hebt tot
 
     {tfa_app}
 
-    '
+    "
 
-  ar: 'قم بتسجيل الدخول إلى حسابك،
+  ar: "قم بتسجيل الدخول إلى حسابك،
 
     حتى لو لم يكن لديك إمكانية الوصول إلى
 
     {tfa_app}
 
-    '
+    "
 
-  hi: 'अपने खाते में लॉग इन करें,
+  hi: "अपने खाते में लॉग इन करें,
 
     भले ही आपको
 
@@ -2919,9 +2920,9 @@ allows_you_to_log_in_without_tfa:
 
     तक पहुंच न हो।
 
-    '
+    "
 
-  th: 'เข้าสู่ระบบบัญชีของคุณ
+  th: "เข้าสู่ระบบบัญชีของคุณ
 
     แม้ว่าคุณจะไม่สามารถเข้าถึง
 
@@ -2929,23 +2930,23 @@ allows_you_to_log_in_without_tfa:
 
     ได้
 
-    '
+    "
 
-  cs: 'Přihlaste se ke svému účtu,
+  cs: "Přihlaste se ke svému účtu,
 
     i když nemáte přístup k
 
     {tfa_app}
 
-    '
+    "
 
-  sv: 'Logga in på ditt konto,
+  sv: "Logga in på ditt konto,
 
     även om du inte har tillgång till
 
     {tfa_app}
 
-    '
+    "
 
   verified_by_human: []
 your_tfa_app:
@@ -3065,343 +3066,343 @@ create_recovery_key:
   verified_by_human: []
 create_recovery_key_description:
   context: Message explaining the purpose of the recovery key
-  en: 'Login to your account,
+  en: "Login to your account,
 
     even if you lost access to
 
     your {login_secret}.
 
-    '
-  de: 'Melde dich bei deinem Konto an,
+    "
+  de: "Melde dich bei deinem Konto an,
 
     auch wenn du den Zugriff auf
 
     dein {login_secret} verloren hast.
 
-    '
-  zh: '登录您的账户，
+    "
+  zh: "登录您的账户，
 
     即使您失去了对
 
     {login_secret} 的访问权限。
 
-    '
-  es: 'Crea una llave de recuperación para acceder a tu cuenta,
+    "
+  es: "Crea una llave de recuperación para acceder a tu cuenta,
 
     incluso si pierdes el acceso a tu {login_secret}.
 
-    '
-  fr: 'Connectez-vous à votre compte,
+    "
+  fr: "Connectez-vous à votre compte,
 
-    même si vous avez perdu l''accès à
+    même si vous avez perdu l'accès à
 
     votre {login_secret}.
 
-    '
-  pt: 'Faça login na sua conta,
+    "
+  pt: "Faça login na sua conta,
 
     mesmo que você tenha perdido o acesso ao seu
 
     {login_secret}.
 
-    '
-  ru: 'Войдите в свой аккаунт,
+    "
+  ru: "Войдите в свой аккаунт,
 
     даже если вы потеряли доступ к
 
     вашему {login_secret}.
 
-    '
-  ja: 'アカウントにログインできます。
+    "
+  ja: "アカウントにログインできます。
 
     {login_secret} へのアクセスを失った場合でも。
 
-    '
-  ko: '계정에 로그인하세요.
+    "
+  ko: "계정에 로그인하세요.
 
     {login_secret}에 대한 액세스를 잃었더라도.
 
-    '
-  it: 'Accedi al tuo account,
+    "
+  it: "Accedi al tuo account,
 
-    anche se hai perso l''accesso al tuo
+    anche se hai perso l'accesso al tuo
 
     {login_secret}.
 
-    '
-  tr: 'Hesabınıza giriş yapın,
+    "
+  tr: "Hesabınıza giriş yapın,
 
     {login_secret} erişiminizi kaybetmiş olsanız bile.
 
-    '
-  vi: 'Đăng nhập vào tài khoản của bạn,
+    "
+  vi: "Đăng nhập vào tài khoản của bạn,
 
     ngay cả khi bạn mất quyền truy cập vào
 
     {login_secret} của bạn.
 
-    '
-  id: 'Masuk ke akun Anda,
+    "
+  id: "Masuk ke akun Anda,
 
     bahkan jika Anda kehilangan akses ke
 
     {login_secret} Anda.
 
-    '
-  pl: 'Zaloguj się na swoje konto,
+    "
+  pl: "Zaloguj się na swoje konto,
 
     nawet jeśli utraciłeś dostęp do
 
     {login_secret}.
 
-    '
-  nl: 'Log in op je account,
+    "
+  nl: "Log in op je account,
 
     zelfs als je de toegang tot je
 
     {login_secret} bent kwijtgeraakt.
 
-    '
-  ar: 'قم بتسجيل الدخول إلى حسابك،
+    "
+  ar: "قم بتسجيل الدخول إلى حسابك،
 
     حتى لو فقدت الوصول إلى
 
     {login_secret} الخاص بك.
 
-    '
-  hi: 'अपने खाते में लॉग इन करें,
+    "
+  hi: "अपने खाते में लॉग इन करें,
 
     भले ही आपने अपने
 
     {login_secret} तक पहुंच खो दी हो।
 
-    '
-  th: 'เข้าสู่ระบบบัญชีของคุณ
+    "
+  th: "เข้าสู่ระบบบัญชีของคุณ
 
     แม้ว่าคุณจะสูญเสียการเข้าถึง
 
     {login_secret} ของคุณ
 
-    '
+    "
 
-  cs: 'Přihlaste se ke svému účtu,
+  cs: "Přihlaste se ke svému účtu,
 
     i když jste ztratili přístup ke svému
 
     {login_secret}.
 
-    '
-  sv: 'Logga in på ditt konto,
+    "
+  sv: "Logga in på ditt konto,
 
     även om du har förlorat tillgång till din
 
     {login_secret}.
 
-    '
+    "
   verified_by_human: []
 accept_lockedout_risk:
   context: Message explaining the risk of not having a recovery key
-  en: 'Accept the risk
+  en: "Accept the risk
 
     of getting locked out.
 
-    '
-  de: 'Akzeptiere das Risiko,
+    "
+  de: "Akzeptiere das Risiko,
 
     ausgesperrt zu werden.
 
-    '
-  zh: '接受被锁定的风险。
+    "
+  zh: "接受被锁定的风险。
 
-    '
-  es: 'Acepta el riesgo
+    "
+  es: "Acepta el riesgo
 
     de quedar bloqueado.
 
-    '
-  fr: 'Acceptez le risque
+    "
+  fr: "Acceptez le risque
 
-    d''être verrouillé.
+    d'être verrouillé.
 
-    '
-  pt: 'Aceite o risco
+    "
+  pt: "Aceite o risco
 
     de ficar bloqueado.
 
-    '
-  ru: 'Примите риск
+    "
+  ru: "Примите риск
 
     быть заблокированным.
 
-    '
-  ja: 'ロックアウトされるリスクを
+    "
+  ja: "ロックアウトされるリスクを
 
     受け入れます。
 
-    '
-  ko: '잠금 위험을
+    "
+  ko: "잠금 위험을
 
     수락합니다.
 
-    '
-  it: 'Accetta il rischio
+    "
+  it: "Accetta il rischio
 
     di essere bloccato.
 
-    '
-  tr: 'Kilitlenme riskini
+    "
+  tr: "Kilitlenme riskini
 
     kabul edin.
 
-    '
-  vi: 'Chấp nhận rủi ro
+    "
+  vi: "Chấp nhận rủi ro
 
     bị khóa tài khoản.
 
-    '
-  id: 'Terima risiko
+    "
+  id: "Terima risiko
 
     terkunci.
 
-    '
-  pl: 'Zaakceptuj ryzyko
+    "
+  pl: "Zaakceptuj ryzyko
 
     zablokowania.
 
-    '
-  nl: 'Accepteer het risico
+    "
+  nl: "Accepteer het risico
 
     om buitengesloten te worden.
 
-    '
-  ar: 'اقبل المخاطرة
+    "
+  ar: "اقبل المخاطرة
 
     بالحظر.
 
-    '
-  hi: 'बाहर रहने का जोखिम
+    "
+  hi: "बाहर रहने का जोखिम
 
     स्वीकार करें।
 
-    '
-  th: 'ยอมรับความเสี่ยง
+    "
+  th: "ยอมรับความเสี่ยง
 
     ที่จะถูกล็อกเอาท์
 
-    '
-  cs: 'Přijměte riziko
+    "
+  cs: "Přijměte riziko
 
     uzamčení.
 
-    '
-  sv: 'Acceptera risken
+    "
+  sv: "Acceptera risken
 
     att bli utelåst.
 
-    '
+    "
   verified_by_human: []
 we_cant_help_you:
   context: Message explaining that support cannot help if the user loses access without backup codes
-  en: '<mark>Warning:</mark>
+  en: "<mark>Warning:</mark>
 
-    For security reasons we can''t help you to regain access to your account if you forgot/lost your login data.
+    For security reasons we can't help you to regain access to your account if you forgot/lost your login data.
 
-    '
-  de: '<mark>Warnung:</mark>
+    "
+  de: "<mark>Warnung:</mark>
 
     Aus Sicherheitsgründen können wir Ihnen nicht helfen, wieder Zugriff auf Ihr Konto zu erhalten, wenn Sie Ihre Anmeldedaten vergessen/verloren haben.
 
-    '
-  zh: '<mark>警告：</mark>
+    "
+  zh: "<mark>警告：</mark>
 
     出于安全原因，如果您忘记/丢失了登录数据，我们无法帮助您恢复账户访问权限。
 
-    '
-  es: '<mark>Advertencia:</mark>
+    "
+  es: "<mark>Advertencia:</mark>
 
     Por razones de seguridad, no podemos ayudarte a recuperar el acceso a tu cuenta si olvidaste/perdiste tus datos de inicio de sesión.
 
-    '
-  fr: '<mark>Avertissement :</mark>
+    "
+  fr: "<mark>Avertissement :</mark>
 
-    Pour des raisons de sécurité, nous ne pouvons pas vous aider à retrouver l''accès à votre compte si vous avez oublié/perdu vos données de connexion.
+    Pour des raisons de sécurité, nous ne pouvons pas vous aider à retrouver l'accès à votre compte si vous avez oublié/perdu vos données de connexion.
 
-    '
-  pt: '<mark>Aviso:</mark>
+    "
+  pt: "<mark>Aviso:</mark>
 
     Por motivos de segurança, não podemos ajudá-lo a recuperar o acesso à sua conta se você esqueceu/perdeu seus dados de login.
 
-    '
-  ru: '<mark>Предупреждение:</mark>
+    "
+  ru: "<mark>Предупреждение:</mark>
 
     По соображениям безопасности мы не можем помочь вам восстановить доступ к аккаунту, если вы забыли/потеряли данные для входа.
 
-    '
-  ja: '<mark>警告：</mark>
+    "
+  ja: "<mark>警告：</mark>
 
     セキュリティ上の理由により、ログインデータを忘れた/失った場合、アカウントへのアクセスを回復するお手伝いはできません。
 
-    '
-  ko: '<mark>경고:</mark>
+    "
+  ko: "<mark>경고:</mark>
 
     보안상의 이유로 로그인 데이터를 잊어버렸거나 분실한 경우 계정 액세스를 복구하는 데 도움을 드릴 수 없습니다.
 
-    '
-  it: '<mark>Avviso:</mark>
+    "
+  it: "<mark>Avviso:</mark>
 
-    Per motivi di sicurezza non possiamo aiutarti a recuperare l''accesso al tuo account se hai dimenticato/perso i tuoi dati di accesso.
+    Per motivi di sicurezza non possiamo aiutarti a recuperare l'accesso al tuo account se hai dimenticato/perso i tuoi dati di accesso.
 
-    '
-  tr: '<mark>Uyarı:</mark>
+    "
+  tr: "<mark>Uyarı:</mark>
 
     Güvenlik nedenleriyle, giriş verilerinizi unuttuysanız/kaybettiyseniz hesabınıza erişimi geri kazanmanıza yardımcı olamayız.
 
-    '
-  vi: '<mark>Cảnh báo:</mark>
+    "
+  vi: "<mark>Cảnh báo:</mark>
 
     Vì lý do bảo mật, chúng tôi không thể giúp bạn khôi phục quyền truy cập vào tài khoản nếu bạn quên/mất dữ liệu đăng nhập.
 
-    '
-  id: '<mark>Peringatan:</mark>
+    "
+  id: "<mark>Peringatan:</mark>
 
     Karena alasan keamanan, kami tidak dapat membantu Anda mendapatkan kembali akses ke akun Anda jika Anda lupa/kehilangan data login Anda.
 
-    '
-  pl: '<mark>Ostrzeżenie:</mark>
+    "
+  pl: "<mark>Ostrzeżenie:</mark>
 
     Ze względów bezpieczeństwa nie możemy pomóc Ci odzyskać dostępu do konta, jeśli zapomniałeś/straciłeś dane logowania.
 
-    '
-  nl: '<mark>Waarschuwing:</mark>
+    "
+  nl: "<mark>Waarschuwing:</mark>
 
     Om veiligheidsredenen kunnen we je niet helpen om weer toegang te krijgen tot je account als je je inloggegevens bent vergeten/kwijtgeraakt.
 
-    '
-  ar: '<mark>تحذير:</mark>
+    "
+  ar: "<mark>تحذير:</mark>
 
     لأسباب أمنية، لا يمكننا مساعدتك في استعادة الوصول إلى حسابك إذا نسيت/فقدت بيانات تسجيل الدخول الخاصة بك.
 
-    '
-  hi: '<mark>चेतावनी:</mark>
+    "
+  hi: "<mark>चेतावनी:</mark>
 
     सुरक्षा कारणों से, यदि आप अपना लॉगिन डेटा भूल गए/खो दिया है, तो हम आपकी खाता पहुंच पुनर्प्राप्त करने में मदद नहीं कर सकते।
 
-    '
-  th: '<mark>คำเตือน:</mark>
+    "
+  th: "<mark>คำเตือน:</mark>
 
     ด้วยเหตุผลด้านความปลอดภัย เราไม่สามารถช่วยคุณกู้คืนการเข้าถึงบัญชีของคุณได้หากคุณลืม/สูญเสียข้อมูลการเข้าสู่ระบบของคุณ
 
-    '
-  cs: '<mark>Varování:</mark>
+    "
+  cs: "<mark>Varování:</mark>
 
     Z bezpečnostních důvodů vám nemůžeme pomoci obnovit přístup k vašemu účtu, pokud jste zapomněli/ztratili svá přihlašovací data.
 
-    '
-  sv: '<mark>Varning:</mark>
+    "
+  sv: "<mark>Varning:</mark>
 
     Av säkerhetsskäl kan vi inte hjälpa dig att återfå tillgång till ditt konto om du har glömt/förlorat dina inloggningsuppgifter.
 
-    '
+    "
   verified_by_human: []
 store_recovery_key_safely:
   context: Button text for storing the recovery key somewhere safe
@@ -3513,7 +3514,7 @@ attempt_to_reconnect_for_another:
   pl: Próba ponownego połączenia przez kolejne
   nl: Poging tot herverbinding voor nog
   ar: محاولة إعادة الاتصال لمدة
-  hi: 'पुन: कनेक्ट करने का प्रयास, अतिरिक्त'
+  hi: "पुन: कनेक्ट करने का प्रयास, अतिरिक्त"
   th: กำลังพยายามเชื่อมต่อใหม่อีก
   cs: Pokus o opětovné připojení na další
   sv: Försöker återansluta i ytterligare
@@ -3536,7 +3537,7 @@ reconnect_attempts_failed:
   pl: Próby ponownego połączenia nie powiodły się. Przepraszamy za to. Spróbuj ponownie później.
   nl: Herverbindingspogingen zijn mislukt. Sorry daarvoor. Probeer het later opnieuw.
   ar: فشلت محاولات إعادة الاتصال. آسف على ذلك. يرجى المحاولة مرة أخرى لاحقًا.
-  hi: 'पुन: कनेक्ट करने के प्रयास विफल रहे। इसके लिए क्षमा करें। कृपया बाद में पुनः प्रयास करें।'
+  hi: "पुन: कनेक्ट करने के प्रयास विफल रहे। इसके लिए क्षमा करें। कृपया बाद में पुनः प्रयास करें।"
   th: การพยายามเชื่อมต่อใหม่ล้มเหลว ขออภัยในเรื่องนี้ กรุณาลองอีกครั้งในภายหลัง
   cs: Pokusy o opětovné připojení selhaly. Omlouváme se za to. Zkuste to prosím později znovu.
   sv: Återanslutningsförsök misslyckades. Förlåt för det. Försök igen senare.
@@ -3582,7 +3583,7 @@ attempt_to_reconnect:
   pl: Spróbuj ponownie połączyć
   nl: Probeer opnieuw te verbinden
   ar: محاولة إعادة الاتصال
-  hi: 'पुन: कनेक्ट करने का प्रयास करें'
+  hi: "पुन: कनेक्ट करने का प्रयास करें"
   th: พยายามเชื่อมต่อใหม่
   cs: Pokus o opětovné připojení
   sv: Försök återansluta
@@ -3950,33 +3951,33 @@ ai_providers:
   pl: Dostawcy AI
   nl: AI-providers
   ar: مزودو الذكاء الاصطناعي
-  hi: 'AI प्रदाता'
+  hi: "AI प्रदाता"
   th: ผู้ให้บริการ AI
   cs: Poskytovatelé AI
   sv: AI-leverantörer
   verified_by_human: []
 location_company_server:
   context: Used in 'US company, EU server'
-  en: '{company_region} company, {server_region} server'
-  de: '{company_region} Untern., {server_region} Server'
-  zh: '{company_region}公司，{server_region}服务器'
-  es: '{company_region} empresa, {server_region} servidor'
-  fr: '{company_region} entreprise, {server_region} serveur'
-  pt: '{company_region} empresa, servidor {server_region}'
-  ru: '{company_region} компания, сервер {server_region}'
-  ja: '{company_region}会社、{server_region}サーバー'
-  ko: '{company_region} 회사, {server_region} 서버'
-  it: 'Azienda {company_region}, server {server_region}'
-  tr: '{company_region} şirketi, {server_region} sunucusu'
-  vi: 'Công ty {company_region}, máy chủ {server_region}'
-  id: 'Perusahaan {company_region}, server {server_region}'
-  pl: 'Firma {company_region}, serwer {server_region}'
-  nl: '{company_region} bedrijf, {server_region} server'
-  ar: 'شركة {company_region}، خادم {server_region}'
-  hi: '{company_region} कंपनी, {server_region} सर्वर'
-  th: 'บริษัท {company_region} เซิร์ฟเวอร์ {server_region}'
-  cs: 'Společnost {company_region}, server {server_region}'
-  sv: '{company_region} företag, {server_region} server'
+  en: "{company_region} company, {server_region} server"
+  de: "{company_region} Untern., {server_region} Server"
+  zh: "{company_region}公司，{server_region}服务器"
+  es: "{company_region} empresa, {server_region} servidor"
+  fr: "{company_region} entreprise, {server_region} serveur"
+  pt: "{company_region} empresa, servidor {server_region}"
+  ru: "{company_region} компания, сервер {server_region}"
+  ja: "{company_region}会社、{server_region}サーバー"
+  ko: "{company_region} 회사, {server_region} 서버"
+  it: "Azienda {company_region}, server {server_region}"
+  tr: "{company_region} şirketi, {server_region} sunucusu"
+  vi: "Công ty {company_region}, máy chủ {server_region}"
+  id: "Perusahaan {company_region}, server {server_region}"
+  pl: "Firma {company_region}, serwer {server_region}"
+  nl: "{company_region} bedrijf, {server_region} server"
+  ar: "شركة {company_region}، خادم {server_region}"
+  hi: "{company_region} कंपनी, {server_region} सर्वर"
+  th: "บริษัท {company_region} เซิร์ฟเวอร์ {server_region}"
+  cs: "Společnost {company_region}, server {server_region}"
+  sv: "{company_region} företag, {server_region} server"
   verified_by_human: []
 all_ai_models_make_mistakes:
   context: ai models make mistakes disclaimer
@@ -3996,7 +3997,7 @@ all_ai_models_make_mistakes:
   pl: Pamiętaj, wszystkie modele AI popełniają błędy. Zawsze sprawdzaj odpowiedzi.
   nl: Houd er rekening mee dat alle AI-modellen fouten maken. Controleer daarom altijd de antwoorden.
   ar: ضع في اعتبارك أن جميع نماذج الذكاء الاصطناعي ترتكب أخطاء. لذا تحقق دائمًا من صحة الردود.
-  hi: 'ध्यान रखें, सभी AI मॉडल गलतियाँ करते हैं। इसलिए हमेशा प्रतिक्रियाओं की जांच करें।'
+  hi: "ध्यान रखें, सभी AI मॉडल गलतियाँ करते हैं। इसलिए हमेशा प्रतिक्रियाओं की जांच करें।"
   th: โปรดจำไว้ว่าโมเดล AI ทั้งหมดทำผิดพลาดได้ ดังนั้นควรตรวจสอบข้อเท็จจริงของคำตอบเสมอ
   cs: Mějte na paměti, že všechny modely AI dělají chyby. Proto vždy ověřujte odpovědi.
   sv: Kom ihåg att alla AI-modeller gör misstag. Så kontrollera alltid svaren.
@@ -4019,7 +4020,7 @@ mates_settings:
   pl: Ustawienia towarzyszy
   nl: Metgezellen instellingen
   ar: إعدادات الرفاق
-  hi: 'साथी सेटिंग्स'
+  hi: "साथी सेटिंग्स"
   th: การตั้งค่าคู่หู
   cs: Nastavení společníků
   sv: Kompanjonsinställningar
@@ -4042,13 +4043,13 @@ skip_and_show_demo_first:
   pl: Pomiń i pokaż demo najpierw
   nl: Overslaan en eerst demo tonen
   ar: تخطي وعرض العرض التوضيحي أولاً
-  hi: 'छोड़ें और पहले डेमो दिखाएं'
+  hi: "छोड़ें और पहले डेमो दिखाएं"
   th: ข้ามและแสดงเดโมก่อน
   cs: Přeskočit a nejprve zobrazit demo
   sv: Hoppa över och visa demo först
   verified_by_human: []
 pay_per_use:
-  context: 'in message: ''Pay credits per use'''
+  context: "in message: 'Pay credits per use'"
   en: Pay {credits} per use
   de: Zahle {credits} pro Nutzung
   zh: 支付 {credits} 点数
@@ -4056,7 +4057,7 @@ pay_per_use:
   fr: Payer {credits} par utilisation
   pt: Pagar {credits} por uso
   ru: Платить {credits} за использование
-  ja: '{credits}を使用毎に支払う'
+  ja: "{credits}を使用毎に支払う"
   ko: 사용당 {credits} 지불
   it: Paga {credits} per utilizzo
   tr: Kullanım başına {credits} öde
@@ -4064,8 +4065,8 @@ pay_per_use:
   id: Bayar {credits} per penggunaan
   pl: Zapłać {credits} za użycie
   nl: Betaal {credits} per gebruik
-  ar: 'دفع {credits} لكل استخدام'
-  hi: 'प्रति उपयोग {credits} भुगतान करें'
+  ar: "دفع {credits} لكل استخدام"
+  hi: "प्रति उपयोग {credits} भुगतान करें"
   th: จ่าย {credits} ต่อการใช้งาน
   cs: Zaplatit {credits} za použití
   sv: Betala {credits} per användning
@@ -4088,7 +4089,7 @@ recommended:
   pl: Zalecane
   nl: Aanbevolen
   ar: موصى به
-  hi: 'अनुशंसित'
+  hi: "अनुशंसित"
   th: แนะนำ
   cs: Doporučeno
   sv: Rekommenderas
@@ -4111,7 +4112,7 @@ your_gift:
   pl: Twój prezent
   nl: Je cadeau
   ar: هديتك
-  hi: 'आपका उपहार'
+  hi: "आपका उपहार"
   th: ของขวัญของคุณ
   cs: Váš dárek
   sv: Din gåva
@@ -4134,33 +4135,33 @@ accept:
   pl: Zaakceptuj
   nl: Accepteren
   ar: قبول
-  hi: 'स्वीकार करें'
+  hi: "स्वीकार करें"
   th: ยอมรับ
   cs: Přijmout
   sv: Acceptera
   verified_by_human: []
 amount_currency:
-  context: 'in message: ''21.000 credits'' or ''30 EUR'''
-  en: '{amount} {currency}'
-  de: '{amount} {currency}'
-  zh: '{amount} {currency}'
-  es: '{amount} {currency}'
-  fr: '{amount} {currency}'
-  pt: '{amount} {currency}'
-  ru: '{amount} {currency}'
-  ja: '{amount} {currency}'
-  ko: '{amount} {currency}'
-  it: '{amount} {currency}'
-  tr: '{amount} {currency}'
-  vi: '{amount} {currency}'
-  id: '{amount} {currency}'
-  pl: '{amount} {currency}'
-  nl: '{amount} {currency}'
-  ar: '{amount} {currency}'
-  hi: '{amount} {currency}'
-  th: '{amount} {currency}'
-  cs: '{amount} {currency}'
-  sv: '{amount} {currency}'
+  context: "in message: '21.000 credits' or '30 EUR'"
+  en: "{amount} {currency}"
+  de: "{amount} {currency}"
+  zh: "{amount} {currency}"
+  es: "{amount} {currency}"
+  fr: "{amount} {currency}"
+  pt: "{amount} {currency}"
+  ru: "{amount} {currency}"
+  ja: "{amount} {currency}"
+  ko: "{amount} {currency}"
+  it: "{amount} {currency}"
+  tr: "{amount} {currency}"
+  vi: "{amount} {currency}"
+  id: "{amount} {currency}"
+  pl: "{amount} {currency}"
+  nl: "{amount} {currency}"
+  ar: "{amount} {currency}"
+  hi: "{amount} {currency}"
+  th: "{amount} {currency}"
+  cs: "{amount} {currency}"
+  sv: "{amount} {currency}"
   verified_by_human: []
 for_chatting_and_apps:
   context: Explainer what the credits are needed for
@@ -4180,113 +4181,113 @@ for_chatting_and_apps:
   pl: Do czatowania i korzystania z aplikacji
   nl: Voor chatten en apps gebruiken
   ar: للدردشة واستخدام التطبيقات
-  hi: 'चैटिंग और ऐप्स उपयोग करने के लिए'
+  hi: "चैटिंग और ऐप्स उपयोग करने के लिए"
   th: สำหรับการแชทและการใช้แอป
   cs: Pro chatování a používání aplikací
   sv: För chatt och användning av appar
   verified_by_human: []
 only_pay_what_you_use:
   context: explainer how the payment system works
-  en: 'You only pay what you use.
+  en: "You only pay what you use.
 
     Fair & accessible for all of us.
 
-    '
-  de: 'Du zahlst nur, was du nutzt.
+    "
+  de: "Du zahlst nur, was du nutzt.
 
     Fair & zugänglich für uns alle.
 
-    '
-  zh: '您只需支付使用的部分。
+    "
+  zh: "您只需支付使用的部分。
 
     对我们所有人都公平且可负担
 
-    '
-  es: 'Solo pagas lo que usas.
+    "
+  es: "Solo pagas lo que usas.
 
     Justo y accesible para todos nosotros.
 
-    '
-  fr: 'Vous ne payez que ce que vous utilisez.
+    "
+  fr: "Vous ne payez que ce que vous utilisez.
 
     Équitable et accessible pour nous tous.
 
-    '
-  pt: 'Você paga apenas o que usa.
+    "
+  pt: "Você paga apenas o que usa.
 
     Justo e acessível para todos nós.
 
-    '
-  ru: 'Вы платите только за то, что используете.
+    "
+  ru: "Вы платите только за то, что используете.
 
     Справедливо и доступно для всех нас.
 
-    '
-  ja: '使用分のみお支払い。
+    "
+  ja: "使用分のみお支払い。
 
     すべての人に公平でアクセスしやすい。
 
-    '
-  ko: '사용한 만큼만 지불하세요.
+    "
+  ko: "사용한 만큼만 지불하세요.
 
     우리 모두에게 공정하고 접근 가능합니다.
 
-    '
-  it: 'Paghi solo quello che usi.
+    "
+  it: "Paghi solo quello che usi.
 
     Equo e accessibile per tutti noi.
 
-    '
-  tr: 'Sadece kullandığınız kadar ödersiniz.
+    "
+  tr: "Sadece kullandığınız kadar ödersiniz.
 
     Hepimiz için adil ve erişilebilir.
 
-    '
-  vi: 'Bạn chỉ trả cho những gì bạn sử dụng.
+    "
+  vi: "Bạn chỉ trả cho những gì bạn sử dụng.
 
     Công bằng và dễ tiếp cận cho tất cả chúng ta.
 
-    '
-  id: 'Anda hanya membayar apa yang Anda gunakan.
+    "
+  id: "Anda hanya membayar apa yang Anda gunakan.
 
     Adil dan dapat diakses untuk kita semua.
 
-    '
-  pl: 'Płacisz tylko za to, czego używasz.
+    "
+  pl: "Płacisz tylko za to, czego używasz.
 
     Sprawiedliwe i dostępne dla nas wszystkich.
 
-    '
-  nl: 'Je betaalt alleen wat je gebruikt.
+    "
+  nl: "Je betaalt alleen wat je gebruikt.
 
     Eerlijk en toegankelijk voor ons allemaal.
 
-    '
-  ar: 'تدفع فقط مقابل ما تستخدمه.
+    "
+  ar: "تدفع فقط مقابل ما تستخدمه.
 
     عادل ومتاح لنا جميعًا.
 
-    '
-  hi: 'आप केवल वही भुगतान करते हैं जो आप उपयोग करते हैं।
+    "
+  hi: "आप केवल वही भुगतान करते हैं जो आप उपयोग करते हैं।
 
     हम सभी के लिए निष्पक्ष और सुलभ।
 
-    '
-  th: 'คุณจ่ายเฉพาะสิ่งที่คุณใช้
+    "
+  th: "คุณจ่ายเฉพาะสิ่งที่คุณใช้
 
     ยุติธรรมและเข้าถึงได้สำหรับเราทุกคน
 
-    '
-  cs: 'Platíte pouze za to, co používáte.
+    "
+  cs: "Platíte pouze za to, co používáte.
 
     Spravedlivé a dostupné pro nás všechny.
 
-    '
-  sv: 'Du betalar bara för det du använder.
+    "
+  sv: "Du betalar bara för det du använder.
 
     Rättvist och tillgängligt för oss alla.
 
-    '
+    "
   verified_by_human: []
 no_expiration_of_credits:
   context: explainer that credits dont expire
@@ -4306,7 +4307,7 @@ no_expiration_of_credits:
   pl: brak wygaśnięcia kredytów
   nl: geen verloop van credits
   ar: لا انتهاء صلاحية للاعتمادات
-  hi: 'क्रेडिट की कोई समाप्ति नहीं'
+  hi: "क्रेडिट की कोई समाप्ति नहीं"
   th: ไม่มีการหมดอายุของเครดิต
   cs: žádné vypršení kreditů
   sv: inget utgångsdatum för krediter
@@ -4329,7 +4330,7 @@ no_subscription:
   pl: brak wymaganej subskrypcji
   nl: geen abonnement vereist
   ar: لا اشتراك مطلوب
-  hi: 'कोई सदस्यता आवश्यक नहीं'
+  hi: "कोई सदस्यता आवश्यक नहीं"
   th: ไม่ต้องสมัครสมาชิก
   cs: není vyžadováno předplatné
   sv: ingen prenumeration krävs
@@ -4352,7 +4353,7 @@ no_ads:
   pl: brak reklam
   nl: geen advertenties
   ar: لا إعلانات
-  hi: 'कोई विज्ञापन नहीं'
+  hi: "कोई विज्ञापन नहीं"
   th: ไม่มีโฆษณา
   cs: žádné reklamy
   sv: inga annonser
@@ -4375,135 +4376,135 @@ no_selling_of_user_data:
   pl: brak sprzedaży danych użytkowników
   nl: geen verkoop van gebruikersgegevens
   ar: لا بيع لبيانات المستخدم
-  hi: 'उपयोगकर्ता डेटा की कोई बिक्री नहीं'
+  hi: "उपयोगकर्ता डेटा की कोई बिक्री नहीं"
   th: ไม่มีการขายข้อมูลผู้ใช้
   cs: žádný prodej uživatelských dat
   sv: ingen försäljning av användardata
   verified_by_human: []
 prices_on_app_store_soon:
   context: explainer that prices will be available on the app store soon
-  en: 'Click here to check the App Store for prices.'
-  de: 'Klicken Sie hier, um die Preise im App Store zu überprüfen.'
-  zh: '点击此处查看应用商店中的价格。'
-  es: 'Haz clic aquí para ver los precios en la App Store.'
+  en: "Click here to check the App Store for prices."
+  de: "Klicken Sie hier, um die Preise im App Store zu überprüfen."
+  zh: "点击此处查看应用商店中的价格。"
+  es: "Haz clic aquí para ver los precios en la App Store."
   fr: "Cliquez ici pour consulter les prix dans l'App Store."
-  pt: 'Clique aqui para verificar os preços na App Store.'
-  ru: 'Нажмите здесь, чтобы проверить цены в App Store.'
-  ja: 'ここをクリックしてApp Storeの価格を確認してください。'
-  ko: '여기를 클릭하여 App Store에서 가격을 확인하세요.'
-  it: 'Clicca qui per controllare i prezzi nell''App Store.'
-  tr: 'Fiyatları App Store''da kontrol etmek için buraya tıklayın.'
-  vi: 'Nhấp vào đây để kiểm tra giá trong App Store.'
-  id: 'Klik di sini untuk memeriksa harga di App Store.'
-  pl: 'Kliknij tutaj, aby sprawdzić ceny w App Store.'
-  nl: 'Klik hier om de prijzen in de App Store te bekijken.'
-  ar: 'انقر هنا للتحقق من الأسعار في متجر التطبيقات.'
-  hi: 'App Store में कीमतों की जांच करने के लिए यहां क्लिक करें।'
-  th: 'คลิกที่นี่เพื่อตรวจสอบราคาใน App Store'
-  cs: 'Klikněte zde a zkontrolujte ceny v App Store.'
-  sv: 'Klicka här för att kontrollera priserna i App Store.'
+  pt: "Clique aqui para verificar os preços na App Store."
+  ru: "Нажмите здесь, чтобы проверить цены в App Store."
+  ja: "ここをクリックしてApp Storeの価格を確認してください。"
+  ko: "여기를 클릭하여 App Store에서 가격을 확인하세요."
+  it: "Clicca qui per controllare i prezzi nell'App Store."
+  tr: "Fiyatları App Store'da kontrol etmek için buraya tıklayın."
+  vi: "Nhấp vào đây để kiểm tra giá trong App Store."
+  id: "Klik di sini untuk memeriksa harga di App Store."
+  pl: "Kliknij tutaj, aby sprawdzić ceny w App Store."
+  nl: "Klik hier om de prijzen in de App Store te bekijken."
+  ar: "انقر هنا للتحقق من الأسعار في متجر التطبيقات."
+  hi: "App Store में कीमतों की जांच करने के लिए यहां क्लिक करें।"
+  th: "คลิกที่นี่เพื่อตรวจสอบราคาใน App Store"
+  cs: "Klikněte zde a zkontrolujte ceny v App Store."
+  sv: "Klicka här för att kontrollera priserna i App Store."
   verified_by_human: []
 usage_prices_on_app_store:
   context: explainer where to find pricing details
-  en: 'You find the usage prices
+  en: "You find the usage prices
 
     in the App Store.
 
-    '
-  de: 'Sie finden die Nutzungspreise
+    "
+  de: "Sie finden die Nutzungspreise
 
     im App Store.
 
-    '
-  zh: '您可以在应用商店找到使用价格
+    "
+  zh: "您可以在应用商店找到使用价格
 
-    '
+    "
 
-  es: 'Encuentra los precios de uso
+  es: "Encuentra los precios de uso
 
     en la App Store.
 
-    '
+    "
   fr: "Vous trouvez les prix d'utilisation
 
     dans l'App Store.
 
     "
-  pt: 'Você encontra os preços de uso
+  pt: "Você encontra os preços de uso
 
     na App Store.
 
-    '
-  ru: 'Вы найдете цены на использование
+    "
+  ru: "Вы найдете цены на использование
 
     в App Store.
 
-    '
-  ja: '使用料金は
+    "
+  ja: "使用料金は
 
     App Storeで確認できます。
 
-    '
-  ko: '사용 가격은
+    "
+  ko: "사용 가격은
 
     App Store에서 확인할 수 있습니다.
 
-    '
-  it: 'Trovi i prezzi di utilizzo
+    "
+  it: "Trovi i prezzi di utilizzo
 
-    nell''App Store.
+    nell'App Store.
 
-    '
-  tr: 'Kullanım fiyatlarını
+    "
+  tr: "Kullanım fiyatlarını
 
-    App Store''da bulabilirsiniz.
+    App Store'da bulabilirsiniz.
 
-    '
-  vi: 'Bạn tìm thấy giá sử dụng
+    "
+  vi: "Bạn tìm thấy giá sử dụng
 
     trong App Store.
 
-    '
-  id: 'Anda menemukan harga penggunaan
+    "
+  id: "Anda menemukan harga penggunaan
 
     di App Store.
 
-    '
-  pl: 'Znajdziesz ceny użytkowania
+    "
+  pl: "Znajdziesz ceny użytkowania
 
     w App Store.
 
-    '
-  nl: 'Je vindt de gebruiks prijzen
+    "
+  nl: "Je vindt de gebruiks prijzen
 
     in de App Store.
 
-    '
-  ar: 'تجد أسعار الاستخدام
+    "
+  ar: "تجد أسعار الاستخدام
 
     في متجر التطبيقات.
 
-    '
-  hi: 'आप उपयोग कीमतें पाते हैं
+    "
+  hi: "आप उपयोग कीमतें पाते हैं
 
     App Store में।
 
-    '
-  th: 'คุณจะพบราคาการใช้งาน
+    "
+  th: "คุณจะพบราคาการใช้งาน
 
     ใน App Store
 
-    '
-  cs: 'Najdete ceny za použití
+    "
+  cs: "Najdete ceny za použití
 
     v App Store.
 
-    '
-  sv: 'Du hittar användningspriserna
+    "
+  sv: "Du hittar användningspriserna
 
     i App Store.
 
-    '
+    "
   verified_by_human: []
 open_app_store:
   context: Button text for opening app store to see usage prices
@@ -4523,7 +4524,7 @@ open_app_store:
   pl: Otwórz App Store
   nl: App Store openen
   ar: فتح متجر التطبيقات
-  hi: 'App Store खोलें'
+  hi: "App Store खोलें"
   th: เปิด App Store
   cs: Otevřít App Store
   sv: Öppna App Store
@@ -4546,7 +4547,7 @@ less:
   pl: Mniej
   nl: Minder
   ar: أقل
-  hi: 'कम'
+  hi: "कम"
   th: น้อยลง
   cs: Méně
   sv: Mindre
@@ -4569,7 +4570,7 @@ more:
   pl: Więcej
   nl: Meer
   ar: أكثر
-  hi: 'अधिक'
+  hi: "अधिक"
   th: มากขึ้น
   cs: Více
   sv: Mer
@@ -4592,7 +4593,7 @@ select_amount:
   pl: Wybierz kwotę
   nl: Selecteer een bedrag
   ar: اختر مبلغًا
-  hi: 'एक राशि चुनें'
+  hi: "एक राशि चुनें"
   th: เลือกจำนวนเงิน
   cs: Vyberte částku
   sv: Välj ett belopp
@@ -4615,7 +4616,7 @@ select_credits:
   pl: Wybierz kredyty
   nl: Selecteer credits
   ar: اختر الاعتمادات
-  hi: 'क्रेडिट चुनें'
+  hi: "क्रेडिट चुनें"
   th: เลือกเครดิต
   cs: Vybrat kredity
   sv: Välj krediter
@@ -4638,7 +4639,7 @@ limited_refund:
   pl: Ograniczony zwrot
   nl: Beperkte terugbetaling
   ar: استرداد محدود
-  hi: 'सीमित धनवापसी'
+  hi: "सीमित धनवापसी"
   th: การคืนเงินจำกัด
   cs: Omezená náhrada
   sv: Begränsad återbetalning
@@ -4661,7 +4662,7 @@ i_agree_to_limited_refund:
   pl: Zgadzam się, że mogę żądać zwrotu tylko za niewykorzystane kredyty w ciągu 14 dni od zakupu. Wyrażam również zgodę na natychmiastowe wykonanie usług cyfrowych świadczonych przez OpenMates, uznając, że moje prawo do odstąpienia wygasa po wykorzystaniu kredytów.
   nl: Ik ga ermee akkoord dat ik alleen een terugbetaling kan aanvragen voor ongebruikte credits binnen 14 dagen na aankoop. Ik stem ook in met de onmiddellijke uitvoering van de digitale diensten die door OpenMates worden geleverd, waarbij ik erken dat mijn recht van herroeping vervalt zodra de credits worden gebruikt.
   ar: أوافق على أنه يمكنني طلب استرداد فقط للاعتمادات غير المستخدمة خلال 14 يومًا بعد الشراء. أوافق أيضًا على التنفيذ الفوري للخدمات الرقمية المقدمة من OpenMates، معترفًا بأن حق الانسحاب ينتهي بمجرد استخدام الاعتمادات.
-  hi: 'मैं सहमत हूं कि मैं खरीद के बाद 14 दिनों के भीतर केवल अप्रयुक्त क्रेडिट के लिए धनवापसी का अनुरोध कर सकता हूं। मैं OpenMates द्वारा प्रदान की गई डिजिटल सेवाओं के तत्काल निष्पादन से भी सहमत हूं, यह स्वीकार करते हुए कि क्रेडिट के उपयोग होने पर मेरा वापसी का अधिकार समाप्त हो जाता है।'
+  hi: "मैं सहमत हूं कि मैं खरीद के बाद 14 दिनों के भीतर केवल अप्रयुक्त क्रेडिट के लिए धनवापसी का अनुरोध कर सकता हूं। मैं OpenMates द्वारा प्रदान की गई डिजिटल सेवाओं के तत्काल निष्पादन से भी सहमत हूं, यह स्वीकार करते हुए कि क्रेडिट के उपयोग होने पर मेरा वापसी का अधिकार समाप्त हो जाता है।"
   th: ฉันยอมรับว่าฉันสามารถขอคืนเงินได้เฉพาะเครดิตที่ยังไม่ได้ใช้ภายใน 14 วันหลังจากซื้อ ฉันยังยินยอมให้ดำเนินการบริการดิจิทัลที่ OpenMates ให้บริการทันที โดยยอมรับว่าสิทธิในการถอนตัวของฉันจะหมดอายุเมื่อเครดิตถูกใช้
   cs: Souhlasím, že mohu požádat o refundaci pouze za nevyužité kredity do 14 dnů po zakoupení. Souhlasím také s okamžitým provedením digitálních služeb poskytovaných OpenMates a uznávám, že mé právo na odstoupení vyprší, jakmile budou kredity použity.
   sv: Jag godkänner att jag endast kan begära återbetalning för oanvända krediter inom 14 dagar efter köpet. Jag samtycker också till omedelbar utförande av de digitala tjänster som tillhandahålls av OpenMates, och erkänner att min rätt att återkalla upphör när krediterna används.
@@ -4684,7 +4685,7 @@ click_here_learn_more:
   pl: Kliknij tutaj, aby dowiedzieć się, dlaczego musisz się zgodzić.
   nl: Klik hier om te leren waarom je moet instemmen.
   ar: انقر هنا لمعرفة سبب الحاجة إلى الموافقة.
-  hi: 'यह जानने के लिए यहां क्लिक करें कि आपको क्यों सहमत होना चाहिए।'
+  hi: "यह जानने के लिए यहां क्लिक करें कि आपको क्यों सहमत होना चाहिए।"
   th: คลิกที่นี่เพื่อเรียนรู้ว่าทำไมคุณต้องยอมรับ
   cs: Klikněte zde a zjistěte, proč musíte souhlasit.
   sv: Klicka här för att lära dig varför du måste godkänna.
@@ -4707,7 +4708,7 @@ purchase_successful:
   pl: Zakup udany!
   nl: Aankoop succesvol!
   ar: الشراء ناجح!
-  hi: 'खरीद सफल!'
+  hi: "खरीद सफल!"
   th: ซื้อสำเร็จ!
   cs: Nákup úspěšný!
   sv: Köp lyckades!
@@ -4753,7 +4754,7 @@ credits_purchased:
   pl: Zakupione kredyty
   nl: Gekochte credits
   ar: الاعتمادات المشتراة
-  hi: 'खरीदे गए क्रेडिट'
+  hi: "खरीदे गए क्रेडिट"
   th: เครดิตที่ซื้อ
   cs: Zakoupené kredity
   sv: Köpta krediter
@@ -4776,7 +4777,7 @@ amount_paid:
   pl: Zapłacona kwota
   nl: Betaald bedrag
   ar: المبلغ المدفوع
-  hi: 'भुगतान की गई राशि'
+  hi: "भुगतान की गई राशि"
   th: จำนวนที่จ่าย
   cs: Zaplacená částka
   sv: Betalt belopp
@@ -4799,7 +4800,7 @@ never_run_out:
   pl: Nigdy nie zabraknie kredytów
   nl: Nooit zonder credits
   ar: لا تنفد الاعتمادات أبدًا
-  hi: 'कभी भी क्रेडिट खत्म न हों'
+  hi: "कभी भी क्रेडिट खत्म न हों"
   th: ไม่เคยหมดเครดิต
   cs: Nikdy vám nedojdou kredity
   sv: Slut aldrig på krediter
@@ -4822,7 +4823,7 @@ auto_topup_benefits:
   pl: Aktywuj miesięczne automatyczne doładowanie, aby kontynuować czatowanie bez przerw, plus otrzymuj bonusowe kredyty co miesiąc!
   nl: Activeer maandelijks automatisch opladen om zonder onderbrekingen te blijven chatten, plus krijg elke maand bonus credits!
   ar: قم بتفعيل الشحن التلقائي الشهري للاستمرار في الدردشة دون انقطاع، بالإضافة إلى الحصول على اعتمادات مكافأة كل شهر!
-  hi: 'बिना रुकावट चैट करने के लिए मासिक ऑटो टॉप-अप सक्रिय करें, साथ ही हर महीने बोनस क्रेडिट प्राप्त करें!'
+  hi: "बिना रुकावट चैट करने के लिए मासिक ऑटो टॉप-अप सक्रिय करें, साथ ही हर महीने बोनस क्रेडिट प्राप्त करें!"
   th: เปิดใช้งานการเติมเงินอัตโนมัติรายเดือนเพื่อแชทต่อเนื่องโดยไม่ขาดตอน พร้อมรับเครดิตโบนัสทุกเดือน!
   cs: Aktivujte měsíční automatické doplnění, abyste mohli pokračovat v chatování bez přerušení, navíc každý měsíc získáte bonusové kredity!
   sv: Aktivera månadsvis automatisk påfyllning för att fortsätta chatta utan avbrott, plus få bonuskrediter varje månad!
@@ -4845,7 +4846,7 @@ activate_monthly_auto_topup:
   pl: Aktywuj miesięczne automatyczne doładowanie
   nl: Activeer maandelijks automatisch opladen
   ar: تفعيل الشحن التلقائي الشهري
-  hi: 'मासिक ऑटो टॉप-अप सक्रिय करें'
+  hi: "मासिक ऑटो टॉप-अप सक्रिय करें"
   th: เปิดใช้งานการเติมเงินอัตโนมัติรายเดือน
   cs: Aktivovat měsíční automatické doplnění
   sv: Aktivera månadsvis automatisk påfyllning
@@ -4868,7 +4869,7 @@ base_credits:
   pl: Kredyty bazowe
   nl: Basis credits
   ar: الاعتمادات الأساسية
-  hi: 'आधार क्रेडिट'
+  hi: "आधार क्रेडिट"
   th: เครดิตพื้นฐาน
   cs: Základní kredity
   sv: Bas krediter
@@ -4891,7 +4892,7 @@ bonus_credits:
   pl: Kredyty bonusowe
   nl: Bonus credits
   ar: اعتمادات المكافأة
-  hi: 'बोनस क्रेडिट'
+  hi: "बोनस क्रेडिट"
   th: เครดิตโบนัส
   cs: Bonusové kredity
   sv: Bonus krediter
@@ -4914,7 +4915,7 @@ total_per_month:
   pl: Łącznie miesięcznie
   nl: Totaal per maand
   ar: الإجمالي شهريًا
-  hi: 'प्रति माह कुल'
+  hi: "प्रति माह कुल"
   th: รวมต่อเดือน
   cs: Celkem za měsíc
   sv: Totalt per månad
@@ -4937,7 +4938,7 @@ month:
   pl: miesiąc
   nl: maand
   ar: شهر
-  hi: 'महीना'
+  hi: "महीना"
   th: เดือน
   cs: měsíc
   sv: månad
@@ -4960,7 +4961,7 @@ auto_topup_benefit_1:
   pl: Nigdy nie zabraknie kredytów
   nl: Nooit zonder credits
   ar: لا تنفد الاعتمادات أبدًا
-  hi: 'कभी भी क्रेडिट खत्म न हों'
+  hi: "कभी भी क्रेडिट खत्म न हों"
   th: ไม่เคยหมดเครดิต
   cs: Nikdy vám nedojdou kredity
   sv: Slut aldrig på krediter
@@ -4983,7 +4984,7 @@ auto_topup_benefit_2:
   pl: Otrzymuj {percent}% bonusowych kredytów co miesiąc
   nl: Krijg elke maand {percent}% bonus credits
   ar: احصل على {percent}% من اعتمادات المكافأة كل شهر
-  hi: 'हर महीने {percent}% बोनस क्रेडिट प्राप्त करें'
+  hi: "हर महीने {percent}% बोनस क्रेडिट प्राप्त करें"
   th: รับเครดิตโบนัส {percent}% ทุกเดือน
   cs: Získejte každý měsíc {percent}% bonusových kreditů
   sv: Få {percent}% bonuskrediter varje månad
@@ -5006,7 +5007,7 @@ auto_topup_benefit_3:
   pl: Anuluj w dowolnym momencie w ustawieniach
   nl: Annuleer op elk moment in instellingen
   ar: إلغاء في أي وقت في الإعدادات
-  hi: 'सेटिंग्स में कभी भी रद्द करें'
+  hi: "सेटिंग्स में कभी भी रद्द करें"
   th: ยกเลิกได้ตลอดเวลาในการตั้งค่า
   cs: Zrušte kdykoli v nastavení
   sv: Avbryt när som helst i inställningarna
@@ -5029,7 +5030,7 @@ activate_and_finish:
   pl: Aktywuj i zakończ konfigurację
   nl: Activeer en voltooi installatie
   ar: تفعيل وإنهاء الإعداد
-  hi: 'सक्रिय करें और सेटअप समाप्त करें'
+  hi: "सक्रिय करें और सेटअप समाप्त करें"
   th: เปิดใช้งานและเสร็จสิ้นการตั้งค่า
   cs: Aktivovat a dokončit nastavení
   sv: Aktivera och slutför installation
@@ -5052,7 +5053,7 @@ finish_setup:
   pl: Zakończ konfigurację
   nl: Voltooi installatie
   ar: إنهاء الإعداد
-  hi: 'सेटअप समाप्त करें'
+  hi: "सेटअप समाप्त करें"
   th: เสร็จสิ้นการตั้งค่า
   cs: Dokončit nastavení
   sv: Slutför installation
@@ -5075,7 +5076,7 @@ processing:
   pl: Przetwarzanie...
   nl: Verwerken...
   ar: جاري المعالجة...
-  hi: 'प्रसंस्करण...'
+  hi: "प्रसंस्करण..."
   th: กำลังประมวลผล...
   cs: Zpracovávání...
   sv: Bearbetar...
@@ -5098,7 +5099,7 @@ pay_with_card:
   pl: Zapłać kartą
   nl: Betaal met kaart
   ar: الدفع بالبطاقة
-  hi: 'कार्ड से भुगतान करें'
+  hi: "कार्ड से भुगतान करें"
   th: ชำระด้วยบัตร
   cs: Platit kartou
   sv: Betala med kort
@@ -5121,57 +5122,57 @@ full_name_on_card:
   pl: Pełne imię na karcie
   nl: Volledige naam op kaart
   ar: الاسم الكامل على البطاقة
-  hi: 'कार्ड पर पूरा नाम'
+  hi: "कार्ड पर पूरा नाम"
   th: ชื่อเต็มบนบัตร
   cs: Celé jméno na kartě
   sv: Fullständigt namn på kortet
   verified_by_human: []
 vat_info:
   context: Info text about VAT charges
-  en: 'Only EU cards currently accepted.
+  en: "Only EU cards currently accepted.
 
     No VAT charged according to §19 UStG (small business regulation).
 
-    '
-  de: 'Nur EU Karten aktuell akzeptiert.
+    "
+  de: "Nur EU Karten aktuell akzeptiert.
 
     Keine MwSt. gemäß §19 UStG (Kleinunternehmerregelung).
 
-    '
-  zh: '仅接受欧盟卡。
+    "
+  zh: "仅接受欧盟卡。
 
     根据 §19 UStG（小企业规定）不收取增值税。
 
-    '
-  es: 'Solo se aceptan tarjetas de la UE actualmente.
+    "
+  es: "Solo se aceptan tarjetas de la UE actualmente.
 
     No se cobra IVA según §19 UStG (regulación de pequeños negocios).
 
-    '
+    "
   fr: "Seules les cartes de l'UE sont actuellement acceptées.
 
     Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises).
 
     "
-  pt: ''
-  ru: ''
-  ja: '現在、EUカードのみ受け付けています。
+  pt: ""
+  ru: ""
+  ja: "現在、EUカードのみ受け付けています。
 
     §19 UStG（小規模事業者規定）に基づき、VATは課税されません。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 card_number:
   context: Placeholder text for card number input field for card payments
@@ -5180,21 +5181,21 @@ card_number:
   zh: 卡号
   es: Número de tarjeta
   fr: Numéro de carte
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: カード番号
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 cvv:
   context: Placeholder text for CVV input field for card payments
@@ -5203,21 +5204,21 @@ cvv:
   zh: CVV
   es: CVV
   fr: CVV
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: CVV
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mm_yy:
   context: Placeholder text for MM/YY input field for card payments
@@ -5226,21 +5227,21 @@ mm_yy:
   zh: 月/年
   es: MM/AA
   fr: MM/AA
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 月/年
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 buy_for:
   context: Used in 'Buy for 10 EUR'
@@ -5249,21 +5250,21 @@ buy_for:
   zh: 以 {amount} {currency} 购买
   es: Comprar por {amount} {currency}
   fr: Acheter pour {amount} {currency}
-  pt: ''
-  ru: ''
-  ja: '{amount} {currency}で購入'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: "{amount} {currency}で購入"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 send_amount:
   context: Used in 'Send 10 EUR' for supporter contributions
@@ -5274,8 +5275,8 @@ send_amount:
   fr: Envoyer {amount} {currency}
   pt: Enviar {amount} {currency}
   ru: Отправить {amount} {currency}
-  ja: '{amount} {currency}を送信'
-  ko: '{amount} {currency} 보내기'
+  ja: "{amount} {currency}を送信"
+  ko: "{amount} {currency} 보내기"
   it: Invia {amount} {currency}
   tr: Gönder {amount} {currency}
   vi: Gửi {amount} {currency}
@@ -5283,7 +5284,7 @@ send_amount:
   pl: Wyślij {amount} {currency}
   nl: Verstuur {amount} {currency}
   ar: إرسال {amount} {currency}
-  hi: '{amount} {currency} भेजें'
+  hi: "{amount} {currency} भेजें"
   th: ส่ง {amount} {currency}
   cs: Odeslat {amount} {currency}
   sv: Skicka {amount} {currency}
@@ -5295,21 +5296,21 @@ secured_and_powered_by:
   zh: 由 {provider} 安全支持
   es: Seguro y alimentado por {provider}
   fr: Sécurisé et propulsé par {provider}
-  pt: ''
-  ru: ''
-  ja: '{provider}により安全に処理'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: "{provider}により安全に処理"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 name_too_short:
   context: Error message shown when name is too short
@@ -5318,21 +5319,21 @@ name_too_short:
   zh: 至少3个字符
   es: Mínimo 3 caracteres
   fr: Minimum 3 caractères
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 最低3文字必要
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 invalid_card_number:
   context: Error message shown when card number is invalid
@@ -5352,7 +5353,7 @@ invalid_card_number:
   pl: Nieprawidłowy numer karty
   nl: Ongeldig kaartnummer
   ar: رقم البطاقة غير صالح
-  hi: 'अमान्य कार्ड नंबर'
+  hi: "अमान्य कार्ड नंबर"
   th: หมายเลขบัตรไม่ถูกต้อง
   cs: Neplatné číslo karty
   sv: Ogiltigt kortnummer
@@ -5375,7 +5376,7 @@ invalid_expiry_format:
   pl: Nieprawidłowy format ważności
   nl: Ongeldig vervalformaat
   ar: تنسيق انتهاء الصلاحية غير صالح
-  hi: 'अमान्य समाप्ति प्रारूप'
+  hi: "अमान्य समाप्ति प्रारूप"
   th: รูปแบบวันหมดอายุไม่ถูกต้อง
   cs: Neplatný formát expirace
   sv: Ogiltigt utgångsformat
@@ -5398,7 +5399,7 @@ invalid_month:
   pl: Nieprawidłowy miesiąc
   nl: Ongeldige maand
   ar: شهر غير صالح
-  hi: 'अमान्य महीना'
+  hi: "अमान्य महीना"
   th: เดือนไม่ถูกต้อง
   cs: Neplatný měsíc
   sv: Ogiltig månad
@@ -5421,7 +5422,7 @@ card_expired:
   pl: Karta wygasła
   nl: Kaart verlopen
   ar: انتهت صلاحية البطاقة
-  hi: 'कार्ड समाप्त हो गया'
+  hi: "कार्ड समाप्त हो गया"
   th: บัตรหมดอายุ
   cs: Karta vypršela
   sv: Kortet har gått ut
@@ -5444,7 +5445,7 @@ invalid_cvv:
   pl: Nieprawidłowy CVV
   nl: Ongeldige CVV
   ar: CVV غير صالح
-  hi: 'अमान्य CVV'
+  hi: "अमान्य CVV"
   th: CVV ไม่ถูกต้อง
   cs: Neplatný CVV
   sv: Ogiltig CVV
@@ -5467,7 +5468,7 @@ show_sensitive_data:
   pl: Pokaż dane wrażliwe
   nl: Gevoelige gegevens tonen
   ar: إظهار البيانات الحساسة
-  hi: 'संवेदनशील डेटा दिखाएं'
+  hi: "संवेदनशील डेटा दिखाएं"
   th: แสดงข้อมูลที่ละเอียดอ่อน
   cs: Zobrazit citlivá data
   sv: Visa känsliga data
@@ -5490,7 +5491,7 @@ hide_sensitive_data:
   pl: Ukryj dane wrażliwe
   nl: Gevoelige gegevens verbergen
   ar: إخفاء البيانات الحساسة
-  hi: 'संवेदनशील डेटा छुपाएं'
+  hi: "संवेदनशील डेटा छुपाएं"
   th: ซ่อนข้อมูลที่ละเอียดอ่อน
   cs: Skrýt citlivá data
   sv: Dölj känsliga data
@@ -5513,7 +5514,7 @@ processing_payment:
   pl: Przetwarzanie płatności...
   nl: Betaling verwerken...
   ar: جاري معالجة الدفع...
-  hi: 'भुगतान प्रसंस्करण...'
+  hi: "भुगतान प्रसंस्करण..."
   th: กำลังประมวลผลการชำระเงิน...
   cs: Zpracovávání platby...
   sv: Bearbetar betalning...
@@ -5536,7 +5537,7 @@ payment_processing_delayed:
   pl: Przetwarzanie płatności trwa dłużej niż zwykle. Powiadomimy Cię, gdy płatność zostanie zakończona.
   nl: De verwerking van uw betaling duurt langer dan normaal. We laten u weten zodra de betaling is voltooid.
   ar: معالجة الدفع الخاص بك تستغرق وقتًا أطول من المعتاد. سنخبرك بمجرد اكتمال الدفع.
-  hi: 'आपका भुगतान प्रसंस्करण सामान्य से अधिक समय ले रहा है। भुगतान पूरा होने पर हम आपको सूचित करेंगे।'
+  hi: "आपका भुगतान प्रसंस्करण सामान्य से अधिक समय ले रहा है। भुगतान पूरा होने पर हम आपको सूचित करेंगे।"
   th: การประมวลผลการชำระเงินของคุณใช้เวลานานกว่าปกติ เราจะแจ้งให้คุณทราบเมื่อการชำระเงินเสร็จสมบูรณ์
   cs: Zpracování vaší platby trvá déle než obvykle. Dáme vám vědět, jakmile bude platba dokončena.
   sv: Bearbetningen av din betalning tar längre tid än vanligt. Vi meddelar dig när betalningen är klar.
@@ -5559,7 +5560,7 @@ payment_failed:
   pl: Płatność nie powiodła się
   nl: Betaling mislukt
   ar: فشل الدفع
-  hi: 'भुगतान विफल'
+  hi: "भुगतान विफल"
   th: การชำระเงินล้มเหลว
   cs: Platba selhala
   sv: Betalning misslyckades
@@ -5582,7 +5583,7 @@ enjoy_your_gift:
   pl: Ciesz się prezentem!
   nl: Geniet van je cadeau!
   ar: استمتع بهديتك!
-  hi: 'अपने उपहार का आनंद लें!'
+  hi: "अपने उपहार का आनंद लें!"
   th: สนุกกับของขวัญของคุณ!
   cs: Užijte si svůj dárek!
   sv: Njut av din gåva!
@@ -5605,7 +5606,7 @@ you_will_receive_confirmation_soon:
   pl: Wkrótce otrzymasz potwierdzenie e-mailem z fakturą.
   nl: Je ontvangt binnenkort een e-mailbevestiging met je factuur.
   ar: سوف تتلقى قريبًا تأكيدًا عبر البريد الإلكتروني مع فاتورتك.
-  hi: 'आपको जल्द ही अपने चालान के साथ एक ईमेल पुष्टिकरण प्राप्त होगा।'
+  hi: "आपको जल्द ही अपने चालान के साथ एक ईमेल पुष्टिकरण प्राप्त होगा।"
   th: คุณจะได้รับอีเมลยืนยันพร้อมใบแจ้งหนี้ในเร็วๆ นี้
   cs: Brzy obdržíte e-mailové potvrzení s vaší fakturou.
   sv: Du kommer snart att få en e-postbekräftelse med din faktura.
@@ -5901,9 +5902,9 @@ choose_how_to_save:
   tr: "Kurtarma anahtarınızı nasıl kaydedeceğinizi seçin:"
   vi: "Chọn cách lưu khóa khôi phục của bạn:"
   id: "Pilih cara menyimpan kunci pemulihan Anda:"
-  pl: "Wybierz sposób zapisania klucza odzyskiwania:" 
+  pl: "Wybierz sposób zapisania klucza odzyskiwania:"
   nl: "Kies hoe je je herstelsleutel wilt opslaan:"
-  ar: "اختر كيفية حفظ مفتاح الاسترداد الخاص بك:"  
+  ar: "اختر كيفية حفظ مفتاح الاسترداد الخاص بك:"
   hi: "अपनी पुनर्प्राप्ति कुंजी को सहेजने का तरीका चुनें:"
   th: "เลือกวิธีบันทึกคีย์กู้คืนของคุณ:"
   cs: "Zvolte způsob uložení klíče pro obnovení:"
