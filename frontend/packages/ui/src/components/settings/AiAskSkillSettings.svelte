@@ -16,13 +16,18 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import Toggle from '../Toggle.svelte';
+    import Icon from '../Icon.svelte';
     
     const dispatch = createEventDispatcher();
+    
+    // --- Auth state ---
+    let isAuthenticated = $derived($authStore.isAuthenticated);
     
     // --- State ---
     let searchQuery = $state('');
@@ -160,29 +165,31 @@
 <div class="ai-ask-settings">
     <!-- Description section -->
     <div class="description-section">
-        <p class="skill-description">{$text('ai.ask.description.text')}</p>
+        <p class="skill-description">{$text('settings.ai_ask.ai_ask_settings.description.text')}</p>
     </div>
     
     <!-- Pricing section -->
     <div class="section">
         <SettingsItem 
             type="heading"
-            icon="icon_credits"
+            icon="credits"
             title={$text('settings.ai_ask.ai_ask_settings.pricing.text')}
         />
         <div class="pricing-content">
             <p class="pricing-label">{$text('settings.ai_ask.ai_ask_settings.pricing_starting_at.text')}</p>
             <div class="pricing-details">
                 <div class="pricing-row">
+                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text.text')}</span>
                     <span class="pricing-value">
-                        1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.input} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                        1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.input} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                     </span>
                 </div>
                 <div class="pricing-row">
+                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text.text')}</span>
                     <span class="pricing-value">
-                        1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.output} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                        1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.output} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                     </span>
                 </div>
             </div>
@@ -190,36 +197,38 @@
         </div>
     </div>
     
-    <!-- Settings section -->
-    <div class="section">
-        <SettingsItem 
-            type="heading"
-            icon="icon_settings"
-            title={$text('settings.ai_ask.ai_ask_settings.settings.text')}
-        />
-        <div class="settings-content">
-            <div class="setting-row">
-                <div class="setting-left">
-                    <span class="icon icon_search setting-icon"></span>
-                    <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</span>
+    <!-- Settings section - only for authenticated users -->
+    {#if isAuthenticated}
+        <div class="section">
+            <SettingsItem 
+                type="heading"
+                icon="icon_settings"
+                title={$text('settings.ai_ask.ai_ask_settings.settings.text')}
+            />
+            <div class="settings-content">
+                <div class="setting-row">
+                    <div class="setting-left">
+                        <span class="icon icon_search setting-icon"></span>
+                        <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</span>
+                    </div>
+                    <div class="setting-right">
+                        <Toggle 
+                            checked={true}
+                            disabled={true}
+                            ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}
+                        />
+                    </div>
                 </div>
-                <div class="setting-right">
-                    <Toggle 
-                        checked={true}
-                        disabled={true}
-                        ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}
-                    />
-                </div>
+                <p class="setting-description">
+                    <strong>{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</strong><br/>
+                    {$text('settings.ai_ask.ai_ask_settings.auto_select_description.text')}
+                </p>
+                <p class="setting-note">
+                    {$text('settings.ai_ask.ai_ask_settings.manual_select_note.text')}
+                </p>
             </div>
-            <p class="setting-description">
-                <strong>{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</strong><br/>
-                {$text('settings.ai_ask.ai_ask_settings.auto_select_description.text')}
-            </p>
-            <p class="setting-note">
-                {$text('settings.ai_ask.ai_ask_settings.manual_select_note.text')}
-            </p>
         </div>
-    </div>
+    {/if}
     
     <!-- Available models section -->
     <div class="section">
@@ -310,18 +319,20 @@
                         <span class="model-name">{model.name}</span>
                         <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider.text').replace('{provider}', model.provider_name)}</span>
                     </div>
-                    <div 
-                        class="model-toggle"
-                        onclick={(e) => { e.stopPropagation(); handleModelToggle(model.id); }}
-                        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); handleModelToggle(model.id); } }}
-                        role="button"
-                        tabindex="0"
-                    >
-                        <Toggle 
-                            checked={enabled}
-                            ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${model.name}`}
-                        />
-                    </div>
+                    {#if isAuthenticated}
+                        <div 
+                            class="model-toggle"
+                            onclick={(e) => { e.stopPropagation(); handleModelToggle(model.id); }}
+                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); handleModelToggle(model.id); } }}
+                            role="button"
+                            tabindex="0"
+                        >
+                            <Toggle 
+                                checked={enabled}
+                                ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${model.name}`}
+                            />
+                        </div>
+                    {/if}
                 </div>
             {/each}
             
@@ -377,7 +388,8 @@
     .pricing-row {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
     }
     
     .pricing-type {
@@ -395,10 +407,11 @@
         font-weight: 500;
     }
     
-    .credits-icon {
-        width: 16px;
-        height: 16px;
-        display: inline-block;
+    /* Inline credits icon for pricing display */
+    :global(.credits-icon-inline) {
+        display: inline-flex !important;
+        vertical-align: middle;
+        margin: 0 2px;
     }
     
     .pricing-note {

@@ -19,13 +19,18 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import Toggle from '../Toggle.svelte';
+    import Icon from '../Icon.svelte';
     
     const dispatch = createEventDispatcher();
+    
+    // --- Auth state ---
+    let isAuthenticated = $derived($authStore.isAuthenticated);
     
     interface Props {
         modelId: string;
@@ -152,11 +157,12 @@
     }
     
     function goBack() {
+        // Navigate back to AI Ask skill settings page
         dispatch('openSettings', {
             settingsPath: 'app_store/ai/skill/ask',
             direction: 'back',
             icon: 'ai',
-            title: $text('ai.ask.name.text')
+            title: 'Ask' // Simple title - the breadcrumb will show the full path
         });
     }
     
@@ -178,6 +184,24 @@
             case 'APAC': return '🌏 APAC';
             default: return region;
         }
+    }
+    
+    // Get provider icon name from server ID
+    function getProviderIconName(serverId: string): string {
+        // Map server IDs to icon names
+        const serverIconMap: Record<string, string> = {
+            'google': 'google',
+            'google_ai_studio': 'google',
+            'aws_bedrock': 'amazon',
+            'anthropic': 'anthropic',
+            'openai': 'openai',
+            'mistral': 'mistral',
+            'openrouter': 'openrouter',
+            'cerebras': 'cerebras',
+            'groq': 'groq',
+            'fal': 'fal'
+        };
+        return serverIconMap[serverId] || 'server';
     }
 </script>
 
@@ -201,18 +225,20 @@
                 <h1 class="model-name">{model.name}</h1>
                 <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider.text').replace('{provider}', model.provider_name)}</span>
             </div>
-            <div 
-                class="model-toggle"
-                onclick={handleModelToggle}
-                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModelToggle(); } }}
-                role="button"
-                tabindex="0"
-            >
-                <Toggle 
-                    checked={isModelEnabled}
-                    ariaLabel={`${isModelEnabled ? 'Disable' : 'Enable'} ${model.name}`}
-                />
-            </div>
+            {#if isAuthenticated}
+                <div 
+                    class="model-toggle"
+                    onclick={handleModelToggle}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModelToggle(); } }}
+                    role="button"
+                    tabindex="0"
+                >
+                    <Toggle 
+                        checked={isModelEnabled}
+                        ariaLabel={`${isModelEnabled ? 'Disable' : 'Enable'} ${model.name}`}
+                    />
+                </div>
+            {/if}
         </div>
         
         <!-- Description -->
@@ -282,23 +308,25 @@
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="icon_credits"
+                    icon="credits"
                     title={$text('settings.ai_ask.ai_ask_model_details.pricing.text')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text.text')}</span>
+                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input.text')}</span>
                             <span class="pricing-value">
-                                1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                             </span>
                         </div>
                     {/if}
                     {#if model.pricing.output_tokens_per_credit}
                         <div class="pricing-row">
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text.text')}</span>
+                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output.text')}</span>
                             <span class="pricing-value">
-                                1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                             </span>
                         </div>
                     {/if}
@@ -306,45 +334,43 @@
             </div>
         {/if}
         
-        <!-- Servers section -->
+        <!-- Provider section -->
         {#if model.servers && model.servers.length > 0}
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="icon_server"
-                    title={$text('settings.ai_ask.ai_ask_model_details.servers.text')}
+                    icon="server"
+                    title={$text('settings.ai_ask.ai_ask_model_details.provider.text')}
                 />
-                <p class="servers-description">{$text('settings.ai_ask.ai_ask_model_details.servers_description.text')}</p>
                 
-                <div class="servers-list">
+                <div class="provider-list">
                     {#each model.servers as server (server.id)}
                         {@const serverEnabled = isServerEnabled(server.id)}
-                        {@const isDefault = server.id === model.default_server}
                         <div 
-                            class="server-item"
+                            class="provider-item"
                             class:disabled={!serverEnabled}
                         >
-                            <div class="server-info">
-                                <div class="server-name-row">
-                                    <span class="server-name">{server.name}</span>
-                                    {#if isDefault}
-                                        <span class="default-badge">{$text('settings.ai_ask.ai_ask_model_details.default.text')}</span>
-                                    {/if}
+                            <div class="provider-icon-wrapper">
+                                <Icon name={getProviderIconName(server.id)} type="provider" size="32px" noAnimation={true} />
+                            </div>
+                            <div class="provider-info">
+                                <span class="provider-name">{server.name}</span>
+                                <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.ai_ask.ai_ask_model_details.servers.text').toLowerCase()}</span>
+                            </div>
+                            {#if isAuthenticated}
+                                <div 
+                                    class="provider-toggle"
+                                    onclick={() => handleServerToggle(server.id)}
+                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleServerToggle(server.id); } }}
+                                    role="button"
+                                    tabindex="0"
+                                >
+                                    <Toggle 
+                                        checked={serverEnabled}
+                                        ariaLabel={`${serverEnabled ? 'Disable' : 'Enable'} ${server.name}`}
+                                    />
                                 </div>
-                                <span class="server-region">{getRegionDisplay(server.region)}</span>
-                            </div>
-                            <div 
-                                class="server-toggle"
-                                onclick={() => handleServerToggle(server.id)}
-                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleServerToggle(server.id); } }}
-                                role="button"
-                                tabindex="0"
-                            >
-                                <Toggle 
-                                    checked={serverEnabled}
-                                    ariaLabel={`${serverEnabled ? 'Disable' : 'Enable'} ${server.name}`}
-                                />
-                            </div>
+                            {/if}
                         </div>
                     {/each}
                 </div>
@@ -524,78 +550,67 @@
         font-weight: 500;
     }
     
-    .credits-icon {
-        width: 16px;
-        height: 16px;
-        display: inline-block;
+    /* Inline credits icon for pricing display */
+    :global(.credits-icon-inline) {
+        display: inline-flex !important;
+        vertical-align: middle;
+        margin: 0 2px;
     }
     
-    /* Servers section */
-    .servers-description {
-        margin: 0.5rem 0 1rem 10px;
-        color: var(--color-grey-60);
-        font-size: 0.875rem;
-    }
-    
-    .servers-list {
+    /* Provider section */
+    .provider-list {
         display: flex;
         flex-direction: column;
         gap: 0;
         margin-left: 10px;
     }
     
-    .server-item {
+    .provider-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 12px;
         padding: 12px 16px;
         border-radius: 8px;
         transition: background 0.15s;
     }
     
-    .server-item:hover {
+    .provider-item:hover {
         background: var(--color-grey-10);
     }
     
-    .server-item.disabled {
+    .provider-item.disabled {
         opacity: 0.5;
     }
     
-    .server-info {
+    .provider-icon-wrapper {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .provider-info {
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         gap: 2px;
     }
     
-    .server-name-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .server-name {
+    .provider-name {
         font-size: 1rem;
         font-weight: 500;
-        color: var(--color-grey-100);
+        color: var(--color-primary-start);
     }
     
-    .default-badge {
-        display: inline-block;
-        padding: 0.125rem 0.5rem;
-        border-radius: 8px;
-        font-size: 0.7rem;
-        font-weight: 500;
-        background: var(--color-primary-10, #e8f4fd);
-        color: var(--color-primary, #1976d2);
-        text-transform: uppercase;
-    }
-    
-    .server-region {
+    .provider-region {
         font-size: 0.875rem;
         color: var(--color-grey-60);
     }
     
-    .server-toggle {
+    .provider-toggle {
         flex-shrink: 0;
     }
     
@@ -627,7 +642,7 @@
         background: var(--color-grey-20);
     }
     
-    :global(.dark) .server-item:hover {
+    :global(.dark) .provider-item:hover {
         background: var(--color-grey-15);
     }
     
@@ -649,11 +664,6 @@
     :global(.dark) .reasoning-badge {
         background: var(--color-orange-20, #bf360c);
         color: var(--color-orange-90, #ffcc80);
-    }
-    
-    :global(.dark) .default-badge {
-        background: var(--color-primary-20, #0d47a1);
-        color: var(--color-primary-90, #90caf9);
     }
     
     /* Responsive */
