@@ -64,9 +64,9 @@
     let tierLabel = $derived.by(() => {
         if (!model) return '';
         switch (model.tier) {
-            case 'economy': return $text('ai_ask_model_details.tier_economy.text');
-            case 'standard': return $text('ai_ask_model_details.tier_standard.text');
-            case 'premium': return $text('ai_ask_model_details.tier_premium.text');
+            case 'economy': return $text('settings.ai_ask.ai_ask_model_details.tier_economy.text');
+            case 'standard': return $text('settings.ai_ask.ai_ask_model_details.tier_standard.text');
+            case 'premium': return $text('settings.ai_ask.ai_ask_model_details.tier_premium.text');
             default: return model.tier;
         }
     });
@@ -79,10 +79,10 @@
         if (!model?.input_types) return '';
         return model.input_types.map(type => {
             switch (type) {
-                case 'text': return $text('ai_ask_model_details.input_type_text.text');
-                case 'image': return $text('ai_ask_model_details.input_type_image.text');
-                case 'video': return $text('ai_ask_model_details.input_type_video.text');
-                case 'audio': return $text('ai_ask_model_details.input_type_audio.text');
+                case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text.text');
+                case 'image': return $text('settings.ai_ask.ai_ask_model_details.input_type_image.text');
+                case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video.text');
+                case 'audio': return $text('settings.ai_ask.ai_ask_model_details.input_type_audio.text');
                 default: return type;
             }
         }).join(', ');
@@ -93,8 +93,8 @@
         if (!model?.output_types) return '';
         return model.output_types.map(type => {
             switch (type) {
-                case 'text': return $text('ai_ask_model_details.output_type_text.text');
-                case 'image': return $text('ai_ask_model_details.output_type_image.text');
+                case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text.text');
+                case 'image': return $text('settings.ai_ask.ai_ask_model_details.output_type_image.text');
                 default: return type;
             }
         }).join(', ');
@@ -184,8 +184,8 @@
 <div class="model-details">
     {#if !model}
         <div class="error">
-            <p>{$text('ai_ask_model_details.model_not_found.text')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('ai_ask_model_details.back_to_models.text')}</button>
+            <p>{$text('settings.ai_ask.ai_ask_model_details.model_not_found.text')}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.ai_ask.ai_ask_model_details.back_to_models.text')}</button>
         </div>
     {:else}
         <!-- Model header with logo, name, and main toggle -->
@@ -225,12 +225,12 @@
             <SettingsItem 
                 type="heading"
                 icon="icon_info"
-                title={$text('ai_ask_model_details.model_info.text')}
+                title={$text('settings.ai_ask.ai_ask_model_details.model_info.text')}
             />
             <div class="info-content">
                 <!-- Origin -->
                 <div class="info-row">
-                    <span class="info-label">{$text('ai_ask_model_details.origin.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.origin.text')}</span>
                     <span class="info-value">
                         <span class="country-flag">{getCountryFlag(model.country_origin)}</span>
                         {model.provider_name}
@@ -240,14 +240,14 @@
                 <!-- Release date -->
                 {#if formattedReleaseDate}
                     <div class="info-row">
-                        <span class="info-label">{$text('ai_ask_model_details.release_date.text')}</span>
+                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.release_date.text')}</span>
                         <span class="info-value">{formattedReleaseDate}</span>
                     </div>
                 {/if}
                 
                 <!-- Tier -->
                 <div class="info-row">
-                    <span class="info-label">{$text('ai_ask_model_details.tier.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.tier.text')}</span>
                     <span class="info-value">
                         <span class="tier-badge tier-{tierClass}">{tierLabel}</span>
                     </span>
@@ -256,22 +256,22 @@
                 <!-- Reasoning model badge -->
                 {#if model.reasoning}
                     <div class="info-row">
-                        <span class="info-label">{$text('ai_ask_model_details.type.text')}</span>
+                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.type.text')}</span>
                         <span class="info-value">
-                            <span class="reasoning-badge">{$text('ai_ask_model_details.reasoning_model.text')}</span>
+                            <span class="reasoning-badge">{$text('settings.ai_ask.ai_ask_model_details.reasoning_model.text')}</span>
                         </span>
                     </div>
                 {/if}
                 
                 <!-- Input types -->
                 <div class="info-row">
-                    <span class="info-label">{$text('ai_ask_model_details.input_types.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.input_types.text')}</span>
                     <span class="info-value">{inputTypesDisplay}</span>
                 </div>
                 
                 <!-- Output types -->
                 <div class="info-row">
-                    <span class="info-label">{$text('ai_ask_model_details.output_types.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.output_types.text')}</span>
                     <span class="info-value">{outputTypesDisplay}</span>
                 </div>
             </div>
@@ -283,22 +283,22 @@
                 <SettingsItem 
                     type="heading"
                     icon="icon_credits"
-                    title={$text('ai_ask_model_details.pricing.text')}
+                    title={$text('settings.ai_ask.ai_ask_model_details.pricing.text')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
-                            <span class="pricing-type">{$text('ai_ask_settings.input_text.text')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text.text')}</span>
                             <span class="pricing-value">
-                                1 <span class="icon icon_credits credits-icon"></span> {$text('ai_ask_settings.per.text')} {model.pricing.input_tokens_per_credit} {$text('ai_ask_settings.tokens.text')}
+                                1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                             </span>
                         </div>
                     {/if}
                     {#if model.pricing.output_tokens_per_credit}
                         <div class="pricing-row">
-                            <span class="pricing-type">{$text('ai_ask_settings.output_text.text')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text.text')}</span>
                             <span class="pricing-value">
-                                1 <span class="icon icon_credits credits-icon"></span> {$text('ai_ask_settings.per.text')} {model.pricing.output_tokens_per_credit} {$text('ai_ask_settings.tokens.text')}
+                                1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                             </span>
                         </div>
                     {/if}
@@ -312,9 +312,9 @@
                 <SettingsItem 
                     type="heading"
                     icon="icon_server"
-                    title={$text('ai_ask_model_details.servers.text')}
+                    title={$text('settings.ai_ask.ai_ask_model_details.servers.text')}
                 />
-                <p class="servers-description">{$text('ai_ask_model_details.servers_description.text')}</p>
+                <p class="servers-description">{$text('settings.ai_ask.ai_ask_model_details.servers_description.text')}</p>
                 
                 <div class="servers-list">
                     {#each model.servers as server (server.id)}
@@ -328,7 +328,7 @@
                                 <div class="server-name-row">
                                     <span class="server-name">{server.name}</span>
                                     {#if isDefault}
-                                        <span class="default-badge">{$text('ai_ask_model_details.default.text')}</span>
+                                        <span class="default-badge">{$text('settings.ai_ask.ai_ask_model_details.default.text')}</span>
                                     {/if}
                                 </div>
                                 <span class="server-region">{getRegionDisplay(server.region)}</span>

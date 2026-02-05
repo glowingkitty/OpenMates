@@ -151,9 +151,9 @@
     
     // Get sort label for current sort
     let sortLabel = $derived({
-        price: $text('ai_ask_settings.sort_by_price.text'),
-        performance: $text('ai_ask_settings.sort_by_performance.text'),
-        new: $text('ai_ask_settings.sort_by_new.text')
+        price: $text('settings.ai_ask.ai_ask_settings.sort_by_price.text'),
+        performance: $text('settings.ai_ask.ai_ask_settings.sort_by_performance.text'),
+        new: $text('settings.ai_ask.ai_ask_settings.sort_by_new.text')
     }[sortBy]);
 </script>
 
@@ -168,25 +168,25 @@
         <SettingsItem 
             type="heading"
             icon="icon_credits"
-            title={$text('ai_ask_settings.pricing.text')}
+            title={$text('settings.ai_ask.ai_ask_settings.pricing.text')}
         />
         <div class="pricing-content">
-            <p class="pricing-label">{$text('ai_ask_settings.pricing_starting_at.text')}</p>
+            <p class="pricing-label">{$text('settings.ai_ask.ai_ask_settings.pricing_starting_at.text')}</p>
             <div class="pricing-details">
                 <div class="pricing-row">
-                    <span class="pricing-type">{$text('ai_ask_settings.input_text.text')}</span>
+                    <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text.text')}</span>
                     <span class="pricing-value">
-                        1 <span class="icon icon_credits credits-icon"></span> {$text('ai_ask_settings.per.text')} {cheapestPricing.input} {$text('ai_ask_settings.tokens.text')}
+                        1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.input} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                     </span>
                 </div>
                 <div class="pricing-row">
-                    <span class="pricing-type">{$text('ai_ask_settings.output_text.text')}</span>
+                    <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text.text')}</span>
                     <span class="pricing-value">
-                        1 <span class="icon icon_credits credits-icon"></span> {$text('ai_ask_settings.per.text')} {cheapestPricing.output} {$text('ai_ask_settings.tokens.text')}
+                        1 <span class="icon icon_credits credits-icon"></span> {$text('settings.ai_ask.ai_ask_settings.per.text')} {cheapestPricing.output} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
                     </span>
                 </div>
             </div>
-            <p class="pricing-note">{$text('ai_ask_settings.pricing_note.text')}</p>
+            <p class="pricing-note">{$text('settings.ai_ask.ai_ask_settings.pricing_note.text')}</p>
         </div>
     </div>
     
@@ -195,28 +195,28 @@
         <SettingsItem 
             type="heading"
             icon="icon_settings"
-            title={$text('ai_ask_settings.settings.text')}
+            title={$text('settings.ai_ask.ai_ask_settings.settings.text')}
         />
         <div class="settings-content">
             <div class="setting-row">
                 <div class="setting-left">
                     <span class="icon icon_search setting-icon"></span>
-                    <span class="setting-label">{$text('ai_ask_settings.auto_select_model.text')}</span>
+                    <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</span>
                 </div>
                 <div class="setting-right">
                     <Toggle 
                         checked={true}
                         disabled={true}
-                        ariaLabel={$text('ai_ask_settings.auto_select_model.text')}
+                        ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}
                     />
                 </div>
             </div>
             <p class="setting-description">
-                <strong>{$text('ai_ask_settings.auto_select_model.text')}</strong><br/>
-                {$text('ai_ask_settings.auto_select_description.text')}
+                <strong>{$text('settings.ai_ask.ai_ask_settings.auto_select_model.text')}</strong><br/>
+                {$text('settings.ai_ask.ai_ask_settings.auto_select_description.text')}
             </p>
             <p class="setting-note">
-                {$text('ai_ask_settings.manual_select_note.text')}
+                {$text('settings.ai_ask.ai_ask_settings.manual_select_note.text')}
             </p>
         </div>
     </div>
@@ -226,9 +226,9 @@
         <SettingsItem 
             type="heading"
             icon="icon_search"
-            title={$text('ai_ask_settings.available_models.text')}
+            title={$text('settings.ai_ask.ai_ask_settings.available_models.text')}
         />
-        <p class="models-description">{$text('ai_ask_settings.models_description.text')}</p>
+        <p class="models-description">{$text('settings.ai_ask.ai_ask_settings.models_description.text')}</p>
         
         <!-- Search and sort controls -->
         <div class="models-controls">
@@ -237,7 +237,7 @@
                 <input 
                     type="text" 
                     class="search-input"
-                    placeholder={$text('ai_ask_settings.search_placeholder.text')}
+                    placeholder={$text('settings.ai_ask.ai_ask_settings.search_placeholder.text')}
                     bind:value={searchQuery}
                 />
             </div>
@@ -258,7 +258,7 @@
                             onclick={() => handleSortChange('price')}
                             role="menuitem"
                         >
-                            {$text('ai_ask_settings.sort_by_price.text')}
+                            {$text('settings.ai_ask.ai_ask_settings.sort_by_price.text')}
                         </button>
                         <button 
                             class="sort-option"
@@ -266,7 +266,7 @@
                             onclick={() => handleSortChange('performance')}
                             role="menuitem"
                         >
-                            {$text('ai_ask_settings.sort_by_performance.text')}
+                            {$text('settings.ai_ask.ai_ask_settings.sort_by_performance.text')}
                         </button>
                         <button 
                             class="sort-option"
@@ -274,7 +274,7 @@
                             onclick={() => handleSortChange('new')}
                             role="menuitem"
                         >
-                            {$text('ai_ask_settings.sort_by_new.text')}
+                            {$text('settings.ai_ask.ai_ask_settings.sort_by_new.text')}
                         </button>
                     </div>
                     <!-- Backdrop to close dropdown when clicking outside -->
@@ -327,7 +327,7 @@
             
             {#if filteredModels.length === 0}
                 <div class="no-results">
-                    <p>{$text('ai_ask_settings.no_models_found.text')}</p>
+                    <p>{$text('settings.ai_ask.ai_ask_settings.no_models_found.text')}</p>
                 </div>
             {/if}
         </div>
