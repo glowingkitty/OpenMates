@@ -13,6 +13,7 @@ models:
     description: "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-01" # Model release date (DeepSeek V3.2 release)
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -27,22 +28,24 @@ models:
       - id: "google"
         name: "Google Vertex AI (MaaS)"
         model_id: "deepseek-ai/deepseek-v3.2-maas" # Google Vertex AI MaaS model identifier (publisher/model-id format)
+        region: "EU" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v3.2" # OpenRouter's model identifier (fallback)
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
-          per_credit_unit: 1300 # Based on $0.25/M input: 333.33 / 0.25 = 1333, rounded to 1300
+          per_credit_unit: 600 # Based on $0.56/M input (Google Vertex AI): 333.33 / 0.56 = 595, rounded to 600
         output:
-          per_credit_unit: 875 # Based on $0.38/M output: 333.33 / 0.38 = 877, rounded to 875
+          per_credit_unit: 200 # Based on $1.68/M output (Google Vertex AI): 333.33 / 1.68 = 198, rounded to 200
     costs:
       input_per_million_token:
-        price: 0.25
+        price: 0.56
         currency: USD
         max_context: 163840
       output_per_million_token:
-        price: 0.38
+        price: 1.68
         currency: USD
         max_context: 163840
     features:

@@ -11,7 +11,9 @@ models:
   - id: "flux-schnell"
     name: "FLUX.1 Schnell"
     description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency."
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "images.generate_draft" # This model is for draft image generation (fast)
+    release_date: "2024-08-01" # Model release date (FLUX.1 Schnell original release)
     input_types:
       - text
     output_types:
@@ -21,6 +23,7 @@ models:
       - id: "fal"
         name: "fal.ai"
         model_id: "fal-ai/flux-2/klein/9b/base"
+        region: "US" # Server region for UI display
       # - id: "bfl"
       #   name: "BFL API"
     pricing:

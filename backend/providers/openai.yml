@@ -13,6 +13,7 @@ models:
     description: "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities"
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-06-15" # Model release date (GPT-5.2 released mid-2025)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gpt-5.2"
@@ -26,9 +27,11 @@ models:
     servers:
       - id: "openai"
         name: "OpenAI API"
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "openai/gpt-5.2" # OpenRouter model identifier
+        region: "US" # Server region for UI display
     pricing: # Model-specific base pricing
       tokens:
         input:
@@ -56,6 +59,7 @@ models:
     description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-08-01" # Model release date (based on Llama 3.1 release)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "llama-3.1-405b-instruct"
@@ -68,6 +72,7 @@ models:
     servers:
       - id: "openrouter"
         name: "OpenRouter API"
+        region: "US" # Server region for UI display
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
       order: ["cerebras"] # try Cerebras first (and only)
@@ -98,6 +103,7 @@ models:
     description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.safety_check" # This model is exclusively for safety checks, not regular inference
+    release_date: "2025-04-01" # Model release date (based on Llama Guard 3 release)
     allow_auto_select: false # Safety model - not for main processing auto-selection
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "llama-guard-3-8b"
@@ -111,9 +117,11 @@ models:
       - id: "groq"
         name: "Groq API"
         model_id: "openai/gpt-oss-safeguard-20b" # Groq API model identifier
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "openai/gpt-oss-safeguard-20b" # OpenRouter model identifier
+        region: "US" # Server region for UI display
     pricing: # Model-specific base pricing
       tokens:
         input:
