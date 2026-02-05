@@ -4,6 +4,7 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
   import { notificationStore } from '../../stores/notificationStore';
+  import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
@@ -812,6 +813,34 @@
 
   let isActive = $derived(activeChatId === chat?.chat_id);
   
+  // Get unread count from store for this chat
+  let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
+  
+  // Flag to temporarily suppress auto-clear when user manually marks as unread
+  // This prevents the effect from immediately clearing the unread state
+  let suppressAutoClear = $state(false);
+  
+  // Track previous active state to detect when user navigates away
+  let wasActive = $state(false);
+  
+  // Clear unread count when chat becomes active (user is viewing it)
+  // But NOT if we just marked it as unread (suppressAutoClear flag)
+  $effect(() => {
+    if (isActive && chat?.chat_id && unreadCount > 0 && !suppressAutoClear) {
+      unreadMessagesStore.clearUnread(chat.chat_id);
+    }
+  });
+  
+  // Reset suppressAutoClear when user navigates away from the chat
+  // This ensures that when user opens the chat again, it will be marked as read
+  $effect(() => {
+    if (wasActive && !isActive) {
+      // User navigated away from this chat, reset the suppress flag
+      suppressAutoClear = false;
+    }
+    wasActive = isActive;
+  });
+  
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
   
@@ -970,6 +999,12 @@
       case 'unpin':
         handleUnpinChat();
         break;
+      case 'markUnread':
+        handleMarkUnread();
+        break;
+      case 'markRead':
+        handleMarkRead();
+        break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
     }
@@ -1047,10 +1082,10 @@
     try {
       console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
       
-      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       // For drafts-only chats, messages will be empty array
-      const messages = isDemoChat(chat.chat_id)
-        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+      const messages = isPublicChat(chat.chat_id)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
@@ -1373,6 +1408,102 @@
   }
 
   /**
+   * Mark chat as unread handler
+   * Sets unread_count to 1 and syncs across devices via chatSyncService
+   * Note: Always sets to 1, never increments beyond 1
+   */
+  async function handleMarkUnread() {
+    if (!chat) return;
+
+    const chatIdToMarkUnread = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Marking chat as unread:', chatIdToMarkUnread);
+
+      // Set unread count to 1 (marking as unread) - always 1, never increment
+      const newUnreadCount = 1;
+
+      // Suppress auto-clear so the effect doesn't immediately clear this
+      // The flag will be cleared when user navigates away and back
+      suppressAutoClear = true;
+
+      // Clear existing count first (to ensure we set to exactly 1, not increment)
+      unreadMessagesStore.clearUnread(chatIdToMarkUnread);
+      // Then set to 1
+      unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
+
+      // Update the chat in IndexedDB
+      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      await chatDB.updateChat(updatedChat);
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToMarkUnread, unread_count: newUnreadCount }
+      }));
+
+      // Send update to server via chatSyncService to sync across devices
+      if (chatSyncService) {
+        await chatSyncService.sendChatReadStatus(chatIdToMarkUnread, newUnreadCount);
+      }
+
+      console.debug('[Chat] Chat marked as unread successfully:', chatIdToMarkUnread);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error marking chat as unread:', error);
+      notificationStore.error('Failed to mark chat as unread. Please try again.');
+    }
+  }
+
+  /**
+   * Mark chat as read handler
+   * Sets unread_count to 0 and syncs across devices via chatSyncService
+   */
+  async function handleMarkRead() {
+    if (!chat) return;
+
+    const chatIdToMarkRead = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Marking chat as read:', chatIdToMarkRead);
+
+      // Set unread count to 0 (marking as read)
+      const newUnreadCount = 0;
+
+      // Clear the suppress flag since user is marking as read
+      suppressAutoClear = false;
+
+      // Clear local unread store for immediate UI feedback
+      unreadMessagesStore.clearUnread(chatIdToMarkRead);
+
+      // Update the chat in IndexedDB
+      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      await chatDB.updateChat(updatedChat);
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToMarkRead, unread_count: newUnreadCount }
+      }));
+
+      // Send update to server via chatSyncService to sync across devices
+      if (chatSyncService) {
+        await chatSyncService.sendChatReadStatus(chatIdToMarkRead, newUnreadCount);
+      }
+
+      console.debug('[Chat] Chat marked as read successfully:', chatIdToMarkRead);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error marking chat as read:', error);
+      notificationStore.error('Failed to mark chat as read. Please try again.');
+    }
+  }
+
+  /**
    * Delete chat handler
    * Expected behavior for DEMO CHATS:
    * - Add chat to hidden_demo_chats in user profile
@@ -1578,11 +1709,11 @@
                       <IconComponent size={16} color="white" />
                     {/if}
                   </div>
-                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                    <div class="unread-badge">
-                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
-                    </div>
-                  {:else if chat.is_shared}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                      <div class="unread-badge">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </div>
+                    {:else if chat.is_shared}
                     <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                     <div class="share-badge" title="This chat is shared">
                       <LucideIcons.Share2 size={10} color="white" />
@@ -1604,9 +1735,9 @@
                     <div class="category-icon">
                       <IconComponent size={16} color="white" />
                     </div>
-                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
-                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
@@ -1628,9 +1759,9 @@
                     <div class="category-icon">
                       <LucideIcons.HelpCircle size={16} color="white" />
                     </div>
-                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                       <div class="unread-badge">
-                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
@@ -1704,6 +1835,8 @@
     on:unhide={handleContextMenuAction}
     on:pin={handleContextMenuAction}
     on:unpin={handleContextMenuAction}
+    on:markUnread={handleContextMenuAction}
+    on:markRead={handleContextMenuAction}
     on:delete={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
@@ -1842,7 +1975,7 @@
     right: -2px;
     width: 21px;
     height: 21px;
-    background: var(--color-primary);
+    background: var(--color-button-primary);
     color: white;
     border-radius: 50%;
     display: flex;

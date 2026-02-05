@@ -465,6 +465,7 @@
             alt={displayTitle}
             class="header-image"
             loading="lazy"
+            crossorigin="anonymous"
             onerror={() => { imageError = true; }}
           />
         </div>
@@ -477,6 +478,7 @@
             src={faviconUrl} 
             alt="" 
             class="title-favicon"
+            crossorigin="anonymous"
             onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         {/if}

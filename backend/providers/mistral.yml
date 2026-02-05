@@ -14,7 +14,8 @@ models:
       Mistral AI's fast and cost-effective model, optimized for low latency.
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:mistral-small-latest
+    release_date: "2025-03-15" # Model release date (Mistral Small 3.2 release)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-small-latest"
       openrouter: "mistralai/mistral-small-3.2-24b-instruct"
@@ -28,14 +29,17 @@ models:
       - id: "mistral"
         name: "Mistral"
         model_id: "mistral-small-latest" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
       - id: "google"
         name: "Google Cloud Vertex AI"
         # Google Vertex AI model identifier for Mistral Small 3.1 (25.03)
         model_id: "mistral-small-2503"
+        region: "EU" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter"
         # OpenRouter model identifier
         model_id: "mistralai/mistral-small-3.2-24b-instruct"
+        region: "US" # Server region for UI display
     # Full reference for API calls would be "mistral/mistral-small-latest"
     # (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
@@ -61,7 +65,8 @@ models:
       Cost-efficient.
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:mistral-medium-latest
+    release_date: "2025-05-01" # Model release date (Mistral Medium 3.1 release)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-medium-3.1"
       openrouter: "mistralai/mistral-medium-3.1"
@@ -75,9 +80,11 @@ models:
       - id: "mistral"
         name: "Mistral"
         model_id: "mistral-medium-latest" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "mistralai/mistral-medium-3.1" # OpenRouter model identifier
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
@@ -94,6 +101,50 @@ models:
         currency: USD
         max_context: 128000
 
+  - id: "ministral-8b-2512" # Official model ID - Ministral 3 8B
+    name: "Ministral 3 8B"
+    description: >-
+      A powerful and efficient model offering best-in-class text generation
+      with excellent speed. Ideal for preprocessing and postprocessing tasks.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    allow_auto_select: false # Not for auto-selection - for preprocessing/postprocessing only
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "ministral-8b-2512"
+      openrouter: "mistralai/ministral-8b-2512"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "ministral-8b-2512" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/ministral-8b-2512"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 2222 # 1 credit per ~2222 input tokens (calculated from $0.15/M)
+        output:
+          per_credit_unit: 2222 # 1 credit per ~2222 output tokens (calculated from $0.15/M)
+    costs:
+      input_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000 # Max context window
+      output_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000
+
   - id: "devstral-2512" # Official model ID
     name: "Devstral 2"
     description: >-
@@ -102,7 +153,8 @@ models:
       power software engineering agents.
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:devstral-2512
+    release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "devstral-2512"
       openrouter: "mistralai/devstral-2512"
@@ -115,10 +167,12 @@ models:
       - id: "mistral"
         name: "Mistral"
         model_id: "devstral-2512" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
       - id: "openrouter"
         name: "OpenRouter"
         # OpenRouter model identifier
         model_id: "mistralai/devstral-2512"
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:

@@ -64,7 +64,10 @@ const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
  * This keeps the passkey flow fully automated inside Playwright's Chromium runtime.
  */
-async function setupVirtualPasskeyAuthenticator(context: any, page: any): Promise<{
+async function setupVirtualPasskeyAuthenticator(
+	context: any,
+	page: any
+): Promise<{
 	client: any;
 	authenticatorId: string;
 }> {
@@ -89,7 +92,10 @@ async function setupVirtualPasskeyAuthenticator(context: any, page: any): Promis
  * Clean up the virtual authenticator after the test completes.
  * This ensures subsequent tests start with a clean WebAuthn state.
  */
-async function teardownVirtualPasskeyAuthenticator(client: any, authenticatorId: string): Promise<void> {
+async function teardownVirtualPasskeyAuthenticator(
+	client: any,
+	authenticatorId: string
+): Promise<void> {
 	if (!client || !authenticatorId) {
 		return;
 	}
@@ -101,12 +107,18 @@ async function teardownVirtualPasskeyAuthenticator(client: any, authenticatorId:
  * NOTE: PRF extension support is not advertised via getClientCapabilities in
  * Playwright's virtual authenticator environment. Instead, the virtual authenticator
  * automatically handles PRF extension requests during credential creation.
- * 
+ *
  * If PRF is not supported at runtime, the signup flow will detect this and show
  * the PRF error screen, which is also valid behavior to test.
  */
 
-test('completes passkey signup flow with email + purchase', async ({ page, context }: { page: any; context: any }) => {
+test('completes passkey signup flow with email + purchase', async ({
+	page,
+	context
+}: {
+	page: any;
+	context: any;
+}) => {
 	// Listen for console logs
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -130,7 +142,9 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 	test.setTimeout(240000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSKEY');
-	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, { filenamePrefix: 'passkey' });
+	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
+		filenamePrefix: 'passkey'
+	});
 
 	await archiveExistingScreenshots(logSignupCheckpoint);
 
@@ -142,7 +156,9 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 	}
 	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
 	if (!mailosaurServerId) {
-		throw new Error('MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.');
+		throw new Error(
+			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
+		);
 	}
 	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
 		createMailosaurClient({
@@ -221,11 +237,13 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		// Submit signup basics and trigger the confirmation email.
 		const emailRequestedAt = new Date().toISOString();
 		await page.getByRole('button', { name: /create new account/i }).click();
-		await takeStepScreenshot(page, 'confirm-email');
 		logSignupCheckpoint('Submitted signup basics, waiting for email confirmation.');
 
-		// Confirm email step: verify "Open mail app" link and enter OTP.
+		// Confirm email step: wait for step transition and verify "Open mail app" link.
+		// The step transition may take a moment, so we wait for the link to appear with a longer timeout.
 		const openMailLink = page.getByRole('link', { name: /open mail app/i });
+		await expect(openMailLink).toBeVisible({ timeout: 15000 });
+		await takeStepScreenshot(page, 'confirm-email');
 		await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
 		logSignupCheckpoint('Polling Mailosaur for confirmation email.');
@@ -330,7 +348,10 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		logSignupCheckpoint('Purchase completed successfully.');
 
 		// Auto top-up step: finish setup and confirm redirect into the app.
-		await page.getByRole('button', { name: /finish setup/i }).first().click();
+		await page
+			.getByRole('button', { name: /finish setup/i })
+			.first()
+			.click();
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');
@@ -379,7 +400,9 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		await expect(creditsAmount).toBeVisible();
 		const creditsText = (await creditsAmount.textContent()) || '';
 		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
-		expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(0);
+		expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(
+			0
+		);
 		logSignupCheckpoint('Verified purchased credits in settings.', { creditsValue, creditsText });
 
 		// Navigate to Account settings and open delete account flow.
@@ -391,7 +414,9 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		logSignupCheckpoint('Opened delete account settings.');
 
 		// Confirm data deletion checkbox to enable deletion.
-		const deleteConfirmToggle = page.locator('.delete-account-container input[type="checkbox"]').first();
+		const deleteConfirmToggle = page
+			.locator('.delete-account-container input[type="checkbox"]')
+			.first();
 		await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
 		await setToggleChecked(deleteConfirmToggle, true);
 		await takeStepScreenshot(page, 'delete-account-confirmed');
@@ -405,12 +430,16 @@ test('completes passkey signup flow with email + purchase', async ({ page, conte
 		logSignupCheckpoint('Passkey auth modal opened for deletion.');
 
 		// Wait for deletion success after passkey authentication completes.
-		await expect(page.locator('.delete-account-container .success-message')).toBeVisible({ timeout: 60000 });
+		await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+			timeout: 60000
+		});
 		await takeStepScreenshot(page, 'delete-account-success');
 		logSignupCheckpoint('Account deletion confirmed via passkey.');
 
 		// Confirm logout redirect to demo chat after deletion.
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 60000 });
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 60000
+		});
 		logSignupCheckpoint('Returned to demo chat after account deletion.');
 	} finally {
 		await teardownVirtualPasskeyAuthenticator(client, authenticatorId);

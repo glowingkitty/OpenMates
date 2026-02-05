@@ -2,6 +2,7 @@
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";
+export { default as ChatMessageNotification } from "./src/components/ChatMessageNotification.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
@@ -25,6 +26,7 @@ export { default as Field } from "./src/components/Field.svelte";
 export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
+export { default as PushNotificationBanner } from "./src/components/PushNotificationBanner.svelte";
 // Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
 // See frontend/packages/ui/src/legal/ for legal chat document definitions
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
@@ -59,10 +61,12 @@ export * from "./src/stores/websocketStatusStore"; // Export the WebSocket statu
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
+export * from "./src/stores/unreadMessagesStore"; // Export unread messages store for tracking unread chat messages
 export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
 export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
 export * from "./src/stores/appHealthStore"; // Export app health store for filtering apps by health status
+export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
 // loginOverlayStore removed - not needed
 
 // Demo Chats
@@ -98,6 +102,7 @@ export {
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
+export { pushNotificationService } from "./src/services/pushNotificationService"; // Export push notification service
 export {
   saveSharedChatKey,
   getSharedChatKey,

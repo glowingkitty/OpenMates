@@ -4,6 +4,7 @@
     import type { Chat } from '../../types/chat';
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
+    import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -30,8 +31,11 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead', detail: string): void;
     } = createEventDispatcher();
+    
+    // Derive if chat is currently unread (has unread_count > 0)
+    let isUnread = $derived(chat ? (chat.unread_count > 0) : false);
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
@@ -41,6 +45,26 @@
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
+    
+    // State for decrypted chat summary
+    let chatSummary = $state<string | null>(null);
+    
+    // Load decrypted summary when menu is shown
+    $effect(() => {
+        if (show && chat) {
+            // For demo chats, use the cleartext summary directly
+            if (chat.chat_summary) {
+                chatSummary = chat.chat_summary;
+            } else {
+                // For regular chats, get decrypted summary from cache
+                chatMetadataCache.getDecryptedMetadata(chat).then(metadata => {
+                    chatSummary = metadata?.summary ?? null;
+                });
+            }
+        } else {
+            chatSummary = null;
+        }
+    });
 
     // Calculate initial position using estimated dimensions to prevent visual jump
     function calculatePosition(menuWidth: number, menuHeight: number) {
@@ -101,8 +125,9 @@
     $effect(() => {
         if (show) {
             // First, calculate with estimated dimensions to prevent visual jump
-            const estimatedWidth = 150;
-            const estimatedHeight = 100;
+            // Increased estimates to account for potential chat summary section
+            const estimatedWidth = 200;
+            const estimatedHeight = chatSummary ? 200 : 120;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -268,6 +293,13 @@
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
+        <!-- Chat summary section (shown above buttons if available) -->
+        {#if chatSummary}
+            <div class="chat-summary">
+                {chatSummary}
+            </div>
+        {/if}
+        
         {#if selectMode}
             <!-- In select mode: show different options based on whether this chat is selected -->
             {#if isChatSelected}
@@ -413,6 +445,26 @@
                 {/if}
             {/if}
 
+            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+                {#if isUnread}
+                    <button
+                        class="menu-item mark-read"
+                        onclick={(event) => handleButtonClick('markRead', event)}
+                    >
+                        <div class="clickable-icon icon_mail"></div>
+                        {$text('chats.context_menu.mark_read.text', { default: 'Mark read' })}
+                    </button>
+                {:else}
+                    <button
+                        class="menu-item mark-unread"
+                        onclick={(event) => handleButtonClick('markUnread', event)}
+                    >
+                        <div class="clickable-icon icon_mail"></div>
+                        {$text('chats.context_menu.mark_unread.text', { default: 'Mark unread' })}
+                    </button>
+                {/if}
+            {/if}
+
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
                 <button
                     class="menu-item delete"
@@ -441,6 +493,25 @@
         pointer-events: none;
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
+        max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
+    }
+    
+    /* Chat summary displayed above the action buttons */
+    .chat-summary {
+        padding: 12px 16px;
+        margin-bottom: 4px;
+        color: var(--color-grey-70);
+        font-size: 13px;
+        line-height: 1.4;
+        border-bottom: 1px solid var(--color-grey-30);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        /* Limit to 4 lines with ellipsis for very long summaries */
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     /* Position menu above clicked point (default) */

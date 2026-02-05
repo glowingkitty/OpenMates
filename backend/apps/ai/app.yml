@@ -2,11 +2,21 @@ name_translation_key: ai.text
 description_translation_key: ai.description.text
 icon_image: |
   ai.svg
-last_updated: '2025-11-12'
-providers:
-  - Mistral
-  - Cerebras
-  - Z.ai
+last_updated: "2025-11-12"
+# Providers are auto-discovered from backend/providers/*.yml files
+# based on models with for_app_skill matching the skill ID (e.g., "ai.ask")
+# See: frontend/packages/ui/scripts/generate-apps-metadata.js
+
+# Optional: Define the display order for provider icons in the App Store.
+# Providers listed here will appear first (in this order), followed by any
+# remaining auto-discovered providers. This controls the visual presentation
+# in the app preview cards, not the actual provider availability.
+provider_display_order:
+  - Mistral AI
+  - Google
+  - Anthropic
+  - OpenAI
+  - Alibaba
 
 settings_and_memories:
   - id: communication_style
@@ -124,15 +134,13 @@ skills:
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
-    providers:
-      - Cerebras
-      - Mistral
+    # Providers are auto-discovered from backend/providers/*.yml files
+    # based on models with for_app_skill: "ai.ask"
     skill_config:
       # Model Selection Configuration
       # When false, uses hardcoded models from default_llms below.
       # When true, uses intelligent auto-selection based on leaderboard rankings.
-      # Set to false until all models have been manually tested via @ai-model:xxx
-      enable_auto_model_selection: false
+      enable_auto_model_selection: true
       default_llms:
         preprocessing_model: mistral/mistral-small-latest
         # main_processing_simple: google/gemini-3-flash-preview

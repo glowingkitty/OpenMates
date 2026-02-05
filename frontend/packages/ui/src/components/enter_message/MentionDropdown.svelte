@@ -22,6 +22,8 @@
         query?: string;
         /** Y position for the dropdown (top of input) */
         positionY?: number;
+        /** Position direction: 'above' (default) or 'below' the input */
+        positionDirection?: 'above' | 'below';
         /** Callback when a result is selected */
         onselect?: (result: AnyMentionResult) => void;
         /** Callback when dropdown is closed */
@@ -32,6 +34,7 @@
         show = $bindable(false),
         query = '',
         positionY = 0,
+        positionDirection = 'above',
         onselect,
         onclose,
     }: Props = $props();
@@ -195,7 +198,8 @@
     <div
         bind:this={dropdownElement}
         class="mention-dropdown"
-        style="bottom: {positionY}px;"
+        class:position-below={positionDirection === 'below'}
+        style="{positionDirection === 'below' ? 'top' : 'bottom'}: {positionY}px;"
         transition:fade={{ duration: 150 }}
         role="listbox"
         tabindex="-1"
@@ -300,6 +304,12 @@
         /* Center horizontally above the input field */
         left: 50% !important;
         transform: translateX(-50%);
+    }
+    
+    /* When positioned below the input (e.g., in notification view) */
+    .mention-dropdown.position-below {
+        /* Shadow should appear above instead of below */
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
     }
 
     .mention-dropdown-header {

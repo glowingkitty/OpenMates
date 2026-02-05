@@ -799,6 +799,12 @@ async def handle_main_processing(
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
     prompt_parts.append(f"Current date and time: {date_time_str}")
+    
+    # Add user's timezone to the system prompt if available
+    # This allows the AI to provide timezone-aware responses (e.g., reminders, scheduling)
+    user_timezone = request_data.user_preferences.get("timezone") if request_data.user_preferences else None
+    if user_timezone:
+        prompt_parts.append(f"User's timezone: {user_timezone}")
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -1390,10 +1396,14 @@ async def handle_main_processing(
                                         )
                             
                             # Store list of placeholders for later matching
+                            # CRITICAL: Also store the modified parsed_args with our auto-generated IDs
+                            # This ensures the execution phase uses the same IDs we assigned here
+                            # (parsed_args is parsed separately in both phases from the same tool_arguments_str)
                             if placeholder_embeds_list:
                                 inline_placeholder_embeds[tool_call_id] = {
                                     "multiple": True,
-                                    "placeholders": placeholder_embeds_list
+                                    "placeholders": placeholder_embeds_list,
+                                    "parsed_args": parsed_args  # Store with our modified request IDs
                                 }
                                 
                                 # Publish "processing" status for all requests
@@ -1944,6 +1954,7 @@ async def handle_main_processing(
                         timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
                         chat_id=request_data.chat_id,
                         message_id=request_data.message_id,
+                        user_id=request_data.user_id,
                         skill_task_id=skill_task_id,
                         cache_service=cache_service
                         # max_retries uses default (1 retry = 2 total attempts)
@@ -2302,11 +2313,23 @@ async def handle_main_processing(
                                 )
                             
                             # Extract request metadata from parsed_args for each request
-                            requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                            # CRITICAL: Use the parsed_args stored during placeholder creation (with our modified IDs)
+                            # instead of the freshly-parsed parsed_args from line 1568 which has original LLM IDs.
+                            # The placeholder phase modifies request["id"] to be 1-indexed (1, 2, 3...) for consistency,
+                            # but parsed_args is parsed separately in both phases from the same tool_arguments_str.
+                            stored_parsed_args = placeholder_embed_data.get("parsed_args") if isinstance(placeholder_embed_data, dict) else None
+                            args_for_metadata = stored_parsed_args if stored_parsed_args else parsed_args
+                            requests_list = args_for_metadata.get("requests", []) if isinstance(args_for_metadata, dict) else []
                             request_metadata_map = {}
                             for req in requests_list:
                                 if isinstance(req, dict) and "id" in req:
                                     request_metadata_map[req["id"]] = req
+                            
+                            # Debug: Log whether we used stored or fresh parsed_args
+                            logger.debug(
+                                f"{log_prefix} Building request_metadata_map: used_stored_parsed_args={stored_parsed_args is not None}, "
+                                f"request_count={len(requests_list)}"
+                            )
                             
                             # Log all grouped_result request_ids for debugging ID mismatches
                             grouped_result_ids = [str(gr.get("id")) for gr in grouped_results]
@@ -2331,6 +2354,15 @@ async def handle_main_processing(
                                 # Try both original request_id and normalized key
                                 request_metadata = request_metadata_map.get(request_id, request_metadata_map.get(request_id_key, {}))
                                 
+                                # DEBUG: Log request_metadata_map keys and lookup results
+                                logger.info(
+                                    f"{log_prefix} [QUERY_DEBUG] request_metadata_map keys: {list(request_metadata_map.keys())}, "
+                                    f"request_id={request_id} (type={type(request_id).__name__}), "
+                                    f"request_id_key={request_id_key}, "
+                                    f"lookup result has query: {'query' in request_metadata}, "
+                                    f"query value: {request_metadata.get('query', 'NOT_FOUND')}"
+                                )
+                                
                                 # Include provider from first_response if available
                                 request_metadata_with_provider = request_metadata.copy()
                                 if first_response and isinstance(first_response, dict) and "provider" in first_response:
@@ -2340,11 +2372,23 @@ async def handle_main_processing(
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
                                 if isinstance(grouped_result, dict):
                                     if "query" not in request_metadata_with_provider:
+                                        logger.warning(
+                                            f"{log_prefix} [QUERY_DEBUG] query NOT in request_metadata_with_provider, "
+                                            f"checking grouped_result. grouped_result keys: {list(grouped_result.keys())}"
+                                        )
                                         for fallback_key in ["query", "search_query", "q", "input", "url"]:
                                             fallback_value = grouped_result.get(fallback_key)
                                             if isinstance(fallback_value, str) and fallback_value.strip():
                                                 request_metadata_with_provider["query"] = fallback_value
+                                                logger.info(f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': {fallback_value}")
                                                 break
+                                        else:
+                                            logger.warning(f"{log_prefix} [QUERY_DEBUG] No query found in grouped_result via any fallback key!")
+                                    else:
+                                        logger.info(
+                                            f"{log_prefix} [QUERY_DEBUG] query found in request_metadata_with_provider: "
+                                            f"{request_metadata_with_provider.get('query')}"
+                                        )
                                 
                                 # Check if this request failed (no results)
                                 if not request_results:
@@ -2390,6 +2434,11 @@ async def handle_main_processing(
                                                     "app_id": app_id,
                                                     "skill_id": skill_id
                                                 }
+                                                # Include query and provider from request_metadata for UI rendering
+                                                if request_metadata_with_provider.get("query"):
+                                                    embed_reference_payload["query"] = request_metadata_with_provider["query"]
+                                                if request_metadata_with_provider.get("provider"):
+                                                    embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -2481,6 +2530,11 @@ async def handle_main_processing(
                                             "app_id": app_id,
                                             "skill_id": skill_id
                                         }
+                                        # Include query and provider from request_metadata for UI rendering
+                                        if request_metadata_with_provider.get("query"):
+                                            embed_reference_payload["query"] = request_metadata_with_provider["query"]
+                                        if request_metadata_with_provider.get("provider"):
+                                            embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

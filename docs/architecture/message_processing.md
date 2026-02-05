@@ -7,6 +7,7 @@
 **Core Principle**: Server never has client-side decryption keys and can only process messages when client provides decrypted content on-demand.
 
 **Flow**:
+
 1. Client encrypts all messages with chat-specific keys (client-side E2EE via [`cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts))
 2. Server stores only encrypted messages permanently (cannot decrypt - zero-knowledge storage in Directus)
 3. When processing needed, client decrypts and sends clear text to server via [`chatSyncServiceSenders.ts`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)
@@ -17,12 +18,13 @@
 8. Client receives response, encrypts with chat-specific key, and stores on server (zero-knowledge permanent storage)
 
 **Key Architecture Points**:
+
 - **Permanent Storage**: Zero-knowledge (server cannot decrypt) - stored in Directus database
   - Uses client-side `encryption_key_chat` per chat (see [`security.md#chats`](./security.md#chats))
   - Messages encrypted/decrypted client-side only
 
 - **Dual-Cache Architecture**: Two separate message caches with different encryption and purposes:
-  
+
   **1. AI Inference Cache** (`user:{user_id}:chat:{chat_id}:messages:ai`):
   - **Purpose**: Fast AI processing context (last 3 recently used chats)
   - **Encryption**: Vault-encrypted with `encryption_key_user_server` (server can decrypt for AI)
@@ -32,7 +34,7 @@
   - **Methods**: `add_ai_message_to_history()`, `get_ai_messages_history()`
   - **Embeds**: Embeds are cached separately at `embed:{embed_id}` (vault-encrypted, 24h TTL, global cache - one entry per embed). Chat index `chat:{chat_id}:embed_ids` tracks which embeds belong to each chat for eviction. When building AI context, embed references in messages are resolved to actual embed content from cache. See [Embeds Architecture](./embeds.md) for details.
   - **App Settings/Memories**: App settings/memories are cached separately at `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}` (vault-encrypted, 24h TTL, chat-specific cache). Chat index `chat:{chat_id}:app_settings_memories_keys` tracks which app settings/memories belong to each chat for eviction. When preprocessing requests app settings/memories, server checks cache first (similar to embeds). When user confirms, client sends decrypted data via `app_settings_memories_confirmed`, server encrypts and caches. **Chat-specific caching ensures automatic eviction when chat is evicted from cache** - sensitive app settings/memories are removed along with the chat. See [App Settings and Memories Architecture](./apps/app_settings_and_memories.md) for details.
-  
+
   **2. Sync Cache** (`user:{user_id}:chat:{chat_id}:messages:sync`):
   - **Purpose**: Fast client sync during login (last 100 chats)
   - **Encryption**: Client-encrypted with `encryption_key_chat` (same as Directus)
@@ -52,6 +54,7 @@
 - **Privacy**: Both caches are per-user, isolated, and encrypted with appropriate keys
 
 **Architecture Alignment with [`security.md`](./security.md)**:
+
 - ✅ **Client-side E2EE for permanent storage** - matches zero-knowledge principle
 - ✅ **Server stores encrypted blobs it cannot decrypt** - for permanent storage
 - ✅ **Server-side vault encryption for temporary cache** - uses `encryption_key_user_server` for "low sensitivity data"
@@ -59,6 +62,7 @@
 - ✅ **Privacy-preserving** - cache is temporary, user-isolated, and encrypted
 
 **Cache Fallback Mechanism** (On-Demand Architecture):
+
 1. Client sends new user message with only the message content (no full history by default) via [`sendNewMessageImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts:150)
 2. Server receives message in [`handle_message_received()`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py:21) and checks if chat history is in cache (last 3 chats per user) via [`cache_service.get_chat_messages_history()`](../../backend/core/api/app/services/cache_chat_mixin.py:505)
 3. **If in cache and decryption succeeds**: Server decrypts cached history with [`decrypt_with_user_key()`](../../backend/core/api/app/utils/encryption.py:371) using `user_vault_key_id` (line 282-285) and uses it for AI processing
@@ -78,6 +82,7 @@
 7. After AI response, server saves assistant message to cache for next follow-up via [`_save_to_cache_and_publish()`](../../backend/apps/ai/tasks/stream_consumer.py)
 
 **Current Implementation** (as of this fix):
+
 - ✅ Server caches user messages when received (via [`message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py))
 - ✅ Server caches assistant responses after processing (via [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py))
 - ✅ Server uses cached history (both user and assistant messages) for follow-ups
@@ -92,6 +97,8 @@
 
 **Implementation**: [`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)
 
+**Model Selection**: See [Preprocessing Model Comparison Report](./preprocessing_model_comparison.md) for detailed analysis of model options and why Mistral Small 3.2 was chosen.
+
 **PII Protection**: Before sending messages to LLMs, sensitive personal information (PII) should be pseudonymized to protect user privacy. See [Sensitive Data Redaction Architecture](./sensitive_data_redaction.md) for implementation details and options (Presidio, data-anonymizer).
 
 - Split chat history into blocks of 70.000 tokens max
@@ -99,17 +106,17 @@
 - then extract max harmful value, last language code, etc.
 - LLM request to mistral small 3.2
 - system prompt:
-    - requests a json output via function calling
-        - language_code: language code of the last user request (default: EN)
+  - requests a json output via function calling
+    - language_code: language code of the last user request (default: EN)
 - extract request category and therefore mate (software, marketing, etc.)
 - define best fitting LLM for request based on complexity/usecase
-    - **Model Selection**: Analyzes request to determine optimal LLM (reasoning, coding, vision, etc.)
-    - **Selection Reasoning**: Outputs explanation for why specific model was chosen
-    - **Factors Considered**: Task complexity, content type (text/code/images), required capabilities, cost-efficiency
-    - **Benchmark Resources**: See [AI Model Selection Architecture](./ai_model_selection.md#benchmark-resources-for-model-comparison) for resources used in model comparison
-    - **Output Fields**:
-        - `selected_model`: Model identifier (e.g., "claude-3-5-sonnet", "gpt-4o", "gemini-2.0-flash")
-        - `selection_reason`: Human-readable explanation of model choice
+  - **Model Selection**: Analyzes request to determine optimal LLM (reasoning, coding, vision, etc.)
+  - **Selection Reasoning**: Outputs explanation for why specific model was chosen
+  - **Factors Considered**: Task complexity, content type (text/code/images), required capabilities, cost-efficiency
+  - **Benchmark Resources**: See [AI Model Selection Architecture](./ai_model_selection.md#benchmark-resources-for-model-comparison) for resources used in model comparison
+  - **Output Fields**:
+    - `selected_model`: Model identifier (e.g., "claude-3-5-sonnet", "gpt-4o", "gemini-2.0-flash")
+    - `selection_reason`: Human-readable explanation of model choice
 - detect harmful / illegal requests
 - **preselect relevant app skills and focus modes** (see [Tool Preselection](#tool-preselection) below)
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
@@ -160,7 +167,7 @@
    - Server encrypts with vault key and stores in chat-specific cache for future use
    - **Chat-specific caching**: App settings/memories are automatically evicted when the chat is evicted from cache
    - Include newly-created entries from previous messages in the same chat
-   
+
    **Note**: Requests persist in chat history indefinitely, allowing users to respond hours or days later. The conversation continues without the data until the user provides it. Once confirmed, data is cached chat-specifically for fast access.
 
 5. **Dynamic Skills for Settings/Memories Management**:
@@ -183,6 +190,7 @@ Some skills require the user to have a connected account (e.g., Gmail integratio
 This ensures users aren't offered functionality that cannot work without proper setup, and prevents the LLM from wasting tokens trying to use unavailable tools.
 
 **Benefits:**
+
 - **Scalability**: System can handle hundreds of skills without performance degradation
 - **Efficiency**: Reduces token usage by only including relevant tools
 - **Accuracy**: LLM receives a focused set of tools, improving decision-making
@@ -213,7 +221,10 @@ videos-summarize
   "relevant_app_skills": ["web-search", "videos-get_transcript"],
   "relevant_app_focus_modes": ["web-research"],
   "relevant_app_settings_and_memories": ["web-preferred_search_provider"],
-  "relevant_new_app_settings_and_memories": ["travel-upcoming_trips", "movies-watched"]
+  "relevant_new_app_settings_and_memories": [
+    "travel-upcoming_trips",
+    "movies-watched"
+  ]
 }
 ```
 
@@ -227,18 +238,18 @@ For detailed documentation on tool preselection and scalability, see [Function C
 
 - LLM request to model selected by pre-processing
 - system prompt:
-    - is built up based on multiple instruction parts:
-        1. Focus instruction (if focus mode active for chat)
-        2. Base ethics instruction
-        3. Mate specific instruction
-        4. Apps instruction (about how to decide for which app skills/focus modes?)
+  - is built up based on multiple instruction parts:
+    1. Focus instruction (if focus mode active for chat)
+    2. Base ethics instruction
+    3. Mate specific instruction
+    4. Apps instruction (about how to decide for which app skills/focus modes?)
 - input:
+  - chat history (decrypted by client)
+  - similar_past_chats (based on pre-processing)
+  - user data
+    - interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
+    - preferred learning style (visual, auditory, repeating content, etc.)
 
-	- chat history (decrypted by client)
-	- similar_past_chats (based on pre-processing)
-	- user data
-		- interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
-		- preferred learning style (visual, auditory, repeating content, etc.)
 - assistant creates response & function calls when requested (for starting focus modes and app skills)
 - **Skill results format**: When skill results are passed to the LLM via function calling, they are encoded in **TOON (Token-Oriented Object Notation) format** instead of JSON. This reduces token usage by 30-60% compared to JSON, making it more efficient for LLM inference and chat history storage. REST API responses still return JSON format for frontend compatibility.
 
@@ -289,6 +300,7 @@ For detailed documentation on how function calling works, see [Function Calling 
    - Embed references are streamed as JSON code blocks in markdown
 
 **Benefits**:
+
 - ✅ **Immediate Results**: Users see skill results instantly (before LLM finishes processing)
 - ✅ **Space Efficient**: TOON format saves 30-60% storage vs JSON
 - ✅ **Flexible Placement**: LLM can place embed references contextually within response
@@ -296,6 +308,7 @@ For detailed documentation on how function calling works, see [Function Calling 
 - ✅ **Fast Inference**: Server cache stores TOON, decodes only when building AI context
 
 **Implementation Files**:
+
 - Embed creation: [`backend/core/api/app/services/embed_service.py`](../../backend/core/api/app/services/embed_service.py) (to be created)
 - Embed caching: [`backend/core/api/app/services/cache_chat_mixin.py`](../../backend/core/api/app/services/cache_chat_mixin.py) (update)
 - Streaming: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) (update)
@@ -340,6 +353,7 @@ For detailed documentation on how function calling works, see [Function Calling 
    - Server caches embed for future use
 
 **Key Points**:
+
 - ✅ Client sends messages with embed references (as stored) - server does NOT receive resolved embed content from client
 - ✅ Server resolves embed references: parses messages, loads embeds from cache, replaces placeholders with actual embed content
 - ✅ Server processes embeds: encrypts with vault key, stores separately in `embed:{embed_id}` cache
@@ -352,18 +366,22 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 ## Post-Processing
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+**Status**: ✅ **PARTIALLY IMPLEMENTED** - Follow-up suggestions, settings/memories suggestions, and URL validation are implemented. Chat summary and tags are planned.
 
-**Planned Implementation**: Future dedicated post-processing module (to be created)
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
 **Overview**: Post-processing analyzes the last user message and assistant response to generate contextual suggestions, settings/memories suggestions, and metadata.
 
+**Model Selection**: See [Preprocessing Model Comparison Report](./preprocessing_model_comparison.md) for detailed analysis of model options. The same model (Mistral Small 3.2) is recommended for both preprocessing and postprocessing.
+
 **LLM Configuration**:
+
 - **Model**: Mistral Small 3.2 (text only) or Gemini 2.5 Flash Lite (text + images)
 - **Output Format**: JSON via function calling
 - **System Prompt**: Includes ethics instructions and requests structured JSON output
 
 **Generated Outputs**:
+
 - **[Follow-up Suggestions & New Chat Suggestions](./followup_request_suggestions.md)**: 6 contextual suggestions for each type
 - **[Settings/Memories Suggestions](#settingsmemories-suggestions)**: Suggested data to save to settings/memories
 - **[Chat Summary](#chat-summary)**: 2-3 sentence summary for context
@@ -372,6 +390,7 @@ For detailed documentation on how function calling works, see [Function Calling 
 - **new_learnings**: (idea phase) Better collect new learnings
 
 **Additional Features** (to be implemented):
+
 - Consider user interests without creating tracking profile
 - Consider user's learning type (visual, auditory, reading, etc.)
 
@@ -411,6 +430,7 @@ For detailed documentation on how function calling works, see [Function Calling 
    - Normal processing continues (client-side encryption, Directus storage, etc.)
 
 **Key Benefits**:
+
 - **No streaming delay**: URL validation happens in background, doesn't slow down response streaming
 - **Simple & reliable**: String replacement can't fail (unlike LLM-based correction)
 - **Zero cost**: No additional LLM call for correction
@@ -418,18 +438,21 @@ For detailed documentation on how function calling works, see [Function Calling 
 - **Complete update**: Both client display and server cache are updated with corrected response
 
 **Anti-Detection Features**:
+
 - **Webshare Proxy**: Uses rotating residential proxy to avoid datacenter IP blocking
 - **Random User-Agents**: Dynamic generation via `user-agents` library (falls back to static list)
 - **Randomized Headers**: Accept-Language, DNT, etc. to avoid fingerprinting
 - **Fresh Connections**: `Connection: close` ensures IP rotation with proxy
 
 **Configuration**:
+
 - URL validation timeout: 8 seconds per URL (increased for proxy routing)
 - Validation runs in background (doesn't block response streaming)
 - Uses HEAD requests by default (more efficient, ~1.46 KB per URL vs ~217 KB with GET)
 - Webshare credentials from secrets manager: `kv/data/providers/webshare`
 
 **Implementation Files**:
+
 - URL extraction, validation, and Brave search replacement: [`backend/apps/ai/processing/url_validator.py`](../../backend/apps/ai/processing/url_validator.py)
 - Integration: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) - validates during streaming, replaces after completion
 
@@ -440,89 +463,129 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 ## Settings/Memories Suggestions
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - Part of main processing system prompt optimization
+**Status**: ✅ **IMPLEMENTED** - Two-phase post-processing pipeline with UI integration
 
-**Overview**: The main processing system prompt is optimized to detect when relevant settings/memories should be saved, updated, or deleted based on the conversation context. The assistant includes natural language suggestions in its response, which are then picked up by post-processing to generate follow-up request suggestions.
+**Overview**: Post-processing analyzes the conversation to suggest relevant settings/memories entries that users might want to save. Suggestions appear as horizontally-scrollable cards below the AI response, where users can either add them to their data or reject them (tracked via SHA-256 hashes for privacy).
 
-### Flow
+### Architecture
 
-1. **Pre-Processing**: Provides relevant app settings/memories entries to main processing (see [Tool Preselection](#tool-preselection))
-   - Includes existing entries that might be relevant to the conversation
-   - Includes available settings/memories categories and their schemas
-   - Includes dynamically generated skills for managing settings/memories
+The settings/memories suggestions feature uses a **two-phase post-processing pipeline**:
 
-2. **Main Processing**: System prompt is optimized to:
-   - Analyze conversation context against relevant settings/memories
-   - Detect if new entries should be saved (e.g., user mentions watching a movie, visiting a restaurant)
-   - Detect if existing entries should be updated (e.g., user changes a rating, updates preferences)
-   - Detect if entries should be deleted (e.g., user wants to remove something from a list)
-   - Include natural language suggestions in the response when appropriate
-   - Example: "Would you like me to save 'Inception' to your watched movies list?"
-   - Example: "Should I update your rating for 'The Matrix' to 9.5?"
-   - Example: "Would you like me to remove 'Old Restaurant' from your favorites?"
+#### Phase 1: Category Selection
 
-3. **Post-Processing**: Generates follow-up request suggestions
-   - Analyzes the main processing response for settings/memories suggestions
-   - Extracts natural language suggestions about saving/updating/deleting entries
-   - Converts them into actionable follow-up request suggestions
-   - These appear as quick action buttons in the UI
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
-4. **User Interaction**: User clicks on follow-up suggestion
-   - User confirms by clicking the suggestion (e.g., "Save Inception to watched movies")
-   - This triggers a new message with the confirmation
-   - Main processing receives the confirmation and calls the appropriate skill:
-     - `{app_id}.settings_memories_add_{category}` for new entries
-     - `{app_id}.settings_memories_update_{category}` for updates (with entry_id and changed fields)
-     - `{app_id}.settings_memories_delete_{category}` for deletions (with entry_id)
-   - Skill execution follows the zero-knowledge encryption flow (see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow))
+- Analyzes the last user message and assistant response
+- Selects up to 3 relevant category IDs from the user's available settings/memories categories
+- Output: `relevant_new_app_settings_and_memories` array of category IDs (e.g., `["ai:preferred_technologies", "travel:upcoming_trips"]`)
 
-### System Prompt Optimization
+#### Phase 2: Suggestion Generation
 
-The main processing system prompt includes instructions to:
+**Implementation**: [`backend/apps/ai/processing/postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)
 
-- Monitor conversation for data that matches available settings/memories categories
-- Suggest saving data when it would be valuable for future personalization
-- Suggest updating entries when user provides corrections or new information
-- Suggest deleting entries when user indicates they want something removed
-- Use natural, conversational language for suggestions (not technical skill names)
-- Only suggest when it adds clear value to the user experience
+- Takes the category IDs from Phase 1
+- For each category, generates a suggested entry with:
+  - `app_id`: The app this belongs to (e.g., `"ai"`)
+  - `item_type`: The category ID (e.g., `"preferred_technologies"`)
+  - `suggested_title`: Human-readable title (e.g., `"Python"`)
+  - `item_value`: Pre-filled form data matching the category schema
+- Output: `suggested_settings_memories` array of `SuggestedSettingsMemoryEntry` objects (max 3)
 
-### Integration with Follow-up Suggestions
+### Data Flow
 
-- Post-processing automatically extracts settings/memories suggestions from the main response
-- These are converted into follow-up request suggestions that appear as quick action buttons
-- Users can click to confirm, which triggers skill execution
-- Follow-up suggestions also reference newly-created/updated entries for personalization
+```
+Backend Phase 2 (postprocessor.py)
+    ↓ generates suggestions
+WebSocket (websockets.py)
+    ↓ sends to client via post_processing_completed event
+chatSyncServiceHandlersAI.ts
+    ↓ encrypts and stores in IndexedDB, syncs to Directus
+ActiveChat.svelte
+    ↓ loads from DB, manages state
+ChatHistory.svelte
+    ↓ renders SettingsMemoriesSuggestions component
+User Action
+    ↓ Add: creates entry via appSettingsMemoriesStore
+    ↓ Reject: adds SHA-256 hash, syncs via WebSocket
+```
+
+### Frontend Implementation
+
+**Key Files**:
+
+- State management: [`frontend/packages/ui/src/components/ActiveChat.svelte`](../../frontend/packages/ui/src/components/ActiveChat.svelte) - Manages `settingsMemoriesSuggestions` and `rejectedSuggestionHashes` state
+- Rendering: [`frontend/packages/ui/src/components/ChatHistory.svelte`](../../frontend/packages/ui/src/components/ChatHistory.svelte) - Passes suggestions to UI component
+- UI component: [`frontend/packages/ui/src/components/SettingsMemoriesSuggestions.svelte`](../../frontend/packages/ui/src/components/SettingsMemoriesSuggestions.svelte) - Horizontally-scrollable cards with Add/Reject buttons
+- AI handler: [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts) - Encrypts and stores suggestions
+
+**UI Behavior**:
+
+- Suggestions appear as cards below the last assistant message (only when not streaming)
+- Each card shows: app icon, category name, suggested title, Add/Reject buttons
+- Cards are horizontally scrollable when multiple suggestions exist
+- Privacy notice explains data is stored encrypted on user's device
+
+### Rejection Tracking (Zero-Knowledge)
+
+**Privacy-First Design**: Rejected suggestions are tracked using SHA-256 hashes to maintain zero-knowledge architecture:
+
+- Hash format: `SHA256("app_id:item_type:title.toLowerCase()")`
+- Only hashes are stored (server never sees cleartext rejection data)
+- Hashes stored in `rejected_suggestion_hashes` array on chat record
+- Client-side filtering uses hashes to hide previously rejected suggestions
+
+**Backend Handler**: [`backend/core/api/app/routes/handlers/websocket_handlers/reject_settings_memory_suggestion_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/reject_settings_memory_suggestion_handler.py)
+
+- Validates hash format (64-char hex string)
+- Verifies chat ownership
+- Persists to Directus via Celery task
+- Broadcasts rejection to other devices for cross-device sync
+
+### Storage
+
+**IndexedDB/Directus Chat Fields**:
+
+- `encrypted_settings_memories_suggestions`: Encrypted array of `SuggestedSettingsMemoryEntry` objects
+- `rejected_suggestion_hashes`: Array of SHA-256 hash strings (cleartext, not sensitive)
+
+**Type Definition**: [`frontend/packages/ui/src/types/apps.ts`](../../frontend/packages/ui/src/types/apps.ts) - `SuggestedSettingsMemoryEntry` interface
+
+### Integration with Existing Settings/Memories
+
+When user clicks "Add":
+
+1. `SettingsMemoriesSuggestions` component calls `appSettingsMemoriesStore.createEntry()`
+2. Entry is encrypted with master key and stored in IndexedDB
+3. Entry is synced to Directus via WebSocket
+4. Suggestion is removed from the displayed list
+5. Future AI requests will include the new entry in relevant context
 
 ## Topic specific post-processing
 
 - for example: for software development related requests, also check generated code for security flaws, if comments and reasoning for decisions is included, if it violates requirements, if docs need to be updated, if files are so long that they should be better split up, if the files, duplicate code, compiler errors, etc. -> generate "next step suggestions" in addition to follow up questions
-
 
 ## Storage constraints and parsing implications
 
 When local storage is constrained (e.g., IndexedDB quota), parsing and rendering should remain responsive by relying on lightweight nodes and on-demand content loading.
 
 - Lightweight parsing output
-    - `parse_message()` emits minimal embed nodes (id, type, status, contentRef, contentHash?, small metadata). It never stores full preview text in the node.
-    - Previews are derived at render time from the EmbedStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
+  - `parse_message()` emits minimal embed nodes (id, type, status, contentRef, contentHash?, small metadata). It never stores full preview text in the node.
+  - Previews are derived at render time from the EmbedStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
 
 - Behavior under budget pressure
-    - If the sync layer stored only metadata (no message bodies), `parse_message()` can still render previews from existing `contentRef` (if present) and show truncated text around them.
-    - For fullscreen, the UI attempts rehydration via `contentRef`. If missing locally due to eviction, it requests content on-demand (or reconstructs from canonical markdown if available).
+  - If the sync layer stored only metadata (no message bodies), `parse_message()` can still render previews from existing `contentRef` (if present) and show truncated text around them.
+  - For fullscreen, the UI attempts rehydration via `contentRef`. If missing locally due to eviction, it requests content on-demand (or reconstructs from canonical markdown if available).
 
 - Streaming backpressure
-    - During streaming, avoid persisting intermediate states when space is tight. Keep in-memory and finalize once the message ends; then persist only the minimal node + `cid` mapping.
-    - If final persistence exceeds budget, persist only references (`cid`) and drop inline/full content from cache.
+  - During streaming, avoid persisting intermediate states when space is tight. Keep in-memory and finalize once the message ends; then persist only the minimal node + `cid` mapping.
+  - If final persistence exceeds budget, persist only references (`cid`) and drop inline/full content from cache.
 
 - Copy/paste resilience
-    - Clipboard JSON (`application/x-openmates-embed+json`) can include `inlineContent` to enable reconstruction even when the target device lacks the `cid` payload.
-
+  - Clipboard JSON (`application/x-openmates-embed+json`) can include `inlineContent` to enable reconstruction even when the target device lacks the `cid` payload.
 
 ### Follow-up Suggestions & New Chat Suggestions
 
 For detailed specifications on follow-up request suggestions and new chat suggestions (generation, storage, UI behavior, and implementation), see **[`followup_request_suggestions.md`](./followup_request_suggestions.md)**.
-
 
 ### Chat summary
 
@@ -540,23 +603,22 @@ The chat summary is a short summary of the chat, which is typically not shown to
 
 - generated during post-processing
 - input:
-    - previous chat summary (if it exists)
-    - last user request
-    - last assistant response
+  - previous chat summary (if it exists)
+  - last user request
+  - last assistant response
 - output:
-    - new chat summary (2-3 sentences)
+  - new chat summary (2-3 sentences)
 - include general app settings & memories which are included, but not the actual details (strip them out before generating the summary)
 
 **Example output:**
 
 ```json
 {
-    // ...
-    "chat_summary": "User asked about Whisper for iOS compatibility and how to implement it and assistant explained its compatibility and how to implement it."
-    // ...
+  // ...
+  "chat_summary": "User asked about Whisper for iOS compatibility and how to implement it and assistant explained its compatibility and how to implement it."
+  // ...
 }
 ```
-
 
 ### Chat tags
 
@@ -574,20 +636,20 @@ The chat tags are a list of tags for the chat, which are used to categorize the 
 
 - generated during post-processing
 - input:
-    - previous chat tags (if it exists)
-    - last user request
-    - last assistant response
+  - previous chat tags (if it exists)
+  - last user request
+  - last assistant response
 - output:
-    - new chat tags (max 10 tags)
+  - new chat tags (max 10 tags)
 - include general app settings & memories which are included, but not the actual details (strip them out before generating the tags)
 
 **Example output:**
 
 ```json
 {
-    // ...
-    "chat_tags": ["Whisper", "iOS", "Compatibility", "Implementation"]
-    // ...
+  // ...
+  "chat_tags": ["Whisper", "iOS", "Compatibility", "Implementation"]
+  // ...
 }
 ```
 
@@ -612,23 +674,20 @@ Figma design: [User message shortened](https://www.figma.com/design/PzgE78TVxG0e
 > Question: how to better detect if user is asking for advice on how to self harm, how to harm others or how to do something illegal - over a longer conversation, and still remain reliable. (see openai case where chatgpt gave suicide instructions to teenager). Add "conversat_safety_score" that accumulates over time?
 
 # Example enhancement to your pre-processing
+
 harmful_content_detection:
-  categories:
-    - direct_self_harm
-    - indirect_self_harm  
-    - gradual_escalation_patterns
-    - emotional_distress_indicators
-  response_actions:
-    - refuse_and_redirect
-    - provide_crisis_resources  
-    - flag_for_human_review
-    - terminate_conversation
+categories: - direct_self_harm - indirect_self_harm
+
+- gradual_escalation_patterns - emotional_distress_indicators
+  response_actions: - refuse_and_redirect - provide_crisis_resources
+- flag_for_human_review - terminate_conversation
 
 > Idea: add mate specific pre-processing? for example for software dev topics -> does request likely require folder / project overview? (if so, we would include that in vscode extension)
 
 ## Implementation Files
 
 ### Backend Processing Pipeline
+
 - **[`backend/apps/ai/processing/README.md`](../../backend/apps/ai/processing/README.md)**: Overview of AI processing modules
 - **[`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)**: Pre-processing stage implementation
 - **[`backend/apps/ai/processing/main_processor.py`](../../backend/apps/ai/processing/main_processor.py)**: Main processing stage implementation
@@ -636,6 +695,7 @@ harmful_content_detection:
 - **[`backend/apps/ai/tasks/ask_skill_task.py`](../../backend/apps/ai/tasks/ask_skill_task.py)**: Celery task orchestration
 
 ### Frontend Message Handling
+
 - **[`frontend/packages/ui/src/services/chatSyncServiceSenders.ts`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)**: Message sending and dual-phase architecture
 - **[`frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts)**: Chat update handlers
 - **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Client-side encryption/decryption
@@ -643,6 +703,7 @@ harmful_content_detection:
 - **[`frontend/packages/ui/src/message_parsing/parse_message.ts`](../../frontend/packages/ui/src/message_parsing/parse_message.ts)**: Message parsing and rendering
 
 ### WebSocket Handlers
+
 - **[`backend/core/api/app/routes/websockets.py`](../../backend/core/api/app/routes/websockets.py)**: Main WebSocket endpoint
 - **[`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py)**: Message reception handler
 - **[`backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py)**: Encrypted metadata handler

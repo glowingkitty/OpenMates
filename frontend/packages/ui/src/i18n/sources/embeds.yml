@@ -116,25 +116,25 @@ via:
 more_results:
   context: Text showing additional results count, e.g. '+ 9 more'
   en: + {count} more
-  de: '+ {count} weitere'
-  zh: '+ {count} 更多'
-  es: '+ {count} más'
-  fr: '+ {count} autres'
-  pt: '+ {count} mais'
-  ru: '+ {count} ещё'
-  ja: '+ {count} その他'
-  ko: '+ {count} 더'
-  it: '+ {count} altri'
-  tr: '+ {count} daha'
-  vi: '+ {count} thêm'
-  id: '+ {count} lagi'
-  pl: '+ {count} więcej'
-  nl: '+ {count} meer'
-  ar: '+ {count} أكثر'
-  hi: '+ {count} अधिक'
-  th: '+ {count} เพิ่มเติม'
-  cs: '+ {count} dalších'
-  sv: '+ {count} fler'
+  de: "+ {count} weitere"
+  zh: "+ {count} 更多"
+  es: "+ {count} más"
+  fr: "+ {count} autres"
+  pt: "+ {count} mais"
+  ru: "+ {count} ещё"
+  ja: "+ {count} その他"
+  ko: "+ {count} 더"
+  it: "+ {count} altri"
+  tr: "+ {count} daha"
+  vi: "+ {count} thêm"
+  id: "+ {count} lagi"
+  pl: "+ {count} więcej"
+  nl: "+ {count} meer"
+  ar: "+ {count} أكثر"
+  hi: "+ {count} अधिक"
+  th: "+ {count} เพิ่มเติม"
+  cs: "+ {count} dalších"
+  sv: "+ {count} fler"
   verified_by_human: []
 open_search_results:
   context: Button label to open search results in fullscreen
@@ -237,19 +237,19 @@ open_on_provider:
   fr: Ouvrir sur {provider}
   pt: Abrir em {provider}
   ru: Открыть на {provider}
-  ja: '{provider}で開く'
-  ko: '{provider}에서 열기'
+  ja: "{provider}で開く"
+  ko: "{provider}에서 열기"
   it: Apri su {provider}
-  tr: '{provider} üzerinde aç'
+  tr: "{provider} üzerinde aç"
   vi: Mở trên {provider}
   id: Buka di {provider}
   pl: Otwórz na {provider}
   nl: Openen op {provider}
-  ar: 'فتح على {provider}'
-  hi: '{provider} पर खोलें'
-  th: 'เปิดบน {provider}'
-  cs: 'Otevřít na {provider}'
-  sv: 'Öppna på {provider}'
+  ar: "فتح على {provider}"
+  hi: "{provider} पर खोलें"
+  th: "เปิดบน {provider}"
+  cs: "Otevřít na {provider}"
+  sv: "Öppna på {provider}"
   verified_by_human: []
 open_on_youtube:
   context: Button label to open video on YouTube
@@ -368,26 +368,26 @@ code_line_plural:
   verified_by_human: []
 code_info:
   context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
-  en: '{lineCount} {lineCountText}, {language}'
-  de: '{lineCount} {lineCountText}, {language}'
-  zh: '{lineCount} {lineCountText}，{language}'
-  es: '{lineCount} {lineCountText}, {language}'
-  fr: '{lineCount} {lineCountText}, {language}'
-  pt: '{lineCount} {lineCountText}, {language}'
-  ru: '{lineCount} {lineCountText}, {language}'
-  ja: '{lineCount} {lineCountText}、{language}'
-  ko: '{lineCount} {lineCountText}, {language}'
-  it: '{lineCount} {lineCountText}, {language}'
-  tr: '{lineCount} {lineCountText}, {language}'
-  vi: '{lineCount} {lineCountText}, {language}'
-  id: '{lineCount} {lineCountText}, {language}'
-  pl: '{lineCount} {lineCountText}, {language}'
-  nl: '{lineCount} {lineCountText}, {language}'
-  ar: '{lineCount} {lineCountText}، {language}'
-  hi: '{lineCount} {lineCountText}, {language}'
-  th: '{lineCount} {lineCountText}, {language}'
-  cs: '{lineCount} {lineCountText}, {language}'
-  sv: '{lineCount} {lineCountText}, {language}'
+  en: "{lineCount} {lineCountText}, {language}"
+  de: "{lineCount} {lineCountText}, {language}"
+  zh: "{lineCount} {lineCountText}，{language}"
+  es: "{lineCount} {lineCountText}, {language}"
+  fr: "{lineCount} {lineCountText}, {language}"
+  pt: "{lineCount} {lineCountText}, {language}"
+  ru: "{lineCount} {lineCountText}, {language}"
+  ja: "{lineCount} {lineCountText}、{language}"
+  ko: "{lineCount} {lineCountText}, {language}"
+  it: "{lineCount} {lineCountText}, {language}"
+  tr: "{lineCount} {lineCountText}, {language}"
+  vi: "{lineCount} {lineCountText}, {language}"
+  id: "{lineCount} {lineCountText}, {language}"
+  pl: "{lineCount} {lineCountText}, {language}"
+  nl: "{lineCount} {lineCountText}, {language}"
+  ar: "{lineCount} {lineCountText}، {language}"
+  hi: "{lineCount} {lineCountText}, {language}"
+  th: "{lineCount} {lineCountText}, {language}"
+  cs: "{lineCount} {lineCountText}, {language}"
+  sv: "{lineCount} {lineCountText}, {language}"
   verified_by_human: []
 table:
   context: Default title for table/sheet embeds when no title is provided
@@ -506,49 +506,49 @@ web_read:
   verified_by_human: []
 web_read_full_view:
   context: Label above the open website button in web read fullscreen
-  en: 'Full viewing experience:'
-  de: 'Vollständige Ansicht:'
+  en: "Full viewing experience:"
+  de: "Vollständige Ansicht:"
   zh: 完整查看体验：
-  es: 'Experiencia de visualización completa:'
-  fr: 'Expérience de visualisation complète :'
-  pt: 'Experiência de visualização completa:'
-  ru: 'Полный просмотр:'
+  es: "Experiencia de visualización completa:"
+  fr: "Expérience de visualisation complète :"
+  pt: "Experiência de visualização completa:"
+  ru: "Полный просмотр:"
   ja: フル表示：
-  ko: '전체 보기 경험:'
-  it: 'Esperienza di visualizzazione completa:'
-  tr: 'Tam görüntüleme deneyimi:'
-  vi: 'Trải nghiệm xem đầy đủ:'
-  id: 'Pengalaman tampilan lengkap:'
-  pl: 'Pełne doświadczenie przeglądania:'
-  nl: 'Volledige weergave-ervaring:'
-  ar: 'تجربة العرض الكاملة:'
-  hi: 'पूर्ण देखने का अनुभव:'
-  th: 'ประสบการณ์การดูเต็มรูปแบบ:'
-  cs: 'Plná prohlížecí zkušenost:'
-  sv: 'Fullständig visningsupplevelse:'
+  ko: "전체 보기 경험:"
+  it: "Esperienza di visualizzazione completa:"
+  tr: "Tam görüntüleme deneyimi:"
+  vi: "Trải nghiệm xem đầy đủ:"
+  id: "Pengalaman tampilan lengkap:"
+  pl: "Pełne doświadczenie przeglądania:"
+  nl: "Volledige weergave-ervaring:"
+  ar: "تجربة العرض الكاملة:"
+  hi: "पूर्ण देखने का अनुभव:"
+  th: "ประสบการณ์การดูเต็มรูปแบบ:"
+  cs: "Plná prohlížecí zkušenost:"
+  sv: "Fullständig visningsupplevelse:"
   verified_by_human: []
 web_read_text_preview:
   context: Label above markdown content in web read fullscreen
-  en: 'Article preview,'
-  de: 'Artikelvorschau,'
+  en: "Article preview,"
+  de: "Artikelvorschau,"
   zh: 文章预览，
-  es: 'Vista previa del artículo,'
+  es: "Vista previa del artículo,"
   fr: "Aperçu de l'article,"
-  pt: 'Visualização do artigo,'
-  ru: 'Предпросмотр статьи,'
+  pt: "Visualização do artigo,"
+  ru: "Предпросмотр статьи,"
   ja: 記事のプレビュー、
-  ko: '기사 미리보기,'
+  ko: "기사 미리보기,"
   it: "Anteprima dell'articolo,"
-  tr: 'Makale önizlemesi,'
-  vi: 'Xem trước bài viết,'
-  id: 'Pratinjau artikel,'
-  pl: 'Podgląd artykułu,'
-  nl: 'Artikelvoorbeeld,'
-  ar: 'معاينة المقالة،'
-  hi: 'लेख पूर्वावलोकन,'
-  th: 'ตัวอย่างบทความ,'
-  cs: 'Náhled článku,'
-  sv: 'Artikelförhandsgranskning,'
+  tr: "Makale önizlemesi,"
+  vi: "Xem trước bài viết,"
+  id: "Pratinjau artikel,"
+  pl: "Podgląd artykułu,"
+  nl: "Artikelvoorbeeld,"
+  ar: "معاينة المقالة،"
+  hi: "लेख पूर्वावलोकन,"
+  th: "ตัวอย่างบทความ,"
+  cs: "Náhled článku,"
+  sv: "Artikelförhandsgranskning,"
   verified_by_human: []
 web_read_no_content:
   context: Message shown when no content is available for web read
@@ -598,49 +598,49 @@ web_read_loading_content:
   verified_by_human: []
 video_views:
   context: View count for videos, e.g. '1.5M views'
-  en: '{count} views'
-  de: '{count} Aufrufe'
-  zh: '{count} 次观看'
-  es: '{count} vistas'
-  fr: '{count} vues'
-  pt: '{count} visualizações'
-  ru: '{count} просмотров'
-  ja: '{count} 回視聴'
-  ko: '조회수 {count}회'
-  it: '{count} visualizzazioni'
-  tr: '{count} görüntüleme'
-  vi: '{count} lượt xem'
-  id: '{count} penayangan'
-  pl: '{count} wyświetleń'
-  nl: '{count} weergaven'
-  ar: '{count} مشاهدة'
-  hi: '{count} व्यूज'
-  th: 'การดู {count} ครั้ง'
-  cs: '{count} zhlédnutí'
-  sv: '{count} visningar'
+  en: "{count} views"
+  de: "{count} Aufrufe"
+  zh: "{count} 次观看"
+  es: "{count} vistas"
+  fr: "{count} vues"
+  pt: "{count} visualizações"
+  ru: "{count} просмотров"
+  ja: "{count} 回視聴"
+  ko: "조회수 {count}회"
+  it: "{count} visualizzazioni"
+  tr: "{count} görüntüleme"
+  vi: "{count} lượt xem"
+  id: "{count} penayangan"
+  pl: "{count} wyświetleń"
+  nl: "{count} weergaven"
+  ar: "{count} مشاهدة"
+  hi: "{count} व्यूज"
+  th: "การดู {count} ครั้ง"
+  cs: "{count} zhlédnutí"
+  sv: "{count} visningar"
   verified_by_human: []
 video_likes:
   context: Like count for videos, e.g. '68K likes'
-  en: '{count} likes'
-  de: '{count} Likes'
-  zh: '{count} 个赞'
-  es: '{count} me gusta'
-  fr: '{count} j''aime'
-  pt: '{count} curtidas'
-  ru: '{count} лайков'
-  ja: '{count} いいね'
-  ko: '좋아요 {count}개'
-  it: '{count} mi piace'
-  tr: '{count} beğeni'
-  vi: '{count} lượt thích'
-  id: '{count} suka'
-  pl: '{count} polubień'
-  nl: '{count} likes'
-  ar: '{count} إعجاب'
-  hi: '{count} पसंद'
-  th: '{count} ถูกใจ'
-  cs: '{count} líbí se mi'
-  sv: '{count} gillar'
+  en: "{count} likes"
+  de: "{count} Likes"
+  zh: "{count} 个赞"
+  es: "{count} me gusta"
+  fr: "{count} j'aime"
+  pt: "{count} curtidas"
+  ru: "{count} лайков"
+  ja: "{count} いいね"
+  ko: "좋아요 {count}개"
+  it: "{count} mi piace"
+  tr: "{count} beğeni"
+  vi: "{count} lượt thích"
+  id: "{count} suka"
+  pl: "{count} polubień"
+  nl: "{count} likes"
+  ar: "{count} إعجاب"
+  hi: "{count} पसंद"
+  th: "{count} ถูกใจ"
+  cs: "{count} líbí se mi"
+  sv: "{count} gillar"
   verified_by_human: []
 date_today:
   context: Relative date for today
@@ -690,95 +690,95 @@ date_yesterday:
   verified_by_human: []
 date_days_ago:
   context: Relative date for N days ago
-  en: '{count} days ago'
-  de: 'vor {count} Tagen'
-  zh: '{count} 天前'
-  es: 'hace {count} días'
-  fr: 'il y a {count} jours'
-  pt: 'há {count} dias'
-  ru: '{count} дней назад'
-  ja: '{count} 日前'
-  ko: '{count}일 전'
-  it: '{count} giorni fa'
-  tr: '{count} gün önce'
-  vi: '{count} ngày trước'
-  id: '{count} hari yang lalu'
-  pl: '{count} dni temu'
-  nl: '{count} dagen geleden'
-  ar: 'منذ {count} أيام'
-  hi: '{count} दिन पहले'
-  th: '{count} วันที่แล้ว'
-  cs: 'před {count} dny'
-  sv: 'för {count} dagar sedan'
+  en: "{count} days ago"
+  de: "vor {count} Tagen"
+  zh: "{count} 天前"
+  es: "hace {count} días"
+  fr: "il y a {count} jours"
+  pt: "há {count} dias"
+  ru: "{count} дней назад"
+  ja: "{count} 日前"
+  ko: "{count}일 전"
+  it: "{count} giorni fa"
+  tr: "{count} gün önce"
+  vi: "{count} ngày trước"
+  id: "{count} hari yang lalu"
+  pl: "{count} dni temu"
+  nl: "{count} dagen geleden"
+  ar: "منذ {count} أيام"
+  hi: "{count} दिन पहले"
+  th: "{count} วันที่แล้ว"
+  cs: "před {count} dny"
+  sv: "för {count} dagar sedan"
   verified_by_human: []
 date_weeks_ago:
   context: Relative date for N weeks ago
-  en: '{count} weeks ago'
-  de: 'vor {count} Wochen'
-  zh: '{count} 周前'
-  es: 'hace {count} semanas'
-  fr: 'il y a {count} semaines'
-  pt: 'há {count} semanas'
-  ru: '{count} недель назад'
-  ja: '{count} 週間前'
-  ko: '{count}주 전'
-  it: '{count} settimane fa'
-  tr: '{count} hafta önce'
-  vi: '{count} tuần trước'
-  id: '{count} minggu yang lalu'
-  pl: '{count} tygodni temu'
-  nl: '{count} weken geleden'
-  ar: 'منذ {count} أسابيع'
-  hi: '{count} सप्ताह पहले'
-  th: '{count} สัปดาห์ที่แล้ว'
-  cs: 'před {count} týdny'
-  sv: 'för {count} veckor sedan'
+  en: "{count} weeks ago"
+  de: "vor {count} Wochen"
+  zh: "{count} 周前"
+  es: "hace {count} semanas"
+  fr: "il y a {count} semaines"
+  pt: "há {count} semanas"
+  ru: "{count} недель назад"
+  ja: "{count} 週間前"
+  ko: "{count}주 전"
+  it: "{count} settimane fa"
+  tr: "{count} hafta önce"
+  vi: "{count} tuần trước"
+  id: "{count} minggu yang lalu"
+  pl: "{count} tygodni temu"
+  nl: "{count} weken geleden"
+  ar: "منذ {count} أسابيع"
+  hi: "{count} सप्ताह पहले"
+  th: "{count} สัปดาห์ที่แล้ว"
+  cs: "před {count} týdny"
+  sv: "för {count} veckor sedan"
   verified_by_human: []
 date_months_ago:
   context: Relative date for N months ago
-  en: '{count} months ago'
-  de: 'vor {count} Monaten'
-  zh: '{count} 个月前'
-  es: 'hace {count} meses'
-  fr: 'il y a {count} mois'
-  pt: 'há {count} meses'
-  ru: '{count} месяцев назад'
-  ja: '{count} ヶ月前'
-  ko: '{count}개월 전'
-  it: '{count} mesi fa'
-  tr: '{count} ay önce'
-  vi: '{count} tháng trước'
-  id: '{count} bulan yang lalu'
-  pl: '{count} miesięcy temu'
-  nl: '{count} maanden geleden'
-  ar: 'منذ {count} أشهر'
-  hi: '{count} महीने पहले'
-  th: '{count} เดือนที่แล้ว'
-  cs: 'před {count} měsíci'
-  sv: 'för {count} månader sedan'
+  en: "{count} months ago"
+  de: "vor {count} Monaten"
+  zh: "{count} 个月前"
+  es: "hace {count} meses"
+  fr: "il y a {count} mois"
+  pt: "há {count} meses"
+  ru: "{count} месяцев назад"
+  ja: "{count} ヶ月前"
+  ko: "{count}개월 전"
+  it: "{count} mesi fa"
+  tr: "{count} ay önce"
+  vi: "{count} tháng trước"
+  id: "{count} bulan yang lalu"
+  pl: "{count} miesięcy temu"
+  nl: "{count} maanden geleden"
+  ar: "منذ {count} أشهر"
+  hi: "{count} महीने पहले"
+  th: "{count} เดือนที่แล้ว"
+  cs: "před {count} měsíci"
+  sv: "för {count} månader sedan"
   verified_by_human: []
 date_years_ago:
   context: Relative date for N years ago
-  en: '{count} years ago'
-  de: 'vor {count} Jahren'
-  zh: '{count} 年前'
-  es: 'hace {count} años'
-  fr: 'il y a {count} ans'
-  pt: 'há {count} anos'
-  ru: '{count} лет назад'
-  ja: '{count} 年前'
-  ko: '{count}년 전'
-  it: '{count} anni fa'
-  tr: '{count} yıl önce'
-  vi: '{count} năm trước'
-  id: '{count} tahun yang lalu'
-  pl: '{count} lat temu'
-  nl: '{count} jaar geleden'
-  ar: 'منذ {count} سنوات'
-  hi: '{count} साल पहले'
-  th: '{count} ปีที่แล้ว'
-  cs: 'před {count} lety'
-  sv: 'för {count} år sedan'
+  en: "{count} years ago"
+  de: "vor {count} Jahren"
+  zh: "{count} 年前"
+  es: "hace {count} años"
+  fr: "il y a {count} ans"
+  pt: "há {count} anos"
+  ru: "{count} лет назад"
+  ja: "{count} 年前"
+  ko: "{count}년 전"
+  it: "{count} anni fa"
+  tr: "{count} yıl önce"
+  vi: "{count} năm trước"
+  id: "{count} tahun yang lalu"
+  pl: "{count} lat temu"
+  nl: "{count} jaar geleden"
+  ar: "منذ {count} سنوات"
+  hi: "{count} साल पहले"
+  th: "{count} ปีที่แล้ว"
+  cs: "před {count} lety"
+  sv: "för {count} år sedan"
   verified_by_human: []
 video_play:
   context: Button label to play video
@@ -853,51 +853,51 @@ get_docs:
     - de
 get_docs_full_view:
   context: Label above the open Context7 button in get docs fullscreen
-  en: 'Full documentation experience:'
-  de: 'Vollständige Dokumentation:'
+  en: "Full documentation experience:"
+  de: "Vollständige Dokumentation:"
   zh: 完整文档体验：
-  es: 'Experiencia de documentación completa:'
-  fr: 'Expérience de documentation complète :'
-  pt: 'Experiência de documentação completa:'
-  ru: 'Полная документация:'
+  es: "Experiencia de documentación completa:"
+  fr: "Expérience de documentation complète :"
+  pt: "Experiência de documentação completa:"
+  ru: "Полная документация:"
   ja: 完全なドキュメント表示：
-  ko: '전체 문서 경험:'
-  it: 'Esperienza di documentazione completa:'
-  tr: 'Tam dokümantasyon deneyimi:'
-  vi: 'Trải nghiệm tài liệu đầy đủ:'
-  id: 'Pengalaman dokumentasi lengkap:'
-  pl: 'Pełne doświadczenie dokumentacji:'
-  nl: 'Volledige documentatie-ervaring:'
-  ar: 'تجربة التوثيق الكاملة:'
-  hi: 'पूर्ण दस्तावेज़ अनुभव:'
-  th: 'ประสบการณ์เอกสารเต็มรูปแบบ:'
-  cs: 'Plná dokumentační zkušenost:'
-  sv: 'Fullständig dokumentationsupplevelse:'
+  ko: "전체 문서 경험:"
+  it: "Esperienza di documentazione completa:"
+  tr: "Tam dokümantasyon deneyimi:"
+  vi: "Trải nghiệm tài liệu đầy đủ:"
+  id: "Pengalaman dokumentasi lengkap:"
+  pl: "Pełne doświadczenie dokumentacji:"
+  nl: "Volledige documentatie-ervaring:"
+  ar: "تجربة التوثيق الكاملة:"
+  hi: "पूर्ण दस्तावेज़ अनुभव:"
+  th: "ประสบการณ์เอกสารเต็มรูปแบบ:"
+  cs: "Plná dokumentační zkušenost:"
+  sv: "Fullständig dokumentationsupplevelse:"
   verified_by_human:
     - en
     - de
 get_docs_preview:
   context: Label above markdown content in get docs fullscreen
-  en: 'Documentation preview,'
-  de: 'Dokumentationsvorschau,'
+  en: "Documentation preview,"
+  de: "Dokumentationsvorschau,"
   zh: 文档预览，
-  es: 'Vista previa de documentación,'
-  fr: 'Aperçu de la documentation,'
-  pt: 'Visualização da documentação,'
-  ru: 'Предпросмотр документации,'
+  es: "Vista previa de documentación,"
+  fr: "Aperçu de la documentation,"
+  pt: "Visualização da documentação,"
+  ru: "Предпросмотр документации,"
   ja: ドキュメントのプレビュー、
-  ko: '문서 미리보기,'
-  it: 'Anteprima della documentazione,'
-  tr: 'Dokümantasyon önizlemesi,'
-  vi: 'Xem trước tài liệu,'
-  id: 'Pratinjau dokumentasi,'
-  pl: 'Podgląd dokumentacji,'
-  nl: 'Documentatievoorbeeld,'
-  ar: 'معاينة التوثيق،'
-  hi: 'दस्तावेज़ पूर्वावलोकन,'
-  th: 'ตัวอย่างเอกสาร,'
-  cs: 'Náhled dokumentace,'
-  sv: 'Dokumentationsförhandsgranskning,'
+  ko: "문서 미리보기,"
+  it: "Anteprima della documentazione,"
+  tr: "Dokümantasyon önizlemesi,"
+  vi: "Xem trước tài liệu,"
+  id: "Pratinjau dokumentasi,"
+  pl: "Podgląd dokumentacji,"
+  nl: "Documentatievoorbeeld,"
+  ar: "معاينة التوثيق،"
+  hi: "दस्तावेज़ पूर्वावलोकन,"
+  th: "ตัวอย่างเอกสาร,"
+  cs: "Náhled dokumentace,"
+  sv: "Dokumentationsförhandsgranskning,"
   verified_by_human:
     - en
     - de
@@ -951,3 +951,417 @@ get_docs_loading:
   verified_by_human:
     - en
     - de
+reminder.scheduling:
+  context: Status text when reminder is being scheduled
+  en: Scheduling...
+  de: Wird geplant...
+  zh: 正在安排...
+  es: Programando...
+  fr: Planification en cours...
+  pt: Agendando...
+  ru: Планирование...
+  ja: スケジュール中...
+  ko: 예약 중...
+  it: Pianificazione in corso...
+  tr: Planlanıyor...
+  vi: Đang lên lịch...
+  id: Menjadwalkan...
+  pl: Planowanie...
+  nl: Plannen...
+  ar: جاري الجدولة...
+  hi: शेड्यूल हो रहा है...
+  th: กำลังกำหนดเวลา...
+  cs: Plánování...
+  sv: Schemalägger...
+  verified_by_human: [en, de]
+reminder.error:
+  context: Status text when reminder has an error
+  en: Error
+  de: Fehler
+  zh: 错误
+  es: Error
+  fr: Erreur
+  pt: Erro
+  ru: Ошибка
+  ja: エラー
+  ko: 오류
+  it: Errore
+  tr: Hata
+  vi: Lỗi
+  id: Kesalahan
+  pl: Błąd
+  nl: Fout
+  ar: خطأ
+  hi: त्रुटि
+  th: ข้อผิดพลาด
+  cs: Chyba
+  sv: Fel
+  verified_by_human: [en, de]
+reminder.new_chat:
+  context: Badge text for reminder targeting a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Chat nuevo
+  fr: Nouvelle conversation
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Cuộc trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  verified_by_human: [en, de]
+reminder.existing_chat:
+  context: Badge text for reminder targeting the existing chat
+  en: This chat
+  de: Dieser Chat
+  zh: 此聊天
+  es: Este chat
+  fr: Cette conversation
+  pt: Este chat
+  ru: Этот чат
+  ja: このチャット
+  ko: 이 채팅
+  it: Questa chat
+  tr: Bu sohbet
+  vi: Cuộc trò chuyện này
+  id: Obrolan ini
+  pl: Ten czat
+  nl: Deze chat
+  ar: هذه المحادثة
+  hi: यह चैट
+  th: แชทนี้
+  cs: Tento chat
+  sv: Den här chatten
+  verified_by_human: [en, de]
+reminder.repeating:
+  context: Badge text for repeating reminders
+  en: Repeating
+  de: Wiederkehrend
+  zh: 重复
+  es: Repetitivo
+  fr: Répétitif
+  pt: Repetitivo
+  ru: Повторяющийся
+  ja: 繰り返し
+  ko: 반복
+  it: Ripetuto
+  tr: Tekrarlanan
+  vi: Lặp lại
+  id: Berulang
+  pl: Powtarzające się
+  nl: Herhalend
+  ar: متكرر
+  hi: दोहराव
+  th: ทำซ้ำ
+  cs: Opakující se
+  sv: Återkommande
+  verified_by_human: [en, de]
+reminder.error_generic:
+  context: Generic error message for reminder embed
+  en: Failed to schedule reminder
+  de: Erinnerung konnte nicht geplant werden
+  zh: 无法安排提醒
+  es: No se pudo programar el recordatorio
+  fr: Impossible de planifier le rappel
+  pt: Falha ao agendar lembrete
+  ru: Не удалось запланировать напоминание
+  ja: リマインダーのスケジュールに失敗しました
+  ko: 알림 예약 실패
+  it: Impossibile pianificare il promemoria
+  tr: Hatırlatıcı planlanamadı
+  vi: Không thể lên lịch nhắc nhở
+  id: Gagal menjadwalkan pengingat
+  pl: Nie udało się zaplanować przypomnienia
+  nl: Herinnering plannen mislukt
+  ar: فشل في جدولة التذكير
+  hi: अनुस्मारक शेड्यूल करने में विफल
+  th: ไม่สามารถกำหนดเวลาการแจ้งเตือนได้
+  cs: Nepodařilo se naplánovat připomínku
+  sv: Det gick inte att schemalägga påminnelse
+  verified_by_human: [en, de]
+reminder.cancelled:
+  context: Status text when reminder is cancelled
+  en: Cancelled
+  de: Abgebrochen
+  zh: 已取消
+  es: Cancelado
+  fr: Annulé
+  pt: Cancelado
+  ru: Отменено
+  ja: キャンセル済み
+  ko: 취소됨
+  it: Annullato
+  tr: İptal edildi
+  vi: Đã hủy
+  id: Dibatalkan
+  pl: Anulowane
+  nl: Geannuleerd
+  ar: ملغى
+  hi: रद्द किया गया
+  th: ยกเลิกแล้ว
+  cs: Zrušeno
+  sv: Avbrutet
+  verified_by_human: [en, de]
+reminder.cancelled_message:
+  context: Message shown when reminder has been cancelled
+  en: This reminder has been cancelled and will not fire.
+  de: Diese Erinnerung wurde abgebrochen und wird nicht ausgelöst.
+  zh: 此提醒已取消，不会触发。
+  es: Este recordatorio ha sido cancelado y no se activará.
+  fr: Ce rappel a été annulé et ne se déclenchera pas.
+  pt: Este lembrete foi cancelado e não será disparado.
+  ru: Это напоминание отменено и не сработает.
+  ja: このリマインダーはキャンセルされ、発火しません。
+  ko: 이 알림은 취소되었으며 실행되지 않습니다.
+  it: Questo promemoria è stato annullato e non verrà attivato.
+  tr: Bu hatırlatıcı iptal edildi ve tetiklenmeyecek.
+  vi: Nhắc nhở này đã bị hủy và sẽ không được kích hoạt.
+  id: Pengingat ini telah dibatalkan dan tidak akan aktif.
+  pl: To przypomnienie zostało anulowane i nie zostanie uruchomione.
+  nl: Deze herinnering is geannuleerd en zal niet worden geactiveerd.
+  ar: تم إلغاء هذا التذكير ولن يتم تشغيله.
+  hi: यह अनुस्मारक रद्द कर दिया गया है और सक्रिय नहीं होगा।
+  th: การแจ้งเตือนนี้ถูกยกเลิกและจะไม่ทำงาน
+  cs: Tato připomínka byla zrušena a nebude spuštěna.
+  sv: Denna påminnelse har avbrutits och kommer inte att utlösas.
+  verified_by_human: [en, de]
+reminder.scheduled_for:
+  context: Label above the trigger time in fullscreen
+  en: Scheduled for
+  de: Geplant für
+  zh: 预定于
+  es: Programado para
+  fr: Prévu pour
+  pt: Agendado para
+  ru: Запланировано на
+  ja: 予定時刻
+  ko: 예정 시간
+  it: Pianificato per
+  tr: Planlandığı tarih
+  vi: Đã lên lịch cho
+  id: Dijadwalkan untuk
+  pl: Zaplanowane na
+  nl: Gepland voor
+  ar: مجدول ل
+  hi: के लिए निर्धारित
+  th: กำหนดไว้สำหรับ
+  cs: Naplánováno na
+  sv: Schemalagd för
+  verified_by_human: [en, de]
+reminder.target_type:
+  context: Label for target type in fullscreen
+  en: Target
+  de: Ziel
+  zh: 目标
+  es: Destino
+  fr: Cible
+  pt: Destino
+  ru: Цель
+  ja: ターゲット
+  ko: 대상
+  it: Destinazione
+  tr: Hedef
+  vi: Mục tiêu
+  id: Target
+  pl: Cel
+  nl: Doel
+  ar: الهدف
+  hi: लक्ष्य
+  th: เป้าหมาย
+  cs: Cíl
+  sv: Mål
+  verified_by_human: [en, de]
+reminder.yes:
+  context: Yes for boolean values
+  en: Yes
+  de: Ja
+  zh: 是
+  es: Sí
+  fr: Oui
+  pt: Sim
+  ru: Да
+  ja: はい
+  ko: 예
+  it: Sì
+  tr: Evet
+  vi: Có
+  id: Ya
+  pl: Tak
+  nl: Ja
+  ar: نعم
+  hi: हां
+  th: ใช่
+  cs: Ano
+  sv: Ja
+  verified_by_human: [en, de]
+reminder.no:
+  context: No for boolean values
+  en: No
+  de: Nein
+  zh: 否
+  es: No
+  fr: Non
+  pt: Não
+  ru: Нет
+  ja: いいえ
+  ko: 아니오
+  it: No
+  tr: Hayır
+  vi: Không
+  id: Tidak
+  pl: Nie
+  nl: Nee
+  ar: لا
+  hi: नहीं
+  th: ไม่
+  cs: Ne
+  sv: Nej
+  verified_by_human: [en, de]
+reminder.id:
+  context: Label for reminder ID
+  en: Reminder ID
+  de: Erinnerungs-ID
+  zh: 提醒 ID
+  es: ID del recordatorio
+  fr: ID du rappel
+  pt: ID do lembrete
+  ru: ID напоминания
+  ja: リマインダーID
+  ko: 알림 ID
+  it: ID promemoria
+  tr: Hatırlatıcı ID
+  vi: ID nhắc nhở
+  id: ID pengingat
+  pl: ID przypomnienia
+  nl: Herinnerings-ID
+  ar: معرف التذكير
+  hi: अनुस्मारक आईडी
+  th: ID การแจ้งเตือน
+  cs: ID připomínky
+  sv: Påminnelse-ID
+  verified_by_human: [en, de]
+reminder.cancel:
+  context: Button text to cancel a reminder
+  en: Cancel Reminder
+  de: Erinnerung abbrechen
+  zh: 取消提醒
+  es: Cancelar recordatorio
+  fr: Annuler le rappel
+  pt: Cancelar lembrete
+  ru: Отменить напоминание
+  ja: リマインダーをキャンセル
+  ko: 알림 취소
+  it: Annulla promemoria
+  tr: Hatırlatıcıyı iptal et
+  vi: Hủy nhắc nhở
+  id: Batalkan pengingat
+  pl: Anuluj przypomnienie
+  nl: Herinnering annuleren
+  ar: إلغاء التذكير
+  hi: अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือน
+  cs: Zrušit připomínku
+  sv: Avbryt påminnelse
+  verified_by_human: [en, de]
+reminder.cancelling:
+  context: Button text while cancelling a reminder
+  en: Cancelling...
+  de: Wird abgebrochen...
+  zh: 正在取消...
+  es: Cancelando...
+  fr: Annulation en cours...
+  pt: Cancelando...
+  ru: Отмена...
+  ja: キャンセル中...
+  ko: 취소 중...
+  it: Annullamento in corso...
+  tr: İptal ediliyor...
+  vi: Đang hủy...
+  id: Membatalkan...
+  pl: Anulowanie...
+  nl: Annuleren...
+  ar: جاري الإلغاء...
+  hi: रद्द किया जा रहा है...
+  th: กำลังยกเลิก...
+  cs: Rušení...
+  sv: Avbryter...
+  verified_by_human: [en, de]
+reminder.cancel_success:
+  context: Notification when reminder is successfully cancelled
+  en: Reminder cancelled
+  de: Erinnerung abgebrochen
+  zh: 提醒已取消
+  es: Recordatorio cancelado
+  fr: Rappel annulé
+  pt: Lembrete cancelado
+  ru: Напоминание отменено
+  ja: リマインダーがキャンセルされました
+  ko: 알림이 취소되었습니다
+  it: Promemoria annullato
+  tr: Hatırlatıcı iptal edildi
+  vi: Đã hủy nhắc nhở
+  id: Pengingat dibatalkan
+  pl: Przypomnienie anulowane
+  nl: Herinnering geannuleerd
+  ar: تم إلغاء التذكير
+  hi: अनुस्मारक रद्द किया गया
+  th: ยกเลิกการแจ้งเตือนแล้ว
+  cs: Připomínka zrušena
+  sv: Påminnelse avbruten
+  verified_by_human: [en, de]
+reminder.cancel_error:
+  context: Notification when reminder cancellation fails
+  en: Failed to cancel reminder
+  de: Erinnerung konnte nicht abgebrochen werden
+  zh: 无法取消提醒
+  es: No se pudo cancelar el recordatorio
+  fr: Impossible d'annuler le rappel
+  pt: Falha ao cancelar lembrete
+  ru: Не удалось отменить напоминание
+  ja: リマインダーのキャンセルに失敗しました
+  ko: 알림 취소 실패
+  it: Impossibile annullare il promemoria
+  tr: Hatırlatıcı iptal edilemedi
+  vi: Không thể hủy nhắc nhở
+  id: Gagal membatalkan pengingat
+  pl: Nie udało się anulować przypomnienia
+  nl: Herinnering annuleren mislukt
+  ar: فشل في إلغاء التذكير
+  hi: अनुस्मारक रद्द करने में विफल
+  th: ไม่สามารถยกเลิกการแจ้งเตือนได้
+  cs: Nepodařilo se zrušit připomínku
+  sv: Det gick inte att avbryta påminnelse
+  verified_by_human: [en, de]
+reminder.already_fired:
+  context: Notice when reminder has already fired
+  en: This reminder has already fired
+  de: Diese Erinnerung wurde bereits ausgelöst
+  zh: 此提醒已触发
+  es: Este recordatorio ya se ha activado
+  fr: Ce rappel a déjà été déclenché
+  pt: Este lembrete já foi disparado
+  ru: Это напоминание уже сработало
+  ja: このリマインダーは既に発火しました
+  ko: 이 알림은 이미 실행되었습니다
+  it: Questo promemoria è già stato attivato
+  tr: Bu hatırlatıcı zaten tetiklendi
+  vi: Nhắc nhở này đã được kích hoạt
+  id: Pengingat ini sudah aktif
+  pl: To przypomnienie już zostało uruchomione
+  nl: Deze herinnering is al geactiveerd
+  ar: هذا التذكير قد تم تشغيله بالفعل
+  hi: यह अनुस्मारक पहले ही सक्रिय हो चुका है
+  th: การแจ้งเตือนนี้ได้ทำงานแล้ว
+  cs: Tato připomínka již byla spuštěna
+  sv: Denna påminnelse har redan utlösts
+  verified_by_human: [en, de]

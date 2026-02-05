@@ -15,7 +15,8 @@ models:
     description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:zai-glm-4.7
+    release_date: "2025-12-22" # Model release date (GLM 4.7 release from rankings)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "glm-4.7"
       openrouter: "z-ai/glm-4.7"
@@ -29,9 +30,11 @@ models:
       - id: "cerebras"
         name: "Cerebras"
         model_id: "zai-glm-4.7" # Direct Cerebras model identifier
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "z-ai/glm-4.7" # OpenRouter fallback
+        region: "US" # Server region for UI display
     pricing:
       tokens:
         input:

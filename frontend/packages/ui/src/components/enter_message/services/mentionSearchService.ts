@@ -15,6 +15,7 @@ import { get } from "svelte/store";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
 import { text } from "../../../i18n/translations";
+import { userProfile } from "../../../stores/userProfile";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -198,6 +199,7 @@ function calculateMatchScore(query: string, terms: string[]): number {
  * Convert AI model metadata to mention results.
  * Filters to only include models for the "ai.ask" skill (text generation models).
  * Also filters out models whose provider is unhealthy (if health data is available).
+ * Additionally filters out models that the user has disabled in their settings.
  *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
@@ -205,12 +207,18 @@ function getModelMentionResults(): ModelMentionResult[] {
   // Get the provider health checker function
   const checkProviderHealthy = get(isProviderHealthy);
 
+  // Get user's disabled models list (defaults to empty array if not set)
+  const profile = get(userProfile);
+  const disabledModels = profile.disabled_ai_models || [];
+
   return (
     modelsMetadata
       // Filter to only include models for the "ai.ask" skill (excludes image generation models)
       .filter((model) => model.for_app_skill === "ai.ask")
       // Filter by provider health (offline-first: shows all if health data unavailable)
       .filter((model) => checkProviderHealthy(model.provider_id))
+      // Filter out models that user has disabled in settings
+      .filter((model) => !disabledModels.includes(model.id))
       .map((model) => ({
         id: model.id,
         type: "model" as const,

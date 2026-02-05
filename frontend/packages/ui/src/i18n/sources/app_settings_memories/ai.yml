@@ -20,31 +20,31 @@ communication_style:
   th: สไตล์การสื่อสาร
   cs: Komunikační styl
   sv: Kommunikationsstil
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 
 communication_style.description:
   context: Description for communication style settings/memory
-  en: How you prefer the AI to communicate with you
-  de: Wie du bevorzugst, dass die KI mit dir kommuniziert
+  en: How you prefer the AI to communicate
+  de: Wie du bevorzugst, dass die KI kommuniziert
   zh: 你希望AI如何与你沟通
-  es: Cómo prefieres que la IA se comunique contigo
-  fr: Comment vous préférez que l'IA communique avec vous
-  pt: Como você prefere que a IA se comunique com você
-  ru: Как вы предпочитаете, чтобы ИИ общался с вами
-  ja: AIがどのようにあなたとコミュニケーションを取ることを好むか
-  ko: AI가 당신과 소통하는 방식을 선호하는 방법
-  it: Come preferisci che l'IA comunichi con te
-  tr: AI'nın sizinle nasıl iletişim kurmasını tercih ettiğiniz
-  vi: Cách bạn muốn AI giao tiếp với bạn
-  id: Bagaimana Anda lebih suka AI berkomunikasi dengan Anda
-  pl: Jak wolisz, aby AI komunikowało się z tobą
-  nl: Hoe je wilt dat de AI met je communiceert
-  ar: كيف تفضل أن يتواصل الذكاء الاصطناعي معك
+  es: Cómo prefieres que la IA se comunique
+  fr: Comment vous préférez que l'IA communique
+  pt: Como você prefere que a IA se comunique
+  ru: Как вы предпочитаете, чтобы ИИ общался
+  ja: AIのコミュニケーション方法の好み
+  ko: AI 소통 방식 선호도
+  it: Come preferisci che l'IA comunichi
+  tr: AI'nın nasıl iletişim kurmasını tercih ettiğiniz
+  vi: Cách bạn muốn AI giao tiếp
+  id: Bagaimana Anda lebih suka AI berkomunikasi
+  pl: Jak wolisz, aby AI komunikowało się
+  nl: Hoe je wilt dat de AI communiceert
+  ar: كيف تفضل أن يتواصل الذكاء الاصطناعي
   hi: आप AI से कैसे संवाद करना पसंद करते हैं
-  th: วิธีที่คุณต้องการให้ AI สื่อสารกับคุณ
+  th: วิธีที่คุณต้องการให้ AI สื่อสาร
   cs: Jak upřednostňujete komunikaci s AI
-  sv: Hur du föredrar att AI kommunicerar med dig
-  verified_by_human: [en,de]
+  sv: Hur du föredrar att AI kommunicerar
+  verified_by_human: [en, de]
 learning_preferences:
   context: Settings/memory name for learning preferences
   en: Learning Preferences
@@ -67,15 +67,15 @@ learning_preferences:
   th: ความชอบในการเรียนรู้
   cs: Předvolby učení
   sv: Inlärningspreferenser
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 
 learning_preferences.description:
   context: Description for learning preferences settings/memory
   en: How you prefer to learn and consume information
-  de: Wie du bevorzugst zu lernen und Informationen aufzunehmen
+  de: Wie du bevorzugst zu lernen und Infos aufzunehmen
   zh: 你如何偏好学习和获取信息
   es: Cómo prefieres aprender y consumir información
-  fr: Comment vous préférez apprendre et consommer des informations
+  fr: Comment vous préférez apprendre et absorber les infos
   pt: Como você prefere aprender e consumir informações
   ru: Как вы предпочитаете учиться и получать информацию
   ja: 情報をどのように学習し、消費することを好むか
@@ -83,7 +83,7 @@ learning_preferences.description:
   it: Come preferisci imparare e consumare informazioni
   tr: Bilgiyi nasıl öğrenmeyi ve tüketmeyi tercih ettiğiniz
   vi: Cách bạn muốn học và tiếp nhận thông tin
-  id: Bagaimana Anda lebih suka belajar dan mengonsumsi informasi
+  id: Bagaimana Anda lebih suka belajar dan menyerap info
   pl: Jak wolisz uczyć się i przyswajać informacje
   nl: Hoe je wilt leren en informatie consumeren
   ar: كيف تفضل التعلم واستهلاك المعلومات
@@ -91,7 +91,7 @@ learning_preferences.description:
   th: วิธีที่คุณต้องการเรียนรู้และรับข้อมูล
   cs: Jak upřednostňujete učení a spotřebu informací
   sv: Hur du föredrar att lära dig och konsumera information
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 
 interaction_preferences:
   context: Settings/memory name for interaction preferences
@@ -115,7 +115,7 @@ interaction_preferences:
   th: ความชอบในการโต้ตอบ
   cs: Předvolby interakce
   sv: Interaktionspreferenser
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 
 interaction_preferences.description:
   context: Description for interaction preferences settings/memory
@@ -129,7 +129,7 @@ interaction_preferences.description:
   ja: AIがどのようにあなたと対話することを好むか
   ko: AI가 당신과 상호작용하는 방식을 선호하는 방법
   it: Come preferisci che l'IA interagisca con te
-  tr: AI'nın sizinle nasıl etkileşime girmesini tercih ettiğiniz
+  tr: AI'nın sizinle nasıl etkileşim kurmasını istersiniz
   vi: Cách bạn muốn AI tương tác với bạn
   id: Bagaimana Anda lebih suka AI berinteraksi dengan Anda
   pl: Jak wolisz, aby AI wchodziło z tobą w interakcję
@@ -139,4 +139,4 @@ interaction_preferences.description:
   th: วิธีที่คุณต้องการให้ AI มีปฏิสัมพันธ์กับคุณ
   cs: Jak upřednostňujete interakci s AI
   sv: Hur du föredrar att AI interagerar med dig
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]

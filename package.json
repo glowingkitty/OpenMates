@@ -28,6 +28,7 @@
   },
   "pnpm": {
     "overrides": {
+      "@isaacs/brace-expansion": "^5.0.1",
       "glob": "^13.0.0",
       "devalue": "^5.6.2",
       "@sveltejs/kit": "2.49.5",

@@ -570,6 +570,7 @@
             alt={displayTitle}
             class="video-thumbnail"
             loading="lazy"
+            crossorigin="anonymous"
             onerror={(e) => {
               // Try fallback thumbnail quality (also proxied)
               const img = e.target as HTMLImageElement;
@@ -694,6 +695,7 @@
               alt={channelName || 'Channel'}
               class="title-channel-thumbnail"
               loading="lazy"
+              crossorigin="anonymous"
               onerror={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}

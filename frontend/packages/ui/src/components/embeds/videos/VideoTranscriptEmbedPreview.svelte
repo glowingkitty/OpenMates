@@ -425,6 +425,7 @@
             src={channelThumbnailUrl} 
             alt={effectiveChannelName || ''} 
             class="channel-thumbnail"
+            crossorigin="anonymous"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         {:else if isLoadingMetadata}

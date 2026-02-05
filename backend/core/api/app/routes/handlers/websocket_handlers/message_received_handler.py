@@ -1088,11 +1088,37 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
             if not current_message_in_history:
                 logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
+                
+                # CRITICAL FIX: Resolve embed references in the current message content
+                # The content_plain may contain embed references like {"type": "code", "embed_id": "..."}
+                # These need to be replaced with actual embed content for the AI to understand
+                resolved_current_content = content_plain
+                try:
+                    from backend.core.api.app.services.embed_service import EmbedService
+                    embed_service = EmbedService(
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service
+                    )
+                    resolved_current_content = await embed_service.resolve_embed_references_in_content(
+                        content=content_plain,
+                        chat_id=chat_id,
+                        user_id=user_id,
+                        encryption_service=encryption_service,
+                        user_vault_key_id=user_vault_key_id
+                    )
+                    if resolved_current_content != content_plain:
+                        logger.info(f"Resolved embed references in current user message {message_id}. "
+                                   f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
+                except Exception as e_resolve:
+                    logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
+                    resolved_current_content = content_plain
+                
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
                         sender_name=final_sender_name, # Current message's sender_name
-                        content=content_plain, # Tiptap JSON
+                        content=resolved_current_content, # Resolved content with embeds replaced
                         created_at=client_timestamp_unix
                     )
                 )
@@ -1144,6 +1170,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
         
+        # Get user's timezone for AI context (used for reminders, scheduling, time-aware responses)
+        user_timezone = await cache_service.get_user_timezone(user_id)
+        user_preferences_dict = {}
+        if user_timezone:
+            user_preferences_dict["timezone"] = user_timezone
+            logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
+        
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1154,7 +1187,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
-            user_preferences={},
+            user_preferences=user_preferences_dict,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client  # Client-provided metadata (source of truth)
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")

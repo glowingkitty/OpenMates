@@ -28,8 +28,8 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For ty
 # Import UserOverrides for @ mentioning syntax support
 from backend.core.api.app.utils.override_parser import UserOverrides
 
-# Import China sensitivity detection for model filtering
-from backend.core.api.app.services.china_sensitivity import is_china_related
+# China sensitivity detection is now handled by the preprocessing LLM via the china_model_sensitive field
+# This replaces the previous hardcoded keyword-based detection in china_sensitivity.py
 
 # Import model selector for intelligent model selection based on leaderboard rankings
 from backend.apps.ai.utils.model_selector import ModelSelector
@@ -809,12 +809,29 @@ async def handle_preprocessing(
         user_unhappy_val = False
         llm_analysis_args["user_unhappy"] = user_unhappy_val
 
-    # Check for China-sensitive content in the message history
-    # If detected, we filter out China-origin models to avoid censorship issues
-    china_related = is_china_related(sanitized_message_history)
+    # Extract china_model_sensitive from LLM analysis for model filtering
+    # When True, China-origin models (DeepSeek, Qwen, etc.) are excluded to avoid censored/biased responses
+    # Default to True (conservative) if not provided - better to exclude CN models than risk biased response
+    china_model_sensitive_val = llm_analysis_args.get("china_model_sensitive")
+    if china_model_sensitive_val is None:
+        logger.error(
+            f"{log_prefix} CHINA_SENSITIVITY: 'china_model_sensitive' field missing from LLM response! "
+            f"This is a required field. Defaulting to True (conservative) to exclude CN models. "
+            f"LLM response keys: {list(llm_analysis_args.keys())}"
+        )
+        china_related = True
+    elif not isinstance(china_model_sensitive_val, bool):
+        logger.error(
+            f"{log_prefix} CHINA_SENSITIVITY: 'china_model_sensitive' is not a boolean: {china_model_sensitive_val} "
+            f"(type: {type(china_model_sensitive_val).__name__}). Defaulting to True (conservative)."
+        )
+        china_related = True
+    else:
+        china_related = china_model_sensitive_val
+    
     if china_related:
         logger.info(
-            f"{log_prefix} CHINA_SENSITIVITY: Detected China-sensitive content in message history. "
+            f"{log_prefix} CHINA_SENSITIVITY: LLM detected politically sensitive content. "
             f"China-origin models will be excluded from selection."
         )
 
@@ -902,7 +919,7 @@ async def handle_preprocessing(
     if not model_override_applied:
         # Check if auto model selection is enabled in skill_config
         # Default to False for safety - require explicit opt-in
-        enable_auto_select = getattr(skill_config, 'enable_auto_model_selection', False)
+        enable_auto_select = skill_config.enable_auto_model_selection
 
         if enable_auto_select:
             # Use ModelSelector to select models based on leaderboard rankings
@@ -928,9 +945,14 @@ async def handle_preprocessing(
                 model_selection_reason = selection_result.selection_reason
                 filtered_cn_models = selection_result.filtered_cn_models
 
-                # Extract model name from model_id (take last part after /)
+                # Look up human-readable model name from provider config
+                # Format of selected_llm_for_main_id: "provider/model_id" (e.g., "google/gemini-3-pro-preview")
                 if selected_llm_for_main_id and "/" in selected_llm_for_main_id:
-                    selected_llm_for_main_name = selected_llm_for_main_id.split("/")[-1]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part)
+                    if not selected_llm_for_main_name:
+                        # Fallback to model ID if display name not found in config
+                        selected_llm_for_main_name = model_id_part
                 else:
                     selected_llm_for_main_name = selected_llm_for_main_id
 

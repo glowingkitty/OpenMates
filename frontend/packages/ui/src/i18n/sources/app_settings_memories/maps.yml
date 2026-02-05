@@ -21,12 +21,12 @@ favorite_places:
   cs: Oblíbená místa
   sv: Favoritplatser
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 favorite_places.description:
   context: Description for favorite places setting in Maps app
   en: Your saved favorite places for quick access.
-  de: Deine gespeicherten Lieblingsorte für schnellen Zugriff.
+  de: Deine gespeicherten Lieblingsorte.
   zh: 您保存的收藏地点，方便快速访问。
   es: Tus lugares favoritos guardados para acceso rápido.
   fr: Vos lieux favoris enregistrés pour un accès rapide.
@@ -36,7 +36,7 @@ favorite_places.description:
   ko: 빠른 액세스를 위한 저장된 즐겨찾는 장소.
   it: I tuoi luoghi preferiti salvati per un accesso rapido.
   tr: Hızlı erişim için kaydedilmiş favori yerleriniz.
-  vi: Các địa điểm yêu thích đã lưu của bạn để truy cập nhanh.
+  vi: Các địa điểm yêu thích đã lưu của bạn.
   id: Tempat favorit yang disimpan untuk akses cepat.
   pl: Twoje zapisane ulubione miejsca do szybkiego dostępu.
   nl: Je opgeslagen favoriete plaatsen voor snelle toegang.
@@ -46,5 +46,5 @@ favorite_places.description:
   cs: Vaše uložená oblíbená místa pro rychlý přístup.
   sv: Dina sparade favoritplatser för snabb åtkomst.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de

@@ -6,6 +6,7 @@
 		Header,
 		Settings,
 		Notification,
+		ChatMessageNotification,
 		// stores
 		isInSignupProcess,
 		authStore,
@@ -1872,6 +1873,17 @@
 
 <!-- Removed svelte:window binding for innerWidth -->
 
+<!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
+<div class="notification-container">
+	{#each $notificationStore.notifications as notification (notification.id)}
+		{#if notification.type === 'chat_message'}
+			<ChatMessageNotification {notification} />
+		{:else}
+			<Notification {notification} />
+		{/if}
+	{/each}
+</div>
+
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
 	{#if $panelState.isActivityHistoryOpen}
 		<!-- Sidebar content - transition handled by parent sidebar transform -->
@@ -1887,13 +1899,6 @@
 	class:initial-load={isInitialLoad}
 	class:scrollable={showFooter}
 >
-	<!-- Notification overlay - slides in from top -->
-	<div class="notification-container">
-		{#each $notificationStore.notifications as notification}
-			<Notification {notification} />
-		{/each}
-	</div>
-
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<div
 		class="chat-container"

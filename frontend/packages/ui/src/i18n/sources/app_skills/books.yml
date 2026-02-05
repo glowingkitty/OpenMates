@@ -25,27 +25,26 @@ translate:
     - de
 translate.description:
   context: Description for translate skill
-  en: Translate an eBook file to another language.
-  de: Übersetze eine E-Book-Datei in eine andere Sprache.
-  zh: 将电子书文件翻译成另一种语言。
-  es: Traduce un archivo de libro electrónico a otro idioma.
-  fr: Traduisez un fichier de livre électronique dans une autre langue.
-  pt: Traduza um arquivo de livro eletrônico para outro idioma.
-  ru: Переведите файл электронной книги на другой язык.
-  ja: 電子書籍ファイルを別の言語に翻訳します。
-  ko: 전자책 파일을 다른 언어로 번역합니다.
-  it: Traduci un file di libro elettronico in un'altra lingua.
-  tr: Bir e-kitap dosyasını başka bir dile çevirin.
-  vi: Dịch tệp sách điện tử sang ngôn ngữ khác.
-  id: Terjemahkan file eBook ke bahasa lain.
-  pl: Przetłumacz plik e-booka na inny język.
-  nl: Vertaal een e-boekbestand naar een andere taal.
-  ar: ترجم ملف كتاب إلكتروني إلى لغة أخرى.
-  hi: एक ई-बुक फ़ाइल को दूसरी भाषा में अनुवाद करें।
-  th: แปลไฟล์อีบุ๊กเป็นภาษาอื่น
-  cs: Přeložte soubor elektronické knihy do jiného jazyka.
-  sv: Översätt en e-bokfil till ett annat språk.
+  en: Translate an eBook to another language.
+  de: Übersetze ein E-Book in eine andere Sprache.
+  zh: 将电子书翻译成另一种语言。
+  es: Traduce un eBook a otro idioma.
+  fr: Traduisez un eBook dans une autre langue.
+  pt: Traduza um eBook para outro idioma.
+  ru: Переведите eBook на другой язык.
+  ja: 電子書籍を別の言語に翻訳。
+  ko: 전자책을 다른 언어로 번역.
+  it: Traduci un eBook in un'altra lingua.
+  tr: Bir e-kitabı başka bir dile çevirin.
+  vi: Dịch sách điện tử sang ngôn ngữ khác.
+  id: Terjemahkan eBook ke bahasa lain.
+  pl: Przetłumacz eBook na inny język.
+  nl: Vertaal een e-boek naar een andere taal.
+  ar: ترجم كتابًا إلكترونيًا إلى لغة أخرى.
+  hi: ई-बुक को दूसरी भाषा में अनुवाद करें।
+  th: แปลอีบุ๊กเป็นภาษาอื่น
+  cs: Přeložte eBook do jiného jazyka.
+  sv: Översätt en e-bok till ett annat språk.
   verified_by_human:
     - en
     - de
-

@@ -1,7 +1,6 @@
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { fly } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
@@ -97,56 +96,20 @@
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
-    // Animation parameters - now direction-aware
-    const getFlyParams = (isIn: boolean, dir: string) => {
+    /**
+     * Simple slide-in transition for settings views.
+     * Only the incoming view is animated - the old view is immediately hidden.
+     * This avoids all visual glitches from overlapping views.
+     */
+    function slideIn(node: Element, { dir }: { dir: string }) {
+        const duration = 200; // Fast, snappy animation
+        const x = dir === 'forward' ? 250 : -250;
+        
         return {
-            duration: 400,
-            x: dir === 'forward' ? 
-                (isIn ? 300 : -300) : 
-                (isIn ? -300 : 300),
-            easing: cubicOut
+            duration,
+            easing: cubicOut,
+            css: (t: number) => `transform: translateX(${(1 - t) * x}px);`
         };
-    };
-
-    // Track views that should be present in the DOM
-    let visibleViews = $state(new Set([activeSettingsView]));
-    // Track the previous active view for transitions
-    let previousView = $state(activeSettingsView);
-    
-    // Keep track of transition state
-    let inTransition = false;
-
-    // Handle view changes reactively using Svelte 5 runes
-    $effect(() => {
-        if (activeSettingsView && activeSettingsView !== previousView) {
-            handleViewChange(activeSettingsView);
-        }
-    });
-
-    // Function to properly manage view transitions
-    async function handleViewChange(newView: string) {
-        inTransition = true;
-        
-        // Keep track of the previous view for proper transitions
-        const oldView = previousView;
-        previousView = newView;
-        
-        // Add both the current and previous view to the visible set
-        visibleViews.add(oldView);
-        visibleViews.add(newView);
-        
-        // Force reactivity
-        visibleViews = new Set([...visibleViews]);
-        
-        // Schedule cleanup after the animation completes
-        setTimeout(() => {
-            if (inTransition && oldView !== newView) {
-                // Clean up the old view if it's not the current view
-                visibleViews.delete(oldView);
-                visibleViews = new Set([...visibleViews]);
-                inTransition = false;
-            }
-        }, getFlyParams(true, direction).duration + 50); // Add a small buffer
     }
 
     const dispatch = createEventDispatcher();
@@ -185,29 +148,6 @@
     function handleLogout() {
         dispatch('logout');
     }
-    
-    // Called when an animation is complete
-    function handleAnimationComplete(view) {
-        // Only remove if it's not the active view
-        if (view !== activeSettingsView) {
-            visibleViews.delete(view);
-            visibleViews = new Set([...visibleViews]);
-        }
-    }
-    
-    // Make sure we initialize with the right view
-    onMount(() => {
-        visibleViews = new Set([activeSettingsView]);
-        previousView = activeSettingsView;
-
-        // REMOVED: Duplicate handler for 'user_credits_updated'
-        // The parent Settings.svelte already handles this event and updates the store
-        // No need to register the same handler here (was causing duplicate execution)
-        
-        return () => {
-            // Cleanup if needed
-        };
-    });
 
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
@@ -299,17 +239,11 @@
 </script>
 
 <div class="settings-content-slider" style="min-height: {sliderMinHeight};" bind:this={sliderElement}>
-	<!-- Main user info header that slides with settings items -->
-	{#if visibleViews.has('main')}
-
-        <!-- Main settings items -->
+	<!-- Main settings menu - shown only when active -->
+	{#if activeSettingsView === 'main'}
         <div 
-            class="settings-items"
-            class:active={activeSettingsView === 'main'}
-            in:fly={getFlyParams(true, direction)}
-            out:fly={getFlyParams(false, direction)}
-            style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            onoutroend={() => handleAnimationComplete('main')}
+            class="settings-items active"
+            in:slideIn={{ dir: direction }}
         >
             <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
             <!-- Profile container that scrolls with content (appears instantly when menu opens) -->
@@ -411,20 +345,16 @@
         </div>
     {/if}
     
-    <!-- Render only needed subsettings views -->
+    <!-- Render only the active subsettings view -->
     {#each Object.entries(settingsViews) as [key, component]}
         {@const Component = component}
-        {#if visibleViews.has(key)}
+        {#if activeSettingsView === key}
             <div 
-                class="settings-submenu-content"
-                class:active={activeSettingsView === key}
-                in:fly={getFlyParams(true, direction)}
-                out:fly={getFlyParams(false, direction)}
-                style="z-index: {activeSettingsView === key ? 2 : 1};"
-                onoutroend={() => handleAnimationComplete(key)}
+                class="settings-submenu-content active"
+                in:slideIn={{ dir: direction }}
             >
                 <Component 
-                    activeSettingsView={activeSettingsView}
+                    activeSettingsView={key}
                     accountId={accountId}
                     on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
                 />
@@ -556,16 +486,17 @@
         position: absolute;
         left: 0;
         width: 100%;
-        opacity: 0;
         pointer-events: none;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        /* 
+         * Background ensures content behind doesn't show through during transitions.
+         * The custom flyFade Svelte transition handles opacity and transform animations.
+         * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
+         */
+        background-color: var(--color-grey-20);
     }
     
     .settings-items.active,
     .settings-submenu-content.active {
-        opacity: 1;
         pointer-events: auto;
-        transform: translateX(0);
     }
 </style>

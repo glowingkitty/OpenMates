@@ -40,7 +40,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
-	let syncing = $state(true); // Indicates if 3-phase sync is in progress (starts true)
+	// Syncing indicator: true when authenticated AND sync has not completed yet
+	// Using $derived ensures reactivity to both authStore and phasedSyncState changes
+	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
@@ -436,7 +438,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 chatListCache.markDirty();
 	 await updateChatListFromDB(true);
 	 
-	 syncing = false;
+	 // Note: syncing is now derived from phasedSyncState.initialSyncCompleted
+	 // The phasedSyncState.markSyncCompleted() call happens in handlePhasedSyncCompleteEvent
 	 syncComplete = true;
 	 
 	 // Hide the message after 1 second
@@ -600,8 +603,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		allChatsDisplayed = true;
 		console.info(`[Chats] Phase 3 complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
-		// Show "Sync complete" message
-		syncing = false;
+		// Show "Sync complete" message (syncing is derived from phasedSyncState)
 		syncComplete = true;
 		
 		// Hide the message after 1 second
@@ -617,35 +619,42 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
 		console.info(`[Chats] Phased sync complete:`, event.detail);
 		
-		// Mark that initial phased sync has completed
-		// This prevents redundant syncs when Chats component is remounted
-		phasedSyncState.markSyncCompleted();
-		
-		// Final update of the chat list
+		// CRITICAL: Update chat list FIRST, before marking sync complete
+		// This ensures the syncing indicator stays visible until chats are actually displayed
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		syncing = false;
+		// CRITICAL: Always ensure all chats are displayed after sync complete
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		
+		// NOW mark sync as completed (this hides the syncing indicator)
+		// This prevents redundant syncs when Chats component is remounted
+		phasedSyncState.markSyncCompleted();
+		
+		// Show "Sync complete" message briefly
 		syncComplete = true;
 		
 		// Hide the message after 1 second
 		setTimeout(() => {
 			syncComplete = false;
 		}, 1000);
-		
-		// CRITICAL: Always ensure all chats are displayed after sync complete
-		displayLimit = Infinity;
-		allChatsDisplayed = true;
-		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 	};
 
 	/**
 		* Handles 'cachePrimed' event. Indicates server-side cache is generally ready.
 		* This means the 3-phase sync is complete.
 		*/
-	const handleCachePrimedEvent = () => {
+	const handleCachePrimedEvent = async () => {
 		console.debug("[Chats] Cache primed event received.");
-		syncing = false;
+		
+		// Update chat list first to ensure UI is current before hiding syncing indicator
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
+		
+		// NOW mark sync as complete (this hides the syncing indicator)
+		phasedSyncState.markSyncCompleted();
 		syncComplete = true;
 		
 		// Hide the message after 1 second
@@ -658,10 +667,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* Handles 'syncStatusResponse' event. Indicates server-side cache status.
 		* If cache is already primed, stop syncing.
 		*/
-	const handleSyncStatusResponse = (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
+	const handleSyncStatusResponse = async (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
 		console.debug("[Chats] Sync status response received:", event.detail);
 		if (event.detail.cache_primed) {
-			syncing = false;
+			// Update chat list first to ensure UI is current before hiding syncing indicator
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+			
+			// NOW mark sync as complete (this hides the syncing indicator)
+			phasedSyncState.markSyncCompleted();
 			syncComplete = true;
 			
 			// Hide the message after 1 second
@@ -794,7 +808,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			selectedChatId = null;
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
-			syncing = false;
+			// Note: syncing is now derived from authStore and phasedSyncState
+			// For non-authenticated users, syncing will be false automatically
 			syncComplete = false;
 
 			// CRITICAL: Don't clear URL hash if one exists - deep links need to be processed first
@@ -836,11 +851,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// NOTE: Reactive sync of selectedChatId with activeChatStore is handled by
 		// the $effect at the top level of the script (Svelte 5 requires $effect at top level)
 		
-		// CHANGED: For non-authenticated users, don't show syncing indicator
+		// CHANGED: For non-authenticated users, syncing is automatically false (derived state)
 		// Demo chats are loaded synchronously, no sync needed
 		if (!$authStore.isAuthenticated) {
-			syncing = false;
-			console.debug('[Chats] Non-authenticated user - skipping sync indicator');
+			console.debug('[Chats] Non-authenticated user - syncing indicator disabled (derived state)');
 
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
@@ -886,7 +900,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			selectedChatId = null;
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
-			syncing = false;
+			// Note: syncing is derived from authStore - will be false when not authenticated
 			syncComplete = false;
 			
 			// Clear the persistent store
@@ -1189,10 +1203,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
-		// Check if sync has already completed - if so, don't show loading indicator
+		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
+		// Check if sync has already completed - if so, expand display limit
 		if ($phasedSyncState.initialSyncCompleted) {
-			syncing = false;
-			
 			// CRITICAL: Expand display limit to show all chats since sync is already done
 			// Without this, only the first 20 chats would be visible until the user closes/reopens the sidebar
 			if (!allChatsDisplayed) {
@@ -2651,19 +2664,22 @@ async function updateChatListFromDBInternal(force = false) {
 			ontouchstart={handleTouchStart}
 			ontouchmove={handleTouchMove}
 		>
-			{#if syncing}
-			<div class="syncing-indicator">{$text('activity.syncing.text')}</div>
-		{:else if syncComplete}
-			<div class="sync-complete-indicator">{$text('activity.sync_complete.text')}</div>
-		{/if}
-		
-		<!-- Show hidden chats button (clickable text styled like group-title) - always visible when not unlocked -->
-		{#if !hiddenChatState.isUnlocked}
+			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
+		{#if syncing}
+			<div class="show-hidden-chats-container">
+				<div class="syncing-inline-indicator" aria-live="polite">
+					<span class="clickable-icon icon_reload syncing-icon"></span>
+					<span class="syncing-text">{$text('activity.syncing.text')}</span>
+				</div>
+			</div>
+		{:else if !hiddenChatState.isUnlocked}
+			<!-- Show hidden chats button/form (only when not syncing and hidden chats are locked) -->
 			{#if !showInlineUnlock}
 				<div class="show-hidden-chats-container">
 					<button
 						type="button"
 						class="show-hidden-chats-button"
+						class:fade-in={syncComplete || !syncing}
 						onclick={() => {
 							showInlineUnlock = true;
 							// Focus input after a brief delay
@@ -3126,34 +3142,78 @@ async function updateChatListFromDBInternal(force = false) {
         flex-shrink: 0;
     }
 
-    .no-chats-indicator,
-    .syncing-indicator,
-    .sync-complete-indicator {
+    /* Fade-in animation for show hidden chats button after sync completes */
+    .show-hidden-chats-button.fade-in {
+        animation: fadeInQuick 0.15s ease-out;
+    }
+
+    @keyframes fadeInQuick {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    /* Inline syncing indicator - replaces "Show hidden chats" button during sync */
+    .syncing-inline-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85em; /* Match group-title font size */
+        font-weight: 500; /* Match group-title font weight */
+        text-transform: uppercase; /* Match group-title text transform */
+        letter-spacing: 0.5px; /* Match group-title letter spacing */
+        animation: fadeInQuick 0.15s ease-out;
+    }
+
+    /* Syncing icon with rotation animation */
+    .syncing-inline-indicator .syncing-icon {
+        flex-shrink: 0;
+        animation: syncIconSpin 1.2s linear infinite;
+        /* Apply shimmer gradient to icon */
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
+        mask-image: url("@openmates/ui/static/icons/reload.svg");
+    }
+
+    @keyframes syncIconSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Syncing text with shimmer gradient animation (same as ActiveChat "Processing...") */
+    .syncing-inline-indicator .syncing-text {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: syncingShimmer 1.5s infinite linear;
+    }
+
+    @keyframes syncingShimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .no-chats-indicator {
         text-align: center;
         padding: 12px 20px;
         color: var(--color-grey-60);
         font-style: italic;
-    }
-
-    .syncing-indicator,
-    .sync-complete-indicator {
-        background-color: var(--color-grey-15);
-        border-radius: 8px;
-        margin: 8px;
-        font-weight: 500;
-        font-size: 0.9em;
-    }
-
-    .sync-complete-indicator {
-        background-color: var(--color-success-bg, var(--color-grey-15));
-        color: var(--color-success-text, var(--color-grey-70));
-        animation: fadeOut 1s ease-in-out;
-    }
-
-    @keyframes fadeOut {
-        0% { opacity: 1; }
-        70% { opacity: 1; }
-        100% { opacity: 0; }
     }
 
     .chat-item {

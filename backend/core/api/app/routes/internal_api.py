@@ -766,3 +766,188 @@ async def get_issue(
     except Exception as e:
         logger.error(f"Error retrieving issue {issue_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve issue: {str(e)}")
+
+
+# --- E2E Test Notification Endpoints ---
+
+class TestFailureNotificationPayload(BaseModel):
+    """Payload for E2E test failure notification."""
+    environment: str  # "development" or "production"
+    test_file: str  # e.g., "chat-flow.spec.ts"
+    test_name: str  # e.g., "logs in and sends a chat message"
+    status: str  # "failed", "timedout", "passed"
+    timestamp: str  # ISO timestamp
+    duration_seconds: float  # Test duration in seconds
+    error_message: Optional[str] = None  # Error message or stack trace
+    console_logs: Optional[str] = None  # Last 20 console log entries
+    network_activities: Optional[str] = None  # Last 20 network activities
+
+
+class TestRunSummary(BaseModel):
+    """Summary of a test run with multiple test results."""
+    environment: str  # "development" or "production"
+    total_tests: int
+    passed: int
+    failed: int
+    skipped: int
+    duration_seconds: float
+    timestamp: str  # ISO timestamp
+    failures: list[TestFailureNotificationPayload]  # Details of failed tests
+
+
+@router.post("/e2e-tests/notify-failure")
+async def notify_test_failure(
+    payload: TestFailureNotificationPayload,
+    request: Request
+) -> Dict[str, Any]:
+    """
+    Receives E2E test failure notification and sends alert email to admin.
+    
+    This endpoint is called by the Playwright test runner (via API reporter)
+    when a test fails. It dispatches an email notification task.
+    
+    Protected by internal service token (X-Internal-Service-Token header).
+    """
+    import os
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    
+    logger.info(
+        f"Internal API: Received E2E test failure notification - "
+        f"test='{payload.test_name}', status='{payload.status}', env='{payload.environment}'"
+    )
+    
+    # Get admin email from environment
+    admin_email = os.getenv("SERVER_OWNER_EMAIL")
+    if not admin_email:
+        logger.error("SERVER_OWNER_EMAIL not configured - cannot send test failure notification")
+        raise HTTPException(
+            status_code=500,
+            detail="Server admin email not configured. Cannot send notification."
+        )
+    
+    # Only send notifications for failures (not passed tests)
+    if payload.status == "passed":
+        logger.info(f"Test '{payload.test_name}' passed - skipping notification")
+        return {"status": "skipped", "reason": "Test passed, no notification needed"}
+    
+    try:
+        # Dispatch email notification task
+        celery_app.send_task(
+            name='app.tasks.email_tasks.test_notification_email_task.send_test_failure_notification',
+            args=[
+                admin_email,
+                payload.environment,
+                payload.test_file,
+                payload.test_name,
+                payload.status,
+                payload.timestamp,
+                payload.duration_seconds,
+                payload.error_message,
+                payload.console_logs,
+                payload.network_activities
+            ],
+            queue='email'
+        )
+        
+        logger.info(
+            f"Dispatched test failure notification email task for test '{payload.test_name}' "
+            f"to {admin_email}"
+        )
+        
+        return {
+            "status": "notification_dispatched",
+            "test_name": payload.test_name,
+            "test_status": payload.status,
+            "recipient": admin_email
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to dispatch test failure notification: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to dispatch notification: {str(e)}"
+        )
+
+
+@router.post("/e2e-tests/notify-run-summary")
+async def notify_test_run_summary(
+    payload: TestRunSummary,
+    request: Request
+) -> Dict[str, Any]:
+    """
+    Receives a summary of a complete E2E test run and sends alert if there are failures.
+    
+    This endpoint is called at the end of a scheduled test run to provide
+    a summary email with all failed tests.
+    
+    Protected by internal service token (X-Internal-Service-Token header).
+    """
+    import os
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    
+    logger.info(
+        f"Internal API: Received E2E test run summary - "
+        f"env='{payload.environment}', total={payload.total_tests}, "
+        f"passed={payload.passed}, failed={payload.failed}"
+    )
+    
+    # Get admin email from environment
+    admin_email = os.getenv("SERVER_OWNER_EMAIL")
+    if not admin_email:
+        logger.error("SERVER_OWNER_EMAIL not configured - cannot send test run summary")
+        raise HTTPException(
+            status_code=500,
+            detail="Server admin email not configured. Cannot send notification."
+        )
+    
+    # Only send notifications if there are failures
+    if payload.failed == 0:
+        logger.info(f"All {payload.total_tests} tests passed - skipping summary notification")
+        return {
+            "status": "skipped",
+            "reason": "All tests passed, no notification needed",
+            "total_tests": payload.total_tests,
+            "passed": payload.passed
+        }
+    
+    try:
+        # Send individual notifications for each failed test
+        for failure in payload.failures:
+            celery_app.send_task(
+                name='app.tasks.email_tasks.test_notification_email_task.send_test_failure_notification',
+                args=[
+                    admin_email,
+                    failure.environment,
+                    failure.test_file,
+                    failure.test_name,
+                    failure.status,
+                    failure.timestamp,
+                    failure.duration_seconds,
+                    failure.error_message,
+                    failure.console_logs,
+                    failure.network_activities
+                ],
+                queue='email'
+            )
+        
+        logger.info(
+            f"Dispatched {payload.failed} test failure notification emails for test run "
+            f"in {payload.environment} environment"
+        )
+        
+        return {
+            "status": "notifications_dispatched",
+            "environment": payload.environment,
+            "total_tests": payload.total_tests,
+            "passed": payload.passed,
+            "failed": payload.failed,
+            "notifications_sent": payload.failed,
+            "recipient": admin_email
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to dispatch test run summary notifications: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to dispatch notifications: {str(e)}"
+        )

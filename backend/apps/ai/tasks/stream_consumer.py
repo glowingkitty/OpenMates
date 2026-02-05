@@ -2,6 +2,7 @@
 # Handles the consumption of the main processing stream for AI tasks.
 
 import logging
+import re
 import time
 import httpx
 import asyncio
@@ -39,6 +40,46 @@ logger = logging.getLogger(__name__)
 
 # Type alias for usage metadata
 UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+
+# Regex pattern to match <tool_call>...</tool_call> blocks
+# Some LLMs (e.g., Qwen3) output tool calls as XML text IN ADDITION to proper function calling.
+# This causes the tool call text to appear in the user-visible response, which is confusing.
+# We strip these blocks from the text content to keep the response clean.
+_TOOL_CALL_XML_PATTERN = re.compile(
+    r'<tool_call>\s*.*?\s*</tool_call>',
+    re.DOTALL | re.IGNORECASE
+)
+
+def _strip_tool_call_xml_from_text(text: str) -> str:
+    """
+    Strip <tool_call>...</tool_call> XML blocks from text content.
+    
+    Some LLMs (notably Qwen3) output tool calls as XML text in their response content,
+    in addition to using proper function calling APIs. This causes the raw tool call
+    JSON to appear in the user-visible message, which is confusing and ugly.
+    
+    This function removes these blocks while preserving the rest of the content.
+    
+    Args:
+        text: The text content that may contain <tool_call> XML blocks
+        
+    Returns:
+        The text with <tool_call> blocks removed and excess whitespace cleaned up
+    """
+    if not text or '<tool_call>' not in text.lower():
+        return text
+    
+    # Remove <tool_call>...</tool_call> blocks
+    cleaned = _TOOL_CALL_XML_PATTERN.sub('', text)
+    
+    # Clean up any resulting double newlines or excess whitespace
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = cleaned.strip()
+    
+    if cleaned != text:
+        logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
+    
+    return cleaned
 
 def _create_redis_payload(
     task_id: str,
@@ -477,7 +518,15 @@ async def _handle_normal_billing(
         output_tokens = usage.candidates_token_count or 0
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        provider_name = "google"
+        # For third-party models hosted on Google Vertex AI (MaaS), use the original provider for pricing
+        # e.g., "deepseek/deepseek-v3.2" -> provider_name = "deepseek", not "google"
+        # This ensures we look up pricing from the model's actual provider config file
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "google/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+            logger.info(f"{log_prefix} Google usage - extracted billing provider from model_id: {provider_name}")
+        except Exception:
+            provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
@@ -1093,6 +1142,15 @@ async def _consume_main_processing_stream(
                 if chunk.strip().startswith("[ERROR"):
                     logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
                     chunk = "chat.an_error_occured.text"
+                
+                # Strip <tool_call>...</tool_call> XML blocks from text content
+                # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling
+                # This ensures the raw tool call JSON doesn't appear in the user-visible response
+                chunk = _strip_tool_call_xml_from_text(chunk)
+                
+                # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
+                if not chunk:
+                    continue
                 
                 # Code block detection and embed creation
                 # Detect code block opening: ```language or ```language:filename
@@ -2056,10 +2114,17 @@ async def _consume_main_processing_stream(
     )
     
     billing_info = {}
+    billing_error = None
     if should_bill:
-        billing_info = await _handle_normal_billing(
-            usage, preprocessing_result, request_data, task_id, log_prefix
-        )
+        try:
+            billing_info = await _handle_normal_billing(
+                usage, preprocessing_result, request_data, task_id, log_prefix
+            )
+        except Exception as e:
+            # CRITICAL: Don't let billing errors prevent the final chunk from being sent
+            # This ensures the typing indicator is cleared even if billing fails
+            billing_error = e
+            logger.error(f"{log_prefix} Billing failed but continuing to send final chunk: {e}", exc_info=True)
     elif usage and is_server_error:
         logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
     elif usage and is_error and not (was_revoked_during_stream or was_soft_limited_during_stream):
@@ -2163,5 +2228,11 @@ async def _consume_main_processing_stream(
         logger.error(f"{log_prefix} CRITICAL: Encryption service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    
+    # Re-raise billing error after final chunk has been sent and metadata saved
+    # This ensures proper error handling while still clearing the typing indicator
+    if billing_error:
+        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        raise billing_error
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

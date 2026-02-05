@@ -101,7 +101,7 @@
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
     {#if faviconUrl}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
-        <img src={faviconUrl} alt="" class="favicon-image-mobile" />
+        <img src={faviconUrl} alt="" class="favicon-image-mobile" crossorigin="anonymous" />
       </div>
     {:else}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
@@ -158,6 +158,7 @@
             alt="" 
             class="title-favicon" 
             class:circular={faviconIsCircular}
+            crossorigin="anonymous"
             onerror={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }} 
@@ -246,6 +247,32 @@
     -webkit-mask-size: contain;
     mask-size: contain;
     flex-shrink: 0;
+  }
+  
+  /* Skill icon variants based on data-skill-icon attribute */
+  .basic-infos-bar .skill-icon[data-skill-icon="search"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="videos"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="book"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
+    mask-image: url('@openmates/ui/static/icons/book.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="visible"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+    mask-image: url('@openmates/ui/static/icons/visible.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="reminder"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
+    mask-image: url('@openmates/ui/static/icons/reminder.svg');
   }
   
   /* Status text container */

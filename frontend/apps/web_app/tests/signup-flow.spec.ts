@@ -64,7 +64,13 @@ const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
-test('completes full signup flow with email + 2FA + purchase', async ({ page, context }: { page: any; context: any }) => {
+test('completes full signup flow with email + 2FA + purchase', async ({
+	page,
+	context
+}: {
+	page: any;
+	context: any;
+}) => {
 	// Listen for console logs
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -100,17 +106,15 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	}
 	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
 	if (!mailosaurServerId) {
-		throw new Error('MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.');
+		throw new Error(
+			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
+		);
 	}
-	const {
-		waitForMailosaurMessage,
-		extractSixDigitCode,
-		extractRefundLink,
-		extractMessageLinks
-	} = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: mailosaurServerId
-	});
+	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
+		createMailosaurClient({
+			apiKey: MAILOSAUR_API_KEY,
+			serverId: mailosaurServerId
+		});
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -181,11 +185,13 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	// Submit signup basics and trigger the confirmation email.
 	const emailRequestedAt = new Date().toISOString();
 	await page.getByRole('button', { name: /create new account/i }).click();
-	await takeStepScreenshot(page, 'confirm-email');
 	logSignupCheckpoint('Submitted signup basics, waiting for email confirmation.');
 
-	// Confirm email step: verify "Open mail app" link and enter OTP.
+	// Confirm email step: wait for step transition and verify "Open mail app" link.
+	// The step transition may take a moment, so we wait for the link to appear with a longer timeout.
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
+	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await takeStepScreenshot(page, 'confirm-email');
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
 	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
@@ -358,7 +364,10 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	logSignupCheckpoint('Purchase completed successfully.');
 
 	// Auto top-up step: finish setup and confirm redirect into the app.
-	await page.getByRole('button', { name: /finish setup/i }).first().click();
+	await page
+		.getByRole('button', { name: /finish setup/i })
+		.first()
+		.click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat');
 	logSignupCheckpoint('Arrived in chat after signup.');
@@ -420,7 +429,9 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 
 	// Confirm data deletion checkbox to enable deletion.
 	// Use the delete account toggle directly because the label text is lengthy and localized.
-	const deleteConfirmToggle = page.locator('.delete-account-container input[type="checkbox"]').first();
+	const deleteConfirmToggle = page
+		.locator('.delete-account-container input[type="checkbox"]')
+		.first();
 	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
@@ -437,12 +448,15 @@ test('completes full signup flow with email + 2FA + purchase', async ({ page, co
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
-	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({ timeout: 60000 });
+	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+		timeout: 60000
+	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	// Confirm logout redirect to demo chat after deletion.
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 60000 });
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 60000
+	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });
-

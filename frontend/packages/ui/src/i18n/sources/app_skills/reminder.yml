@@ -1,0 +1,138 @@
+set_reminder:
+  context: Skill name for setting a reminder
+  en: Set Reminder
+  de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  verified_by_human: [en, de]
+set_reminder.description:
+  context: Description for set reminder skill
+  en: Create one-time or recurring reminders.
+  de: Erstelle einmalige oder wiederholende.
+  zh: 创建一次性或重复提醒。
+  es: Crea recordatorios únicos o recurrentes.
+  fr: Créez des rappels uniques ou récurrents.
+  pt: Crie lembretes únicos ou recorrentes.
+  ru: Создайте разовые или повторяющиеся.
+  ja: 一回または繰り返しのリマインダーを作成。
+  ko: 일회성 또는 반복 알림 생성.
+  it: Crea promemoria singoli o ricorrenti.
+  tr: Tek veya tekrarlayan hatırlatıcı oluştur.
+  vi: Tạo nhắc nhở một lần hoặc lặp lại.
+  id: Buat pengingat sekali atau berulang.
+  pl: Twórz jednorazowe lub powtarzające się.
+  nl: Maak eenmalige of herhalende aan.
+  ar: أنشئ تذكيرات لمرة واحدة أو متكررة.
+  hi: एक बार या दोहराए जाने वाले बनाएं।
+  th: สร้างแจ้งเตือนครั้งเดียวหรือซ้ำ
+  cs: Vytvořte jednorázové nebo opakující se.
+  sv: Skapa engångs- eller återkommande.
+  verified_by_human: [en, de]
+list_reminders:
+  context: Skill name for listing reminders
+  en: List Reminders
+  de: Erinnerungen auflisten
+  zh: 列出提醒
+  es: Listar recordatorios
+  fr: Lister les rappels
+  pt: Listar lembretes
+  ru: Список напоминаний
+  ja: リマインダー一覧
+  ko: 알림 목록
+  it: Elenco promemoria
+  tr: Hatırlatıcıları listele
+  vi: Liệt kê nhắc nhở
+  id: Daftar pengingat
+  pl: Lista przypomnień
+  nl: Herinneringen weergeven
+  ar: قائمة التذكيرات
+  hi: अनुस्मारक सूची
+  th: รายการแจ้งเตือน
+  cs: Seznam připomínek
+  sv: Lista påminnelser
+  verified_by_human: [en, de]
+list_reminders.description:
+  context: Description for list reminders skill
+  en: View your scheduled reminders.
+  de: Zeige deine geplanten Erinnerungen an.
+  zh: 查看您计划的提醒。
+  es: Ver tus recordatorios programados.
+  fr: Voir vos rappels programmés.
+  pt: Veja seus lembretes agendados.
+  ru: Просмотр запланированных напоминаний.
+  ja: 予定されているリマインダーを表示します。
+  ko: 예약된 알림을 확인하세요.
+  it: Visualizza i tuoi promemoria programmati.
+  tr: Planlanmış hatırlatıcılarınızı görüntüleyin.
+  vi: Xem các nhắc nhở đã lên lịch của bạn.
+  id: Lihat pengingat terjadwal Anda.
+  pl: Zobacz swoje zaplanowane przypomnienia.
+  nl: Bekijk uw geplande herinneringen.
+  ar: عرض التذكيرات المجدولة الخاصة بك.
+  hi: अपने शेड्यूल किए गए अनुस्मारक देखें।
+  th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
+  cs: Zobrazit naplánované připomínky.
+  sv: Visa dina schemalagda påminnelser.
+  verified_by_human: [en, de]
+cancel_reminder:
+  context: Skill name for cancelling a reminder
+  en: Cancel Reminder
+  de: Erinnerung abbrechen
+  zh: 取消提醒
+  es: Cancelar recordatorio
+  fr: Annuler le rappel
+  pt: Cancelar lembrete
+  ru: Отменить напоминание
+  ja: リマインダーをキャンセル
+  ko: 알림 취소
+  it: Annulla promemoria
+  tr: Hatırlatıcıyı iptal et
+  vi: Hủy nhắc nhở
+  id: Batalkan pengingat
+  pl: Anuluj przypomnienie
+  nl: Herinnering annuleren
+  ar: إلغاء التذكير
+  hi: अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือน
+  cs: Zrušit připomínku
+  sv: Avbryt påminnelse
+  verified_by_human: [en, de]
+cancel_reminder.description:
+  context: Description for cancel reminder skill
+  en: Cancel a scheduled reminder.
+  de: Eine geplante Erinnerung abbrechen.
+  zh: 取消计划的提醒。
+  es: Cancelar un recordatorio programado.
+  fr: Annuler un rappel programmé.
+  pt: Cancelar um lembrete agendado.
+  ru: Отменить запланированное напоминание.
+  ja: 予定されているリマインダーをキャンセルします。
+  ko: 예약된 알림을 취소하세요.
+  it: Annulla un promemoria programmato.
+  tr: Planlanmış bir hatırlatıcıyı iptal edin.
+  vi: Hủy một nhắc nhở đã lên lịch.
+  id: Batalkan pengingat terjadwal.
+  pl: Anuluj zaplanowane przypomnienie.
+  nl: Annuleer een geplande herinnering.
+  ar: إلغاء تذكير مجدول.
+  hi: एक शेड्यूल किया गया अनुस्मारक रद्द करें।
+  th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
+  cs: Zrušit naplánovanou připomínku.
+  sv: Avbryt en schemalagd påminnelse.
+  verified_by_human: [en, de]

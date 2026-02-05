@@ -77,13 +77,16 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	// Setup logging and screenshots
 	const logCheckpoint = createSignupLogger('SHARED_CHAT');
-	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'shared-chat' });
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'shared-chat'
+	});
 
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// The shared chat URL with encryption key in the fragment
 	// This is a test chat with known content about web app security
-	const sharedChatUrl = 'https://app.dev.openmates.org/share/chat/87f1da2f-1814-4a36-a375-c718fa946922#key=X4Tz9wamfp_uPngBF3Z_imlm7t9eelWvSwPauIpcAy8z8qHi9A0Nu4uS-ZhfKBdF2462Qc0gJQZFHINe0L_iqwCUfvtjsY7eDrAAVsEuQUaCmUo-KZK1PslohdOMfg_xRvKUbGW-lh1mi6NrCz7pOur8ojLhxuT-lfsHIoHMEQPHuFb6AsDW5s-ZGSdHcTsQp3ue&messageid=ffcc180d-a0aa-4fc0-9c44-be39064122b8';
+	const sharedChatUrl =
+		'https://app.dev.openmates.org/share/chat/87f1da2f-1814-4a36-a375-c718fa946922#key=X4Tz9wamfp_uPngBF3Z_imlm7t9eelWvSwPauIpcAy8z8qHi9A0Nu4uS-ZhfKBdF2462Qc0gJQZFHINe0L_iqwCUfvtjsY7eDrAAVsEuQUaCmUo-KZK1PslohdOMfg_xRvKUbGW-lh1mi6NrCz7pOur8ojLhxuT-lfsHIoHMEQPHuFb6AsDW5s-ZGSdHcTsQp3ue&messageid=ffcc180d-a0aa-4fc0-9c44-be39064122b8';
 	const expectedChatId = '87f1da2f-1814-4a36-a375-c718fa946922';
 
 	logCheckpoint('Starting shared chat test', { chatId: expectedChatId });
@@ -96,21 +99,24 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	// The shared chat page will redirect to the main app once loaded
 	// The redirect happens very fast, so we don't take a screenshot until after
 	try {
-		await page.waitForURL((url: URL) => {
-			return url.hash.includes(`chat_id=${expectedChatId}`);
-		}, { timeout: 60000 });
+		await page.waitForURL(
+			(url: URL) => {
+				return url.hash.includes(`chat-id=${expectedChatId}`);
+			},
+			{ timeout: 60000 }
+		);
 		logCheckpoint('Successfully redirected to main app (via waitForURL)');
 	} catch {
 		// Sometimes the redirect happens before waitForURL starts monitoring
 		// Check if we're already on the main app
 		const currentUrl = page.url();
-		if (currentUrl.includes(`chat_id=${expectedChatId}`)) {
+		if (currentUrl.includes(`chat-id=${expectedChatId}`)) {
 			logCheckpoint('Already redirected to main app (redirect was fast)');
 		} else {
 			// Wait for URL to contain the chat ID using a poll
 			await expect(async () => {
 				const url = page.url();
-				expect(url).toContain(`chat_id=${expectedChatId}`);
+				expect(url).toContain(`chat-id=${expectedChatId}`);
 			}).toPass({ timeout: 30000 });
 			logCheckpoint('Successfully redirected to main app (via polling)');
 		}
@@ -125,13 +131,19 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	// Step 4: Verify chat title appears in the sidebar
 	// There may be multiple elements with the title (sidebar + active chat header)
-	const chatTitle = page.locator('.chat-title').filter({ hasText: 'Explain web app security essentials' }).first();
+	const chatTitle = page
+		.locator('.chat-title')
+		.filter({ hasText: 'Explain web app security essentials' })
+		.first();
 	await expect(chatTitle).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Chat title verified', { title: 'Explain web app security essentials' });
 	await takeStepScreenshot(page, 'chat-title-visible');
 
 	// Step 5: Find the specific chat item in the sidebar and verify its category icon and circle
-	const chatItem = page.locator('.chat-with-profile').filter({ hasText: 'Explain web app security essentials' }).first();
+	const chatItem = page
+		.locator('.chat-with-profile')
+		.filter({ hasText: 'Explain web app security essentials' })
+		.first();
 	await expect(chatItem).toBeVisible();
 
 	// Verify the shield icon (security category) within this specific chat item
@@ -162,7 +174,10 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	const userMessageCount = await page.locator('.message-wrapper.user').count();
 	const assistantMessageCount = await page.locator('.message-wrapper.assistant').count();
 
-	logCheckpoint('Messages loaded', { userCount: userMessageCount, assistantCount: assistantMessageCount });
+	logCheckpoint('Messages loaded', {
+		userCount: userMessageCount,
+		assistantCount: assistantMessageCount
+	});
 	expect(userMessageCount).toBe(1);
 	expect(assistantMessageCount).toBe(1);
 
@@ -184,7 +199,10 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 			const el = document.querySelector(selector);
 			return el && el.textContent && el.textContent.includes(expectedText);
 		},
-		['.message-wrapper.user .read-only-message .ProseMirror', 'Explain web app security essentials'],
+		[
+			'.message-wrapper.user .read-only-message .ProseMirror',
+			'Explain web app security essentials'
+		],
 		{ timeout: 20000 }
 	);
 
@@ -196,7 +214,9 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	await takeStepScreenshot(page, 'user-message-decrypted');
 
 	// Step 8: Wait for assistant message content to render
-	const assistantMessageProseMirror = assistantMessageWrapper.locator('.read-only-message .ProseMirror');
+	const assistantMessageProseMirror = assistantMessageWrapper.locator(
+		'.read-only-message .ProseMirror'
+	);
 	await expect(assistantMessageProseMirror).toBeVisible({ timeout: 15000 });
 
 	// Wait for the actual text to appear (decryption complete)
@@ -205,12 +225,17 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 			const el = document.querySelector(selector);
 			return el && el.textContent && el.textContent.includes(expectedText);
 		},
-		['.message-wrapper.assistant .read-only-message .ProseMirror', 'Web application security is crucial'],
+		[
+			'.message-wrapper.assistant .read-only-message .ProseMirror',
+			'Web application security is crucial'
+		],
 		{ timeout: 20000 }
 	);
 
 	const assistantMessageText = await assistantMessageProseMirror.textContent();
-	logCheckpoint('Assistant message content loaded', { contentLength: assistantMessageText?.length });
+	logCheckpoint('Assistant message content loaded', {
+		contentLength: assistantMessageText?.length
+	});
 	expect(assistantMessageText).toContain('Web application security is crucial');
 	logCheckpoint('Assistant response content verified');
 

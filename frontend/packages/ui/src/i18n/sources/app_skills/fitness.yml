@@ -25,27 +25,26 @@ search_locations_and_courses:
     - de
 search_locations_and_courses.description:
   context: Description for search locations and courses skill
-  en: Searches for fitness locations and courses based on your requirements.
-  de: Sucht nach Fitness-Standorten und -Kursen basierend auf deinen Anforderungen.
-  zh: 根据你的要求搜索健身地点和课程。
-  es: Busca ubicaciones y cursos de fitness según tus requisitos.
-  fr: Recherche des emplacements et des cours de fitness en fonction de vos besoins.
-  pt: Pesquisa locais e cursos de fitness com base em seus requisitos.
-  ru: Ищет фитнес-залы и курсы на основе ваших требований.
-  ja: あなたの要件に基づいてフィットネス場所とコースを検索します。
-  ko: 요구 사항에 따라 피트니스 위치 및 코스를 검색합니다.
-  it: Cerca posizioni e corsi di fitness in base alle tue esigenze.
-  tr: Gereksinimlerinize göre fitness lokasyonları ve kursları arar.
-  vi: Tìm kiếm địa điểm và khóa học thể dục dựa trên yêu cầu của bạn.
-  id: Mencari lokasi dan kursus kebugaran berdasarkan persyaratan Anda.
-  pl: Wyszukuje lokalizacje i kursy fitness na podstawie Twoich wymagań.
-  nl: Zoekt naar fitnesslocaties en -cursussen op basis van uw vereisten.
-  ar: يبحث عن مواقع ودورات اللياقة البدنية بناءً على متطلباتك.
-  hi: आपकी आवश्यकताओं के आधार पर फिटनेस स्थान और पाठ्यक्रम खोजता है।
-  th: ค้นหาสถานที่และหลักสูตรฟิตเนสตามความต้องการของคุณ
-  cs: Hledá fitness lokace a kurzy na základě vašich požadavků.
-  sv: Söker efter fitnessplatser och kurser baserat på dina krav.
+  en: Find fitness locations and courses near you.
+  de: Finde Fitness-Standorte und -Kurse in der Nähe.
+  zh: 查找附近的健身地点和课程。
+  es: Encuentra lugares y cursos de fitness cercanos.
+  fr: Trouvez des lieux et cours de fitness proches.
+  pt: Encontre locais e cursos de fitness perto.
+  ru: Найдите фитнес-залы и курсы рядом.
+  ja: 近くのフィットネス場所とコースを検索。
+  ko: 근처 피트니스 위치 및 코스 찾기.
+  it: Trova luoghi e corsi di fitness vicino a te.
+  tr: Yakınınızdaki fitness yerleri ve kursları bulun.
+  vi: Tìm địa điểm và khóa học thể dục gần bạn.
+  id: Temukan lokasi dan kursus fitness terdekat.
+  pl: Znajdź lokalizacje i kursy fitness w pobliżu.
+  nl: Vind fitnesslocaties en cursussen bij jou.
+  ar: ابحث عن أماكن ودورات اللياقة البدنية.
+  hi: अपने पास फिटनेस स्थान और कोर्स खोजें।
+  th: ค้นหาสถานที่และหลักสูตรฟิตเนสใกล้คุณ
+  cs: Najděte fitness místa a kurzy poblíž.
+  sv: Hitta fitnessplatser och kurser nära dig.
   verified_by_human:
     - en
     - de
-

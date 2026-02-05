@@ -1,10 +1,10 @@
 // Unified Embed extension for the new message parsing architecture
 // Replaces individual embed extensions with a single, type-agnostic embed node
 
-import { Node, mergeAttributes } from '@tiptap/core';
-import { EmbedNodeAttributes, EmbedType } from '../../../message_parsing/types';
-import { getEmbedRenderer, embedRenderers } from './embed_renderers';
-import { groupHandlerRegistry } from '../../../message_parsing/groupHandlers';
+import { Node, mergeAttributes } from "@tiptap/core";
+import { EmbedNodeAttributes, EmbedType } from "../../../message_parsing/types";
+import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
+import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 
 export interface EmbedOptions {
   // Configuration options for the unified embed extension
@@ -12,13 +12,16 @@ export interface EmbedOptions {
   group?: string;
 }
 
-declare module '@tiptap/core' {
+declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     embed: {
       setEmbed: (attributes: EmbedNodeAttributes) => ReturnType;
-      updateEmbed: (id: string, attributes: Partial<EmbedNodeAttributes>) => ReturnType;
+      updateEmbed: (
+        id: string,
+        attributes: Partial<EmbedNodeAttributes>,
+      ) => ReturnType;
       removeEmbed: (id: string) => ReturnType;
-    }
+    };
   }
 }
 
@@ -27,8 +30,8 @@ declare module '@tiptap/core' {
  * Uses the new unified embed node attributes defined in the architecture
  */
 export const Embed = Node.create<EmbedOptions>({
-  name: 'embed',
-  group: 'inline',
+  name: "embed",
+  group: "inline",
   inline: true,
   selectable: true,
   draggable: true,
@@ -36,7 +39,7 @@ export const Embed = Node.create<EmbedOptions>({
   addOptions() {
     return {
       inline: true,
-      group: 'inline',
+      group: "inline",
     };
   },
 
@@ -45,233 +48,235 @@ export const Embed = Node.create<EmbedOptions>({
       // Core unified attributes per the new architecture
       id: {
         default: null,
-        parseHTML: element => element.getAttribute('data-id'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-id"),
+        renderHTML: (attributes) => {
           if (!attributes.id) {
             return {};
           }
-          return { 'data-id': attributes.id };
+          return { "data-id": attributes.id };
         },
       },
       type: {
-        default: 'text',
-        parseHTML: element => element.getAttribute('data-type'),
-        renderHTML: attributes => {
+        default: "text",
+        parseHTML: (element) => element.getAttribute("data-type"),
+        renderHTML: (attributes) => {
           if (!attributes.type) {
             return {};
           }
-          return { 'data-type': attributes.type };
+          return { "data-type": attributes.type };
         },
       },
       status: {
-        default: 'finished',
-        parseHTML: element => element.getAttribute('data-status'),
-        renderHTML: attributes => {
+        default: "finished",
+        parseHTML: (element) => element.getAttribute("data-status"),
+        renderHTML: (attributes) => {
           if (!attributes.status) {
             return {};
           }
-          return { 'data-status': attributes.status };
+          return { "data-status": attributes.status };
         },
       },
       contentRef: {
         default: null,
-        parseHTML: element => element.getAttribute('data-content-ref'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-content-ref"),
+        renderHTML: (attributes) => {
           if (!attributes.contentRef) {
             return {};
           }
-          return { 'data-content-ref': attributes.contentRef };
+          return { "data-content-ref": attributes.contentRef };
         },
       },
       contentHash: {
         default: null,
-        parseHTML: element => element.getAttribute('data-content-hash'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-content-hash"),
+        renderHTML: (attributes) => {
           if (!attributes.contentHash) {
             return {};
           }
-          return { 'data-content-hash': attributes.contentHash };
+          return { "data-content-hash": attributes.contentHash };
         },
       },
       // Optional metadata attributes
       language: {
         default: null,
-        parseHTML: element => element.getAttribute('data-language'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-language"),
+        renderHTML: (attributes) => {
           if (!attributes.language) {
             return {};
           }
-          return { 'data-language': attributes.language };
+          return { "data-language": attributes.language };
         },
       },
       filename: {
         default: null,
-        parseHTML: element => element.getAttribute('data-filename'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-filename"),
+        renderHTML: (attributes) => {
           if (!attributes.filename) {
             return {};
           }
-          return { 'data-filename': attributes.filename };
+          return { "data-filename": attributes.filename };
         },
       },
       title: {
         default: null,
-        parseHTML: element => element.getAttribute('data-title'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-title"),
+        renderHTML: (attributes) => {
           if (!attributes.title) {
             return {};
           }
-          return { 'data-title': attributes.title };
+          return { "data-title": attributes.title };
         },
       },
       url: {
         default: null,
-        parseHTML: element => element.getAttribute('data-url'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-url"),
+        renderHTML: (attributes) => {
           if (!attributes.url) {
             return {};
           }
-          return { 'data-url': attributes.url };
+          return { "data-url": attributes.url };
         },
       },
       // Count metadata
       lineCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-line-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-line-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.lineCount) {
             return {};
           }
-          return { 'data-line-count': attributes.lineCount.toString() };
+          return { "data-line-count": attributes.lineCount.toString() };
         },
       },
       // Temporary field for preview code embeds (stores code content inline)
       // This is only used for preview embeds in write mode, not persisted
       code: {
         default: null,
-        parseHTML: element => element.getAttribute('data-code'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-code"),
+        renderHTML: (attributes) => {
           if (!attributes.code) {
             return {};
           }
-          return { 'data-code': attributes.code };
+          return { "data-code": attributes.code };
         },
       },
       wordCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-word-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-word-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.wordCount) {
             return {};
           }
-          return { 'data-word-count': attributes.wordCount.toString() };
+          return { "data-word-count": attributes.wordCount.toString() };
         },
       },
       cellCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-cell-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-cell-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.cellCount) {
             return {};
           }
-          return { 'data-cell-count': attributes.cellCount.toString() };
+          return { "data-cell-count": attributes.cellCount.toString() };
         },
       },
       rows: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-rows');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-rows");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.rows) {
             return {};
           }
-          return { 'data-rows': attributes.rows.toString() };
+          return { "data-rows": attributes.rows.toString() };
         },
       },
       cols: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-cols');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-cols");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.cols) {
             return {};
           }
-          return { 'data-cols': attributes.cols.toString() };
+          return { "data-cols": attributes.cols.toString() };
         },
       },
       // Website-specific metadata attributes
       description: {
         default: null,
-        parseHTML: element => element.getAttribute('data-description'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-description"),
+        renderHTML: (attributes) => {
           if (!attributes.description) {
             return {};
           }
-          return { 'data-description': attributes.description };
+          return { "data-description": attributes.description };
         },
       },
       favicon: {
         default: null,
-        parseHTML: element => element.getAttribute('data-favicon'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-favicon"),
+        renderHTML: (attributes) => {
           if (!attributes.favicon) {
             return {};
           }
-          return { 'data-favicon': attributes.favicon };
+          return { "data-favicon": attributes.favicon };
         },
       },
       image: {
         default: null,
-        parseHTML: element => element.getAttribute('data-image'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-image"),
+        renderHTML: (attributes) => {
           if (!attributes.image) {
             return {};
           }
-          return { 'data-image': attributes.image };
+          return { "data-image": attributes.image };
         },
       },
       // Website group attributes
       groupedItems: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-grouped-items');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-grouped-items");
           try {
             return value ? JSON.parse(value) : null;
           } catch {
             return null;
           }
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.groupedItems) {
             return {};
           }
-          return { 'data-grouped-items': JSON.stringify(attributes.groupedItems) };
+          return {
+            "data-grouped-items": JSON.stringify(attributes.groupedItems),
+          };
         },
       },
       groupCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-group-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-group-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.groupCount) {
             return {};
           }
-          return { 'data-group-count': attributes.groupCount.toString() };
+          return { "data-group-count": attributes.groupCount.toString() };
         },
       },
     };
@@ -287,117 +292,136 @@ export const Embed = Node.create<EmbedOptions>({
 
   renderHTML({ HTMLAttributes }) {
     const attrs = mergeAttributes(HTMLAttributes, {
-      'data-embed-unified': 'true',
-      class: `embed-unified embed-${HTMLAttributes['data-type'] || 'text'} embed-status-${HTMLAttributes['data-status'] || 'finished'}`,
+      "data-embed-unified": "true",
+      class: `embed-unified embed-${HTMLAttributes["data-type"] || "text"} embed-status-${HTMLAttributes["data-status"] || "finished"}`,
     });
 
-    return ['div', attrs];
+    return ["div", attrs];
   },
 
   addNodeView() {
     return ({ node, getPos, editor }) => {
-      const attrs = node.attrs as EmbedNodeAttributes;
-      
+      let currentAttrs = node.attrs as EmbedNodeAttributes;
+
       // Create full-width wrapper to prevent cursor positioning after embed
-      const wrapper = document.createElement('div');
-      wrapper.classList.add('embed-full-width-wrapper');
-      wrapper.style.width = '100%';
-      wrapper.style.display = 'block';
-      
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("embed-full-width-wrapper");
+      wrapper.style.width = "100%";
+      wrapper.style.display = "block";
+
       // For image embeds (legal SVGs), minimize spacing
-      if (attrs.type === 'image') {
-        wrapper.style.margin = '0';
-        wrapper.style.marginBottom = '8px';
+      if (currentAttrs.type === "image") {
+        wrapper.style.margin = "0";
+        wrapper.style.marginBottom = "8px";
       }
-      
+
       // For embed types that render Svelte components with their own UnifiedEmbedPreview,
       // mount directly into wrapper (no intermediate container)
       // These types already have their own container styling (background, border-radius, box-shadow, tilt effect)
       // Adding an extra embed-unified-container would cause visual artifacts during 3D transforms
       let container: HTMLElement;
       let mountTarget: HTMLElement;
-      
+
       // Embed types that use Svelte components with UnifiedEmbedPreview - no wrapper needed
       const svelteComponentEmbedTypes = [
-        'app-skill-use',
-        'code-code',       // CodeEmbedPreview uses UnifiedEmbedPreview
-        'web-website',     // WebsiteEmbedPreview uses UnifiedEmbedPreview
-        'videos-video'     // VideoEmbedPreview uses UnifiedEmbedPreview
+        "app-skill-use",
+        "code-code", // CodeEmbedPreview uses UnifiedEmbedPreview
+        "web-website", // WebsiteEmbedPreview uses UnifiedEmbedPreview
+        "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
       ];
-      
-      if (svelteComponentEmbedTypes.includes(attrs.type)) {
+
+      if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
         // Mount directly into wrapper - Svelte component creates its own unified-embed-preview
         // NO intermediate container - wrapper is used directly
         container = wrapper;
         mountTarget = wrapper;
         // Ensure wrapper does NOT have embed-unified-container class
-        wrapper.classList.remove('embed-unified-container');
+        wrapper.classList.remove("embed-unified-container");
       } else {
         // Create container element for other embed types
-        container = document.createElement('div');
-        
+        container = document.createElement("div");
+
         // Use different class for group containers vs individual embeds
-        if (attrs.type && attrs.type.endsWith('-group')) {
-          container.classList.add('embed-group-container');
+        if (currentAttrs.type && currentAttrs.type.endsWith("-group")) {
+          container.classList.add("embed-group-container");
         } else {
-          container.classList.add('embed-unified-container');
-          container.setAttribute('data-embed-type', attrs.type);
-          container.setAttribute('data-embed-status', attrs.status);
+          container.classList.add("embed-unified-container");
+          container.setAttribute("data-embed-type", currentAttrs.type);
+          container.setAttribute("data-embed-status", currentAttrs.status);
         }
-        
+
         // For image embeds, add a special class to identify them
-        if (attrs.type === 'image') {
-          container.classList.add('embed-image-non-interactive');
+        if (currentAttrs.type === "image") {
+          container.classList.add("embed-image-non-interactive");
         }
-        
+
         // Add processing/finished visual indicators
-        if (attrs.status === 'processing') {
-          container.classList.add('embed-processing');
+        if (currentAttrs.status === "processing") {
+          container.classList.add("embed-processing");
         } else {
-          container.classList.add('embed-finished');
+          container.classList.add("embed-finished");
         }
-        
+
         // Add container to wrapper
         wrapper.appendChild(container);
         mountTarget = container;
       }
 
       // Check if we have a specific renderer for this embed type
-      const renderer = getEmbedRenderer(attrs.type);
-      
-      console.debug('[Embed] Looking for renderer for type:', attrs.type, 'found:', !!renderer);
-      console.debug('[Embed] Renderer object:', renderer);
-      console.debug('[Embed] Available renderers:', Object.keys(embedRenderers));
-      
+      const renderer = getEmbedRenderer(currentAttrs.type);
+
+      console.debug(
+        "[Embed] Looking for renderer for type:",
+        currentAttrs.type,
+        "found:",
+        !!renderer,
+      );
+      console.debug("[Embed] Renderer object:", renderer);
+      console.debug(
+        "[Embed] Available renderers:",
+        Object.keys(embedRenderers),
+      );
+
       if (renderer) {
         // Use the dedicated renderer
         // For app-skill-use: mount directly into wrapper (Svelte component creates unified-embed-preview)
         // For other types: mount into container (renderers create their own content structure)
-        console.debug('[Embed] Using renderer for type:', attrs.type);
-        
+        console.debug("[Embed] Using renderer for type:", currentAttrs.type);
+
         // If renderer.render is async (returns Promise), handle it
-        const renderResult = renderer.render({ attrs, container, content: mountTarget });
-        
+        const renderResult = renderer.render({
+          attrs: currentAttrs,
+          container,
+          content: mountTarget,
+        });
+
         if (renderResult instanceof Promise) {
           // Handle async rendering (e.g., loading from EmbedStore)
           renderResult.catch((error) => {
-            console.error('[Embed] Error during async render:', error);
+            console.error("[Embed] Error during async render:", error);
             mountTarget.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
           });
         }
       } else {
         // No renderer found - this should not happen for properly configured embed types
-        console.error('[Embed] No renderer found for embed type:', attrs.type);
-        throw new Error(`No renderer found for embed type: ${attrs.type}. This indicates a missing renderer registration.`);
+        console.error(
+          "[Embed] No renderer found for embed type:",
+          currentAttrs.type,
+        );
+        throw new Error(
+          `No renderer found for embed type: ${currentAttrs.type}. This indicates a missing renderer registration.`,
+        );
       }
-      
+
       // Make the node selectable and add basic interaction
       // BUT: Skip click handlers for image embeds (they should not be clickable)
       // For Svelte component embeds, they handle their own click events
-      const skipClickHandler = attrs.type === 'image' || svelteComponentEmbedTypes.includes(attrs.type);
+      const skipClickHandler =
+        currentAttrs.type === "image" ||
+        svelteComponentEmbedTypes.includes(currentAttrs.type);
       if (!skipClickHandler) {
-        container.addEventListener('click', () => {
-          if (typeof getPos === 'function') {
+        container.addEventListener("click", () => {
+          if (typeof getPos === "function") {
             const pos = getPos();
             editor.commands.setNodeSelection(pos);
           }
@@ -408,67 +432,126 @@ export const Embed = Node.create<EmbedOptions>({
       // BUT: Skip this for image embeds (they should not be interactive)
       // For Svelte component embeds, they handle their own interactions
       if (!skipClickHandler) {
-        container.addEventListener('mousedown', (event) => {
+        container.addEventListener("mousedown", (event) => {
           // If clicking at the start of the embed, move cursor to after it
           const rect = container.getBoundingClientRect();
           const clickX = event.clientX;
           const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
-          
-          console.debug('[Embed] Mouse down on embed:', {
+
+          console.debug("[Embed] Mouse down on embed:", {
             clickX,
             rectLeft: rect.left,
             rectWidth: rect.width,
             isClickingAtStart,
-            embedType: attrs.type
+            embedType: currentAttrs.type,
           });
-          
-          if (isClickingAtStart && typeof getPos === 'function') {
+
+          if (isClickingAtStart && typeof getPos === "function") {
             event.preventDefault();
             const pos = getPos();
             // Move cursor to after the embed
-            editor.commands.setTextSelection(pos + container.textContent.length);
-            console.debug('[Embed] Prevented cursor positioning before embed, moved to after');
+            editor.commands.setTextSelection(
+              pos + container.textContent.length,
+            );
+            console.debug(
+              "[Embed] Prevented cursor positioning before embed, moved to after",
+            );
           }
         });
       }
-      
+
       return {
         dom: wrapper,
         update: (updatedNode) => {
           // Update the node view when attributes change
-          if (updatedNode.type.name !== 'embed') return false;
-          
+          if (updatedNode.type.name !== "embed") return false;
+
           const newAttrs = updatedNode.attrs as EmbedNodeAttributes;
-          
+
+          // CRITICAL FIX: For group embeds, detect when groupedItems has changed
+          // and re-render the entire group to show new items during streaming.
+          // Without this, only the first item would show during streaming.
+          if (
+            newAttrs.type &&
+            newAttrs.type.endsWith("-group") &&
+            newAttrs.groupedItems
+          ) {
+            const oldGroupedItems = currentAttrs.groupedItems || [];
+            const newGroupedItems = newAttrs.groupedItems || [];
+
+            // Check if group items have changed (length or IDs)
+            const hasGroupChanged =
+              oldGroupedItems.length !== newGroupedItems.length ||
+              oldGroupedItems.some(
+                (item: EmbedNodeAttributes, idx: number) =>
+                  item.id !== newGroupedItems[idx]?.id,
+              );
+
+            if (hasGroupChanged) {
+              console.debug(
+                "[Embed] Group items changed, re-rendering group:",
+                {
+                  oldCount: oldGroupedItems.length,
+                  newCount: newGroupedItems.length,
+                  type: newAttrs.type,
+                },
+              );
+
+              // Update current attrs before re-rendering
+              currentAttrs = newAttrs;
+
+              // Re-render the group with new items
+              const groupRenderer = getEmbedRenderer(newAttrs.type);
+              if (groupRenderer) {
+                const renderResult = groupRenderer.render({
+                  attrs: newAttrs,
+                  container,
+                  content: mountTarget,
+                });
+
+                if (renderResult instanceof Promise) {
+                  renderResult.catch((error) => {
+                    console.error("[Embed] Error re-rendering group:", error);
+                  });
+                }
+              }
+
+              return true;
+            }
+          }
+
+          // Update current attrs
+          currentAttrs = newAttrs;
+
           // For Svelte component embeds, the wrapper is the container (no intermediate container)
           // For other types, update the container classes
           if (svelteComponentEmbedTypes.includes(newAttrs.type)) {
             // No container to update - Svelte component handles its own structure
             // Just update wrapper attributes if needed
-            wrapper.setAttribute('data-embed-type', newAttrs.type);
-            wrapper.setAttribute('data-embed-status', newAttrs.status);
+            wrapper.setAttribute("data-embed-type", newAttrs.type);
+            wrapper.setAttribute("data-embed-status", newAttrs.status);
             // CRITICAL: Ensure wrapper never has embed-unified-container class
-            wrapper.classList.remove('embed-unified-container');
-            wrapper.classList.remove('embed-processing');
-            wrapper.classList.remove('embed-finished');
+            wrapper.classList.remove("embed-unified-container");
+            wrapper.classList.remove("embed-processing");
+            wrapper.classList.remove("embed-finished");
           } else {
             // Update classes for non-Svelte component embeds
-            if (newAttrs.type && newAttrs.type.endsWith('-group')) {
-              container.className = 'embed-group-container';
+            if (newAttrs.type && newAttrs.type.endsWith("-group")) {
+              container.className = "embed-group-container";
             } else {
-              container.className = 'embed-unified-container';
-              container.setAttribute('data-embed-type', newAttrs.type);
-              container.setAttribute('data-embed-status', newAttrs.status);
+              container.className = "embed-unified-container";
+              container.setAttribute("data-embed-type", newAttrs.type);
+              container.setAttribute("data-embed-status", newAttrs.status);
             }
-            
+
             // Add processing/finished visual indicators
-            if (newAttrs.status === 'processing') {
-              container.classList.add('embed-processing');
+            if (newAttrs.status === "processing") {
+              container.classList.add("embed-processing");
             } else {
-              container.classList.add('embed-finished');
+              container.classList.add("embed-finished");
             }
           }
-          
+
           return true;
         },
         destroy: () => {
@@ -488,7 +571,7 @@ export const Embed = Node.create<EmbedOptions>({
             attrs: attributes,
           });
         },
-      
+
       updateEmbed:
         (id: string, attributes: Partial<EmbedNodeAttributes>) =>
         ({ tr, state }) => {
@@ -506,7 +589,7 @@ export const Embed = Node.create<EmbedOptions>({
 
           return updated;
         },
-      
+
       removeEmbed:
         (id: string) =>
         ({ tr, state }) => {
@@ -525,7 +608,7 @@ export const Embed = Node.create<EmbedOptions>({
         },
     };
   },
-  
+
   addKeyboardShortcuts() {
     return {
       // Prevent cursor from being positioned before an embed in the same paragraph
@@ -536,11 +619,16 @@ export const Embed = Node.create<EmbedOptions>({
         const pos = $anchor.pos;
         const node = editor.state.doc.nodeAt(pos);
 
-        console.debug('[Embed] ArrowLeft at position:', pos, 'node type:', node?.type.name);
+        console.debug(
+          "[Embed] ArrowLeft at position:",
+          pos,
+          "node type:",
+          node?.type.name,
+        );
 
         // If we're at the start of an embed, prevent moving left
         if (node?.type.name === this.name) {
-          console.debug('[Embed] Prevented arrow left into embed');
+          console.debug("[Embed] Prevented arrow left into embed");
           return true; // Prevent default behavior
         }
 
@@ -555,11 +643,16 @@ export const Embed = Node.create<EmbedOptions>({
         const pos = $anchor.pos;
         const node = editor.state.doc.nodeAt(pos - 1);
 
-        console.debug('[Embed] ArrowRight at position:', pos, 'node before:', node?.type.name);
+        console.debug(
+          "[Embed] ArrowRight at position:",
+          pos,
+          "node before:",
+          node?.type.name,
+        );
 
         // If we're right after an embed, prevent moving right into it
         if (node?.type.name === this.name) {
-          console.debug('[Embed] Prevented arrow right into embed');
+          console.debug("[Embed] Prevented arrow right into embed");
           return true; // Prevent default behavior
         }
 
@@ -571,32 +664,43 @@ export const Embed = Node.create<EmbedOptions>({
         if (!empty) return false;
 
         const pos = $anchor.pos;
-        
-        console.debug('[Embed] Backspace triggered at position:', pos);
-        
+
+        console.debug("[Embed] Backspace triggered at position:", pos);
+
         // Check if we're positioned right after an embed node
         // Look for embed nodes in the range before the cursor
         let embedNode = null;
         let embedPos = -1;
-        
+
         // Check the node immediately before the cursor
         const nodeBefore = editor.state.doc.nodeAt(pos - 1);
-        console.debug('[Embed] Node before cursor:', nodeBefore?.type.name, nodeBefore);
-        
+        console.debug(
+          "[Embed] Node before cursor:",
+          nodeBefore?.type.name,
+          nodeBefore,
+        );
+
         if (nodeBefore?.type.name === this.name) {
           embedNode = nodeBefore;
           embedPos = pos - 1;
-          console.debug('[Embed] Found embed node immediately before cursor');
+          console.debug("[Embed] Found embed node immediately before cursor");
         } else {
           // If not immediately before, check if we're at the start of a hard break after an embed
           // Look backwards through the document to find the nearest embed
-          editor.state.doc.nodesBetween(Math.max(0, pos - 10), pos, (node, nodePos) => {
-            if (node.type.name === this.name && nodePos < pos) {
-              embedNode = node;
-              embedPos = nodePos;
-              console.debug('[Embed] Found embed node in range before cursor at position:', nodePos);
-            }
-          });
+          editor.state.doc.nodesBetween(
+            Math.max(0, pos - 10),
+            pos,
+            (node, nodePos) => {
+              if (node.type.name === this.name && nodePos < pos) {
+                embedNode = node;
+                embedPos = nodePos;
+                console.debug(
+                  "[Embed] Found embed node in range before cursor at position:",
+                  nodePos,
+                );
+              }
+            },
+          );
         }
 
         if (embedNode && embedPos !== -1) {
@@ -604,32 +708,36 @@ export const Embed = Node.create<EmbedOptions>({
           const from = embedPos;
           const to = embedPos + embedNode.nodeSize;
 
-          console.debug('[Embed] Processing backspace for embed:', {
+          console.debug("[Embed] Processing backspace for embed:", {
             type: attrs.type,
             url: attrs.url,
             from,
             to,
-            nodeSize: embedNode.nodeSize
+            nodeSize: embedNode.nodeSize,
           });
 
           // Special handling for group nodes (website-group, code-group, doc-group, etc.)
-          if (attrs.type.endsWith('-group')) {
-            const backspaceResult = groupHandlerRegistry.handleGroupBackspace(attrs);
-            
+          if (attrs.type.endsWith("-group")) {
+            const backspaceResult =
+              groupHandlerRegistry.handleGroupBackspace(attrs);
+
             if (backspaceResult) {
               switch (backspaceResult.action) {
-                case 'split-group':
+                case "split-group":
                   if (backspaceResult.replacementContent) {
                     // Notify that we're performing a backspace operation to prevent immediate re-grouping
-                    document.dispatchEvent(new CustomEvent('embed-group-backspace', { 
-                      detail: { action: 'split-group' } 
-                    }));
-                    
+                    document.dispatchEvent(
+                      new CustomEvent("embed-group-backspace", {
+                        detail: { action: "split-group" },
+                      }),
+                    );
+
                     // Replace the group with individual embeds + editable content
                     // Also remove any hard break that follows the group
                     const hardBreakAfter = editor.state.doc.nodeAt(to);
-                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                    
+                    const deleteTo =
+                      hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
                     editor
                       .chain()
                       .focus()
@@ -638,14 +746,15 @@ export const Embed = Node.create<EmbedOptions>({
                       .run();
                   }
                   return true;
-                  
-                case 'convert-to-text':
+
+                case "convert-to-text":
                   if (backspaceResult.replacementText) {
                     // Convert to plain text for editing
                     // Also remove any hard break that follows the group
                     const hardBreakAfter = editor.state.doc.nodeAt(to);
-                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                    
+                    const deleteTo =
+                      hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
                     editor
                       .chain()
                       .focus()
@@ -654,12 +763,13 @@ export const Embed = Node.create<EmbedOptions>({
                       .run();
                   }
                   return true;
-                  
-                case 'delete-group':
+
+                case "delete-group":
                   // Just delete the group and any following hard break
                   const hardBreakAfter = editor.state.doc.nodeAt(to);
-                  const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                  
+                  const deleteTo =
+                    hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
                   editor
                     .chain()
                     .focus()
@@ -668,99 +778,126 @@ export const Embed = Node.create<EmbedOptions>({
                   return true;
               }
             }
-            
+
             // Fallback: just delete the group if no handler found
-            console.warn('[Embed] No group handler found for group type:', attrs.type);
+            console.warn(
+              "[Embed] No group handler found for group type:",
+              attrs.type,
+            );
             const hardBreakAfter = editor.state.doc.nodeAt(to);
-            const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-            
-            editor
-              .chain()
-              .focus()
-              .deleteRange({ from, to: deleteTo })
-              .run();
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
+            editor.chain().focus().deleteRange({ from, to: deleteTo }).run();
             return true;
           }
 
           // Convert back to canonical markdown based on embed type for non-group embeds
-          let markdown = '';
-          
+          let markdown = "";
+
           // For individual embeds (not groups), handle conversion directly
           // Don't use renderer.toMarkdown for individual embeds as it's designed for groups
           switch (attrs.type) {
-            case 'web-website':
+            case "web-website":
               // For website embeds, restore the original URL
-              markdown = attrs.url || '';
-              console.debug('[Embed] Converting web-website to URL:', markdown);
+              markdown = attrs.url || "";
+              console.debug("[Embed] Converting web-website to URL:", markdown);
               break;
-            case 'videos-video':
+            case "videos-video":
               // For video embeds, restore the original URL
-              markdown = attrs.url || '';
-              console.debug('[Embed] Converting videos-video to URL:', markdown);
+              markdown = attrs.url || "";
+              console.debug(
+                "[Embed] Converting videos-video to URL:",
+                markdown,
+              );
               break;
-            case 'code-code':
-              const language = attrs.language || '';
-              const filename = attrs.filename ? `:${attrs.filename}` : '';
-              
+            case "code-code":
+              const language = attrs.language || "";
+              const filename = attrs.filename ? `:${attrs.filename}` : "";
+
               // For preview embeds (contentRef starts with 'preview:'), restore code block WITHOUT closing fence
               // This allows the user to continue editing the code block
               // For real embeds, just restore the fence (content is in EmbedStore)
-              if (attrs.contentRef?.startsWith('preview:')) {
-                const codeContent = attrs.code || '';
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const codeContent = attrs.code || "";
                 // Remove closing fence to allow continued editing
                 markdown = `\`\`\`${language}${filename}\n${codeContent}`;
-                console.debug('[Embed] Converting preview code-code to edit mode (no closing fence)');
+                console.debug(
+                  "[Embed] Converting preview code-code to edit mode (no closing fence)",
+                );
               } else {
                 markdown = `\`\`\`${language}${filename}\n\`\`\``;
-                console.debug('[Embed] Converting code-code to markdown fence only');
+                console.debug(
+                  "[Embed] Converting code-code to markdown fence only",
+                );
               }
               break;
-            case 'docs-doc':
+            case "docs-doc":
               // For preview embeds, restore content WITHOUT closing fence for continued editing
               // For real embeds, just restore the fence
-              if (attrs.contentRef?.startsWith('preview:')) {
-                const docContent = attrs.code || '';
-                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const docContent = attrs.code || "";
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
                 // Remove closing fence to allow continued editing
                 markdown = `\`\`\`doc\n${title}${docContent}`;
-                console.debug('[Embed] Converting preview docs-doc to edit mode (no closing fence)');
+                console.debug(
+                  "[Embed] Converting preview docs-doc to edit mode (no closing fence)",
+                );
               } else {
-                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
                 markdown = `\`\`\`document_html\n${title}\`\`\``;
-                console.debug('[Embed] Converting docs-doc to markdown fence only');
+                console.debug(
+                  "[Embed] Converting docs-doc to markdown fence only",
+                );
               }
               break;
-            case 'sheets-sheet':
+            case "sheets-sheet":
               // For preview embeds, restore full table content
               // For real embeds, restore a placeholder table
-              if (attrs.contentRef?.startsWith('preview:')) {
-                const tableContent = attrs.code || '';
-                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const tableContent = attrs.code || "";
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
                 markdown = `${title}${tableContent}`;
-                console.debug('[Embed] Converting preview sheets-sheet to full markdown with content');
+                console.debug(
+                  "[Embed] Converting preview sheets-sheet to full markdown with content",
+                );
               } else {
-                const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                const sheetTitle = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
                 markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
-                console.debug('[Embed] Converting sheets-sheet to markdown placeholder');
+                console.debug(
+                  "[Embed] Converting sheets-sheet to markdown placeholder",
+                );
               }
               break;
             default:
               markdown = `[${attrs.type} content]`;
-              console.debug('[Embed] Using default fallback markdown:', markdown);
+              console.debug(
+                "[Embed] Using default fallback markdown:",
+                markdown,
+              );
           }
 
           // Replace the embed node with the original markdown text
           // Also remove any hard break that follows the embed
           const hardBreakAfter = editor.state.doc.nodeAt(to);
-          const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-          
-          console.debug('[Embed] Replacing embed with markdown:', {
+          const deleteTo =
+            hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
+          console.debug("[Embed] Replacing embed with markdown:", {
             markdown,
             from,
             deleteTo,
-            hasHardBreakAfter: hardBreakAfter?.type.name === 'hardBreak'
+            hasHardBreakAfter: hardBreakAfter?.type.name === "hardBreak",
           });
-          
+
           editor
             .chain()
             .focus()
@@ -771,7 +908,7 @@ export const Embed = Node.create<EmbedOptions>({
           return true;
         }
         return false;
-      }
+      },
     };
   },
 });

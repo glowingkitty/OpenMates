@@ -357,6 +357,7 @@
               alt={displayTitle}
               class="video-thumbnail"
               loading="lazy"
+              crossorigin="anonymous"
               onerror={(e) => {
                 // Try fallback thumbnail quality (also proxied)
                 const img = e.target as HTMLImageElement;

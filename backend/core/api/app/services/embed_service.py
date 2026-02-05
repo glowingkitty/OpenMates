@@ -226,6 +226,14 @@ class EmbedService:
                 "app_id": app_id,
                 "skill_id": skill_id
             }
+            # Include query and provider from metadata if available
+            # This enables the frontend to display the query text immediately in grouped embeds
+            # without waiting for the embed data to arrive via WebSocket
+            if metadata:
+                if metadata.get("query"):
+                    embed_reference_payload["query"] = metadata["query"]
+                if metadata.get("provider"):
+                    embed_reference_payload["provider"] = metadata["provider"]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -1816,6 +1824,13 @@ class EmbedService:
                     "app_id": app_id,
                     "skill_id": skill_id
                 }
+                # Include query and provider from request_metadata if available
+                # This enables the frontend to display the query text immediately in grouped embeds
+                if request_metadata:
+                    if request_metadata.get("query"):
+                        embed_reference_payload["query"] = request_metadata["query"]
+                    if request_metadata.get("provider"):
+                        embed_reference_payload["provider"] = request_metadata["provider"]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {

@@ -130,6 +130,8 @@ changes to the documentation (to keep the documentation up to date).
         // Let parent Settings component know we want to go back to interface main view
         dispatch('navigateBack');
     }
+
+
 </script>
 
 {#if currentView === 'main'}

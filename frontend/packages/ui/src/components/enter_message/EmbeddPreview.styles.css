@@ -2,54 +2,57 @@
 
 /* CSS Variables for App-Specific Gradients - using theme.css colors */
 :root {
-    /* Web App Gradient - using theme.css colors */
-    --gradient-web: var(--color-app-web);
+  /* Web App Gradient - using theme.css colors */
+  --gradient-web: var(--color-app-web);
 
-    /* Code App Gradient - using theme.css colors */
-    --gradient-code: var(--color-app-code);
+  /* Code App Gradient - using theme.css colors */
+  --gradient-code: var(--color-app-code);
 
-    /* Sheets App Gradient - using theme.css colors */
-    --gradient-sheets: var(--color-app-sheets);
+  /* Sheets App Gradient - using theme.css colors */
+  --gradient-sheets: var(--color-app-sheets);
 
-    /* Docs App Gradient - using theme.css colors */
-    --gradient-docs: var(--color-app-docs);
+  /* Docs App Gradient - using theme.css colors */
+  --gradient-docs: var(--color-app-docs);
 
-    /* Videos App Gradient - using theme.css colors */
-    --gradient-videos: var(--color-app-videos);
+  /* Videos App Gradient - using theme.css colors */
+  --gradient-videos: var(--color-app-videos);
 }
 
 /* Full-width wrapper to prevent cursor positioning after embeds */
 :global(.ProseMirror .embed-full-width-wrapper) {
-    display: inline-block;
-    width: 100%;
-    margin: 4px 0;
-    position: relative;
-    vertical-align: top;
+  display: inline-block;
+  width: 100%;
+  margin: 4px 0;
+  position: relative;
+  vertical-align: top;
 }
 
 /* Base Embed Preview Container */
 :global(.ProseMirror .embed-unified-container) {
-    display: inline-block;
-    width: min(300px, 100%);
-    min-width: 300px; /* Ensure container never shrinks below embed width */
-    background-color: var(--color-grey-10);
-    border-radius: 30px;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    vertical-align: middle;
-    margin: 0;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  width: min(300px, 100%);
+  min-width: 300px; /* Ensure container never shrinks below embed width */
+  background-color: var(--color-grey-10);
+  border-radius: 30px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+  margin: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Constrain embeds inside user messages to respect container width and maintain right alignment */
 /* This prevents embeds from forcing the user-message-content to expand beyond its intended width */
 /* The embed should respect the available space in the user message container, even if it means being smaller than 300px */
 :global(.user-message-content .ProseMirror .embed-unified-container) {
-    max-width: 100%; /* Respect parent container width */
-    min-width: 0; /* Allow shrinking below 300px to respect container constraints */
-    width: min(300px, 100%); /* Maintain 300px when possible, but respect container constraints */
+  max-width: 100%; /* Respect parent container width */
+  min-width: 0; /* Allow shrinking below 300px to respect container constraints */
+  width: min(
+    300px,
+    100%
+  ); /* Maintain 300px when possible, but respect container constraints */
 }
 
 /* ========================================
@@ -68,404 +71,523 @@
 :global(.ProseMirror .embed-unified-container[data-embed-type="web-website"]),
 :global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"]),
 :global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]) {
-    /* Reset fixed dimensions - let Svelte component set its own size */
-    width: auto;
-    height: auto;
-    min-height: auto;
-    /* Remove background and shadow - Svelte component has its own */
-    background-color: transparent;
-    box-shadow: none;
-    border-radius: 0;
-    overflow: visible;
+  /* Reset fixed dimensions - let Svelte component set its own size */
+  width: auto;
+  height: auto;
+  min-height: auto;
+  /* Remove background and shadow - Svelte component has its own */
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
 }
 
 /* Override embed-content for Svelte component embeds - let it flow naturally */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .embed-content),
-:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"] .embed-content),
-:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"] .embed-content),
-:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"] .embed-content) {
-    position: relative;
-    width: auto;
-    height: auto;
-    min-height: auto;
-    padding: 0;
-    left: auto;
-    top: auto;
-    right: auto;
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="app-skill-use"]
+    .embed-content
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="web-website"]
+    .embed-content
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="videos-video"]
+    .embed-content
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="code-code"]
+    .embed-content
+) {
+  position: relative;
+  width: auto;
+  height: auto;
+  min-height: auto;
+  padding: 0;
+  left: auto;
+  top: auto;
+  right: auto;
 }
 
 /* Disable hover effects on outer container for Svelte component embeds (they have their own) */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]:hover),
-:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"]:hover),
-:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"]:hover),
-:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]:hover) {
-    background-color: transparent;
-    transform: none;
+:global(
+  .ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]:hover
+),
+:global(
+  .ProseMirror .embed-unified-container[data-embed-type="web-website"]:hover
+),
+:global(
+  .ProseMirror .embed-unified-container[data-embed-type="videos-video"]:hover
+),
+:global(
+  .ProseMirror .embed-unified-container[data-embed-type="code-code"]:hover
+) {
+  background-color: transparent;
+  transform: none;
 }
 
 /* Ensure the unified-embed-preview Svelte component displays correctly */
-:global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"] .unified-embed-preview),
-:global(.ProseMirror .embed-unified-container[data-embed-type="web-website"] .unified-embed-preview),
-:global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"] .unified-embed-preview),
-:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"] .unified-embed-preview) {
-    /* Component handles its own sizing: 300x200 desktop, 150x290 mobile */
-    display: block;
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="app-skill-use"]
+    .unified-embed-preview
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="web-website"]
+    .unified-embed-preview
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="videos-video"]
+    .unified-embed-preview
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="code-code"]
+    .unified-embed-preview
+) {
+  /* Component handles its own sizing: 300x200 desktop, 150x290 mobile */
+  display: block;
 }
 
 :global(.ProseMirror .embed-unified-container:hover) {
-    background-color: var(--color-grey-20);
-    transform: translateY(-1px);
+  background-color: var(--color-grey-20);
+  transform: translateY(-1px);
 }
 
 /* App Icon Circle (Left Side) */
 :global(.ProseMirror .embed-unified-container .embed-app-icon) {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 60px;
-    height: 60px;
-    border-radius: 30px;
-    display: flex;
-    align-items: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
 }
 
 /* App-Specific Gradient Classes */
 :global(.ProseMirror .embed-unified-container .embed-app-icon.web) {
-    background: var(--gradient-web);
+  background: var(--gradient-web);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.code) {
-    background: var(--gradient-code);
+  background: var(--gradient-code);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.sheets) {
-    background: var(--gradient-sheets);
+  background: var(--gradient-sheets);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.docs) {
-    background: var(--gradient-docs);
+  background: var(--gradient-docs);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.videos) {
-    background: var(--gradient-videos);
+  background: var(--gradient-videos);
 }
 
 /* App Icon (25x25px white icon inside circle) */
 :global(.ProseMirror .embed-unified-container .embed-app-icon .icon) {
-    border: unset;
-    opacity: 1;
-    animation: unset;
-    animation-delay: unset;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: 25px 25px;
-    filter: invert(1);
+  border: unset;
+  opacity: 1;
+  animation: unset;
+  animation-delay: unset;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 25px 25px;
+  filter: invert(1);
 }
 
 /* Content Area (Right Side) */
 :global(.ProseMirror .embed-unified-container .embed-content) {
-    position: absolute;
-    left: 0px;
-    top: 0;
-    right: 0;
-    height: 60px;
-    padding: 0px 68px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    overflow: hidden;
+  position: absolute;
+  left: 0px;
+  top: 0;
+  right: 0;
+  height: 60px;
+  padding: 0px 68px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
 }
 
 /* Favicon (20x20px circle, optional) */
 :global(.ProseMirror .embed-unified-container .embed-favicon) {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-right: 6px;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 6px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Text Content Container - when nested inside embed-content */
-:global(.ProseMirror .embed-unified-container .embed-content .embed-text-content) {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    /* Allow text truncation */
+:global(
+  .ProseMirror .embed-unified-container .embed-content .embed-text-content
+) {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  /* Allow text truncation */
 }
 
 /* Text Lines */
 :global(.ProseMirror .embed-unified-container .embed-text-line) {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 :global(.ProseMirror .embed-unified-container .embed-text-line:last-child) {
-    color: var(--color-grey-80);
+  color: var(--color-grey-80);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-text-line:first-child) {
-    color: var(--color-grey-100);
+  color: var(--color-grey-100);
 }
-
-
 
 /* Processing/Modify Icon (25x25px, left of text) */
 :global(.ProseMirror .embed-unified-container .embed-modify-icon) {
-    width: 25px;
-    height: 25px;
-    color: var(--color-grey-60);
-    margin-right: 6px;
-    flex-shrink: 0;
+  width: 25px;
+  height: 25px;
+  color: var(--color-grey-60);
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 
 /* Loading/Failure States */
 :global(.ProseMirror .embed-unified-container.embed-loading) {
-    border-left: 3px solid var(--color-warning);
+  border-left: 3px solid var(--color-warning);
 }
 
 :global(.ProseMirror .embed-unified-container.embed-failed) {
-    border-left: 3px solid var(--color-red-error);
+  border-left: 3px solid var(--color-red-error);
 }
 
 /* Extended Preview Area (300x200px) */
 :global(.ProseMirror .embed-unified-container .embed-extended-preview) {
-    position: absolute;
-    top: 60px;
-    left: 0;
-    right: 0;
-    height: 200px;
-    background-color: var(--color-grey-5);
-    border-radius: 0 0 30px 30px;
-    padding: 12px;
-    display: none;
-    overflow: hidden;
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background-color: var(--color-grey-5);
+  border-radius: 0 0 30px 30px;
+  padding: 12px;
+  display: none;
+  overflow: hidden;
 }
 
 :global(.ProseMirror .embed-unified-container:hover .embed-extended-preview) {
-    display: block;
+  display: block;
 }
 
 /* Extended Preview Content Types */
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview) {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+:global(
+  .ProseMirror .embed-unified-container .embed-extended-preview .website-preview
+) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview .og-image) {
-    width: 100%;
-    height: 120px;
-    border-radius: 8px;
-    object-fit: cover;
-    background-color: var(--color-grey-20);
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .website-preview
+    .og-image
+) {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+  background-color: var(--color-grey-20);
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview .og-description) {
-    color: var(--color-grey-80);
-    max-height: 48px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .website-preview
+    .og-description
+) {
+  color: var(--color-grey-80);
+  max-height: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .code-preview) {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    color: var(--color-grey-100);
-    background-color: var(--color-grey-20);
-    padding: 8px;
-    border-radius: 6px;
-    max-height: 176px;
-    overflow: hidden;
-    white-space: pre-wrap;
+:global(
+  .ProseMirror .embed-unified-container .embed-extended-preview .code-preview
+) {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  color: var(--color-grey-100);
+  background-color: var(--color-grey-20);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 176px;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .sheet-preview) {
-    width: 100%;
-    height: 176px;
-    border-radius: 6px;
-    overflow: hidden;
+:global(
+  .ProseMirror .embed-unified-container .embed-extended-preview .sheet-preview
+) {
+  width: 100%;
+  height: 176px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 /* Additional extended preview content types */
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview) {
-    position: relative;
-    width: 100%;
-    height: 120px;
-    border-radius: 8px;
-    overflow: hidden;
+:global(
+  .ProseMirror .embed-unified-container .embed-extended-preview .video-preview
+) {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview .video-thumbnail) {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .video-preview
+    .video-thumbnail
+) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview .video-play-button) {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .video-preview
+    .video-play-button
+) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .code-preview .code-snippet) {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    color: var(--color-grey-100);
-    background-color: var(--color-grey-20);
-    padding: 8px;
-    border-radius: 6px;
-    max-height: 176px;
-    overflow: hidden;
-    white-space: pre-wrap;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .code-preview
+    .code-snippet
+) {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  color: var(--color-grey-100);
+  background-color: var(--color-grey-20);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 176px;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .doc-preview) {
-    color: var(--color-grey-80);
-    line-height: 1.4;
-    max-height: 176px;
-    overflow: hidden;
+:global(
+  .ProseMirror .embed-unified-container .embed-extended-preview .doc-preview
+) {
+  color: var(--color-grey-80);
+  line-height: 1.4;
+  max-height: 176px;
+  overflow: hidden;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .doc-preview .doc-content) {
-    background-color: var(--color-grey-20);
-    padding: 8px;
-    border-radius: 6px;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .doc-preview
+    .doc-content
+) {
+  background-color: var(--color-grey-20);
+  padding: 8px;
+  border-radius: 6px;
 }
 
-:global(.ProseMirror .embed-unified-container .embed-extended-preview .sheet-preview .sheet-table) {
-    background-color: var(--color-grey-20);
-    padding: 8px;
-    border-radius: 6px;
-    color: var(--color-grey-100);
-    text-align: center;
-    line-height: 1.4;
+:global(
+  .ProseMirror
+    .embed-unified-container
+    .embed-extended-preview
+    .sheet-preview
+    .sheet-table
+) {
+  background-color: var(--color-grey-20);
+  padding: 8px;
+  border-radius: 6px;
+  color: var(--color-grey-100);
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* Group Container Styles */
 :global(.ProseMirror .embed-group-container) {
-    display: block;
-    margin: 10px 0;
-    width: 100%;
-    background-color: transparent;
-    cursor: default;
+  display: block;
+  margin: 10px 0;
+  width: 100%;
+  background-color: transparent;
+  cursor: default;
 }
 
 /* Group Header */
 :global(.ProseMirror .embed-group-container .group-header) {
-    color: var(--color-grey-60);
-    margin-bottom: 8px;
-    padding: 0 4px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  color: var(--color-grey-60);
+  margin-bottom: 8px;
+  padding: 0 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Download icon in group header - matches the group header text color */
-:global(.ProseMirror .embed-group-container .group-header .group-download-icon) {
-    width: 16px;
-    height: 16px;
-    min-width: 16px;
-    background-color: var(--color-grey-60);
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity 0.15s ease;
+:global(
+  .ProseMirror .embed-group-container .group-header .group-download-icon
+) {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  background-color: var(--color-grey-60);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
 }
 
-:global(.ProseMirror .embed-group-container .group-header .group-download-icon:hover) {
-    opacity: 1;
+:global(
+  .ProseMirror .embed-group-container .group-header .group-download-icon:hover
+) {
+  opacity: 1;
 }
 
-:global(.ProseMirror .embed-group-container .group-header .group-download-icon:active) {
-    opacity: 0.7;
+:global(
+  .ProseMirror .embed-group-container .group-header .group-download-icon:active
+) {
+  opacity: 0.7;
 }
 
 /* Group Scroll Container */
 :global(.ProseMirror .embed-group-container .group-scroll-container) {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 4px 0;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-grey-60) transparent;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-grey-60) transparent;
 }
 
-:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar) {
-    height: 4px;
+:global(
+  .ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar
+) {
+  height: 4px;
 }
 
-:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar-track) {
-    background: transparent;
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-container::-webkit-scrollbar-track
+) {
+  background: transparent;
 }
 
-:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar-thumb) {
-    background-color: var(--color-grey-60);
-    border-radius: 2px;
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-container::-webkit-scrollbar-thumb
+) {
+  background-color: var(--color-grey-60);
+  border-radius: 2px;
 }
 
 /* Mobile Layout for Grouped Previews */
-:global(.ProseMirror .embed-group-container.container-mobile .group-scroll-container) {
-    flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: auto;
-    max-height: 300px;
+:global(
+  .ProseMirror .embed-group-container.container-mobile .group-scroll-container
+) {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 300px;
 }
 
-:global(.ProseMirror .embed-group-container.container-mobile .embed-unified-container) {
-    width: 100%;
-    min-width: 0; /* Allow shrinking on mobile to respect container constraints */
-    margin: 2px 0;
+:global(
+  .ProseMirror .embed-group-container.container-mobile .embed-unified-container
+) {
+  width: 100%;
+  min-width: 0; /* Allow shrinking on mobile to respect container constraints */
+  margin: 2px 0;
 }
 
 /* Override: embeds in user messages within mobile group containers should also respect constraints */
-:global(.user-message-content .ProseMirror .embed-group-container.container-mobile .embed-unified-container) {
-    min-width: 0; /* Ensure user message embeds respect container width on mobile */
+:global(
+  .user-message-content
+    .ProseMirror
+    .embed-group-container.container-mobile
+    .embed-unified-container
+) {
+  min-width: 0; /* Ensure user message embeds respect container width on mobile */
 }
 
 /* Responsive Design */
 @media (max-width: 500px) {
-    :global(.ProseMirror .embed-group-container.container-mobile .group-scroll-container) {
-        flex-direction: column;
-    }
+  :global(
+    .ProseMirror .embed-group-container.container-mobile .group-scroll-container
+  ) {
+    flex-direction: column;
+  }
 }
 
 /* Animation for smooth transitions */
 :global(.ProseMirror .embed-unified-container) {
-    transition: all 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 :global(.ProseMirror .embed-unified-container .embed-extended-preview) {
-    transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
 /* Focus and accessibility */
 :global(.ProseMirror .embed-unified-container:focus) {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 :global(.ProseMirror .embed-unified-container:focus-visible) {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ========================================
@@ -475,180 +597,219 @@
 
 /* Container wrapper for app skill previews */
 :global(.ProseMirror .app-skill-preview-container) {
-    position: relative;
-    background-color: var(--color-grey-20);
-    border-radius: 30px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    transition: background-color 0.2s, transform 0.2s;
-    box-sizing: border-box;
+  position: relative;
+  background-color: var(--color-grey-20);
+  border-radius: 30px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
+  box-sizing: border-box;
 }
 
 /* Desktop layout: 300x200px */
 :global(.ProseMirror .app-skill-preview-container.desktop) {
-    width: 300px;
-    min-width: 300px;
-    max-width: 300px;
-    height: 200px;
-    min-height: 200px;
-    max-height: 200px;
-    padding: 16px 20px;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+  padding: 16px 20px;
 }
 
 /* Mobile layout: 150x290px */
 :global(.ProseMirror .app-skill-preview-container.mobile) {
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
-    height: 290px;
-    min-height: 290px;
-    max-height: 290px;
-    padding: 13px;
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+  height: 290px;
+  min-height: 290px;
+  max-height: 290px;
+  padding: 13px;
 }
 
 /* Inner container for layout */
 :global(.ProseMirror .app-skill-preview-container .app-skill-preview-inner) {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    height: 100%;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 /* Web icon */
 :global(.ProseMirror .app-skill-preview-container .icon_rounded.web) {
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
 }
 
 /* Title section */
 :global(.ProseMirror .app-skill-preview-container .skill-title-section) {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex: 1;
-    min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
 }
 
 :global(.ProseMirror .app-skill-preview-container .skill-title) {
-    font-size: 16px;
-    font-weight: bold;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-    word-break: break-word;
-    /* Limit to 3 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-font-primary);
+  line-height: 1.2;
+  word-break: break-word;
+  /* Limit to 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :global(.ProseMirror .app-skill-preview-container .skill-subtitle) {
-    font-size: 14px;
-    color: #858585;
-    line-height: 1.2;
+  font-size: 14px;
+  color: #858585;
+  line-height: 1.2;
 }
 
 /* Status bar */
 :global(.ProseMirror .app-skill-preview-container .skill-status-bar) {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background-color: #f8f8f8;
-    border: 1px solid #e2e2e2;
-    border-radius: 25px;
-    padding: 0 14px;
-    height: 55px;
-    min-height: 55px;
-    flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8f8f8;
+  border: 1px solid #e2e2e2;
+  border-radius: 25px;
+  padding: 0 14px;
+  height: 55px;
+  min-height: 55px;
+  flex-shrink: 0;
 }
 
 /* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
-:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon) {
-    width: 29px;
-    height: 29px;
-    background-color: var(--color-grey-70);
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    flex-shrink: 0;
+:global(
+  .ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon
+) {
+  width: 29px;
+  height: 29px;
+  background-color: var(--color-grey-70);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  flex-shrink: 0;
 }
 
 /* Dynamic icon based on data-skill-icon attribute */
-:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="search"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
-    mask-image: url('@openmates/ui/static/icons/search.svg');
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-status-bar
+    .skill-icon[data-skill-icon="search"]
+) {
+  -webkit-mask-image: url("@openmates/ui/static/icons/search.svg");
+  mask-image: url("@openmates/ui/static/icons/search.svg");
 }
 
-:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="videos"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
-    mask-image: url('@openmates/ui/static/icons/videos.svg');
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-status-bar
+    .skill-icon[data-skill-icon="videos"]
+) {
+  -webkit-mask-image: url("@openmates/ui/static/icons/videos.svg");
+  mask-image: url("@openmates/ui/static/icons/videos.svg");
 }
 
-:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="book"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
-    mask-image: url('@openmates/ui/static/icons/book.svg');
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-status-bar
+    .skill-icon[data-skill-icon="book"]
+) {
+  -webkit-mask-image: url("@openmates/ui/static/icons/book.svg");
+  mask-image: url("@openmates/ui/static/icons/book.svg");
 }
 
-:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="visible"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
-    mask-image: url('@openmates/ui/static/icons/visible.svg');
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-status-bar
+    .skill-icon[data-skill-icon="visible"]
+) {
+  -webkit-mask-image: url("@openmates/ui/static/icons/visible.svg");
+  mask-image: url("@openmates/ui/static/icons/visible.svg");
+}
+
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-status-bar
+    .skill-icon[data-skill-icon="reminder"]
+) {
+  -webkit-mask-image: url("@openmates/ui/static/icons/reminder.svg");
+  mask-image: url("@openmates/ui/static/icons/reminder.svg");
 }
 
 :global(.ProseMirror .app-skill-preview-container .skill-status-content) {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    line-height: normal;
-    flex: 1;
-    min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: normal;
+  flex: 1;
+  min-width: 0;
 }
 
 :global(.ProseMirror .app-skill-preview-container .skill-status-label) {
-    font-size: 14px;
-    font-weight: bold;
-    color: var(--color-font-primary);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-font-primary);
 }
 
 :global(.ProseMirror .app-skill-preview-container .skill-status-text) {
-    font-size: 12px;
-    font-weight: bold;
-    color: #868686;
+  font-size: 12px;
+  font-weight: bold;
+  color: #868686;
 }
 
 /* Results indicator */
 :global(.ProseMirror .app-skill-preview-container .skill-results-indicator) {
-    font-size: 14px;
-    font-weight: bold;
-    color: #898989;
-    flex-shrink: 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #898989;
+  flex-shrink: 0;
 }
 
 /* Processing indicator */
 :global(.ProseMirror .app-skill-preview-container .skill-processing-indicator) {
-    position: absolute;
-    top: 16px;
-    right: 16px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
 }
 
-:global(.ProseMirror .app-skill-preview-container .skill-processing-indicator .processing-dot) {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--color-error);
-    animation: pulse 1.5s ease-in-out infinite;
+:global(
+  .ProseMirror
+    .app-skill-preview-container
+    .skill-processing-indicator
+    .processing-dot
+) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-error);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Hover state for finished previews */
 :global(.ProseMirror .app-skill-preview-container:hover) {
-    background-color: var(--color-grey-15);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-grey-15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }

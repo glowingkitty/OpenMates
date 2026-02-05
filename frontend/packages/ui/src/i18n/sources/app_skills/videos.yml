@@ -25,26 +25,26 @@ get_transcript:
     - de
 get_transcript.description:
   context: Description for get transcript skill
-  en: Get the full transcript of a YouTube video.
-  de: Erhalte das vollständige Transkript eines YouTube-Videos.
-  zh: 获取YouTube视频的完整转录。
-  es: Obtén la transcripción completa de un video de YouTube.
-  fr: Obtenez la transcription complète d'une vidéo YouTube.
-  pt: Obtenha a transcrição completa de um vídeo do YouTube.
-  ru: Получите полный транскрипт видео YouTube.
-  ja: YouTube動画の完全な文字起こしを取得する。
-  ko: YouTube 비디오의 전체 자막을 가져옵니다.
-  it: Ottieni la trascrizione completa di un video YouTube.
-  tr: Bir YouTube videosunun tam transkriptini alın.
-  vi: Lấy bản ghi đầy đủ của video YouTube.
-  id: Dapatkan transkrip lengkap video YouTube.
-  pl: Pobierz pełną transkrypcję filmu YouTube.
-  nl: Krijg het volledige transcript van een YouTube-video.
-  ar: احصل على النص الكامل لمقطع فيديو على YouTube.
-  hi: YouTube वीडियो का पूरा प्रतिलिपि प्राप्त करें।
-  th: รับสำเนาเต็มของวิดีโอ YouTube
-  cs: Získejte úplný přepis videa YouTube.
-  sv: Få den fullständiga transkriptionen av en YouTube-video.
+  en: Get the transcript of a YouTube video.
+  de: Transkript eines YouTube-Videos abrufen.
+  zh: 获取YouTube视频的转录。
+  es: Obtén la transcripción de un video de YouTube.
+  fr: Obtenez la transcription d'une vidéo YouTube.
+  pt: Obtenha a transcrição de um vídeo do YouTube.
+  ru: Получите транскрипт видео YouTube.
+  ja: YouTube動画の文字起こしを取得。
+  ko: YouTube 비디오의 자막을 가져오세요.
+  it: Ottieni la trascrizione di un video YouTube.
+  tr: Bir YouTube videosunun transkriptini alın.
+  vi: Lấy bản ghi của video YouTube.
+  id: Dapatkan transkrip video YouTube.
+  pl: Pobierz transkrypcję filmu YouTube.
+  nl: Krijg het transcript van een YouTube-video.
+  ar: احصل على نص فيديو YouTube.
+  hi: YouTube वीडियो का प्रतिलिपि प्राप्त करें।
+  th: รับสำเนาของวิดีโอ YouTube
+  cs: Získejte přepis videa YouTube.
+  sv: Få transkriptionen av en YouTube-video.
   verified_by_human:
     - en
     - de
@@ -99,4 +99,3 @@ search.description:
   verified_by_human:
     - en
     - de
-

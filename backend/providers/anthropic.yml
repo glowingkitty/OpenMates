@@ -13,9 +13,9 @@ models:
     description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-10-15" # Model release date (Claude Haiku 4.5 official release)
     # Allow this model to be selected by the intelligent auto-selection system.
-    # Set to false to exclude from auto-selection until manually tested.
-    allow_auto_select: false
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-haiku-4-5-20251001" # Exact LMArena model name (if listed)
       openrouter: "anthropic/claude-haiku-4-5-20251001"
@@ -29,10 +29,12 @@ models:
       - id: "aws_bedrock"
         name: "AWS Bedrock"
         model_id: "anthropic.claude-haiku-4-5-20251001-v1:0" # Official model ID for AWS Bedrock
-        region: "eu-central-1" # AWS region for this model
+        aws_region: "eu-central-1" # AWS region for this model
+        region: "EU" # Server region for UI display (EU, US, or APAC)
       - id: "anthropic"
         name: "Anthropic API"
         model_id: "claude-haiku-4-5-20251001" # Direct API uses the model ID as-is
+        region: "US" # Server region for UI display
     pricing: # Model-specific base pricing (example structure)
       tokens:
         input:
@@ -60,7 +62,8 @@ models:
     description: "Optimal balance of intelligence, cost, and speed."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:claude-sonnet-4-5-20250929
+    release_date: "2025-09-29" # Model release date (derived from model ID suffix)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-sonnet-4-5-20250929" # Exact LMArena model name
       openrouter: "anthropic/claude-sonnet-4-5-20250929"
@@ -74,10 +77,12 @@ models:
       - id: "aws_bedrock"
         name: "AWS Bedrock"
         model_id: "eu.anthropic.claude-sonnet-4-5-20250929-v1:0" # Official model ID for AWS Bedrock
-        region: "eu-central-1" # AWS region for this model
+        aws_region: "eu-central-1" # AWS region for this model
+        region: "EU" # Server region for UI display
       - id: "anthropic"
         name: "Anthropic API"
         model_id: "claude-sonnet-4-5-20250929" # Direct API uses the model ID as-is
+        region: "US" # Server region for UI display
     # Full reference for API calls would be "anthropic/claude-sonnet-4-20250514" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens:
@@ -106,7 +111,8 @@ models:
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    allow_auto_select: false # Enable after manual testing via @ai-model:claude-opus-4-5-20251101
+    release_date: "2025-11-01" # Model release date (derived from model ID suffix)
+    allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-opus-4-5-20251101" # Exact LMArena model name
       openrouter: "anthropic/claude-opus-4-5-20251101"
@@ -120,9 +126,11 @@ models:
       - id: "anthropic"
         name: "Anthropic API"
         model_id: "claude-opus-4-5-20251101" # Direct API uses the model ID as-is
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "anthropic/claude-opus-4.5" # OpenRouter model identifier
+        region: "US" # Server region for UI display
     pricing: # Model-specific base pricing
       tokens:
         input:

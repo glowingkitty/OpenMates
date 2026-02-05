@@ -21,6 +21,7 @@ This document consolidates all coding standards, guidelines, and instructions fo
 13. [Key Files by Domain](#key-files-by-domain)
 14. [Docker Debug Mode](#docker-debug-mode)
 15. [Frontend Development Workflow](#frontend-development-workflow)
+16. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
 
 ---
 
@@ -465,6 +466,64 @@ docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled 
 
 ---
 
+## Admin Debug API (Remote Debugging)
+
+Remote debugging endpoints when SSH access is unavailable. Requires admin API key.
+
+**Base URLs:** `https://api.openmates.org` (prod) or `https://api.dev.openmates.org` (dev)
+
+### Query Logs
+
+```bash
+# Get logs from specific services
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/logs?services=api,task-worker&lines=50&since_minutes=30"
+
+# Search for errors
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/logs?search=ERROR&since_minutes=60"
+```
+
+**Allowed services:** `api`, `cms`, `cms-database`, `task-worker`, `task-scheduler`, `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-images`, `app-ai-worker`, `app-web-worker`, `app-images-worker`, `cache`
+
+### Inspect Data
+
+```bash
+# Inspect a chat
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/chat/<chat_id>"
+
+# Inspect a user by email
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/user/<email>"
+
+# Inspect an embed
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/embed/<embed_id>"
+
+# Inspect last AI requests (filter by chat_id optional)
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/inspect/last-requests?chat_id=<chat_id>"
+```
+
+### Issue Reports
+
+```bash
+# List issues
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues?search=login&include_processed=true"
+
+# Get issue with logs
+curl -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>?include_logs=true"
+
+# Delete issue
+curl -X DELETE -H "Authorization: Bearer <admin-api-key>" \
+  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>"
+```
+
+---
+
 ## Testing Policy
 
 ### Test Creation Consent Requirements
@@ -693,22 +752,74 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 - **ALWAYS use the translation system** for all user-facing content
 - **Source of Truth**: `.yml` files in `frontend/packages/ui/src/i18n/sources/`
 
-### Adding Translations
+### Adding Translations (CRITICAL - READ CAREFULLY)
 
-1. Add new keys to the appropriate `.yml` file:
+**FLAT KEYS ONLY - NEVER USE NESTED YAML STRUCTURES**
+
+Translation files use **dot notation IN THE KEY NAME** as a flat structure. Each translation entry is a top-level key.
+
+```yaml
+# ✅ CORRECT - flat keys with dots in the key name
+button.submit:
+  context: Submit button text
+  en: Submit
+  de: Absenden
+
+button.cancel:
+  context: Cancel button text
+  en: Cancel
+  de: Abbrechen
+
+dialog.title:
+  context: Dialog title
+  en: Confirm Action
+  de: Aktion bestätigen
+```
+
+```yaml
+# ❌ WRONG - nested YAML structure (NEVER DO THIS)
+button:
+  submit:
+    context: Submit button text
+    en: Submit
+    de: Absenden
+  cancel:
+    context: Cancel button text
+    en: Cancel
+    de: Abbrechen
+
+dialog:
+  title:
+    context: Dialog title
+    en: Confirm Action
+    de: Aktion bestätigen
+```
+
+**Why this matters:** Nested structures break the translation build system. The key `button.submit` is looked up as a literal string, not as `button` → `submit`.
+
+### Translation Entry Structure
+
+Every translation entry MUST have this exact structure:
 
 ```yaml
 key_name:
-  context: Description of how the text is used
+  context: Description of how/where the text is used
   en: English text
   de: German translation
+  # ... other languages
+  verified_by_human: []
 ```
 
-2. Run `npm run build:translations` in `frontend/packages/ui`
+### Adding New Translations - Step by Step
+
+1. Open the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`
+2. Add your new key as a **top-level entry** (not nested under another key)
+3. Include `context`, `en`, and ideally `de` at minimum
+4. Run `npm run build:translations` in `frontend/packages/ui`
 
 ### Usage
 
-- **Frontend**: Use the `$text` store: `$text('namespace.key.text')`
+- **Frontend**: Use the `$text` store: `$text('filename.key_name.text')` (e.g., `$text('chats.context_menu.download.text')`)
 - **Backend**: Use `TranslationService` to resolve translations
 - **Metadata**: Use `name_translation_key` instead of hardcoded strings
 
@@ -815,6 +926,33 @@ After adding volume mounts:
 - The user says something like "start the dev server" or "run pnpm dev"
 
 **Never assume** a dev server is needed - the CI/CD pipeline handles building and deploying frontend changes automatically.
+
+---
+
+## Auto-Commit and Deployment Workflow
+
+**After completing any task**, automatically commit and push to `dev`:
+
+1. Run linter and fix errors
+2. `git add <modified_files>` (never `git add .`)
+3. `git commit -m "<type>: <description>"`
+4. `git push origin dev`
+
+**If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services:
+
+```bash
+# Rebuild specific services
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <services> && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <services>
+```
+
+| Files Modified                | Services to Rebuild                         |
+| ----------------------------- | ------------------------------------------- |
+| `backend/core/api/`           | `api`                                       |
+| `backend/core/api/app/tasks/` | `api`, `task-worker`, `task-scheduler`      |
+| `backend/apps/<app>/`         | `app-<app>`, `app-<app>-worker` (if exists) |
+| `backend/shared/`             | All services using shared code              |
+| Directus schema files         | `cms`, `cms-setup`                          |
 
 ---
 

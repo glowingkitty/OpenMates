@@ -1550,6 +1550,7 @@ export async function sendStoreAppSettingsMemoriesEntryImpl(
 export async function sendCancelAiTaskImpl(
   serviceInstance: ChatSynchronizationService,
   taskId: string,
+  chatId?: string,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     notificationStore.error("Cannot cancel AI task: Not connected to server.");
@@ -1557,6 +1558,10 @@ export async function sendCancelAiTaskImpl(
   }
   if (!taskId) return;
   const payload: CancelAITaskPayload = { task_id: taskId };
+  // Include chat_id if available so server can clear active task marker immediately
+  if (chatId) {
+    payload.chat_id = chatId;
+  }
   try {
     await webSocketService.sendMessage("cancel_ai_task", payload);
   } catch {
@@ -2045,7 +2050,7 @@ export async function sendChatReadStatusImpl(
 }
 
 /**
- * Send encrypted post-processing metadata (suggestions, summary, tags) to server for Directus sync
+ * Send encrypted post-processing metadata (suggestions, summary, tags, settings/memories) to server for Directus sync
  * Called after client encrypts plaintext suggestions received from post-processing
  */
 export async function sendPostProcessingMetadataImpl(
@@ -2056,6 +2061,7 @@ export async function sendPostProcessingMetadataImpl(
   encrypted_chat_summary: string,
   encrypted_chat_tags: string,
   encrypted_top_recommended_apps: string = "",
+  encrypted_settings_memories_suggestions: string = "",
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
@@ -2072,6 +2078,7 @@ export async function sendPostProcessingMetadataImpl(
       encrypted_chat_summary?: string;
       encrypted_chat_tags?: string;
       encrypted_top_recommended_apps_for_chat?: string;
+      encrypted_settings_memories_suggestions?: string;
     }
 
     // Build payload with all the encrypted post-processing metadata
@@ -2087,6 +2094,12 @@ export async function sendPostProcessingMetadataImpl(
     if (encrypted_top_recommended_apps) {
       payload.encrypted_top_recommended_apps_for_chat =
         encrypted_top_recommended_apps;
+    }
+
+    // Only include settings/memories suggestions if provided
+    if (encrypted_settings_memories_suggestions) {
+      payload.encrypted_settings_memories_suggestions =
+        encrypted_settings_memories_suggestions;
     }
 
     console.debug(
@@ -2370,5 +2383,62 @@ export async function sendDeleteNewChatSuggestionByIdImpl(
       error,
     );
     throw error;
+  }
+}
+
+/**
+ * Send rejected settings/memory suggestion hash to server for cross-device sync.
+ *
+ * When a user rejects a suggested settings/memory entry, we:
+ * 1. Add the hash locally to the chat's rejected_suggestion_hashes
+ * 2. Send it to the server to store in Directus
+ * 3. Server broadcasts to other devices so they also hide this suggestion
+ *
+ * Hash format: SHA-256 of "app_id:item_type:title.toLowerCase()"
+ * This allows zero-knowledge rejection - server never sees the suggestion content.
+ *
+ * @param serviceInstance ChatSynchronizationService instance
+ * @param chat_id Chat ID where the suggestion was rejected
+ * @param rejectionHash SHA-256 hash of the rejected suggestion
+ */
+export async function sendRejectSettingsMemorySuggestionImpl(
+  serviceInstance: ChatSynchronizationService,
+  chat_id: string,
+  rejectionHash: string,
+): Promise<void> {
+  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+    console.warn(
+      "[ChatSyncService:Senders] Cannot send rejection hash - WebSocket not connected",
+    );
+    // Local storage already happened, so this is non-critical
+    // The hash will be synced on next phased sync
+    return;
+  }
+
+  if (!chat_id || !rejectionHash) {
+    console.error(
+      "[ChatSyncService:Senders] Cannot send rejection: missing chat_id or rejectionHash",
+    );
+    return;
+  }
+
+  try {
+    console.debug(
+      `[ChatSyncService:Senders] Sending settings/memory rejection hash for chat ${chat_id}`,
+    );
+    await webSocketService.sendMessage("reject_settings_memory_suggestion", {
+      chat_id,
+      rejection_hash: rejectionHash,
+    });
+    console.info(
+      `[ChatSyncService:Senders] Sent rejection hash to server for cross-device sync`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Senders] Error sending rejection hash:",
+      error,
+    );
+    // Don't throw - rejection is already applied locally
+    // Server sync failure is non-critical
   }
 }

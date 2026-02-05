@@ -20,11 +20,13 @@
   import type { 
     AppSettingsMemoriesResponseContent
   } from '../services/chatSyncServiceHandlersAppSettings';
+  import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
   // Import the permission dialog component and its store for inline rendering
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import SettingsMemoriesSuggestions from './SettingsMemoriesSuggestions.svelte';
   import { 
     isPermissionDialogVisible,
     currentPermissionRequest
@@ -215,12 +217,20 @@
     messageInputHeight = 0,
     containerWidth = 0,
     currentChatId = undefined,
-    thinkingContentByTask = new Map()
+    thinkingContentByTask = new Map(),
+    settingsMemoriesSuggestions = [],
+    rejectedSuggestionHashes = null,
+    onSuggestionAdded = undefined,
+    onSuggestionRejected = undefined
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
+    settingsMemoriesSuggestions?: SuggestedSettingsMemoryEntry[]; // Suggested settings/memories entries from AI post-processing
+    rejectedSuggestionHashes?: string[] | null; // SHA-256 hashes of rejected suggestions for client-side filtering
+    onSuggestionAdded?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user adds a suggestion
+    onSuggestionRejected?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user rejects a suggestion
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -235,6 +245,24 @@
     currentChatId && 
     $currentPermissionRequest.chatId === currentChatId
   );
+
+  // Determine if we should show settings/memories suggestions
+  // Only show after the last assistant message when:
+  // 1. We have suggestions to show
+  // 2. We have a current chat ID
+  // 3. The last message is from the assistant (not streaming)
+  let shouldShowSettingsMemoriesSuggestions = $derived.by(() => {
+    if (!settingsMemoriesSuggestions || settingsMemoriesSuggestions.length === 0) return false;
+    if (!currentChatId) return false;
+    if (displayMessages.length === 0) return false;
+    
+    // Check if the last message is from the assistant and not streaming
+    const lastMessage = displayMessages[displayMessages.length - 1];
+    if (lastMessage.role !== 'assistant') return false;
+    if (lastMessage.status === 'streaming') return false;
+    
+    return true;
+  });
 
   const dispatch = createEventDispatcher();
 
@@ -773,6 +801,20 @@
                     <AppSettingsMemoriesPermissionDialog />
                 </div>
             {/if}
+            
+            <!-- Settings/memories suggestions shown after the last assistant message -->
+            <!-- These are generated during AI post-processing Phase 2 -->
+            {#if shouldShowSettingsMemoriesSuggestions && currentChatId}
+                <div class="settings-memories-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                    <SettingsMemoriesSuggestions
+                        suggestions={settingsMemoriesSuggestions}
+                        chatId={currentChatId}
+                        rejectedHashes={rejectedSuggestionHashes}
+                        onSuggestionAdded={onSuggestionAdded}
+                        onSuggestionRejected={onSuggestionRejected}
+                    />
+                </div>
+            {/if}
         </div>
     {/if}
 </div>
@@ -833,6 +875,13 @@
     justify-content: center;
     padding: 20px 0;
     margin-top: 10px;
+  }
+
+  /* Settings/memories suggestions wrapper - shown after last assistant message */
+  .settings-memories-suggestions-wrapper {
+    width: 100%;
+    padding: 10px 0 20px 0;
+    margin-top: 5px;
   }
 
   .message-wrapper {

@@ -12,6 +12,7 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
+  import { getModelDisplayName } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import { isPublicChat } from '../demo_chats/convertToChat';
@@ -1075,7 +1076,7 @@
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: model_name } })}</div>
+        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</div>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
@@ -1108,14 +1109,24 @@
           <span class="summary-label">{$text('chat.permissions.included_summary.text') || 'Included App settings & memories'}:</span>
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
-              <span class="category-badge">
+              <button 
+                type="button"
+                class="category-badge"
+                onclick={() => {
+                  // Navigate to app settings/memories category via deep link
+                  const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;
+                  settingsDeepLink.set(path);
+                  panelState.openSettings();
+                }}
+              >
                 <Icon 
                   name={cat.appId} 
                   type="app" 
                   size="22px"
+                  noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
-              </span>
+              </button>
             {/each}
           </div>
         {:else if appSettingsMemoriesResponse.action === 'rejected'}
@@ -1307,6 +1318,15 @@
     background: var(--color-grey-15, #f5f5f5);
     border-radius: 12px;
     padding: 4px 10px 4px 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border: none;
+    font-family: inherit;
+  }
+  
+  .category-badge:hover {
+    background: var(--color-grey-20, #e8e8e8);
   }
   
   .badge-text {
@@ -1324,6 +1344,10 @@
   @media (prefers-color-scheme: dark) {
     .category-badge {
       background: var(--color-grey-25, #2a2a2a);
+    }
+    
+    .category-badge:hover {
+      background: var(--color-grey-30, #3a3a3a);
     }
     
     .badge-text {

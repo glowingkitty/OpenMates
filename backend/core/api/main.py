@@ -30,6 +30,7 @@ from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
 from backend.core.api.app.routes import demo_chat  # noqa: E402 # Import demo chat router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
+from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -263,49 +264,67 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for a
     
     logger.info(f"Service Discovery: Will check {len(apps_to_check)} app(s): {apps_to_check}")
     
-    async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
-        for app_id in apps_to_check:
-            # Construct hostname by prepending "app-" to the app_id
-            hostname = f"app-{app_id}"
-            metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-            logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+    # PERFORMANCE OPTIMIZATION: Fetch all app metadata in parallel instead of sequentially
+    # This reduces discovery time from N*timeout to max(timeout) for N apps
+    async def fetch_app_metadata(client: httpx.AsyncClient, app_id: str) -> tuple[str, Optional[AppYAML], Optional[str]]:
+        """Fetch metadata for a single app. Returns (app_id, metadata, error_message)."""
+        hostname = f"app-{app_id}"
+        metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
+        logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+        
+        try:
+            response = await client.get(metadata_url)
+            response.raise_for_status()
+            app_metadata_json = response.json()
             
-            try:
-                response = await client.get(metadata_url)
-                response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
-                app_metadata_json = response.json()
-                try:
-                    # Filter components by stage before parsing
-                    filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
-                    
-                    # If no valid components after filtering, skip this app
-                    if filtered_metadata_json is None:
-                        logger.info(f"Service Discovery: App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
-                        continue
-                    
-                    # Parse the filtered metadata
-                    app_yaml_data = AppYAML(**filtered_metadata_json)
-                    # Ensure the app_id matches the service name
-                    if app_yaml_data.id and app_yaml_data.id != app_id:
-                        logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
-                                       f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
-                    app_yaml_data.id = app_id # Standardize the ID to the service name
-                    
-                    # Include the app with filtered components
-                    discovered_metadata[app_id] = app_yaml_data
-                    logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
-                        
-                except Exception as pydantic_error:
-                    logger.error(f"Service Discovery: Metadata for app '{app_id}' from {metadata_url} is invalid or does not match AppYAML schema. Error: {pydantic_error}. Data: {app_metadata_json}")
-
-            except httpx.HTTPStatusError as e:
-                # Log as warning, not error - app might not be running yet
-                logger.warning(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. App service may not be running.")
-            except httpx.RequestError as e:
-                # Log as warning - app service might not be available
-                logger.warning(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}. App service may not be running.")
-            except Exception as e:
-                logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
+            # Filter components by stage before parsing
+            filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
+            
+            # If no valid components after filtering, skip this app
+            if filtered_metadata_json is None:
+                return (app_id, None, f"App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
+            
+            # Parse the filtered metadata
+            app_yaml_data = AppYAML(**filtered_metadata_json)
+            # Ensure the app_id matches the service name
+            if app_yaml_data.id and app_yaml_data.id != app_id:
+                logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
+                               f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
+            app_yaml_data.id = app_id
+            
+            return (app_id, app_yaml_data, None)
+            
+        except httpx.HTTPStatusError as e:
+            return (app_id, None, f"HTTP error {e.response.status_code}. App service may not be running.")
+        except httpx.RequestError as e:
+            return (app_id, None, f"Request error: {e}. App service may not be running.")
+        except Exception as e:
+            logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
+            return (app_id, None, f"Unexpected error: {e}")
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        # Fetch all app metadata in parallel
+        import asyncio
+        tasks = [fetch_app_metadata(client, app_id) for app_id in apps_to_check]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Service Discovery: Unexpected exception during parallel fetch: {result}")
+                continue
+            
+            app_id, app_yaml_data, error_msg = result
+            
+            if app_yaml_data is not None:
+                discovered_metadata[app_id] = app_yaml_data
+                logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
+            elif error_msg:
+                # Log at appropriate level based on error type
+                if "excluded" in error_msg:
+                    logger.info(f"Service Discovery: {error_msg}")
+                else:
+                    logger.warning(f"Service Discovery: App '{app_id}': {error_msg}")
     
     logger.info(f"Service Discovery: Completed. Discovered and included {len(discovered_metadata)} app(s) successfully.")
     return discovered_metadata
@@ -443,6 +462,17 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Restored {restored_count} pending payment orders from disk backup")
         except Exception as e:
             logger.error(f"Error restoring payment orders from disk: {e}", exc_info=True)
+    
+    # --- Restore pending reminders from disk backup ---
+    # This recovers reminders that were persisted during the last graceful shutdown
+    # to prevent reminder data loss across server restarts
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_reminders = await app.state.cache_service.restore_reminders_from_disk()
+            if restored_reminders > 0:
+                logger.info(f"Restored {restored_reminders} pending reminders from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
     
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
@@ -931,6 +961,16 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error persisting payment orders to disk during shutdown: {e}", exc_info=True)
     
+    # --- Persist pending reminders to disk before shutdown ---
+    # This ensures reminders survive restarts and can be restored on next startup
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_reminders = await app.state.cache_service.dump_reminders_to_disk()
+            if dumped_reminders > 0:
+                logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
+    
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):
         app.state.metrics_task.cancel()
@@ -1214,6 +1254,7 @@ def create_app() -> FastAPI:
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
     app.include_router(demo_chat.router, include_in_schema=False)  # Demo chat router - public access
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
+    app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     

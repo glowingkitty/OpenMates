@@ -9,7 +9,7 @@ services:
   api:
     container_name: api
     build:
-      context: ../../  # Changed: Build context is now the project root
+      context: ../../ # Changed: Build context is now the project root
       dockerfile: backend/core/api/Dockerfile # Path to Dockerfile from new context
     restart: unless-stopped
     env_file: ../../.env
@@ -47,7 +47,7 @@ services:
       cache:
         condition: service_healthy
       vault-setup:
-        condition: service_started 
+        condition: service_started
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
@@ -162,9 +162,14 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo"  # Used by celery_config to determine which services to initialize
-      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
-      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      # E2E test configuration - set these env vars to enable automated testing
+      E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
+      E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
+      E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
+      E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://app.openmates.org}"
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -172,7 +177,7 @@ services:
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence,health_check,server_stats,demo \
+             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder \
              --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -180,7 +185,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
         reservations:
           memory: 2048M
     volumes:
@@ -283,12 +288,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if AI app uses them
+      cms-setup: # Ensures Directus schemas are applied if AI app uses them
         condition: service_completed_successfully
     healthcheck:
       # AI_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -337,12 +348,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if web app uses them
+      cms-setup: # Ensures Directus schemas are applied if web app uses them
         condition: service_completed_successfully
     healthcheck:
       # WEB_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -391,12 +408,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if videos app uses them
+      cms-setup: # Ensures Directus schemas are applied if videos app uses them
         condition: service_completed_successfully
     healthcheck:
       # VIDEOS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -445,12 +468,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if news app uses them
+      cms-setup: # Ensures Directus schemas are applied if news app uses them
         condition: service_completed_successfully
     healthcheck:
       # NEWS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -499,12 +528,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if maps app uses them
+      cms-setup: # Ensures Directus schemas are applied if maps app uses them
         condition: service_completed_successfully
     healthcheck:
       # MAPS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -553,12 +588,18 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if code app uses them
+      cms-setup: # Ensures Directus schemas are applied if code app uses them
         condition: service_completed_successfully
     healthcheck:
       # CODE_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
       # Using Python-based health check since curl is not installed in the base image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -602,11 +643,68 @@ services:
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
+
+  app-reminder:
+    container_name: app-reminder
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: reminder
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "reminder"
+      REMINDER_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/reminder:/app/reminder
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Celery worker for AI app tasks
   app-ai-worker:
@@ -619,7 +717,7 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      PYTHONDONTWRITEBYTECODE: "1"  # Prevent Python from writing .pyc files for hot reloading
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
@@ -629,9 +727,9 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CELERY_QUEUES: "app_ai"  # Used by celery_config to determine which services to initialize
-      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
-      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+      CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -648,7 +746,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
         reservations:
           memory: 2048M
     volumes:
@@ -683,7 +781,7 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      PYTHONDONTWRITEBYTECODE: "1"  # Prevent Python from writing .pyc files for hot reloading
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
@@ -693,9 +791,9 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CELERY_QUEUES: "app_web"  # Used by celery_config to determine which services to initialize
-      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
-      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+      CELERY_QUEUES: "app_web" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -712,7 +810,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
         reservations:
           memory: 2048M
     volumes:
@@ -747,7 +845,7 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      PYTHONDONTWRITEBYTECODE: "1"  # Prevent Python from writing .pyc files for hot reloading
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
@@ -757,9 +855,9 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CELERY_QUEUES: "app_images"  # Used by celery_config to determine which services to initialize
-      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
-      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+      CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -776,7 +874,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
         reservations:
           memory: 2048M
     volumes:
@@ -815,7 +913,7 @@ services:
       - "--maxmemory"
       - "3000mb"
       - "--requirepass"
-      - "${DRAGONFLY_PASSWORD}"  # Use environment variable or default password
+      - "${DRAGONFLY_PASSWORD}" # Use environment variable or default password
     deploy:
       resources:
         limits:
@@ -862,10 +960,10 @@ services:
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_LOG_LEVEL: "debug"
-      VAULT_AUTO_UNSEAL: "true"  # Set to "false" to disable auto-unsealing
+      VAULT_AUTO_UNSEAL: "true" # Set to "false" to disable auto-unsealing
     volumes:
       - ./vault/setup:/app
-      - vault-setup-data:/app/data  # Persistent storage for tokens and keys
+      - vault-setup-data:/app/data # Persistent storage for tokens and keys
     networks:
       - openmates
     depends_on:
@@ -957,7 +1055,7 @@ services:
     volumes:
       - ./monitoring/promtail:/etc/promtail
       - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
-      - ./api/logs:/var/log/api:ro  # Make sure this path exists
+      - ./api/logs:/var/log/api:ro # Make sure this path exists
     command:
       - "-config.file=/etc/promtail/promtail-config.yaml"
     depends_on:
@@ -986,7 +1084,8 @@ services:
       - prometheus
       - loki
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1094,5 +1193,5 @@ volumes:
     name: openmates-vault-setup-data
   celerybeat-schedule-data: # Define the named volume
     name: openmates-celerybeat-schedule-data
-  preview-cache:  # Used by preview server in this stack
+  preview-cache: # Used by preview server in this stack
     name: openmates-preview-cache

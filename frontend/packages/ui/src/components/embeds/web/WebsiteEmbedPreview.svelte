@@ -412,6 +412,7 @@
                 src={imageUrl} 
                 alt={displayTitle}
                 loading="lazy"
+                crossorigin="anonymous"
                 onerror={() => {
                   imageLoadError = true;
                   console.debug('[WebsiteEmbedPreview] Image load error, hiding image');

@@ -37,7 +37,13 @@ from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
-from backend.apps.ai.processing.postprocessor import handle_postprocessing, PostProcessingResult
+from backend.apps.ai.processing.postprocessor import (
+    handle_postprocessing, 
+    PostProcessingResult,
+    handle_memory_generation,
+    extract_settings_memory_categories,
+    get_category_schemas,
+)
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
@@ -194,6 +200,78 @@ async def _cleanup_processing_embeds_on_task_failure(
     
     return cleaned_count
 
+
+async def _cleanup_on_task_failure(
+    task_id: str,
+    chat_id: str,
+    message_id: str,
+    user_id: str,
+    user_id_hash: str,
+    user_vault_key_id: str,
+    error_message: str,
+    cache_service: Optional[CacheService] = None,
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None
+) -> None:
+    """
+    Comprehensive cleanup when a task fails unexpectedly.
+    
+    This function performs two critical cleanup operations:
+    1. Clears the active_ai_task marker so the typing indicator stops
+    2. Marks processing embeds as error so they don't get stuck
+    
+    CRITICAL: This ensures that when a task fails for any reason (timeout, exception,
+    revocation, CMS errors, etc.), the user can immediately send new messages
+    and the UI reflects the failure properly.
+    
+    Args:
+        task_id: The Celery task ID
+        chat_id: The chat ID where the task was running
+        message_id: The message ID associated with the task
+        user_id: The user ID (for cache access)
+        user_id_hash: The hashed user ID (for Directus storage)
+        user_vault_key_id: The vault key ID for encryption
+        error_message: Error message describing the failure
+        cache_service: Optional CacheService instance
+        directus_service: Optional DirectusService instance
+        encryption_service: Optional EncryptionService instance
+    """
+    log_prefix = f"[Task ID: {task_id}, ChatID: {chat_id}] TASK_CLEANUP"
+    
+    # Create cache service if not provided
+    if not cache_service:
+        cache_service = CacheService()
+    
+    # 1. Clear active_ai_task marker - this is critical for stopping the typing indicator
+    try:
+        cleared = await cache_service.clear_active_ai_task(chat_id)
+        if cleared:
+            logger.info(f"{log_prefix} Cleared active_ai_task marker after failure: {error_message}")
+        else:
+            logger.warning(f"{log_prefix} Failed to clear active_ai_task marker (may not exist)")
+    except Exception as e:
+        logger.error(f"{log_prefix} Error clearing active_ai_task marker: {e}", exc_info=True)
+    
+    # 2. Clean up processing embeds
+    try:
+        cleaned_count = await _cleanup_processing_embeds_on_task_failure(
+            task_id=task_id,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            error_message=error_message,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service
+        )
+        if cleaned_count > 0:
+            logger.info(f"{log_prefix} Cleaned up {cleaned_count} processing embed(s)")
+    except Exception as e:
+        logger.error(f"{log_prefix} Error cleaning up embeds: {e}", exc_info=True)
+
+
 # Note: Avoid internal API lookups per task to keep latency low. We rely on
 # the worker-local ConfigManager (see celery_config) and fail fast if configs are missing.
 
@@ -338,6 +416,8 @@ async def _async_process_ai_skill_ask_task(
     task_was_soft_limited = False
 
     # --- Initialize services ---
+    # PERFORMANCE OPTIMIZATION: Use worker-level cache service for connection pooling
+    # This eliminates ~100-200ms of Redis connection overhead per task
     secrets_manager = None
     cache_service_instance = None
     directus_service_instance = None
@@ -348,9 +428,17 @@ async def _async_process_ai_skill_ask_task(
         await secrets_manager.initialize()
         logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
 
-        cache_service_instance = CacheService()
-        await cache_service_instance.client 
-        logger.info(f"[Task ID: {task_id}] CacheService initialized.")
+        # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
+        # Falls back to creating a new instance if the worker-level service is unavailable
+        try:
+            from backend.core.api.app.tasks.celery_config import get_worker_cache_service
+            cache_service_instance = await get_worker_cache_service()
+            logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
+        except Exception as e:
+            logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
+            cache_service_instance = CacheService()
+            await cache_service_instance.client 
+            logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
         
         encryption_service_instance = EncryptionService(
             cache_service=cache_service_instance
@@ -836,6 +924,7 @@ async def _async_process_ai_skill_ask_task(
             # Then get the actual server (e.g., Cerebras) from the provider config
             # CRITICAL: We must always extract a real server/provider name, never default to "AI"
             provider_name = None  # Will be set from config
+            server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
             
             if preprocessing_result.selected_main_llm_model_id:
                 logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
@@ -872,13 +961,14 @@ async def _async_process_ai_skill_ask_task(
                                             logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
                                             if server_id == default_server_id:
                                                 provider_name = server.get('name')
-                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name from config: '{provider_name}'")
+                                                server_region = server.get('region')  # e.g., "EU", "US", "APAC"
+                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
                                                 if not provider_name:
                                                     # Server name not set, use capitalized server ID
                                                     provider_name = default_server_id.capitalize()
                                                     logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
                                                 else:
-                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
                                                 server_found = True
                                                 break
                                         if not server_found:
@@ -944,8 +1034,8 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
                 provider_name = "Unknown"
             
-            # Log the final provider name that will be sent to client
-            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}'")
+            # Log the final provider name and server region that will be sent to client
+            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
@@ -959,13 +1049,14 @@ async def _async_process_ai_skill_ask_task(
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
                 "provider_name": provider_name, # Add provider_name to the payload
+                "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
                 # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                 # When this is True, the user message was already persisted before the app settings/memories pause
                 "is_continuation": request_data.is_app_settings_memories_continuation,
             }
             
             # Log the complete typing payload for debugging
-            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}")
+            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
             
             # Only add title and icon_names if they were generated (new chat only)
             # If chat already has a title, preprocessing skips generation of these fields
@@ -1335,6 +1426,13 @@ async def _async_process_ai_skill_ask_task(
             if not available_app_ids:
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
+            # Extract settings/memory categories for Phase 1 (lightweight category selection)
+            available_settings_memory_categories = extract_settings_memory_categories(
+                discovered_apps_metadata
+            ) if discovered_apps_metadata else []
+            logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
+
+            # Phase 1: Post-processing with category selection
             postprocessing_result = await handle_postprocessing(
                 task_id=task_id,
                 user_message=last_user_message,
@@ -1345,8 +1443,40 @@ async def _async_process_ai_skill_ask_task(
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
+                available_settings_memory_categories=available_settings_memory_categories,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
             )
+
+            # Phase 2: Memory generation (only if Phase 1 identified relevant categories)
+            if (postprocessing_result 
+                and postprocessing_result.relevant_settings_memory_categories 
+                and discovered_apps_metadata):
+                
+                logger.info(f"[Task ID: {task_id}] Phase 2: Generating memory entries for categories: {postprocessing_result.relevant_settings_memory_categories}")
+                
+                # Get full schemas for the selected categories
+                category_schemas = get_category_schemas(
+                    discovered_apps_metadata,
+                    postprocessing_result.relevant_settings_memory_categories
+                )
+                
+                if category_schemas:
+                    # Generate actual entry suggestions
+                    suggested_entries = await handle_memory_generation(
+                        task_id=task_id,
+                        user_message=last_user_message,
+                        assistant_response=aggregated_final_response,
+                        relevant_categories=postprocessing_result.relevant_settings_memory_categories,
+                        category_schemas=category_schemas,
+                        base_instructions=base_instructions,
+                        secrets_manager=secrets_manager,
+                    )
+                    
+                    # Update the postprocessing result with generated entries
+                    postprocessing_result.suggested_settings_memories = suggested_entries
+                    logger.info(f"[Task ID: {task_id}] Phase 2 complete: Generated {len(suggested_entries)} memory entry suggestions")
+                else:
+                    logger.warning(f"[Task ID: {task_id}] Phase 2 skipped: No schemas found for selected categories")
 
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
@@ -1354,6 +1484,11 @@ async def _async_process_ai_skill_ask_task(
             # Note: chat_summary and chat_tags come from preprocessing (full history context)
             # Use the extracted variables (chat_summary, chat_tags) which are safe to use here
             # since we only reach this point if postprocessing_result was successfully created
+            # Convert suggested_settings_memories to serializable format
+            suggested_settings_memories_serialized = [
+                entry.model_dump() for entry in postprocessing_result.suggested_settings_memories
+            ] if postprocessing_result.suggested_settings_memories else []
+            
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
@@ -1367,6 +1502,8 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history) - use extracted variable
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
+                # Phase 2: Suggested settings/memories entries (sent as plaintext, client encrypts)
+                "suggested_settings_memories": suggested_settings_memories_serialized,
             }
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
@@ -1549,10 +1686,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
-        # CRITICAL: Clean up processing embeds before failing
-        # This ensures embeds don't get stuck in "processing" state forever
+        # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
+        # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
-            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+            loop.run_until_complete(_cleanup_on_task_failure(
                 task_id=task_id,
                 chat_id=request_data.chat_id,
                 message_id=request_data.message_id,
@@ -1562,7 +1699,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 error_message="Task exceeded soft time limit"
             ))
         except Exception as cleanup_err:
-            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after soft time limit: {cleanup_err}")
+            logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'SoftTimeLimitExceeded', 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
@@ -1573,10 +1710,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
-        # CRITICAL: Clean up processing embeds before failing
-        # This ensures embeds don't get stuck in "processing" state forever (e.g., when postprocessing LLM fails)
+        # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
+        # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
-            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+            loop.run_until_complete(_cleanup_on_task_failure(
                 task_id=task_id,
                 chat_id=request_data.chat_id,
                 message_id=request_data.message_id,
@@ -1586,7 +1723,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 error_message=str(e)
             ))
         except Exception as cleanup_err:
-            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after RuntimeError: {cleanup_err}")
+            logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
@@ -1596,10 +1733,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         raise Ignore()
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
-        # CRITICAL: Clean up processing embeds before failing
-        # This ensures embeds don't get stuck in "processing" state forever
+        # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
+        # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
-            loop.run_until_complete(_cleanup_processing_embeds_on_task_failure(
+            loop.run_until_complete(_cleanup_on_task_failure(
                 task_id=task_id,
                 chat_id=request_data.chat_id,
                 message_id=request_data.message_id,
@@ -1609,7 +1746,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 error_message=str(e)
             ))
         except Exception as cleanup_err:
-            logger.error(f"[Task ID: {task_id}] Error cleaning up embeds after exception: {cleanup_err}")
+            logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),

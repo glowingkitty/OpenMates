@@ -18,8 +18,30 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-02T13:08:46.248Z
-// **Models included**: 16
+// **Generated**: 2026-02-05T11:58:10.912Z
+// **Models included**: 17
+
+/**
+ * Server/provider information for a model.
+ */
+export interface ModelServerInfo {
+    /** Server identifier */
+    id: string;
+    /** Server display name */
+    name: string;
+    /** Server region: EU, US, or APAC */
+    region: 'EU' | 'US' | 'APAC';
+}
+
+/**
+ * Model pricing information.
+ */
+export interface ModelPricing {
+    /** Number of input tokens per 1 credit */
+    input_tokens_per_credit?: number;
+    /** Number of output tokens per 1 credit */
+    output_tokens_per_credit?: number;
+}
 
 /**
  * AI model metadata structure for frontend display.
@@ -49,6 +71,14 @@ export interface AIModelMetadata {
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
     tier: 'economy' | 'standard' | 'premium';
+    /** Release date of the model (ISO 8601 format) */
+    release_date?: string;
+    /** Available servers/providers for this model */
+    servers?: ModelServerInfo[];
+    /** Default server ID for this model */
+    default_server?: string;
+    /** Pricing information for credits per token */
+    pricing?: ModelPricing;
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
 }
@@ -64,7 +94,7 @@ export interface AIModelMetadata {
 export const modelsMetadata: AIModelMetadata[] = [
     {
         id: "qwen3-235b-a22b-2507",
-        name: "Qwen3 235B A22B (2507)",
+        name: "Qwen 3 256b",
         description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
         provider_id: "alibaba",
         provider_name: "Alibaba",
@@ -74,6 +104,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-07-01",
+        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "cerebras",
+        pricing: {"input_tokens_per_credit":550,"output_tokens_per_credit":300},
     },
     {
         id: "claude-haiku-4-5-20251001",
@@ -87,6 +121,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-10-15",
+        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":350,"output_tokens_per_credit":70},
     },
     {
         id: "claude-opus-4-5-20251101",
@@ -100,6 +138,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-11-01",
+        servers: [{"id":"anthropic","name":"Anthropic API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":70,"output_tokens_per_credit":15},
     },
     {
         id: "claude-sonnet-4-5-20250929",
@@ -113,6 +155,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-09-29",
+        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
+        default_server: "anthropic",
+        pricing: {"input_tokens_per_credit":110,"output_tokens_per_credit":20},
     },
     {
         id: "flux-schnell",
@@ -126,10 +172,31 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["image"],
         for_app_skill: "images.generate_draft",
         tier: "economy",
+        release_date: "2024-08-01",
+        servers: [{"id":"fal","name":"fal.ai","region":"US"}],
+        default_server: "fal",
+    },
+    {
+        id: "deepseek-v3.2",
+        name: "DeepSeek V3.2",
+        description: "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter.",
+        provider_id: "deepseek",
+        provider_name: "DeepSeek",
+        logo_svg: "icons/deepseek.svg",
+        country_origin: "CN",
+        input_types: ["text"],
+        output_types: ["text"],
+        for_app_skill: "ai.ask",
+        reasoning: true,
+        tier: "standard",
+        release_date: "2025-12-01",
+        servers: [{"id":"google","name":"Google Vertex AI (MaaS)","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google",
+        pricing: {"input_tokens_per_credit":600,"output_tokens_per_credit":200},
     },
     {
         id: "gemini-3-flash-preview",
-        name: "Gemini 3 Flash Preview",
+        name: "Gemini 3 Flash",
         description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter).",
         provider_id: "google",
         provider_name: "Google",
@@ -140,23 +207,14 @@ export const modelsMetadata: AIModelMetadata[] = [
         for_app_skill: "ai.ask",
         reasoning: true,
         tier: "standard",
-    },
-    {
-        id: "gemini-3-pro-image-preview",
-        name: "Gemini 3 Pro Image Preview",
-        description: "High-end native image generation from Google, optimized for quality.",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["image"],
-        for_app_skill: "images.generate",
-        tier: "economy",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google_ai_studio",
+        pricing: {"input_tokens_per_credit":650,"output_tokens_per_credit":110},
     },
     {
         id: "gemini-3-pro-preview",
-        name: "Gemini 3 Pro Preview",
+        name: "Gemini 3 Pro",
         description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
         provider_id: "google",
         provider_name: "Google",
@@ -167,20 +225,26 @@ export const modelsMetadata: AIModelMetadata[] = [
         for_app_skill: "ai.ask",
         reasoning: true,
         tier: "premium",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"google","name":"Google Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google_ai_studio",
+        pricing: {"input_tokens_per_credit":170,"output_tokens_per_credit":30},
     },
     {
-        id: "gemini-flash-latest",
-        name: "Gemini Flash Latest",
-        description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets.",
+        id: "gemini-3-pro-image-preview",
+        name: "Gemini 3 Pro",
+        description: "High-end native image generation from Google, optimized for quality.",
         provider_id: "google",
         provider_name: "Google",
         logo_svg: "icons/google.svg",
         country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
+        input_types: ["text"],
+        output_types: ["image"],
+        for_app_skill: "images.generate",
+        tier: "economy",
+        release_date: "2025-12-17",
+        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"}],
+        default_server: "google_ai_studio",
     },
     {
         id: "devstral-2512",
@@ -194,6 +258,27 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-12-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
+    },
+    {
+        id: "ministral-8b-2512",
+        name: "Ministral 3 8B",
+        description: "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
+        provider_id: "mistral",
+        provider_name: "Mistral AI",
+        logo_svg: "icons/mistral.svg",
+        country_origin: "FR",
+        input_types: ["text","image"],
+        output_types: ["text"],
+        for_app_skill: "ai.ask",
+        tier: "economy",
+        release_date: "2025-12-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":2222,"output_tokens_per_credit":2222},
     },
     {
         id: "mistral-medium-latest",
@@ -207,6 +292,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-05-01",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
     },
     {
         id: "mistral-small-latest",
@@ -220,6 +309,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "economy",
+        release_date: "2025-03-15",
+        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"google","name":"Google Cloud Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "mistral",
+        pricing: {"input_tokens_per_credit":3300,"output_tokens_per_credit":1100},
     },
     {
         id: "gpt-5.2",
@@ -233,6 +326,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
+        release_date: "2025-06-15",
+        servers: [{"id":"openai","name":"OpenAI API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "openai",
+        pricing: {"input_tokens_per_credit":190,"output_tokens_per_credit":25},
     },
     {
         id: "gpt-oss-120b",
@@ -246,6 +343,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "economy",
+        release_date: "2025-08-01",
+        servers: [{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "openrouter",
+        pricing: {"input_tokens_per_credit":1300,"output_tokens_per_credit":500},
     },
     {
         id: "gpt-oss-safeguard-20b",
@@ -259,6 +360,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.safety_check",
         tier: "economy",
+        release_date: "2025-04-01",
+        servers: [{"id":"groq","name":"Groq API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "groq",
+        pricing: {"input_tokens_per_credit":4400,"output_tokens_per_credit":1100},
     },
     {
         id: "zai-glm-4.7",
@@ -272,6 +377,10 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "standard",
+        release_date: "2025-12-22",
+        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "cerebras",
+        pricing: {"input_tokens_per_credit":150,"output_tokens_per_credit":120},
     },
 ];
 

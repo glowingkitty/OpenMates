@@ -17,7 +17,6 @@
     import ProviderIcon from './ProviderIcon.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
-    import { onMount } from 'svelte';
     
     /**
      * Props for AppStoreCard component.
@@ -37,6 +36,15 @@
     
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
+    
+    /**
+     * Opacity values for provider icons (decreasing from left to right).
+     * Index 0 = first icon (leftmost), index 4 = fifth icon (rightmost).
+     */
+    const PROVIDER_ICON_OPACITIES = [1, 0.85, 0.7, 0.55, 0.4];
+    
+    /** Maximum number of provider icons to display */
+    const MAX_PROVIDER_ICONS = 5;
     
     /**
      * Get the translated app name.
@@ -186,6 +194,55 @@
         return valid;
     });
     
+    /**
+     * Get ordered providers based on app's provider_display_order configuration.
+     * If provider_display_order is defined in the app's app.yml, providers are
+     * sorted accordingly. Providers in the display order appear first (in that order),
+     * followed by any remaining providers not in the display order.
+     */
+    let orderedProviders = $derived.by(() => {
+        const customOrder = app.provider_display_order;
+        
+        // If no custom ordering for this app, return providers as-is
+        if (!customOrder || customOrder.length === 0) {
+            return validProviders;
+        }
+        
+        // Sort providers: those in customOrder first (in that order), then the rest
+        const ordered: string[] = [];
+        const remaining: string[] = [];
+        
+        // First, add providers that are in the custom order (preserving custom order)
+        for (const provider of customOrder) {
+            if (validProviders.includes(provider)) {
+                ordered.push(provider);
+            }
+        }
+        
+        // Then, add any providers not in the custom order
+        for (const provider of validProviders) {
+            if (!customOrder.includes(provider)) {
+                remaining.push(provider);
+            }
+        }
+        
+        return [...ordered, ...remaining];
+    });
+    
+    /**
+     * Get the opacity for a provider icon based on its position.
+     * Uses the PROVIDER_ICON_OPACITIES array for decreasing opacity.
+     * 
+     * @param index - The index of the provider icon (0-based)
+     * @returns The opacity value (0-1)
+     */
+    function getProviderIconOpacity(index: number): number {
+        if (index < 0 || index >= PROVIDER_ICON_OPACITIES.length) {
+            return PROVIDER_ICON_OPACITIES[PROVIDER_ICON_OPACITIES.length - 1];
+        }
+        return PROVIDER_ICON_OPACITIES[index];
+    }
+    
     
     /**
      * Get app gradient from theme.css based on app id.
@@ -234,17 +291,19 @@
         <div class="app-icon-container" bind:this={appIconContainer}>
             <!-- Provider icons behind the app icon - first centered, others to the right (max 5) -->
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
-            {#if validProviders.length > 0 && !isSkillCard}
+            <!-- Icons have decreasing opacity from left to right: 1, 0.85, 0.7, 0.55, 0.4 -->
+            {#if orderedProviders.length > 0 && !isSkillCard}
                 <div class="provider-icons-background">
-                    {#each validProviders.slice(0, 5) as provider, index}
+                    {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
                             class="provider-icon-container"
                             class:provider-icon-first={index === 0}
+                            style="opacity: {getProviderIconOpacity(index)}"
                         >
                             <ProviderIcon 
                                 name={provider}
-                            size="30px"
-                        />
+                                size="30px"
+                            />
                         </div>
                     {/each}
                 </div>
@@ -278,12 +337,13 @@
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
-    {#if isSkillCard && validProviders.length > 0}
-        {@const displayedProviders = validProviders.slice(0, 3)}
+    <!-- Skill cards show max 3 providers with decreasing opacity -->
+    {#if isSkillCard && orderedProviders.length > 0}
+        {@const displayedProviders = orderedProviders.slice(0, 3)}
         <div class="skill-providers">
             <span class="via-text">via</span>
-            {#each displayedProviders as provider}
-                <div class="skill-provider-icon">
+            {#each displayedProviders as provider, index}
+                <div class="skill-provider-icon" style="opacity: {getProviderIconOpacity(index)}">
                     <ProviderIcon name={provider} size="30px" />
                 </div>
             {/each}
@@ -451,7 +511,7 @@
         display: flex;
         align-items: center;
         flex-shrink: 0;
-        opacity: 1; /* Full opacity for skill provider icons (unlike app cards) */
+        /* Opacity is now set dynamically via inline style for decreasing opacity effect */
     }
     
 </style>

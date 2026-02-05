@@ -16,7 +16,8 @@
     borderColor = undefined,
     onClick = undefined,
     className = '',
-    noMargin = false
+    noMargin = false,
+    noAnimation = false
   }: {
     name?: string;
     type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder';
@@ -30,6 +31,7 @@
     onClick?: (() => void) | undefined;
     className?: string;
     noMargin?: boolean;
+    noAnimation?: boolean;
   } = $props();
 
   // Create a reactive variable for the lowercase name using $derived (Svelte 5 runes mode)
@@ -119,6 +121,8 @@
     type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
     // Add placeholder class
     type === 'placeholder' ? 'placeholder-icon' : '',
+    // Add no-animation class to disable fade-in animation
+    noAnimation ? 'no-animation' : '',
     // The rest remains unchanged
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
@@ -274,6 +278,8 @@
     --icon-url-3dmodels: url('@openmates/ui/static/icons/3dmodels.svg');
     --icon-url-activism: url('@openmates/ui/static/icons/activism.svg');
     --icon-url-ai: url('@openmates/ui/static/icons/ai.svg');
+    --icon-url-alibaba: url('@openmates/ui/static/icons/alibaba.svg');
+    --icon-url-anthropic: url('@openmates/ui/static/icons/anthropic.svg');
     --icon-url-announcement: url('@openmates/ui/static/icons/announcement.svg');
     --icon-url-anonym: url('@openmates/ui/static/icons/anonym.svg');
     --icon-url-app: url('@openmates/ui/static/icons/app.svg');
@@ -351,6 +357,7 @@
     --icon-url-proton-authenticator: url('@openmates/ui/static/icons/proton-authenticator.svg');
     --icon-url-minus: url('@openmates/ui/static/icons/minus.svg');
     --icon-url-mistral: url('@openmates/ui/static/icons/mistral.svg');
+    --icon-url-mistral_ai: url('@openmates/ui/static/icons/mistral.svg');
     --icon-url-modify: url('@openmates/ui/static/icons/create.svg');
     --icon-url-money: url('@openmates/ui/static/icons/money.svg');
     --icon-url-movies: url('@openmates/ui/static/icons/movies.svg');
@@ -419,6 +426,7 @@
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
     --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
+    --icon-url-zai: url('@openmates/ui/static/icons/zai.svg');
     --icon-url-context7: url('@openmates/ui/static/icons/context7.svg');
   }
 
@@ -621,5 +629,12 @@
   
   .icon.placeholder-icon::before {
     background-image: none;
+  }
+
+  /* No animation - icon is immediately visible without fade-in */
+  .icon.no-animation {
+    opacity: 1 !important;
+    animation: none !important;
+    animation-delay: 0 !important;
   }
 </style>

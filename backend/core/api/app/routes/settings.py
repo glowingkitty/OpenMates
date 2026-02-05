@@ -23,7 +23,7 @@ from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -329,6 +329,62 @@ async def update_user_darkmode(
     except Exception as e:
         logger.error(f"Error updating dark mode for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred while updating dark mode setting")
+
+
+# --- Endpoint for updating user timezone ---
+@router.post("/user/timezone", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
+@limiter.limit("30/minute")  # Prevent abuse of timezone updates
+async def update_user_timezone(
+    request: Request,
+    request_data: TimezoneUpdateRequest,  # Use Pydantic model for request body validation
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Updates the user's timezone setting.
+    
+    Timezone should be in IANA format (e.g., 'Europe/Berlin', 'America/New_York').
+    This is typically auto-detected from the browser on login, but users can
+    manually set a different timezone in their account settings.
+    """
+    user_id = current_user.id
+    new_timezone = request_data.timezone
+    logger.info(f"Updating timezone for user {user_id} to {new_timezone}")
+
+    # Validate timezone format (IANA timezone names)
+    # Common valid timezones are like 'Europe/Berlin', 'America/New_York', 'UTC'
+    if not new_timezone or len(new_timezone) > 64:
+        raise HTTPException(status_code=400, detail="Invalid timezone provided")
+    
+    # Basic validation - timezone should contain letters and possibly / or _
+    # More thorough validation would check against pytz.all_timezones
+    if not all(c.isalnum() or c in '/_+-' for c in new_timezone):
+        raise HTTPException(status_code=400, detail="Invalid timezone format")
+
+    update_data = {"timezone": new_timezone}
+
+    try:
+        # Update Directus
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            logger.error(f"Failed to update Directus for timezone setting for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to save timezone setting")
+
+        # Update Cache
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            logger.warning(f"Failed to update cache for user {user_id} after timezone update, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after timezone update.")
+
+        return SimpleSuccessResponse(success=True, message="Timezone setting updated successfully")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating timezone for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating timezone setting")
 
 
 # --- Endpoint for disabling 2FA ---

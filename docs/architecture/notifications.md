@@ -1,10 +1,18 @@
 # Notifications architecture
 
+> **Status**: ✅ In-app notifications implemented | 🚧 Push notifications in progress  
+> **Last Updated**: 2026-02-02
+
 ![Notifications](../images/notifications.jpg)
 
 ## Overview
 
-The notification system provides web app notifications (toasts/alerts) and PWA (Progressive Web App) system notifications for the web app. All notification types use the same shared `Notification.svelte` component for consistent UI/UX.
+The notification system provides two types of notifications:
+
+1. **In-app notifications (toasts/alerts)**: Displayed within the web app UI using the `Notification.svelte` component
+2. **Push notifications (PWA/OS-level)**: System notifications that appear in the browser/OS notification center, even when the app is in the background
+
+All notification types use the same visual design language for consistency.
 
 **Current Scope**: Notifications are currently implemented only for the web app/PWA.
 
@@ -81,21 +89,142 @@ Additional notification types to be implemented over time:
      - Password change notifications
      - Two-factor authentication events
 
-## PWA Notifications
+## Push Notifications (PWA/OS-Level)
 
-For the Progressive Web App (PWA) implementation, we utilize native browser notification APIs to provide system-level notifications for important events. This ensures users receive notifications even when the application is not in focus.
+Push notifications allow users to receive notifications even when the OpenMates web app is not in the foreground. This includes support for:
+
+- Browser notifications (Chrome, Firefox, Safari, Edge)
+- PWA notifications on mobile (Android, iOS when added to home screen)
+- Notification center integration on all platforms
 
 ### Platform Support
 
-- **Web/Android**: Uses the standard Web Notifications API
-- **iOS**: Apple has its own implementation for PWA notifications (requires specific configuration and user permission)
+| Platform                     | Support    | Notes                                                                           |
+| ---------------------------- | ---------- | ------------------------------------------------------------------------------- |
+| **Chrome/Edge (Desktop)**    | ✅ Full    | Standard Web Push API                                                           |
+| **Firefox (Desktop)**        | ✅ Full    | Standard Web Push API                                                           |
+| **Safari (macOS)**           | ✅ Full    | Requires HTTPS, uses Web Push API (Safari 16+)                                  |
+| **Android (Chrome/Firefox)** | ✅ Full    | Works as PWA or in browser                                                      |
+| **iOS Safari**               | ⚠️ Limited | **Must be added to home screen as PWA first**, then permission can be requested |
 
-### Important Notifications (PWA)
+### iOS PWA Requirements
 
-The following notification types trigger PWA system notifications (in addition to web app notifications):
+For iOS devices, push notifications have specific requirements:
+
+1. **Must be installed as PWA**: User must tap "Add to Home Screen" in Safari share menu
+2. **Permission request timing**: Can only request permission after a user gesture (tap/click)
+3. **Background limitations**: Notifications only work when app is in background, not when completely closed
+4. **No service worker persistence**: iOS aggressively terminates service workers
+
+### Permission Request Flow
+
+#### When to Request Permission
+
+Permission is requested **after the user sends their first message to an assistant** (and we haven't requested permission before). This timing is optimal because:
+
+- User has shown engagement/intent with the app
+- Context is highly relevant (they'll want to know when the assistant replies)
+- Not intrusive on first page load
+- Clear value proposition
+
+#### In-Chat Permission Banner
+
+When the user sends a message, a banner appears in the chat history **between the user message and the pending assistant response**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🔔  Want to receive notifications when your assistant      │
+│      responds? Even when you're not in the app.             │
+│                                                             │
+│  [Enable Notifications]              [Not Yet]              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Banner Behavior:**
+
+- Shows only once per chat (tracked by `pushNotificationBannerShownInChat` in chat state)
+- If user clicks "Not Yet": Banner doesn't show again in **any** chat until next session
+- If user ignores (doesn't interact): Banner may show again in the next chat
+- If user clicks "Enable": Browser permission dialog appears, banner is dismissed
+- Never shows if user has already granted or denied permission at the browser level
+- Never shows multiple times in the same chat
+
+**State Tracking:**
+
+- `pushNotificationStore.bannerDismissedThisSession`: Set to `true` when user clicks "Not Yet"
+- `pushNotificationStore.permissionRequested`: Set to `true` after first permission request
+- Per-chat flag prevents duplicate banners in same chat
+
+### Notification Categories
+
+Users can configure which notifications they want to receive in **Settings > Chat > Notifications**:
+
+| Category             | Description                                                        | Default     |
+| -------------------- | ------------------------------------------------------------------ | ----------- |
+| **New Messages**     | When an assistant completes a response in any chat                 | ✅ Enabled  |
+| **Server Events**    | Important server status changes (connection issues, maintenance)   | ✅ Enabled  |
+| **Software Updates** | When a new version of OpenMates is available (newsletter addition) | ❌ Disabled |
+
+### Settings Menu Structure
+
+A new "Chat" settings category is added with a "Notifications" submenu:
+
+```
+Settings
+├── Usage
+├── Billing
+├── Chat                          ← NEW
+│   └── Notifications             ← NEW
+│       ├── Enable/Disable Push Notifications
+│       ├── New Messages (toggle)
+│       ├── Server Events (toggle)
+│       └── Software Updates (toggle)
+├── Interface
+├── App Store
+├── ...
+```
+
+### Technical Implementation
+
+#### Frontend Components
+
+- `PushNotificationBanner.svelte` - The in-chat permission request banner
+- `SettingsChat.svelte` - Chat settings page
+- `SettingsChatNotifications.svelte` - Notification preferences page
+
+#### Stores
+
+- `pushNotificationStore.ts` - Manages:
+  - `permission`: Current browser permission state ('default' | 'granted' | 'denied')
+  - `enabled`: User's preference to receive push notifications
+  - `preferences`: Object with category toggles (newMessages, serverEvents, softwareUpdates)
+  - `bannerDismissedThisSession`: Whether user clicked "Not Yet" this session
+  - `subscription`: Current PushSubscription object (if any)
+
+#### Service
+
+- `pushNotificationService.ts` - Handles:
+  - `requestPermission()`: Requests browser notification permission
+  - `subscribe()`: Creates push subscription and sends to server
+  - `unsubscribe()`: Removes push subscription
+  - `showNotification()`: Displays a push notification (via service worker)
+  - `checkSupport()`: Detects platform capabilities
+
+#### Service Worker
+
+The service worker (`sw.js`) handles:
+
+- Receiving push events from the server
+- Displaying notifications with appropriate icons and actions
+- Handling notification clicks (navigating to relevant chat)
+- Badge management for unread counts
+
+### Important Notifications (Push)
+
+The following notification types trigger push notifications (in addition to in-app notifications):
 
 1. **New message completed in chat** - Users receive a system notification when their chat message is completed, allowing them to return to the conversation
-2. **Software update available** - Server admins receive system notifications for critical updates
+2. **Software update available** - Server admins receive system notifications for critical updates (opt-in)
 3. **Security-related notifications** (future) - Important security events like logins from other devices will trigger system notifications
 
 ### Reply to Notification (Future Enhancement)
@@ -103,12 +232,14 @@ The following notification types trigger PWA system notifications (in addition t
 We plan to add support for direct replies to notifications at the OS level via PWA functionality on supported platforms. This will allow users to respond to messages directly from system notifications without switching back to the application.
 
 **Planned Features**:
+
 - **macOS**: Users will be able to see notifications in the macOS notification center and reply directly to messages
 - **Windows**: Similar reply functionality for Windows system notifications
 - **Android**: Reply action for Android system notifications
 - **Fallback**: On platforms without native reply support, notifications will open the relevant chat when clicked
 
 **Implementation Approach**:
+
 - Utilize the Notification API's `actions` property to add a reply action button
 - Integrate with platform-specific notification features (e.g., reply boxes in macOS and Windows)
 - Send the reply directly to the server with context about which chat/conversation it belongs to
@@ -116,19 +247,21 @@ We plan to add support for direct replies to notifications at the OS level via P
 
 ### Implementation Notes
 
-- PWA notifications require user permission (requested on first use)
+- Push notifications require user permission (requested contextually after first message)
 - Notifications should be actionable when possible (e.g., clicking a notification opens the relevant chat or page)
 - Notification content should be concise but informative
-- Respect user preferences for notification types (users may want to disable certain notification categories)
+- Respect user preferences for notification types (configurable in Settings > Chat > Notifications)
 - Reply-to-notification will be prioritized for message notifications first, with potential expansion to other notification types
+- Server must support Web Push Protocol (VAPID keys required)
 
 ## Integration with PWA & Offline Support
 
 Notifications are implemented together with PWA (Progressive Web App) and offline support for the web app. This allows:
 
-- Notifications to work even when the app is in the background
+- Push notifications to work even when the app is in the background
 - Offline mode notifications to inform users about connection status
 - Cross-platform consistency in notification behavior (including iOS devices via PWA)
+- Service worker caching for offline notification display
 
 ## Use Cases
 
@@ -143,3 +276,28 @@ Notifications can be used for optional social media posts and promotions, allowi
 ### Alternative Communication Channel
 
 The notification system serves as an alternative to social media and email for users who prefer not to use those platforms, providing a direct communication channel within the application.
+
+## Key Files
+
+### Frontend
+
+- [`Notification.svelte`](../../frontend/packages/ui/src/components/Notification.svelte) - In-app notification component
+- [`ChatMessageNotification.svelte`](../../frontend/packages/ui/src/components/ChatMessageNotification.svelte) - Chat message notification with reply input
+- [`PushNotificationBanner.svelte`](../../frontend/packages/ui/src/components/PushNotificationBanner.svelte) - In-chat permission request banner
+- [`pushNotificationStore.ts`](../../frontend/packages/ui/src/stores/pushNotificationStore.ts) - Push notification state management
+- [`pushNotificationService.ts`](../../frontend/packages/ui/src/services/pushNotificationService.ts) - Web Push API integration
+- [`notificationStore.ts`](../../frontend/packages/ui/src/stores/notificationStore.ts) - In-app notification state
+- [`SettingsChat.svelte`](../../frontend/packages/ui/src/components/settings/SettingsChat.svelte) - Chat settings page
+- [`SettingsChatNotifications.svelte`](../../frontend/packages/ui/src/components/settings/chat/SettingsChatNotifications.svelte) - Notification preferences
+
+### i18n
+
+- [`notifications.yml`](../../frontend/packages/ui/src/i18n/sources/notifications.yml) - Notification translations
+
+---
+
+## Read Next
+
+- [Sync Architecture](./sync.md) - How chat data is synchronized
+- [Message Processing](./message_processing.md) - How AI messages are processed
+- [Web App Architecture](./web_app.md) - Overall web app structure

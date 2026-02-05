@@ -414,7 +414,9 @@ export async function convertChatToYaml(
       } else {
         // This is an encrypted draft - decrypt it
         const { decryptWithMasterKey } = await import("./cryptoService");
-        const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
+        const decryptedDraft = await decryptWithMasterKey(
+          chat.encrypted_draft_md,
+        );
         if (decryptedDraft) {
           yamlData.chat.draft = decryptedDraft;
           console.debug(
@@ -448,6 +450,27 @@ export async function convertChatToYaml(
 }
 
 /**
+ * Safely converts a timestamp to ISO string
+ * Handles undefined, null, NaN, and both seconds and milliseconds timestamps
+ * @param timestamp - The timestamp to convert (may be seconds or milliseconds)
+ * @returns ISO string or null if timestamp is invalid
+ */
+function safeTimestampToISO(
+  timestamp: number | undefined | null,
+): string | null {
+  if (timestamp === undefined || timestamp === null || isNaN(timestamp)) {
+    return null;
+  }
+  // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
+  const timestampMs = timestamp < 1e12 ? timestamp * 1000 : timestamp;
+  try {
+    return new Date(timestampMs).toISOString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Converts a single message to YAML format
  *
  * Includes thinking content for thinking models (Gemini, Anthropic Claude, etc.)
@@ -456,15 +479,10 @@ export async function convertChatToYaml(
  */
 async function convertMessageToYaml(message: Message): Promise<any> {
   try {
-    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
-    // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
-    const timestampMs =
-      message.created_at < 1e12
-        ? message.created_at * 1000
-        : message.created_at;
     const messageData: any = {
       role: message.role,
-      completed_at: new Date(timestampMs).toISOString(), // When the message was completed
+      completed_at:
+        safeTimestampToISO(message.created_at) ?? new Date().toISOString(), // Fallback to now if timestamp is invalid
     };
 
     // Add assistant category if available
@@ -504,7 +522,7 @@ async function convertMessageToYaml(message: Message): Promise<any> {
           const chatKey = chatDB.getChatKey(message.chat_id);
           if (chatKey) {
             const { decryptWithChatKey } = await import("./cryptoService");
-            const decryptedThinking = decryptWithChatKey(
+            const decryptedThinking = await decryptWithChatKey(
               message.encrypted_thinking_content,
               chatKey,
             );
@@ -538,14 +556,10 @@ async function convertMessageToYaml(message: Message): Promise<any> {
     return messageData;
   } catch (error) {
     console.error("[ChatExportService] Error processing message:", error);
-    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
-    const errorTimestampMs =
-      message.created_at < 1e12
-        ? message.created_at * 1000
-        : message.created_at;
     return {
       role: message.role,
-      completed_at: new Date(errorTimestampMs).toISOString(),
+      completed_at:
+        safeTimestampToISO(message.created_at) ?? new Date().toISOString(),
       content: "[Error processing message]",
     };
   }

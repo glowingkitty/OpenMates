@@ -24,11 +24,17 @@ directus_users:
       type: boolean
       note: "Is dark mode enabled?"
 
+    timezone:
+      type: string
+      length: 64
+      nullable: true
+      note: "User's timezone (IANA format, e.g., 'Europe/Berlin', 'America/New_York'). Auto-detected from browser on login, can be manually set in account settings. Used for reminders, scheduling, and time-sensitive features."
+
     encrypted_email_address:
       type: string
       length: 512
       note: "Encrypted email address (encrypted with email_encryption_key for server use)"
-    
+
     encrypted_email_with_master_key:
       type: string
       length: 512
@@ -100,22 +106,22 @@ directus_users:
       type: string
       length: 256
       note: "Timestamp of when 2FA was last successfully used"
-    
+
     consent_tfa_safely_stored_timestamp:
       type: string
       length: 256
       note: "Timestamp of when the user consented to store 2FA safely"
-      
+
     hashed_email:
       type: string
       length: 256
       note: "SHA-256 hash of the email address for user lookup during login"
-      
+
     user_email_salt:
       type: string
       length: 256
       note: "Salt used for client-side email encryption (base64)"
-      
+
     lookup_hashes:
       type: json
       note: "Array of SHA-256 hashes of email+login_secret for zero-knowledge authentication across different login methods"
@@ -145,31 +151,31 @@ directus_users:
       type: string
       length: 512
       note: "Encrypted Stripe payment_method ID for monthly auto top-up subscriptions"
-    
+
     stripe_customer_id:
       type: string
       length: 255
       note: "Stripe customer ID (not sensitive, safe as cleartext)"
-    
+
     stripe_subscription_id:
       type: string
       length: 255
       note: "Stripe subscription ID for active monthly auto top-up (not sensitive, safe as cleartext)"
-    
+
     subscription_status:
       type: string
       length: 50
       note: "Status of the subscription (active, canceled, past_due, etc.)"
-    
+
     subscription_credits:
       type: integer
       note: "Base credits amount for the monthly subscription (used to lookup tier in pricing.yml)"
-    
+
     subscription_currency:
       type: string
       length: 3
       note: "Currency for the subscription (eur, usd, jpy)"
-    
+
     next_billing_date:
       type: string
       length: 256
@@ -210,6 +216,21 @@ directus_users:
     encrypted_top_recommended_apps:
       type: text
       note: "[Encrypted] Array of top 5 recommended app IDs for this user, encrypted using user's master key. Aggregated client-side from recent chat recommendations. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
+
+    # Push notification fields
+    push_notification_enabled:
+      type: boolean
+      default: false
+      note: "Whether the user has enabled push notifications"
+
+    push_notification_subscription:
+      type: text
+      note: "Serialized JSON of the Web Push subscription object (endpoint, keys). Stored as text since it contains sensitive keys."
+
+    push_notification_preferences:
+      type: json
+      note: "User's notification preferences: { newMessages: boolean, serverEvents: boolean, softwareUpdates: boolean }"
+      default: '{"newMessages": true, "serverEvents": true, "softwareUpdates": false}'
 
     # Payment tier system fields
     payment_tier:
