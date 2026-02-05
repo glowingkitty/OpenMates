@@ -14,16 +14,16 @@
 
   /* Common ::before styles for all icons */
   &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-size: 50%;
-      filter: brightness(0) invert(1);
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 50%;
+    filter: brightness(0) invert(1);
   }
 }
 
@@ -42,9 +42,9 @@
   width: 44px;
   height: 44px;
   position: relative;
-  
+
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -63,146 +63,173 @@
 /* Generic icon masking - new approach that works with any icon name */
 [class*="subsetting_icon"] {
   &::after {
-    -webkit-mask-image: var(--icon-mask-image, url('@openmates/ui/static/icons/team.svg'));
-    mask-image: var(--icon-mask-image, url('@openmates/ui/static/icons/team.svg'));
+    -webkit-mask-image: var(
+      --icon-mask-image,
+      url("@openmates/ui/static/icons/team.svg")
+    );
+    mask-image: var(
+      --icon-mask-image,
+      url("@openmates/ui/static/icons/team.svg")
+    );
   }
 }
 
 /* Define specific icon masks using CSS variables */
 .subsetting_icon.team {
-  --icon-mask-image: url('@openmates/ui/static/icons/team.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/team.svg");
 }
 
 .subsetting_icon.incognito {
-  --icon-mask-image: url('@openmates/ui/static/icons/anonym.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/anonym.svg");
 }
 
 .subsetting_icon.guest {
-  --icon-mask-image: url('@openmates/ui/static/icons/guest.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/guest.svg");
 }
 
 .subsetting_icon.offline {
-  --icon-mask-image: url('@openmates/ui/static/icons/offline.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/offline.svg");
 }
 
 .subsetting_icon.logout {
-  --icon-mask-image: url('@openmates/ui/static/icons/logout.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/logout.svg");
 }
 
 .subsetting_icon.language {
-  --icon-mask-image: url('@openmates/ui/static/icons/language.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/language.svg");
 }
 
 .subsetting_icon.security {
-  --icon-mask-image: url('@openmates/ui/static/icons/lock.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/lock.svg");
 }
 
 .subsetting_icon.volunteering {
-  --icon-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+  --icon-mask-image: url("@openmates/ui/static/icons/volunteering.svg");
 }
 
 /* Add new modify icon for the subsubmenu items */
 .clickable-icon.icon_modify {
-  -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
-  mask-image: url('@openmates/ui/static/icons/create.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/create.svg");
+  mask-image: url("@openmates/ui/static/icons/create.svg");
 }
 
 /* Keep existing classes for backward compatibility */
 .subsetting_icon_team {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-    mask-image: url('@openmates/ui/static/icons/team.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/team.svg");
+    mask-image: url("@openmates/ui/static/icons/team.svg");
   }
 }
 
 .subsetting_icon_incognito {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/anonym.svg');
-    mask-image: url('@openmates/ui/static/icons/anonym.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/anonym.svg");
+    mask-image: url("@openmates/ui/static/icons/anonym.svg");
   }
 }
 
 .subsetting_icon_guest {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/guest.svg');
-    mask-image: url('@openmates/ui/static/icons/guest.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/guest.svg");
+    mask-image: url("@openmates/ui/static/icons/guest.svg");
   }
 }
 
 .subsetting_icon_offline {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/offline.svg');
-    mask-image: url('@openmates/ui/static/icons/offline.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/offline.svg");
+    mask-image: url("@openmates/ui/static/icons/offline.svg");
   }
 }
 
 .subsetting_icon_logout {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/logout.svg');
-    mask-image: url('@openmates/ui/static/icons/logout.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/logout.svg");
+    mask-image: url("@openmates/ui/static/icons/logout.svg");
   }
 }
 
 .subsetting_icon_language {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
-    mask-image: url('@openmates/ui/static/icons/language.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
+    mask-image: url("@openmates/ui/static/icons/language.svg");
   }
 }
 
 .subsetting_icon_settings {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
-    mask-image: url('@openmates/ui/static/icons/settings.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/settings.svg");
+    mask-image: url("@openmates/ui/static/icons/settings.svg");
   }
 }
 
 .subsetting_icon_security {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
-    mask-image: url('@openmates/ui/static/icons/lock.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
+    mask-image: url("@openmates/ui/static/icons/lock.svg");
   }
 }
 
 .subsetting_icon_volunteering {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
-    mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/volunteering.svg");
+    mask-image: url("@openmates/ui/static/icons/volunteering.svg");
   }
 }
 
 .subsetting_icon_download {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/download.svg');
-    mask-image: url('@openmates/ui/static/icons/download.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/download.svg");
+    mask-image: url("@openmates/ui/static/icons/download.svg");
   }
 }
 
 .subsetting_icon_coins {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/coins.svg');
-    mask-image: url('@openmates/ui/static/icons/coins.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
+    mask-image: url("@openmates/ui/static/icons/coins.svg");
   }
 }
 
 .subsetting_icon_reload {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/reload.svg');
-    mask-image: url('@openmates/ui/static/icons/reload.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
+    mask-image: url("@openmates/ui/static/icons/reload.svg");
   }
 }
 
 .subsetting_icon_document {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/pdf.svg');
-    mask-image: url('@openmates/ui/static/icons/pdf.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/pdf.svg");
+    mask-image: url("@openmates/ui/static/icons/pdf.svg");
   }
 }
 
 .subsetting_icon_calendar {
   &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
-    mask-image: url('@openmates/ui/static/icons/calendar.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
+    mask-image: url("@openmates/ui/static/icons/calendar.svg");
+  }
+}
+
+.subsetting_icon_announcement {
+  &::after {
+    -webkit-mask-image: url("@openmates/ui/static/icons/announcement.svg");
+    mask-image: url("@openmates/ui/static/icons/announcement.svg");
+  }
+}
+
+.subsetting_icon_chat {
+  &::after {
+    -webkit-mask-image: url("@openmates/ui/static/icons/chat.svg");
+    mask-image: url("@openmates/ui/static/icons/chat.svg");
+  }
+}
+
+.subsetting_icon_cloud {
+  &::after {
+    -webkit-mask-image: url("@openmates/ui/static/icons/cloud.svg");
+    mask-image: url("@openmates/ui/static/icons/cloud.svg");
   }
 }
 /* 
@@ -252,306 +279,336 @@ div.clickable-icon {
 }
 
 .clickable-icon.icon_files {
-  -webkit-mask-image: url('@openmates/ui/static/icons/files.svg');
-  mask-image: url('@openmates/ui/static/icons/files.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/files.svg");
+  mask-image: url("@openmates/ui/static/icons/files.svg");
 }
 
 .clickable-icon.icon_camera {
-  -webkit-mask-image: url('@openmates/ui/static/icons/camera.svg');
-  mask-image: url('@openmates/ui/static/icons/camera.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/camera.svg");
+  mask-image: url("@openmates/ui/static/icons/camera.svg");
 }
 
 .clickable-icon.icon_recordaudio {
-  -webkit-mask-image: url('@openmates/ui/static/icons/recordaudio.svg');
-  mask-image: url('@openmates/ui/static/icons/recordaudio.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/recordaudio.svg");
+  mask-image: url("@openmates/ui/static/icons/recordaudio.svg");
   /* Add transition for smooth color change */
   transition: background-color 0.3s ease-out;
 }
 
 .clickable-icon.icon_download {
-  -webkit-mask-image: url('@openmates/ui/static/icons/download.svg');
-  mask-image: url('@openmates/ui/static/icons/download.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/download.svg");
+  mask-image: url("@openmates/ui/static/icons/download.svg");
 }
 
 .clickable-icon.icon_fullscreen {
-  -webkit-mask-image: url('@openmates/ui/static/icons/fullscreen.svg');
-  mask-image: url('@openmates/ui/static/icons/fullscreen.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/fullscreen.svg");
+  mask-image: url("@openmates/ui/static/icons/fullscreen.svg");
 }
 
 .clickable-icon.icon_minimize {
-  -webkit-mask-image: url('@openmates/ui/static/icons/minimize.svg');
-  mask-image: url('@openmates/ui/static/icons/minimize.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/minimize.svg");
+  mask-image: url("@openmates/ui/static/icons/minimize.svg");
 }
 
 .clickable-icon.icon_delete {
-  -webkit-mask-image: url('@openmates/ui/static/icons/delete.svg');
-  mask-image: url('@openmates/ui/static/icons/delete.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/delete.svg");
+  mask-image: url("@openmates/ui/static/icons/delete.svg");
 }
 
 .clickable-icon.icon_copy {
-  -webkit-mask-image: url('@openmates/ui/static/icons/copy.svg');
-  mask-image: url('@openmates/ui/static/icons/copy.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/copy.svg");
+  mask-image: url("@openmates/ui/static/icons/copy.svg");
 }
 
 .clickable-icon.icon_close {
-  -webkit-mask-image: url('@openmates/ui/static/icons/close.svg');
-  mask-image: url('@openmates/ui/static/icons/close.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/close.svg");
+  mask-image: url("@openmates/ui/static/icons/close.svg");
 }
 
 .clickable-icon.icon_menu {
-  -webkit-mask-image: url('@openmates/ui/static/icons/menu.svg');
-  mask-image: url('@openmates/ui/static/icons/menu.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/menu.svg");
+  mask-image: url("@openmates/ui/static/icons/menu.svg");
 }
 
 .clickable-icon.icon_back {
-  -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
-  mask-image: url('@openmates/ui/static/icons/back.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/back.svg");
+  mask-image: url("@openmates/ui/static/icons/back.svg");
 }
 
 .clickable-icon.icon_chat {
-  -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
-  mask-image: url('@openmates/ui/static/icons/chat.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/chat.svg");
+  mask-image: url("@openmates/ui/static/icons/chat.svg");
 }
 
 .clickable-icon.icon_close_up {
-  -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
-  mask-image: url('@openmates/ui/static/icons/back.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/back.svg");
+  mask-image: url("@openmates/ui/static/icons/back.svg");
   transform: rotate(90deg); /* Rotate 45 degrees to point up */
 }
 
 .clickable-icon.icon_search {
-  -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
-  mask-image: url('@openmates/ui/static/icons/search.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/search.svg");
+  mask-image: url("@openmates/ui/static/icons/search.svg");
 }
 
 .clickable-icon.icon_call {
-  -webkit-mask-image: url('@openmates/ui/static/icons/audiocall.svg');
-  mask-image: url('@openmates/ui/static/icons/audiocall.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/audiocall.svg");
+  mask-image: url("@openmates/ui/static/icons/audiocall.svg");
 }
 
 .clickable-icon.icon_video_call {
-  -webkit-mask-image: url('@openmates/ui/static/icons/videocall.svg');
-  mask-image: url('@openmates/ui/static/icons/videocall.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/videocall.svg");
+  mask-image: url("@openmates/ui/static/icons/videocall.svg");
 }
 
 .clickable-icon.icon_share {
-  -webkit-mask-image: url('@openmates/ui/static/icons/share.svg');
-  mask-image: url('@openmates/ui/static/icons/share.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/share.svg");
+  mask-image: url("@openmates/ui/static/icons/share.svg");
 }
 
 .clickable-icon.icon_create {
-  -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
-  mask-image: url('@openmates/ui/static/icons/create.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/create.svg");
+  mask-image: url("@openmates/ui/static/icons/create.svg");
 }
 
 .clickable-icon.icon_select {
-  -webkit-mask-image: url('@openmates/ui/static/icons/select.svg');
-  mask-image: url('@openmates/ui/static/icons/select.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/select.svg");
+  mask-image: url("@openmates/ui/static/icons/select.svg");
 }
 
 .clickable-icon.icon_filter {
-  -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
-  mask-image: url('@openmates/ui/static/icons/filter.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/filter.svg");
+  mask-image: url("@openmates/ui/static/icons/filter.svg");
 }
 
 .clickable-icon.icon_maps {
-  -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
-  mask-image: url('@openmates/ui/static/icons/maps.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/maps.svg");
+  mask-image: url("@openmates/ui/static/icons/maps.svg");
 }
 
 .clickable-icon.icon_location {
-  -webkit-mask-image: url('@openmates/ui/static/icons/current_location.svg');
-  mask-image: url('@openmates/ui/static/icons/current_location.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/current_location.svg");
+  mask-image: url("@openmates/ui/static/icons/current_location.svg");
 }
 
 .clickable-icon.icon_play {
-  -webkit-mask-image: url('@openmates/ui/static/icons/play.svg');
-  mask-image: url('@openmates/ui/static/icons/play.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/play.svg");
+  mask-image: url("@openmates/ui/static/icons/play.svg");
 }
 
 .clickable-icon.icon_pause {
-  -webkit-mask-image: url('@openmates/ui/static/icons/pause.svg');
-  mask-image: url('@openmates/ui/static/icons/pause.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/pause.svg");
+  mask-image: url("@openmates/ui/static/icons/pause.svg");
 }
 
 .clickable-icon.icon_stop_processing {
-  -webkit-mask-image: url('@openmates/ui/static/icons/stop_processing.svg');
-  mask-image: url('@openmates/ui/static/icons/stop_processing.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/stop_processing.svg");
+  mask-image: url("@openmates/ui/static/icons/stop_processing.svg");
 }
 
 .clickable-icon.icon_plus {
-  -webkit-mask-image: url('@openmates/ui/static/icons/plus.svg');
-  mask-image: url('@openmates/ui/static/icons/plus.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/plus.svg");
+  mask-image: url("@openmates/ui/static/icons/plus.svg");
 }
 
 .clickable-icon.icon_minus {
-  -webkit-mask-image: url('@openmates/ui/static/icons/minus.svg');
-  mask-image: url('@openmates/ui/static/icons/minus.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/minus.svg");
+  mask-image: url("@openmates/ui/static/icons/minus.svg");
 }
 
 .clickable-icon.icon_mail {
-  -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
-  mask-image: url('@openmates/ui/static/icons/mail.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/mail.svg");
+  mask-image: url("@openmates/ui/static/icons/mail.svg");
 }
 
 .clickable-icon.icon_language {
-  -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
-  mask-image: url('@openmates/ui/static/icons/language.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
+  mask-image: url("@openmates/ui/static/icons/language.svg");
 }
 
 .clickable-icon.icon_settings {
-  -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
-  mask-image: url('@openmates/ui/static/icons/settings.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/settings.svg");
+  mask-image: url("@openmates/ui/static/icons/settings.svg");
 }
 .clickable-icon.icon_volunteering {
-  -webkit-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
-  mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/volunteering.svg");
+  mask-image: url("@openmates/ui/static/icons/volunteering.svg");
 }
 .clickable-icon.icon_pip {
-  -webkit-mask-image: url('@openmates/ui/static/icons/pip.svg');
-  mask-image: url('@openmates/ui/static/icons/pip.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/pip.svg");
+  mask-image: url("@openmates/ui/static/icons/pip.svg");
 }
 .clickable-icon.icon_secret {
-  -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
-  mask-image: url('@openmates/ui/static/icons/secret.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/secret.svg");
+  mask-image: url("@openmates/ui/static/icons/secret.svg");
 }
 
 .clickable-icon.icon_passkey {
-  -webkit-mask-image: url('@openmates/ui/static/icons/passkey.svg');
-  mask-image: url('@openmates/ui/static/icons/passkey.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/passkey.svg");
+  mask-image: url("@openmates/ui/static/icons/passkey.svg");
 }
 
 .clickable-icon.icon_password {
-  -webkit-mask-image: url('@openmates/ui/static/icons/password.svg');
-  mask-image: url('@openmates/ui/static/icons/password.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/password.svg");
+  mask-image: url("@openmates/ui/static/icons/password.svg");
 }
 
 .clickable-icon.icon_back {
-  -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
-  mask-image: url('@openmates/ui/static/icons/back.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/back.svg");
+  mask-image: url("@openmates/ui/static/icons/back.svg");
 }
 
 .clickable-icon.icon_web {
-  -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
-  mask-image: url('@openmates/ui/static/icons/web.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/web.svg");
+  mask-image: url("@openmates/ui/static/icons/web.svg");
 }
 
 .clickable-icon.icon_user {
-  -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
-  mask-image: url('@openmates/ui/static/icons/user.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/user.svg");
+  mask-image: url("@openmates/ui/static/icons/user.svg");
 }
 
 .clickable-icon.icon_2fa {
-  -webkit-mask-image: url('@openmates/ui/static/icons/2fa.svg');
-  mask-image: url('@openmates/ui/static/icons/2fa.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/2fa.svg");
+  mask-image: url("@openmates/ui/static/icons/2fa.svg");
 }
 
 .clickable-icon.icon_text {
-  -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
-  mask-image: url('@openmates/ui/static/icons/text.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/text.svg");
+  mask-image: url("@openmates/ui/static/icons/text.svg");
 }
 
 .clickable-icon.icon_warning {
-  -webkit-mask-image: url('@openmates/ui/static/icons/warning.svg');
-  mask-image: url('@openmates/ui/static/icons/warning.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/warning.svg");
+  mask-image: url("@openmates/ui/static/icons/warning.svg");
 }
 
 .clickable-icon.icon_image {
-  -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
-  mask-image: url('@openmates/ui/static/icons/image.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/image.svg");
+  mask-image: url("@openmates/ui/static/icons/image.svg");
 }
 
 .clickable-icon.icon_hidden {
-  -webkit-mask-image: url('@openmates/ui/static/icons/hidden.svg');
-  mask-image: url('@openmates/ui/static/icons/hidden.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/hidden.svg");
+  mask-image: url("@openmates/ui/static/icons/hidden.svg");
 }
 
 .clickable-icon.icon_pin {
-  -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-  mask-image: url('@openmates/ui/static/icons/pin.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/pin.svg");
+  mask-image: url("@openmates/ui/static/icons/pin.svg");
 }
 
 .clickable-icon.icon_pin_off {
-  -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-  mask-image: url('@openmates/ui/static/icons/pin.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/pin.svg");
+  mask-image: url("@openmates/ui/static/icons/pin.svg");
 }
 
 .clickable-icon.icon_unhide {
-  -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
-  mask-image: url('@openmates/ui/static/icons/visible.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/visible.svg");
+  mask-image: url("@openmates/ui/static/icons/visible.svg");
 }
 
 .clickable-icon.icon_visible {
-  -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
-  mask-image: url('@openmates/ui/static/icons/visible.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/visible.svg");
+  mask-image: url("@openmates/ui/static/icons/visible.svg");
 }
 
 .clickable-icon.icon_billing {
-  -webkit-mask-image: url('@openmates/ui/static/icons/billing.svg');
-  mask-image: url('@openmates/ui/static/icons/billing.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/billing.svg");
+  mask-image: url("@openmates/ui/static/icons/billing.svg");
 }
 
 .clickable-icon.icon_calendar {
-  -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
-  mask-image: url('@openmates/ui/static/icons/calendar.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
+  mask-image: url("@openmates/ui/static/icons/calendar.svg");
 }
 
 .clickable-icon.icon_lock {
-  -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
-  mask-image: url('@openmates/ui/static/icons/lock.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
+  mask-image: url("@openmates/ui/static/icons/lock.svg");
 }
 
 .clickable-icon.icon_server {
-  -webkit-mask-image: url('@openmates/ui/static/icons/server.svg');
-  mask-image: url('@openmates/ui/static/icons/server.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/server.svg");
+  mask-image: url("@openmates/ui/static/icons/server.svg");
 }
 
 .clickable-icon.icon_question {
-  -webkit-mask-image: url('@openmates/ui/static/icons/question.svg');
-  mask-image: url('@openmates/ui/static/icons/question.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/question.svg");
+  mask-image: url("@openmates/ui/static/icons/question.svg");
 }
 
 .clickable-icon.icon_project {
-  -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-  mask-image: url('@openmates/ui/static/icons/project.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/project.svg");
+  mask-image: url("@openmates/ui/static/icons/project.svg");
 }
 
 .clickable-icon.icon_thumbsup {
-  -webkit-mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
-  mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/thumbsup.svg");
+  mask-image: url("@openmates/ui/static/icons/thumbsup.svg");
 }
 
 .clickable-icon.icon_thumbsdown {
-  -webkit-mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
-  mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/thumbsup.svg");
+  mask-image: url("@openmates/ui/static/icons/thumbsup.svg");
   transform: rotate(180deg);
 }
 
 .clickable-icon.icon_task {
-  -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-  mask-image: url('@openmates/ui/static/icons/task.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/task.svg");
+  mask-image: url("@openmates/ui/static/icons/task.svg");
 }
 
 .clickable-icon.icon_bug {
-  -webkit-mask-image: url('@openmates/ui/static/icons/bug.svg');
-  mask-image: url('@openmates/ui/static/icons/bug.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/bug.svg");
+  mask-image: url("@openmates/ui/static/icons/bug.svg");
   mask-size: contain;
   -webkit-mask-size: contain;
 }
 
 .clickable-icon.icon_github {
-  -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
-  mask-image: url('@openmates/ui/static/icons/github.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/github.svg");
+  mask-image: url("@openmates/ui/static/icons/github.svg");
 }
 
 .clickable-icon.icon_instagram {
-  -webkit-mask-image: url('@openmates/ui/static/icons/instagram.svg');
-  mask-image: url('@openmates/ui/static/icons/instagram.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/instagram.svg");
+  mask-image: url("@openmates/ui/static/icons/instagram.svg");
 }
 
 .clickable-icon.icon_quote {
-  -webkit-mask-image: url('@openmates/ui/static/icons/quote.svg');
-  mask-image: url('@openmates/ui/static/icons/quote.svg');
+  -webkit-mask-image: url("@openmates/ui/static/icons/quote.svg");
+  mask-image: url("@openmates/ui/static/icons/quote.svg");
+}
+
+.clickable-icon.icon_announcement {
+  -webkit-mask-image: url("@openmates/ui/static/icons/announcement.svg");
+  mask-image: url("@openmates/ui/static/icons/announcement.svg");
+}
+
+.clickable-icon.icon_cloud {
+  -webkit-mask-image: url("@openmates/ui/static/icons/cloud.svg");
+  mask-image: url("@openmates/ui/static/icons/cloud.svg");
+}
+
+.clickable-icon.icon_check {
+  -webkit-mask-image: url("@openmates/ui/static/icons/check.svg");
+  mask-image: url("@openmates/ui/static/icons/check.svg");
+}
+
+.clickable-icon.icon_logout {
+  -webkit-mask-image: url("@openmates/ui/static/icons/logout.svg");
+  mask-image: url("@openmates/ui/static/icons/logout.svg");
+}
+
+.clickable-icon.icon_reload {
+  -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
+  mask-image: url("@openmates/ui/static/icons/reload.svg");
+}
+
+.clickable-icon.icon_ai {
+  -webkit-mask-image: url("@openmates/ui/static/icons/ai.svg");
+  mask-image: url("@openmates/ui/static/icons/ai.svg");
 }
 
 .help-button {
@@ -570,15 +627,15 @@ div.clickable-icon {
   }
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
     background-color: white;
-    -webkit-mask-image: url('@openmates/ui/static/icons/question.svg');
-    mask-image: url('@openmates/ui/static/icons/question.svg');
+    -webkit-mask-image: url("@openmates/ui/static/icons/question.svg");
+    mask-image: url("@openmates/ui/static/icons/question.svg");
     -webkit-mask-size: 50%;
     mask-size: 50%;
     -webkit-mask-position: center;
@@ -597,7 +654,7 @@ div.clickable-icon {
   left: 0px;
   z-index: 2;
   &::after {
-    content: '';
+    content: "";
     background-position: center;
     background-repeat: no-repeat;
     background-size: 25px 25px;
@@ -614,124 +671,124 @@ div.clickable-icon {
 .icon_rounded.file {
   background: var(--color-app-files);
   &::after {
-    background-image: url('@openmates/ui/static/icons/files.svg');
+    background-image: url("@openmates/ui/static/icons/files.svg");
   }
 }
 
 .icon_rounded.photos {
   background: var(--color-app-photos);
   &::after {
-    background-image: url('@openmates/ui/static/icons/image.svg');
+    background-image: url("@openmates/ui/static/icons/image.svg");
   }
 }
 
 .icon_rounded.photos_recording {
   background: var(--color-app-photos);
   &::after {
-    background-image: url('@openmates/ui/static/icons/camera.svg');
+    background-image: url("@openmates/ui/static/icons/camera.svg");
   }
 }
 
 .icon_rounded.pdf {
   background: var(--color-app-pdfeditor);
   &::after {
-    background-image: url('@openmates/ui/static/icons/pdf.svg');
+    background-image: url("@openmates/ui/static/icons/pdf.svg");
   }
 }
 
 .icon_rounded.web {
   background: var(--color-app-web);
   &::after {
-    background-image: url('@openmates/ui/static/icons/web.svg');
+    background-image: url("@openmates/ui/static/icons/web.svg");
   }
 }
 
 .icon_rounded.news {
   background: var(--color-app-news);
   &::after {
-    background-image: url('@openmates/ui/static/icons/news.svg');
+    background-image: url("@openmates/ui/static/icons/news.svg");
   }
 }
 
 .icon_rounded.recording {
   background: var(--color-app-audio);
   &::after {
-    background-image: url('@openmates/ui/static/icons/recordaudio.svg');
+    background-image: url("@openmates/ui/static/icons/recordaudio.svg");
   }
 }
 
 .icon_rounded.audio {
   background: var(--color-app-audio);
   &::after {
-    background-image: url('@openmates/ui/static/icons/audio.svg');
+    background-image: url("@openmates/ui/static/icons/audio.svg");
   }
 }
 
 .icon_rounded.videos {
   background: var(--color-app-videos);
   &::after {
-    background-image: url('@openmates/ui/static/icons/videos.svg');
+    background-image: url("@openmates/ui/static/icons/videos.svg");
   }
 }
 
 .icon_rounded.video_recording {
   background: var(--color-app-videos);
   &::after {
-    background-image: url('@openmates/ui/static/icons/camera.svg');
+    background-image: url("@openmates/ui/static/icons/camera.svg");
   }
 }
 
 .icon_rounded.code {
   background: var(--color-app-code);
   &::after {
-    background-image: url('@openmates/ui/static/icons/coding.svg');
+    background-image: url("@openmates/ui/static/icons/coding.svg");
   }
 }
 
 .icon_rounded.maps {
   background: var(--color-app-maps);
   &::after {
-    background-image: url('@openmates/ui/static/icons/maps.svg');
+    background-image: url("@openmates/ui/static/icons/maps.svg");
   }
 }
 
 .icon_rounded.book {
   background: var(--color-app-books);
   &::after {
-    background-image: url('@openmates/ui/static/icons/book.svg');
+    background-image: url("@openmates/ui/static/icons/book.svg");
   }
 }
 
 /* Skill icons - used in app skill previews for specific skill types */
 .icon_rounded.search {
   /* Search skill icon - grey background, search icon */
-  background: var(--color-grey-50, #8E8E93);
+  background: var(--color-grey-50, #8e8e93);
   &::after {
-    background-image: url('@openmates/ui/static/icons/search.svg');
+    background-image: url("@openmates/ui/static/icons/search.svg");
   }
 }
 
 .icon_rounded.get_transcript {
   /* Video transcript skill icon */
-  background: var(--color-grey-50, #8E8E93);
+  background: var(--color-grey-50, #8e8e93);
   &::after {
-    background-image: url('@openmates/ui/static/icons/videos.svg');
+    background-image: url("@openmates/ui/static/icons/videos.svg");
   }
 }
 
 .icon_rounded.read {
   /* Web read skill icon */
-  background: var(--color-grey-50, #8E8E93);
+  background: var(--color-grey-50, #8e8e93);
   &::after {
-    background-image: url('@openmates/ui/static/icons/book.svg');
+    background-image: url("@openmates/ui/static/icons/book.svg");
   }
 }
 
 .icon_rounded.view {
   /* Web view skill icon - use visible icon instead of eye */
-  background: var(--color-grey-50, #8E8E93);
+  background: var(--color-grey-50, #8e8e93);
   &::after {
-    background-image: url('@openmates/ui/static/icons/visible.svg');
+    background-image: url("@openmates/ui/static/icons/visible.svg");
   }
 }
 
@@ -742,7 +799,6 @@ div.clickable-icon {
     border-radius: 14px;
   }
 }
-
 
 @media (max-width: 600px) {
   .icon.in_header {
@@ -771,18 +827,19 @@ div.clickable-icon {
 /* Add the animation keyframes */
 @keyframes fadeInIcon {
   from {
-      opacity: 0;
-      transform: scale(0.95);
+    opacity: 0;
+    transform: scale(0.95);
   }
   to {
-      opacity: 1;
-      transform: scale(1);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
 .skill-icon {
   &::before {
-      filter: brightness(0) saturate(100%) invert(70%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
+    filter: brightness(0) saturate(100%) invert(70%) sepia(0%) saturate(0%)
+      hue-rotate(153deg) brightness(89%) contrast(85%);
   }
 }
 
@@ -792,104 +849,104 @@ div.clickable-icon {
 
 .provider-icon {
   &::before {
-      filter: none;
+    filter: none;
   }
 }
 
 .powered_by_ai {
   &::after {
-      content: '';
-      position: absolute;
-      bottom: 5px;
-      right: 5px;
-      width: 20px;
-      height: 20px;
+    content: "";
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
 
-      /* Overlay the gradient color */
-      background: var(--color-primary);
-      -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-      mask-image: url('@openmates/ui/static/icons/ai.svg');
-      mask-size: contain;
-      mask-repeat: no-repeat;
-      mask-position: center;
+    /* Overlay the gradient color */
+    background: var(--color-primary);
+    -webkit-mask-image: url("@openmates/ui/static/icons/ai.svg");
+    mask-image: url("@openmates/ui/static/icons/ai.svg");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
   }
 }
 
 /* Icons */
 .icon_mattermost {
-  background-image: url('@openmates/ui/static/icons/mattermost.svg');
+  background-image: url("@openmates/ui/static/icons/mattermost.svg");
 }
 
 .icon_discord {
-  background-image: url('@openmates/ui/static/icons/discord.svg');
+  background-image: url("@openmates/ui/static/icons/discord.svg");
 }
 
 .icon_instagram {
-  background-image: url('@openmates/ui/static/icons/instagram.svg');
+  background-image: url("@openmates/ui/static/icons/instagram.svg");
 }
 
 .icon_mastodon {
-  background-image: url('@openmates/ui/static/icons/mastodon.svg');
+  background-image: url("@openmates/ui/static/icons/mastodon.svg");
 }
 
 .icon_slack {
-  background-image: url('@openmates/ui/static/icons/slack.svg');
+  background-image: url("@openmates/ui/static/icons/slack.svg");
 }
 
 .icon_web {
-  background-image: url('@openmates/ui/static/icons/web.svg');
+  background-image: url("@openmates/ui/static/icons/web.svg");
 }
 
 .icon_github {
-  background-image: url('@openmates/ui/static/icons/github.svg');
+  background-image: url("@openmates/ui/static/icons/github.svg");
 }
 
 .icon_opencollective {
-  background-image: url('@openmates/ui/static/icons/opencollective.svg');
+  background-image: url("@openmates/ui/static/icons/opencollective.svg");
 }
 
 .icon_calendar {
-  background-image: url('@openmates/ui/static/icons/calendar.svg');
+  background-image: url("@openmates/ui/static/icons/calendar.svg");
 }
 
 .icon_eu {
-  background-image: url('@openmates/ui/static/icons/eu.svg');
+  background-image: url("@openmates/ui/static/icons/eu.svg");
 }
 
 .icon_us {
-  background-image: url('@openmates/ui/static/icons/us.svg');
+  background-image: url("@openmates/ui/static/icons/us.svg");
 }
 
 .icon_lock {
-  background-image: url('@openmates/ui/static/icons/lock.svg');
+  background-image: url("@openmates/ui/static/icons/lock.svg");
 }
 
 .icon_anonym {
-  background-image: url('@openmates/ui/static/icons/anonym.svg');
+  background-image: url("@openmates/ui/static/icons/anonym.svg");
 }
 
 .icon_laptop {
-  background-image: url('@openmates/ui/static/icons/laptop.svg');
+  background-image: url("@openmates/ui/static/icons/laptop.svg");
 }
 
 .icon_server {
-  background-image: url('@openmates/ui/static/icons/server.svg');
+  background-image: url("@openmates/ui/static/icons/server.svg");
 }
 
 .icon_open_source {
-  background-image: url('@openmates/ui/static/icons/opensource.svg');
+  background-image: url("@openmates/ui/static/icons/opensource.svg");
 }
 
 .icon_ai {
-  background-image: url('@openmates/ui/static/icons/ai.svg');
+  background-image: url("@openmates/ui/static/icons/ai.svg");
 }
 
 .icon_chat {
-  background-image: url('@openmates/ui/static/icons/chat.svg');
+  background-image: url("@openmates/ui/static/icons/chat.svg");
 }
 
 .icon_open {
-  background-image: url('@openmates/ui/static/icons/open.svg');
+  background-image: url("@openmates/ui/static/icons/open.svg");
 }
 
 /* OpenMates Endpoint Icons */
@@ -898,45 +955,44 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/app.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/app.svg");
+    background-size: 55%;
   }
-
 }
 
 .icon.billing {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/billing.svg');
+    background-image: url("@openmates/ui/static/icons/billing.svg");
   }
 }
 
 .icon.refund {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/reload.svg');
+    background-image: url("@openmates/ui/static/icons/reload.svg");
   }
 }
 
 .icon.gift_cards {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/gift.svg');
+    background-image: url("@openmates/ui/static/icons/gift.svg");
   }
 }
 
 .icon.focus {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/insight.svg');
+    background-image: url("@openmates/ui/static/icons/insight.svg");
   }
 }
 
 .icon.embed {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/embed.svg');
+    background-image: url("@openmates/ui/static/icons/embed.svg");
   }
 }
 
@@ -944,50 +1000,50 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/legal.svg');
-      background-size: 60%;
+    background-image: url("@openmates/ui/static/icons/legal.svg");
+    background-size: 60%;
   }
 }
 
 .icon.reload {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/reload.svg');
+    background-image: url("@openmates/ui/static/icons/reload.svg");
   }
 }
 
 .icon.heart {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/heart.svg');
+    background-image: url("@openmates/ui/static/icons/heart.svg");
   }
 }
 
 .icon.create {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/create.svg');
+    background-image: url("@openmates/ui/static/icons/create.svg");
   }
 }
 
 .icon.business {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/business.svg');
+    background-image: url("@openmates/ui/static/icons/business.svg");
   }
 }
 
 .icon.home {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/home.svg');
+    background-image: url("@openmates/ui/static/icons/home.svg");
   }
 }
 
 .icon.app {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/app.svg');
+    background-image: url("@openmates/ui/static/icons/app.svg");
   }
 }
 
@@ -995,25 +1051,27 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      /* Base user icon */
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image: url('@openmates/ui/static/icons/user.svg');
-      background-size: 50%;
-      background-position: center;
-      background-repeat: no-repeat;
-      filter: brightness(0) invert(1);
-      /* Create a mask using the AI icon - reduced size from 35% to 25% */
-      -webkit-mask: url('@openmates/ui/static/icons/user.svg') center 50% no-repeat,
-                   url('@openmates/ui/static/icons/ai.svg') center 67%/20% no-repeat;
-      -webkit-mask-composite: source-out;
-      mask: url('@openmates/ui/static/icons/user.svg') center 50% no-repeat,
-            url('@openmates/ui/static/icons/ai.svg') center 67%/20% no-repeat;
-      mask-composite: subtract;
+    /* Base user icon */
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("@openmates/ui/static/icons/user.svg");
+    background-size: 50%;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: brightness(0) invert(1);
+    /* Create a mask using the AI icon - reduced size from 35% to 25% */
+    -webkit-mask:
+      url("@openmates/ui/static/icons/user.svg") center 50% no-repeat,
+      url("@openmates/ui/static/icons/ai.svg") center 67%/20% no-repeat;
+    -webkit-mask-composite: source-out;
+    mask:
+      url("@openmates/ui/static/icons/user.svg") center 50% no-repeat,
+      url("@openmates/ui/static/icons/ai.svg") center 67%/20% no-repeat;
+    mask-composite: subtract;
   }
 }
 
@@ -1021,7 +1079,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/chat.svg');
+    background-image: url("@openmates/ui/static/icons/chat.svg");
   }
 }
 
@@ -1029,7 +1087,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/project.svg');
+    background-image: url("@openmates/ui/static/icons/project.svg");
   }
 }
 
@@ -1037,7 +1095,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/lock.svg');
+    background-image: url("@openmates/ui/static/icons/lock.svg");
   }
 }
 
@@ -1045,7 +1103,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/share.svg');
+    background-image: url("@openmates/ui/static/icons/share.svg");
   }
 }
 
@@ -1053,7 +1111,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/server.svg');
+    background-image: url("@openmates/ui/static/icons/server.svg");
   }
 }
 
@@ -1061,7 +1119,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/question.svg');
+    background-image: url("@openmates/ui/static/icons/question.svg");
   }
 }
 
@@ -1069,7 +1127,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/download.svg');
+    background-image: url("@openmates/ui/static/icons/download.svg");
   }
 }
 
@@ -1077,8 +1135,8 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/skill.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/skill.svg");
+    background-size: 55%;
   }
 }
 
@@ -1086,7 +1144,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/task.svg');
+    background-image: url("@openmates/ui/static/icons/task.svg");
   }
 }
 
@@ -1094,7 +1152,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/usage.svg');
+    background-image: url("@openmates/ui/static/icons/usage.svg");
   }
 }
 
@@ -1102,7 +1160,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/team.svg');
+    background-image: url("@openmates/ui/static/icons/team.svg");
   }
 }
 
@@ -1110,7 +1168,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/user.svg');
+    background-image: url("@openmates/ui/static/icons/user.svg");
   }
 }
 
@@ -1118,7 +1176,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/user.svg');
+    background-image: url("@openmates/ui/static/icons/user.svg");
   }
 }
 
@@ -1126,14 +1184,14 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/lock.svg');
+    background-image: url("@openmates/ui/static/icons/lock.svg");
   }
 }
 
 .icon.delete {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/delete.svg');
+    background-image: url("@openmates/ui/static/icons/delete.svg");
   }
 }
 
@@ -1141,7 +1199,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/passkey.svg');
+    background-image: url("@openmates/ui/static/icons/passkey.svg");
   }
 }
 
@@ -1149,7 +1207,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/workflow.svg');
+    background-image: url("@openmates/ui/static/icons/workflow.svg");
   }
 }
 
@@ -1157,7 +1215,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/chat.svg');
+    background-image: url("@openmates/ui/static/icons/chat.svg");
   }
 }
 
@@ -1165,7 +1223,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/coding.svg');
+    background-image: url("@openmates/ui/static/icons/coding.svg");
   }
 }
 
@@ -1173,7 +1231,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/language.svg');
+    background-image: url("@openmates/ui/static/icons/language.svg");
   }
 }
 
@@ -1181,7 +1239,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/app.svg');
+    background-image: url("@openmates/ui/static/icons/app.svg");
   }
 }
 
@@ -1189,7 +1247,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/share.svg');
+    background-image: url("@openmates/ui/static/icons/share.svg");
   }
 }
 
@@ -1197,28 +1255,28 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/language.svg');
+    background-image: url("@openmates/ui/static/icons/language.svg");
   }
 }
 
 .icon.coins {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/coins.svg');
+    background-image: url("@openmates/ui/static/icons/coins.svg");
   }
 }
 
 .icon.reload {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/reload.svg');
+    background-image: url("@openmates/ui/static/icons/reload.svg");
   }
 }
 
 .icon.calendar {
   background: var(--color-primary);
   &::before {
-      background-image: url('@openmates/ui/static/icons/calendar.svg');
+    background-image: url("@openmates/ui/static/icons/calendar.svg");
   }
 }
 /* 
@@ -1233,7 +1291,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/2fa.svg');
+    background-image: url("@openmates/ui/static/icons/2fa.svg");
   }
 }
 
@@ -1241,7 +1299,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/password.svg');
+    background-image: url("@openmates/ui/static/icons/password.svg");
   }
 }
 
@@ -1250,7 +1308,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/warning.svg');
+    background-image: url("@openmates/ui/static/icons/warning.svg");
   }
 }
 
@@ -1258,7 +1316,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/secret.svg');
+    background-image: url("@openmates/ui/static/icons/secret.svg");
   }
 }
 
@@ -1266,7 +1324,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/warning.svg');
+    background-image: url("@openmates/ui/static/icons/warning.svg");
   }
 }
 
@@ -1274,7 +1332,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/text.svg');
+    background-image: url("@openmates/ui/static/icons/text.svg");
   }
 }
 
@@ -1282,7 +1340,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/reminder.svg');
+    background-image: url("@openmates/ui/static/icons/reminder.svg");
   }
 }
 
@@ -1290,7 +1348,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/settings.svg');
+    background-image: url("@openmates/ui/static/icons/settings.svg");
   }
 }
 
@@ -1298,7 +1356,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/mail.svg');
+    background-image: url("@openmates/ui/static/icons/mail.svg");
   }
 }
 
@@ -1306,7 +1364,7 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/volunteering.svg');
+    background-image: url("@openmates/ui/static/icons/volunteering.svg");
   }
 }
 
@@ -1314,422 +1372,524 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-      background-image: url('@openmates/ui/static/icons/bug.svg');
+    background-image: url("@openmates/ui/static/icons/bug.svg");
   }
 }
 
 /* App Icons */
 .icon.app-ai {
   background: var(--color-app-ai);
-  &::before { background-image: url('@openmates/ui/static/icons/ai.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/ai.svg");
+  }
 }
 
 .icon.app-audio {
   background: var(--color-app-audio);
-  &::before { background-image: url('@openmates/ui/static/icons/audio.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/audio.svg");
+  }
 }
 
 .icon.app-beauty {
   background: var(--color-app-beauty);
-  &::before { background-image: url('@openmates/ui/static/icons/beauty.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/beauty.svg");
+  }
 }
 
 .icon.app-books {
   background: var(--color-app-books);
-  &::before { background-image: url('@openmates/ui/static/icons/book.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/book.svg");
+  }
 }
 
 .icon.app-business {
   background: var(--color-app-business);
-  &::before { background-image: url('@openmates/ui/static/icons/business.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/business.svg");
+  }
 }
 
 .icon.app-calculator {
   background: var(--color-app-calculator);
-  &::before { background-image: url('@openmates/ui/static/icons/calculator.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/calculator.svg");
+  }
 }
 
 .icon.app-calendar {
   background: var(--color-app-calendar);
-  &::before { background-image: url('@openmates/ui/static/icons/calendar.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/calendar.svg");
+  }
 }
 
 .icon.app-code {
   background: var(--color-app-code);
-  &::before { background-image: url('@openmates/ui/static/icons/coding.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/coding.svg");
+  }
 }
 
 .icon.app-contacts {
   background: var(--color-app-contacts);
-  &::before { background-image: url('@openmates/ui/static/icons/contact.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/contact.svg");
+  }
 }
 
 .icon.app-design {
   background: var(--color-app-design);
-  &::before { background-image: url('@openmates/ui/static/icons/design.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/design.svg");
+  }
 }
 
 .icon.app-diagrams {
   background: var(--color-app-diagrams);
-  &::before { background-image: url('@openmates/ui/static/icons/diagram.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/diagram.svg");
+  }
 }
 
 .icon.app-docs {
   background: var(--color-app-docs);
-  &::before { background-image: url('@openmates/ui/static/icons/docs.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/docs.svg");
+  }
 }
 
 .icon.app-events {
   background: var(--color-app-events);
-  &::before { background-image: url('@openmates/ui/static/icons/event.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/event.svg");
+  }
 }
 
 .icon.app-fashion {
   background: var(--color-app-fashion);
-  &::before { background-image: url('@openmates/ui/static/icons/fashion.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/fashion.svg");
+  }
 }
 
 .icon.app-files {
   background: var(--color-app-files);
-  &::before { background-image: url('@openmates/ui/static/icons/files.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/files.svg");
+  }
 }
 
 .icon.app-finance {
   background: var(--color-app-finance);
-  &::before { background-image: url('@openmates/ui/static/icons/money.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/money.svg");
+  }
 }
 
 .icon.app-fitness {
   background: var(--color-app-fitness);
-  &::before { background-image: url('@openmates/ui/static/icons/fitness.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/fitness.svg");
+  }
 }
 
 .icon.app-games {
   background: var(--color-app-games);
-  &::before { background-image: url('@openmates/ui/static/icons/games.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/games.svg");
+  }
 }
 
 .icon.app-health {
   background: var(--color-app-health);
-  &::before { background-image: url('@openmates/ui/static/icons/heart.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/heart.svg");
+  }
 }
 
 .icon.app-home {
   background: var(--color-app-home);
-  &::before { background-image: url('@openmates/ui/static/icons/home.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/home.svg");
+  }
 }
 
 .icon.app-hosting {
   background: var(--color-app-hosting);
-  &::before { background-image: url('@openmates/ui/static/icons/server.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/server.svg");
+  }
 }
 
 .icon.app-jobs {
   background: var(--color-app-jobs);
-  &::before { background-image: url('@openmates/ui/static/icons/job.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/job.svg");
+  }
 }
 
 .icon.app-legal {
   background: var(--color-app-legal);
   &::before {
-      background-image: url('@openmates/ui/static/icons/legal.svg');
-      background-size: 60%;
+    background-image: url("@openmates/ui/static/icons/legal.svg");
+    background-size: 60%;
   }
 }
 
 .icon.app-lifecoaching {
   background: var(--color-app-life_coaching);
-  &::before { background-image: url('@openmates/ui/static/icons/lifecoaching.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/lifecoaching.svg");
+  }
 }
 
 .icon.app-mail {
   background: var(--color-app-mail);
-  &::before { background-image: url('@openmates/ui/static/icons/mail.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/mail.svg");
+  }
 }
 
 .icon.app-maps {
   background: var(--color-app-maps);
-  &::before { background-image: url('@openmates/ui/static/icons/maps.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/maps.svg");
+  }
 }
 
 .icon.app-messages {
   background: var(--color-app-messages);
-  &::before { background-image: url('@openmates/ui/static/icons/chat.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/chat.svg");
+  }
 }
 
 .icon.app-movies {
   background: var(--color-app-movies);
-  &::before { background-image: url('@openmates/ui/static/icons/movies.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/movies.svg");
+  }
 }
 
 .icon.app-news {
   background: var(--color-app-news);
-  &::before { background-image: url('@openmates/ui/static/icons/news.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/news.svg");
+  }
 }
 
 .icon.app-notes {
   background: var(--color-app-notes);
-  &::before { background-image: url('@openmates/ui/static/icons/notes.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/notes.svg");
+  }
 }
 
 .icon.app-nutrition {
   background: var(--color-app-nutrition);
-  &::before { 
-      background-image: url('@openmates/ui/static/icons/nutrition.svg');
-      background-size: 80%;
+  &::before {
+    background-image: url("@openmates/ui/static/icons/nutrition.svg");
+    background-size: 80%;
   }
 }
 
 .icon.app-pcbdesign {
   background: var(--color-app-pcbdesign);
-  &::before { background-image: url('@openmates/ui/static/icons/pcbdesign.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/pcbdesign.svg");
+  }
 }
 
 .icon.app-pdfeditor {
   background: var(--color-app-pdfeditor);
-  &::before { background-image: url('@openmates/ui/static/icons/pdf.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/pdf.svg");
+  }
 }
 
 .icon.app-photos {
   background: var(--color-app-photos);
-  &::before { background-image: url('@openmates/ui/static/icons/image.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/image.svg");
+  }
 }
 
 .icon.app-plants {
   background: var(--color-app-plants);
-  &::before { background-image: url('@openmates/ui/static/icons/plant.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/plant.svg");
+  }
 }
 
 .icon.app-projectmanagement {
   background: var(--color-app-projectmanagement);
-  &::before { background-image: url('@openmates/ui/static/icons/projectmanagement.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/projectmanagement.svg");
+  }
 }
 
 .icon.app-publishing {
   background: var(--color-app-publishing);
-  &::before { background-image: url('@openmates/ui/static/icons/publishing.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/publishing.svg");
+  }
 }
 
 .icon.app-reminder {
   background: var(--color-app-reminder);
-  &::before { background-image: url('@openmates/ui/static/icons/reminder.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/reminder.svg");
+  }
 }
 
 .icon.app-secrets {
   background: var(--color-app-secrets);
-  &::before { background-image: url('@openmates/ui/static/icons/secret.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/secret.svg");
+  }
 }
 
 .icon.app-sheets {
   background: var(--color-app-sheets);
-  &::before { background-image: url('@openmates/ui/static/icons/sheets.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/sheets.svg");
+  }
 }
 
 .icon.app-shipping {
   background: var(--color-app-shipping);
-  &::before { background-image: url('@openmates/ui/static/icons/shipping.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/shipping.svg");
+  }
 }
 
 .icon.app-shopping {
   background: var(--color-app-shopping);
-  &::before { background-image: url('@openmates/ui/static/icons/shopping.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/shopping.svg");
+  }
 }
 
 .icon.app-slides {
   background: var(--color-app-slides);
-  &::before { background-image: url('@openmates/ui/static/icons/slides.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/slides.svg");
+  }
 }
 
 .icon.app-socialmedia {
   background: var(--color-app-socialmedia);
-  &::before { background-image: url('@openmates/ui/static/icons/socialmedia.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/socialmedia.svg");
+  }
 }
 
 .icon.app-study {
   background: var(--color-app-study);
-  &::before { background-image: url('@openmates/ui/static/icons/study.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/study.svg");
+  }
 }
 
 .icon.app-time {
   background: var(--color-app-time);
-  &::before { background-image: url('@openmates/ui/static/icons/time.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/time.svg");
+  }
 }
 
 .icon.app-travel {
   background: var(--color-app-travel);
-  &::before { background-image: url('@openmates/ui/static/icons/travel.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/travel.svg");
+  }
 }
 
 .icon.app-tv {
   background: var(--color-app-tv);
-  &::before { background-image: url('@openmates/ui/static/icons/tv.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/tv.svg");
+  }
 }
 
 .icon.app-videos {
   background: var(--color-app-videos);
-  &::before { background-image: url('@openmates/ui/static/icons/videos.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/videos.svg");
+  }
 }
 
 .icon.app-weather {
   background: var(--color-app-weather);
   &::before {
-      background-image: url('@openmates/ui/static/icons/weather.svg');
-      background-size: 60%;
+    background-image: url("@openmates/ui/static/icons/weather.svg");
+    background-size: 60%;
   }
 }
 
 .icon.app-web {
   background: var(--color-app-web);
-  &::before { background-image: url('@openmates/ui/static/icons/web.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/web.svg");
+  }
 }
 
 .icon.app-whiteboards {
   background: var(--color-app-whiteboards);
-  &::before { background-image: url('@openmates/ui/static/icons/whiteboard.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/whiteboard.svg");
+  }
 }
 
 .icon.app-language {
   background: var(--color-app-language);
-  &::before { background-image: url('@openmates/ui/static/icons/language.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/language.svg");
+  }
 }
 
 /* Focus Icons */
 .icon.focus-insights {
-  &::before { background-image: url('@openmates/ui/static/icons/insight.svg'); }
+  &::before {
+    background-image: url("@openmates/ui/static/icons/insight.svg");
+  }
 }
 
 /* Skill Icons */
 .icon.skill-create {
   &::before {
-      background-image: url('@openmates/ui/static/icons/create.svg');
-      background-size: 41%;
+    background-image: url("@openmates/ui/static/icons/create.svg");
+    background-size: 41%;
   }
 }
 
 .icon.skill-message {
   &::before {
-      background-image: url('@openmates/ui/static/icons/chat.svg');
-      background-size: 48%;
+    background-image: url("@openmates/ui/static/icons/chat.svg");
+    background-size: 48%;
   }
 }
 
 .icon.skill-search {
   &::before {
-      background-image: url('@openmates/ui/static/icons/search.svg');
+    background-image: url("@openmates/ui/static/icons/search.svg");
   }
 }
 
 .icon.provider-openai {
   &::before {
-      background-image: url('@openmates/ui/static/icons/openai.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/openai.svg");
+    background-size: 55%;
   }
 }
 
 /* Add this new dark mode style */
 @media (prefers-color-scheme: dark) {
   .icon.provider-openai::before {
-      filter: invert(1);
+    filter: invert(1);
   }
 }
 
 .icon.provider-anthropic {
   &::before {
-      background-image: url('@openmates/ui/static/icons/claude.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/claude.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-google {
   &::before {
-      background-image: url('@openmates/ui/static/icons/google.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/google.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-mistral {
   &::before {
-      background-image: url('@openmates/ui/static/icons/mistral.svg');
-      background-size: 50%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/mistral.svg");
+    background-size: 50%;
+    filter: unset;
   }
 }
 
 .icon.provider-meta {
   &::before {
-      background-image: url('@openmates/ui/static/icons/meta.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/meta.svg");
+    background-size: 55%;
   }
 }
 
 .icon.provider-mattermost {
   &::before {
-      background-image: url('@openmates/ui/static/icons/mattermost.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/mattermost.svg");
+    background-size: 55%;
   }
 }
 
 .icon.provider-discord {
   &::before {
-      background-image: url('@openmates/ui/static/icons/discord.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/discord.svg");
+    background-size: 55%;
   }
 }
 
 .icon.provider-slack {
   &::before {
-      background-image: url('@openmates/ui/static/icons/slack.svg');
-      background-size: 55%;
+    background-image: url("@openmates/ui/static/icons/slack.svg");
+    background-size: 55%;
   }
 }
 
 .icon.provider-google-authenticator {
   &::before {
-      background-image: url('@openmates/ui/static/icons/google-authenticator.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/google-authenticator.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-authy {
   &::before {
-      background-image: url('@openmates/ui/static/icons/authy.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/authy.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-microsoft-authenticator {
   &::before {
-      background-image: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/microsoft-authenticator.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-proton-authenticator {
   &::before {
-      background-image: url('@openmates/ui/static/icons/proton-authenticator.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/proton-authenticator.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-tfas {
   &::before {
-      background-image: url('@openmates/ui/static/icons/tfas.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/tfas.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
 .icon.provider-otp-auth {
   &::before {
-      background-image: url('@openmates/ui/static/icons/otp-auth.svg');
-      background-size: 55%;
-      filter: unset;
+    background-image: url("@openmates/ui/static/icons/otp-auth.svg");
+    background-size: 55%;
+    filter: unset;
   }
 }
 
@@ -1753,38 +1913,36 @@ div.clickable-icon {
 
 /* Base Messenger Icon Styles */
 .small-icon {
-    /* Common properties for all messenger icons */
-    width: 24px;
-    height: 24px;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(1);
-    transition: filter 0.2s ease-in-out;
+  /* Common properties for all messenger icons */
+  width: 24px;
+  height: 24px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(100%) brightness(1);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        filter: none;
-    }
+  &:hover {
+    filter: none;
+  }
 }
 
 /* Specific messenger variations */
 .small-icon.icon_mattermost {
-    filter: grayscale(100%) brightness(1.8);
+  filter: grayscale(100%) brightness(1.8);
 }
 
 .small-icon.icon_discord {
-    filter: grayscale(100%) brightness(1.6);
+  filter: grayscale(100%) brightness(1.6);
 }
 
 .small-icon.icon_slack {
-    filter: grayscale(100%) brightness(0.8);
+  filter: grayscale(100%) brightness(0.8);
 }
 
 .small-icon.icon_web {
   filter: grayscale(100%) opacity(0.4);
 }
-
-
 
 .flag {
   width: 60px;
@@ -1796,7 +1954,7 @@ div.clickable-icon {
 
 /* Add style for the recording state */
 .record-button.recording .clickable-icon.icon_recordaudio {
-  background: white;  /* Change to white when recording */
+  background: white; /* Change to white when recording */
 }
 
 .icon.header_size {

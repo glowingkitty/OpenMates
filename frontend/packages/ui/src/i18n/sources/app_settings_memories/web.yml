@@ -21,8 +21,8 @@ bookmarks:
   cs: Záložky
   sv: Bokmärken
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 bookmarks.description:
   context: Description for bookmarks settings/memory
   en: Your bookmarked websites
@@ -46,8 +46,8 @@ bookmarks.description:
   cs: Vaše uložené webové stránky
   sv: Dina bokmärkta webbplatser
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 favorite_websites:
   context: Settings/memory name for favorite websites
   en: Favorite websites
@@ -71,8 +71,8 @@ favorite_websites:
   cs: Oblíbené webové stránky
   sv: Favoritwebbplatser
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 favorite_websites.description:
   context: Description for favorite websites settings/memory
   en: Your favorite websites for quick access
@@ -96,8 +96,8 @@ favorite_websites.description:
   cs: Vaše oblíbené webové stránky pro rychlý přístup
   sv: Dina favoritwebbplatser för snabb åtkomst
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 read_later:
   context: Settings/memory name for read later
   en: Read later
@@ -121,30 +121,30 @@ read_later:
   cs: Přečíst později
   sv: Läs senare
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 read_later.description:
   context: Description for read later settings/memory
-  en: Websites and articles saved for later reading
-  de: Websites und Artikel, die zum späteren Lesen gespeichert wurden
+  en: Websites and articles saved for later
+  de: Websites und Artikel für später gespeichert
   zh: 为稍后阅读而保存的网站和文章
-  es: Sitios web y artículos guardados para leer más tarde
-  fr: Sites web et articles enregistrés pour une lecture ultérieure
-  pt: Sites e artigos salvos para leitura posterior
-  ru: Веб-сайты и статьи, сохраненные для последующего чтения
-  ja: 後で読むために保存されたウェブサイトと記事
-  ko: 나중에 읽기 위해 저장된 웹사이트 및 기사
-  it: Siti web e articoli salvati per la lettura successiva
-  tr: Daha sonra okumak için kaydedilen web siteleri ve makaleler
-  vi: Các trang web và bài viết đã lưu để đọc sau
-  id: Situs web dan artikel yang disimpan untuk dibaca nanti
-  pl: Strony internetowe i artykuły zapisane do późniejszego przeczytania
-  nl: Websites en artikelen opgeslagen voor later lezen
-  ar: المواقع الإلكترونية والمقالات المحفوظة للقراءة لاحقًا
-  hi: बाद में पढ़ने के लिए सहेजे गए वेबसाइट और लेख
-  th: เว็บไซต์และบทความที่บันทึกไว้สำหรับอ่านภายหลัง
-  cs: Webové stránky a články uložené k pozdějšímu přečtení
-  sv: Webbplatser och artiklar sparade för senare läsning
+  es: Sitios y artículos guardados para después
+  fr: Sites et articles enregistrés pour plus tard
+  pt: Sites e artigos salvos para depois
+  ru: Сайты и статьи, сохраненные на потом
+  ja: 後で読むために保存したサイトと記事
+  ko: 나중에 읽기 위해 저장된 사이트 및 기사
+  it: Siti e articoli salvati per dopo
+  tr: Daha sonra okumak için kaydedilen siteler
+  vi: Các trang web và bài viết đã lưu
+  id: Situs dan artikel yang disimpan untuk nanti
+  pl: Strony i artykuły zapisane na później
+  nl: Websites en artikelen opgeslagen voor later
+  ar: المواقع والمقالات المحفوظة للقراءة لاحقًا
+  hi: बाद में पढ़ने के लिए सहेजे गए साइट और लेख
+  th: เว็บไซต์และบทความที่บันทึกไว้สำหรับอ่านทีหลัง
+  cs: Stránky a články uložené na později
+  sv: Webbplatser och artiklar sparade för senare
   verified_by_human:
-  - en
-  - de
+    - en
+    - de

@@ -20,28 +20,28 @@ ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
-  verified_by_human: [en,de]
+  verified_by_human: [en, de]
 
 ask.description:
   context: Description for AI ask skill
-  en: Ask a question, using text, images, and other media.
-  de: Stelle eine Frage mit Text, Bildern und anderen Medien.
+  en: Ask using text, images, and other media.
+  de: Frage mit Text, Bildern und anderen Medien.
   zh: 使用文本、图像和其他媒体提问。
-  es: Haz una pregunta usando texto, imágenes y otros medios.
-  fr: Posez une question en utilisant du texte, des images et d'autres médias.
-  pt: Faça uma pergunta usando texto, imagens e outros meios.
-  ru: Задайте вопрос, используя текст, изображения и другие медиа.
-  ja: テキスト、画像、その他のメディアを使用して質問する。
-  ko: 텍스트, 이미지 및 기타 미디어를 사용하여 질문하세요.
-  it: Fai una domanda usando testo, immagini e altri media.
-  tr: Metin, resimler ve diğer medya kullanarak soru sorun.
-  vi: Đặt câu hỏi bằng văn bản, hình ảnh và các phương tiện khác.
-  id: Ajukan pertanyaan menggunakan teks, gambar, dan media lainnya.
-  pl: Zadaj pytanie używając tekstu, obrazów i innych mediów.
-  nl: Stel een vraag met tekst, afbeeldingen en andere media.
-  ar: اطرح سؤالاً باستخدام النص والصور والوسائط الأخرى.
-  hi: पाठ, छवियों और अन्य मीडिया का उपयोग करके एक प्रश्न पूछें।
-  th: ถามคำถามโดยใช้ข้อความ รูปภาพ และสื่ออื่นๆ
-  cs: Položte otázku pomocí textu, obrázků a dalších médií.
-  sv: Ställ en fråga med text, bilder och annat media.
-  verified_by_human: [en,de]
+  es: Pregunta con texto, imágenes y otros medios.
+  fr: Demandez avec texte, images et autres médias.
+  pt: Pergunte com texto, imagens e outros meios.
+  ru: Спросите с текстом, изображениями и медиа.
+  ja: テキスト、画像、その他のメディアで質問。
+  ko: 텍스트, 이미지, 미디어로 질문하세요.
+  it: Chiedi con testo, immagini e altri media.
+  tr: Metin, resim ve diğer medya ile sorun.
+  vi: Hỏi bằng văn bản, hình ảnh và phương tiện khác.
+  id: Tanya dengan teks, gambar, dan media lainnya.
+  pl: Pytaj tekstem, obrazami i innymi mediami.
+  nl: Vraag met tekst, afbeeldingen en andere media.
+  ar: اسأل بالنص والصور والوسائط الأخرى.
+  hi: टेक्स्ट, छवियों और अन्य मीडिया से पूछें।
+  th: ถามด้วยข้อความ รูปภาพ และสื่ออื่นๆ
+  cs: Ptejte se textem, obrázky a dalšími médii.
+  sv: Fråga med text, bilder och annat media.
+  verified_by_human: [en, de]

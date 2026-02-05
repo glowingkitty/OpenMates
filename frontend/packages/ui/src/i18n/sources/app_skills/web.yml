@@ -21,8 +21,8 @@ search:
   cs: Hledat
   sv: Sök
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 search.description:
   context: Description for web search skill
   en: Search the web.
@@ -46,8 +46,8 @@ search.description:
   cs: Hledat na webu.
   sv: Sök på webben.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 read:
   context: Skill name for web read
   en: Read
@@ -71,30 +71,30 @@ read:
   cs: Číst
   sv: Läsa
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 read.description:
   context: Description for web read skill
   en: Browse websites, research topics & more.
-  de: Websites durchsuchen, Themen recherchieren & mehr.
+  de: Websites durchsuchen, Themen recherchieren.
   zh: 浏览网站、研究主题等。
-  es: Navegar por sitios web, investigar temas y más.
-  fr: Parcourir des sites web, rechercher des sujets et plus encore.
-  pt: Navegar em sites, pesquisar tópicos e muito mais.
-  ru: Просматривать веб-сайты, исследовать темы и многое другое.
-  ja: ウェブサイトを閲覧し、トピックを調査するなど。
-  ko: 웹사이트를 탐색하고 주제를 조사하세요.
-  it: Sfoglia siti web, ricerca argomenti e altro ancora.
-  tr: Web sitelerini göz atın, konuları araştırın ve daha fazlası.
-  vi: Duyệt các trang web, nghiên cứu chủ đề và hơn thế nữa.
-  id: Jelajahi situs web, teliti topik & lainnya.
-  pl: Przeglądaj strony internetowe, badaj tematy i nie tylko.
-  nl: Blader door websites, onderzoek onderwerpen en meer.
-  ar: تصفح المواقع، وابحث عن المواضيع والمزيد.
-  hi: वेबसाइट ब्राउज़ करें, विषयों पर शोध करें और अधिक।
-  th: เรียกดูเว็บไซต์ วิจัยหัวข้อ และอื่นๆ
-  cs: Procházejte webové stránky, zkoumejte témata a další.
-  sv: Bläddra på webbplatser, forskning om ämnen och mer.
+  es: Navegar webs, investigar temas y más.
+  fr: Parcourez des sites, recherchez des sujets.
+  pt: Navegue em sites, pesquise tópicos.
+  ru: Просматривайте сайты, исследуйте темы.
+  ja: サイトを閲覧し、トピックを調査。
+  ko: 웹사이트 탐색, 주제 조사 등.
+  it: Sfoglia siti, ricerca argomenti e altro.
+  tr: Siteleri tarayın, konuları araştırın.
+  vi: Duyệt trang web, nghiên cứu chủ đề.
+  id: Jelajahi situs web, teliti topik.
+  pl: Przeglądaj strony, badaj tematy.
+  nl: Blader door websites, onderzoek onderwerpen.
+  ar: تصفح المواقع، ابحث عن المواضيع.
+  hi: वेबसाइट ब्राउज़ करें, विषय शोध करें।
+  th: เรียกดูเว็บไซต์ วิจัยหัวข้อ
+  cs: Procházejte weby, zkoumejte témata.
+  sv: Bläddra på webbplatser, forska ämnen.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de

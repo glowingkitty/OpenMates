@@ -12,6 +12,7 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
+  import { getModelDisplayName } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import { isPublicChat } from '../demo_chats/convertToChat';
@@ -1075,7 +1076,7 @@
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: model_name } })}</div>
+        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</div>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}

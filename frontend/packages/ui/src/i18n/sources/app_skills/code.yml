@@ -75,26 +75,26 @@ clean_repo:
     - de
 clean_repo.description:
   context: Description for clean repo skill
-  en: Check the local repo and its code for unused imports, functions, variables - and auto remove them.
-  de: Überprüfe das lokale Repository und seinen Code auf ungenutzte Importe, Funktionen, Variablen - und entferne sie automatisch.
-  zh: 检查本地仓库及其代码中未使用的导入、函数、变量 - 并自动删除它们。
-  es: Verifica el repositorio local y su código en busca de importaciones, funciones y variables no utilizadas, y elimínalas automáticamente.
-  fr: Vérifiez le dépôt local et son code pour les imports, fonctions et variables non utilisés - et supprimez-les automatiquement.
-  pt: Verifique o repositório local e seu código em busca de importações, funções e variáveis não utilizadas - e remova-as automaticamente.
-  ru: Проверьте локальный репозиторий и его код на наличие неиспользуемых импортов, функций, переменных - и автоматически удалите их.
-  ja: ローカルリポジトリとそのコードで未使用のインポート、関数、変数をチェックし、自動的に削除します。
-  ko: 로컬 저장소와 코드에서 사용하지 않는 가져오기, 함수, 변수를 확인하고 자동으로 제거합니다.
-  it: Controlla il repository locale e il suo codice per importazioni, funzioni e variabili non utilizzate - e rimuovile automaticamente.
-  tr: Yerel depoyu ve kodunu kullanılmayan içe aktarmalar, işlevler, değişkenler için kontrol edin - ve bunları otomatik olarak kaldırın.
-  vi: Kiểm tra kho lưu trữ cục bộ và mã của nó để tìm các import, hàm, biến không sử dụng - và tự động xóa chúng.
-  id: Periksa repo lokal dan kodenya untuk import, fungsi, variabel yang tidak digunakan - dan hapus secara otomatis.
-  pl: Sprawdź lokalne repozytorium i jego kod pod kątem nieużywanych importów, funkcji, zmiennych - i usuń je automatycznie.
-  nl: Controleer de lokale repository en de code op ongebruikte imports, functies, variabelen - en verwijder ze automatisch.
-  ar: تحقق من المستودع المحلي وكوده بحثًا عن الاستيرادات والوظائف والمتغيرات غير المستخدمة - وقم بإزالتها تلقائيًا.
-  hi: स्थानीय रेपो और उसके कोड को अप्रयुक्त आयात, कार्य, चर के लिए जांचें - और उन्हें स्वचालित रूप से हटाएं।
-  th: ตรวจสอบ repo และโค้ดในเครื่องสำหรับการนำเข้า ฟังก์ชัน และตัวแปรที่ไม่ได้ใช้ - และลบออกโดยอัตโนมัติ
-  cs: Zkontrolujte místní úložiště a jeho kód na nevyužité importy, funkce, proměnné - a automaticky je odstraňte.
-  sv: Kontrollera det lokala repo:et och dess kod för oanvända importer, funktioner, variabler - och ta bort dem automatiskt.
+  en: Find and remove unused code automatically.
+  de: Unbenutzten Code automatisch finden und entfernen.
+  zh: 自动查找并删除未使用的代码。
+  es: Encuentra y elimina código no utilizado.
+  fr: Trouvez et supprimez le code inutilisé.
+  pt: Encontre e remova código não utilizado.
+  ru: Найдите и удалите неиспользуемый код.
+  ja: 未使用のコードを自動で検出・削除。
+  ko: 사용하지 않는 코드를 자동으로 찾아 제거.
+  it: Trova e rimuovi codice non utilizzato.
+  tr: Kullanılmayan kodu bul ve kaldır.
+  vi: Tìm và xóa mã không sử dụng.
+  id: Temukan dan hapus kode yang tidak digunakan.
+  pl: Znajdź i usuń nieużywany kod.
+  nl: Vind en verwijder ongebruikte code.
+  ar: ابحث وأزل الكود غير المستخدم.
+  hi: अप्रयुक्त कोड खोजें और हटाएं।
+  th: ค้นหาและลบโค้ดที่ไม่ได้ใช้
+  cs: Najděte a odstraňte nepoužívaný kód.
+  sv: Hitta och ta bort oanvänd kod.
   verified_by_human:
     - en
     - de
@@ -125,26 +125,26 @@ get_issues:
     - de
 get_issues.description:
   context: Description for get issues skill
-  en: Get issues from GitHub or GitLab for a project. Either all or with specific tags.
-  de: Hole Issues von GitHub oder GitLab für ein Projekt. Entweder alle oder mit spezifischen Tags.
-  zh: 从GitHub或GitLab获取项目的问题。全部或带有特定标签。
-  es: Obtén problemas de GitHub o GitLab para un proyecto. Todos o con etiquetas específicas.
-  fr: Obtenez les problèmes de GitHub ou GitLab pour un projet. Soit tous, soit avec des étiquettes spécifiques.
-  pt: Obtenha problemas do GitHub ou GitLab para um projeto. Todos ou com tags específicas.
-  ru: Получите проблемы из GitHub или GitLab для проекта. Либо все, либо с определенными тегами.
-  ja: プロジェクトのGitHubまたはGitLabから問題を取得します。すべて、または特定のタグ付き。
-  ko: 프로젝트에 대한 GitHub 또는 GitLab에서 이슈를 가져옵니다. 모두 또는 특정 태그가 있는 것.
-  it: Ottieni problemi da GitHub o GitLab per un progetto. Tutti o con tag specifici.
-  tr: Bir proje için GitHub veya GitLab'dan sorunları alın. Ya hepsi ya da belirli etiketlerle.
-  vi: Lấy vấn đề từ GitHub hoặc GitLab cho một dự án. Tất cả hoặc với các thẻ cụ thể.
-  id: Dapatkan masalah dari GitHub atau GitLab untuk proyek. Semua atau dengan tag tertentu.
-  pl: Pobierz problemy z GitHub lub GitLab dla projektu. Wszystkie lub z określonymi tagami.
-  nl: Haal problemen op van GitHub of GitLab voor een project. Allemaal of met specifieke tags.
-  ar: احصل على المشاكل من GitHub أو GitLab لمشروع. إما الكل أو بعلامات محددة.
-  hi: किसी प्रोजेक्ट के लिए GitHub या GitLab से समस्याएं प्राप्त करें। या तो सभी या विशिष्ट टैग के साथ।
-  th: รับปัญหาจาก GitHub หรือ GitLab สำหรับโปรเจ็กต์ ทั้งหมดหรือที่มีแท็กเฉพาะ
-  cs: Získejte problémy z GitHub nebo GitLab pro projekt. Buď všechny, nebo se specifickými tagy.
-  sv: Hämta problem från GitHub eller GitLab för ett projekt. Antingen alla eller med specifika taggar.
+  en: Get GitHub/GitLab issues, all or by tags.
+  de: GitHub/GitLab-Issues abrufen, alle oder nach Tags.
+  zh: 获取GitHub/GitLab问题，全部或按标签。
+  es: Obtén issues de GitHub/GitLab, todos o por tags.
+  fr: Obtenez les issues GitHub/GitLab, tous ou par tags.
+  pt: Obtenha issues do GitHub/GitLab, todos ou por tags.
+  ru: Получите issues GitHub/GitLab, все или по тегам.
+  ja: GitHub/GitLabのissueを取得、全部またはタグ別。
+  ko: GitHub/GitLab 이슈 가져오기, 전체 또는 태그별.
+  it: Ottieni issue GitHub/GitLab, tutti o per tag.
+  tr: GitHub/GitLab sorunlarını al, hepsi veya etiketle.
+  vi: Lấy issues GitHub/GitLab, tất cả hoặc theo tag.
+  id: Dapatkan issues GitHub/GitLab, semua atau per tag.
+  pl: Pobierz issues GitHub/GitLab, wszystkie lub po tagach.
+  nl: Haal GitHub/GitLab issues op, alle of per tag.
+  ar: احصل على مشاكل GitHub/GitLab، الكل أو بالعلامات.
+  hi: GitHub/GitLab issues प्राप्त करें, सभी या टैग द्वारा।
+  th: รับ issues GitHub/GitLab ทั้งหมดหรือตามแท็ก
+  cs: Získejte issues GitHub/GitLab, všechny nebo dle tagů.
+  sv: Hämta GitHub/GitLab issues, alla eller per tagg.
   verified_by_human:
     - en
     - de
@@ -175,26 +175,26 @@ add_issue:
     - de
 add_issue.description:
   context: Description for add issue skill
-  en: Add an issue to your GitHub or GitLab project.
-  de: Füge ein Issue zu deinem GitHub- oder GitLab-Projekt hinzu.
-  zh: 向你的GitHub或GitLab项目添加问题。
-  es: Agrega un problema a tu proyecto de GitHub o GitLab.
-  fr: Ajoutez un problème à votre projet GitHub ou GitLab.
-  pt: Adicione um problema ao seu projeto GitHub ou GitLab.
-  ru: Добавьте проблему в ваш проект GitHub или GitLab.
-  ja: GitHubまたはGitLabプロジェクトに問題を追加します。
-  ko: GitHub 또는 GitLab 프로젝트에 이슈를 추가하세요.
-  it: Aggiungi un problema al tuo progetto GitHub o GitLab.
-  tr: GitHub veya GitLab projenize bir sorun ekleyin.
-  vi: Thêm vấn đề vào dự án GitHub hoặc GitLab của bạn.
-  id: Tambahkan masalah ke proyek GitHub atau GitLab Anda.
-  pl: Dodaj problem do swojego projektu GitHub lub GitLab.
-  nl: Voeg een probleem toe aan je GitHub- of GitLab-project.
-  ar: أضف مشكلة إلى مشروع GitHub أو GitLab الخاص بك.
-  hi: अपने GitHub या GitLab प्रोजेक्ट में एक समस्या जोड़ें।
-  th: เพิ่มปัญหาไปยังโปรเจ็กต์ GitHub หรือ GitLab ของคุณ
-  cs: Přidejte problém do vašeho projektu GitHub nebo GitLab.
-  sv: Lägg till ett problem i ditt GitHub- eller GitLab-projekt.
+  en: Add an issue to GitHub or GitLab project.
+  de: Issue zu GitHub- oder GitLab-Projekt hinzufügen.
+  zh: 向GitHub或GitLab项目添加问题。
+  es: Agrega un issue a proyecto GitHub o GitLab.
+  fr: Ajoutez un issue à votre projet GitHub/GitLab.
+  pt: Adicione issue ao projeto GitHub ou GitLab.
+  ru: Добавьте issue в проект GitHub или GitLab.
+  ja: GitHub/GitLabプロジェクトにissueを追加。
+  ko: GitHub/GitLab 프로젝트에 이슈 추가.
+  it: Aggiungi issue al progetto GitHub o GitLab.
+  tr: GitHub veya GitLab projesine sorun ekleyin.
+  vi: Thêm issue vào dự án GitHub hoặc GitLab.
+  id: Tambahkan issue ke proyek GitHub atau GitLab.
+  pl: Dodaj issue do projektu GitHub lub GitLab.
+  nl: Voeg issue toe aan GitHub- of GitLab-project.
+  ar: أضف مشكلة إلى مشروع GitHub أو GitLab.
+  hi: GitHub या GitLab प्रोजेक्ट में issue जोड़ें।
+  th: เพิ่ม issue ไปยังโปรเจ็กต์ GitHub/GitLab
+  cs: Přidejte issue do projektu GitHub nebo GitLab.
+  sv: Lägg till issue i GitHub- eller GitLab-projekt.
   verified_by_human:
     - en
     - de
@@ -225,26 +225,26 @@ remove_secrets:
     - de
 remove_secrets.description:
   context: Description for remove secrets skill
-  en: Check the repo and its code for api keys, passwords, tokens, name, addresses, phone numbers, emails and other sensitive information - and auto remove them.
-  de: Überprüfe das Repository und seinen Code auf API-Schlüssel, Passwörter, Token, Namen, Adressen, Telefonnummern, E-Mails und andere sensible Informationen - und entferne sie automatisch.
-  zh: 检查仓库及其代码中的API密钥、密码、令牌、姓名、地址、电话号码、电子邮件和其他敏感信息 - 并自动删除它们。
-  es: Verifica el repositorio y su código en busca de claves API, contraseñas, tokens, nombres, direcciones, números de teléfono, correos electrónicos y otra información sensible, y elimínalos automáticamente.
-  fr: Vérifiez le dépôt et son code pour les clés API, mots de passe, jetons, noms, adresses, numéros de téléphone, e-mails et autres informations sensibles - et supprimez-les automatiquement.
-  pt: Verifique o repositório e seu código em busca de chaves de API, senhas, tokens, nomes, endereços, números de telefone, e-mails e outras informações sensíveis - e remova-as automaticamente.
-  ru: Проверьте репозиторий и его код на наличие API-ключей, паролей, токенов, имен, адресов, номеров телефонов, электронных писем и другой конфиденциальной информации - и автоматически удалите их.
-  ja: リポジトリとそのコードでAPIキー、パスワード、トークン、名前、住所、電話番号、メールアドレス、その他の機密情報をチェックし、自動的に削除します。
-  ko: 저장소와 코드에서 API 키, 비밀번호, 토큰, 이름, 주소, 전화번호, 이메일 및 기타 민감한 정보를 확인하고 자동으로 제거합니다.
-  it: Controlla il repository e il suo codice per chiavi API, password, token, nomi, indirizzi, numeri di telefono, email e altre informazioni sensibili - e rimuovile automaticamente.
-  tr: Depoyu ve kodunu API anahtarları, şifreler, tokenlar, isimler, adresler, telefon numaraları, e-postalar ve diğer hassas bilgiler için kontrol edin - ve bunları otomatik olarak kaldırın.
-  vi: Kiểm tra kho lưu trữ và mã của nó để tìm khóa API, mật khẩu, token, tên, địa chỉ, số điện thoại, email và thông tin nhạy cảm khác - và tự động xóa chúng.
-  id: Periksa repo dan kodenya untuk kunci API, kata sandi, token, nama, alamat, nomor telepon, email dan informasi sensitif lainnya - dan hapus secara otomatis.
-  pl: Sprawdź repozytorium i jego kod pod kątem kluczy API, haseł, tokenów, nazw, adresów, numerów telefonów, e-maili i innych poufnych informacji - i usuń je automatycznie.
-  nl: Controleer de repository en de code op API-sleutels, wachtwoorden, tokens, namen, adressen, telefoonnummers, e-mails en andere gevoelige informatie - en verwijder ze automatisch.
-  ar: تحقق من المستودع وكوده بحثًا عن مفاتيح API وكلمات المرور والرموز المميزة والأسماء والعناوين وأرقام الهواتف والبريد الإلكتروني والمعلومات الحساسة الأخرى - وقم بإزالتها تلقائيًا.
-  hi: रेपो और उसके कोड को API कुंजी, पासवर्ड, टोकन, नाम, पते, फोन नंबर, ईमेल और अन्य संवेदनशील जानकारी के लिए जांचें - और उन्हें स्वचालित रूप से हटाएं।
-  th: ตรวจสอบ repo และโค้ดสำหรับคีย์ API รหัสผ่าน โทเค็น ชื่อ ที่อยู่ หมายเลขโทรศัพท์ อีเมล และข้อมูลที่ละเอียดอ่อนอื่นๆ - และลบออกโดยอัตโนมัติ
-  cs: Zkontrolujte úložiště a jeho kód na API klíče, hesla, tokeny, jména, adresy, telefonní čísla, e-maily a další citlivé informace - a automaticky je odstraňte.
-  sv: Kontrollera repo:et och dess kod för API-nycklar, lösenord, tokens, namn, adresser, telefonnummer, e-post och annan känslig information - och ta bort dem automatiskt.
+  en: Find and remove sensitive data automatically.
+  de: Sensible Daten automatisch finden und entfernen.
+  zh: 自动查找并删除敏感数据。
+  es: Encuentra y elimina datos sensibles.
+  fr: Trouvez et supprimez les données sensibles.
+  pt: Encontre e remova dados sensíveis.
+  ru: Найдите и удалите конфиденциальные данные.
+  ja: 機密データを自動で検出・削除。
+  ko: 민감한 데이터를 자동으로 찾아 제거.
+  it: Trova e rimuovi dati sensibili.
+  tr: Hassas verileri bul ve kaldır.
+  vi: Tìm và xóa dữ liệu nhạy cảm.
+  id: Temukan dan hapus data sensitif.
+  pl: Znajdź i usuń dane poufne.
+  nl: Vind en verwijder gevoelige gegevens.
+  ar: ابحث وأزل البيانات الحساسة.
+  hi: संवेदनशील डेटा खोजें और हटाएं।
+  th: ค้นหาและลบข้อมูลที่ละเอียดอ่อน
+  cs: Najděte a odstraňte citlivá data.
+  sv: Hitta och ta bort känsliga data.
   verified_by_human:
     - en
     - de
@@ -275,27 +275,26 @@ get_project_overview:
     - de
 get_project_overview.description:
   context: Description for get project overview skill
-  en: Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
-  de: Erstelle eine AST-Übersicht aller Ordner, Dateien und Funktionen in den Dateien, um ein gutes Verständnis der lokalen Projektarchitektur zu erhalten.
-  zh: 创建所有文件夹、文件和文件内函数的AST概览，以更好地理解本地项目架构。
-  es: Crea una descripción general de AST de todas las carpetas, archivos y funciones dentro de los archivos, para obtener una buena comprensión de la arquitectura del proyecto local.
-  fr: Créez une vue d'ensemble AST de tous les dossiers, fichiers et fonctions dans les fichiers, pour bien comprendre l'architecture du projet local.
-  pt: Crie uma visão geral de AST de todas as pastas, arquivos e funções dentro dos arquivos, para obter uma boa compreensão da arquitetura do projeto local.
-  ru: Создайте обзор AST всех папок, файлов и функций внутри файлов, чтобы хорошо понять архитектуру локального проекта.
-  ja: ローカルプロジェクトのアーキテクチャをよく理解するために、すべてのフォルダ、ファイル、およびファイル内の関数のAST概要を作成します。
-  ko: 로컬 프로젝트 아키텍처를 잘 이해하기 위해 모든 폴더, 파일 및 파일 내 함수의 AST 개요를 만듭니다.
-  it: Crea una panoramica AST di tutte le cartelle, file e funzioni all'interno dei file, per ottenere una buona comprensione dell'architettura del progetto locale.
-  tr: Yerel proje mimarisini iyi anlamak için tüm klasörler, dosyalar ve dosyalar içindeki işlevlerin bir AST genel bakışını oluşturun.
-  vi: Tạo tổng quan AST của tất cả các thư mục, tệp và hàm bên trong các tệp, để hiểu rõ kiến trúc dự án cục bộ.
-  id: Buat ringkasan AST dari semua folder, file dan fungsi di dalam file, untuk mendapatkan pemahaman yang baik tentang arsitektur proyek lokal.
-  pl: Utwórz przegląd AST wszystkich folderów, plików i funkcji wewnątrz plików, aby uzyskać dobre zrozumienie architektury lokalnego projektu.
-  nl: Maak een AST-overzicht van alle mappen, bestanden en functies in de bestanden, om een goed begrip te krijgen van de lokale projectarchitectuur.
-  ar: أنشئ نظرة عامة على AST لجميع المجلدات والملفات والوظائف داخل الملفات، للحصول على فهم جيد لهندسة المشروع المحلي.
-  hi: स्थानीय प्रोजेक्ट आर्किटेक्चर की अच्छी समझ प्राप्त करने के लिए सभी फ़ोल्डर, फ़ाइलें और फ़ाइलों के अंदर फ़ंक्शन का AST अवलोकन बनाएं।
-  th: สร้างภาพรวม AST ของโฟลเดอร์ ไฟล์ และฟังก์ชันทั้งหมดภายในไฟล์ เพื่อให้เข้าใจสถาปัตยกรรมโปรเจ็กต์ในเครื่องได้ดี
-  cs: Vytvořte přehled AST všech složek, souborů a funkcí uvnitř souborů, abyste získali dobré pochopení architektury místního projektu.
-  sv: Skapa en AST-översikt över alla mappar, filer och funktioner i filerna för att få en bra förståelse för den lokala projektarkitekturen.
+  en: Create AST overview of project structure.
+  de: AST-Übersicht der Projektstruktur erstellen.
+  zh: 创建项目结构的AST概览。
+  es: Crea resumen AST de la estructura del proyecto.
+  fr: Créez une vue d'ensemble AST du projet.
+  pt: Crie visão geral AST da estrutura do projeto.
+  ru: Создайте AST-обзор структуры проекта.
+  ja: プロジェクト構造のAST概要を作成。
+  ko: 프로젝트 구조 AST 개요 생성.
+  it: Crea panoramica AST della struttura progetto.
+  tr: Proje yapısı AST genel bakışı oluşturun.
+  vi: Tạo tổng quan AST của cấu trúc dự án.
+  id: Buat ringkasan AST struktur proyek.
+  pl: Utwórz przegląd AST struktury projektu.
+  nl: Maak AST-overzicht van projectstructuur.
+  ar: أنشئ نظرة AST لهيكل المشروع.
+  hi: प्रोजेक्ट संरचना का AST अवलोकन बनाएं।
+  th: สร้างภาพรวม AST ของโครงสร้างโปรเจ็กต์
+  cs: Vytvořte AST přehled struktury projektu.
+  sv: Skapa AST-översikt av projektstruktur.
   verified_by_human:
     - en
     - de
-

@@ -1,6 +1,30 @@
 # AI Ask skill settings translations
 # Used in AiAskSkillSettings.svelte and AiAskModelDetails.svelte
 
+ai_ask_settings.description:
+  context: Description of the AI Ask skill shown at the top of the settings page
+  en: Ask a question, using text, images, and other media.
+  de: Stelle eine Frage, mit Text, Bildern und anderen Medien.
+  zh: 使用文本、图像和其他媒体提问。
+  es: Haz una pregunta, usando texto, imágenes y otros medios.
+  fr: Posez une question, en utilisant du texte, des images et d'autres médias.
+  pt: Faça uma pergunta, usando texto, imagens e outros meios.
+  ru: Задайте вопрос, используя текст, изображения и другие медиа.
+  ja: テキスト、画像、その他のメディアを使って質問してください。
+  ko: 텍스트, 이미지 및 기타 미디어를 사용하여 질문하세요.
+  it: Fai una domanda, usando testo, immagini e altri media.
+  tr: Metin, resim ve diğer medya kullanarak bir soru sorun.
+  vi: Đặt câu hỏi, sử dụng văn bản, hình ảnh và phương tiện khác.
+  id: Ajukan pertanyaan, menggunakan teks, gambar, dan media lainnya.
+  pl: Zadaj pytanie, używając tekstu, obrazów i innych mediów.
+  nl: Stel een vraag, met tekst, afbeeldingen en andere media.
+  ar: اطرح سؤالاً باستخدام النص والصور والوسائط الأخرى.
+  hi: टेक्स्ट, छवियों और अन्य मीडिया का उपयोग करके एक प्रश्न पूछें।
+  th: ถามคำถามโดยใช้ข้อความ รูปภาพ และสื่ออื่นๆ
+  cs: Položte otázku pomocí textu, obrázků a dalších médií.
+  sv: Ställ en fråga med text, bilder och andra medier.
+  verified_by_human: [en, de]
+
 ai_ask_settings.pricing:
   context: Section heading for pricing information
   en: Pricing
@@ -230,6 +254,78 @@ ai_ask_model_details.pricing:
   en: Pricing
   de: Preise
   verified_by_human: []
+
+ai_ask_model_details.text_input:
+  context: Label for text input pricing
+  en: Text input
+  de: Texteingabe
+  zh: 文本输入
+  es: Entrada de texto
+  fr: Entrée de texte
+  pt: Entrada de texto
+  ru: Ввод текста
+  ja: テキスト入力
+  ko: 텍스트 입력
+  it: Input di testo
+  tr: Metin girişi
+  vi: Nhập văn bản
+  id: Input teks
+  pl: Wejście tekstowe
+  nl: Tekstinvoer
+  ar: إدخال النص
+  hi: टेक्स्ट इनपुट
+  th: ข้อความเข้า
+  cs: Textový vstup
+  sv: Textinmatning
+  verified_by_human: [en, de]
+
+ai_ask_model_details.text_output:
+  context: Label for text output pricing
+  en: Text output
+  de: Textausgabe
+  zh: 文本输出
+  es: Salida de texto
+  fr: Sortie de texte
+  pt: Saída de texto
+  ru: Вывод текста
+  ja: テキスト出力
+  ko: 텍스트 출력
+  it: Output di testo
+  tr: Metin çıkışı
+  vi: Xuất văn bản
+  id: Output teks
+  pl: Wyjście tekstowe
+  nl: Tekstuitvoer
+  ar: إخراج النص
+  hi: टेक्स्ट आउटपुट
+  th: ข้อความออก
+  cs: Textový výstup
+  sv: Textutmatning
+  verified_by_human: [en, de]
+
+ai_ask_model_details.provider:
+  context: Section heading for provider options
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공자
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Provider
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  verified_by_human: [en, de]
 
 ai_ask_model_details.servers:
   context: Section heading for available servers

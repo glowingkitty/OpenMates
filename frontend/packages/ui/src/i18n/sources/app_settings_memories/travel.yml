@@ -75,26 +75,26 @@ preferred_airlines:
     - de
 preferred_airlines.description:
   context: Description for preferred airlines settings/memory
-  en: Your favorite airlines for booking flights.
-  de: Deine bevorzugten Fluggesellschaften für die Flugbuchung.
-  zh: 你预订航班时最喜欢的航空公司。
-  es: Tus aerolíneas favoritas para reservar vuelos.
-  fr: Vos compagnies aériennes préférées pour réserver des vols.
-  pt: Suas companhias aéreas favoritas para reservar voos.
-  ru: Ваши любимые авиакомпании для бронирования рейсов.
-  ja: フライト予約に使用するお気に入りの航空会社。
-  ko: 항공편 예약을 위한 선호 항공사.
-  it: Le tue compagnie aeree preferite per prenotare voli.
-  tr: Uçuş rezervasyonu için tercih ettiğiniz havayolları.
-  vi: Các hãng hàng không yêu thích của bạn để đặt chuyến bay.
-  id: Maskapai penerbangan favorit Anda untuk memesan penerbangan.
-  pl: Twoje ulubione linie lotnicze do rezerwacji lotów.
-  nl: Je favoriete luchtvaartmaatschappijen voor het boeken van vluchten.
-  ar: شركات الطيران المفضلة لديك لحجز الرحلات الجوية.
-  hi: उड़ान बुक करने के लिए आपकी पसंदीदा एयरलाइनें।
-  th: สายการบินโปรดของคุณสำหรับการจองเที่ยวบิน
-  cs: Vaše oblíbené letecké společnosti pro rezervaci letů.
-  sv: Dina favoritflygbolag för att boka flyg.
+  en: Your favorite airlines for booking flights
+  de: Deine bevorzugten Fluggesellschaften
+  zh: 你最喜欢的航空公司
+  es: Tus aerolíneas favoritas para reservar
+  fr: Vos compagnies aériennes préférées
+  pt: Suas companhias aéreas favoritas
+  ru: Ваши любимые авиакомпании
+  ja: お気に入りの航空会社
+  ko: 선호 항공사
+  it: Le tue compagnie aeree preferite
+  tr: Tercih ettiğiniz havayolları
+  vi: Các hãng hàng không yêu thích
+  id: Maskapai penerbangan favorit Anda
+  pl: Twoje ulubione linie lotnicze
+  nl: Je favoriete luchtvaartmaatschappijen
+  ar: شركات الطيران المفضلة لديك
+  hi: आपकी पसंदीदा एयरलाइनें
+  th: สายการบินโปรดของคุณ
+  cs: Vaše oblíbené letecké společnosti
+  sv: Dina favoritflygbolag
   verified_by_human:
     - en
     - de

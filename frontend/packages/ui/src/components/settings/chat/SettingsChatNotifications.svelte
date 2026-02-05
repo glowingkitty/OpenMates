@@ -46,10 +46,10 @@ Allows users to enable/disable notifications and configure notification categori
     // Permission status text
     let permissionStatusText = $derived(
         permission === 'granted'
-            ? $text('settings.chat.notifications.permission_granted.text', { default: 'Permission granted' })
+            ? $text('settings.chat.notifications.permission_granted', { default: 'Permission granted' })
             : permission === 'denied'
-                ? $text('settings.chat.notifications.permission_denied.text', { default: 'Permission denied in browser settings' })
-                : $text('settings.chat.notifications.permission_default.text', { default: 'Permission not yet requested' })
+                ? $text('settings.chat.notifications.permission_denied', { default: 'Permission denied in browser settings' })
+                : $text('settings.chat.notifications.permission_default', { default: 'Permission not yet requested' })
     );
     
     /**

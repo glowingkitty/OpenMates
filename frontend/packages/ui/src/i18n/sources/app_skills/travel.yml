@@ -25,27 +25,26 @@ search_connections:
     - de
 search_connections.description:
   context: Description for search connections skill
-  en: Searches for connections between two locations, via trains, planes, public transport, biking, by car or walking.
-  de: Sucht nach Verbindungen zwischen zwei Orten, per Zug, Flugzeug, öffentlichem Verkehr, Fahrrad, Auto oder zu Fuß.
-  zh: 搜索两个地点之间的连接，通过火车、飞机、公共交通、自行车、汽车或步行。
-  es: Busca conexiones entre dos ubicaciones, mediante trenes, aviones, transporte público, bicicleta, coche o caminando.
-  fr: Recherche des connexions entre deux emplacements, via trains, avions, transports en commun, vélo, voiture ou à pied.
-  pt: Pesquisa conexões entre dois locais, via trens, aviões, transporte público, bicicleta, carro ou a pé.
-  ru: Ищет соединения между двумя местами через поезда, самолеты, общественный транспорт, велосипед, автомобиль или пешком.
-  ja: 電車、飛行機、公共交通機関、自転車、車、または徒歩で、2つの場所間の接続を検索します。
-  ko: 기차, 비행기, 대중교통, 자전거, 자동차 또는 도보로 두 위치 간의 연결을 검색합니다.
-  it: Cerca connessioni tra due località, tramite treni, aerei, trasporti pubblici, bicicletta, auto o a piedi.
-  tr: İki konum arasındaki bağlantıları tren, uçak, toplu taşıma, bisiklet, araba veya yürüyerek arar.
-  vi: Tìm kiếm kết nối giữa hai địa điểm, qua tàu hỏa, máy bay, phương tiện công cộng, xe đạp, ô tô hoặc đi bộ.
-  id: Mencari koneksi antara dua lokasi, melalui kereta, pesawat, transportasi umum, bersepeda, mobil atau berjalan kaki.
-  pl: Wyszukuje połączenia między dwiema lokalizacjami, pociągiem, samolotem, transportem publicznym, rowerem, samochodem lub pieszo.
-  nl: Zoekt naar verbindingen tussen twee locaties, via treinen, vliegtuigen, openbaar vervoer, fietsen, auto of lopen.
-  ar: يبحث عن اتصالات بين موقعين، عبر القطارات والطائرات والنقل العام وركوب الدراجات أو بالسيارة أو سيرًا على الأقدام.
-  hi: ट्रेन, विमान, सार्वजनिक परिवहन, साइकिल, कार या पैदल चलकर दो स्थानों के बीच कनेक्शन खोजता है।
-  th: ค้นหาการเชื่อมต่อระหว่างสองสถานที่ ผ่านรถไฟ เครื่องบิน การขนส่งสาธารณะ จักรยาน รถยนต์ หรือการเดิน
-  cs: Hledá spojení mezi dvěma místy pomocí vlaků, letadel, veřejné dopravy, jízdních kol, aut nebo pěšky.
-  sv: Söker efter anslutningar mellan två platser, via tåg, flyg, kollektivtrafik, cykling, bil eller till fots.
+  en: Find routes by train, plane, car or foot.
+  de: Routen per Zug, Flug, Auto oder Fuß finden.
+  zh: 通过火车、飞机、汽车或步行查找路线。
+  es: Encuentra rutas en tren, avión, coche o a pie.
+  fr: Trouvez des itinéraires en train, avion, voiture.
+  pt: Encontre rotas de trem, avião, carro ou a pé.
+  ru: Найдите маршруты поездом, самолетом, машиной.
+  ja: 電車、飛行機、車、徒歩でルート検索。
+  ko: 기차, 비행기, 차, 도보로 경로 찾기.
+  it: Trova percorsi in treno, aereo, auto o a piedi.
+  tr: Tren, uçak, araba veya yürüyerek rota bulun.
+  vi: Tìm tuyến đường bằng tàu, máy bay, xe hơi.
+  id: Temukan rute kereta, pesawat, mobil atau jalan.
+  pl: Znajdź trasy pociągiem, samolotem, autem.
+  nl: Vind routes per trein, vliegtuig, auto of te voet.
+  ar: ابحث عن طرق بالقطار أو الطائرة أو السيارة.
+  hi: ट्रेन, विमान, कार या पैदल मार्ग खोजें।
+  th: ค้นหาเส้นทางโดยรถไฟ เครื่องบิน รถยนต์
+  cs: Najděte trasy vlakem, letadlem, autem, pěšky.
+  sv: Hitta rutter med tåg, flyg, bil eller till fots.
   verified_by_human:
     - en
     - de
-

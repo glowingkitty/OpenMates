@@ -123,6 +123,24 @@ function parseProviderYaml(providerId, filePath) {
         }
       }
 
+      // Extract server information with regions
+      const servers = (model.servers || []).map((server) => ({
+        id: server.id,
+        name: server.name,
+        region: server.region || "US", // Default to US if not specified
+      }));
+
+      // Extract pricing information for display
+      const pricing = {};
+      if (model.pricing?.tokens?.input?.per_credit_unit) {
+        pricing.input_tokens_per_credit =
+          model.pricing.tokens.input.per_credit_unit;
+      }
+      if (model.pricing?.tokens?.output?.per_credit_unit) {
+        pricing.output_tokens_per_credit =
+          model.pricing.tokens.output.per_credit_unit;
+      }
+
       const modelMetadata = {
         id: model.id,
         name: model.name || model.id,
@@ -138,6 +156,15 @@ function parseProviderYaml(providerId, filePath) {
         // e.g., "ai.ask" for text generation, "images.generate" for image generation
         for_app_skill: model.for_app_skill || null,
         tier: tier,
+        // Release date for sorting by "new"
+        release_date: model.release_date || null,
+        // Server information with regions for settings page
+        servers: servers,
+        // Default server for this model
+        default_server:
+          model.default_server || (servers.length > 0 ? servers[0].id : null),
+        // Pricing for display
+        pricing: Object.keys(pricing).length > 0 ? pricing : null,
       };
 
       // Add reasoning flag if model has it
@@ -209,6 +236,30 @@ function generateTypeScript(models) {
 
       lines.push(`        tier: ${JSON.stringify(model.tier)},`);
 
+      // Add release_date if present
+      if (model.release_date) {
+        lines.push(
+          `        release_date: ${JSON.stringify(model.release_date)},`,
+        );
+      }
+
+      // Add servers if present
+      if (model.servers && model.servers.length > 0) {
+        lines.push(`        servers: ${JSON.stringify(model.servers)},`);
+      }
+
+      // Add default_server if present
+      if (model.default_server) {
+        lines.push(
+          `        default_server: ${JSON.stringify(model.default_server)},`,
+        );
+      }
+
+      // Add pricing if present
+      if (model.pricing) {
+        lines.push(`        pricing: ${JSON.stringify(model.pricing)},`);
+      }
+
       if (model.search_aliases && model.search_aliases.length > 0) {
         lines.push(
           `        search_aliases: ${JSON.stringify(model.search_aliases)},`,
@@ -244,6 +295,28 @@ function generateTypeScript(models) {
 // **Models included**: ${models.length}
 
 /**
+ * Server/provider information for a model.
+ */
+export interface ModelServerInfo {
+    /** Server identifier */
+    id: string;
+    /** Server display name */
+    name: string;
+    /** Server region: EU, US, or APAC */
+    region: 'EU' | 'US' | 'APAC';
+}
+
+/**
+ * Model pricing information.
+ */
+export interface ModelPricing {
+    /** Number of input tokens per 1 credit */
+    input_tokens_per_credit?: number;
+    /** Number of output tokens per 1 credit */
+    output_tokens_per_credit?: number;
+}
+
+/**
  * AI model metadata structure for frontend display.
  */
 export interface AIModelMetadata {
@@ -271,6 +344,14 @@ export interface AIModelMetadata {
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
     tier: 'economy' | 'standard' | 'premium';
+    /** Release date of the model (ISO 8601 format) */
+    release_date?: string;
+    /** Available servers/providers for this model */
+    servers?: ModelServerInfo[];
+    /** Default server ID for this model */
+    default_server?: string;
+    /** Pricing information for credits per token */
+    pricing?: ModelPricing;
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
 }
