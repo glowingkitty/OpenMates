@@ -1311,26 +1311,26 @@ reminder.skills.set_reminder:
   verified_by_human: [en, de]
 reminder.skills.set_reminder.description:
   context: Description for set reminder skill
-  en: Schedule one-time or repeating reminders.
-  de: Plane einmalige oder wiederkehrende Erinnerungen.
-  zh: 安排一次性或重复提醒。
-  es: Programa recordatorios únicos o repetitivos.
-  fr: Planifiez des rappels ponctuels ou répétitifs.
-  pt: Agende lembretes únicos ou repetitivos.
-  ru: Запланируйте разовые или повторяющиеся напоминания.
-  ja: 一回限りまたは繰り返しのリマインダーを設定。
-  ko: 일회성 또는 반복 알림을 예약하세요.
-  it: Pianifica promemoria singoli o ripetuti.
-  tr: Tek seferlik veya tekrarlayan hatırlatıcılar planlayın.
-  vi: Lên lịch nhắc nhở một lần hoặc lặp lại.
-  id: Jadwalkan pengingat sekali atau berulang.
-  pl: Zaplanuj jednorazowe lub powtarzające się przypomnienia.
-  nl: Plan eenmalige of herhalende herinneringen.
-  ar: جدولة تذكيرات لمرة واحدة أو متكررة.
-  hi: एक बार या दोहराए जाने वाले अनुस्मारक शेड्यूल करें।
-  th: กำหนดการแจ้งเตือนครั้งเดียวหรือซ้ำ
-  cs: Naplánujte jednorázové nebo opakující se připomínky.
-  sv: Schemalägg engångs- eller återkommande påminnelser.
+  en: Create one-time or recurring reminders.
+  de: Erstelle einmalige oder wiederholende.
+  zh: 创建一次性或重复提醒。
+  es: Crea recordatorios únicos o recurrentes.
+  fr: Créez des rappels uniques ou récurrents.
+  pt: Crie lembretes únicos ou recorrentes.
+  ru: Создайте разовые или повторяющиеся.
+  ja: 一回または繰り返しのリマインダーを作成。
+  ko: 일회성 또는 반복 알림 생성.
+  it: Crea promemoria singoli o ricorrenti.
+  tr: Tek veya tekrarlayan hatırlatıcı oluştur.
+  vi: Tạo nhắc nhở một lần hoặc lặp lại.
+  id: Buat pengingat sekali atau berulang.
+  pl: Twórz jednorazowe lub powtarzające się.
+  nl: Maak eenmalige of herhalende aan.
+  ar: أنشئ تذكيرات لمرة واحدة أو متكررة.
+  hi: एक बार या दोहराए जाने वाले बनाएं।
+  th: สร้างแจ้งเตือนครั้งเดียวหรือซ้ำ
+  cs: Vytvořte jednorázové nebo opakující se.
+  sv: Skapa engångs- eller återkommande.
   verified_by_human: [en, de]
 reminder.skills.list_reminders:
   context: Skill name for listing reminders
