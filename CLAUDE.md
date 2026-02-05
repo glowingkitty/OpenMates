@@ -21,6 +21,7 @@ This document consolidates all coding standards, guidelines, and instructions fo
 13. [Key Files by Domain](#key-files-by-domain)
 14. [Docker Debug Mode](#docker-debug-mode)
 15. [Frontend Development Workflow](#frontend-development-workflow)
+16. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
 
 ---
 
@@ -925,6 +926,33 @@ After adding volume mounts:
 - The user says something like "start the dev server" or "run pnpm dev"
 
 **Never assume** a dev server is needed - the CI/CD pipeline handles building and deploying frontend changes automatically.
+
+---
+
+## Auto-Commit and Deployment Workflow
+
+**After completing any task**, automatically commit and push to `dev`:
+
+1. Run linter and fix errors
+2. `git add <modified_files>` (never `git add .`)
+3. `git commit -m "<type>: <description>"`
+4. `git push origin dev`
+
+**If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services:
+
+```bash
+# Rebuild specific services
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <services> && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <services>
+```
+
+| Files Modified                | Services to Rebuild                         |
+| ----------------------------- | ------------------------------------------- |
+| `backend/core/api/`           | `api`                                       |
+| `backend/core/api/app/tasks/` | `api`, `task-worker`, `task-scheduler`      |
+| `backend/apps/<app>/`         | `app-<app>`, `app-<app>-worker` (if exists) |
+| `backend/shared/`             | All services using shared code              |
+| Directus schema files         | `cms`, `cms-setup`                          |
 
 ---
 
