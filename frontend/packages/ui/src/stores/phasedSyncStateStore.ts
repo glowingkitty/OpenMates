@@ -82,11 +82,6 @@ export const phasedSyncState = {
    * This prevents redundant syncs when components remount.
    */
   markSyncCompleted: () => {
-    // DEBUG: Log stack trace to see who's calling this
-    console.debug(
-      "[phasedSyncState] markSyncCompleted called, stack:",
-      new Error().stack,
-    );
     update((state) => ({
       ...state,
       initialSyncCompleted: true,
@@ -222,7 +217,6 @@ export const phasedSyncState = {
    * Reset the sync state (e.g., on logout or connection loss).
    */
   reset: () => {
-    console.debug("[phasedSyncState] reset called, stack:", new Error().stack);
     set(initialState);
   },
 };

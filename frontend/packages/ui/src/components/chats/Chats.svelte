@@ -619,36 +619,41 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
 		console.info(`[Chats] Phased sync complete:`, event.detail);
 		
-		// Mark that initial phased sync has completed
-		// This prevents redundant syncs when Chats component is remounted
-		// Note: This also updates the derived 'syncing' state to false
-		phasedSyncState.markSyncCompleted();
-		
-		// Final update of the chat list
+		// CRITICAL: Update chat list FIRST, before marking sync complete
+		// This ensures the syncing indicator stays visible until chats are actually displayed
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// Show "Sync complete" message (syncing is derived from phasedSyncState)
+		// CRITICAL: Always ensure all chats are displayed after sync complete
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		
+		// NOW mark sync as completed (this hides the syncing indicator)
+		// This prevents redundant syncs when Chats component is remounted
+		phasedSyncState.markSyncCompleted();
+		
+		// Show "Sync complete" message briefly
 		syncComplete = true;
 		
 		// Hide the message after 1 second
 		setTimeout(() => {
 			syncComplete = false;
 		}, 1000);
-		
-		// CRITICAL: Always ensure all chats are displayed after sync complete
-		displayLimit = Infinity;
-		allChatsDisplayed = true;
-		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 	};
 
 	/**
 		* Handles 'cachePrimed' event. Indicates server-side cache is generally ready.
 		* This means the 3-phase sync is complete.
 		*/
-	const handleCachePrimedEvent = () => {
+	const handleCachePrimedEvent = async () => {
 		console.debug("[Chats] Cache primed event received.");
-		// Mark sync as complete (this updates the derived 'syncing' state)
+		
+		// Update chat list first to ensure UI is current before hiding syncing indicator
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
+		
+		// NOW mark sync as complete (this hides the syncing indicator)
 		phasedSyncState.markSyncCompleted();
 		syncComplete = true;
 		
@@ -662,10 +667,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* Handles 'syncStatusResponse' event. Indicates server-side cache status.
 		* If cache is already primed, stop syncing.
 		*/
-	const handleSyncStatusResponse = (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
+	const handleSyncStatusResponse = async (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
 		console.debug("[Chats] Sync status response received:", event.detail);
 		if (event.detail.cache_primed) {
-			// Mark sync as complete (this updates the derived 'syncing' state)
+			// Update chat list first to ensure UI is current before hiding syncing indicator
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+			
+			// NOW mark sync as complete (this hides the syncing indicator)
 			phasedSyncState.markSyncCompleted();
 			syncComplete = true;
 			
@@ -1190,14 +1199,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
-		
-		// DEBUG: Log sync state on mount to diagnose syncing indicator issue
-		console.debug('[Chats] onMount sync state:', {
-			isAuthenticated: $authStore.isAuthenticated,
-			initialSyncCompleted: $phasedSyncState.initialSyncCompleted,
-			syncing: syncing, // derived value
-			expectedSyncing: $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted
-		});
 		
 		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
