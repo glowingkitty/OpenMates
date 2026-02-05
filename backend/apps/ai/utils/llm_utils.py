@@ -846,15 +846,16 @@ async def call_preprocessing_llm(
 
     # Determine if an error is retryable (should try fallback)
     def is_retryable_error(error_message: Optional[str]) -> bool:
-        """Check if error is retryable (e.g., 503, timeout, service unavailable)."""
+        """Check if error is retryable (e.g., 429, 503, timeout, service unavailable)."""
         if not error_message:
             return False
         # Non-retryable errors: 401 (auth), 400 (bad request)
         non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
         if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
             return False
-        # Retryable errors: 503, 502, 504, 500, timeout, service unavailable, unreachable backend, unhealthy
+        # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, timeout, service unavailable, unhealthy
         retryable_indicators = [
+            "429", "rate limit", "resource exhausted", "too many requests",  # Rate limiting - definitely retry with fallback
             "503", "502", "504", "500", "timeout", "service unavailable", "unreachable_backend", 
             "connection", "unhealthy", "http error"
         ]
@@ -996,16 +997,17 @@ async def call_main_llm_stream(
 
     # Determine if an error is retryable (should try fallback)
     def is_retryable_error(error_message: Optional[str]) -> bool:
-        """Check if error is retryable (e.g., 503, timeout, service unavailable, missing API key, 404)."""
+        """Check if error is retryable (e.g., 429, 503, timeout, service unavailable, missing API key, 404)."""
         if not error_message:
             return False
         # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
         non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
         if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
             return False
-        # Retryable errors: 503, 502, 504, 500, 404 (not found - endpoint/model might not exist on this server), 
-        # timeout, service unavailable, unreachable backend, missing API key
+        # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, 404 (not found),
+        # timeout, service unavailable, unreachable backend, missing API key, resource exhausted
         retryable_indicators = [
+            "429", "rate limit", "resource exhausted", "too many requests",  # Rate limiting - definitely retry with fallback
             "503", "502", "504", "500", "404", "timeout", "service unavailable", "unreachable_backend", 
             "connection", "api key", "failed to retrieve", "not found", "http error", "timeouterror"
         ]

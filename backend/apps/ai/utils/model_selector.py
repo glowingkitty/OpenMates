@@ -49,7 +49,9 @@ class ModelSelectionResult:
 
 
 # Default fallback models (always available, reliable)
-DEFAULT_FALLBACK_MODEL = "claude-sonnet-4-5-20250929"  # Reliable Claude Sonnet
+# These MUST include provider prefix for billing/routing to work
+DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-4-5-20250929"  # Reliable Claude Sonnet
+DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-4-5-20251001"  # Fast, affordable fallback
 
 # Task area to leaderboard category mapping
 TASK_AREA_CATEGORIES = {
@@ -61,18 +63,21 @@ TASK_AREA_CATEGORIES = {
 }
 
 # Models considered economical (for simple tasks)
+# These are model_id values from leaderboard (without provider prefix)
 ECONOMICAL_MODELS = {
     "claude-haiku-4-5-20251001",  # Fast, affordable Claude
-    "gemini-3-flash-20250602",    # Fast Gemini
-    "gpt-oss-120b-20250601",      # Cheaper GPT
+    "gemini-3-flash-preview",     # Fast Gemini
+    "gemini-flash-latest",        # Fast Gemini
+    "gpt-oss-120b",               # Cheaper GPT
 }
 
 # Models considered premium (for complex tasks or when user is unhappy)
+# These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
     "claude-opus-4-5-20251101",      # Top Claude
     "claude-sonnet-4-5-20250929",    # High-quality Claude
-    "gemini-3-pro-20250602",         # Top Gemini
-    "gpt-5.2-20250807",              # Top GPT
+    "gemini-3-pro-preview",          # Top Gemini
+    "gpt-5.2",                       # Top GPT
 }
 
 # Cache for allow_auto_select settings (loaded once per process)
@@ -297,74 +302,91 @@ class ModelSelector:
             reasons.append("Economical model preferred (simple task)")
 
         # Step 5: Select primary model
-        primary_model_id = None
-        secondary_model_id = None
+        # We need to track both the model_id (for matching against ECONOMICAL/PREMIUM sets) and
+        # the full qualified ID (provider_id/model_id) for the result
+        primary_model_id = None  # Short model_id for matching against sets
+        primary_full_id = None   # Full provider/model_id for result
+        secondary_full_id = None  # Full provider/model_id for result
+
+        # Helper function to build fully qualified model ID
+        def _build_full_model_id(model_entry: Dict[str, Any]) -> Optional[str]:
+            """Build provider_id/model_id from a leaderboard entry."""
+            provider_id = model_entry.get("provider_id")
+            model_id = model_entry.get("model_id")
+            if provider_id and model_id:
+                return f"{provider_id}/{model_id}"
+            return None
 
         if ranked_models:
-            # Get model IDs from rankings
-            ranked_model_ids = [m.get("model_id") for m in ranked_models if m.get("model_id")]
-
             if prefer_economical:
                 # Find best economical model that's in our rankings
-                for model_id in ranked_model_ids:
-                    if model_id in ECONOMICAL_MODELS:
+                for model_entry in ranked_models:
+                    model_id = model_entry.get("model_id")
+                    if model_id and model_id in ECONOMICAL_MODELS:
                         primary_model_id = model_id
-                        reasons.append(f"Selected economical model: {model_id}")
+                        primary_full_id = _build_full_model_id(model_entry)
+                        reasons.append(f"Selected economical model: {primary_full_id}")
                         break
 
                 # If no economical model in rankings, just use the top ranked
-                if not primary_model_id and ranked_model_ids:
-                    primary_model_id = ranked_model_ids[0]
-                    reasons.append(f"Selected top-ranked model (no economical match): {primary_model_id}")
+                if not primary_model_id and ranked_models:
+                    primary_model_id = ranked_models[0].get("model_id")
+                    primary_full_id = _build_full_model_id(ranked_models[0])
+                    reasons.append(f"Selected top-ranked model (no economical match): {primary_full_id}")
 
             elif prefer_premium:
                 # Find best premium model that's in our rankings
-                for model_id in ranked_model_ids:
-                    if model_id in PREMIUM_MODELS:
+                for model_entry in ranked_models:
+                    model_id = model_entry.get("model_id")
+                    if model_id and model_id in PREMIUM_MODELS:
                         primary_model_id = model_id
-                        reasons.append(f"Selected premium model: {model_id}")
+                        primary_full_id = _build_full_model_id(model_entry)
+                        reasons.append(f"Selected premium model: {primary_full_id}")
                         break
 
                 # If no premium model in rankings, just use the top ranked
-                if not primary_model_id and ranked_model_ids:
-                    primary_model_id = ranked_model_ids[0]
-                    reasons.append(f"Selected top-ranked model (no premium match): {primary_model_id}")
+                if not primary_model_id and ranked_models:
+                    primary_model_id = ranked_models[0].get("model_id")
+                    primary_full_id = _build_full_model_id(ranked_models[0])
+                    reasons.append(f"Selected top-ranked model (no premium match): {primary_full_id}")
 
             else:
                 # Default: use top ranked model
-                if ranked_model_ids:
-                    primary_model_id = ranked_model_ids[0]
-                    reasons.append(f"Selected top-ranked model: {primary_model_id}")
+                if ranked_models:
+                    primary_model_id = ranked_models[0].get("model_id")
+                    primary_full_id = _build_full_model_id(ranked_models[0])
+                    reasons.append(f"Selected top-ranked model: {primary_full_id}")
 
             # Select secondary model (different from primary)
-            for model_id in ranked_model_ids:
-                if model_id != primary_model_id:
-                    secondary_model_id = model_id
+            for model_entry in ranked_models:
+                model_id = model_entry.get("model_id")
+                if model_id and model_id != primary_model_id:
+                    secondary_full_id = _build_full_model_id(model_entry)
                     break
 
-        # Step 6: Ensure we have at least a primary model
-        if not primary_model_id:
-            primary_model_id = DEFAULT_FALLBACK_MODEL
-            reasons.append(f"No ranked models available, using default: {primary_model_id}")
+        # Step 6: Ensure we have at least a primary model (with provider prefix)
+        if not primary_full_id:
+            primary_full_id = DEFAULT_FALLBACK_MODEL
+            reasons.append(f"No ranked models available, using default: {primary_full_id}")
 
-        # Step 7: Set fallback model
-        fallback_model_id = DEFAULT_FALLBACK_MODEL
-        if fallback_model_id == primary_model_id:
+        # Step 7: Set fallback model (always with provider prefix)
+        fallback_full_id = DEFAULT_FALLBACK_MODEL
+        if fallback_full_id == primary_full_id:
             # Use a different fallback if primary is already the default
-            fallback_model_id = "claude-haiku-4-5-20251001"
+            fallback_full_id = DEFAULT_FALLBACK_MODEL_ALT
 
         # Log the selection
         selection_reason = "; ".join(reasons)
         logger.info(
-            f"{log_prefix} MODEL_SELECTION: primary={primary_model_id}, "
-            f"secondary={secondary_model_id}, fallback={fallback_model_id}. "
+            f"{log_prefix} MODEL_SELECTION: primary={primary_full_id}, "
+            f"secondary={secondary_full_id}, fallback={fallback_full_id}. "
             f"Reason: {selection_reason}"
         )
 
         return ModelSelectionResult(
-            primary_model_id=primary_model_id,
-            secondary_model_id=secondary_model_id,
-            fallback_model_id=fallback_model_id,
+            primary_model_id=primary_full_id,
+            secondary_model_id=secondary_full_id,
+            fallback_model_id=fallback_full_id,
             selection_reason=selection_reason,
             filtered_cn_models=china_related,
         )
@@ -416,7 +438,7 @@ def select_models_simple(
     user_unhappy: bool = False,
     leaderboard_data: Optional[Dict[str, Any]] = None,
     log_prefix: str = ""
-) -> Tuple[str, Optional[str], str]:
+) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Simple synchronous model selection returning a tuple of model IDs.
 

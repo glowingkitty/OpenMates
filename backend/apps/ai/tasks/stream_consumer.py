@@ -518,7 +518,15 @@ async def _handle_normal_billing(
         output_tokens = usage.candidates_token_count or 0
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        provider_name = "google"
+        # For third-party models hosted on Google Vertex AI (MaaS), use the original provider for pricing
+        # e.g., "deepseek/deepseek-v3.2" -> provider_name = "deepseek", not "google"
+        # This ensures we look up pricing from the model's actual provider config file
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "google/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+            logger.info(f"{log_prefix} Google usage - extracted billing provider from model_id: {provider_name}")
+        except Exception:
+            provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
@@ -2106,10 +2114,17 @@ async def _consume_main_processing_stream(
     )
     
     billing_info = {}
+    billing_error = None
     if should_bill:
-        billing_info = await _handle_normal_billing(
-            usage, preprocessing_result, request_data, task_id, log_prefix
-        )
+        try:
+            billing_info = await _handle_normal_billing(
+                usage, preprocessing_result, request_data, task_id, log_prefix
+            )
+        except Exception as e:
+            # CRITICAL: Don't let billing errors prevent the final chunk from being sent
+            # This ensures the typing indicator is cleared even if billing fails
+            billing_error = e
+            logger.error(f"{log_prefix} Billing failed but continuing to send final chunk: {e}", exc_info=True)
     elif usage and is_server_error:
         logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
     elif usage and is_error and not (was_revoked_during_stream or was_soft_limited_during_stream):
@@ -2213,5 +2228,11 @@ async def _consume_main_processing_stream(
         logger.error(f"{log_prefix} CRITICAL: Encryption service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    
+    # Re-raise billing error after final chunk has been sent and metadata saved
+    # This ensures proper error handling while still clearing the typing indicator
+    if billing_error:
+        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        raise billing_error
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

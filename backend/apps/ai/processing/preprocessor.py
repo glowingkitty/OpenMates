@@ -919,7 +919,7 @@ async def handle_preprocessing(
     if not model_override_applied:
         # Check if auto model selection is enabled in skill_config
         # Default to False for safety - require explicit opt-in
-        enable_auto_select = getattr(skill_config, 'enable_auto_model_selection', False)
+        enable_auto_select = skill_config.enable_auto_model_selection
 
         if enable_auto_select:
             # Use ModelSelector to select models based on leaderboard rankings
@@ -945,9 +945,14 @@ async def handle_preprocessing(
                 model_selection_reason = selection_result.selection_reason
                 filtered_cn_models = selection_result.filtered_cn_models
 
-                # Extract model name from model_id (take last part after /)
+                # Look up human-readable model name from provider config
+                # Format of selected_llm_for_main_id: "provider/model_id" (e.g., "google/gemini-3-pro-preview")
                 if selected_llm_for_main_id and "/" in selected_llm_for_main_id:
-                    selected_llm_for_main_name = selected_llm_for_main_id.split("/")[-1]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part)
+                    if not selected_llm_for_main_name:
+                        # Fallback to model ID if display name not found in config
+                        selected_llm_for_main_name = model_id_part
                 else:
                     selected_llm_for_main_name = selected_llm_for_main_id
 

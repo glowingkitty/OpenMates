@@ -36,6 +36,10 @@ class SkillPreprocessingThresholdsConfig(BaseModel):
 
 class AskSkillDefaultConfig(BaseModel):
     """Pydantic model for ask skill's specific default configurations from backend.core.api.app.yml."""
+    # Model Selection Configuration
+    # When false, uses hardcoded models from default_llms below.
+    # When true, uses intelligent auto-selection based on leaderboard rankings.
+    enable_auto_model_selection: bool = False
     default_llms: Optional[SkillDefaultLLMsConfig] = None
     preprocessing_thresholds: Optional[SkillPreprocessingThresholdsConfig] = None
     # Always-include skills configuration - these skills are ALWAYS available to the main LLM

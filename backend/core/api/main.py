@@ -463,6 +463,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring payment orders from disk: {e}", exc_info=True)
     
+    # --- Restore pending reminders from disk backup ---
+    # This recovers reminders that were persisted during the last graceful shutdown
+    # to prevent reminder data loss across server restarts
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_reminders = await app.state.cache_service.restore_reminders_from_disk()
+            if restored_reminders > 0:
+                logger.info(f"Restored {restored_reminders} pending reminders from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
+    
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
     # This optimization prevents disk I/O on every message processing request
@@ -949,6 +960,16 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Persisted {dumped_count} pending payment orders to disk for recovery after restart")
         except Exception as e:
             logger.error(f"Error persisting payment orders to disk during shutdown: {e}", exc_info=True)
+    
+    # --- Persist pending reminders to disk before shutdown ---
+    # This ensures reminders survive restarts and can be restored on next startup
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_reminders = await app.state.cache_service.dump_reminders_to_disk()
+            if dumped_reminders > 0:
+                logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):

@@ -7,7 +7,7 @@ from fastapi import WebSocket
 
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app # Celery app instance
-from backend.core.api.app.services.cache_service import CacheService
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
