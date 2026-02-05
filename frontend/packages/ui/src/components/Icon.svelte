@@ -357,6 +357,7 @@
     --icon-url-proton-authenticator: url('@openmates/ui/static/icons/proton-authenticator.svg');
     --icon-url-minus: url('@openmates/ui/static/icons/minus.svg');
     --icon-url-mistral: url('@openmates/ui/static/icons/mistral.svg');
+    --icon-url-mistral_ai: url('@openmates/ui/static/icons/mistral.svg');
     --icon-url-modify: url('@openmates/ui/static/icons/create.svg');
     --icon-url-money: url('@openmates/ui/static/icons/money.svg');
     --icon-url-movies: url('@openmates/ui/static/icons/movies.svg');

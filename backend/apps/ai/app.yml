@@ -3,13 +3,9 @@ description_translation_key: ai.description.text
 icon_image: |
   ai.svg
 last_updated: "2025-11-12"
-providers:
-  - Alibaba
-  - Anthropic
-  - Cerebras
-  - Google
-  - Mistral
-  - OpenAI
+# Providers are auto-discovered from backend/providers/*.yml files
+# based on models with for_app_skill matching the skill ID (e.g., "ai.ask")
+# See: frontend/packages/ui/scripts/generate-apps-metadata.js
 
 settings_and_memories:
   - id: communication_style
@@ -127,13 +123,8 @@ skills:
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
-    providers:
-      - Alibaba
-      - Anthropic
-      - Cerebras
-      - Google
-      - Mistral
-      - OpenAI
+    # Providers are auto-discovered from backend/providers/*.yml files
+    # based on models with for_app_skill: "ai.ask"
     skill_config:
       # Model Selection Configuration
       # When false, uses hardcoded models from default_llms below.
