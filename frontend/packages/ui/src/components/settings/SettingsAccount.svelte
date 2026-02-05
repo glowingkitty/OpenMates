@@ -6,8 +6,34 @@ Account Settings - Main menu for account-related settings including Security, Ex
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
+    import { userProfile } from '../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
+
+    // Get display label for current timezone
+    function getTimezoneDisplayLabel(timezoneId: string | null): string {
+        if (!timezoneId) return 'Not set';
+        // Convert IANA timezone to readable format
+        // e.g., "Europe/Berlin" -> "Berlin"
+        const parts = timezoneId.split('/');
+        return parts[parts.length - 1].replace(/_/g, ' ');
+    }
+
+    // Current timezone from user profile
+    let currentTimezone = $derived($userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+    /**
+     * Navigate to Timezone submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToTimezone() {
+        dispatch('openSettings', {
+            settingsPath: 'account/timezone',
+            direction: 'forward',
+            icon: 'clock',
+            title: $text('settings.account.timezone.text')
+        });
+    }
 
     /**
      * Navigate to Email submenu.
@@ -62,6 +88,14 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 </script>
+
+<SettingsItem 
+    type="subsubmenu"
+    icon="clock"
+    subtitle={$text('settings.account.timezone.text')}
+    title={getTimezoneDisplayLabel(currentTimezone)}
+    onClick={navigateToTimezone}
+/>
 
 <SettingsItem
     type="submenu"

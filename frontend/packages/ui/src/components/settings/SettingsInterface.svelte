@@ -14,9 +14,7 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher, onMount } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
-    import SettingsTimezone from './interface/SettingsTimezone.svelte';
     import { locale, waitLocale } from 'svelte-i18n';
-    import { userProfile } from '../../stores/userProfile';
     import { browser } from '$app/environment';
     import { get } from 'svelte/store';
 
@@ -133,41 +131,7 @@ changes to the documentation (to keep the documentation up to date).
         dispatch('navigateBack');
     }
 
-    // Navigate to timezone settings
-    function showTimezoneSettings(event = null) {
-        if (event) event.stopPropagation();
-        
-        currentView = 'timezone';
-        childComponent = SettingsTimezone;
-        
-        dispatch('openSettings', {
-            settingsPath: 'interface/timezone',
-            direction: 'forward',
-            icon: 'clock',
-            title: $text('settings.interface.timezone.text'),
-            translationKey: 'settings.interface.timezone'
-        });
-        
-        const settingsContent = document.querySelector('.settings-content-wrapper');
-        if (settingsContent) {
-            settingsContent.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-    }
 
-    // Get display label for current timezone
-    function getTimezoneDisplayLabel(timezoneId: string | null): string {
-        if (!timezoneId) return 'Not set';
-        // Convert IANA timezone to readable format
-        // e.g., "Europe/Berlin" -> "Berlin"
-        const parts = timezoneId.split('/');
-        return parts[parts.length - 1].replace(/_/g, ' ');
-    }
-
-    // Current timezone from user profile
-    let currentTimezone = $derived($userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 </script>
 
 {#if currentView === 'main'}
@@ -178,19 +142,9 @@ changes to the documentation (to keep the documentation up to date).
         title={currentLanguageObj.name}
         onClick={() => showLanguageSettings()}
     />
-    <SettingsItem 
-        type="subsubmenu"
-        icon="clock"
-        subtitle={$text('settings.interface.timezone.text')}
-        title={getTimezoneDisplayLabel(currentTimezone)}
-        onClick={() => showTimezoneSettings()}
-    />
 {:else if currentView === 'language' && childComponent}
     {@const Component = childComponent}
     <Component 
         on:languageChanged={handleLanguageChanged} 
     />
-{:else if currentView === 'timezone' && childComponent}
-    {@const Component = childComponent}
-    <Component />
 {/if}
