@@ -414,9 +414,9 @@ async def _send_reminder_to_existing_chat(
 
         # Update chat metadata
         try:
-            await directus_service.chat.update_chat_in_directus(
+            await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=target_chat_id,
-                update_data={
+                fields_to_update={
                     "updated_at": now_ts,
                     "last_message_timestamp": now_ts,
                     "unread_count": 1,  # Mark as unread
