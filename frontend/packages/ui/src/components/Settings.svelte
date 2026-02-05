@@ -67,6 +67,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
+    import SettingsTimezone from './settings/interface/SettingsTimezone.svelte';
     import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
@@ -197,6 +198,7 @@ changes to the documentation (to keep the documentation up to date).
         'server/community-suggestions': SettingsCommunitySuggestions,
         'server/stats': SettingsStats,
         'interface/language': SettingsLanguage,
+        'interface/timezone': SettingsTimezone,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
         'account/email': SettingsEmail,
