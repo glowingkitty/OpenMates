@@ -1569,45 +1569,106 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
     let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
     
-    // Side-by-side transition animation control
-    // When entering side-by-side mode, we animate from full-width chat to narrow chat + fullscreen panel
-    // When exiting, we animate the reverse: narrow chat expands, fullscreen panel shrinks
+    // ===========================================
+    // Side-by-side Animation System
+    // ===========================================
+    // Controls smooth transitions between:
+    // 1. Full-width chat <-> side-by-side (chat + fullscreen panel)
+    // 2. Side-by-side <-> fullscreen only (chat minimized)
+    //
+    // Animation states track visual layout independently from logical state
+    // to allow exit animations to complete before elements are removed
+    
+    // Animation duration in ms (keep in sync with CSS)
+    const SIDE_BY_SIDE_ANIMATION_DURATION = 400;
+    
+    // Visual state for animations - may differ from logical state during transitions
+    let sideBySideVisualState = $state<'full-chat' | 'side-by-side' | 'full-embed'>('full-chat');
     let sideBySideAnimating = $state(false);
-    let sideBySideAnimationDirection = $state<'enter' | 'exit'>('enter');
+    let sideBySideAnimationDirection = $state<'enter' | 'exit' | 'minimize' | 'restore'>('enter');
     
-    // Track the previous value of showSideBySideFullscreen to detect transitions
+    // Track previous logical state to detect changes
     let prevShowSideBySideFullscreen = $state(false);
+    let prevForceOverlayMode = $state(false);
     
-    // Effect to handle side-by-side transition animation
+    // Effect to handle side-by-side transition animations
     $effect(() => {
-        // Detect when showSideBySideFullscreen changes
-        if (showSideBySideFullscreen !== prevShowSideBySideFullscreen) {
-            const isEntering = showSideBySideFullscreen && !prevShowSideBySideFullscreen;
-            const isExiting = !showSideBySideFullscreen && prevShowSideBySideFullscreen;
-            
-            if (isEntering) {
-                sideBySideAnimationDirection = 'enter';
-                sideBySideAnimating = true;
-                setTimeout(() => { sideBySideAnimating = false; }, 400);
-            } else if (isExiting) {
-                sideBySideAnimationDirection = 'exit';
-                sideBySideAnimating = true;
-                setTimeout(() => { sideBySideAnimating = false; }, 400);
+        const currentSideBySide = showSideBySideFullscreen;
+        const currentForceOverlay = forceOverlayMode;
+        
+        // Detect state transitions
+        const wasFullChat = !prevShowSideBySideFullscreen;
+        const wasSideBySide = prevShowSideBySideFullscreen && !prevForceOverlayMode;
+        const wasFullEmbed = prevShowSideBySideFullscreen && prevForceOverlayMode;
+        
+        const isFullChat = !currentSideBySide && !currentForceOverlay;
+        const isSideBySide = currentSideBySide && !currentForceOverlay;
+        const isFullEmbed = currentSideBySide && currentForceOverlay;
+        
+        // Determine transition type
+        if (wasFullChat && isSideBySide) {
+            // Opening embed fullscreen: full-chat -> side-by-side
+            sideBySideAnimationDirection = 'enter';
+            sideBySideAnimating = true;
+            sideBySideVisualState = 'side-by-side';
+            setTimeout(() => { sideBySideAnimating = false; }, SIDE_BY_SIDE_ANIMATION_DURATION);
+        } else if (wasSideBySide && isFullChat) {
+            // Closing embed fullscreen: side-by-side -> full-chat
+            sideBySideAnimationDirection = 'exit';
+            sideBySideAnimating = true;
+            // Keep visual state as side-by-side during animation, then switch
+            setTimeout(() => { 
+                sideBySideAnimating = false;
+                sideBySideVisualState = 'full-chat';
+            }, SIDE_BY_SIDE_ANIMATION_DURATION);
+        } else if (wasSideBySide && isFullEmbed) {
+            // Minimizing chat: side-by-side -> full-embed
+            sideBySideAnimationDirection = 'minimize';
+            sideBySideAnimating = true;
+            setTimeout(() => { 
+                sideBySideAnimating = false;
+                sideBySideVisualState = 'full-embed';
+            }, SIDE_BY_SIDE_ANIMATION_DURATION);
+        } else if (wasFullEmbed && isSideBySide) {
+            // Restoring chat: full-embed -> side-by-side
+            sideBySideAnimationDirection = 'restore';
+            sideBySideAnimating = true;
+            sideBySideVisualState = 'side-by-side';
+            setTimeout(() => { sideBySideAnimating = false; }, SIDE_BY_SIDE_ANIMATION_DURATION);
+        } else if (!sideBySideAnimating) {
+            // Direct state change without animation (e.g., initial load, screen resize)
+            if (isSideBySide) {
+                sideBySideVisualState = 'side-by-side';
+            } else if (isFullEmbed) {
+                sideBySideVisualState = 'full-embed';
+            } else {
+                sideBySideVisualState = 'full-chat';
             }
-            
-            prevShowSideBySideFullscreen = showSideBySideFullscreen;
         }
+        
+        prevShowSideBySideFullscreen = currentSideBySide;
+        prevForceOverlayMode = currentForceOverlay;
     });
+    
+    // Derived states for template - based on visual state for smooth animations
+    let showSideBySideLayout = $derived(
+        sideBySideVisualState === 'side-by-side' || 
+        (sideBySideAnimating && (sideBySideAnimationDirection === 'enter' || sideBySideAnimationDirection === 'exit'))
+    );
+    let showChatInSideBySide = $derived(
+        sideBySideVisualState !== 'full-embed' ||
+        (sideBySideAnimating && sideBySideAnimationDirection === 'restore')
+    );
     
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
-    let isEffectivelyNarrow = $derived(isNarrow || showSideBySideFullscreen);
+    let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
     
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
     // This is passed to ChatHistory/ChatMessage for proper responsive behavior
-    let effectiveChatWidth = $derived(showSideBySideFullscreen ? 400 : containerWidth);
+    let effectiveChatWidth = $derived(showSideBySideLayout ? 400 : containerWidth);
 
     // Debug suggestions visibility
     $effect(() => {
@@ -1859,11 +1920,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // instead of generic "AI" - this comes from the provider config's server.name field
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
+            const serverRegion = currentTypingStatus.serverRegion || '';
             
             // If we don't have model or provider name, just show the typing indicator without "Powered by"
             if (!modelName && !providerName) {
                 return $text('enter_message.is_typing.text').replace('{mate}', mateName);
             }
+            
+            // Get region flag for display (e.g., "EU" -> "🇪🇺", "US" -> "🇺🇸", "APAC" -> "🌏")
+            const getRegionFlag = (region: string): string => {
+                switch (region) {
+                    case 'EU': return '🇪🇺';
+                    case 'US': return '🇺🇸';
+                    case 'APAC': return '🌏';
+                    default: return '';
+                }
+            };
+            
+            // Append region flag to provider name if available (e.g., "AWS Bedrock 🇪🇺")
+            const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
+            const displayProviderName = regionFlag ? `${providerName} ${regionFlag}` : providerName;
             
             // Use translation key with placeholders for model and provider names
             // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
@@ -1872,7 +1948,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const result = $text('enter_message.is_typing_powered_by.text')
                 .replace('{mate}', mateName)
                 .replace('{model_name}', displayModelName)
-                .replace('{provider_name}', providerName);
+                .replace('{provider_name}', displayProviderName);
             
             console.debug('[ActiveChat] AI typing indicator text generated:', result);
             return result;
@@ -4521,10 +4597,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:login-mode={!showChat} 
     class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
-    class:medium={isMedium && !showSideBySideFullscreen}
-    class:wide={isWide && !showSideBySideFullscreen}
+    class:medium={isMedium && !showSideBySideLayout}
+    class:wide={isWide && !showSideBySideLayout}
     class:extra-wide={isExtraWide}
-    class:side-by-side-active={showSideBySideFullscreen}
+    class:side-by-side-active={showSideBySideLayout}
     bind:clientWidth={containerWidth}
 >
     {#if !showChat}
@@ -4548,17 +4624,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             in:fade={{ duration: 300 }} 
             out:fade={{ duration: 200 }}
             class="content-container"
-            class:side-by-side={showSideBySideFullscreen}
+            class:side-by-side={showSideBySideLayout}
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
             <!-- When side-by-side mode is active, chat takes left portion with smooth transition -->
-            <!-- Animation classes control enter (shrink) and exit (expand) transitions -->
+            <!-- Animation classes control enter/exit/minimize/restore transitions -->
+            {#if showChatInSideBySide || !showSideBySideLayout}
             <div 
                 class="chat-wrapper" 
                 class:fullscreen={isFullscreen} 
-                class:side-by-side-chat={showSideBySideFullscreen || (sideBySideAnimating && sideBySideAnimationDirection === 'exit')}
+                class:side-by-side-chat={showSideBySideLayout}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
+                class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
                 <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
                 {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
@@ -4788,6 +4867,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 </div>
             </div>
+            {/if}
 
             {#if showCodeFullscreen}
                 <CodeFullscreen 
@@ -4806,9 +4886,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {#if showEmbedFullscreen && embedFullscreenData}
                 <div 
                     class="fullscreen-embed-container"
-                    class:side-panel={showSideBySideFullscreen}
-                    class:overlay-mode={!showSideBySideFullscreen}
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
                     class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
+                    class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                    class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
+                    class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
                 >
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
@@ -5243,6 +5326,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         gap: 10px; /* Gap between chat card and fullscreen card */
     }
     
+    /* ===========================================
+       Chat Wrapper Animations for Side-by-Side Mode
+       =========================================== */
+    
     /* Chat wrapper base styles for side-by-side mode */
     /* When side-by-side is active, chat shrinks to 400px to make room for fullscreen panel */
     .chat-wrapper.side-by-side-chat {
@@ -5258,16 +5345,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
     
-    /* Smooth width animation when ENTERING side-by-side mode */
-    /* Chat shrinks from full-width to 400px while fullscreen panel grows */
+    /* ENTER: Opening fullscreen - chat shrinks from full-width to 400px */
     .chat-wrapper.side-by-side-entering {
         animation: chatShrink 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     
-    /* Smooth width animation when EXITING side-by-side mode */
-    /* Chat expands from 400px back to full-width */
+    /* EXIT: Closing fullscreen - chat expands from 400px back to full-width */
     .chat-wrapper.side-by-side-exiting {
         animation: chatExpand 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    /* MINIMIZE: Hide chat - chat shrinks from 400px to 0 and fades out */
+    .chat-wrapper.side-by-side-minimizing {
+        animation: chatMinimize 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    /* RESTORE: Show chat - chat grows from 0 to 400px and fades in */
+    .chat-wrapper.side-by-side-restoring {
+        animation: chatRestore 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     
     @keyframes chatShrink {
@@ -5304,6 +5399,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
+    @keyframes chatMinimize {
+        from {
+            flex: 0 0 400px;
+            max-width: 400px;
+            min-width: 400px;
+            opacity: 1;
+        }
+        to {
+            flex: 0 0 0px;
+            max-width: 0px;
+            min-width: 0px;
+            opacity: 0;
+        }
+    }
+    
+    @keyframes chatRestore {
+        from {
+            flex: 0 0 0px;
+            max-width: 0px;
+            min-width: 0px;
+            opacity: 0;
+        }
+        to {
+            flex: 0 0 400px;
+            max-width: 400px;
+            min-width: 400px;
+            opacity: 1;
+        }
+    }
+    
     /* Top buttons layout in side-by-side mode */
     /* Keep buttons at normal left position, span full width for space-between to work */
     .chat-wrapper.side-by-side-chat .top-buttons {
@@ -5323,6 +5448,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .chat-wrapper.side-by-side-chat .center-content {
         top: 30%;
     }
+    
+    /* ===========================================
+       Fullscreen Panel Animations
+       =========================================== */
     
     /* Fullscreen embed container - handles both overlay and side panel modes */
     .fullscreen-embed-container {
@@ -5353,22 +5482,63 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
     
-    /* Smooth animation when ENTERING side-by-side mode */
-    /* Panel reveals from right edge using clip-path */
+    /* ENTER: Panel reveals from left edge (grows leftward as chat shrinks) */
     .fullscreen-embed-container.side-panel.side-by-side-entering {
         animation: panelReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     
+    /* EXIT: Panel hides to left edge (shrinks rightward as chat expands) */
+    .fullscreen-embed-container.side-panel.side-by-side-exiting {
+        animation: panelHide 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    /* MINIMIZE: Panel expands to full width (chat is hidden) */
+    .fullscreen-embed-container.side-panel.side-by-side-minimizing {
+        animation: panelExpandFull 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    /* RESTORE: Panel shrinks back to partial width (chat is shown) */
+    .fullscreen-embed-container.side-panel.side-by-side-restoring {
+        animation: panelShrinkPartial 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
     @keyframes panelReveal {
         from {
-            /* Start fully clipped from left (invisible), reveal rightward */
             clip-path: inset(0 0 0 100%);
             opacity: 0;
         }
         to {
-            /* End fully visible */
             clip-path: inset(0 0 0 0);
             opacity: 1;
+        }
+    }
+    
+    @keyframes panelHide {
+        from {
+            clip-path: inset(0 0 0 0);
+            opacity: 1;
+        }
+        to {
+            clip-path: inset(0 0 0 100%);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes panelExpandFull {
+        from {
+            /* Panel already at flex: 1 */
+        }
+        to {
+            /* Panel stays at flex: 1, just gets more space as chat disappears */
+        }
+    }
+    
+    @keyframes panelShrinkPartial {
+        from {
+            /* Panel at full width */
+        }
+        to {
+            /* Panel returns to partial width */
         }
     }
     

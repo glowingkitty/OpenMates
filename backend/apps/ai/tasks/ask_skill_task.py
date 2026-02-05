@@ -924,6 +924,7 @@ async def _async_process_ai_skill_ask_task(
             # Then get the actual server (e.g., Cerebras) from the provider config
             # CRITICAL: We must always extract a real server/provider name, never default to "AI"
             provider_name = None  # Will be set from config
+            server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
             
             if preprocessing_result.selected_main_llm_model_id:
                 logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
@@ -960,13 +961,14 @@ async def _async_process_ai_skill_ask_task(
                                             logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
                                             if server_id == default_server_id:
                                                 provider_name = server.get('name')
-                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name from config: '{provider_name}'")
+                                                server_region = server.get('region')  # e.g., "EU", "US", "APAC"
+                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
                                                 if not provider_name:
                                                     # Server name not set, use capitalized server ID
                                                     provider_name = default_server_id.capitalize()
                                                     logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
                                                 else:
-                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
                                                 server_found = True
                                                 break
                                         if not server_found:
@@ -1032,8 +1034,8 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
                 provider_name = "Unknown"
             
-            # Log the final provider name that will be sent to client
-            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}'")
+            # Log the final provider name and server region that will be sent to client
+            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
@@ -1047,13 +1049,14 @@ async def _async_process_ai_skill_ask_task(
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
                 "provider_name": provider_name, # Add provider_name to the payload
+                "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
                 # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                 # When this is True, the user message was already persisted before the app settings/memories pause
                 "is_continuation": request_data.is_app_settings_memories_continuation,
             }
             
             # Log the complete typing payload for debugging
-            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}")
+            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
             
             # Only add title and icon_names if they were generated (new chat only)
             # If chat already has a title, preprocessing skips generation of these fields

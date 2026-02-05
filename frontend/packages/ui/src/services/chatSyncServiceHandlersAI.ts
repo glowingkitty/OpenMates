@@ -762,6 +762,7 @@ export async function handleAITypingStartedImpl( // Changed to async
     payload.category,
     payload.model_name,
     payload.provider_name,
+    payload.server_region,
   );
 
   // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
