@@ -40,7 +40,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
-	let syncing = $state(true); // Indicates if 3-phase sync is in progress (starts true)
+	// Syncing indicator: true when authenticated AND sync has not completed yet
+	// Using $derived ensures reactivity to both authStore and phasedSyncState changes
+	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
@@ -436,7 +438,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 chatListCache.markDirty();
 	 await updateChatListFromDB(true);
 	 
-	 syncing = false;
+	 // Note: syncing is now derived from phasedSyncState.initialSyncCompleted
+	 // The phasedSyncState.markSyncCompleted() call happens in handlePhasedSyncCompleteEvent
 	 syncComplete = true;
 	 
 	 // Hide the message after 1 second
@@ -600,8 +603,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		allChatsDisplayed = true;
 		console.info(`[Chats] Phase 3 complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
-		// Show "Sync complete" message
-		syncing = false;
+		// Show "Sync complete" message (syncing is derived from phasedSyncState)
 		syncComplete = true;
 		
 		// Hide the message after 1 second
@@ -619,13 +621,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		
 		// Mark that initial phased sync has completed
 		// This prevents redundant syncs when Chats component is remounted
+		// Note: This also updates the derived 'syncing' state to false
 		phasedSyncState.markSyncCompleted();
 		
 		// Final update of the chat list
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		syncing = false;
+		// Show "Sync complete" message (syncing is derived from phasedSyncState)
 		syncComplete = true;
 		
 		// Hide the message after 1 second
@@ -645,7 +648,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		*/
 	const handleCachePrimedEvent = () => {
 		console.debug("[Chats] Cache primed event received.");
-		syncing = false;
+		// Mark sync as complete (this updates the derived 'syncing' state)
+		phasedSyncState.markSyncCompleted();
 		syncComplete = true;
 		
 		// Hide the message after 1 second
@@ -661,7 +665,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	const handleSyncStatusResponse = (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
 		console.debug("[Chats] Sync status response received:", event.detail);
 		if (event.detail.cache_primed) {
-			syncing = false;
+			// Mark sync as complete (this updates the derived 'syncing' state)
+			phasedSyncState.markSyncCompleted();
 			syncComplete = true;
 			
 			// Hide the message after 1 second
@@ -794,7 +799,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			selectedChatId = null;
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
-			syncing = false;
+			// Note: syncing is now derived from authStore and phasedSyncState
+			// For non-authenticated users, syncing will be false automatically
 			syncComplete = false;
 
 			// CRITICAL: Don't clear URL hash if one exists - deep links need to be processed first
@@ -836,11 +842,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// NOTE: Reactive sync of selectedChatId with activeChatStore is handled by
 		// the $effect at the top level of the script (Svelte 5 requires $effect at top level)
 		
-		// CHANGED: For non-authenticated users, don't show syncing indicator
+		// CHANGED: For non-authenticated users, syncing is automatically false (derived state)
 		// Demo chats are loaded synchronously, no sync needed
 		if (!$authStore.isAuthenticated) {
-			syncing = false;
-			console.debug('[Chats] Non-authenticated user - skipping sync indicator');
+			console.debug('[Chats] Non-authenticated user - syncing indicator disabled (derived state)');
 
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
@@ -886,7 +891,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			selectedChatId = null;
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
-			syncing = false;
+			// Note: syncing is derived from authStore - will be false when not authenticated
 			syncComplete = false;
 			
 			// Clear the persistent store
@@ -1189,10 +1194,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
-		// Check if sync has already completed - if so, don't show loading indicator
+		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
+		// Check if sync has already completed - if so, expand display limit
 		if ($phasedSyncState.initialSyncCompleted) {
-			syncing = false;
-			
 			// CRITICAL: Expand display limit to show all chats since sync is already done
 			// Without this, only the first 20 chats would be visible until the user closes/reopens the sidebar
 			if (!allChatsDisplayed) {
@@ -2651,36 +2655,33 @@ async function updateChatListFromDBInternal(force = false) {
 			ontouchstart={handleTouchStart}
 			ontouchmove={handleTouchMove}
 		>
-			<!-- Sync status / Show hidden chats toggle area -->
-		<!-- When syncing: show syncing indicator with shimmer animation in place of "Show hidden chats" button -->
-		<!-- When not syncing: show "Show hidden chats" button (fades in after sync completes) -->
-		{#if !hiddenChatState.isUnlocked}
+			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
+		{#if syncing}
+			<div class="show-hidden-chats-container">
+				<div class="syncing-inline-indicator" aria-live="polite">
+					<span class="clickable-icon icon_reload syncing-icon"></span>
+					<span class="syncing-text">{$text('activity.syncing.text')}</span>
+				</div>
+			</div>
+		{:else if !hiddenChatState.isUnlocked}
+			<!-- Show hidden chats button/form (only when not syncing and hidden chats are locked) -->
 			{#if !showInlineUnlock}
 				<div class="show-hidden-chats-container">
-					{#if syncing}
-						<!-- Syncing indicator with shimmer animation (replaces "Show hidden chats" during sync) -->
-						<div class="syncing-inline-indicator" aria-live="polite">
-							<span class="clickable-icon icon_reload syncing-icon"></span>
-							<span class="syncing-text">{$text('activity.syncing.text')}</span>
-						</div>
-					{:else}
-						<!-- Show hidden chats button (fades in after sync completes) -->
-						<button
-							type="button"
-							class="show-hidden-chats-button"
-							class:fade-in={syncComplete || !syncing}
-							onclick={() => {
-								showInlineUnlock = true;
-								// Focus input after a brief delay
-								setTimeout(() => {
-									inlineUnlockInput?.focus();
-								}, 100);
-							}}
-						>
-							<span class="clickable-icon icon_hidden"></span>
-							<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
-						</button>
-					{/if}
+					<button
+						type="button"
+						class="show-hidden-chats-button"
+						class:fade-in={syncComplete || !syncing}
+						onclick={() => {
+							showInlineUnlock = true;
+							// Focus input after a brief delay
+							setTimeout(() => {
+								inlineUnlockInput?.focus();
+							}, 100);
+						}}
+					>
+						<span class="clickable-icon icon_hidden"></span>
+						<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
+					</button>
 				</div>
 			{:else}
 				<!-- Inline unlock form -->
