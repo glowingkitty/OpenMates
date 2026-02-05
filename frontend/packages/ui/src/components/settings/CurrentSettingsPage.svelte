@@ -136,6 +136,10 @@
     
     // Keep track of transition state
     let inTransition = false;
+    
+    // Track the direction to use for transitions
+    // This is captured when a transition starts so out-transitions use the correct direction
+    let transitionDirection = $state(direction);
 
     // Handle view changes reactively using Svelte 5 runes
     $effect(() => {
@@ -147,6 +151,10 @@
     // Function to properly manage view transitions
     async function handleViewChange(newView: string) {
         inTransition = true;
+        
+        // Capture the direction at the start of the transition
+        // This ensures both in and out transitions use the same direction
+        transitionDirection = direction;
         
         // Keep track of the previous view for proper transitions
         const oldView = previousView;
@@ -329,8 +337,8 @@
         <div 
             class="settings-items"
             class:active={activeSettingsView === 'main'}
-            in:flyFade={getInParams(direction)}
-            out:flyFade={getOutParams(direction)}
+            in:flyFade={getInParams(transitionDirection)}
+            out:flyFade={getOutParams(transitionDirection)}
             style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
             onoutroend={() => handleAnimationComplete('main')}
         >
@@ -441,13 +449,19 @@
             <div 
                 class="settings-submenu-content"
                 class:active={activeSettingsView === key}
-                in:flyFade={getInParams(direction)}
-                out:flyFade={getOutParams(direction)}
+                in:flyFade={getInParams(transitionDirection)}
+                out:flyFade={getOutParams(transitionDirection)}
                 style="z-index: {activeSettingsView === key ? 2 : 1};"
                 onoutroend={() => handleAnimationComplete(key)}
             >
+                <!-- 
+                    Pass the component's own key as activeSettingsView, NOT the global activeSettingsView.
+                    This ensures that during exit transitions, components like AppDetailsWrapper still
+                    receive their original route (e.g., "app_store/ai") rather than the new route
+                    (e.g., "app_store" or "main"), which would cause "Invalid app route" errors.
+                -->
                 <Component 
-                    activeSettingsView={activeSettingsView}
+                    activeSettingsView={key}
                     accountId={accountId}
                     on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
                 />
