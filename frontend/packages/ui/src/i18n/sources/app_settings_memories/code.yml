@@ -84,12 +84,12 @@ projects.description:
   es: Tus proyectos (activos, planificados o completados)
   fr: Vos projets (actifs, planifiés ou terminés)
   pt: Seus projetos (ativos, planejados ou concluídos)
-  ru: Ваши проекты (активные, запланированные или завершенные)
+  ru: Ваши проекты (активные, планируемые, завершённые)
   ja: あなたのプロジェクト（進行中、計画中、完了済み）
   ko: 당신의 프로젝트 (진행 중, 계획됨, 완료됨)
   it: I tuoi progetti (attivi, pianificati o completati)
   tr: Projeleriniz (aktif, planlı veya tamamlanmış)
-  vi: Dự án của bạn (đang hoạt động, đã lên kế hoạch hoặc đã hoàn thành)
+  vi: Dự án của bạn (hoạt động, kế hoạch, hoàn thành)
   id: Proyek Anda (aktif, direncanakan, atau selesai)
   pl: Twoje projekty (aktywne, planowane lub ukończone)
   nl: Je projecten (actief, gepland of voltooid)
@@ -132,7 +132,7 @@ want_to_learn.description:
   de: Technologien und Fähigkeiten, die du lernen möchtest
   zh: 你想学习的技术和技能
   es: Tecnologías y habilidades que quieres aprender
-  fr: Technologies et compétences que vous souhaitez apprendre
+  fr: Technologies et compétences à apprendre
   pt: Tecnologias e habilidades que você quer aprender
   ru: Технологии и навыки, которые вы хотите изучить
   ja: 学びたい技術やスキル

@@ -29,7 +29,7 @@ search.description:
   de: Suche nach Orten, Geschäften und Standorten.
   zh: 搜索地点、商家和位置。
   es: Busca lugares, negocios y ubicaciones.
-  fr: Recherchez des lieux, des entreprises et des emplacements.
+  fr: Recherchez lieux, entreprises et emplacements.
   pt: Pesquise lugares, empresas e localizações.
   ru: Ищите места, предприятия и местоположения.
   ja: 場所、ビジネス、位置を検索する。
@@ -48,4 +48,3 @@ search.description:
   verified_by_human:
     - en
     - de
-
