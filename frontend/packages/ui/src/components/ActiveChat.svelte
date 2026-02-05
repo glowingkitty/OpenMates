@@ -1569,6 +1569,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
     let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
     
+    // Side-by-side transition animation control
+    // When entering side-by-side mode, we animate from full-width chat to narrow chat + fullscreen panel
+    // sideBySideAnimating is true during the animation to enable CSS transitions
+    let sideBySideAnimating = $state(false);
+    
+    // Track the previous value of showSideBySideFullscreen to detect transitions
+    let prevShowSideBySideFullscreen = $state(false);
+    
+    // Effect to handle side-by-side transition animation
+    $effect(() => {
+        // Detect when showSideBySideFullscreen changes
+        if (showSideBySideFullscreen !== prevShowSideBySideFullscreen) {
+            const isEntering = showSideBySideFullscreen && !prevShowSideBySideFullscreen;
+            const isExiting = !showSideBySideFullscreen && prevShowSideBySideFullscreen;
+            
+            if (isEntering || isExiting) {
+                // Start animation
+                sideBySideAnimating = true;
+                
+                // End animation after transition completes (400ms matches CSS transition duration)
+                setTimeout(() => {
+                    sideBySideAnimating = false;
+                }, 400);
+            }
+            
+            prevShowSideBySideFullscreen = showSideBySideFullscreen;
+        }
+    });
+    
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
@@ -4521,8 +4550,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             class:side-by-side={showSideBySideFullscreen}
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
-            <!-- When side-by-side mode is active, chat takes left portion -->
-            <div class="chat-wrapper" class:fullscreen={isFullscreen} class:side-by-side-chat={showSideBySideFullscreen}>
+            <!-- When side-by-side mode is active, chat takes left portion with smooth transition -->
+            <!-- sideBySideAnimating class enables CSS transitions during enter/exit -->
+            <div 
+                class="chat-wrapper" 
+                class:fullscreen={isFullscreen} 
+                class:side-by-side-chat={showSideBySideFullscreen}
+                class:side-by-side-animating={sideBySideAnimating}
+            >
                 <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
                 {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
                     <div class="incognito-banner">
@@ -4765,11 +4800,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
             <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
+            <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
             {#if showEmbedFullscreen && embedFullscreenData}
                 <div 
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideFullscreen}
                     class:overlay-mode={!showSideBySideFullscreen}
+                    class:side-by-side-animating={sideBySideAnimating}
                 >
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
@@ -5204,8 +5241,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         gap: 10px; /* Gap between chat card and fullscreen card */
     }
     
-    /* Chat wrapper shrinks to make room for side panel - limited to 400px for maximum fullscreen space */
-    /* At 400px width, the chat should use narrow/mobile-like styling */
+    /* Chat wrapper base styles for side-by-side mode */
+    /* When side-by-side is active, chat shrinks to 400px to make room for fullscreen panel */
     .chat-wrapper.side-by-side-chat {
         flex: 0 0 400px;
         max-width: 400px;
@@ -5214,9 +5251,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Rounded edges to look like a separate card (chat remains in main container) */
         border-radius: 17px;
         overflow: hidden;
-        transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
-                    max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                    min-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Smooth width animation when entering side-by-side mode */
+    /* Chat shrinks from full-width to 400px while fullscreen panel grows */
+    .chat-wrapper.side-by-side-chat.side-by-side-animating {
+        animation: chatShrink 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    @keyframes chatShrink {
+        from {
+            flex: 1 1 100%;
+            max-width: 100%;
+            min-width: 0;
+            border-radius: 0;
+        }
+        to {
+            flex: 0 0 400px;
+            max-width: 400px;
+            min-width: 400px;
+            border-radius: 17px;
+        }
     }
     
     /* Force narrow/mobile styling on chat wrapper in side-by-side mode */
@@ -5267,19 +5322,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         overflow: hidden;
-        /* Smooth transition when appearing/disappearing */
-        animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* Animation for side panel appearing */
-    @keyframes slideInFromRight {
+    /* Smooth width/opacity animation when entering side-by-side mode */
+    /* The panel grows from 0 to flex:1 while chat shrinks simultaneously */
+    .fullscreen-embed-container.side-panel.side-by-side-animating {
+        animation: panelGrow 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    @keyframes panelGrow {
         from {
+            flex: 0 0 0;
             opacity: 0;
-            transform: translateX(20px);
         }
         to {
+            flex: 1;
             opacity: 1;
-            transform: translateX(0);
         }
     }
     
