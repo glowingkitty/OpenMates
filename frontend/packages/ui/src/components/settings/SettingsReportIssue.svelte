@@ -598,6 +598,65 @@
         }
     }
     
+    // State for copy debug info button
+    let isCopyingDebugInfo = $state(false);
+    let copyDebugInfoSuccess = $state(false);
+    
+    /**
+     * Build the complete client-side debug info object that would be sent to the server.
+     * This allows users to copy and share the debug info for local debugging.
+     */
+    async function buildClientDebugInfo(): Promise<object> {
+        const currentDeviceInfo = collectDeviceInfo();
+        const consoleLogs = logCollector.getLogsAsText(100);
+        const indexedDbReport = await collectChatInspectionReport();
+        
+        return {
+            device_info: currentDeviceInfo,
+            console_logs: consoleLogs,
+            indexeddb_report: indexedDbReport,
+            active_chat_id: $activeChatStore || null,
+            active_embed_id: $activeEmbedStore || null,
+            chat_or_embed_url: chatOrEmbedUrl || null,
+            timestamp: new Date().toISOString(),
+            url: window.location.href
+        };
+    }
+    
+    /**
+     * Copy client-side debug info to clipboard
+     */
+    async function handleCopyDebugInfo() {
+        isCopyingDebugInfo = true;
+        copyDebugInfoSuccess = false;
+        
+        try {
+            const debugInfo = await buildClientDebugInfo();
+            const debugInfoText = JSON.stringify(debugInfo, null, 2);
+            
+            await navigator.clipboard.writeText(debugInfoText);
+            
+            copyDebugInfoSuccess = true;
+            notificationStore.success(
+                $text('settings.report_issue.copy_debug_info_success.text'),
+                3000
+            );
+            
+            // Reset success state after 3 seconds
+            setTimeout(() => {
+                copyDebugInfoSuccess = false;
+            }, 3000);
+        } catch (error) {
+            console.error('[SettingsReportIssue] Failed to copy debug info:', error);
+            notificationStore.error(
+                $text('settings.report_issue.copy_debug_info_error.text'),
+                5000
+            );
+        } finally {
+            isCopyingDebugInfo = false;
+        }
+    }
+    
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
         // Check for pre-filled data from store
@@ -777,6 +836,28 @@
                 <strong>{$text('settings.report_issue.device_info.privacy_label.text')}:</strong>
                 {$text('settings.report_issue.device_info.privacy_body.text')}
             </p>
+            
+            <!-- Copy Debug Info Button -->
+            <div class="copy-debug-info-container">
+                <button
+                    class="copy-debug-info-button"
+                    class:success={copyDebugInfoSuccess}
+                    onclick={handleCopyDebugInfo}
+                    disabled={isCopyingDebugInfo}
+                    aria-label={$text('settings.report_issue.copy_debug_info_button.text')}
+                >
+                    {#if isCopyingDebugInfo}
+                        {$text('settings.report_issue.copy_debug_info_copying.text')}
+                    {:else if copyDebugInfoSuccess}
+                        {$text('settings.report_issue.copy_debug_info_copied.text')}
+                    {:else}
+                        {$text('settings.report_issue.copy_debug_info_button.text')}
+                    {/if}
+                </button>
+                <p class="copy-debug-info-hint">
+                    {$text('settings.report_issue.copy_debug_info_hint.text')}
+                </p>
+            </div>
         </div>
     </div>
 </div>
@@ -976,5 +1057,51 @@
         font-style: italic;
         padding-top: 8px;
         border-top: 1px solid var(--color-info, #2196f3);
+    }
+
+    .copy-debug-info-container {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-info, #2196f3);
+    }
+
+    .copy-debug-info-button {
+        width: 100%;
+        padding: 10px 16px;
+        background-color: var(--color-grey-30, #e0e0e0);
+        color: var(--color-font-primary);
+        border: 1px solid var(--color-grey-40, #bdbdbd);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .copy-debug-info-button:hover:not(:disabled) {
+        background-color: var(--color-grey-40, #bdbdbd);
+    }
+
+    .copy-debug-info-button:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    .copy-debug-info-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .copy-debug-info-button.success {
+        background-color: var(--color-success-light, #e8f5e9);
+        border-color: var(--color-success, #4caf50);
+        color: var(--color-success-dark, #2e7d32);
+    }
+
+    .copy-debug-info-hint {
+        font-size: 12px;
+        color: var(--color-info-dark, #1565c0);
+        margin: 8px 0 0 0;
+        line-height: 1.4;
+        opacity: 0.8;
     }
 </style>
