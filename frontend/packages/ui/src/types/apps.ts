@@ -27,6 +27,7 @@ export interface AppMetadata {
   focus_modes: FocusModeMetadata[]; // Placeholder for future implementation
   settings_and_memories: MemoryFieldMetadata[]; // Maps to 'settings_and_memories' in app.yml
   providers?: string[]; // List of provider names used by this app's skills
+  provider_display_order?: string[]; // Optional: Custom order for provider icons in App Store preview
   category?: string; // App category: "work" or "personal"
   last_updated?: string; // ISO date string of when the app was last updated (for "New apps" categorization)
 }

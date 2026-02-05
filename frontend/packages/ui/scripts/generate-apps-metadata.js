@@ -536,6 +536,19 @@ function parseAppYaml(appId, filePath) {
     // Convert providers set to sorted array
     appMetadata.providers = Array.from(providersSet).sort();
 
+    // Include provider_display_order if defined in app.yml
+    // This allows apps to specify a custom display order for provider icons
+    // in the App Store preview cards. Providers listed here appear first,
+    // followed by any remaining providers not in the list.
+    if (
+      Array.isArray(appData.provider_display_order) &&
+      appData.provider_display_order.length > 0
+    ) {
+      appMetadata.provider_display_order = appData.provider_display_order
+        .map((p) => (p || "").trim())
+        .filter((p) => p.length > 0);
+    }
+
     // Process focus modes - include production-stage focus modes, and development if INCLUDE_DEVELOPMENT is true
     const focusModes = appData.focuses || appData.focus_modes || [];
     if (Array.isArray(focusModes)) {
@@ -749,6 +762,15 @@ function generateTypeScript(appsMetadata) {
       if (app.providers && app.providers.length > 0) {
         lines.push(`        providers: [`);
         for (const provider of app.providers) {
+          lines.push(`            ${JSON.stringify(provider)},`);
+        }
+        lines.push(`        ],`);
+      }
+
+      // Provider display order (if present) - controls icon order in App Store
+      if (app.provider_display_order && app.provider_display_order.length > 0) {
+        lines.push(`        provider_display_order: [`);
+        for (const provider of app.provider_display_order) {
           lines.push(`            ${JSON.stringify(provider)},`);
         }
         lines.push(`        ],`);

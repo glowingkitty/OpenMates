@@ -7,6 +7,17 @@ last_updated: "2025-11-12"
 # based on models with for_app_skill matching the skill ID (e.g., "ai.ask")
 # See: frontend/packages/ui/scripts/generate-apps-metadata.js
 
+# Optional: Define the display order for provider icons in the App Store.
+# Providers listed here will appear first (in this order), followed by any
+# remaining auto-discovered providers. This controls the visual presentation
+# in the app preview cards, not the actual provider availability.
+provider_display_order:
+  - Mistral AI
+  - Google
+  - Anthropic
+  - OpenAI
+  - Alibaba
+
 settings_and_memories:
   - id: communication_style
     name_translation_key: ai.communication_style.text

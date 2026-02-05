@@ -38,22 +38,6 @@
     let appIconContainer: HTMLDivElement | null = $state(null);
     
     /**
-     * Custom provider ordering per app.
-     * Define the preferred order of provider icons for specific apps.
-     * Providers listed here will appear first (in this order), followed by any
-     * remaining providers from the app's provider list.
-     * 
-     * To customize the order for an app, add an entry with the app ID as key
-     * and an array of provider names in the desired order.
-     */
-    const APP_PROVIDER_ORDER: Record<string, string[]> = {
-        'ai': ['Mistral AI', 'Google', 'Anthropic', 'OpenAI', 'Alibaba'],
-        // Add more app-specific orderings as needed:
-        // 'web': ['Brave', 'Firecrawl'],
-        // 'videos': ['YouTube', 'Brave'],
-    };
-    
-    /**
      * Opacity values for provider icons (decreasing from left to right).
      * Index 0 = first icon (leftmost), index 4 = fifth icon (rightmost).
      */
@@ -211,13 +195,13 @@
     });
     
     /**
-     * Get ordered providers based on custom ordering configuration.
-     * If a custom order is defined for this app, providers are sorted accordingly.
-     * Providers in the custom order appear first (in that order), followed by
-     * any remaining providers not in the custom order.
+     * Get ordered providers based on app's provider_display_order configuration.
+     * If provider_display_order is defined in the app's app.yml, providers are
+     * sorted accordingly. Providers in the display order appear first (in that order),
+     * followed by any remaining providers not in the display order.
      */
     let orderedProviders = $derived.by(() => {
-        const customOrder = APP_PROVIDER_ORDER[app.id];
+        const customOrder = app.provider_display_order;
         
         // If no custom ordering for this app, return providers as-is
         if (!customOrder || customOrder.length === 0) {
