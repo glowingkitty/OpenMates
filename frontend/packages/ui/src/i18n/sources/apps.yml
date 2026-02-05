@@ -734,6 +734,52 @@ images.skills.generate_draft.description:
   cs: Rychle generovat koncept obrázku.
   sv: Generera snabbt en utkastbild.
   verified_by_human: [en, de]
+images.preferred_styles:
+  context: Settings/memory category name for preferred image styles
+  en: Preferred Styles
+  de: Bevorzugte Stile
+  zh: 偏好风格
+  es: Estilos preferidos
+  fr: Styles préférés
+  pt: Estilos preferidos
+  ru: Предпочитаемые стили
+  ja: 好みのスタイル
+  ko: 선호 스타일
+  it: Stili preferiti
+  tr: Tercih edilen stiller
+  vi: Phong cách ưa thích
+  id: Gaya yang disukai
+  pl: Preferowane style
+  nl: Favoriete stijlen
+  ar: الأنماط المفضلة
+  hi: पसंदीदा शैलियां
+  th: สไตล์ที่ชอบ
+  cs: Preferované styly
+  sv: Föredragna stilar
+  verified_by_human: [en, de]
+images.preferred_styles.description:
+  context: Description for preferred image styles settings/memory category
+  en: Your preferred styles for generated images
+  de: Deine bevorzugten Stile für generierte Bilder
+  zh: 您生成图像的偏好风格
+  es: Tus estilos preferidos para imágenes generadas
+  fr: Vos styles préférés pour les images générées
+  pt: Seus estilos preferidos para imagens geradas
+  ru: Ваши предпочитаемые стили для сгенерированных изображений
+  ja: 生成された画像の好みのスタイル
+  ko: 생성된 이미지에 대한 선호 스타일
+  it: I tuoi stili preferiti per le immagini generate
+  tr: Oluşturulan görüntüler için tercih ettiğiniz stiller
+  vi: Phong cách ưa thích của bạn cho hình ảnh được tạo
+  id: Gaya yang Anda sukai untuk gambar yang dihasilkan
+  pl: Twoje preferowane style dla generowanych obrazów
+  nl: Je favoriete stijlen voor gegenereerde afbeeldingen
+  ar: أنماطك المفضلة للصور المُنشأة
+  hi: उत्पन्न छवियों के लिए आपकी पसंदीदा शैलियां
+  th: สไตล์ที่คุณชอบสำหรับภาพที่สร้าง
+  cs: Vaše preferované styly pro generované obrázky
+  sv: Dina föredragna stilar för genererade bilder
+  verified_by_human: [en, de]
 health:
   context: App name for the Health app
   en: Health
