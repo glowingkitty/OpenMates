@@ -4945,6 +4945,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onShowChat={handleShowChat}
                             />
                         {/await}
+                    {:else if appId === 'reminder' && skillId === 'set-reminder'}
+                        <!-- Reminder Set Fullscreen -->
+                        {@const reminderId = coerceString(embedFullscreenData.decodedContent?.reminder_id ?? embedFullscreenData.attrs?.reminderId, '')}
+                        {@const triggerAtFormatted = coerceString(embedFullscreenData.decodedContent?.trigger_at_formatted ?? embedFullscreenData.attrs?.triggerAtFormatted, '')}
+                        {@const triggerAt = coerceNumber(embedFullscreenData.decodedContent?.trigger_at ?? embedFullscreenData.attrs?.triggerAt, 0)}
+                        {@const targetType = (embedFullscreenData.decodedContent?.target_type ?? embedFullscreenData.attrs?.targetType) as 'new_chat' | 'existing_chat' | undefined}
+                        {@const isRepeating = Boolean(embedFullscreenData.decodedContent?.is_repeating ?? embedFullscreenData.attrs?.isRepeating)}
+                        {@const message = coerceString(embedFullscreenData.decodedContent?.message ?? embedFullscreenData.attrs?.message, '')}
+                        {@const emailNotificationWarning = coerceString(embedFullscreenData.decodedContent?.email_notification_warning ?? embedFullscreenData.attrs?.emailNotificationWarning, '')}
+                        {@const error = coerceString(embedFullscreenData.decodedContent?.error ?? embedFullscreenData.attrs?.error, '')}
+                        <ReminderEmbedFullscreen 
+                            reminderId={reminderId || undefined}
+                            triggerAtFormatted={triggerAtFormatted || undefined}
+                            triggerAt={triggerAt || undefined}
+                            targetType={targetType}
+                            {isRepeating}
+                            message={message || undefined}
+                            emailNotificationWarning={emailNotificationWarning || undefined}
+                            error={error || undefined}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">
@@ -5051,34 +5079,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/await}
                     {/if}
-                {:else if embedFullscreenData.embedType === 'reminder-set-reminder'}
-                    <!-- Reminder Fullscreen -->
-                    {@const reminderId = coerceString(embedFullscreenData.decodedContent?.reminder_id ?? embedFullscreenData.attrs?.reminderId, '')}
-                    {@const triggerAtFormatted = coerceString(embedFullscreenData.decodedContent?.trigger_at_formatted ?? embedFullscreenData.attrs?.triggerAtFormatted, '')}
-                    {@const triggerAt = coerceNumber(embedFullscreenData.decodedContent?.trigger_at ?? embedFullscreenData.attrs?.triggerAt, 0)}
-                    {@const targetType = (embedFullscreenData.decodedContent?.target_type ?? embedFullscreenData.attrs?.targetType) as 'new_chat' | 'existing_chat' | undefined}
-                    {@const isRepeating = Boolean(embedFullscreenData.decodedContent?.is_repeating ?? embedFullscreenData.attrs?.isRepeating)}
-                    {@const message = coerceString(embedFullscreenData.decodedContent?.message ?? embedFullscreenData.attrs?.message, '')}
-                    {@const emailNotificationWarning = coerceString(embedFullscreenData.decodedContent?.email_notification_warning ?? embedFullscreenData.attrs?.emailNotificationWarning, '')}
-                    {@const error = coerceString(embedFullscreenData.decodedContent?.error ?? embedFullscreenData.attrs?.error, '')}
-                    <ReminderEmbedFullscreen 
-                        reminderId={reminderId || undefined}
-                        triggerAtFormatted={triggerAtFormatted || undefined}
-                        triggerAt={triggerAt || undefined}
-                        targetType={targetType}
-                        {isRepeating}
-                        message={message || undefined}
-                        emailNotificationWarning={emailNotificationWarning || undefined}
-                        error={error || undefined}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                        showChatButton={showChatButtonInFullscreen}
-                        onShowChat={handleShowChat}
-                    />
                 {:else}
                     <!-- Fallback for unknown embed types -->
                     <div class="embed-fullscreen-fallback">

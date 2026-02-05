@@ -120,9 +120,10 @@ class ListRemindersSkill(BaseSkill):
                     )
             
             if not user_id:
+                logger.error("ListRemindersSkill: User ID not available in execution context")
                 return ListRemindersResponse(
                     success=False,
-                    error="User ID not available"
+                    error="Unable to list reminders at this time. Please try again later."
                 )
 
             # Determine status filter

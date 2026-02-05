@@ -1954,6 +1954,7 @@ async def handle_main_processing(
                         timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
                         chat_id=request_data.chat_id,
                         message_id=request_data.message_id,
+                        user_id=request_data.user_id,
                         skill_task_id=skill_task_id,
                         cache_service=cache_service
                         # max_retries uses default (1 retry = 2 total attempts)

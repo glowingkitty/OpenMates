@@ -170,6 +170,7 @@ async def execute_skill(
     timeout: float = DEFAULT_SKILL_TIMEOUT,
     chat_id: Optional[str] = None,
     message_id: Optional[str] = None,
+    user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES
@@ -192,6 +193,7 @@ async def execute_skill(
         timeout: Request timeout in seconds (default: 20s)
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
+        user_id: Optional user ID for skills that require user context (e.g., reminders)
         skill_task_id: Optional unique ID for this skill invocation (for cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1, meaning 2 total attempts)
@@ -215,13 +217,15 @@ async def execute_skill(
     # BaseApp registers routes as /skills/{skill_id}
     skill_url = f"http://app-{app_id}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
     
-    # Include chat_id and message_id in the request body as metadata
-    # Skills can extract these to use when recording usage
+    # Include chat_id, message_id, and user_id in the request body as metadata
+    # Skills can extract these to use when recording usage or for user-specific operations
     request_body = arguments.copy()
     if chat_id:
         request_body["_chat_id"] = chat_id  # Prefix with _ to indicate metadata
     if message_id:
         request_body["_message_id"] = message_id  # Prefix with _ to indicate metadata
+    if user_id:
+        request_body["_user_id"] = user_id  # Prefix with _ to indicate metadata
     
     logger.debug(f"Executing skill '{app_id}.{skill_id}' at {skill_url} with arguments: {list(arguments.keys())}")
     
@@ -328,6 +332,7 @@ async def execute_skill_with_multiple_requests(
     timeout: float = DEFAULT_SKILL_TIMEOUT,
     chat_id: Optional[str] = None,
     message_id: Optional[str] = None,
+    user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES
@@ -348,6 +353,7 @@ async def execute_skill_with_multiple_requests(
         timeout: Request timeout in seconds per request (default: 20s)
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
+        user_id: Optional user ID for skills that require user context (e.g., reminders)
         skill_task_id: Optional unique ID for this skill invocation (for cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1)
@@ -362,6 +368,7 @@ async def execute_skill_with_multiple_requests(
     # Don't modify the original arguments dict - create a copy for processing
     extracted_chat_id = arguments.get("_chat_id") or chat_id
     extracted_message_id = arguments.get("_message_id") or message_id
+    extracted_user_id = arguments.get("_user_id") or user_id
     
     # Check if arguments contain multiple requests in the standard "requests" array format
     # Skills that support multiple requests expect them in a single call with {"requests": [...]}
@@ -386,7 +393,7 @@ async def execute_skill_with_multiple_requests(
             # Make ONE call to the skill with all requests - the skill handles parallel processing
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
-                extracted_chat_id, extracted_message_id,
+                extracted_chat_id, extracted_message_id, extracted_user_id,
                 skill_task_id, cache_service, max_retries
             )
             # Skills return a response with a "results" array - return as list for consistency
@@ -395,7 +402,7 @@ async def execute_skill_with_multiple_requests(
             # Single request in array format - execute normally
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
-                extracted_chat_id, extracted_message_id,
+                extracted_chat_id, extracted_message_id, extracted_user_id,
                 skill_task_id, cache_service, max_retries
             )
             return [result]
@@ -424,7 +431,7 @@ async def execute_skill_with_multiple_requests(
         # Make ONE call to the skill with all requests
         result = await execute_skill(
             app_id, skill_id, standard_arguments, timeout, 
-            extracted_chat_id, extracted_message_id,
+            extracted_chat_id, extracted_message_id, extracted_user_id,
             skill_task_id, cache_service, max_retries
         )
         return [result]
@@ -432,7 +439,7 @@ async def execute_skill_with_multiple_requests(
     # Single request - execute normally
     result = await execute_skill(
         app_id, skill_id, arguments, timeout, 
-        extracted_chat_id, extracted_message_id,
+        extracted_chat_id, extracted_message_id, extracted_user_id,
         skill_task_id, cache_service, max_retries
     )
     return [result]

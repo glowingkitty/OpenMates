@@ -195,9 +195,10 @@ class SetReminderSkill(BaseSkill):
                     # DirectusService is optional for core reminder creation, so continue
             
             if not user_id:
+                logger.error("SetReminderSkill: User ID not available in execution context")
                 return SetReminderResponse(
                     success=False,
-                    error="User ID not available"
+                    error="Unable to create reminder at this time. Please try again later."
                 )
 
             # Validate timezone

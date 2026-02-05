@@ -92,9 +92,10 @@ class CancelReminderSkill(BaseSkill):
                     )
             
             if not user_id:
+                logger.error("CancelReminderSkill: User ID not available in execution context")
                 return CancelReminderResponse(
                     success=False,
-                    error="User ID not available"
+                    error="Unable to cancel reminder at this time. Please try again later."
                 )
 
             if not reminder_id:
