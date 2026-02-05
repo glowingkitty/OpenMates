@@ -159,18 +159,40 @@ class SetReminderSkill(BaseSkill):
             SetReminderResponse with success status and reminder details
         """
         try:
-            # Validate required services
+            # Initialize services if not provided (skill runs in separate container)
+            # Following the same pattern as other app skills (e.g., web/search_skill.py, videos/transcript_skill.py)
             if not cache_service:
-                return SetReminderResponse(
-                    success=False,
-                    error="Cache service not available"
-                )
+                try:
+                    from backend.core.api.app.services.cache import CacheService
+                    cache_service = CacheService()
+                    logger.debug("SetReminderSkill initialized its own CacheService instance")
+                except Exception as e:
+                    logger.error(f"Failed to initialize CacheService: {e}", exc_info=True)
+                    return SetReminderResponse(
+                        success=False,
+                        error="Unable to create reminder at this time. Please try again later."
+                    )
             
             if not encryption_service:
-                return SetReminderResponse(
-                    success=False,
-                    error="Encryption service not available"
-                )
+                try:
+                    from backend.core.api.app.utils.encryption import EncryptionService
+                    encryption_service = EncryptionService(cache_service=cache_service)
+                    logger.debug("SetReminderSkill initialized its own EncryptionService instance")
+                except Exception as e:
+                    logger.error(f"Failed to initialize EncryptionService: {e}", exc_info=True)
+                    return SetReminderResponse(
+                        success=False,
+                        error="Unable to create reminder at this time. Please try again later."
+                    )
+            
+            if not directus_service:
+                try:
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
+                    logger.debug("SetReminderSkill initialized its own DirectusService instance")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize DirectusService: {e}. Some features may be limited.")
+                    # DirectusService is optional for core reminder creation, so continue
             
             if not user_id:
                 return SetReminderResponse(

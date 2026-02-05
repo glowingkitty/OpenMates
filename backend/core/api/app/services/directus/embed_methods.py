@@ -204,7 +204,7 @@ class EmbedMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache_service.increment_stat("embeds_created")
+                    await self.directus_service.cache.increment_stat("embeds_created")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after embed creation: {stats_err}")
                     

@@ -321,7 +321,7 @@ class ChatMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache_service.increment_stat("chats_created")
+                    await self.directus_service.cache.increment_stat("chats_created")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after chat creation: {stats_err}")
                     
@@ -469,7 +469,7 @@ class ChatMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache_service.increment_stat("messages_sent")
+                    await self.directus_service.cache.increment_stat("messages_sent")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after message creation: {stats_err}")
                     

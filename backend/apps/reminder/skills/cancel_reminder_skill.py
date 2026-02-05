@@ -77,12 +77,19 @@ class CancelReminderSkill(BaseSkill):
             CancelReminderResponse with success status
         """
         try:
-            # Validate required services
+            # Initialize services if not provided (skill runs in separate container)
+            # Following the same pattern as other app skills (e.g., web/search_skill.py, videos/transcript_skill.py)
             if not cache_service:
-                return CancelReminderResponse(
-                    success=False,
-                    error="Cache service not available"
-                )
+                try:
+                    from backend.core.api.app.services.cache import CacheService
+                    cache_service = CacheService()
+                    logger.debug("CancelReminderSkill initialized its own CacheService instance")
+                except Exception as e:
+                    logger.error(f"Failed to initialize CacheService: {e}", exc_info=True)
+                    return CancelReminderResponse(
+                        success=False,
+                        error="Unable to cancel reminder at this time. Please try again later."
+                    )
             
             if not user_id:
                 return CancelReminderResponse(

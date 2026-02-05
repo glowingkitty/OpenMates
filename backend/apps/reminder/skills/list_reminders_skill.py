@@ -93,18 +93,31 @@ class ListRemindersSkill(BaseSkill):
             ListRemindersResponse with list of reminders
         """
         try:
-            # Validate required services
+            # Initialize services if not provided (skill runs in separate container)
+            # Following the same pattern as other app skills (e.g., web/search_skill.py, videos/transcript_skill.py)
             if not cache_service:
-                return ListRemindersResponse(
-                    success=False,
-                    error="Cache service not available"
-                )
+                try:
+                    from backend.core.api.app.services.cache import CacheService
+                    cache_service = CacheService()
+                    logger.debug("ListRemindersSkill initialized its own CacheService instance")
+                except Exception as e:
+                    logger.error(f"Failed to initialize CacheService: {e}", exc_info=True)
+                    return ListRemindersResponse(
+                        success=False,
+                        error="Unable to list reminders at this time. Please try again later."
+                    )
             
             if not encryption_service:
-                return ListRemindersResponse(
-                    success=False,
-                    error="Encryption service not available"
-                )
+                try:
+                    from backend.core.api.app.utils.encryption import EncryptionService
+                    encryption_service = EncryptionService(cache_service=cache_service)
+                    logger.debug("ListRemindersSkill initialized its own EncryptionService instance")
+                except Exception as e:
+                    logger.error(f"Failed to initialize EncryptionService: {e}", exc_info=True)
+                    return ListRemindersResponse(
+                        success=False,
+                        error="Unable to list reminders at this time. Please try again later."
+                    )
             
             if not user_id:
                 return ListRemindersResponse(
