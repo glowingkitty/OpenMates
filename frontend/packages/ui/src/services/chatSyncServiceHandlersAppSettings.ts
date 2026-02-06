@@ -1191,3 +1191,218 @@ export async function handleSystemMessageConfirmedImpl(
     );
   }
 }
+
+/**
+ * Payload structure for reminder_fired WebSocket message.
+ *
+ * Sent by the backend Celery task when a scheduled reminder becomes due.
+ * Contains PLAINTEXT content that the client must encrypt with the chat key
+ * before persisting (zero-knowledge architecture).
+ */
+interface ReminderFiredPayload {
+  reminder_id: string;
+  chat_id: string;
+  message_id: string;
+  target_type: "new_chat" | "existing_chat";
+  is_repeating: boolean;
+  content: string; // PLAINTEXT reminder content
+  chat_title?: string; // For new_chat target
+  user_id: string; // User's UUID (used for WebSocket routing)
+}
+
+/**
+ * Handles the reminder_fired WebSocket event when a scheduled reminder fires.
+ *
+ * ARCHITECTURE (Zero-Knowledge Reminder Delivery):
+ * The backend Celery task sends the PLAINTEXT reminder content via WebSocket.
+ * This handler is responsible for:
+ * 1. Encrypting the content with the chat key (zero-knowledge)
+ * 2. Creating a system message in IndexedDB
+ * 3. Sending the encrypted message back to the server via chat_system_message_added
+ * 4. Dispatching events so the UI shows the system message
+ * 5. Dispatching a reminderFiredInChat event to trigger an AI follow-up response
+ *
+ * This ensures the server never stores messages encrypted with the wrong key
+ * (vault key vs chat key mismatch that causes "Content decryption failed").
+ */
+export async function handleReminderFiredImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: ReminderFiredPayload,
+): Promise<void> {
+  console.info("[ChatSyncService:Reminder] Received 'reminder_fired':", {
+    reminder_id: payload.reminder_id,
+    chat_id: payload.chat_id,
+    target_type: payload.target_type,
+    is_repeating: payload.is_repeating,
+  });
+
+  const { chat_id, message_id, content, target_type, chat_title } = payload;
+
+  if (!chat_id || !message_id || !content) {
+    console.warn(
+      "[ChatSyncService:Reminder] Invalid reminder_fired payload:",
+      payload,
+    );
+    return;
+  }
+
+  try {
+    const { encryptWithChatKey } = await import("./cryptoService");
+    const { webSocketService } = await import("./websocketService");
+
+    // For existing_chat: chat must exist locally with a chat key
+    // For new_chat: we need to create the chat locally first
+    let chatKey: Uint8Array | null = null;
+
+    if (target_type === "existing_chat") {
+      // Chat should already exist locally
+      const chat = await chatDB.getChat(chat_id);
+      if (!chat) {
+        console.warn(
+          `[ChatSyncService:Reminder] Chat ${chat_id} not found locally for existing_chat reminder. ` +
+            `Message will be picked up on next sync.`,
+        );
+        return;
+      }
+      chatKey = chatDB.getChatKey(chat_id);
+    } else {
+      // new_chat: Create the chat locally first
+      // Generate a new chat key for this chat
+      const { generateChatKey } = await import("./cryptoService");
+      chatKey = generateChatKey();
+
+      if (!chatKey) {
+        console.error(
+          "[ChatSyncService:Reminder] Failed to generate chat key for new reminder chat",
+        );
+        return;
+      }
+
+      // Store the chat key
+      chatDB.setChatKey(chat_id, chatKey);
+
+      const now = Math.floor(Date.now() / 1000);
+
+      // Encrypt the title with the new chat key
+      const titleText = chat_title || "Reminder";
+      const encryptedTitle = await encryptWithChatKey(titleText, chatKey);
+
+      const newChat = {
+        chat_id: chat_id,
+        title: titleText, // Plaintext for local display
+        encrypted_title: encryptedTitle,
+        created_at: now,
+        updated_at: now,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: now,
+        unread_count: 1,
+      };
+
+      await chatDB.updateChat(newChat as import("../types/chat").Chat);
+      console.info(
+        `[ChatSyncService:Reminder] Created new local chat ${chat_id} for reminder`,
+      );
+    }
+
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:Reminder] No chat key available for chat ${chat_id}, cannot encrypt reminder`,
+      );
+      return;
+    }
+
+    // Encrypt the reminder content with the chat key (zero-knowledge)
+    const encryptedContent = await encryptWithChatKey(content, chatKey);
+    if (!encryptedContent) {
+      console.error(
+        "[ChatSyncService:Reminder] Failed to encrypt reminder content",
+      );
+      return;
+    }
+
+    // Create the system message
+    const now = Math.floor(Date.now() / 1000);
+    const systemMessage = {
+      message_id: message_id,
+      chat_id: chat_id,
+      role: "system" as const,
+      content: content, // Plaintext for local display
+      created_at: now,
+      status: "sending" as const,
+      encrypted_content: encryptedContent,
+    };
+
+    // Save to IndexedDB
+    await chatDB.saveMessage(systemMessage);
+    console.debug(
+      `[ChatSyncService:Reminder] Saved reminder system message ${message_id} to IndexedDB`,
+    );
+
+    // Send encrypted content to server for persistence via existing system message flow
+    const serverPayload = {
+      chat_id: chat_id,
+      message: {
+        message_id: message_id,
+        role: "system",
+        encrypted_content: encryptedContent,
+        created_at: now,
+      },
+    };
+
+    try {
+      await webSocketService.sendMessage(
+        "chat_system_message_added",
+        serverPayload,
+      );
+
+      // Update status to synced
+      const syncedMessage = { ...systemMessage, status: "synced" as const };
+      await chatDB.saveMessage(syncedMessage);
+      console.debug(
+        `[ChatSyncService:Reminder] Sent reminder system message ${message_id} to server for persistence`,
+      );
+    } catch (sendError) {
+      console.error(
+        "[ChatSyncService:Reminder] Error sending reminder message to server:",
+        sendError,
+      );
+      // Message is saved locally, will be synced later
+    }
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    // This makes the system message appear in the chat immediately
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chat_id,
+          type: "reminder_system_message_added",
+          newMessage: systemMessage,
+          messagesUpdated: true,
+        },
+      }),
+    );
+
+    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up
+    // The AI should acknowledge the reminder and help the user with the task
+    serviceInstance.dispatchEvent(
+      new CustomEvent("reminderFiredInChat", {
+        detail: {
+          chat_id: chat_id,
+          message_id: message_id,
+          content: content,
+          target_type: target_type,
+        },
+      }),
+    );
+
+    console.info(
+      `[ChatSyncService:Reminder] Processed reminder for chat ${chat_id} (${target_type})`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Reminder] Error handling reminder_fired:",
+      error,
+    );
+  }
+}

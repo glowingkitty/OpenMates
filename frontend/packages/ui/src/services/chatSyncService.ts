@@ -355,6 +355,11 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("new_system_message", (payload) =>
         module.handleNewSystemMessageImpl(this, payload),
       );
+      // Handle reminder fired events from server (scheduled reminder became due)
+      // The server sends plaintext content; this handler encrypts with chat key and persists
+      webSocketService.on("reminder_fired", (payload) =>
+        module.handleReminderFiredImpl(this, payload),
+      );
     });
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
