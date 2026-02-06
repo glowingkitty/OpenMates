@@ -45,7 +45,7 @@
   let categoryName = $derived($text(`mates.${demoChat.metadata.category}.text`, { default: demoChat.metadata.category }));
   
   // Get the first icon name for display (or use a default)
-  let iconName = $derived(demoChat.metadata.icon_names?.[0] || 'message-circle');
+  let iconName = $derived(demoChat.metadata.icon_names?.[0] || 'chat');
   
   // Track hover state for tilt effect
   let isHovering = $state(false);
@@ -207,34 +207,34 @@
   }
   
   /* Icon variants based on data-icon attribute */
-  .icon[data-icon="hand-wave"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/hand-wave.svg');
-    mask-image: url('@openmates/ui/static/icons/hand-wave.svg');
+  .icon[data-icon="introduction"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/introduction.svg');
+    mask-image: url('@openmates/ui/static/icons/introduction.svg');
   }
   
-  .icon[data-icon="rocket"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/rocket.svg');
-    mask-image: url('@openmates/ui/static/icons/rocket.svg');
+  .icon[data-icon="trophy"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/trophy.svg');
+    mask-image: url('@openmates/ui/static/icons/trophy.svg');
   }
   
-  .icon[data-icon="sparkles"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/sparkles.svg');
-    mask-image: url('@openmates/ui/static/icons/sparkles.svg');
+  .icon[data-icon="good"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/good.svg');
+    mask-image: url('@openmates/ui/static/icons/good.svg');
   }
   
-  .icon[data-icon="code"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/code.svg');
-    mask-image: url('@openmates/ui/static/icons/code.svg');
+  .icon[data-icon="coding"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
+    mask-image: url('@openmates/ui/static/icons/coding.svg');
   }
   
-  .icon[data-icon="message-circle"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/message-circle.svg');
-    mask-image: url('@openmates/ui/static/icons/message-circle.svg');
+  .icon[data-icon="chat"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+    mask-image: url('@openmates/ui/static/icons/chat.svg');
   }
   
-  .icon[data-icon="users"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/users.svg');
-    mask-image: url('@openmates/ui/static/icons/users.svg');
+  .icon[data-icon="team"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+    mask-image: url('@openmates/ui/static/icons/team.svg');
   }
   
   .icon[data-icon="book"] {
@@ -247,14 +247,14 @@
     mask-image: url('@openmates/ui/static/icons/search.svg');
   }
   
-  .icon[data-icon="globe"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/globe.svg');
-    mask-image: url('@openmates/ui/static/icons/globe.svg');
+  .icon[data-icon="web"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
+    mask-image: url('@openmates/ui/static/icons/web.svg');
   }
   
-  .icon[data-icon="lightbulb"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/lightbulb.svg');
-    mask-image: url('@openmates/ui/static/icons/lightbulb.svg');
+  .icon[data-icon="insight"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
+    mask-image: url('@openmates/ui/static/icons/insight.svg');
   }
   
   .icon[data-icon="heart"] {
@@ -262,9 +262,9 @@
     mask-image: url('@openmates/ui/static/icons/heart.svg');
   }
   
-  .icon[data-icon="star"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/star.svg');
-    mask-image: url('@openmates/ui/static/icons/star.svg');
+  .icon[data-icon="rating"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/rating.svg');
+    mask-image: url('@openmates/ui/static/icons/rating.svg');
   }
   
   /* Content section */

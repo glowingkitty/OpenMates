@@ -61,7 +61,7 @@ import ChatEmbedPreview from './ChatEmbedPreview.svelte';
         messages: [],
         metadata: {
           category: chat.category || chat.encrypted_category || 'general_knowledge',
-          icon_names: (chat.icon || chat.encrypted_icon || 'message-circle').split(','),
+          icon_names: (chat.icon || chat.encrypted_icon || 'chat').split(','),
           featured: true,
           order: 100,
           lastUpdated: new Date().toISOString()
