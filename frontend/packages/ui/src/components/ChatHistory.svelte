@@ -317,7 +317,7 @@
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
-    shouldAutoFollowStreaming = false;
+    isSpacerActive = false;
     spacerHeight = 0;
     await tick();
     dispatch('messagesChange', { hasMessages: false });
@@ -335,7 +335,7 @@
       messages = []; // Clear messages after fade out completes
       lastUserMessageId = null;
       shouldScrollToNewUserMessage = false;
-      shouldAutoFollowStreaming = false;
+      isSpacerActive = false;
       spacerHeight = 0;
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
@@ -471,9 +471,10 @@
             });
 
             shouldScrollToNewUserMessage = false;
-            // Pre-arm auto-follow: when the AI response starts streaming,
-            // we want to auto-scroll to follow it since the user just sent a message
-            shouldAutoFollowStreaming = true;
+            // Activate the spacer: ensures there's enough scrollable height below the
+            // user message so this scroll position remains valid as the AI response streams in.
+            // The spacer fills the viewport below the user message and shrinks as the response grows.
+            isSpacerActive = true;
 
             setTimeout(() => {
               isScrolling = false;
@@ -487,84 +488,57 @@
     }
   });
 
-  // --- Auto-follow streaming: enable when user sends a message ---
-  // When the user message scroll completes, enable auto-follow for the upcoming AI response.
-  // This is set in the user-message scroll effect above (shouldScrollToNewUserMessage).
-  // We also enable it when the user is at the bottom when streaming starts.
+  // --- Streaming lifecycle: deactivate spacer when streaming ends ---
   $effect(() => {
-    if (!container) return;
-
     if (isCurrentlyStreaming && !wasStreaming) {
-      // Streaming just started. Enable auto-follow if user was at bottom
-      // or if we just scrolled for a new user message (shouldAutoFollowStreaming already set).
-      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
-      if (isAtBottom || shouldAutoFollowStreaming) {
-        shouldAutoFollowStreaming = true;
-      }
+      // Streaming just started
       wasStreaming = true;
     } else if (!isCurrentlyStreaming && wasStreaming) {
-      // Streaming just ended - disable auto-follow and remove spacer
+      // Streaming ended — deactivate spacer and reset
       wasStreaming = false;
-      shouldAutoFollowStreaming = false;
+      isSpacerActive = false;
       spacerHeight = 0;
     }
   });
 
-  // --- Auto-follow streaming: scroll to bottom as content grows ---
-  // When auto-follow is active, scroll to show the latest streamed content.
-  // Uses the `messages` array as a reactive dependency (it changes on every chunk).
-  $effect(() => {
-    if (!container || !shouldAutoFollowStreaming || !isCurrentlyStreaming) return;
-    // Touch `messages` to make this effect re-run on every streaming chunk update
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    messages;
-    
-    // Use tick() to wait for DOM update, then scroll to bottom
-    tick().then(() => {
-      if (container && shouldAutoFollowStreaming) {
-        // Mark as programmatic so handleScroll doesn't disable auto-follow
-        isProgrammaticScroll = true;
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'auto' // Instant scroll to avoid lag during streaming
-        });
-      }
-    });
-  });
-
   // --- Spacer height computation ---
-  // Computes the height of the bottom spacer to fill remaining viewport space.
-  // This creates the visual effect where the user message sits near the top with
-  // empty space below, which gradually fills as the AI response streams in.
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport.
   //
-  // The approach: measure the last message element (the streaming AI response).
-  // The spacer = viewport height - AI message height - some padding.
-  // As the AI response grows taller, the spacer shrinks to 0.
+  // How it works:
+  // 1. User sends a message → scroll positions user message near top → isSpacerActive = true
+  // 2. AI response starts streaming below the user message
+  // 3. The spacer fills the remaining viewport height below the AI response,
+  //    preventing the scroll position from jumping as content grows downward
+  // 4. As the AI response grows taller, the spacer shrinks toward 0
+  // 5. Once streaming ends, the spacer is removed
+  //
+  // CRITICAL: We do NOT auto-scroll during streaming. The scroll position stays fixed
+  // and the user reads the AI response naturally as it extends downward. This avoids
+  // interrupting the user's reading flow.
   $effect(() => {
-    if (!container || !isCurrentlyStreaming || !shouldAutoFollowStreaming) {
-      if (!isCurrentlyStreaming) {
-        spacerHeight = 0;
-      }
+    if (!container || !isSpacerActive) {
+      if (!isSpacerActive) spacerHeight = 0;
       return;
     }
-    // Touch messages to re-compute when content changes on each streaming chunk
+    // Re-run whenever messages change (on each streaming chunk)
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     messages;
 
     tick().then(() => {
-      if (!container) return;
+      if (!container || !isSpacerActive) return;
       
       // Find the last message element (the streaming AI response)
       const messageWrappers = container.querySelectorAll('[data-message-id]');
       if (messageWrappers.length === 0) return;
       const lastMessageEl = messageWrappers[messageWrappers.length - 1] as HTMLElement;
       
-      // The spacer should fill the gap between the bottom of the last message
-      // and the bottom of the viewport, so the user message stays near the top
+      // The spacer fills the gap between the bottom of the last message and
+      // the bottom of the viewport. As the AI response grows, the spacer shrinks.
       const viewportHeight = container.clientHeight;
       const lastMessageHeight = lastMessageEl.offsetHeight;
       
-      // Leave some breathing room (80px accounts for the user message at top + padding)
+      // 80px accounts for the user message offset at top + padding
       const neededSpacer = Math.max(0, viewportHeight - lastMessageHeight - 80);
       spacerHeight = neededSpacer;
     });
@@ -621,11 +595,6 @@
   
   export function scrollToBottom() {
     if (container) {
-      // If streaming is active, re-enable auto-follow when user clicks "scroll to bottom"
-      if (isCurrentlyStreaming) {
-        shouldAutoFollowStreaming = true;
-      }
-      isProgrammaticScroll = true;
       container.scrollTo({
         top: container.scrollHeight,
         behavior: 'auto' // Use instant scroll to avoid animation
@@ -640,32 +609,11 @@
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
 
-  // Flag to distinguish programmatic scrolls (auto-follow) from user-initiated scrolls.
-  // Set to true before programmatic scrollTo calls, reset in the scroll handler.
-  let isProgrammaticScroll = false;
-
   // Track scroll position with optimized performance using requestAnimationFrame
   // This ensures smooth scrolling without blocking the main thread
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
-    
-    // --- Auto-follow interruption detection ---
-    // If the user manually scrolls up during streaming, disable auto-follow.
-    // We distinguish user scrolls from our programmatic auto-follow scrolls using a flag.
-    if (isCurrentlyStreaming && shouldAutoFollowStreaming && !isProgrammaticScroll) {
-      // User-initiated scroll during streaming.
-      // If they scrolled away from the bottom, disable auto-follow.
-      if (container) {
-        const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-        if (distFromBottom > 80) {
-          shouldAutoFollowStreaming = false;
-          spacerHeight = 0;
-        }
-      }
-    }
-    // Reset programmatic scroll flag after processing
-    isProgrammaticScroll = false;
 
     // Performance optimization: Use requestAnimationFrame for immediate UI updates
     // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
