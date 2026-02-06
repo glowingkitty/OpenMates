@@ -474,6 +474,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
     
+    # --- Restore pending deliveries from disk backup ---
+    # This recovers queued reminder/AI response deliveries that were persisted during shutdown.
+    # These are messages waiting to be delivered to users on their next WebSocket reconnect.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_deliveries = await app.state.cache_service.restore_pending_deliveries_from_disk()
+            if restored_deliveries > 0:
+                logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
+    
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
     # This optimization prevents disk I/O on every message processing request
@@ -970,6 +981,17 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
         except Exception as e:
             logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
+    
+    # --- Persist pending deliveries to disk before shutdown ---
+    # This ensures queued reminder/AI response deliveries survive restarts.
+    # Users who reconnect after restart will still receive their pending messages.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_deliveries = await app.state.cache_service.dump_pending_deliveries_to_disk()
+            if dumped_deliveries > 0:
+                logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):

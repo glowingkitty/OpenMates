@@ -34,9 +34,13 @@ PENDING_DELIVERY_KEY_PREFIX = "reminder_pending_delivery:"  # Per-user pending d
 # TTL for individual reminder entries (7 days - reminders older than this without firing are stale)
 REMINDER_TTL = 604800  # 7 days in seconds
 
-# TTL for pending delivery entries (48 hours - if user doesn't come online within this window,
-# the reminder delivery is dropped; the email notification serves as the offline fallback)
-PENDING_DELIVERY_TTL = 172800  # 48 hours in seconds
+# TTL for pending delivery entries (60 days). If a user doesn't come online within 60 days,
+# entries are cleaned up by the periodic cleanup task (with logging).
+# Email notifications serve as reminders that undelivered messages exist.
+PENDING_DELIVERY_TTL = 5184000  # 60 days in seconds
+
+# Path for persisting pending deliveries during shutdown
+PENDING_DELIVERY_BACKUP_PATH = "/shared/cache/pending_deliveries_backup.json"
 
 
 class ReminderCacheMixin:
@@ -700,3 +704,191 @@ class ReminderCacheMixin:
         except Exception as e:
             logger.error(f"Error getting reminder stats: {str(e)}", exc_info=True)
             return {"total": 0, "pending": 0, "due_now": 0}
+
+    # =========================================================================
+    # PENDING DELIVERY DISK BACKUP / RESTORE
+    # 
+    # On graceful shutdown, pending deliveries are written to disk so they
+    # survive cache restarts. On startup, they are restored and the disk
+    # file is deleted. Same pattern as reminder backup.
+    # =========================================================================
+
+    async def dump_pending_deliveries_to_disk(self) -> int:
+        """
+        Dump all pending delivery lists to disk for persistence across restarts.
+        Called during graceful shutdown alongside dump_reminders_to_disk.
+        
+        Returns:
+            Number of delivery entries saved to disk
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning("Cannot dump pending deliveries: cache client not connected")
+                return 0
+
+            # Scan for all pending delivery keys
+            all_keys = []
+            async for key in client.scan_iter(match=f"{PENDING_DELIVERY_KEY_PREFIX}*"):
+                if isinstance(key, bytes):
+                    key = key.decode("utf-8")
+                all_keys.append(key)
+
+            if not all_keys:
+                logger.debug("No pending deliveries to dump to disk")
+                if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
+                    os.remove(PENDING_DELIVERY_BACKUP_PATH)
+                return 0
+
+            all_deliveries = {}
+            total_count = 0
+            for key in all_keys:
+                user_id = key.replace(PENDING_DELIVERY_KEY_PREFIX, "")
+                entries = await client.lrange(key, 0, -1)
+                parsed = []
+                for entry in entries:
+                    if isinstance(entry, bytes):
+                        entry = entry.decode("utf-8")
+                    try:
+                        parsed.append(json.loads(entry))
+                    except json.JSONDecodeError:
+                        continue
+                if parsed:
+                    all_deliveries[user_id] = parsed
+                    total_count += len(parsed)
+
+            if not all_deliveries:
+                logger.debug("No valid pending deliveries to dump")
+                if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
+                    os.remove(PENDING_DELIVERY_BACKUP_PATH)
+                return 0
+
+            backup_dir = os.path.dirname(PENDING_DELIVERY_BACKUP_PATH)
+            os.makedirs(backup_dir, exist_ok=True)
+
+            backup_data = {
+                "timestamp": int(time.time()),
+                "version": 1,
+                "deliveries_by_user": all_deliveries
+            }
+
+            with open(PENDING_DELIVERY_BACKUP_PATH, 'w') as f:
+                json.dump(backup_data, f, indent=2)
+
+            logger.info(
+                f"Dumped {total_count} pending delivery entries for "
+                f"{len(all_deliveries)} users to disk"
+            )
+            return total_count
+
+        except Exception as e:
+            logger.error(f"Error dumping pending deliveries to disk: {e}", exc_info=True)
+            return 0
+
+    async def restore_pending_deliveries_from_disk(self) -> int:
+        """
+        Restore pending deliveries from disk backup into cache.
+        Called during startup alongside restore_reminders_from_disk.
+        
+        Returns:
+            Number of delivery entries restored
+        """
+        try:
+            if not os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
+                logger.info("No pending deliveries backup found at startup")
+                return 0
+
+            with open(PENDING_DELIVERY_BACKUP_PATH, 'r') as f:
+                backup_data = json.load(f)
+
+            timestamp = backup_data.get("timestamp", 0)
+            deliveries_by_user = backup_data.get("deliveries_by_user", {})
+
+            if not deliveries_by_user:
+                logger.info("Pending deliveries backup is empty")
+                os.remove(PENDING_DELIVERY_BACKUP_PATH)
+                return 0
+
+            # Check backup age - don't restore entries older than 60 days
+            current_time = int(time.time())
+            backup_age_seconds = current_time - timestamp
+            if backup_age_seconds > PENDING_DELIVERY_TTL:
+                logger.warning(
+                    f"Pending deliveries backup is {backup_age_seconds / 86400:.1f} days old "
+                    f"(>60 days) - discarding stale backup"
+                )
+                os.remove(PENDING_DELIVERY_BACKUP_PATH)
+                return 0
+
+            restored_count = 0
+            client = await self.client
+            if not client:
+                logger.error("Cannot restore pending deliveries: cache client not connected")
+                return 0
+
+            for user_id, entries in deliveries_by_user.items():
+                key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
+                for entry in entries:
+                    try:
+                        await client.rpush(key, json.dumps(entry))
+                        restored_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to restore delivery entry for user {user_id[:8]}...: {e}")
+                # Set TTL on the list
+                await client.expire(key, PENDING_DELIVERY_TTL)
+
+            # Clean up backup file
+            os.remove(PENDING_DELIVERY_BACKUP_PATH)
+            logger.info(
+                f"Restored {restored_count} pending delivery entries for "
+                f"{len(deliveries_by_user)} users from disk"
+            )
+            return restored_count
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in pending deliveries backup: {e}")
+            if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
+                os.remove(PENDING_DELIVERY_BACKUP_PATH)
+            return 0
+        except Exception as e:
+            logger.error(f"Error restoring pending deliveries: {e}", exc_info=True)
+            return 0
+
+    async def cleanup_expired_pending_deliveries(self) -> int:
+        """
+        Clean up expired pending delivery entries and log the event.
+        Called periodically by a Celery beat task.
+        
+        Since Redis handles TTL-based expiry automatically, this method
+        primarily serves to log the cleanup events for audit purposes
+        and send reminder emails to users who still have pending deliveries.
+        
+        Returns:
+            Number of users with pending deliveries
+        """
+        try:
+            client = await self.client
+            if not client:
+                return 0
+
+            users_with_pending = 0
+            async for key in client.scan_iter(match=f"{PENDING_DELIVERY_KEY_PREFIX}*"):
+                if isinstance(key, bytes):
+                    key = key.decode("utf-8")
+                user_id = key.replace(PENDING_DELIVERY_KEY_PREFIX, "")
+                count = await client.llen(key)
+                ttl = await client.ttl(key)
+
+                if count > 0:
+                    users_with_pending += 1
+                    days_remaining = ttl / 86400 if ttl > 0 else 0
+                    logger.info(
+                        f"[PENDING_DELIVERY_AUDIT] User {user_id[:8]}... has "
+                        f"{count} pending deliveries, {days_remaining:.1f} days remaining"
+                    )
+
+            return users_with_pending
+
+        except Exception as e:
+            logger.error(f"Error auditing pending deliveries: {e}", exc_info=True)
+            return 0

@@ -2,6 +2,8 @@ import logging
 import hashlib
 import json
 import asyncio # Added asyncio
+import time
+import uuid
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
@@ -54,6 +56,7 @@ async def _check_user_offline_and_send_email(
     user_id: str,
     chat_id: str,
     response_preview: str,
+    task_id: Optional[str] = None,
     max_attempts: int = 3,
     delay_seconds: int = 5
 ) -> None:
@@ -62,6 +65,8 @@ async def _check_user_offline_and_send_email(
     
     This function runs as a background task after an AI response completes.
     It makes multiple attempts to detect if the user reconnects before sending an email.
+    If the user is confirmed offline, the AI response is also queued in the pending
+    delivery queue (up to 60 days) so they receive it on reconnect.
     
     Args:
         app: FastAPI app instance (for accessing services)
@@ -69,6 +74,7 @@ async def _check_user_offline_and_send_email(
         user_id: The user's UUID
         chat_id: The chat ID where the AI response was delivered
         response_preview: Preview of the AI response for the email
+        task_id: The AI task ID (message_id) for deduplication
         max_attempts: Number of connection check attempts (default 3)
         delay_seconds: Delay between attempts in seconds (default 5)
     """
@@ -90,9 +96,32 @@ async def _check_user_offline_and_send_email(
             logger.debug(f"{log_prefix} User still offline (attempt {attempt}/{max_attempts}), waiting {delay_seconds}s...")
             await asyncio.sleep(delay_seconds)
     
-    # User is still offline after all attempts - check settings and send email
-    logger.info(f"{log_prefix} User offline after {max_attempts} attempts, checking email notification eligibility...")
-    
+    # User is still offline after all attempts.
+    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
+    # 2. Send email notification if enabled
+    logger.info(f"{log_prefix} User offline after {max_attempts} attempts, queuing for pending delivery + email check...")
+
+    # Store the AI response in the pending delivery queue for reconnect delivery.
+    # The client will receive this via WebSocket on reconnect, encrypt with the
+    # chat key, and persist it properly (zero-knowledge architecture).
+    try:
+        if hasattr(app.state, 'cache_service'):
+            cache_service: CacheService = app.state.cache_service
+            await cache_service.add_pending_reminder_delivery(
+                user_id=user_id,
+                delivery_payload={
+                    "type": "ai_response",  # Distinguishes from "reminder" system messages
+                    "chat_id": chat_id,
+                    "message_id": task_id or str(uuid.uuid4()),
+                    "content": response_preview,  # Full AI response plaintext
+                    "user_id": user_id,
+                    "fired_at": int(time.time()),
+                }
+            )
+            logger.info(f"{log_prefix} Queued AI response for pending delivery")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to queue AI response for pending delivery: {e}")
+
     try:
         await _send_offline_email_notification(
             app=app,
@@ -454,6 +483,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         # Check if user has ANY active connections
                         if not manager.is_user_active(user_id_uuid):
                             # User appears offline - spawn background task to retry and send email
+                            # Also queues the AI response for pending delivery on reconnect (60-day TTL)
                             asyncio.create_task(
                                 _check_user_offline_and_send_email(
                                     app=app,
@@ -461,6 +491,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     user_id=user_id_uuid,
                                     chat_id=chat_id_from_payload,
                                     response_preview=redis_payload.get("full_content_so_far", ""),
+                                    task_id=redis_payload.get("task_id"),
                                     max_attempts=3,
                                     delay_seconds=5
                                 )
@@ -1008,14 +1039,21 @@ async def _deliver_pending_reminders(
     device_fingerprint_hash: str,
 ):
     """
-    Deliver any pending reminder notifications that fired while the user was offline.
+    Deliver any pending notifications that fired while the user was offline.
     
     Called as a background task immediately after a WebSocket connection is established.
-    Retrieves queued reminder delivery payloads from cache and sends them to the client
-    as reminder_fired events. The client handles encryption and persistence.
+    Retrieves queued delivery payloads from cache and sends them to the client.
+    
+    Supports two delivery types:
+    - type="reminder": System message from a fired reminder -> sent as "reminder_fired" event
+    - type="ai_response": AI response that completed while offline -> sent as "pending_ai_response" event
+    
+    Both types contain PLAINTEXT content. The client encrypts with the chat key before
+    persisting (zero-knowledge architecture). The client deduplicates by message_id
+    to prevent double-processing.
     
     Uses a small delay to allow the client to finish its initialization/sync setup
-    before receiving reminder events.
+    before receiving events.
     """
     try:
         # Brief delay to let the client finish WebSocket setup and initial sync
@@ -1025,41 +1063,57 @@ async def _deliver_pending_reminders(
         if not pending:
             return
 
+        # Separate by delivery type for logging
+        reminder_count = sum(1 for d in pending if d.get("type") != "ai_response")
+        ai_response_count = sum(1 for d in pending if d.get("type") == "ai_response")
         logger.info(
-            f"[REMINDER_DELIVERY] Delivering {len(pending)} pending reminder(s) "
+            f"[PENDING_DELIVERY] Delivering {len(pending)} pending item(s) "
+            f"({reminder_count} reminders, {ai_response_count} AI responses) "
             f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
         )
 
         for delivery in pending:
             try:
+                delivery_type = delivery.get("type", "reminder")
+                
+                if delivery_type == "ai_response":
+                    # AI response that completed while user was offline
+                    # Client will encrypt with chat key and persist via ai_response_completed flow
+                    event_name = "pending_ai_response"
+                    log_id = delivery.get("message_id", "unknown")
+                else:
+                    # Fired reminder system message
+                    # Client will encrypt with chat key and persist via chat_system_message_added flow
+                    event_name = "reminder_fired"
+                    log_id = delivery.get("reminder_id", "unknown")
+
                 await manager.send_personal_message(
                     message={
-                        "type": "reminder_fired",
+                        "type": event_name,
                         "payload": delivery
                     },
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash
                 )
                 logger.debug(
-                    f"[REMINDER_DELIVERY] Delivered pending reminder "
-                    f"{delivery.get('reminder_id')} to user {user_id[:8]}..."
+                    f"[PENDING_DELIVERY] Delivered '{event_name}' "
+                    f"(id={log_id}) to user {user_id[:8]}..."
                 )
             except Exception as e:
                 logger.error(
-                    f"[REMINDER_DELIVERY] Failed to deliver pending reminder "
-                    f"{delivery.get('reminder_id')}: {e}"
+                    f"[PENDING_DELIVERY] Failed to deliver pending item "
+                    f"(type={delivery.get('type')}): {e}"
                 )
                 # Re-queue the failed delivery so it can be retried on next connect
                 try:
                     await cache_service.add_pending_reminder_delivery(user_id, delivery)
                 except Exception:
                     logger.error(
-                        f"[REMINDER_DELIVERY] Failed to re-queue reminder "
-                        f"{delivery.get('reminder_id')} after delivery failure"
+                        "[PENDING_DELIVERY] Failed to re-queue item after delivery failure"
                     )
 
     except Exception as e:
-        logger.error(f"[REMINDER_DELIVERY] Error delivering pending reminders: {e}", exc_info=True)
+        logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
 # Authentication logic is now in auth_ws.py

@@ -5,8 +5,12 @@
 
 import logging
 import asyncio
+import hashlib
+import json
 import uuid
 import time
+
+import httpx
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -212,6 +216,34 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     # Email notification failure should not fail the reminder
                     logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
 
+                # ======================================================
+                # DISPATCH AI ASK REQUEST
+                # 
+                # Trigger an AI response for the reminder. The AI will
+                # receive the reminder prompt as the user message and
+                # generate a helpful follow-up. This runs regardless of
+                # whether the user is online.
+                #
+                # - If user is online: AI streams via WebSocket normally
+                # - If user is offline: existing offline handling stores
+                #   the response in pending delivery queue (60d) + sends email
+                # ======================================================
+                try:
+                    await _dispatch_reminder_ai_request(
+                        user_id=user_id,
+                        chat_id=target_chat_id,
+                        message_id=message_id,
+                        prompt=prompt,
+                        target_type=target_type,
+                        chat_title=chat_title,
+                        reminder=reminder,
+                        encryption_service=encryption_service,
+                        cache_service=cache_service,
+                    )
+                except Exception as ai_error:
+                    # AI dispatch failure should not fail the reminder itself
+                    logger.warning(f"Failed to dispatch AI request for reminder {reminder_id}: {ai_error}")
+
                 # Handle repeating vs one-time
                 if repeat_config:
                     # Calculate next trigger time
@@ -280,6 +312,121 @@ async def _process_due_reminders_async(task: BaseServiceTask):
 ## The client encrypts with the chat key, saves to IndexedDB, and sends back to
 ## the server for persistence via the existing chat_system_message_added flow.
 ## This ensures the zero-knowledge encryption model is preserved.
+
+
+async def _dispatch_reminder_ai_request(
+    user_id: str,
+    chat_id: str,
+    message_id: str,
+    prompt: str,
+    target_type: str,
+    chat_title: str | None,
+    reminder: dict,
+    encryption_service,
+    cache_service,
+) -> None:
+    """
+    Dispatch an AI ask request for a fired reminder.
+    
+    Builds the message history from cached vault-encrypted chat history (for
+    existing_chat reminders) and sends the reminder prompt as the latest user
+    message. The AI response streams through the normal pipeline:
+    - Online user: real-time WebSocket streaming
+    - Offline user: response stored in pending delivery queue + email notification
+    
+    Args:
+        user_id: User's UUID
+        chat_id: Target chat ID
+        message_id: The system message ID (for reference)
+        prompt: The decrypted reminder prompt (plaintext)
+        target_type: 'new_chat' or 'existing_chat'
+        chat_title: Chat title (for new chats)
+        reminder: Full reminder data dict
+        encryption_service: EncryptionService instance
+        cache_service: CacheService instance
+    """
+    vault_key_id = reminder.get("vault_key_id")
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+    # Build message history for AI context
+    message_history = []
+
+    if target_type == "existing_chat":
+        # Restore cached chat history from vault-encrypted storage
+        encrypted_chat_history = reminder.get("encrypted_chat_history")
+        if encrypted_chat_history and vault_key_id:
+            try:
+                decrypted_history = await encryption_service.decrypt_with_user_key(
+                    ciphertext=encrypted_chat_history,
+                    key_id=vault_key_id
+                )
+                if decrypted_history:
+                    cached_messages = json.loads(decrypted_history)
+                    for msg in cached_messages:
+                        message_history.append({
+                            "content": msg.get("content", ""),
+                            "role": msg.get("role", "user"),
+                            "created_at": msg.get("created_at", int(time.time())),
+                        })
+                    logger.debug(
+                        f"Restored {len(message_history)} messages from cached history "
+                        f"for reminder AI request"
+                    )
+            except Exception as e:
+                logger.warning(f"Could not restore chat history for AI request: {e}")
+
+    # Add the reminder prompt as the latest "user" message for the AI to respond to
+    message_history.append({
+        "content": prompt,
+        "role": "user",
+        "created_at": int(time.time()),
+    })
+
+    # Get user's timezone for AI context
+    user_timezone = await cache_service.get_user_timezone(user_id)
+    user_preferences = {}
+    if user_timezone:
+        user_preferences["timezone"] = user_timezone
+
+    # Build AskSkillRequest payload
+    ask_request = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "user_id": user_id,
+        "user_id_hash": user_id_hash,
+        "message_history": message_history,
+        "chat_has_title": bool(chat_title),
+        "mate_id": None,  # Let preprocessor determine
+        "active_focus_id": None,
+        "user_preferences": user_preferences,
+        "app_settings_memories_metadata": None,
+    }
+
+    # Dispatch to AI app via HTTP (same pattern as message_received_handler.py)
+    ai_app_url = "http://app-ai:8000/skills/ask"
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            ai_app_url,
+            json=ask_request,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        ai_task_id = response_data.get("task_id")
+
+    if ai_task_id:
+        # Mark this chat as having an active AI task
+        await cache_service.set_active_ai_task(chat_id, ai_task_id)
+        logger.info(
+            f"Dispatched AI ask request for reminder in chat {chat_id}, "
+            f"task_id={ai_task_id}"
+        )
+    else:
+        logger.warning(
+            f"AI app returned response but no task_id for reminder chat {chat_id}. "
+            f"Response: {response_data}"
+        )
 
 
 async def _send_reminder_email_notification(
@@ -353,6 +500,42 @@ async def _send_reminder_email_notification(
     except Exception as e:
         logger.error(f"Error dispatching reminder email notification: {e}", exc_info=True)
         return False
+
+
+@app.task(name="reminder.audit_pending_deliveries", base=BaseServiceTask, bind=True)
+def audit_pending_deliveries(self):
+    """
+    Periodic task that audits pending delivery entries.
+    
+    Called by Celery Beat every 6 hours. It:
+    1. Scans all pending delivery lists in cache
+    2. Logs users who have undelivered messages (for monitoring)
+    3. Redis TTL handles actual expiry (60 days) - this task is for audit/visibility
+    """
+    return asyncio.run(_audit_pending_deliveries_async(self))
+
+
+async def _audit_pending_deliveries_async(task: BaseServiceTask):
+    """Async implementation of audit_pending_deliveries."""
+    try:
+        await task.initialize_services()
+
+        cache_service = task._cache_service
+        if not cache_service:
+            return {"success": False, "error": "Cache service not available"}
+
+        users_with_pending = await cache_service.cleanup_expired_pending_deliveries()
+
+        return {
+            "success": True,
+            "users_with_pending": users_with_pending
+        }
+
+    except Exception as e:
+        logger.error(f"Error auditing pending deliveries: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+    finally:
+        await task.cleanup_services()
 
 
 @app.task(name="reminder.get_stats", base=BaseServiceTask, bind=True)

@@ -1193,6 +1193,175 @@ export async function handleSystemMessageConfirmedImpl(
 }
 
 /**
+ * Payload structure for pending_ai_response WebSocket message.
+ *
+ * Sent by the backend pending delivery system when the user reconnects
+ * after an AI response completed while they were offline. Contains
+ * PLAINTEXT content that the client must encrypt with the chat key
+ * before persisting (zero-knowledge architecture).
+ */
+interface PendingAIResponsePayload {
+  type: "ai_response";
+  chat_id: string;
+  message_id: string; // AI task ID / message ID (for deduplication)
+  content: string; // PLAINTEXT AI response content (full_content_so_far)
+  user_id: string; // User's UUID
+  fired_at: number; // Unix timestamp when the AI response was generated
+}
+
+/**
+ * Handles the pending_ai_response WebSocket event when an AI response that completed
+ * while the user was offline is delivered on reconnect.
+ *
+ * ARCHITECTURE (Zero-Knowledge Pending Delivery):
+ * The backend queued the AI response plaintext in the pending delivery cache (60-day TTL).
+ * On reconnect, the WebSocket endpoint sends it as a pending_ai_response event.
+ * This handler is responsible for:
+ * 1. Deduplicating by message_id (response may already have arrived via normal flow)
+ * 2. Looking up the chat and chat key
+ * 3. Creating an assistant message in IndexedDB
+ * 4. Encrypting and sending back to server via sendCompletedAIResponse
+ * 5. Dispatching UI events so the chat shows the response
+ */
+export async function handlePendingAIResponseImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: PendingAIResponsePayload,
+): Promise<void> {
+  console.info("[ChatSyncService:PendingAI] Received 'pending_ai_response':", {
+    chat_id: payload.chat_id,
+    message_id: payload.message_id,
+    content_length: payload.content?.length || 0,
+    fired_at: payload.fired_at,
+  });
+
+  const { chat_id, message_id, content } = payload;
+
+  if (!chat_id || !message_id || !content) {
+    console.warn(
+      "[ChatSyncService:PendingAI] Invalid pending_ai_response payload:",
+      payload,
+    );
+    return;
+  }
+
+  try {
+    // Deduplicate: if this message already exists locally (e.g., the response
+    // was already delivered via normal streaming or background completion), skip it.
+    const existingMessage = await chatDB.getMessage(message_id);
+    if (existingMessage) {
+      console.debug(
+        `[ChatSyncService:PendingAI] Message ${message_id} already exists locally, skipping duplicate`,
+      );
+      return;
+    }
+
+    // Look up the chat - it must exist locally for us to encrypt with its key
+    const chat = await chatDB.getChat(chat_id);
+    if (!chat) {
+      console.warn(
+        `[ChatSyncService:PendingAI] Chat ${chat_id} not found locally for pending AI response. ` +
+          `Message will be picked up on next full sync.`,
+      );
+      return;
+    }
+
+    // Get the chat key for encryption
+    const chatKey = chatDB.getChatKey(chat_id);
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:PendingAI] No chat key available for chat ${chat_id}, cannot encrypt pending AI response`,
+      );
+      return;
+    }
+
+    // Skip error responses - they shouldn't be persisted
+    if (
+      content.includes("[ERROR") ||
+      content === "chat.an_error_occured.text"
+    ) {
+      console.debug(
+        `[ChatSyncService:PendingAI] Skipping error response for message ${message_id}`,
+      );
+      return;
+    }
+
+    // Create the assistant message
+    // Store as markdown string (same as handleAIBackgroundResponseCompletedImpl)
+    const now = Math.floor(Date.now() / 1000);
+    const aiMessage = {
+      message_id: message_id,
+      chat_id: chat_id,
+      role: "assistant" as const,
+      content: content, // Store as markdown string
+      status: "synced" as const,
+      created_at: payload.fired_at || now,
+      encrypted_content: "", // Will be set by encryption in chatDB.saveMessage
+    };
+
+    // Save to IndexedDB (chatDB handles encryption with chat key)
+    await chatDB.saveMessage(aiMessage);
+    console.info(
+      `[ChatSyncService:PendingAI] Saved pending AI response ${message_id} to IndexedDB for chat ${chat_id}`,
+    );
+
+    // Update chat metadata with new messages_v
+    const newMessagesV = (chat.messages_v || 0) + 1;
+    const newLastEdited = Math.floor(Date.now() / 1000);
+    const updatedChat = {
+      ...chat,
+      messages_v: newMessagesV,
+      last_edited_overall_timestamp: newLastEdited,
+    };
+    await chatDB.updateChat(updatedChat as import("../types/chat").Chat);
+    console.info(
+      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}`,
+    );
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chat_id,
+          chat: updatedChat,
+          newMessage: aiMessage,
+          type: "pending_ai_response",
+          messagesUpdated: true,
+        },
+      }),
+    );
+
+    // Send encrypted AI response back to server for Directus storage (zero-knowledge)
+    try {
+      console.debug(
+        "[ChatSyncService:PendingAI] Sending encrypted pending AI response to server:",
+        {
+          messageId: aiMessage.message_id,
+          chatId: aiMessage.chat_id,
+          contentLength: aiMessage.content?.length || 0,
+        },
+      );
+      await serviceInstance.sendCompletedAIResponse(
+        aiMessage as import("../types/chat").Message,
+      );
+      console.info(
+        `[ChatSyncService:PendingAI] Sent encrypted AI response ${message_id} to server for Directus storage`,
+      );
+    } catch (sendError) {
+      console.error(
+        "[ChatSyncService:PendingAI] Error sending encrypted AI response to server:",
+        sendError,
+      );
+      // Message is saved locally, will be synced on next sendCompletedAIResponse attempt
+    }
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:PendingAI] Error handling pending_ai_response:",
+      error,
+    );
+  }
+}
+
+/**
  * Payload structure for reminder_fired WebSocket message.
  *
  * Sent by the backend Celery task when a scheduled reminder becomes due.

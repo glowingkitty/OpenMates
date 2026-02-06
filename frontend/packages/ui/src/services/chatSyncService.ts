@@ -360,6 +360,12 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("reminder_fired", (payload) =>
         module.handleReminderFiredImpl(this, payload),
       );
+      // Handle pending AI response events (AI completed while user was offline)
+      // Delivered from the pending delivery queue on WebSocket reconnect
+      // Contains plaintext AI response; handler encrypts with chat key and persists
+      webSocketService.on("pending_ai_response", (payload) =>
+        module.handlePendingAIResponseImpl(this, payload),
+      );
     });
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
