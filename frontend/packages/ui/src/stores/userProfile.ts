@@ -47,6 +47,13 @@ export interface UserProfile {
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs
+  // Email notification settings (synced with server)
+  // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
+  email_notifications_enabled?: boolean;
+  email_notification_email?: string; // Decrypted notification email (separate from login email)
+  email_notification_preferences?: {
+    aiResponses: boolean; // Notify when AI completes a response
+  };
 }
 
 // Default currency is now EUR

@@ -1,6 +1,7 @@
 <!--
-Chat Notifications Settings - Push notification preferences
-Allows users to enable/disable notifications and configure notification categories
+Chat Notifications Settings - Push and Email notification preferences
+Allows users to enable/disable notifications and configure notification categories.
+Email notifications are only sent when the user is offline (no active WebSocket connections).
 -->
 
 <script lang="ts">
@@ -11,12 +12,20 @@ Allows users to enable/disable notifications and configure notification categori
         requiresPWAInstall
     } from '../../../stores/pushNotificationStore';
     import { pushNotificationService } from '../../../services/pushNotificationService';
-    import { updateProfile } from '../../../stores/userProfile';
+    import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
     
-    // Local state
+    // Local state for push notifications
     let isRequestingPermission = $state(false);
     let showIOSInstructions = $state(false);
+    
+    // Local state for email notifications
+    let emailNotificationsEnabled = $state($userProfile.email_notifications_enabled ?? false);
+    let notificationEmail = $state($userProfile.email_notification_email ?? '');
+    let emailPreferences = $state($userProfile.email_notification_preferences ?? { aiResponses: true });
+    let isEmailValid = $state(true);
+    let isSavingEmail = $state(false);
+    let emailInputTimeout: ReturnType<typeof setTimeout> | null = null;
     
     /**
      * Sync push notification settings to server via user profile update
@@ -106,6 +115,101 @@ Allows users to enable/disable notifications and configure notification categori
     function closeIOSInstructions(): void {
         showIOSInstructions = false;
     }
+    
+    // =====================================================
+    // EMAIL NOTIFICATION HANDLERS
+    // =====================================================
+    
+    /**
+     * Validate email address format
+     */
+    function validateEmail(email: string): boolean {
+        if (!email) return true; // Empty is valid (will disable notifications)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+    
+    /**
+     * Handle email notifications enable/disable toggle
+     */
+    function handleToggleEmailEnabled(): void {
+        // If trying to enable but no valid email, don't allow
+        if (!emailNotificationsEnabled && !notificationEmail) {
+            // Focus on email input would be nice but we'll just prevent toggle
+            return;
+        }
+        
+        emailNotificationsEnabled = !emailNotificationsEnabled;
+        syncEmailSettingsToServer();
+    }
+    
+    /**
+     * Handle email address input change with debounce
+     */
+    function handleEmailChange(event: Event): void {
+        const target = event.target as HTMLInputElement;
+        notificationEmail = target.value;
+        
+        // Validate email
+        isEmailValid = validateEmail(notificationEmail);
+        
+        // Debounce server sync
+        if (emailInputTimeout) {
+            clearTimeout(emailInputTimeout);
+        }
+        
+        if (isEmailValid && notificationEmail) {
+            emailInputTimeout = setTimeout(() => {
+                syncEmailSettingsToServer();
+            }, 1000); // 1 second debounce
+        }
+    }
+    
+    /**
+     * Toggle AI responses email notification preference
+     */
+    function handleToggleAIResponses(): void {
+        emailPreferences = {
+            ...emailPreferences,
+            aiResponses: !emailPreferences.aiResponses
+        };
+        syncEmailSettingsToServer();
+    }
+    
+    /**
+     * Sync email notification settings to server
+     */
+    async function syncEmailSettingsToServer(): Promise<void> {
+        if (!$authStore.isAuthenticated) {
+            console.debug('[SettingsChatNotifications] User not authenticated, skipping email settings sync');
+            return;
+        }
+        
+        if (!isEmailValid) {
+            console.debug('[SettingsChatNotifications] Email invalid, skipping sync');
+            return;
+        }
+        
+        isSavingEmail = true;
+        
+        try {
+            // Update profile with email notification settings
+            // Note: The email will be encrypted by the backend before storage
+            updateProfile({
+                email_notifications_enabled: emailNotificationsEnabled,
+                email_notification_email: notificationEmail,
+                email_notification_preferences: emailPreferences
+            });
+            
+            console.debug('[SettingsChatNotifications] Email notification settings synced:', {
+                enabled: emailNotificationsEnabled,
+                email: notificationEmail ? '***@***' : '(empty)',
+                preferences: emailPreferences
+            });
+        } finally {
+            isSavingEmail = false;
+        }
+    }
 </script>
 
 <div class="notifications-settings-container">
@@ -187,6 +291,94 @@ Allows users to enable/disable notifications and configure notification categori
             </div>
         {/if}
     {/if}
+    
+    <!-- ================================================== -->
+    <!-- EMAIL NOTIFICATIONS SECTION -->
+    <!-- ================================================== -->
+    <div class="email-section">
+        <h3 class="section-title">
+            {$text('settings.chat.notifications.email_section.text', { default: 'Email Notifications' })}
+        </h3>
+        
+        <!-- Info banner explaining how email notifications work -->
+        <div class="info-banner email-info">
+            <span class="info-text">
+                {$text('settings.chat.notifications.email_how_it_works.text', { 
+                    default: "Email notifications are only sent when you're not actively using OpenMates on any device." 
+                })}
+            </span>
+        </div>
+        
+        <!-- Email address input -->
+        <div class="email-input-container">
+            <label for="notification-email" class="input-label">
+                {$text('settings.chat.notifications.email_address.text', { default: 'Notification Email' })}
+            </label>
+            <input
+                id="notification-email"
+                type="email"
+                class="email-input"
+                class:invalid={!isEmailValid}
+                placeholder={$text('settings.chat.notifications.email_address_placeholder.text', { 
+                    default: 'Enter email address' 
+                })}
+                value={notificationEmail}
+                oninput={handleEmailChange}
+            />
+            {#if !isEmailValid}
+                <span class="error-text">
+                    {$text('settings.chat.notifications.email_invalid.text', { 
+                        default: 'Please enter a valid email address' 
+                    })}
+                </span>
+            {:else}
+                <span class="helper-text">
+                    {$text('settings.chat.notifications.email_address_desc.text', { 
+                        default: 'Where to send notifications (can differ from login email)' 
+                    })}
+                </span>
+            {/if}
+        </div>
+        
+        <!-- Main Enable/Disable Toggle for Email -->
+        <SettingsItem
+            type="submenu"
+            icon="subsetting_icon subsetting_icon_email"
+            title={$text('settings.chat.notifications.email_enable.text', { default: 'Email Notifications' })}
+            subtitleTop={$text('settings.chat.notifications.email_enable_desc.text', { 
+                default: "Receive emails when you're offline" 
+            })}
+            hasToggle={true}
+            checked={emailNotificationsEnabled}
+            disabled={!notificationEmail || !isEmailValid}
+            onClick={handleToggleEmailEnabled}
+        />
+        
+        <!-- Email notification options (only show if enabled) -->
+        {#if emailNotificationsEnabled && notificationEmail && isEmailValid}
+            <div class="email-options">
+                <!-- AI Responses toggle -->
+                <SettingsItem
+                    type="submenu"
+                    icon="subsetting_icon subsetting_icon_chat"
+                    title={$text('settings.chat.notifications.email_ai_responses.text', { default: 'AI Responses' })}
+                    subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc.text', { 
+                        default: "When an assistant completes a response while you're away" 
+                    })}
+                    hasToggle={true}
+                    checked={emailPreferences.aiResponses}
+                    onClick={handleToggleAIResponses}
+                />
+            </div>
+        {/if}
+        
+        <!-- Saving indicator -->
+        {#if isSavingEmail}
+            <div class="saving-indicator">
+                {$text('settings.chat.notifications.email_saving.text', { default: 'Saving...' })}
+            </div>
+        {/if}
+    </div>
     
     <!-- iOS PWA Instructions Modal -->
     {#if showIOSInstructions}
@@ -314,5 +506,86 @@ Allows users to enable/disable notifications and configure notification categori
     
     .ios-modal-close:hover {
         background-color: var(--color-button-primary-hover);
+    }
+    
+    /* Email Notifications Section Styles */
+    .email-section {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+    
+    .email-info {
+        margin-bottom: 16px;
+    }
+    
+    .email-input-container {
+        margin-bottom: 16px;
+        padding: 0 10px;
+    }
+    
+    .input-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-grey-60);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+    
+    .email-input {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+    
+    .email-input:focus {
+        border-color: var(--color-button-primary);
+        background-color: var(--color-grey-0);
+    }
+    
+    .email-input.invalid {
+        border-color: var(--color-error);
+    }
+    
+    .email-input::placeholder {
+        color: var(--color-grey-50);
+    }
+    
+    .helper-text {
+        display: block;
+        font-size: 12px;
+        color: var(--color-grey-50);
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+    
+    .error-text {
+        display: block;
+        font-size: 12px;
+        color: var(--color-error);
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+    
+    .email-options {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-grey-10);
+    }
+    
+    .saving-indicator {
+        text-align: center;
+        font-size: 12px;
+        color: var(--color-grey-50);
+        margin-top: 12px;
+        padding: 8px;
     }
 </style>

@@ -2234,5 +2234,9 @@ async def _consume_main_processing_stream(
     if billing_error:
         logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
         raise billing_error
+    
+    # NOTE: Email notifications for offline users are handled in websockets.py
+    # when the final marker is received. The WebSocket handler has access to
+    # ConnectionManager.is_user_active() for accurate offline detection.
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

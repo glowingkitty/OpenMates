@@ -3936,3 +3936,142 @@ code_valid_15_minutes:
   cs: ""
   sv: ""
   verified_by_human: []
+# AI Response Email Notification - sent when user is offline and AI completes a response
+ai_response_notification.subject:
+  context: Email subject for AI response notification
+  en: "New AI response in your chat"
+  de: "Neue KI-Antwort in deinem Chat"
+  zh: "您的聊天中有新的AI回复"
+  es: "Nueva respuesta de IA en tu chat"
+  fr: "Nouvelle réponse IA dans votre chat"
+  pt: "Nova resposta de IA no seu chat"
+  ru: "Новый ответ ИИ в вашем чате"
+  ja: "チャットに新しいAI応答があります"
+  ko: "채팅에 새로운 AI 응답이 있습니다"
+  it: "Nuova risposta AI nella tua chat"
+  tr: "Sohbetinizde yeni yapay zeka yanıtı"
+  vi: "Phản hồi AI mới trong cuộc trò chuyện của bạn"
+  id: "Respons AI baru di obrolan Anda"
+  pl: "Nowa odpowiedź AI w Twoim czacie"
+  nl: "Nieuwe AI-reactie in je chat"
+  ar: "رد جديد من الذكاء الاصطناعي في محادثتك"
+  hi: "आपकी चैट में नया AI प्रतिक्रिया"
+  th: "การตอบกลับ AI ใหม่ในแชทของคุณ"
+  cs: "Nová odpověď AI ve vašem chatu"
+  sv: "Nytt AI-svar i din chatt"
+  verified_by_human: []
+ai_response_notification.header:
+  context: Header text in AI response notification email body
+  en: New AI Response
+  de: Neue KI-Antwort
+  zh: 新的AI回复
+  es: Nueva respuesta de IA
+  fr: Nouvelle réponse IA
+  pt: Nova resposta de IA
+  ru: Новый ответ ИИ
+  ja: 新しいAI応答
+  ko: 새로운 AI 응답
+  it: Nuova risposta AI
+  tr: Yeni Yapay Zeka Yanıtı
+  vi: Phản hồi AI mới
+  id: Respons AI Baru
+  pl: Nowa odpowiedź AI
+  nl: Nieuwe AI-reactie
+  ar: رد جديد من الذكاء الاصطناعي
+  hi: नया AI प्रतिक्रिया
+  th: การตอบกลับ AI ใหม่
+  cs: Nová odpověď AI
+  sv: Nytt AI-svar
+  verified_by_human: []
+ai_response_notification.description:
+  context: Description text in AI response notification email body
+  en: An AI assistant has completed a response in one of your chats while you were away.
+  de: Ein KI-Assistent hat eine Antwort in einem deiner Chats abgeschlossen, während du weg warst.
+  zh: 在您离开期间，AI助手在您的一个聊天中完成了回复。
+  es: Un asistente de IA ha completado una respuesta en uno de tus chats mientras estabas ausente.
+  fr: Un assistant IA a terminé une réponse dans l'un de vos chats pendant votre absence.
+  pt: Um assistente de IA completou uma resposta em um dos seus chats enquanto você estava ausente.
+  ru: ИИ-ассистент завершил ответ в одном из ваших чатов, пока вы отсутствовали.
+  ja: あなたが不在の間に、AIアシスタントがチャットの1つで返答を完了しました。
+  ko: 부재 중에 AI 어시스턴트가 채팅 중 하나에서 응답을 완료했습니다.
+  it: Un assistente AI ha completato una risposta in una delle tue chat mentre eri assente.
+  tr: Siz uzaktayken bir yapay zeka asistanı sohbetlerinizden birinde bir yanıt tamamladı.
+  vi: Một trợ lý AI đã hoàn thành phản hồi trong một trong các cuộc trò chuyện của bạn khi bạn vắng mặt.
+  id: Asisten AI telah menyelesaikan respons di salah satu obrolan Anda saat Anda pergi.
+  pl: Asystent AI ukończył odpowiedź w jednym z Twoich czatów podczas Twojej nieobecności.
+  nl: Een AI-assistent heeft een reactie voltooid in een van je chats terwijl je weg was.
+  ar: أكمل مساعد الذكاء الاصطناعي ردًا في إحدى محادثاتك أثناء غيابك.
+  hi: जब आप दूर थे तब एक AI सहायक ने आपकी एक चैट में प्रतिक्रिया पूरी की है।
+  th: ผู้ช่วย AI ได้ทำการตอบกลับเสร็จสิ้นในแชทของคุณขณะที่คุณไม่อยู่
+  cs: AI asistent dokončil odpověď v jednom z vašich chatů, zatímco jste byli pryč.
+  sv: En AI-assistent har slutfört ett svar i en av dina chattar medan du var borta.
+  verified_by_human: []
+ai_response_notification.preview_label:
+  context: Label for the response preview
+  en: Response preview
+  de: Antwortvorschau
+  zh: 回复预览
+  es: Vista previa de la respuesta
+  fr: Aperçu de la réponse
+  pt: Prévia da resposta
+  ru: Предпросмотр ответа
+  ja: 応答プレビュー
+  ko: 응답 미리보기
+  it: Anteprima della risposta
+  tr: Yanıt önizlemesi
+  vi: Xem trước phản hồi
+  id: Pratinjau respons
+  pl: Podgląd odpowiedzi
+  nl: Reactievoorbeeld
+  ar: معاينة الرد
+  hi: प्रतिक्रिया पूर्वावलोकन
+  th: ตัวอย่างการตอบกลับ
+  cs: Náhled odpovědi
+  sv: Förhandsvisning av svar
+  verified_by_human: []
+ai_response_notification.chat_label:
+  context: Label for the chat name
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: Chat
+  ru: Чат
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: محادثة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
+  verified_by_human: []
+ai_response_notification.open_chat_button:
+  context: Button text to open the chat
+  en: Open Chat
+  de: Chat öffnen
+  zh: 打开聊天
+  es: Abrir chat
+  fr: Ouvrir le chat
+  pt: Abrir chat
+  ru: Открыть чат
+  ja: チャットを開く
+  ko: 채팅 열기
+  it: Apri chat
+  tr: Sohbeti Aç
+  vi: Mở trò chuyện
+  id: Buka Obrolan
+  pl: Otwórz czat
+  nl: Chat openen
+  ar: فتح المحادثة
+  hi: चैट खोलें
+  th: เปิดแชท
+  cs: Otevřít chat
+  sv: Öppna chatt
+  verified_by_human: []

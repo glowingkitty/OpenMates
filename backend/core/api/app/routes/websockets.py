@@ -43,6 +43,142 @@ router = APIRouter(
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
+
+# =============================================================================
+# EMAIL NOTIFICATION FOR OFFLINE USERS
+# =============================================================================
+
+async def _check_user_offline_and_send_email(
+    app: FastAPI,
+    manager: ConnectionManager,
+    user_id: str,
+    chat_id: str,
+    response_preview: str,
+    max_attempts: int = 3,
+    delay_seconds: int = 5
+) -> None:
+    """
+    Check if user is offline with retries, then send email notification if still offline.
+    
+    This function runs as a background task after an AI response completes.
+    It makes multiple attempts to detect if the user reconnects before sending an email.
+    
+    Args:
+        app: FastAPI app instance (for accessing services)
+        manager: ConnectionManager instance for checking active connections
+        user_id: The user's UUID
+        chat_id: The chat ID where the AI response was delivered
+        response_preview: Preview of the AI response for the email
+        max_attempts: Number of connection check attempts (default 3)
+        delay_seconds: Delay between attempts in seconds (default 5)
+    """
+    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
+    
+    # Skip if response is an error message
+    if response_preview and isinstance(response_preview, str):
+        if "[ERROR" in response_preview or response_preview == "chat.an_error_occured.text":
+            logger.debug(f"{log_prefix} Skipping email - response contains error")
+            return
+    
+    # Retry loop: check if user reconnects
+    for attempt in range(1, max_attempts + 1):
+        if manager.is_user_active(user_id):
+            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping email")
+            return
+        
+        if attempt < max_attempts:
+            logger.debug(f"{log_prefix} User still offline (attempt {attempt}/{max_attempts}), waiting {delay_seconds}s...")
+            await asyncio.sleep(delay_seconds)
+    
+    # User is still offline after all attempts - check settings and send email
+    logger.info(f"{log_prefix} User offline after {max_attempts} attempts, checking email notification eligibility...")
+    
+    try:
+        await _send_offline_email_notification(
+            app=app,
+            user_id=user_id,
+            chat_id=chat_id,
+            response_preview=response_preview
+        )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to send email notification: {e}", exc_info=True)
+
+
+async def _send_offline_email_notification(
+    app: FastAPI,
+    user_id: str,
+    chat_id: str,
+    response_preview: str
+) -> None:
+    """
+    Check user's email notification settings and dispatch the email task.
+    
+    Args:
+        app: FastAPI app instance
+        user_id: The user's UUID
+        chat_id: The chat ID
+        response_preview: Preview of the AI response
+    """
+    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
+    
+    if not hasattr(app.state, 'cache_service'):
+        logger.warning(f"{log_prefix} Cache service not available, cannot check user settings")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    
+    # Fetch user data from cache
+    cached_user = await cache_service.get_user_by_id(user_id)
+    if not cached_user:
+        logger.debug(f"{log_prefix} User not in cache, skipping email")
+        return
+    
+    # Check if email notifications are enabled
+    email_enabled = cached_user.get("email_notifications_enabled", False)
+    if not email_enabled:
+        logger.debug(f"{log_prefix} Email notifications disabled for user")
+        return
+    
+    # Check if notification email is configured (must be decrypted in cache)
+    notification_email = cached_user.get("decrypted_notification_email")
+    if not notification_email:
+        logger.debug(f"{log_prefix} No notification email configured")
+        return
+    
+    # Check if AI responses preference is enabled
+    email_prefs = cached_user.get("email_notification_preferences", {})
+    if not isinstance(email_prefs, dict):
+        email_prefs = {}
+    if not email_prefs.get("aiResponses", True):
+        logger.debug(f"{log_prefix} AI response notifications disabled in preferences")
+        return
+    
+    # Get user's language and darkmode preferences
+    language = cached_user.get("language", "en") or "en"
+    darkmode = cached_user.get("darkmode", False)
+    
+    # Queue the email task (no delay since we already did the retry checks)
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        
+        celery_app.send_task(
+            name='app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification',
+            args=[
+                notification_email,           # recipient_email
+                response_preview[:500] if response_preview else "",  # response_preview (truncated)
+                chat_id,                      # chat_id
+                None,                         # chat_title (not fetched for speed)
+                language,                     # language
+                darkmode,                     # darkmode
+                None,                         # user_id (not needed - we already verified offline)
+                None                          # task_queued_timestamp (not needed)
+            ],
+            queue="email"
+        )
+        logger.info(f"{log_prefix} Queued email notification task to {notification_email}")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to queue email task: {e}", exc_info=True)
+
 # --- Redis Pub/Sub Listener for Cache Events ---
 # This function will be imported and started by main.py
 async def listen_for_cache_events(app: FastAPI):
@@ -304,6 +440,30 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                      device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
+                    
+                    # =====================================================================
+                    # EMAIL NOTIFICATION CHECK (after final marker processing)
+                    # If the user has NO active WebSocket connections, attempt to reach them
+                    # with retries before sending an email notification.
+                    # =====================================================================
+                    is_final_marker = redis_payload.get("is_final_chunk", False)
+                    was_interrupted = redis_payload.get("interrupted_by_revocation", False)
+                    
+                    if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
+                        # Check if user has ANY active connections
+                        if not manager.is_user_active(user_id_uuid):
+                            # User appears offline - spawn background task to retry and send email
+                            asyncio.create_task(
+                                _check_user_offline_and_send_email(
+                                    app=app,
+                                    manager=manager,
+                                    user_id=user_id_uuid,
+                                    chat_id=chat_id_from_payload,
+                                    response_preview=redis_payload.get("full_content_so_far", ""),
+                                    max_attempts=3,
+                                    delay_seconds=5
+                                )
+                            )
                 else:
                     logger.warning(f"AI Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
             
