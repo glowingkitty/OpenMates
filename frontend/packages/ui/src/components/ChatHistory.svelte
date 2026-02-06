@@ -270,23 +270,22 @@
   let shouldScrollToNewUserMessage = false;
   let isScrolling = false;
 
-  // --- Auto-follow streaming state ---
-  // When the user sends a message or is at the bottom when streaming starts,
-  // we auto-scroll to follow the AI response as it streams in.
-  // If the user manually scrolls up during streaming, auto-follow is disabled.
-  let shouldAutoFollowStreaming = $state(false);
-  // Track the previous streaming state to detect when streaming starts/stops
-  let wasStreaming = $state(false);
-
   // Detect if any message is currently streaming
   let isCurrentlyStreaming = $derived(
     messages.some(m => m.status === 'streaming')
   );
+  // Track previous streaming state to detect transitions
+  let wasStreaming = $state(false);
 
-  // Bottom spacer height: when streaming is active and auto-follow is on,
-  // the spacer fills remaining viewport space below the last message.
-  // This creates the "empty space below user message" effect that gets filled
-  // as the AI response streams in.
+  // Whether the streaming spacer should be active.
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport. Without it, there wouldn't
+  // be enough scrollable content to hold that scroll position.
+  // The spacer is activated when the user sends a message and stays active until streaming ends.
+  let isSpacerActive = $state(false);
+
+  // The computed spacer height — fills remaining viewport below the AI response.
+  // As the AI response grows, the spacer shrinks. Once the response fills the viewport, spacer = 0.
   let spacerHeight = $state(0);
 
   /**
@@ -902,7 +901,7 @@
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
             {#each displayMessages as msg (msg.id)}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
+                <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
@@ -1048,6 +1047,10 @@
 
   .message-wrapper.assistant { /* Assistant messages aligned to the left */
     justify-content: flex-start;
+  }
+
+  .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
+    justify-content: center;
   }
 
   .message-wrapper :global(.chat-message) {

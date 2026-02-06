@@ -204,6 +204,7 @@
         is_final_chunk?: boolean;
         category?: string;
         model_name?: string;
+        rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates system message, not AI response
     };
 
     type ChatUpdatedDetail = {
@@ -1886,10 +1887,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
         );
         
+        // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
+        const hasWaitingForUserMessage = currentMessages.some(m => 
+            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
+        );
+        
         // Debug logging for typing indicator
         console.debug('[ActiveChat] Typing indicator check:', {
             hasSendingMessage,
             hasProcessingMessage,
+            hasWaitingForUserMessage,
             isTyping: currentTypingStatus?.isTyping,
             typingChatId: currentTypingStatus?.chatId,
             currentChatId: currentChat?.chat_id,
@@ -1897,6 +1904,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             modelName: currentTypingStatus?.modelName,
             providerName: currentTypingStatus?.providerName
         });
+        
+        // Show "Waiting for you..." if chat is paused waiting for user action
+        // (e.g., insufficient credits, app settings/memories permission)
+        if (hasWaitingForUserMessage) {
+            const result = $text('enter_message.waiting_for_user.text');
+            console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
+            return result;
+        }
         
         // Show "Sending..." if there's a user message being sent
         if (hasSendingMessage) {
@@ -2070,6 +2085,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         let newContentLengthForPersistence = 0;
 
         if (!targetMessage) {
+            // Detect if this is a system rejection message (e.g., insufficient credits)
+            // These should be rendered as system notices, not as assistant bubbles
+            const isRejectionMessage = !!chunk.rejection_reason;
+            
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
@@ -2077,11 +2096,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 message_id: chunk.message_id,
                 chat_id: chunk.chat_id, // Ensure this is correct
                 user_message_id: chunk.user_message_id,
-                role: 'assistant',
+                // System rejection messages (e.g., insufficient credits) use role 'system' 
+                // so they render as smaller system notices instead of assistant bubbles
+                role: isRejectionMessage ? 'system' : 'assistant',
                 category: chunk.category || fallbackCategory,
                 model_name: chunk.model_name || fallbackModelName || undefined,
                 content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
-                status: 'streaming',
+                // System rejection messages get 'waiting_for_user' status so the chat shows
+                // "Waiting for you..." instead of "Sending..." in the sidebar and typing indicator
+                status: isRejectionMessage ? 'waiting_for_user' : 'streaming',
                 created_at: Math.floor(Date.now() / 1000),
                 // Required encrypted fields (will be populated by encryptMessageFields)
                 encrypted_content: '', // Will be set by encryption
@@ -2120,7 +2143,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // CRITICAL: Store AI response as markdown string, not Tiptap JSON
                 targetMessage.content = chunk.full_content_so_far || '';
             }
-            if (targetMessage.status !== 'streaming') {
+            // If this is a rejection message, update role and status accordingly
+            if (chunk.rejection_reason && targetMessage.role !== 'system') {
+                targetMessage.role = 'system';
+                targetMessage.status = 'waiting_for_user';
+            } else if (targetMessage.status !== 'streaming' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
             // Update model_name if we have a new value and current value is missing or undefined
@@ -2261,9 +2288,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
+                // For rejection messages (e.g., insufficient credits), keep 'waiting_for_user' status
+                // so the chat shows "Waiting for you..." instead of appearing as a completed response
+                const isRejection = !!chunk.rejection_reason;
+                const finalStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
-                    status: 'synced' as const,
+                    status: finalStatus,
+                    // Preserve role as 'system' for rejection messages
+                    role: isRejection ? 'system' as const : finalMessageInArray.role,
                     model_name: finalModelName, // Explicitly preserve/set model_name
                     thinking_content: thinkingEntry?.content || finalMessageInArray.thinking_content,
                     thinking_signature: thinkingEntry?.signature || finalMessageInArray.thinking_signature,
@@ -2285,12 +2318,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages = [...currentMessages]; // Ensure reactivity for UI
                 }
 
-                // CRITICAL FIX: Also update the corresponding user message status from 'sending' to 'synced'
-                // This prevents the infinite "Sending..." state when the AI responds (including error responses)
+                // CRITICAL FIX: Also update the corresponding user message status from 'sending' to appropriate status
+                // For rejection messages (e.g., insufficient credits): set to 'waiting_for_user' so the sidebar shows "Waiting for you..."
+                // For normal responses: set to 'synced' to prevent infinite "Sending..." state
                 if (chunk.user_message_id) {
                     const userMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.user_message_id);
-                    if (userMessageIndex !== -1 && currentMessages[userMessageIndex].status === 'sending') {
-                        const updatedUserMessage = { ...currentMessages[userMessageIndex], status: 'synced' as const };
+                    const userMessageStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
+                    if (userMessageIndex !== -1 && (currentMessages[userMessageIndex].status === 'sending' || currentMessages[userMessageIndex].status === 'processing')) {
+                        const updatedUserMessage = { ...currentMessages[userMessageIndex], status: userMessageStatus };
                         currentMessages[userMessageIndex] = updatedUserMessage;
                         currentMessages = [...currentMessages]; // Ensure reactivity for UI
 
@@ -4312,7 +4347,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chat_id, user_message_id } = event.detail;
             if (chat_id === currentChat?.chat_id) {
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
-                if (messageIndex !== -1 && currentMessages[messageIndex].status === 'processing') {
+                // Update user message status to synced from both 'processing' and 'waiting_for_user'
+                // (waiting_for_user is set when paused for app settings permission or credit issues)
+                if (messageIndex !== -1 && (currentMessages[messageIndex].status === 'processing' || currentMessages[messageIndex].status === 'waiting_for_user')) {
                     const updatedMessage = { ...currentMessages[messageIndex], status: 'synced' as const };
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages];

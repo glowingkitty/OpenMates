@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import DemoMessageContent from './DemoMessageContent.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
@@ -118,6 +119,26 @@
   // Determine if we should use mobile-stacked layout based on container width
   // Breakpoint is 500px to match the original media query
   let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
+
+  // Check if original_message content contains the {example_chats_group} placeholder (used in demo chats)
+  // When present, we use DemoMessageContent for special placeholder handling
+  // We check original_message.content because at this point `content` is already TipTap JSON
+  const EXAMPLE_CHATS_PLACEHOLDER = '{example_chats_group}';
+  let hasExampleChatsPlaceholder = $derived((() => {
+    const originalContent = original_message?.content;
+    if (typeof originalContent === 'string') {
+      return originalContent.includes(EXAMPLE_CHATS_PLACEHOLDER);
+    }
+    return false;
+  })());
+  
+  // Get the original markdown content (for DemoMessageContent which needs the raw markdown)
+  let originalMarkdownContent = $derived(
+    typeof original_message?.content === 'string' ? original_message.content : ''
+  );
+  
+  // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
+  let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
 
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
@@ -956,6 +977,14 @@
   }
 </script>
 
+{#if role === 'system'}
+  <!-- System message: rendered as a smaller centered notice (e.g., insufficient credits) -->
+  <div class="chat-message system">
+    <div class="system-message-notice">
+      <span class="system-message-text">{typeof content === 'string' ? content : ''}</span>
+    </div>
+  </div>
+{:else}
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
   {#if role === 'assistant'}
     <!-- Use openmates_official category for official messages (shows favicon, no AI badge) -->
@@ -997,6 +1026,14 @@
               {_embedUpdateTimestamp}
               {selectable}
               on:message-embed-click={handleEmbedClick}
+          />
+        {:else if hasExampleChatsPlaceholder}
+          <!-- Demo chat with {example_chats_group} placeholder - use special component -->
+          <DemoMessageContent
+              content={originalMarkdownContent}
+              chatId={currentChatId}
+              isStreaming={status === 'streaming'}
+              {selectable}
           />
         {:else}
           <ReadOnlyMessage 
@@ -1136,6 +1173,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 {#if showFullscreen}
     <CodeFullscreen 
@@ -1148,6 +1186,27 @@
 {/if}
 
 <style>
+  /* System message notice: smaller text, centered, used for credit errors etc. */
+  .chat-message.system {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  .system-message-notice {
+    max-width: 80%;
+    text-align: center;
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+  }
+
+  .system-message-text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-grey-60, #888);
+  }
+
   .chat-app-cards-container {
     display: flex;
     gap: 20px;

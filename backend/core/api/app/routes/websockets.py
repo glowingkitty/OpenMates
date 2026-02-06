@@ -420,7 +420,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "full_content": full_content,
                                     "model_name": redis_payload.get("model_name"),
                                     "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
-                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False)
+                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
+                                    "rejection_reason": redis_payload.get("rejection_reason")
                                 }
                                 await manager.send_personal_message(
                                     message={"type": "ai_background_response_completed", "payload": background_completion_payload},

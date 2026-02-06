@@ -96,6 +96,7 @@ def _create_redis_payload(
     system_prompt_tokens: Optional[int] = None,
     total_credits: Optional[int] = None,
     category: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -117,6 +118,11 @@ def _create_redis_payload(
     
     if category:
         payload["category"] = category
+    
+    # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
+    # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
+    if rejection_reason:
+        payload["rejection_reason"] = rejection_reason
     
     if prompt_tokens is not None:
         payload["prompt_tokens"] = prompt_tokens
@@ -727,7 +733,8 @@ async def _generate_fake_stream_for_simple_message(
     cache_service: Optional[CacheService],
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-    user_vault_key_id: Optional[str] = None
+    user_vault_key_id: Optional[str] = None,
+    rejection_reason: Optional[str] = None
 ) -> tuple[str, bool, bool]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
@@ -744,7 +751,8 @@ async def _generate_fake_stream_for_simple_message(
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name)
+    # Include rejection_reason so frontend can distinguish system messages from AI responses
+    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name, rejection_reason=rejection_reason)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(message_text)}"
@@ -782,7 +790,8 @@ async def _generate_fake_stream_for_simple_message(
         task_id, request_data, message_text, 2, is_final=True, model_name=model_name,
         prompt_tokens=billing_info.get("prompt_tokens", 0),
         completion_tokens=billing_info.get("completion_tokens", 0),
-        total_credits=billing_info.get("total_credits", 0)
+        total_credits=billing_info.get("total_credits", 0),
+        rejection_reason=rejection_reason
     )
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
@@ -944,6 +953,8 @@ async def _consume_main_processing_stream(
         )
     
     # Handle insufficient credits with a predefined message (no billing)
+    # rejection_reason is passed through to the Redis payload so the frontend can render this
+    # as a system notice (smaller text) instead of an assistant bubble
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
         logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
         message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
@@ -955,7 +966,8 @@ async def _consume_main_processing_stream(
             cache_service=cache_service,
             directus_service=directus_service,
             encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id
+            user_vault_key_id=user_vault_key_id,
+            rejection_reason="insufficient_credits"
         )
 
     # Handle LLM preprocessing failures (e.g., API errors, service unavailable)

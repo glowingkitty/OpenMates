@@ -258,17 +258,20 @@ export async function handleRequestAppSettingsMemoriesImpl(
       );
     }
 
-    // Update user message status from 'processing' to 'synced' since we're waiting for input
-    // This prevents the "Processing..." indicator from showing
+    // Update user message status from 'processing' to 'waiting_for_user' since we're waiting for input
+    // This shows "Waiting for you..." in the sidebar and typing indicator instead of "Processing..."
     if (payload.message_id) {
       try {
         const userMessage = await chatDB.getMessage(payload.message_id);
         if (userMessage && userMessage.status === "processing") {
           // Update the message status and save it back
-          const updatedMessage = { ...userMessage, status: "synced" as const };
+          const updatedMessage = {
+            ...userMessage,
+            status: "waiting_for_user" as const,
+          };
           await chatDB.saveMessage(updatedMessage);
           console.info(
-            `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'synced'`,
+            `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'waiting_for_user'`,
           );
 
           // Dispatch event to update UI immediately
@@ -277,7 +280,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
               new CustomEvent("messageStatusUpdated", {
                 detail: {
                   messageId: payload.message_id,
-                  status: "synced",
+                  status: "waiting_for_user",
                   chatId: chat_id,
                 },
               }),

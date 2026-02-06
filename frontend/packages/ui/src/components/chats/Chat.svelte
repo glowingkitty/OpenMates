@@ -622,8 +622,15 @@
     displayLabel = '';
     displayText = '';
 
-    // Handle sending, processing, waiting_for_internet, and failed states first as they take precedence
-    if (lastMessage?.status === 'sending') {
+    // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
+    // Check all messages (not just lastMessage) for waiting_for_user since the system message
+    // may not be the last message in the array
+    const hasWaitingForUser = chat.messages?.some(m => m.status === 'waiting_for_user');
+    if (hasWaitingForUser) {
+      // Show "Waiting for you..." when chat is paused for user action (e.g., insufficient credits)
+      displayLabel = $text('enter_message.waiting_for_user.text');
+      displayText = '';
+    } else if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
@@ -1653,7 +1660,7 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
+      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || lastMessage?.status === 'waiting_for_user' || chat.messages?.some(m => m.status === 'waiting_for_user') || isWaitingForTitle) && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}

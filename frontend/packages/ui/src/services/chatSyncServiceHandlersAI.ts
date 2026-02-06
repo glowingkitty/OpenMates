@@ -612,15 +612,17 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // Create the completed AI message
     // CRITICAL: Store AI response as markdown string, not Tiptap JSON
     // Tiptap JSON is only for UI rendering, never stored in database
+    // For rejection messages (e.g., insufficient credits), use role 'system' and status 'waiting_for_user'
+    const isRejection = !!payload.rejection_reason;
     const aiMessage: Message = {
       message_id: payload.message_id,
       chat_id: payload.chat_id,
       user_message_id: payload.user_message_id,
-      role: "assistant",
+      role: isRejection ? "system" : "assistant",
       category: category || undefined,
       model_name: modelName || undefined,
       content: payload.full_content, // Store as markdown string, not Tiptap JSON
-      status: "synced",
+      status: isRejection ? "waiting_for_user" : "synced",
       created_at: Math.floor(Date.now() / 1000),
       // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
       // Do NOT set encrypted_* fields here as they should only exist after encryption
