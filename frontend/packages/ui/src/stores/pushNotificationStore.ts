@@ -343,23 +343,25 @@ export const pushNotificationStore = {
   /**
    * Check if we should show the permission banner
    * Returns true if:
-   * - Push is supported
-   * - Permission is not already granted or denied
-   * - User hasn't dismissed the banner this session
+   * - Push is supported and permission is not already granted or denied
+   * - OR device is iOS (non-PWA) where push becomes available after home screen install
+   * - AND user hasn't dismissed the banner this session
    */
   shouldShowBanner: (): boolean => {
     const state = get(pushNotificationStore);
 
-    // Not supported, don't show
-    if (!state.isSupported) return false;
+    // User dismissed this session, don't show
+    if (state.bannerDismissedThisSession) return false;
+
+    // iOS Safari (non-PWA): push is unsupported but becomes available after PWA install
+    if (!state.isSupported) {
+      return state.isIOS && !state.isPWA;
+    }
 
     // Already have permission decision, don't show
     if (state.permission === "granted" || state.permission === "denied") {
       return false;
     }
-
-    // User dismissed this session, don't show
-    if (state.bannerDismissedThisSession) return false;
 
     return true;
   },
@@ -472,18 +474,30 @@ export const canReceivePushNotifications = derived(
 
 /**
  * Derived store: Whether to show the permission banner
+ *
+ * Shows the banner when:
+ * - Push is supported and permission is still "default" (not yet requested)
+ * - OR on iOS (non-PWA) where push isn't technically supported in Safari
+ *   but becomes available after installing the app to the home screen
+ * - AND the banner hasn't been dismissed this session
  */
 export const shouldShowPushBanner = derived(
   pushNotificationStore,
   ($store) =>
-    $store.isSupported &&
-    $store.permission === "default" &&
-    !$store.bannerDismissedThisSession,
+    ($store.isSupported
+      ? $store.permission === "default"
+      : $store.isIOS && !$store.isPWA) && !$store.bannerDismissedThisSession,
 );
 
 /**
  * Derived store: Whether the platform requires PWA installation for push
  * (iOS requires the app to be added to home screen)
+ *
+ * On iOS Safari (non-PWA), the Push API and PushManager are not available,
+ * so checkPushSupport() returns false. However, push IS supported once the
+ * user installs the app as a PWA via "Add to Home Screen". This store
+ * detects that scenario so the UI can show installation instructions
+ * instead of a generic "not supported" message.
  */
 export const requiresPWAInstall = derived(
   pushNotificationStore,

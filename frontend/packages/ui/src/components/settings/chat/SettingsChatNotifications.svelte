@@ -52,6 +52,10 @@ Email notifications are only sent when the user is offline (no active WebSocket 
     let isEnabled = $derived($pushNotificationStore.enabled);
     let preferences = $derived($pushNotificationStore.preferences);
     
+    // iOS devices in Safari (non-PWA) report push as unsupported, but it works after
+    // installing the app to the home screen. Show install instructions instead of "not supported".
+    let needsPWAInstall = $derived($requiresPWAInstall);
+    
     // Permission status text
     let permissionStatusText = $derived(
         permission === 'granted'
@@ -213,8 +217,31 @@ Email notifications are only sent when the user is offline (no active WebSocket 
 </script>
 
 <div class="notifications-settings-container">
-    <!-- Not Supported Warning -->
-    {#if !isSupported}
+    <!-- Push Notification Support Status -->
+    {#if !isSupported && needsPWAInstall}
+        <!-- iOS Safari (non-PWA): Push is available after adding to Home Screen -->
+        <div class="pwa-install-banner">
+            <div class="pwa-install-header">
+                <span class="pwa-install-title">
+                    {$text('settings.chat.notifications.pwa_install_title.text', { 
+                        default: 'Add to Home Screen to Enable Notifications' 
+                    })}
+                </span>
+            </div>
+            <p class="pwa-install-desc">
+                {$text('settings.chat.notifications.pwa_install_desc.text', {
+                    default: 'Push notifications require the app to be installed on your device. Follow these steps:'
+                })}
+            </p>
+            <div class="pwa-install-steps">
+                <p>{$text('notifications.push.ios_install_step1.text', { default: '1. Tap the Share button in Safari' })}</p>
+                <p>{$text('notifications.push.ios_install_step2.text', { default: '2. Select "Add to Home Screen"' })}</p>
+                <p>{$text('notifications.push.ios_install_step3.text', { default: '3. Open OpenMates from your home screen' })}</p>
+                <p>{$text('notifications.push.ios_install_step4.text', { default: '4. Then you can enable notifications here' })}</p>
+            </div>
+        </div>
+    {:else if !isSupported}
+        <!-- Truly unsupported browser/device -->
         <div class="warning-banner">
             <span class="warning-text">
                 {$text('settings.chat.notifications.not_supported.text', { 
@@ -431,6 +458,49 @@ Email notifications are only sent when the user is offline (no active WebSocket 
         font-size: 13px;
         line-height: 1.5;
         color: var(--color-font-primary);
+    }
+    
+    /* PWA Install Instructions Banner (iOS Safari non-PWA) */
+    .pwa-install-banner {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-primary, var(--color-grey-30));
+    }
+    
+    .pwa-install-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+    
+    .pwa-install-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--color-font-primary);
+        line-height: 1.4;
+    }
+    
+    .pwa-install-desc {
+        font-size: 13px;
+        color: var(--color-grey-60);
+        line-height: 1.5;
+        margin: 0 0 12px 0;
+    }
+    
+    .pwa-install-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .pwa-install-steps p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        line-height: 1.6;
     }
     
     .category-section {

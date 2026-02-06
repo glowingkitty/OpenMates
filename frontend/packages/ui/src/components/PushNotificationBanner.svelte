@@ -72,23 +72,20 @@
         dispatch('dismissed');
     }
     
-    /**
-     * Handle closing iOS instructions
-     */
-    function handleCloseIOSInstructions(): void {
-        showIOSInstructions = false;
-    }
+
 </script>
 
-{#if $shouldShowPushBanner}
+    {#if $shouldShowPushBanner}
     <div 
         class="push-notification-banner"
         transition:slide={{ duration: 300 }}
         role="alert"
         aria-live="polite"
     >
-        {#if showIOSInstructions}
+        {#if $requiresPWAInstall || showIOSInstructions}
             <!-- iOS PWA Installation Instructions -->
+            <!-- Shown directly when iOS Safari detects PWA install is needed,
+                 or after user clicks Enable on a device that requires PWA first -->
             <div class="ios-instructions">
                 <div class="ios-instructions-header">
                     <span class="clickable-icon icon_announcement banner-icon"></span>
@@ -97,7 +94,7 @@
                     </span>
                     <button
                         class="ios-close-btn"
-                        onclick={handleCloseIOSInstructions}
+                        onclick={handleNotYet}
                         aria-label="Close"
                     >
                         <span class="clickable-icon icon_close"></span>

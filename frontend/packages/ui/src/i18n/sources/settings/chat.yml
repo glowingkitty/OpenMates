@@ -56,6 +56,16 @@ notifications.not_supported:
   en: Push notifications are not supported on this browser or device.
   de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
 
+notifications.pwa_install_title:
+  context: Title shown on iOS Safari when push requires PWA installation
+  en: Add to Home Screen to Enable Notifications
+  de: Zum Home-Bildschirm hinzufügen, um Benachrichtigungen zu aktivieren
+
+notifications.pwa_install_desc:
+  context: Description explaining why PWA installation is needed for push notifications
+  en: "Push notifications require the app to be installed on your device. Follow these steps:"
+  de: "Push-Benachrichtigungen erfordern, dass die App auf Ihrem Gerät installiert ist. Folgen Sie diesen Schritten:"
+
 notifications.denied_info:
   context: Info text when permission is denied
   en: To enable notifications, please allow them in your browser settings and refresh the page.
