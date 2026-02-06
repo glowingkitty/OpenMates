@@ -54,11 +54,12 @@ MAX_TOOL_CALL_ITERATIONS = 5
 #
 # SOFT_LIMIT_SKILL_CALLS: When this limit is reached, inject a budget warning into the next LLM call,
 # instructing the AI to finish with gathered information or ask the user for follow-up.
-SOFT_LIMIT_SKILL_CALLS = 4
+SOFT_LIMIT_SKILL_CALLS = 3
 #
 # HARD_LIMIT_SKILL_CALLS: When this limit is reached, stop executing further skills entirely.
 # Force the LLM to answer with gathered information by setting tool_choice="none".
-HARD_LIMIT_SKILL_CALLS = 6
+# Maximum of 5 request attempts per assistant message to prevent excessive research loops.
+HARD_LIMIT_SKILL_CALLS = 5
 
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
@@ -1623,12 +1624,14 @@ async def handle_main_processing(
                 if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
                     requests_in_this_call = len(requests_list_for_budget)
                 
-                # Skip this tool call if we've already reached the hard limit
+                # Skip this tool call if we've already reached or would exceed the hard limit
                 # We don't count system tools (focus mode) against the budget
-                if app_id != "system" and total_skill_calls >= HARD_LIMIT_SKILL_CALLS:
+                # CRITICAL: Also check if this call WOULD exceed the limit (not just if limit is already reached)
+                # This prevents a single tool call with multiple requests from exceeding the budget
+                if app_id != "system" and (total_skill_calls >= HARD_LIMIT_SKILL_CALLS or total_skill_calls + requests_in_this_call > HARD_LIMIT_SKILL_CALLS):
                     logger.info(
                         f"{log_prefix} [SKILL_BUDGET] Skipping tool call '{tool_name}' with {requests_in_this_call} request(s) - "
-                        f"hard limit already reached (total_skill_calls={total_skill_calls}, limit={HARD_LIMIT_SKILL_CALLS})"
+                        f"would exceed hard limit (total_skill_calls={total_skill_calls}+{requests_in_this_call}={total_skill_calls + requests_in_this_call}, limit={HARD_LIMIT_SKILL_CALLS})"
                     )
                     # Add a tool response to history so the LLM knows this tool was skipped
                     # but the user won't see any placeholder or error
@@ -1642,6 +1645,8 @@ async def handle_main_processing(
                         })
                     }
                     current_message_history.append(tool_response_message)
+                    # Set force_no_tools to prevent further tool calls
+                    force_no_tools = True
                     continue  # Skip to next tool call
                 
                 # Update budget counters (only for non-system tools)
