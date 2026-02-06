@@ -1550,6 +1550,22 @@ async def _consume_main_processing_stream(
                             current_code_content = chunk
                             logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code: {repr(first_line[:50])}")
                         
+                        # HARDENING: Check for suspicious languages that indicate fake tool calls
+                        # This mirrors the check in the direct-language path (Path B) above.
+                        # Without this, a bare ``` followed by "toon" in the next chunk would
+                        # create an embed placeholder before the closing-fence filter catches it,
+                        # leaving an orphaned embed reference in the message.
+                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        if is_suspicious_language:
+                            logger.warning(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
+                                f"resolved after bare fence is suspicious (fake tool call). "
+                                f"Will accumulate content and filter at closing fence."
+                            )
+                            # Don't create an embed - just track content and wait for closing fence
+                            chunk = ""
+                            continue
+
                         # Now create the embed placeholder with the extracted (or empty) language
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -1641,6 +1657,33 @@ async def _consume_main_processing_stream(
                                 f"'{fake_tool_name}' detected. Content length: {len(current_code_content)} chars. "
                                 f"Silently filtering (user won't see it)."
                             )
+                            
+                            # SAFETY: If an embed was already created for this code block
+                            # (e.g. JSON lang detected as fake only at closing fence),
+                            # mark it as an error so the frontend doesn't show a broken placeholder.
+                            if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content="",
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="error",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Marked orphaned embed "
+                                        f"{current_code_embed_id} as error."
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Failed to clean up "
+                                        f"orphaned embed {current_code_embed_id}: {e}"
+                                    )
                             
                             # Set the flag so we know we filtered fake tool calls
                             # This is used at the end to show a fallback if response is empty
@@ -2017,11 +2060,9 @@ async def _consume_main_processing_stream(
     if preprocessing_result.requires_advice_disclaimer and not was_revoked_during_stream and not was_soft_limited_during_stream:
         disclaimer_type = preprocessing_result.requires_advice_disclaimer
         
-        # Get user's language preference (default to English)
-        # User preferences may contain language setting from frontend
-        user_language = "en"
-        if request_data.user_preferences:
-            user_language = request_data.user_preferences.get("language", "en")
+        # Get user's language from preprocessing result (detected from user's request)
+        # The preprocessing LLM detects the language of the user's core instruction
+        user_language = preprocessing_result.output_language or "en"
         
         # Load translated disclaimer from translation service
         try:
