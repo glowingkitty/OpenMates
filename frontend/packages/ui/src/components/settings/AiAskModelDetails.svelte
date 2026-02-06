@@ -233,10 +233,15 @@
                     role="button"
                     tabindex="0"
                 >
-                    <Toggle 
-                        checked={isModelEnabled}
-                        ariaLabel={`${isModelEnabled ? 'Disable' : 'Enable'} ${model.name}`}
-                    />
+                    <!-- pointer-events:none prevents the checkbox from independently toggling 
+                         via bind:checked when clicked — the wrapper div handles the toggle logic 
+                         through handleModelToggle() to avoid a double-toggle bug -->
+                    <div style="pointer-events: none;">
+                        <Toggle 
+                            checked={isModelEnabled}
+                            ariaLabel={`${isModelEnabled ? 'Disable' : 'Enable'} ${model.name}`}
+                        />
+                    </div>
                 </div>
             {/if}
         </div>
@@ -365,10 +370,15 @@
                                     role="button"
                                     tabindex="0"
                                 >
-                                    <Toggle 
-                                        checked={serverEnabled}
-                                        ariaLabel={`${serverEnabled ? 'Disable' : 'Enable'} ${server.name}`}
-                                    />
+                                    <!-- pointer-events:none prevents the checkbox from independently toggling 
+                                         via bind:checked when clicked — the wrapper div handles the toggle logic 
+                                         through handleServerToggle() to avoid a double-toggle bug -->
+                                    <div style="pointer-events: none;">
+                                        <Toggle 
+                                            checked={serverEnabled}
+                                            ariaLabel={`${serverEnabled ? 'Disable' : 'Enable'} ${server.name}`}
+                                        />
+                                    </div>
                                 </div>
                             {/if}
                         </div>

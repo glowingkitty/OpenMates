@@ -327,10 +327,15 @@
                             role="button"
                             tabindex="0"
                         >
-                            <Toggle 
-                                checked={enabled}
-                                ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${model.name}`}
-                            />
+                            <!-- pointer-events:none prevents the checkbox from independently toggling 
+                                 via bind:checked when clicked — the wrapper div handles the toggle logic 
+                                 through handleModelToggle() to avoid a double-toggle (no visual change) bug -->
+                            <div style="pointer-events: none;">
+                                <Toggle 
+                                    checked={enabled}
+                                    ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${model.name}`}
+                                />
+                            </div>
                         </div>
                     {/if}
                 </div>
