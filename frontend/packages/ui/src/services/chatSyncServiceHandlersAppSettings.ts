@@ -1247,6 +1247,15 @@ export async function handleReminderFiredImpl(
   }
 
   try {
+    // Deduplicate: if this message already exists locally (e.g., the user received it
+    // via real-time WebSocket AND again via pending delivery on reconnect), skip it.
+    const existingMessage = await chatDB.getMessage(message_id);
+    if (existingMessage) {
+      console.debug(
+        `[ChatSyncService:Reminder] Message ${message_id} already exists locally, skipping duplicate`,
+      );
+      return;
+    }
     const { encryptWithChatKey } = await import("./cryptoService");
     const { webSocketService } = await import("./websocketService");
 

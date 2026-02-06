@@ -151,57 +151,66 @@ async def _process_due_reminders_async(task: BaseServiceTask):
 
                 # ARCHITECTURE: Zero-Knowledge Reminder Delivery
                 # 
-                # We send the PLAINTEXT reminder content to the client via WebSocket.
-                # The client is responsible for:
-                # 1. Encrypting with the chat key (zero-knowledge)
-                # 2. Creating the system message in IndexedDB
-                # 3. Sending back to server via chat_system_message_added for persistence
-                # 4. Triggering an AI follow-up response
+                # Phase 1 (User Online): Send PLAINTEXT content via WebSocket.
+                #   The client encrypts with the chat key, persists, and syncs back.
+                #
+                # Phase 2 (User Offline): Queue the delivery payload in cache.
+                #   When the user reconnects, the WebSocket endpoint delivers
+                #   pending reminders. Email notification is sent as a backup.
                 #
                 # This ensures the server never stores messages encrypted with a key
                 # the client can't access (vault key vs chat key mismatch).
-                
+
+                delivery_payload = {
+                    "reminder_id": reminder_id,
+                    "chat_id": target_chat_id,
+                    "message_id": message_id,
+                    "target_type": target_type,
+                    "is_repeating": repeat_config is not None,
+                    "content": message_content,  # PLAINTEXT - client encrypts with chat key
+                    "chat_title": chat_title,  # For new_chat target
+                    "user_id": user_id,  # Required by WebSocket relay for routing
+                    "fired_at": current_time,  # When the reminder actually fired
+                }
+
+                # Try real-time WebSocket delivery first
                 try:
                     await task.publish_websocket_event(
                         user_id_hash=user_id,
                         event="reminder_fired",
-                        payload={
-                            "reminder_id": reminder_id,
-                            "chat_id": target_chat_id,
-                            "message_id": message_id,
-                            "target_type": target_type,
-                            "is_repeating": repeat_config is not None,
-                            "content": message_content,  # PLAINTEXT - client encrypts with chat key
-                            "chat_title": chat_title,  # For new_chat target
-                            "user_id": user_id,  # Required by WebSocket relay for routing
-                        }
+                        payload=delivery_payload
                     )
-                    success = True
-                    logger.info(f"Sent reminder_fired WebSocket event for reminder {reminder_id} to user {user_id[:8]}...")
+                    logger.info(f"Published reminder_fired WebSocket event for reminder {reminder_id} to user {user_id[:8]}...")
                 except Exception as ws_error:
-                    logger.error(f"Failed to send WebSocket event for reminder {reminder_id}: {ws_error}")
-                    success = False
+                    logger.error(f"Failed to publish WebSocket event for reminder {reminder_id}: {ws_error}")
+
+                # Always queue for pending delivery as a safety net.
+                # The WebSocket pub/sub is fire-and-forget - we can't know if the user
+                # actually received it. The client will deduplicate by message_id if it
+                # receives both the real-time event and the pending delivery on reconnect.
+                try:
+                    await cache_service.add_pending_reminder_delivery(
+                        user_id=user_id,
+                        delivery_payload=delivery_payload
+                    )
+                    logger.debug(f"Queued pending delivery for reminder {reminder_id}")
+                except Exception as queue_error:
+                    logger.warning(f"Failed to queue pending delivery for reminder {reminder_id}: {queue_error}")
 
                 # Send email notification if user has email notifications enabled
-                if success:
-                    try:
-                        await _send_reminder_email_notification(
-                            user_id=user_id,
-                            reminder_prompt=prompt,
-                            trigger_time=format_reminder_time(current_time, timezone),
-                            chat_id=target_chat_id,
-                            chat_title=chat_title,
-                            is_new_chat=(target_type == "new_chat"),
-                            directus_service=directus_service,
-                        )
-                    except Exception as email_error:
-                        # Email notification failure should not fail the reminder
-                        logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
-
-                if not success:
-                    logger.error(f"Failed to process reminder {reminder_id}")
-                    error_count += 1
-                    continue
+                try:
+                    await _send_reminder_email_notification(
+                        user_id=user_id,
+                        reminder_prompt=prompt,
+                        trigger_time=format_reminder_time(current_time, timezone),
+                        chat_id=target_chat_id,
+                        chat_title=chat_title,
+                        is_new_chat=(target_type == "new_chat"),
+                        directus_service=directus_service,
+                    )
+                except Exception as email_error:
+                    # Email notification failure should not fail the reminder
+                    logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
 
                 # Handle repeating vs one-time
                 if repeat_config:

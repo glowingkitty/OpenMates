@@ -27,9 +27,16 @@ REMINDER_BACKUP_PATH = "/shared/cache/pending_reminders_backup.json"
 REMINDER_SCHEDULE_KEY = "reminders:schedule"  # ZSET: score=trigger_at, member=reminder_id
 REMINDER_KEY_PREFIX = "reminder:"  # Individual reminder data
 USER_REMINDERS_KEY_PREFIX = "user_reminders:"  # User's reminder IDs set
+# Pending delivery: stores fired reminders waiting for client WebSocket delivery
+# LIST per user: each entry is a JSON-encoded reminder delivery payload
+PENDING_DELIVERY_KEY_PREFIX = "reminder_pending_delivery:"  # Per-user pending delivery list
 
 # TTL for individual reminder entries (7 days - reminders older than this without firing are stale)
 REMINDER_TTL = 604800  # 7 days in seconds
+
+# TTL for pending delivery entries (48 hours - if user doesn't come online within this window,
+# the reminder delivery is dropped; the email notification serves as the offline fallback)
+PENDING_DELIVERY_TTL = 172800  # 48 hours in seconds
 
 
 class ReminderCacheMixin:
@@ -525,6 +532,140 @@ class ReminderCacheMixin:
         except Exception as e:
             logger.error(f"Error restoring reminders from disk: {str(e)}", exc_info=True)
             return 0
+
+    # =========================================================================
+    # PENDING DELIVERY METHODS
+    # 
+    # When a reminder fires but the user has no active WebSocket connections,
+    # the reminder delivery payload is queued here. When the user reconnects,
+    # the WebSocket endpoint delivers these pending reminders to the client.
+    # The client then encrypts with the chat key and persists normally.
+    #
+    # Architecture:
+    # - LIST `reminder_pending_delivery:{user_id}` - FIFO queue of delivery payloads
+    # - Each entry is a JSON-encoded dict with the same fields as the
+    #   reminder_fired WebSocket event payload (content in plaintext)
+    # - TTL of 48h per key - after that, email notification is the fallback
+    # =========================================================================
+
+    async def add_pending_reminder_delivery(
+        self, user_id: str, delivery_payload: Dict[str, Any]
+    ) -> bool:
+        """
+        Queue a fired reminder for delivery when the user comes back online.
+        
+        Args:
+            user_id: The user ID (UUID, not hashed)
+            delivery_payload: The reminder_fired payload dict (plaintext content)
+            
+        Returns:
+            True if queued successfully
+        """
+        try:
+            if not user_id or not delivery_payload:
+                return False
+
+            client = await self.client
+            if not client:
+                logger.error("Cannot queue pending reminder delivery: cache client not available")
+                return False
+
+            key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
+            payload_json = json.dumps(delivery_payload)
+
+            # Push to list and set/refresh TTL
+            async with client.pipeline(transaction=True) as pipe:
+                pipe.rpush(key, payload_json)
+                pipe.expire(key, PENDING_DELIVERY_TTL)
+                await pipe.execute()
+
+            logger.info(
+                f"Queued pending reminder delivery for user {user_id[:8]}... "
+                f"(reminder_id={delivery_payload.get('reminder_id')})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Error queuing pending reminder delivery: {e}", exc_info=True)
+            return False
+
+    async def get_and_clear_pending_reminder_deliveries(
+        self, user_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Atomically retrieve and remove all pending reminder deliveries for a user.
+        Called when the user reconnects via WebSocket.
+        
+        Args:
+            user_id: The user ID (UUID, not hashed)
+            
+        Returns:
+            List of delivery payload dicts (may be empty)
+        """
+        try:
+            if not user_id:
+                return []
+
+            client = await self.client
+            if not client:
+                return []
+
+            key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
+
+            # Atomically get all entries and delete the key
+            async with client.pipeline(transaction=True) as pipe:
+                pipe.lrange(key, 0, -1)
+                pipe.delete(key)
+                results = await pipe.execute()
+
+            raw_entries = results[0] if results else []
+            if not raw_entries:
+                return []
+
+            deliveries = []
+            for entry in raw_entries:
+                if isinstance(entry, bytes):
+                    entry = entry.decode("utf-8")
+                try:
+                    deliveries.append(json.loads(entry))
+                except json.JSONDecodeError:
+                    logger.warning(f"Skipping malformed pending delivery entry for user {user_id[:8]}...")
+
+            if deliveries:
+                logger.info(
+                    f"Retrieved {len(deliveries)} pending reminder deliveries for user {user_id[:8]}..."
+                )
+            return deliveries
+
+        except Exception as e:
+            logger.error(f"Error retrieving pending reminder deliveries: {e}", exc_info=True)
+            return []
+
+    async def has_pending_reminder_deliveries(self, user_id: str) -> bool:
+        """
+        Check if a user has any pending reminder deliveries without consuming them.
+        
+        Args:
+            user_id: The user ID (UUID, not hashed)
+            
+        Returns:
+            True if there are pending deliveries
+        """
+        try:
+            if not user_id:
+                return False
+
+            client = await self.client
+            if not client:
+                return False
+
+            key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
+            count = await client.llen(key)
+            return count > 0
+
+        except Exception as e:
+            logger.error(f"Error checking pending reminder deliveries: {e}", exc_info=True)
+            return False
 
     async def get_reminder_stats(self) -> Dict[str, int]:
         """

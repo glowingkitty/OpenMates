@@ -1001,6 +1001,67 @@ async def listen_for_user_updates(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def _deliver_pending_reminders(
+    cache_service: CacheService,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+):
+    """
+    Deliver any pending reminder notifications that fired while the user was offline.
+    
+    Called as a background task immediately after a WebSocket connection is established.
+    Retrieves queued reminder delivery payloads from cache and sends them to the client
+    as reminder_fired events. The client handles encryption and persistence.
+    
+    Uses a small delay to allow the client to finish its initialization/sync setup
+    before receiving reminder events.
+    """
+    try:
+        # Brief delay to let the client finish WebSocket setup and initial sync
+        await asyncio.sleep(2)
+
+        pending = await cache_service.get_and_clear_pending_reminder_deliveries(user_id)
+        if not pending:
+            return
+
+        logger.info(
+            f"[REMINDER_DELIVERY] Delivering {len(pending)} pending reminder(s) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        for delivery in pending:
+            try:
+                await manager.send_personal_message(
+                    message={
+                        "type": "reminder_fired",
+                        "payload": delivery
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                logger.debug(
+                    f"[REMINDER_DELIVERY] Delivered pending reminder "
+                    f"{delivery.get('reminder_id')} to user {user_id[:8]}..."
+                )
+            except Exception as e:
+                logger.error(
+                    f"[REMINDER_DELIVERY] Failed to deliver pending reminder "
+                    f"{delivery.get('reminder_id')}: {e}"
+                )
+                # Re-queue the failed delivery so it can be retried on next connect
+                try:
+                    await cache_service.add_pending_reminder_delivery(user_id, delivery)
+                except Exception:
+                    logger.error(
+                        f"[REMINDER_DELIVERY] Failed to re-queue reminder "
+                        f"{delivery.get('reminder_id')} after delivery failure"
+                    )
+
+    except Exception as e:
+        logger.error(f"[REMINDER_DELIVERY] Error delivering pending reminders: {e}", exc_info=True)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -1022,6 +1083,12 @@ async def websocket_endpoint(
 
     logger.debug("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
+
+    # Deliver any pending reminder notifications that fired while the user was offline.
+    # This runs as a background task so it doesn't block the WebSocket message loop.
+    asyncio.create_task(
+        _deliver_pending_reminders(cache_service, manager, user_id, device_fingerprint_hash)
+    )
 
     try:
         while True:
