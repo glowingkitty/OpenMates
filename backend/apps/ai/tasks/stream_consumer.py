@@ -1724,6 +1724,8 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'}) after waiting for language")
+                                    else:
+                                        chunk = ""  # Failed to create document embed
                                 else:
                                     embed_data = await embed_service.create_code_embed_placeholder(
                                         language=current_code_language,
@@ -1757,8 +1759,8 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
-                                else:
-                                    chunk = ""  # Failed to create embed
+                                    else:
+                                        chunk = ""  # Failed to create embed
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
                                 chunk = ""
