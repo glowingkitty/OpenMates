@@ -18,7 +18,7 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-05T11:58:10.912Z
+// **Generated**: 2026-02-06T07:31:39.289Z
 // **Models included**: 17
 
 /**
@@ -127,8 +127,8 @@ export const modelsMetadata: AIModelMetadata[] = [
         pricing: {"input_tokens_per_credit":350,"output_tokens_per_credit":70},
     },
     {
-        id: "claude-opus-4-5-20251101",
-        name: "Claude Opus 4.5",
+        id: "claude-opus-4-6",
+        name: "Claude Opus 4.6",
         description: "Most powerful Claude model for highly complex tasks, research, and creative writing.",
         provider_id: "anthropic",
         provider_name: "Anthropic",
@@ -138,10 +138,11 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
-        release_date: "2025-11-01",
+        release_date: "2026-02-06",
         servers: [{"id":"anthropic","name":"Anthropic API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
         default_server: "anthropic",
         pricing: {"input_tokens_per_credit":70,"output_tokens_per_credit":15},
+        search_aliases: ["opus 4.5","claude 4.5 opus","4.5","claude-opus-4-5"],
     },
     {
         id: "claude-sonnet-4-5-20250929",

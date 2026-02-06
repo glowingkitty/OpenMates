@@ -74,7 +74,7 @@ ECONOMICAL_MODELS = {
 # Models considered premium (for complex tasks or when user is unhappy)
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
-    "claude-opus-4-5-20251101",      # Top Claude
+    "claude-opus-4-6",               # Top Claude
     "claude-sonnet-4-5-20250929",    # High-quality Claude
     "gemini-3-pro-preview",          # Top Gemini
     "gpt-5.2",                       # Top GPT
