@@ -158,6 +158,9 @@ export const apiEndpoints = {
     metadata: "/v1/apps/metadata", // Get metadata for all discovered apps
     mostUsed: "/v1/apps/most-used", // Get most used apps in last 30 days (public endpoint)
   },
+  admin: {
+    generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
+  },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)
   },

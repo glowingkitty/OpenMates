@@ -4,9 +4,11 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-from typing import Dict, Any
+import random
+import string
+from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
@@ -54,6 +56,46 @@ class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
     demo_chat_id: str  # UUID of the demo_chats entry
     chat_id: str  # The original chat_id (for updating the chats table)
+
+class GenerateGiftCardsRequest(BaseModel):
+    """Request model for admin gift card generation.
+    
+    Allows admins to generate one or more gift card codes with a specified
+    credit value, optional custom prefix (replaces first segment of XXXX-XXXX-XXXX),
+    and optional admin notes.
+    """
+    credits_value: int = Field(..., ge=1, le=50000, description="Credit value for each gift card (1-50,000)")
+    count: int = Field(default=1, ge=1, le=100, description="Number of gift cards to generate (1-100)")
+    prefix: Optional[str] = Field(default=None, max_length=4, description="Optional custom prefix (max 4 chars, replaces first segment)")
+    notes: Optional[str] = Field(default=None, max_length=500, description="Optional admin notes for these gift cards")
+
+    @field_validator('prefix')
+    @classmethod
+    def validate_prefix(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == '':
+            return None
+        v = v.upper().strip()
+        # Charset must match the gift card generation charset:
+        # Uppercase letters (excluding O, I) + digits (excluding 0, 1)
+        valid_charset = set(
+            string.ascii_uppercase.replace('O', '').replace('I', '')
+            + string.digits.replace('0', '').replace('1', '')
+        )
+        if not all(c in valid_charset for c in v):
+            raise ValueError(
+                'Prefix must only contain uppercase letters (A-Z excluding O, I) '
+                'and digits (2-9). Ambiguous characters (0, O, I, 1) are not allowed.'
+            )
+        if len(v) < 1 or len(v) > 4:
+            raise ValueError('Prefix must be 1-4 characters long')
+        return v
+
+class GenerateGiftCardsResponse(BaseModel):
+    """Response model for admin gift card generation."""
+    success: bool
+    gift_cards: List[Dict[str, Any]]  # List of {code, credits_value, created_at}
+    count: int
+    message: str
 
 # --- Endpoints ---
 
@@ -503,3 +545,144 @@ async def get_server_stats(
     except Exception as e:
         logger.error(f"Error fetching server stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch server statistics")
+
+
+# --- Gift Card Code Generation ---
+# Charset: uppercase letters (excluding ambiguous O, I) + digits (excluding ambiguous 0, 1)
+# This matches the canonical charset used in payments.py for consistency
+GIFT_CARD_CHARSET = (
+    string.ascii_uppercase.replace('O', '').replace('I', '')
+    + string.digits.replace('0', '').replace('1', '')
+)
+
+
+def generate_gift_card_code(prefix: Optional[str] = None) -> str:
+    """
+    Generate a unique gift card code in the format XXXX-XXXX-XXXX.
+    Uses uppercase letters and digits, excluding ambiguous characters (0, O, I, 1).
+    
+    If a prefix is provided (1-4 chars), it replaces the first segment.
+    The prefix is right-padded with random chars to always produce a 4-char first segment.
+    Example: prefix='XM' -> 'XMAB-XXXX-XXXX'
+    
+    Args:
+        prefix: Optional custom prefix (1-4 chars, from the valid charset)
+        
+    Returns:
+        A gift card code string in XXXX-XXXX-XXXX format
+    """
+    if prefix:
+        # Prefix replaces start of first segment, pad remainder with random chars
+        prefix = prefix.upper()
+        remaining = 4 - len(prefix)
+        part1 = prefix + ''.join(random.choices(GIFT_CARD_CHARSET, k=remaining))
+    else:
+        part1 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    
+    part2 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    part3 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    
+    return f"{part1}-{part2}-{part3}"
+
+
+@router.post("/generate-gift-cards", response_model=GenerateGiftCardsResponse)
+@limiter.limit("10/minute")
+async def admin_generate_gift_cards(
+    request: Request,
+    payload: GenerateGiftCardsRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Generate one or more gift card codes with a specified credit value.
+    
+    Admin-only endpoint. Creates gift cards in the database and returns
+    the generated codes. Supports optional custom prefix for the first
+    segment of the XXXX-XXXX-XXXX format and optional admin notes.
+    
+    Security: Protected by require_admin dependency which validates
+    the user is in the server_admins collection with is_active=True.
+    """
+    try:
+        generated_cards: List[Dict[str, Any]] = []
+        max_retries = 3  # Max retries per code in case of collision
+        
+        logger.info(
+            f"Admin {admin_user.id} generating {payload.count} gift card(s) "
+            f"with {payload.credits_value} credits each"
+            f"{f', prefix={payload.prefix}' if payload.prefix else ''}"
+        )
+        
+        for i in range(payload.count):
+            # Generate a unique code, retry on collision
+            code = None
+            for attempt in range(max_retries):
+                candidate = generate_gift_card_code(prefix=payload.prefix)
+                
+                # Check for collision by looking up the code
+                existing = await directus_service.get_gift_card_by_code(candidate)
+                if existing is None:
+                    code = candidate
+                    break
+                else:
+                    logger.warning(
+                        f"Gift card code collision on attempt {attempt + 1}: {candidate}. Retrying..."
+                    )
+            
+            if code is None:
+                logger.error(f"Failed to generate unique gift card code after {max_retries} retries")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to generate unique code for card {i + 1}. Please try again."
+                )
+            
+            # Create the gift card in Directus (no purchaser since admin-generated)
+            created_card = await directus_service.create_gift_card(
+                code=code,
+                credits_value=payload.credits_value,
+                purchaser_user_id_hash=None  # Admin-generated, not purchased
+            )
+            
+            if not created_card:
+                logger.error(f"Failed to create gift card with code: {code}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create gift card {i + 1} in database. Please try again."
+                )
+            
+            # Add notes to the gift card if provided
+            # Notes are stored directly in the gift_cards table
+            if payload.notes:
+                try:
+                    await directus_service.update_item(
+                        "gift_cards",
+                        created_card["id"],
+                        {"notes": payload.notes}
+                    )
+                except Exception as notes_err:
+                    # Non-critical: log but don't fail the whole operation
+                    logger.warning(f"Failed to add notes to gift card {code}: {notes_err}")
+            
+            generated_cards.append({
+                "code": code,
+                "credits_value": payload.credits_value,
+                "created_at": created_card.get("created_at", "")
+            })
+        
+        logger.info(
+            f"Admin {admin_user.id} successfully generated {len(generated_cards)} gift card(s) "
+            f"with {payload.credits_value} credits each"
+        )
+        
+        return {
+            "success": True,
+            "gift_cards": generated_cards,
+            "count": len(generated_cards),
+            "message": f"Successfully generated {len(generated_cards)} gift card(s)"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating gift cards: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate gift cards")

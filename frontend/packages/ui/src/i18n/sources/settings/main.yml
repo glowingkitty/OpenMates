@@ -1892,6 +1892,420 @@ server.stats:
   th: สถิติ
   cs: Statistiky
   sv: Statistik
+server.gift_cards:
+  context: Admin gift card generator menu item in server settings
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de Regalo
+  fr: Cartes Cadeaux
+  pt: Cartões Presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Buoni Regalo
+  tr: Hediye Kartları
+  vi: Thẻ Quà Tặng
+  id: Kartu Hadiah
+  pl: Karty Podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  verified_by_human: []
+server.gift_cards.title:
+  context: Title shown at top of admin gift card generator page
+  en: Generate Gift Cards
+  de: Geschenkkarten generieren
+  zh: 生成礼品卡
+  es: Generar tarjetas de regalo
+  fr: Générer des cartes cadeaux
+  pt: Gerar cartões presente
+  ru: Создать подарочные карты
+  ja: ギフトカードを生成
+  ko: 기프트 카드 생성
+  it: Genera buoni regalo
+  tr: Hediye kartları oluştur
+  vi: Tạo thẻ quà tặng
+  id: Buat kartu hadiah
+  pl: Generuj karty podarunkowe
+  nl: Cadeaukaarten genereren
+  ar: إنشاء بطاقات الهدايا
+  hi: उपहार कार्ड बनाएं
+  th: สร้างบัตรของขวัญ
+  cs: Vygenerovat dárkové karty
+  sv: Generera presentkort
+  verified_by_human: []
+server.gift_cards.subtitle:
+  context: Subtitle description for admin gift card generator
+  en: Generate gift card codes for users
+  de: Geschenkkarten-Codes für Benutzer generieren
+  zh: 为用户生成礼品卡代码
+  es: Generar códigos de tarjetas de regalo para usuarios
+  fr: Générer des codes de cartes cadeaux pour les utilisateurs
+  pt: Gerar códigos de cartões presente para utilizadores
+  ru: Генерировать коды подарочных карт для пользователей
+  ja: ユーザー向けギフトカードコードを生成
+  ko: 사용자를 위한 기프트 카드 코드 생성
+  it: Genera codici buoni regalo per gli utenti
+  tr: Kullanıcılar için hediye kartı kodları oluşturun
+  vi: Tạo mã thẻ quà tặng cho người dùng
+  id: Buat kode kartu hadiah untuk pengguna
+  pl: Generuj kody kart podarunkowych dla użytkowników
+  nl: Cadeaukaartcodes genereren voor gebruikers
+  ar: إنشاء رموز بطاقات الهدايا للمستخدمين
+  hi: उपयोगकर्ताओं के लिए उपहार कार्ड कोड बनाएं
+  th: สร้างรหัสบัตรของขวัญสำหรับผู้ใช้
+  cs: Generovat kódy dárkových karet pro uživatele
+  sv: Generera presentkortskoder för användare
+  verified_by_human: []
+server.gift_cards.credits_value:
+  context: Label for credit value input field in gift card generator
+  en: Credits Value
+  de: Guthabenwert
+  zh: 积分价值
+  es: Valor de créditos
+  fr: Valeur des crédits
+  pt: Valor dos créditos
+  ru: Количество кредитов
+  ja: クレジット値
+  ko: 크레딧 값
+  it: Valore crediti
+  tr: Kredi değeri
+  vi: Giá trị tín dụng
+  id: Nilai kredit
+  pl: Wartość kredytów
+  nl: Tegoed waarde
+  ar: قيمة الرصيد
+  hi: क्रेडिट मूल्य
+  th: มูลค่าเครดิต
+  cs: Hodnota kreditů
+  sv: Kreditvärde
+  verified_by_human: []
+server.gift_cards.quantity:
+  context: Label for quantity input field in gift card generator
+  en: Quantity
+  de: Anzahl
+  zh: 数量
+  es: Cantidad
+  fr: Quantité
+  pt: Quantidade
+  ru: Количество
+  ja: 数量
+  ko: 수량
+  it: Quantità
+  tr: Miktar
+  vi: Số lượng
+  id: Jumlah
+  pl: Ilość
+  nl: Aantal
+  ar: الكمية
+  hi: मात्रा
+  th: จำนวน
+  cs: Množství
+  sv: Antal
+  verified_by_human: []
+server.gift_cards.prefix:
+  context: Label for custom prefix input field in gift card generator
+  en: Custom Prefix
+  de: Benutzerdefiniertes Präfix
+  zh: 自定义前缀
+  es: Prefijo personalizado
+  fr: Préfixe personnalisé
+  pt: Prefixo personalizado
+  ru: Пользовательский префикс
+  ja: カスタムプレフィックス
+  ko: 사용자 정의 접두사
+  it: Prefisso personalizzato
+  tr: Özel ön ek
+  vi: Tiền tố tùy chỉnh
+  id: Awalan kustom
+  pl: Własny prefiks
+  nl: Aangepast voorvoegsel
+  ar: بادئة مخصصة
+  hi: कस्टम उपसर्ग
+  th: คำนำหน้าที่กำหนดเอง
+  cs: Vlastní prefix
+  sv: Anpassat prefix
+  verified_by_human: []
+server.gift_cards.prefix_placeholder:
+  context: Placeholder text for prefix input field
+  en: e.g. XMAS
+  de: z.B. XMAS
+  zh: 例如 XMAS
+  es: ej. XMAS
+  fr: ex. XMAS
+  pt: ex. XMAS
+  ru: напр. XMAS
+  ja: 例 XMAS
+  ko: 예 XMAS
+  it: es. XMAS
+  tr: örn. XMAS
+  vi: vd XMAS
+  id: cth XMAS
+  pl: np. XMAS
+  nl: bijv. XMAS
+  ar: مثل XMAS
+  hi: उदा. XMAS
+  th: เช่น XMAS
+  cs: např. XMAS
+  sv: t.ex. XMAS
+  verified_by_human: []
+server.gift_cards.prefix_preview:
+  context: Label shown before the code format preview when a prefix is entered
+  en: Preview
+  de: Vorschau
+  zh: 预览
+  es: Vista previa
+  fr: Aperçu
+  pt: Pré-visualização
+  ru: Предпросмотр
+  ja: プレビュー
+  ko: 미리보기
+  it: Anteprima
+  tr: Önizleme
+  vi: Xem trước
+  id: Pratinjau
+  pl: Podgląd
+  nl: Voorbeeld
+  ar: معاينة
+  hi: पूर्वावलोकन
+  th: ตัวอย่าง
+  cs: Náhled
+  sv: Förhandsvisning
+  verified_by_human: []
+server.gift_cards.optional:
+  context: Label indicating a field is optional
+  en: optional
+  de: optional
+  zh: 可选
+  es: opcional
+  fr: optionnel
+  pt: opcional
+  ru: необязательно
+  ja: オプション
+  ko: 선택사항
+  it: opzionale
+  tr: isteğe bağlı
+  vi: tùy chọn
+  id: opsional
+  pl: opcjonalnie
+  nl: optioneel
+  ar: اختياري
+  hi: वैकल्पिक
+  th: ไม่บังคับ
+  cs: volitelné
+  sv: valfritt
+  verified_by_human: []
+server.gift_cards.notes:
+  context: Label for admin notes input field in gift card generator
+  en: Notes
+  de: Notizen
+  zh: 备注
+  es: Notas
+  fr: Notes
+  pt: Notas
+  ru: Заметки
+  ja: メモ
+  ko: 메모
+  it: Note
+  tr: Notlar
+  vi: Ghi chú
+  id: Catatan
+  pl: Notatki
+  nl: Notities
+  ar: ملاحظات
+  hi: नोट्स
+  th: หมายเหตุ
+  cs: Poznámky
+  sv: Anteckningar
+  verified_by_human: []
+server.gift_cards.notes_placeholder:
+  context: Placeholder text for notes input field
+  en: Optional admin notes
+  de: Optionale Admin-Notizen
+  zh: 可选管理员备注
+  es: Notas de administrador opcionales
+  fr: Notes d'administrateur optionnelles
+  pt: Notas de administrador opcionais
+  ru: Необязательные заметки администратора
+  ja: 管理者メモ（任意）
+  ko: 관리자 메모 (선택사항)
+  it: Note amministratore opzionali
+  tr: İsteğe bağlı yönetici notları
+  vi: Ghi chú quản trị viên (tùy chọn)
+  id: Catatan admin opsional
+  pl: Opcjonalne notatki administratora
+  nl: Optionele beheernotities
+  ar: ملاحظات المسؤول الاختيارية
+  hi: वैकल्पिक व्यवस्थापक नोट्स
+  th: หมายเหตุผู้ดูแลระบบ (ไม่บังคับ)
+  cs: Volitelné poznámky správce
+  sv: Valfria administratörsanteckningar
+  verified_by_human: []
+server.gift_cards.generate:
+  context: Generate button text in gift card generator
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Сгенерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Vygenerovat
+  sv: Generera
+  verified_by_human: []
+server.gift_cards.generating:
+  context: Button text shown while gift cards are being generated
+  en: Generating...
+  de: Wird generiert...
+  zh: 正在生成...
+  es: Generando...
+  fr: Génération en cours...
+  pt: A gerar...
+  ru: Генерация...
+  ja: 生成中...
+  ko: 생성 중...
+  it: Generazione in corso...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Generowanie...
+  nl: Genereren...
+  ar: جارٍ الإنشاء...
+  hi: बना रहा है...
+  th: กำลังสร้าง...
+  cs: Generování...
+  sv: Genererar...
+  verified_by_human: []
+server.gift_cards.generated_codes:
+  context: Heading shown above the list of generated gift card codes
+  en: Generated Codes
+  de: Generierte Codes
+  zh: 已生成的代码
+  es: Códigos generados
+  fr: Codes générés
+  pt: Códigos gerados
+  ru: Сгенерированные коды
+  ja: 生成されたコード
+  ko: 생성된 코드
+  it: Codici generati
+  tr: Oluşturulan kodlar
+  vi: Mã đã tạo
+  id: Kode yang dibuat
+  pl: Wygenerowane kody
+  nl: Gegenereerde codes
+  ar: الرموز المُنشأة
+  hi: बनाए गए कोड
+  th: รหัสที่สร้างแล้ว
+  cs: Vygenerované kódy
+  sv: Genererade koder
+  verified_by_human: []
+server.gift_cards.copy_code:
+  context: Tooltip for copy button on individual gift card code
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  verified_by_human: []
+server.gift_cards.copy_all:
+  context: Button text to copy all generated gift card codes to clipboard
+  en: Copy All Codes
+  de: Alle Codes kopieren
+  zh: 复制所有代码
+  es: Copiar todos los códigos
+  fr: Copier tous les codes
+  pt: Copiar todos os códigos
+  ru: Скопировать все коды
+  ja: すべてのコードをコピー
+  ko: 모든 코드 복사
+  it: Copia tutti i codici
+  tr: Tüm kodları kopyala
+  vi: Sao chép tất cả mã
+  id: Salin semua kode
+  pl: Kopiuj wszystkie kody
+  nl: Alle codes kopiëren
+  ar: نسخ جميع الرموز
+  hi: सभी कोड कॉपी करें
+  th: คัดลอกรหัสทั้งหมด
+  cs: Kopírovat všechny kódy
+  sv: Kopiera alla koder
+  verified_by_human: []
+server.gift_cards.copied:
+  context: Feedback message shown after codes are copied to clipboard
+  en: Copied to clipboard
+  de: In Zwischenablage kopiert
+  zh: 已复制到剪贴板
+  es: Copiado al portapapeles
+  fr: Copié dans le presse-papiers
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào bộ nhớ tạm
+  id: Disalin ke papan klip
+  pl: Skopiowano do schowka
+  nl: Gekopieerd naar klembord
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: Kopierat till urklipp
+  verified_by_human: []
+server.gift_cards.invalid_prefix:
+  context: Error message shown when prefix contains invalid characters
+  en: Prefix must be 1-4 characters (A-Z, 2-9, excluding O, I, 0, 1)
+  de: Präfix muss 1-4 Zeichen sein (A-Z, 2-9, ohne O, I, 0, 1)
+  zh: 前缀必须是1-4个字符（A-Z, 2-9，不含O, I, 0, 1）
+  es: El prefijo debe tener 1-4 caracteres (A-Z, 2-9, excluyendo O, I, 0, 1)
+  fr: Le préfixe doit contenir 1-4 caractères (A-Z, 2-9, excluant O, I, 0, 1)
+  pt: O prefixo deve ter 1-4 caracteres (A-Z, 2-9, excluindo O, I, 0, 1)
+  ru: Префикс должен содержать 1-4 символа (A-Z, 2-9, кроме O, I, 0, 1)
+  ja: プレフィックスは1-4文字（A-Z, 2-9、O, I, 0, 1を除く）
+  ko: 접두사는 1-4자여야 합니다 (A-Z, 2-9, O, I, 0, 1 제외)
+  it: Il prefisso deve avere 1-4 caratteri (A-Z, 2-9, esclusi O, I, 0, 1)
+  tr: Ön ek 1-4 karakter olmalıdır (A-Z, 2-9, O, I, 0, 1 hariç)
+  vi: Tiền tố phải có 1-4 ký tự (A-Z, 2-9, trừ O, I, 0, 1)
+  id: Awalan harus 1-4 karakter (A-Z, 2-9, kecuali O, I, 0, 1)
+  pl: Prefiks musi mieć 1-4 znaki (A-Z, 2-9, bez O, I, 0, 1)
+  nl: Voorvoegsel moet 1-4 tekens zijn (A-Z, 2-9, exclusief O, I, 0, 1)
+  ar: يجب أن تكون البادئة 1-4 أحرف (A-Z, 2-9, باستثناء O, I, 0, 1)
+  hi: उपसर्ग 1-4 वर्ण होना चाहिए (A-Z, 2-9, O, I, 0, 1 को छोड़कर)
+  th: คำนำหน้าต้องมี 1-4 ตัวอักษร (A-Z, 2-9 ยกเว้น O, I, 0, 1)
+  cs: Prefix musí mít 1-4 znaky (A-Z, 2-9, kromě O, I, 0, 1)
+  sv: Prefix måste vara 1-4 tecken (A-Z, 2-9, exklusive O, I, 0, 1)
+  verified_by_human: []
 server_stats.title:
   en: Server Statistics
   de: Server-Statistiken
