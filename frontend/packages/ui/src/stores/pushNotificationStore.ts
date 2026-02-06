@@ -346,12 +346,16 @@ export const pushNotificationStore = {
    * - Push is supported and permission is not already granted or denied
    * - OR device is iOS (non-PWA) where push becomes available after home screen install
    * - AND user hasn't dismissed the banner this session
+   * - AND the banner hasn't been shown before (persisted across sessions)
    */
   shouldShowBanner: (): boolean => {
     const state = get(pushNotificationStore);
 
     // User dismissed this session, don't show
     if (state.bannerDismissedThisSession) return false;
+
+    // Banner was already shown in a previous session, don't show again
+    if (state.bannerShownBefore) return false;
 
     // iOS Safari (non-PWA): push is unsupported but becomes available after PWA install
     if (!state.isSupported) {
@@ -480,13 +484,16 @@ export const canReceivePushNotifications = derived(
  * - OR on iOS (non-PWA) where push isn't technically supported in Safari
  *   but becomes available after installing the app to the home screen
  * - AND the banner hasn't been dismissed this session
+ * - AND the banner hasn't been shown before (persisted across sessions in localStorage)
  */
 export const shouldShowPushBanner = derived(
   pushNotificationStore,
   ($store) =>
     ($store.isSupported
       ? $store.permission === "default"
-      : $store.isIOS && !$store.isPWA) && !$store.bannerDismissedThisSession,
+      : $store.isIOS && !$store.isPWA) &&
+    !$store.bannerDismissedThisSession &&
+    !$store.bannerShownBefore,
 );
 
 /**

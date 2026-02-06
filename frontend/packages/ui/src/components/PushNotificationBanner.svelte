@@ -13,7 +13,7 @@
     - Never shows if user has already granted/denied permission
 -->
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { slide } from 'svelte/transition';
     import { text } from '@repo/ui';
     import {
@@ -31,6 +31,12 @@
     // Local state
     let isRequesting = $state(false);
     let showIOSInstructions = $state(false);
+    
+    // Mark the banner as shown once it renders, so it won't reappear in future sessions.
+    // This persists to localStorage via the store.
+    onMount(() => {
+        pushNotificationStore.markBannerShown();
+    });
     
     /**
      * Handle "Enable Notifications" button click
