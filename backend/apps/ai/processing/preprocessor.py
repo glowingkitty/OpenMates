@@ -74,6 +74,13 @@ class PreprocessingResult(BaseModel):
     model_selection_reason: Optional[str] = Field(None, description="Explanation of why these models were selected (for debugging/logging).")
     filtered_cn_models: bool = Field(False, description="True if China-origin models were excluded due to sensitive content.")
 
+    # Detected language of the user's request (ISO 639-1 two-letter code)
+    # Used for loading disclaimers and other user-facing messages in the correct language
+    output_language: str = Field(
+        "en",
+        description="ISO 639-1 two-letter language code of the user's core request/instruction. Detected by preprocessing LLM."
+    )
+
     # Hardcoded disclaimer injection - ensures legal disclaimers are always shown for sensitive topics
     # This is NOT LLM-dependent; the disclaimer will be appended by stream_consumer after response completes
     requires_advice_disclaimer: Optional[str] = Field(
@@ -843,8 +850,59 @@ async def handle_preprocessing(
     model_selection_reason: Optional[str] = None
     filtered_cn_models = china_related
 
+    # --- Resolve @best-model:{category} to actual model ID ---
+    # If the user used @best-model:coding (or similar), resolve it to the top-ranked model
+    # in that category from the leaderboard, then treat it like a regular @ai-model override.
+    if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
+        best_category = user_overrides.best_model_category
+        logger.info(
+            f"{log_prefix} BEST_MODEL: Resolving @best-model:{best_category} to top-ranked model"
+        )
+        try:
+            from backend.core.api.app.tasks.leaderboard_tasks import get_best_model_for_category, get_leaderboard_data
+
+            leaderboard_data = await get_leaderboard_data()
+            if leaderboard_data:
+                best_entry = get_best_model_for_category(
+                    leaderboard_data=leaderboard_data,
+                    category=best_category,
+                    exclude_cn=china_related,
+                )
+                if best_entry:
+                    resolved_model_id = best_entry.get("model_id")
+                    resolved_provider = best_entry.get("provider_id")
+                    if resolved_model_id and resolved_provider:
+                        user_overrides.model_id = resolved_model_id
+                        user_overrides.model_provider = None  # Will be resolved from config
+                        logger.info(
+                            f"{log_prefix} BEST_MODEL: Resolved @best-model:{best_category} -> "
+                            f"{resolved_provider}/{resolved_model_id} "
+                            f"(composite_score={best_entry.get('composite_score')})"
+                        )
+                    else:
+                        logger.warning(
+                            f"{log_prefix} BEST_MODEL: Top model entry missing model_id or provider_id. "
+                            f"Entry: {best_entry}. Falling back to auto-selection."
+                        )
+                else:
+                    logger.warning(
+                        f"{log_prefix} BEST_MODEL: No models found for category '{best_category}'. "
+                        f"Falling back to auto-selection."
+                    )
+            else:
+                logger.warning(
+                    f"{log_prefix} BEST_MODEL: No leaderboard data available. "
+                    f"Falling back to auto-selection."
+                )
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} BEST_MODEL: Failed to resolve @best-model:{best_category}: {e}. "
+                f"Falling back to auto-selection."
+            )
+
     # --- Apply User Model Override (@ai-model:...) if specified ---
     # User can force a specific model using @ai-model:{model_id} or @ai-model:{model_id}:{provider}
+    # Also handles resolved @best-model: overrides from above.
     # This overrides the automatic model selection based on leaderboard rankings
     model_override_applied = False
     if user_overrides and user_overrides.model_id:
@@ -1294,6 +1352,20 @@ async def handle_preprocessing(
         chat_tags_val = chat_tags_val[:10]
         llm_analysis_args["chat_tags"] = chat_tags_val
     
+    # --- Validate output_language field (ISO 639-1 two-letter code) ---
+    # This is used for loading disclaimers and other user-facing messages in the correct language
+    SUPPORTED_LANGUAGES = {"en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"}
+    output_language_val = llm_analysis_args.get("output_language", "en")
+    if not isinstance(output_language_val, str) or output_language_val not in SUPPORTED_LANGUAGES:
+        logger.warning(
+            f"{log_prefix} LLM returned invalid output_language '{output_language_val}'. "
+            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Defaulting to 'en'."
+        )
+        output_language_val = "en"
+        llm_analysis_args["output_language"] = output_language_val
+    else:
+        logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
+
     # Extract relevant_app_skills from LLM response if present (for tool preselection)
     # For now, if not provided by LLM, we'll set to None (meaning all skills available)
     relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
@@ -1473,6 +1545,7 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+        output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,

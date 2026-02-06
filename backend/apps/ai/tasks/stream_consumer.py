@@ -928,9 +928,9 @@ async def _consume_main_processing_stream(
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
         logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
         
-        # Get predefined response from translations
+        # Get predefined response from translations in the user's detected language
         translation_service = TranslationService()
-        language = "en"  # Default to English, could be made dynamic based on user preferences
+        language = preprocessing_result.output_language or "en"
         
         if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
             predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
@@ -1869,9 +1869,8 @@ async def _consume_main_processing_stream(
             )
             try:
                 translation_service = TranslationService()
-                # Get user's language preference from preprocessing result (fallback to English)
-                # TODO: Add language detection to preprocessor and pass it here
-                language = "en"
+                # Get user's language from preprocessing result (detected from user's request)
+                language = preprocessing_result.output_language or "en"
                 
                 # Get the translated fallback message
                 fallback_message = translation_service.get_nested_translation(
