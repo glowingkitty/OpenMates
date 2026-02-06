@@ -41,7 +41,7 @@ export const whoDevelopsOpenmatesChat: DemoChat = {
   ],
   metadata: {
     category: "openmates_official", // Official OpenMates category - shows favicon, not mate profile
-    icon_names: ["user", "heart", "coding"], // Icons for person/passion/development
+    icon_names: ["user", "heart", "code"], // Lucide icons for person/passion/development
     featured: true,
     order: 3,
     lastUpdated: new Date().toISOString(),

@@ -17,7 +17,7 @@
   import { text } from '@repo/ui';
   import type { DemoChat } from '../../demo_chats/types';
   import { translateDemoChat } from '../../demo_chats/translateDemoChat';
-  import { getCategoryGradientColors } from '../../utils/categoryUtils';
+  import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../../utils/categoryUtils';
   
   /**
    * Props interface for ChatEmbedPreview
@@ -44,8 +44,9 @@
   // Get translated category name
   let categoryName = $derived($text(`mates.${demoChat.metadata.category}.text`, { default: demoChat.metadata.category }));
   
-  // Get the first icon name for display (or use a default)
-  let iconName = $derived(demoChat.metadata.icon_names?.[0] || 'chat');
+  // Get Lucide icon component using the same approach as Chat.svelte
+  let validIconName = $derived(getValidIconName(demoChat.metadata.icon_names || [], demoChat.metadata.category));
+  let IconComponent = $derived(getLucideIcon(validIconName));
   
   // Track hover state for tilt effect
   let isHovering = $state(false);
@@ -119,10 +120,10 @@
   type="button"
   aria-label={translatedChat.title}
 >
-  <!-- Icon bar with gradient background -->
+  <!-- Icon bar with gradient background (using Lucide icons, same as Chat.svelte) -->
   <div class="icon-bar" style={gradientStyle}>
     <div class="icon-container">
-      <span class="icon" data-icon={iconName}></span>
+      <IconComponent size={20} color="white" />
     </div>
   </div>
   
@@ -193,78 +194,9 @@
     justify-content: center;
   }
   
-  /* Icon using CSS mask */
-  .icon {
-    width: 24px;
-    height: 24px;
-    background-color: white;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-  }
-  
-  /* Icon variants based on data-icon attribute */
-  .icon[data-icon="introduction"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/introduction.svg');
-    mask-image: url('@openmates/ui/static/icons/introduction.svg');
-  }
-  
-  .icon[data-icon="trophy"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/trophy.svg');
-    mask-image: url('@openmates/ui/static/icons/trophy.svg');
-  }
-  
-  .icon[data-icon="good"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/good.svg');
-    mask-image: url('@openmates/ui/static/icons/good.svg');
-  }
-  
-  .icon[data-icon="coding"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
-    mask-image: url('@openmates/ui/static/icons/coding.svg');
-  }
-  
-  .icon[data-icon="chat"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
-    mask-image: url('@openmates/ui/static/icons/chat.svg');
-  }
-  
-  .icon[data-icon="team"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-    mask-image: url('@openmates/ui/static/icons/team.svg');
-  }
-  
-  .icon[data-icon="book"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
-    mask-image: url('@openmates/ui/static/icons/book.svg');
-  }
-  
-  .icon[data-icon="search"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
-    mask-image: url('@openmates/ui/static/icons/search.svg');
-  }
-  
-  .icon[data-icon="web"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
-    mask-image: url('@openmates/ui/static/icons/web.svg');
-  }
-  
-  .icon[data-icon="insight"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
-    mask-image: url('@openmates/ui/static/icons/insight.svg');
-  }
-  
-  .icon[data-icon="heart"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
-    mask-image: url('@openmates/ui/static/icons/heart.svg');
-  }
-  
-  .icon[data-icon="rating"] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/rating.svg');
-    mask-image: url('@openmates/ui/static/icons/rating.svg');
+  /* Icon container centers the Lucide SVG icon */
+  .icon-container :global(svg) {
+    display: block;
   }
   
   /* Content section */
