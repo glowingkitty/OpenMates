@@ -28,11 +28,11 @@ import asyncio
 import argparse
 import json
 import logging
-import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -68,6 +68,7 @@ LLM_PROVIDER_FILES = [
     "google.yml",
     "mistral.yml",
     "alibaba.yml",
+    "deepseek.yml",
     "zai.yml",
 ]
 
@@ -200,7 +201,7 @@ async def fetch_lmarena_data(category: str = "text") -> Dict[str, Any]:
         return {"rankings": [], "validation": {"valid": False, "warnings": [str(e)]}}
 
 
-async def fetch_openrouter_data(category: str = None) -> Dict[str, Any]:
+async def fetch_openrouter_data(category: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetch OpenRouter rankings using the existing fetch script.
 
@@ -216,7 +217,7 @@ async def fetch_openrouter_data(category: str = None) -> Dict[str, Any]:
         script_logger.error("Could not import fetch_openrouter_rankings")
         return {"leaderboard": [], "validation": {"valid": False}}
 
-    script_logger.info(f"Fetching OpenRouter rankings...")
+    script_logger.info("Fetching OpenRouter rankings...")
 
     try:
         data = await fetch_rankings(basic_mode=False, category=category)
@@ -337,12 +338,54 @@ def match_lmarena_model(
     return None
 
 
+def _normalize_openrouter_slug(slug: str) -> str:
+    """
+    Normalize an OpenRouter slug for fuzzy matching.
+
+    OpenRouter's rankings page uses display slugs (e.g., "anthropic/claude-sonnet-4.5")
+    while API model IDs use versioned slugs (e.g., "anthropic/claude-sonnet-4-5-20250929").
+
+    This normalizer:
+    1. Strips date suffixes (e.g., -20250929, -20251001)
+    2. Normalizes version separators (dots vs dashes): "4.5" -> "4-5", "v3.2" -> "v3-2"
+    3. Strips common suffixes like "-preview", "-instruct", "-latest"
+
+    Args:
+        slug: OpenRouter slug (e.g., "anthropic/claude-sonnet-4.5")
+
+    Returns:
+        Normalized slug for comparison
+    """
+    s = slug.lower().strip()
+
+    # Strip date suffixes like -20250929, -20251001, -2507
+    s = re.sub(r'-\d{8}$', '', s)   # -YYYYMMDD
+    s = re.sub(r'-\d{4}$', '', s)   # -YYMM (e.g., -2507)
+    s = re.sub(r'-\d{6}$', '', s)   # -YYYYMM
+
+    # Strip common suffixes that may differ between rankings page and API IDs
+    for suffix in ['-preview', '-instruct', '-latest']:
+        if s.endswith(suffix):
+            s = s[:-len(suffix)]
+
+    # Normalize version separators: dots to dashes (e.g., "4.5" -> "4-5", "v3.2" -> "v3-2")
+    # This handles "claude-sonnet-4.5" vs "claude-sonnet-4-5" and "deepseek-v3.2" vs "deepseek-v3-2"
+    s = re.sub(r'(\d+)\.(\d+)', r'\1-\2', s)
+
+    return s
+
+
 def match_openrouter_model(
     openrouter_entry: Dict,
     external_index: Dict[str, Dict[str, str]]
 ) -> Optional[str]:
     """
     Try to match an OpenRouter entry to our model ID.
+
+    Matching strategy (in order of confidence):
+    1. Exact slug match against external_ids
+    2. Normalized slug match (strips dates, normalizes version separators)
+    3. Provider-aware base model name matching (e.g., "claude-sonnet" in both)
 
     Args:
         openrouter_entry: OpenRouter ranking entry
@@ -353,14 +396,36 @@ def match_openrouter_model(
     """
     slug = openrouter_entry.get("slug", "").lower()
 
-    # Direct lookup in openrouter index
+    # Strategy 1: Direct exact lookup
     if slug in external_index["openrouter"]:
         return external_index["openrouter"][slug]
 
-    # Try matching by provider/model pattern
+    # Strategy 2: Normalized slug matching
+    # Handles version format differences like "claude-sonnet-4.5" vs "claude-sonnet-4-5-20250929"
+    normalized_slug = _normalize_openrouter_slug(slug)
     for openrouter_id, our_id in external_index["openrouter"].items():
-        if openrouter_id in slug or slug in openrouter_id:
+        normalized_id = _normalize_openrouter_slug(openrouter_id)
+        if normalized_slug == normalized_id:
             return our_id
+
+    # Strategy 3: Provider-aware partial matching
+    # Split slug into provider and model parts, then compare model names
+    slug_parts = slug.split('/', 1)
+    if len(slug_parts) == 2:
+        slug_provider, slug_model = slug_parts
+        normalized_slug_model = _normalize_openrouter_slug(slug_model)
+
+        for openrouter_id, our_id in external_index["openrouter"].items():
+            id_parts = openrouter_id.split('/', 1)
+            if len(id_parts) == 2:
+                id_provider, id_model = id_parts
+                # Same provider required for partial matching to avoid false positives
+                if slug_provider == id_provider:
+                    normalized_id_model = _normalize_openrouter_slug(id_model)
+                    # Check if one is a prefix of the other (handles extra suffixes)
+                    if (normalized_slug_model.startswith(normalized_id_model) or
+                            normalized_id_model.startswith(normalized_slug_model)):
+                        return our_id
 
     return None
 

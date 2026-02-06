@@ -34,7 +34,7 @@ import re
 import sys
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Add the backend directory to the Python path for imports
 sys.path.insert(0, '/app/backend')
@@ -96,13 +96,14 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     """
     Parse the LLM Leaderboard section from Firecrawl markdown.
     
-    Format (multi-line entries):
+    Format (multi-line entries, may include favicon images):
     ```
     1.
-    [Claude Sonnet 4.5](https://openrouter.ai/anthropic/claude-sonnet-4.5)
-    by [anthropic](https://openrouter.ai/anthropic)
-    582B tokens
-    54%
+    ![Favicon for google](https://openrouter.ai/images/icons/GoogleGemini.svg)
+    [Gemini 3 Flash Preview](https://openrouter.ai/google/gemini-3-flash-preview)
+    by [google](https://openrouter.ai/google)
+    764B tokens
+    40%
     ```
     
     Args:
@@ -113,8 +114,9 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     """
     rankings = []
     
-    # Find the leaderboard section (between "LLM Leaderboard" and "Market Share")
+    # Find the leaderboard section - handle both "LLM Leaderboard" and "## LLM Leaderboard"
     leaderboard_start = markdown_content.find("LLM Leaderboard")
+    # Find "Market Share" or "[**Market Share**]" as end marker
     market_share_start = markdown_content.find("Market Share")
     
     if leaderboard_start == -1:
@@ -124,7 +126,7 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     if market_share_start != -1:
         section = markdown_content[leaderboard_start:market_share_start]
     else:
-        section = markdown_content[leaderboard_start:leaderboard_start + 5000]
+        section = markdown_content[leaderboard_start:leaderboard_start + 8000]
     
     # Split into lines and group by rank markers
     lines = section.split('\n')
@@ -141,6 +143,9 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
             if current_entry_lines:
                 entries.append(' '.join(current_entry_lines))
             current_entry_lines = [line]
+        # Stop at "Show more" or section end markers
+        elif line == "Show more" or line.startswith("[**"):
+            break
         else:
             current_entry_lines.append(line)
     
@@ -149,14 +154,19 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     
     # Parse each joined entry
     for entry_text in entries:
-        # Pattern: "1. [Model](url) by [provider](url) 582B tokens 54%"
+        # Strip inline favicon images: ![Favicon for ...](url)
+        # These appear before the model link in the current format
+        cleaned = re.sub(r'!\[[^\]]*\]\([^)]+\)\s*', '', entry_text)
+        
+        # Pattern: "1. [Model](url) by [provider](url) 764B tokens 40%"
+        # Also handles: "1. [Model](url) by [provider](url) 764B 40%"
         match = re.match(
             r'(\d+)\.\s*'
             r'\[([^\]]+)\]\((https?://openrouter\.ai/[^)]+)\)\s*'
             r'(?:by\s*\[([^\]]+)\]\((https?://openrouter\.ai/[^)]+)\)\s*)?'
-            r'([\d\.]+[BKMGT]?)\s*(?:tokens?)?\s*'
-            r'(\d+\.?\d*%)?',
-            entry_text
+            r'([\d,\.]+[BKMGT]?)\s*(?:tokens?)?\s*'
+            r'([\d,\.]+%)?',
+            cleaned
         )
         if match:
             rank, model_name, model_url, provider_name, provider_url, tokens, share = match.groups()
@@ -318,14 +328,17 @@ def parse_category_leaderboard(markdown_content: str, category: str) -> List[Dic
     
     # Parse each joined entry (same pattern as general leaderboard)
     for entry_text in entries:
+        # Strip inline favicon images: ![Favicon for ...](url)
+        cleaned = re.sub(r'!\[[^\]]*\]\([^)]+\)\s*', '', entry_text)
+        
         # Pattern: "1. [Model](url) by [provider](url) 200B 25.1%"
         match = re.match(
             r'(\d+)\.\s*'
             r'\[([^\]]+)\]\((https?://openrouter\.ai/[^)]+)\)\s*'
             r'(?:by\s*\[([^\]]+)\]\((https?://openrouter\.ai/[^)]+)\)\s*)?'
-            r'([\d\.]+[BKMGT]?)\s*'
-            r'(\d+\.?\d*%)?',
-            entry_text
+            r'([\d,\.]+[BKMGT]?)\s*'
+            r'([\d,\.]+%)?',
+            cleaned
         )
         if match:
             rank, model_name, model_url, provider_name, provider_url, tokens, share = match.groups()
@@ -390,8 +403,8 @@ def parse_basic_html(html_content: str) -> List[Dict[str, Any]]:
 def validate_results(
     leaderboard: List[Dict], 
     top_apps: List[Dict], 
-    category_leaderboard: List[Dict] = None,
-    category: str = None
+    category_leaderboard: Optional[List[Dict]] = None,
+    category: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Validate scraped results to detect when the scraper breaks.
@@ -464,7 +477,7 @@ def validate_results(
 # Main Functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def fetch_rankings(basic_mode: bool = False, category: str = None) -> Dict[str, Any]:
+async def fetch_rankings(basic_mode: bool = False, category: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetch rankings from OpenRouter.
     
