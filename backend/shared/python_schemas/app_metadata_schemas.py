@@ -53,6 +53,29 @@ class AppMemoryFieldDefinition(BaseModel):
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
     stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
 
+    @model_validator(mode='after')
+    def inject_added_date(self):
+        """
+        Automatically injects 'added_date' into every settings/memories schema.
+        
+        added_date is a universal field that records when a user created an entry.
+        It's auto_generated (hidden from UI forms, auto-populated by the client)
+        and converted to human-readable format before being included in LLM prompts.
+        
+        This removes the need to define added_date in every app.yml file,
+        preventing misconfiguration (e.g., forgetting auto_generated: true).
+        """
+        if self.schema_definition is not None:
+            properties = self.schema_definition.get("properties", {})
+            if "added_date" not in properties:
+                properties["added_date"] = {
+                    "type": "integer",
+                    "description": "Unix timestamp when added",
+                    "auto_generated": True
+                }
+                self.schema_definition["properties"] = properties
+        return self
+
 
 class AppInstructionDefinition(BaseModel):
     """

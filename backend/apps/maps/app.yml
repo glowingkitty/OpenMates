@@ -3,7 +3,7 @@ description_translation_key: maps.description.text
 icon_image: |
   maps.svg
 category: personal
-last_updated: '2025-01-27'
+last_updated: "2025-01-27"
 settings_and_memories:
   - id: favorite_places
     name_translation_key: maps.favorite_places.text
@@ -13,28 +13,28 @@ settings_and_memories:
     schema:
       type: object
       properties:
-        place_id:
-          type: string
-          description: Google Places API place ID
         name:
           type: string
           description: Place name
+          is_title: true
         address:
           type: string
           description: Formatted address
+        place_id:
+          type: string
+          description: Google Places API place ID (auto-filled when available)
+          auto_generated: true
         location:
           type: object
+          description: Geographic coordinates (auto-filled when available)
+          auto_generated: true
           properties:
             latitude:
               type: number
             longitude:
               type: number
-        added_date:
-          type: integer
-          description: Unix timestamp when added to favorites
       required:
-      - place_id
-      - name
+        - name
 skills:
   - id: search
     name_translation_key: maps.search.text
@@ -138,4 +138,3 @@ skills:
               - query
       required:
         - requests
-

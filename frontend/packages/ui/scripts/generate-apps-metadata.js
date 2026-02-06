@@ -621,6 +621,24 @@ function parseAppYaml(appId, filePath) {
           schema_definition: item.schema || item.schema_definition || undefined,
         };
 
+        // Auto-inject 'added_date' into every settings/memories schema.
+        // This is a universal field that records when a user created an entry.
+        // It's auto_generated (hidden from UI forms, auto-populated by the client)
+        // and converted to human-readable format before being included in LLM prompts.
+        // Injecting it here prevents the need to define it in every app.yml file.
+        if (
+          memoryMetadata.schema_definition &&
+          memoryMetadata.schema_definition.properties
+        ) {
+          if (!memoryMetadata.schema_definition.properties.added_date) {
+            memoryMetadata.schema_definition.properties.added_date = {
+              type: "integer",
+              description: "Unix timestamp when added",
+              auto_generated: true,
+            };
+          }
+        }
+
         if (
           memoryMetadata.id &&
           memoryMetadata.name_translation_key &&

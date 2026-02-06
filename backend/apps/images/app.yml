@@ -3,13 +3,26 @@ description_translation_key: images.description.text
 icon_image: |
   image.svg
 category: work
-last_updated: '2026-01-17'
+last_updated: "2026-01-17"
 settings_and_memories:
+  # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles
     name_translation_key: images.preferred_styles.text
     description_translation_key: images.preferred_styles.description.text
     type: list
     stage: development
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Style name (e.g., Watercolor, Minimalist, Cyberpunk, Art Deco)
+          is_title: true
+        description:
+          type: string
+          description: Optional description of the style or when to use it
+      required:
+        - name
 skills:
   - id: generate
     name_translation_key: images.generate.text
