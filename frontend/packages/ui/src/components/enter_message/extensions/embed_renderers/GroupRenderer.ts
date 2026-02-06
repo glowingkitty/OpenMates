@@ -23,6 +23,7 @@ import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
+import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -112,6 +113,17 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      // For document embeds, use Svelte component instead of HTML
+      if (baseType === "docs-doc") {
+        await this.renderDocsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+        return;
+      }
+
       // For other types, use HTML rendering
       const itemHtml = await this.renderIndividualItem(
         attrs,
@@ -174,6 +186,18 @@ export class GroupRenderer implements EmbedRenderer {
     // so sizing and interactions match single-item rendering.
     if (baseType === "code-code") {
       await this.renderCodeGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content,
+      });
+      return;
+    }
+
+    // Document groups must render each item using DocsEmbedPreview component
+    // so sizing and interactions match single-item rendering.
+    if (baseType === "docs-doc") {
+      await this.renderDocsGroup({
         baseType,
         groupDisplayName,
         items: reversedItems,
@@ -777,6 +801,146 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render document embed group with horizontal scrolling
+   * Similar to renderCodeGroup but for document embeds
+   */
+  private async renderDocsGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    // Cleanup any mounted components inside this node before re-rendering
+    this.unmountMountedComponentsInSubtree(content);
+
+    // Build group DOM
+    content.innerHTML = "";
+
+    const groupWrapper = document.createElement("div");
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "group-scroll-container";
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
+      itemWrapper.style.flex = "0 0 auto";
+
+      scrollContainer.appendChild(itemWrapper);
+
+      await this.mountDocsPreview(item, itemWrapper);
+    }
+  }
+
+  /**
+   * Mount DocsEmbedPreview component for a single document embed item
+   */
+  private async mountDocsPreview(
+    item: EmbedNodeAttributes,
+    target: HTMLElement,
+  ): Promise<void> {
+    // Resolve content for this document item
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content
+          ? await decodeToonContent(embedData.content)
+          : null;
+      } catch (error) {
+        console.error(
+          "[GroupRenderer] Error loading document embed for group item:",
+          error,
+        );
+      }
+    }
+
+    // Use decoded content if available, otherwise fall back to item attributes
+    const htmlContent = decodedContent?.html || item.code || "";
+    const title = decodedContent?.title || item.title;
+    const wordCount = decodedContent?.word_count || item.wordCount || 0;
+
+    // Determine status
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+    const taskId = decodedContent?.task_id;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    target.innerHTML = "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      const component = mount(DocsEmbedPreview, {
+        target,
+        props: {
+          id: embedId || item.id || "",
+          title,
+          wordCount,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          htmlContent,
+        },
+      });
+      mountedComponents.set(target, component);
+
+      console.debug(
+        "[GroupRenderer] Mounted DocsEmbedPreview component in group:",
+        {
+          embedId,
+          title,
+          wordCount,
+          status,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting DocsEmbedPreview component:",
+        error,
+      );
+      // Fallback: render the legacy HTML view
+      const fallbackHtml = await this.renderDocItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      target.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
    * Mount CodeEmbedPreview component for a single code embed item
    */
   private async mountCodePreview(
@@ -1333,6 +1497,83 @@ export class GroupRenderer implements EmbedRenderer {
       );
       // Fallback to HTML rendering
       const fallbackHtml = await this.renderCodeItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render document embed using Svelte component
+   * Uses DocsEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
+   */
+  private async renderDocsComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    // Use decoded content if available, otherwise fall back to item attributes
+    const htmlContent = decodedContent?.html || item.code || "";
+    const title = decodedContent?.title || item.title;
+    const wordCount = decodedContent?.word_count || item.wordCount || 0;
+
+    // Determine status
+    const status = item.status || (htmlContent ? "finished" : "processing");
+
+    // Get embed ID
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    // Clear the content element
+    content.innerHTML = "";
+
+    // Mount the Svelte component
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(DocsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title,
+          wordCount,
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          htmlContent,
+        },
+      });
+
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+
+      console.debug("[GroupRenderer] Mounted DocsEmbedPreview component:", {
+        embedId,
+        title,
+        wordCount,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting DocsEmbedPreview component:",
+        error,
+      );
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderDocItem(
         item,
         embedData,
         decodedContent,

@@ -912,6 +912,9 @@ async def handle_main_processing(
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
+    # Add document generation instruction for rich document embeds (document_html fences)
+    # This enables the LLM to create structured HTML documents rendered as document previews
+    prompt_parts.append(base_instructions.get("base_document_generation_instruction", ""))
     
     # DEBUG: Log the app_settings_memories content before adding to prompt
     # This helps diagnose issues where data is found in cache but not injected into prompt

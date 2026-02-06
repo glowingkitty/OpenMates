@@ -1,0 +1,37 @@
+# Docs App Configuration
+# Handles document generation and management (Word/Google Docs-like documents)
+# Documents are created via document_html fenced code blocks in the AI response stream
+
+# App metadata
+app_id: docs
+name: Docs
+description: Document creation and management
+icon: docs
+category: productivity
+stage: production
+
+# Embed types produced by this app
+embeds:
+  - id: doc_embed
+    description_embed: Rich document preview with formatted HTML content (reports, articles, letters, etc.)
+
+# Instructions injected into the AI system prompt when this app is available
+# These are loaded dynamically by the main processor based on app discovery
+instructions:
+  - instruction: |
+      **Document Generation (Docs App)**
+      When the user asks you to create, write, or generate a document, report, article, blog post,
+      essay, cover letter, proposal, memo, guide, or any substantial formatted content:
+      - Use the ```document_html code fence to produce the document
+      - Include a <!-- title: "..." --> comment as the first line
+      - Use semantic HTML for proper structure (h1-h6, p, ul/ol, table, blockquote, etc.)
+      - The document will be rendered as an interactive preview card that the user can open in fullscreen
+
+# Skills (planned for future implementation)
+skills: []
+
+# Focuses (planned for future implementation)
+focuses: []
+
+# Settings (planned for future implementation)
+settings: []

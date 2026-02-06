@@ -389,6 +389,121 @@ code_info:
   cs: "{lineCount} {lineCountText}, {language}"
   sv: "{lineCount} {lineCountText}, {language}"
   verified_by_human: []
+document_snippet:
+  context: Default title for document embeds when no title is provided
+  en: Document
+  de: Dokument
+  zh: 文档
+  es: Documento
+  fr: Document
+  pt: Documento
+  ru: Документ
+  ja: ドキュメント
+  ko: 문서
+  it: Documento
+  tr: Belge
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokument
+  nl: Document
+  ar: مستند
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokument
+  sv: Dokument
+  verified_by_human: []
+document_word_singular:
+  context: Singular form of 'word' for document embeds, e.g. 'word'
+  en: word
+  de: Wort
+  zh: 词
+  es: palabra
+  fr: mot
+  pt: palavra
+  ru: слово
+  ja: 語
+  ko: 단어
+  it: parola
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słowo
+  nl: woord
+  ar: كلمة
+  hi: शब्द
+  th: คำ
+  cs: slovo
+  sv: ord
+  verified_by_human: []
+document_word_plural:
+  context: Plural form of 'word' for document embeds, e.g. 'words'
+  en: words
+  de: Wörter
+  zh: 词
+  es: palabras
+  fr: mots
+  pt: palavras
+  ru: слов
+  ja: 語
+  ko: 단어
+  it: parole
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słów
+  nl: woorden
+  ar: كلمات
+  hi: शब्द
+  th: คำ
+  cs: slov
+  sv: ord
+  verified_by_human: []
+document_generating:
+  context: Status text when document is being generated
+  en: Generating document...
+  de: Dokument wird erstellt...
+  zh: 正在生成文档...
+  es: Generando documento...
+  fr: Génération du document...
+  pt: Gerando documento...
+  ru: Создание документа...
+  ja: ドキュメントを生成中...
+  ko: 문서 생성 중...
+  it: Generazione documento...
+  tr: Belge oluşturuluyor...
+  vi: Đang tạo tài liệu...
+  id: Membuat dokumen...
+  pl: Generowanie dokumentu...
+  nl: Document genereren...
+  ar: جاري إنشاء المستند...
+  hi: दस्तावेज़ बनाया जा रहा है...
+  th: กำลังสร้างเอกสาร...
+  cs: Generování dokumentu...
+  sv: Genererar dokument...
+  verified_by_human: []
+document_no_content:
+  context: Message shown when no document content is available
+  en: No document content available.
+  de: Kein Dokumentinhalt verfügbar.
+  zh: 没有可用的文档内容。
+  es: No hay contenido de documento disponible.
+  fr: Aucun contenu de document disponible.
+  pt: Nenhum conteúdo de documento disponível.
+  ru: Содержимое документа недоступно.
+  ja: ドキュメントの内容がありません。
+  ko: 문서 내용이 없습니다.
+  it: Nessun contenuto del documento disponibile.
+  tr: Belge içeriği mevcut değil.
+  vi: Không có nội dung tài liệu nào.
+  id: Tidak ada konten dokumen tersedia.
+  pl: Brak dostępnej treści dokumentu.
+  nl: Geen documentinhoud beschikbaar.
+  ar: لا يوجد محتوى مستند متاح.
+  hi: कोई दस्तावेज़ सामग्री उपलब्ध नहीं है।
+  th: ไม่มีเนื้อหาเอกสารที่พร้อมใช้งาน
+  cs: Žádný obsah dokumentu není k dispozici.
+  sv: Inget dokumentinnehåll tillgängligt.
+  verified_by_human: []
 table:
   context: Default title for table/sheet embeds when no title is provided
   en: Table
