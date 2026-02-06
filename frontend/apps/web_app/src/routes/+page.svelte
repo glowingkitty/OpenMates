@@ -150,6 +150,21 @@
 		const publicChat = getPublicChatById(chatId);
 
 		if (publicChat) {
+			// CRITICAL: For non-authenticated users during initial page load, check if they have
+			// existing sessionStorage drafts BEFORE loading the default public chat.
+			// Without this, a page reload with #chat-id=demo-for-everyone would discard the user's draft
+			// because loadDemoWelcomeChat (which handles draft restoration) is only called from onNoHash.
+			if (!$authStore.isAuthenticated && isProcessingInitialHash) {
+				const draftChatIds = getAllDraftChatIdsWithDrafts();
+				if (draftChatIds.length > 0) {
+					console.debug(
+						`[+page.svelte] Non-auth user has sessionStorage drafts during initial hash load - redirecting to loadDemoWelcomeChat instead of loading public chat ${chatId}`
+					);
+					await loadDemoWelcomeChat();
+					return;
+				}
+			}
+
 			// This is a demo or legal chat - load it directly (no need to wait for sync)
 			console.debug(`[+page.svelte] Found deep-linked public chat:`, chatId);
 

@@ -3503,7 +3503,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
  
         // CRITICAL: Load drafts from sessionStorage for non-authenticated users (demo chats)
         // For authenticated users, load encrypted drafts from IndexedDB
-        if (messageInputFieldRef) {
+        // CRITICAL: messageInputFieldRef may not be bound yet during initial page load (component not fully mounted).
+        // Retry with increasing delays to ensure draft restoration isn't silently skipped.
+        const restoreDraftWithRetry = async (retriesLeft = 10): Promise<void> => {
+            if (!messageInputFieldRef) {
+                if (retriesLeft > 0) {
+                    console.debug(`[ActiveChat] messageInputFieldRef not ready for draft restore, retrying (${retriesLeft} retries left)`);
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    return restoreDraftWithRetry(retriesLeft - 1);
+                } else {
+                    console.warn(`[ActiveChat] messageInputFieldRef still not available after retries - draft restoration skipped for chat ${currentChat?.chat_id}`);
+                    return;
+                }
+            }
+            
+            if (!currentChat?.chat_id) return;
+            
             if (!$authStore.isAuthenticated) {
                 // Non-authenticated user: check sessionStorage for draft
                 const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
@@ -3569,7 +3584,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     await messageInputFieldRef.clearMessageField(false, true);
                 }
             }
-        }
+        };
+        await restoreDraftWithRetry();
         
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
@@ -3714,6 +3730,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.info("[ActiveChat] [NON-AUTH] Fallback: Chat already selected, skipping", { currentChatId: currentChat?.chat_id, storeValue: $activeChatStore });
                         }
                     }, 100);
+                }
+            } else if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && hasSessionStorageDrafts && !isInNewChatMode) {
+                // CRITICAL: User has sessionStorage drafts but no chat is loaded (mobile fallback path)
+                // On mobile, Chats.svelte doesn't mount, so the draft chat is never auto-selected.
+                // We must actively load the most recent draft chat so the user sees their unsaved work.
+                console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading most recent sessionStorage draft chat (mobile fallback)");
+                const draftChatIds = getAllDraftChatIdsWithDrafts();
+                if (draftChatIds.length > 0) {
+                    const mostRecentDraftId = draftChatIds[draftChatIds.length - 1];
+                    const draftContent = loadSessionStorageDraft(mostRecentDraftId);
+                    
+                    if (draftContent) {
+                        const now = Math.floor(Date.now() / 1000);
+                        const virtualChat: Chat = {
+                            chat_id: mostRecentDraftId,
+                            encrypted_title: null,
+                            messages_v: 0,
+                            title_v: 0,
+                            draft_v: 0,
+                            encrypted_draft_md: null,
+                            encrypted_draft_preview: null,
+                            last_edited_overall_timestamp: now,
+                            unread_count: 0,
+                            created_at: now,
+                            updated_at: now,
+                            processing_metadata: false,
+                            waiting_for_metadata: false,
+                            encrypted_category: null,
+                            encrypted_icon: null
+                        };
+                        
+                        setTimeout(() => {
+                            // Re-check that no chat has been loaded in the meantime
+                            if (!currentChat?.chat_id && !$activeChatStore) {
+                                phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+                                activeChatStore.setActiveChat(mostRecentDraftId);
+                                loadChat(virtualChat);
+                                console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Draft chat loaded successfully:", mostRecentDraftId);
+                            } else {
+                                console.debug("[ActiveChat] [NON-AUTH] Fallback: Chat already loaded, skipping draft restore");
+                            }
+                        }, 100);
+                    }
                 }
             } else if (!$authStore.isAuthenticated && (isInNewChatMode || hasSessionStorageDrafts)) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback skipped - user has draft or is in new chat mode", { isInNewChatMode, hasSessionStorageDrafts });
