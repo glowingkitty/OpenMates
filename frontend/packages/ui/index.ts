@@ -27,6 +27,7 @@ export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
 export { default as PushNotificationBanner } from "./src/components/PushNotificationBanner.svelte";
+export { default as OfflineBanner } from "./src/components/OfflineBanner.svelte";
 // Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
 // See frontend/packages/ui/src/legal/ for legal chat document definitions
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
@@ -67,6 +68,7 @@ export * from "./src/stores/newsletterActionStore"; // Export newsletter action 
 export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
 export * from "./src/stores/appHealthStore"; // Export app health store for filtering apps by health status
 export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
+export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
 // loginOverlayStore removed - not needed
 
 // Demo Chats

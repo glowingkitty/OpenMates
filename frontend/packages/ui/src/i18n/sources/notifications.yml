@@ -35,6 +35,11 @@ connection.offline_mode:
   en: Else Offline Mode will be activated.
   de: Andernfalls wird der Offline-Modus aktiviert.
 
+connection.offline_banner:
+  context: Message shown in the fixed top-banner when the device loses network connectivity
+  en: You are offline. Your chats are still available.
+  de: Du bist offline. Deine Chats sind weiterhin verfügbar.
+
 # Software update notifications
 software_update.title:
   context: Title for software update notification
