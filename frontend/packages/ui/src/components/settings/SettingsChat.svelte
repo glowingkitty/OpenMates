@@ -7,12 +7,20 @@ Chat Settings - Notification preferences and chat-related settings
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
     import { pushNotificationStore } from '../../stores/pushNotificationStore';
+    import { userProfile } from '../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
     
-    // Get current notification status for subtitle display
+    // Determine if any notification channel is active (push or email)
+    let pushEnabled = $derived($pushNotificationStore.permission === 'granted' && $pushNotificationStore.enabled);
+    let emailEnabled = $derived($userProfile.email_notifications_enabled ?? false);
+    
+    // Get current notification status for subtitle display.
+    // Shows "Enabled" if either push or email notifications are active,
+    // "Blocked by browser" only when push is blocked AND email is not enabled,
+    // "Disabled" when nothing is enabled.
     let notificationStatus = $derived(
-        $pushNotificationStore.permission === 'granted' && $pushNotificationStore.enabled
+        pushEnabled || emailEnabled
             ? $text('settings.chat.notifications.enabled.text', { default: 'Enabled' })
             : $pushNotificationStore.permission === 'denied'
                 ? $text('settings.chat.notifications.blocked.text', { default: 'Blocked by browser' })
