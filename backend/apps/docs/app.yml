@@ -6,7 +6,8 @@
 app_id: docs
 name_translation_key: docs.text
 description_translation_key: docs.description.text
-icon: docs
+icon_image: |
+  docs.svg
 category: productivity
 stage: production
 
@@ -33,5 +34,23 @@ skills: []
 # Focuses (planned for future implementation)
 focus_modes: []
 
-# Settings and memories (planned for future implementation)
-settings_and_memories: []
+# Settings and memories for document generation preferences
+settings_and_memories:
+  - id: writing_style
+    name_translation_key: docs.writing_style.text
+    description_translation_key: docs.writing_style.description.text
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Style name (e.g., Formal Business, Academic, Casual Blog)
+          is_title: true
+        description:
+          type: string
+          description: Description of this writing style and when to use it
+          is_subtitle: true
+      required:
+        - name
