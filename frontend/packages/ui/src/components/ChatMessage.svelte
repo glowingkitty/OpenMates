@@ -987,10 +987,12 @@
 </script>
 
 {#if role === 'system'}
-  <!-- System message: rendered as a smaller centered notice (e.g., insufficient credits) -->
+  <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
+  <!-- NOTE: content may be TipTap JSON (converted by G_mapToInternalMessage), so we prefer
+       the original plaintext from original_message.content for display -->
   <div class="chat-message system">
     <div class="system-message-notice">
-      <span class="system-message-text">{typeof content === 'string' ? content : ''}</span>
+      <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
     </div>
   </div>
 {:else}

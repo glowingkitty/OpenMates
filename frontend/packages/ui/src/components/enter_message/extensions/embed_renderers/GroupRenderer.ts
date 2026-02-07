@@ -24,6 +24,7 @@ import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptE
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -646,6 +647,35 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             taskId,
             skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle reminder.set-reminder skill
+      if (
+        appId === "reminder" &&
+        (skillId === "set_reminder" || skillId === "set-reminder")
+      ) {
+        const component = mount(ReminderEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            reminderId: decodedContent?.reminder_id || "",
+            triggerAtFormatted: decodedContent?.trigger_at_formatted || "",
+            triggerAt: decodedContent?.trigger_at,
+            targetType: decodedContent?.target_type,
+            isRepeating: decodedContent?.is_repeating || false,
+            prompt: decodedContent?.prompt || "",
+            message: decodedContent?.message || "",
+            emailNotificationWarning:
+              decodedContent?.email_notification_warning || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
