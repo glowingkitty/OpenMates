@@ -1,0 +1,68 @@
+# PII (Personally Identifiable Information) detection and anonymization translations
+# Used by PIIWarningBanner and PII highlighting in the message input
+
+banner_title:
+  context: Title shown in the PII warning banner when sensitive data is detected
+  en: Sensitive data detected
+  de: Sensible Daten erkannt
+
+banner_description:
+  context: Description explaining what will happen to detected sensitive data. {summary} is replaced with a list like "2 emails, 1 API key"
+  en: "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
+  de: "{summary} gefunden. Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um das Original zu behalten."
+
+undo_all:
+  context: Tooltip/title for the Undo All button
+  en: Undo all replacements
+  de: Alle Ersetzungen rückgängig machen
+
+undo_all_short:
+  context: Short button label for Undo All
+  en: Undo All
+  de: Alle zurück
+
+click_to_restore:
+  context: Tooltip shown when hovering over highlighted PII text
+  en: Click to keep original
+  de: Klicken um Original zu behalten
+
+# PII type labels (for summary)
+type_email:
+  context: Label for email address PII type
+  en: email
+  de: E-Mail
+
+type_phone:
+  context: Label for phone number PII type
+  en: phone number
+  de: Telefonnummer
+
+type_api_key:
+  context: Generic label for API key PII types
+  en: API key
+  de: API-Schlüssel
+
+type_credit_card:
+  context: Label for credit card number PII type
+  en: credit card
+  de: Kreditkarte
+
+type_ssn:
+  context: Label for Social Security Number PII type
+  en: SSN
+  de: SSN
+
+type_ip_address:
+  context: Label for IP address PII type
+  en: IP address
+  de: IP-Adresse
+
+type_private_key:
+  context: Label for private key PII type
+  en: private key
+  de: privater Schlüssel
+
+type_jwt:
+  context: Label for JWT token PII type
+  en: JWT token
+  de: JWT-Token

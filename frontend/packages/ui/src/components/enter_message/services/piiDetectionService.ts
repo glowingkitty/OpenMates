@@ -1,0 +1,404 @@
+// frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+/**
+ * @file piiDetectionService.ts
+ * @description Client-side PII (Personally Identifiable Information) detection service.
+ *
+ * Detects sensitive data patterns in user input and provides placeholders for anonymization.
+ * Users can click on detected PII to restore the original text if it's a false positive.
+ *
+ * Supported patterns (high reliability, low false positives):
+ * - Email addresses
+ * - Phone numbers (US/international formats)
+ * - API keys (AWS, OpenAI, Anthropic, GitHub, Stripe, Google, Slack)
+ * - Credit card numbers (with Luhn validation)
+ * - Social Security Numbers (SSN)
+ * - IP addresses (IPv4 and IPv6)
+ * - Private keys (PEM format)
+ * - JWT tokens
+ */
+
+/**
+ * Types of PII that can be detected
+ */
+export type PIIType =
+  | "EMAIL"
+  | "PHONE"
+  | "AWS_ACCESS_KEY"
+  | "AWS_SECRET_KEY"
+  | "OPENAI_KEY"
+  | "ANTHROPIC_KEY"
+  | "GITHUB_PAT"
+  | "STRIPE_KEY"
+  | "GOOGLE_API_KEY"
+  | "SLACK_TOKEN"
+  | "CREDIT_CARD"
+  | "SSN"
+  | "IPV4"
+  | "IPV6"
+  | "PRIVATE_KEY"
+  | "JWT";
+
+/**
+ * A detected PII match in text
+ */
+export interface PIIMatch {
+  /** Type of PII detected */
+  type: PIIType;
+  /** The matched text */
+  match: string;
+  /** Start position in the text (0-indexed) */
+  startIndex: number;
+  /** End position in the text (exclusive) */
+  endIndex: number;
+  /** Placeholder to replace the PII with */
+  placeholder: string;
+  /** Unique ID for this detection (for tracking exclusions) */
+  id: string;
+}
+
+/**
+ * PII pattern definition
+ */
+interface PIIPattern {
+  type: PIIType;
+  regex: RegExp;
+  /** Human-readable label for the PII type */
+  label: string;
+  /** Function to generate placeholder text */
+  getPlaceholder: (match: string, index: number) => string;
+  /** Optional validation function for additional checks (e.g., Luhn for credit cards) */
+  validate?: (match: string) => boolean;
+}
+
+/**
+ * Luhn algorithm validation for credit card numbers
+ * @param cardNumber Credit card number string (digits only)
+ * @returns true if valid according to Luhn algorithm
+ */
+function luhnCheck(cardNumber: string): boolean {
+  const digits = cardNumber.replace(/\D/g, "");
+  if (digits.length < 13 || digits.length > 19) return false;
+
+  let sum = 0;
+  let isEven = false;
+
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = parseInt(digits[i], 10);
+    if (isEven) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    isEven = !isEven;
+  }
+  return sum % 10 === 0;
+}
+
+/**
+ * Generate a unique ID for a PII match
+ */
+function generateMatchId(type: PIIType, startIndex: number): string {
+  return `pii-${type}-${startIndex}-${Date.now()}`;
+}
+
+/**
+ * PII detection patterns ordered by specificity (more specific patterns first)
+ * to prevent overlapping matches
+ */
+const PII_PATTERNS: PIIPattern[] = [
+  // API Keys (most specific - check first to avoid partial matches)
+  {
+    type: "AWS_ACCESS_KEY",
+    regex: /\bAKIA[0-9A-Z]{16}\b/g,
+    label: "AWS Access Key",
+    getPlaceholder: (_, i) => `[AWS_KEY_${i + 1}]`,
+  },
+  {
+    type: "OPENAI_KEY",
+    // Matches: sk-proj-..., sk-svcacct-..., sk-... (legacy)
+    regex: /\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,200}\b/g,
+    label: "OpenAI API Key",
+    getPlaceholder: (_, i) => `[OPENAI_KEY_${i + 1}]`,
+  },
+  {
+    type: "ANTHROPIC_KEY",
+    regex: /\bsk-ant-api03-[A-Za-z0-9_-]{90,110}\b/g,
+    label: "Anthropic API Key",
+    getPlaceholder: (_, i) => `[ANTHROPIC_KEY_${i + 1}]`,
+  },
+  {
+    type: "GITHUB_PAT",
+    // Classic PAT, fine-grained PAT, and OAuth tokens
+    regex:
+      /\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}|gho_[a-zA-Z0-9]{36})\b/g,
+    label: "GitHub Token",
+    getPlaceholder: (_, i) => `[GITHUB_TOKEN_${i + 1}]`,
+  },
+  {
+    type: "STRIPE_KEY",
+    // Live, test, and restricted keys
+    regex: /\b[sr]k_(?:live|test)_[0-9a-zA-Z]{24,99}\b/g,
+    label: "Stripe API Key",
+    getPlaceholder: (_, i) => `[STRIPE_KEY_${i + 1}]`,
+  },
+  {
+    type: "GOOGLE_API_KEY",
+    regex: /\bAIza[0-9A-Za-z\-_]{35}\b/g,
+    label: "Google API Key",
+    getPlaceholder: (_, i) => `[GOOGLE_KEY_${i + 1}]`,
+  },
+  {
+    type: "SLACK_TOKEN",
+    // Bot, user, and app tokens
+    regex: /\bxox[bpras]-[0-9a-zA-Z-]{10,250}\b/g,
+    label: "Slack Token",
+    getPlaceholder: (_, i) => `[SLACK_TOKEN_${i + 1}]`,
+  },
+  {
+    type: "AWS_SECRET_KEY",
+    // 40-character base64-like string - only match if preceded by common context keywords
+    // This reduces false positives significantly
+    regex:
+      /(?:aws_secret|secret_key|secretkey|secret_access_key)['":\s=]+([0-9a-zA-Z/+=]{40})\b/gi,
+    label: "AWS Secret Key",
+    getPlaceholder: (_, i) => `[AWS_SECRET_${i + 1}]`,
+  },
+
+  // Private keys and tokens
+  {
+    type: "PRIVATE_KEY",
+    regex:
+      /-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/g,
+    label: "Private Key",
+    getPlaceholder: (_, i) => `[PRIVATE_KEY_${i + 1}]`,
+  },
+  {
+    type: "JWT",
+    // JWT format: base64.base64.base64
+    regex: /\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+/g,
+    label: "JWT Token",
+    getPlaceholder: (_, i) => `[JWT_TOKEN_${i + 1}]`,
+  },
+
+  // Personal identifiers
+  {
+    type: "EMAIL",
+    regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    label: "Email Address",
+    getPlaceholder: (_, i) => `[EMAIL_${i + 1}]`,
+  },
+  {
+    type: "CREDIT_CARD",
+    // Major card formats: Visa, Mastercard, Amex, Discover
+    // With optional spaces or dashes between groups
+    regex:
+      /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4})\b/g,
+    label: "Credit Card",
+    getPlaceholder: (_, i) => `[CARD_${i + 1}]`,
+    validate: luhnCheck,
+  },
+  {
+    type: "SSN",
+    // US Social Security Number: XXX-XX-XXXX or XXX XX XXXX or XXXXXXXXX
+    regex: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
+    label: "SSN",
+    getPlaceholder: (_, i) => `[SSN_${i + 1}]`,
+    // Additional validation: first 3 digits can't be 000, 666, or 900-999
+    validate: (match: string) => {
+      const digits = match.replace(/\D/g, "");
+      if (digits.length !== 9) return false;
+      const area = parseInt(digits.substring(0, 3), 10);
+      if (area === 0 || area === 666 || area >= 900) return false;
+      const group = parseInt(digits.substring(3, 5), 10);
+      if (group === 0) return false;
+      const serial = parseInt(digits.substring(5, 9), 10);
+      if (serial === 0) return false;
+      return true;
+    },
+  },
+  {
+    type: "PHONE",
+    // US phone formats: +1 (XXX) XXX-XXXX, XXX-XXX-XXXX, (XXX) XXX-XXXX, etc.
+    // Also international E.164 format: +XXXXXXXXXXX
+    regex:
+      /(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b|\+[1-9]\d{6,14}\b/g,
+    label: "Phone Number",
+    getPlaceholder: (_, i) => `[PHONE_${i + 1}]`,
+  },
+
+  // IP Addresses
+  {
+    type: "IPV4",
+    regex:
+      /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    label: "IP Address",
+    getPlaceholder: (_, i) => `[IP_${i + 1}]`,
+    // Exclude common non-sensitive IPs
+    validate: (match: string) => {
+      // Allow localhost and private ranges to pass through (not sensitive)
+      if (match === "127.0.0.1" || match === "0.0.0.0") return false;
+      if (
+        match.startsWith("192.168.") ||
+        match.startsWith("10.") ||
+        match.startsWith("172.")
+      )
+        return false;
+      return true;
+    },
+  },
+  {
+    type: "IPV6",
+    // Full IPv6 format
+    regex: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g,
+    label: "IPv6 Address",
+    getPlaceholder: (_, i) => `[IPV6_${i + 1}]`,
+  },
+];
+
+/**
+ * Detect all PII in the given text
+ *
+ * @param text The text to scan for PII
+ * @param excludedIds Set of match IDs that user has excluded (clicked to restore)
+ * @returns Array of PII matches found in the text
+ */
+export function detectPII(
+  text: string,
+  excludedIds: Set<string> = new Set(),
+): PIIMatch[] {
+  const matches: PIIMatch[] = [];
+  const coveredRanges: Array<{ start: number; end: number }> = [];
+
+  // Track how many of each type we've found (for placeholder numbering)
+  const typeCounts: Record<PIIType, number> = {} as Record<PIIType, number>;
+
+  for (const pattern of PII_PATTERNS) {
+    // Reset regex state
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    let regexMatch;
+
+    while ((regexMatch = regex.exec(text)) !== null) {
+      const matchText = regexMatch[0];
+      const startIndex = regexMatch.index;
+      const endIndex = startIndex + matchText.length;
+
+      // Skip if this range overlaps with an already detected PII
+      const overlaps = coveredRanges.some(
+        (range) =>
+          (startIndex >= range.start && startIndex < range.end) ||
+          (endIndex > range.start && endIndex <= range.end) ||
+          (startIndex <= range.start && endIndex >= range.end),
+      );
+
+      if (overlaps) continue;
+
+      // Run additional validation if provided
+      if (pattern.validate && !pattern.validate(matchText)) {
+        continue;
+      }
+
+      // Generate match ID
+      const matchId = generateMatchId(pattern.type, startIndex);
+
+      // Skip if user has excluded this match
+      // Note: We check by type and position since IDs regenerate on re-detection
+      const isExcluded = Array.from(excludedIds).some((id) => {
+        const parts = id.split("-");
+        // Format: pii-TYPE-startIndex-timestamp
+        return (
+          parts[1] === pattern.type && parseInt(parts[2], 10) === startIndex
+        );
+      });
+
+      if (isExcluded) continue;
+
+      // Increment type count for placeholder numbering
+      typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
+
+      matches.push({
+        type: pattern.type,
+        match: matchText,
+        startIndex,
+        endIndex,
+        placeholder: pattern.getPlaceholder(
+          matchText,
+          typeCounts[pattern.type] - 1,
+        ),
+        id: matchId,
+      });
+
+      // Mark this range as covered
+      coveredRanges.push({ start: startIndex, end: endIndex });
+    }
+  }
+
+  // Sort by start index for consistent processing
+  matches.sort((a, b) => a.startIndex - b.startIndex);
+
+  return matches;
+}
+
+/**
+ * Replace all PII in text with placeholders
+ *
+ * @param text Original text
+ * @param matches PII matches to replace (from detectPII)
+ * @returns Text with PII replaced by placeholders
+ */
+export function replacePIIWithPlaceholders(
+  text: string,
+  matches: PIIMatch[],
+): string {
+  if (matches.length === 0) return text;
+
+  // Sort by start index descending to replace from end to start
+  // This preserves indices while replacing
+  const sortedMatches = [...matches].sort(
+    (a, b) => b.startIndex - a.startIndex,
+  );
+
+  let result = text;
+  for (const match of sortedMatches) {
+    result =
+      result.substring(0, match.startIndex) +
+      match.placeholder +
+      result.substring(match.endIndex);
+  }
+
+  return result;
+}
+
+/**
+ * Get human-readable label for a PII type
+ */
+export function getPIILabel(type: PIIType): string {
+  const pattern = PII_PATTERNS.find((p) => p.type === type);
+  return pattern?.label ?? type;
+}
+
+/**
+ * Get all unique PII types from a list of matches
+ */
+export function getUniquePIITypes(matches: PIIMatch[]): PIIType[] {
+  return Array.from(new Set(matches.map((m) => m.type)));
+}
+
+/**
+ * Create a summary of detected PII for display
+ * e.g., "2 emails, 1 API key, 1 phone number"
+ */
+export function createPIISummary(matches: PIIMatch[]): string {
+  const typeCounts: Record<string, number> = {};
+
+  for (const match of matches) {
+    const label = getPIILabel(match.type);
+    typeCounts[label] = (typeCounts[label] || 0) + 1;
+  }
+
+  const parts: string[] = [];
+  for (const [label, count] of Object.entries(typeCounts)) {
+    parts.push(`${count} ${label.toLowerCase()}${count > 1 ? "s" : ""}`);
+  }
+
+  return parts.join(", ");
+}
