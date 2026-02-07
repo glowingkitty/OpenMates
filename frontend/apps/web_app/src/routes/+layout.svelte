@@ -57,9 +57,6 @@
 		// Initialize server status early to prevent UI flashing
 		// (e.g., legal chats briefly appearing on self-hosted instances)
 		initializeServerStatus();
-
-		// Load meta tags after translations are ready (i18n setup happens elsewhere)
-		await loadMetaTags();
 	});
 
 	// Watch theme changes and update document attribute
