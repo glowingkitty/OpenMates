@@ -1,829 +1,1066 @@
-import type { User } from '../types/user';
+import type { User } from "../types/user";
 // Import UserProfile type which will include the new consent fields
-import type { UserProfile } from '../stores/userProfile';
+import type { UserProfile } from "../stores/userProfile";
 
 // Import logout state to prevent database re-initialization during logout
-import { get } from 'svelte/store';
-import { forcedLogoutInProgress, isLoggingOut } from '../stores/signupState';
+import { get } from "svelte/store";
+import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
 
 class UserDatabaseService {
-    public db: IDBDatabase | null = null;
-    public readonly DB_NAME = 'user_db';
-    public readonly STORE_NAME = 'user_data';
-    private readonly VERSION = 1;
-    
-    // Flag to prevent new operations during database deletion
-    // This ensures that no new transactions are started while we're trying to delete the database
-    private isDeleting: boolean = false;
-    
-    /**
-     * Initialize the database.
-     * 
-     * CRITICAL: This method prevents initialization during logout to avoid race conditions
-     * where the database is re-opened after deletion has started but before it completes.
-     * 
-     * ORPHANED DATABASE DETECTION: On page reload, components may call database operations
-     * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
-     * detects the "orphaned database" scenario (profile exists but no master key) and sets
-     * the flag itself, ensuring cleanup happens even if this is the first database operation.
-     */
-    async init(): Promise<void> {
-        // Prevent initialization during deletion to avoid blocking the delete operation
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping init - database is being deleted");
-            throw new Error('Database is being deleted and cannot be initialized');
-        }
-        
-        // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
-        // This handles the race condition where components call database operations BEFORE
-        // +page.svelte's onMount can set the forcedLogoutInProgress flag.
-        // 
-        // We check for the cleanup marker set by chatDB.init() or +page.svelte, which indicates
-        // that the databases need to be deleted due to missing master key.
-        if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
-            // Check if cleanup marker was already set by chatDB or +page.svelte
-            const needsCleanup = typeof localStorage !== 'undefined' && 
-                localStorage.getItem('openmates_needs_cleanup') === 'true';
-            
-            if (needsCleanup) {
-                console.warn('[UserDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress');
-                forcedLogoutInProgress.set(true);
-            } else {
-                // Check if master key is missing but database was previously initialized
-                const { getKeyFromStorage } = await import('./cryptoService');
-                const hasMasterKey = await getKeyFromStorage();
-                
-                if (!hasMasterKey) {
-                    const dbInitialized = typeof localStorage !== 'undefined' &&
-                        localStorage.getItem('openmates_user_db_initialized') === 'true';
+  public db: IDBDatabase | null = null;
+  public readonly DB_NAME = "user_db";
+  public readonly STORE_NAME = "user_data";
+  private readonly VERSION = 1;
 
-                    if (dbInitialized) {
-                        // Try to open database and check if it contains user data
-                        // Only trigger cleanup if there are actual user records
-                        try {
-                            const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+  // Flag to prevent new operations during database deletion
+  // This ensures that no new transactions are started while we're trying to delete the database
+  private isDeleting: boolean = false;
 
-                            checkRequest.onsuccess = (event) => {
-                                const db = (event.target as IDBOpenDBRequest).result;
-                                const transaction = db.transaction([this.STORE_NAME], 'readonly');
-                                const store = transaction.objectStore(this.STORE_NAME);
-                                const countRequest = store.count();
+  /**
+   * Initialize the database.
+   *
+   * CRITICAL: This method prevents initialization during logout to avoid race conditions
+   * where the database is re-opened after deletion has started but before it completes.
+   *
+   * ORPHANED DATABASE DETECTION: On page reload, components may call database operations
+   * BEFORE +page.svelte's onMount sets the forcedLogoutInProgress flag. This method now
+   * detects the "orphaned database" scenario (profile exists but no master key) and sets
+   * the flag itself, ensuring cleanup happens even if this is the first database operation.
+   */
+  async init(): Promise<void> {
+    // Prevent initialization during deletion to avoid blocking the delete operation
+    if (this.isDeleting) {
+      console.debug("[UserDatabase] Skipping init - database is being deleted");
+      throw new Error("Database is being deleted and cannot be initialized");
+    }
 
-                                countRequest.onsuccess = () => {
-                                    const recordCount = countRequest.result;
-                                    if (recordCount > 0) {
-                                        console.warn('[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found', recordCount, 'user records');
-                                        console.warn('[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true');
-                                        if (typeof localStorage !== 'undefined') {
-                                            localStorage.setItem('openmates_needs_cleanup', 'true');
-                                        }
-                                        forcedLogoutInProgress.set(true);
-                                    }
-                                    db.close();
-                                };
+    // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
+    // This handles the race condition where components call database operations BEFORE
+    // +page.svelte's onMount can set the forcedLogoutInProgress flag.
+    //
+    // We check for the cleanup marker set by chatDB.init() or +page.svelte, which indicates
+    // that the databases need to be deleted due to missing master key.
+    if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+      // Check if cleanup marker was already set by chatDB or +page.svelte
+      const needsCleanup =
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem("openmates_needs_cleanup") === "true";
 
-                                countRequest.onerror = () => {
-                                    db.close();
-                                };
-                            };
+      if (needsCleanup) {
+        console.warn(
+          "[UserDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress",
+        );
+        forcedLogoutInProgress.set(true);
+      } else {
+        // Check if master key is missing but database was previously initialized
+        const { getKeyFromStorage } = await import("./cryptoService");
+        const hasMasterKey = await getKeyFromStorage();
 
-                            checkRequest.onerror = () => {
-                                // Database doesn't exist or can't be opened, no cleanup needed
-                            };
-                        } catch {
-                            // Error checking database, assume no cleanup needed
-                        }
-                    }
-                }
-            }
-        }
-        
-        // CRITICAL: Prevent initialization during logout to avoid race conditions
-        // If forced logout is in progress (missing master key scenario), or if user is actively
-        // logging out, we should NOT re-initialize the database. This prevents a race condition
-        // where the database is re-opened after it was closed for deletion but before the
-        // actual deleteDatabase() call completes.
-        //
-        // EXCEPTION: Allow initialization during login/auth attempts to prevent blocking
-        // legitimate authentication flows (e.g., after server restart WebSocket auth errors)
-        const { isCheckingAuth } = await import('../stores/authState');
-        const isAuthInProgress = get(isCheckingAuth);
-        if ((get(forcedLogoutInProgress) || get(isLoggingOut)) && !isAuthInProgress) {
-            console.debug('[UserDatabase] Skipping init() - logout in progress (forcedLogout:',
-                get(forcedLogoutInProgress), ', isLoggingOut:', get(isLoggingOut),
-                ', isCheckingAuth:', isAuthInProgress, ')');
-            throw new Error('Database initialization blocked during logout - data will be deleted');
-        }
-        
-        console.debug("[UserDatabase] Initializing user database");
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.DB_NAME, this.VERSION);
+        if (!hasMasterKey) {
+          const dbInitialized =
+            typeof localStorage !== "undefined" &&
+            localStorage.getItem("openmates_user_db_initialized") === "true";
 
-            request.onerror = () => {
-                console.error("[UserDatabase] Error opening database:", request.error);
-                reject(request.error);
-            };
+          if (dbInitialized) {
+            // Try to open database and check if it contains user data
+            // Only trigger cleanup if there are actual user records
+            try {
+              const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
 
-            request.onsuccess = () => {
-                console.debug("[UserDatabase] Database opened successfully");
-                this.db = request.result;
-                
-                // Set marker in localStorage to indicate database has been initialized
-                // This is used by orphaned database detection to know if cleanup is needed
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('openmates_user_db_initialized', 'true');
-                }
-                
-                resolve();
-            };
-
-            request.onupgradeneeded = (event) => {
-                console.debug("[UserDatabase] Database upgrade needed");
+              checkRequest.onsuccess = (event) => {
                 const db = (event.target as IDBOpenDBRequest).result;
-                
-                if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-                    db.createObjectStore(this.STORE_NAME);
-                }
-            };
-        });
-    }
+                const transaction = db.transaction(
+                  [this.STORE_NAME],
+                  "readonly",
+                );
+                const store = transaction.objectStore(this.STORE_NAME);
+                const countRequest = store.count();
 
-    /**
-     * Save user data to IndexedDB
-     */
-    async saveUserData(userData: User): Promise<void> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping saveUserData - database is being deleted");
-            return;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(this.STORE_NAME);
-
-            // console.debug(userData);
-
-            // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
-            // This prevents server sync from overwriting the user's current chat selection on tab reload
-            // Only update last_opened from server if it has a meaningful value
-            const lastOpenedRequest = store.get('last_opened');
-            let localLastOpened: string = '';
-            
-            lastOpenedRequest.onsuccess = () => {
-                localLastOpened = lastOpenedRequest.result || '';
-                
-                // Only store essential fields
-                // Store user ID (required for hidden chat salt generation and other features)
-                if (userData.id) {
-                    store.put(userData.id, 'id');
-                }
-                store.put(userData.username || '', 'username');
-                store.put(!!userData.is_admin, 'is_admin');  // Convert to boolean
-                 store.put(userData.profile_image_url || null, 'profile_image_url');
-                 store.put(userData.credits || 0, 'credits');
-                 store.put(userData.tfa_app_name || null, 'tfa_app_name');
-                 store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
-                 // Use boolean flags from backend
-                 store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
-                 store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
-                 // Add language and darkmode
-                 store.put(userData.language || 'en', 'language');
-                 store.put(!!userData.darkmode, 'darkmode');
-                 store.put(userData.currency || '', 'currency'); // Save currency
-                 store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
-                 
-                 // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
-                 // Only update from server if server has a meaningful value (not null, undefined, or empty string)
-                 // This ensures tab reload uses the user's current chat selection, not stale server data
-                 const serverLastOpened = userData.last_opened;
-                 if (serverLastOpened && serverLastOpened.trim() !== '') {
-                     // Server has a meaningful value, use it (for cross-device sync)
-                     store.put(serverLastOpened, 'last_opened');
-                     console.debug(`[UserDatabase] Updated last_opened from server: ${serverLastOpened}`);
-                 } else if (localLastOpened) {
-                     // Server value is empty/null, preserve local value
-                     store.put(localLastOpened, 'last_opened');
-                     console.debug(`[UserDatabase] Preserved local last_opened (server value was empty): ${localLastOpened}`);
-                 } else {
-                     // Both are empty, store empty string
-                     store.put('', 'last_opened');
-                 }
-                 
-                 // Save top recommended apps (encrypted)
-                 if (userData.encrypted_top_recommended_apps !== undefined) {
-                     store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
-                 }
-                 // Save top recommended apps (decrypted, for local use)
-                 if (userData.top_recommended_apps !== undefined) {
-                     store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
-                 }
-                 // Save random explore apps and timestamp
-                 if (userData.random_explore_apps !== undefined) {
-                     store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
-                 }
-                 if (userData.random_explore_apps_timestamp !== undefined) {
-                     store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
-                 }
-                 // Save auto top-up fields - log error if missing from backend response
-                 if ('auto_topup_low_balance_enabled' in userData) {
-                     store.put(!!userData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
-                 } else {
-                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response! Available keys:', Object.keys(userData));
-                 }
-                 if ('auto_topup_low_balance_threshold' in userData) {
-                     store.put(userData.auto_topup_low_balance_threshold ?? null, 'auto_topup_low_balance_threshold');
-                 } else {
-                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response!');
-                 }
-                 if ('auto_topup_low_balance_amount' in userData) {
-                     store.put(userData.auto_topup_low_balance_amount ?? null, 'auto_topup_low_balance_amount');
-                 } else {
-                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response!');
-                 }
-                 if ('auto_topup_low_balance_currency' in userData) {
-                     store.put(userData.auto_topup_low_balance_currency ?? null, 'auto_topup_low_balance_currency');
-                 } else {
-                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response!');
-                 }
-            };
-            
-            lastOpenedRequest.onerror = () => {
-                // If we can't read local last_opened, fall back to server value or empty string
-                console.warn('[UserDatabase] Could not read local last_opened, using server value');
-                const serverLastOpened = userData.last_opened;
-                store.put(serverLastOpened || '', 'last_opened');
-                
-                // Still save other fields
-                store.put(userData.username || '', 'username');
-                store.put(!!userData.is_admin, 'is_admin');
-                store.put(userData.profile_image_url || null, 'profile_image_url');
-                store.put(userData.credits || 0, 'credits');
-                store.put(userData.tfa_app_name || null, 'tfa_app_name');
-                store.put(!!userData.tfa_enabled, 'tfa_enabled');
-                store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
-                store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
-                store.put(userData.language || 'en', 'language');
-                store.put(!!userData.darkmode, 'darkmode');
-                store.put(userData.currency || '', 'currency');
-                store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
-                
-                if (userData.encrypted_top_recommended_apps !== undefined) {
-                    store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
-                }
-                if (userData.top_recommended_apps !== undefined) {
-                    store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
-                }
-                if (userData.random_explore_apps !== undefined) {
-                    store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
-                }
-                if (userData.random_explore_apps_timestamp !== undefined) {
-                    store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
-                }
-                // Save auto top-up fields - log error if missing from backend response
-                if ('auto_topup_low_balance_enabled' in userData) {
-                    store.put(!!userData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
-                } else {
-                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response (error path)! Available keys:', Object.keys(userData));
-                }
-                if ('auto_topup_low_balance_threshold' in userData) {
-                    store.put(userData.auto_topup_low_balance_threshold ?? null, 'auto_topup_low_balance_threshold');
-                } else {
-                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response (error path)!');
-                }
-                if ('auto_topup_low_balance_amount' in userData) {
-                    store.put(userData.auto_topup_low_balance_amount ?? null, 'auto_topup_low_balance_amount');
-                } else {
-                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response (error path)!');
-                }
-                if ('auto_topup_low_balance_currency' in userData) {
-                    store.put(userData.auto_topup_low_balance_currency ?? null, 'auto_topup_low_balance_currency');
-                } else {
-                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response (error path)!');
-                }
-            };
-
-             transaction.oncomplete = () => {
-                 console.debug("[UserDatabase] User data saved successfully");
-                resolve();
-            };
-
-            transaction.onerror = () => {
-                console.error("[UserDatabase] Error saving user data:", transaction.error);
-                reject(transaction.error);
-            };
-        });
-    }
-
-    /**
-     * Get user profile data from IndexedDB
-     */
-    async getUserProfile(): Promise<UserProfile | null> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping getUserProfile - database is being deleted");
-            return null;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            // Get username
-            const idRequest = store.get('id');
-            const usernameRequest = store.get('username');
-            const profileImageRequest = store.get('profile_image_url');
-            const creditsRequest = store.get('credits');
-            const is_adminRequest = store.get('is_admin');
-            const tfa_app_nameRequest = store.get('tfa_app_name');
-            const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
-            const lastOpenedRequest = store.get('last_opened'); // Get last_opened
-            const lastSyncTimestampRequest = store.get('last_sync_timestamp');
-            // Add requests for boolean consent flags
-            const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
-            const consentMatesRequest = store.get('consent_mates_default_settings');
-            // Add requests for language and darkmode
-            const languageRequest = store.get('language');
-            const darkmodeRequest = store.get('darkmode');
-            
-            const profile: UserProfile = {
-                user_id: null,
-                username: '',
-                profile_image_url: null,
-                credits: 0,
-                is_admin: false,
-                last_opened: '', // Initialize last_opened
-                last_sync_timestamp: 0,
-                tfa_app_name: null,
-                tfa_enabled: false, // Initialize tfa_enabled
-                // Initialize boolean flags
-                consent_privacy_and_apps_default_settings: false,
-                consent_mates_default_settings: false,
-                language: 'en', // Initialize language
-                darkmode: false, // Initialize darkmode
-                currency: '' // Initialize currency
-            };
-
-            const currencyRequest = store.get('currency'); // Add request for currency
-            const topRecommendedAppsRequest = store.get('top_recommended_apps'); // Get top recommended apps (decrypted)
-            const encryptedTopRecommendedAppsRequest = store.get('encrypted_top_recommended_apps'); // Get encrypted version
-            const randomExploreAppsRequest = store.get('random_explore_apps'); // Get random explore apps
-            const randomExploreAppsTimestampRequest = store.get('random_explore_apps_timestamp'); // Get timestamp
-            // Add requests for auto top-up fields
-            const autoTopupLowBalanceEnabledRequest = store.get('auto_topup_low_balance_enabled');
-            const autoTopupLowBalanceThresholdRequest = store.get('auto_topup_low_balance_threshold');
-            const autoTopupLowBalanceAmountRequest = store.get('auto_topup_low_balance_amount');
-            const autoTopupLowBalanceCurrencyRequest = store.get('auto_topup_low_balance_currency');
-
-            idRequest.onsuccess = () => {
-                profile.user_id = idRequest.result || null;
-                console.debug("[UserDatabase] idRequest success, result:", idRequest.result, "profile.user_id:", profile.user_id);
-            };
-
-            usernameRequest.onsuccess = () => {
-                profile.username = usernameRequest.result || '';
-            };
-
-            profileImageRequest.onsuccess = () => {
-                profile.profile_image_url = profileImageRequest.result || null;
-            };
-
-            creditsRequest.onsuccess = () => {
-                profile.credits = creditsRequest.result || 0;
-            };
-
-            is_adminRequest.onsuccess = () => {
-                profile.is_admin = !!is_adminRequest.result;
-            };
-
-            tfa_app_nameRequest.onsuccess = () => {
-                profile.tfa_app_name = tfa_app_nameRequest.result || null;
-            };
-
-            tfaEnabledRequest.onsuccess = () => { // Handle tfa_enabled retrieval
-                profile.tfa_enabled = !!tfaEnabledRequest.result;
-            };
-
-            lastOpenedRequest.onsuccess = () => { // Handle last_opened retrieval
-                profile.last_opened = lastOpenedRequest.result || '';
-            };
-
-            lastSyncTimestampRequest.onsuccess = () => {
-                profile.last_sync_timestamp = lastSyncTimestampRequest.result || 0;
-            };
-
-            // Handle boolean flag retrieval
-            consentPrivacyRequest.onsuccess = () => {
-                profile.consent_privacy_and_apps_default_settings = !!consentPrivacyRequest.result;
-            };
-            consentMatesRequest.onsuccess = () => {
-                profile.consent_mates_default_settings = !!consentMatesRequest.result;
-            };
-
-            // Handle language and darkmode retrieval
-            languageRequest.onsuccess = () => {
-                profile.language = languageRequest.result || 'en';
-            };
-            darkmodeRequest.onsuccess = () => {
-                profile.darkmode = !!darkmodeRequest.result;
-            };
-
-            currencyRequest.onsuccess = () => { // Handle currency retrieval
-                profile.currency = currencyRequest.result || '';
-            };
-
-            topRecommendedAppsRequest.onsuccess = () => { // Handle top recommended apps retrieval
-                try {
-                    profile.top_recommended_apps = topRecommendedAppsRequest.result 
-                        ? JSON.parse(topRecommendedAppsRequest.result) 
-                        : undefined;
-                } catch (e) {
-                    console.warn('[UserDatabase] Failed to parse top_recommended_apps:', e);
-                    profile.top_recommended_apps = undefined;
-                }
-            };
-
-            encryptedTopRecommendedAppsRequest.onsuccess = () => { // Handle encrypted top recommended apps retrieval
-                profile.encrypted_top_recommended_apps = encryptedTopRecommendedAppsRequest.result || null;
-            };
-
-            randomExploreAppsRequest.onsuccess = () => { // Handle random explore apps retrieval
-                try {
-                    profile.random_explore_apps = randomExploreAppsRequest.result 
-                        ? JSON.parse(randomExploreAppsRequest.result) 
-                        : undefined;
-                } catch (e) {
-                    console.warn('[UserDatabase] Failed to parse random_explore_apps:', e);
-                    profile.random_explore_apps = undefined;
-                }
-            };
-
-            randomExploreAppsTimestampRequest.onsuccess = () => { // Handle random explore apps timestamp retrieval
-                profile.random_explore_apps_timestamp = randomExploreAppsTimestampRequest.result || undefined;
-            };
-
-            // Handle auto top-up fields retrieval
-            autoTopupLowBalanceEnabledRequest.onsuccess = () => {
-                profile.auto_topup_low_balance_enabled = autoTopupLowBalanceEnabledRequest.result !== undefined 
-                    ? !!autoTopupLowBalanceEnabledRequest.result 
-                    : undefined;
-            };
-            autoTopupLowBalanceThresholdRequest.onsuccess = () => {
-                profile.auto_topup_low_balance_threshold = autoTopupLowBalanceThresholdRequest.result !== undefined 
-                    ? autoTopupLowBalanceThresholdRequest.result 
-                    : undefined;
-            };
-            autoTopupLowBalanceAmountRequest.onsuccess = () => {
-                profile.auto_topup_low_balance_amount = autoTopupLowBalanceAmountRequest.result !== undefined 
-                    ? autoTopupLowBalanceAmountRequest.result 
-                    : undefined;
-            };
-            autoTopupLowBalanceCurrencyRequest.onsuccess = () => {
-                profile.auto_topup_low_balance_currency = autoTopupLowBalanceCurrencyRequest.result || undefined;
-            };
-
-            transaction.oncomplete = () => {
-                console.debug("[UserDatabase] User profile retrieved:", profile);
-                resolve(profile);
-            };
-
-            transaction.onerror = () => {
-                console.error("[UserDatabase] Error retrieving user profile:", transaction.error);
-                reject(transaction.error);
-            };
-        });
-    }
-
-    /**
-     * Get user credits from IndexedDB
-     */
-    async getUserCredits(): Promise<number> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping getUserCredits - database is being deleted");
-            return 0;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            const request = store.get('credits');
-            
-            request.onsuccess = () => {
-                resolve(request.result || 0);
-            };
-
-            request.onerror = () => {
-                console.error("[UserDatabase] Error retrieving user credits:", request.error);
-                reject(request.error);
-            };
-        });
-    }
-
-    /**
-     * Clear all user data from IndexedDB
-     */
-    async clearUserData(): Promise<void> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping clearUserData - database is being deleted");
-            return;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            const clearRequest = store.clear();
-            
-            clearRequest.onsuccess = () => {
-                console.debug("[UserDatabase] User data cleared successfully");
-                resolve();
-            };
-
-            clearRequest.onerror = () => { // Correct placement
-                console.error("[UserDatabase] Error clearing user data:", clearRequest.error);
-                reject(clearRequest.error);
-            };
-        });
-    }
-    // Removed duplicated closing brackets and incorrect onerror block from here
-
-    /**
-     * Compare stored user data with new data and return if there are differences
-     * @param newUserData User data to compare with stored data
-     */
-    async hasUserDataChanged(newUserData: Partial<User>): Promise<boolean> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping hasUserDataChanged - database is being deleted");
-            return false;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            const userRequest = store.get('userData');
-            
-            userRequest.onsuccess = () => {
-                const storedData = userRequest.result || {};
-                
-                const hasChanges = 
-                    (newUserData.username !== undefined && storedData.username !== newUserData.username) ||
-                    (newUserData.profile_image_url !== undefined && storedData.profile_image_url !== newUserData.profile_image_url) ||
-                    (newUserData.credits !== undefined && storedData.credits !== newUserData.credits) ||
-                    (newUserData.is_admin !== undefined && storedData.is_admin !== newUserData.is_admin) ||
-                    (newUserData.tfa_app_name !== undefined && storedData.tfa_app_name !== newUserData.tfa_app_name) || // Check tfa_app_name
-                    (newUserData.currency !== undefined && storedData.currency !== newUserData.currency); // Check currency
-                
-                resolve(hasChanges);
-            };
-
-            userRequest.onerror = () => {
-                console.error("[UserDatabase] Error checking user data changes:", userRequest.error);
-                reject(userRequest.error);
-            };
-        });
-    }
-
-    /**
-     * Get complete user data from IndexedDB
-     */
-    async getUserData(): Promise<User | null> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping getUserData - database is being deleted");
-            return null;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            const id = store.get('id');
-            const username = store.get('username');
-            const is_admin = store.get('is_admin');
-            const profile_image_url = store.get('profile_image_url');
-            const credits = store.get('credits');
-            const tfa_app_name = store.get('tfa_app_name'); // Get tfa_app_name
-            const currency = store.get('currency'); // Get currency
-            const last_sync_timestamp = store.get('last_sync_timestamp');
-            
-            const userData: User = {
-                username: '',
-                is_admin: false,
-                profile_image_url: null,
-                credits: 0,
-                tfa_app_name: null, // Initialize tfa_app_name
-                currency: '', // Initialize currency
-                last_sync_timestamp: 0
-            };
-
-            id.onsuccess = () => userData.id = id.result || undefined;
-            username.onsuccess = () => userData.username = username.result || '';
-            is_admin.onsuccess = () => userData.is_admin = !!is_admin.result;
-            profile_image_url.onsuccess = () => userData.profile_image_url = profile_image_url.result;
-            credits.onsuccess = () => userData.credits = credits.result || 0;
-            tfa_app_name.onsuccess = () => userData.tfa_app_name = tfa_app_name.result; // Assign tfa_app_name
-            currency.onsuccess = () => userData.currency = currency.result || ''; // Assign currency
-            last_sync_timestamp.onsuccess = () => userData.last_sync_timestamp = last_sync_timestamp.result || 0;
-
-            transaction.oncomplete = () => {
-                console.debug("[UserDatabase] User data retrieved:", userData);
-                resolve(userData);
-            };
-
-            transaction.onerror = () => {
-                console.error("[UserDatabase] Error retrieving user data:", transaction.error);
-                reject(transaction.error);
-            };
-        });
-    }
-
-    /**
-     * Update specific fields of the user data
-     */
-    async updateUserData(partialData: Partial<User>): Promise<void> {
-        // Prevent operations during deletion
-        if (this.isDeleting) {
-            console.debug("[UserDatabase] Skipping updateUserData - database is being deleted");
-            return;
-        }
-        
-        if (!this.db) {
-            await this.init();
-        }
-
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(this.STORE_NAME);
-            
-            if (partialData.username !== undefined) {
-                store.put(partialData.username, 'username');
-            }
-            
-            if (partialData.profile_image_url !== undefined) {
-                store.put(partialData.profile_image_url, 'profile_image_url');
-            }
-            
-            if (partialData.credits !== undefined) {
-                store.put(partialData.credits, 'credits');
-            }
-            
-            if (partialData.is_admin !== undefined) {
-                store.put(partialData.is_admin, 'is_admin');
-            }
-
-             if (partialData.tfa_app_name !== undefined) {
-                 store.put(partialData.tfa_app_name, 'tfa_app_name');
-             }
-
-             if (partialData.tfa_enabled !== undefined) { // Handle tfa_enabled update
-                 store.put(!!partialData.tfa_enabled, 'tfa_enabled');
-             }
-
-             // Handle boolean flag updates
-             if (partialData.consent_privacy_and_apps_default_settings !== undefined) {
-                 store.put(!!partialData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
-             }
-             if (partialData.consent_mates_default_settings !== undefined) {
-                 store.put(!!partialData.consent_mates_default_settings, 'consent_mates_default_settings');
-             }
-             // Add explicit handling for language and darkmode
-             if (partialData.language !== undefined) {
-                 store.put(partialData.language, 'language');
-             }
-             if (partialData.darkmode !== undefined) {
-                 store.put(!!partialData.darkmode, 'darkmode');
-             }
-             if (partialData.currency !== undefined) { // Handle currency update
-                 store.put(partialData.currency, 'currency');
-             }
-             if (partialData.last_sync_timestamp !== undefined) {
-                store.put(partialData.last_sync_timestamp, 'last_sync_timestamp');
-             }
-             
-             if (partialData.last_opened !== undefined) {
-                store.put(partialData.last_opened, 'last_opened');
-             }
-             
-             // Handle auto top-up fields updates
-             if (partialData.auto_topup_low_balance_enabled !== undefined) {
-                 store.put(!!partialData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
-             }
-             if (partialData.auto_topup_low_balance_threshold !== undefined) {
-                 store.put(partialData.auto_topup_low_balance_threshold, 'auto_topup_low_balance_threshold');
-             }
-             if (partialData.auto_topup_low_balance_amount !== undefined) {
-                 store.put(partialData.auto_topup_low_balance_amount, 'auto_topup_low_balance_amount');
-             }
-             if (partialData.auto_topup_low_balance_currency !== undefined) {
-                 store.put(partialData.auto_topup_low_balance_currency, 'auto_topup_low_balance_currency');
-             }
-             
-             transaction.oncomplete = () => {
-                 console.debug("[UserDatabase] User data updated successfully");
-                resolve();
-            };
-            
-            transaction.onerror = () => {
-                console.error("[UserDatabase] Error updating user data:", transaction.error);
-                reject(transaction.error);
-            };
-        });
-    }
-
-    /**
-     * Deletes the entire user database.
-     * 
-     * This method sets the isDeleting flag to prevent new operations from starting,
-     * closes the existing connection, and waits a short delay before attempting deletion.
-     * The delay allows any pending transactions to complete before the deletion request.
-     * 
-     * NOTE: Unlike the previous implementation, this does NOT reject on onblocked.
-     * Instead, it logs a warning and waits for other connections to close.
-     * The deletion will succeed once all connections are closed.
-     */
-    async deleteDatabase(): Promise<void> {
-        console.debug(`[UserDatabase] Attempting to delete database: ${this.DB_NAME}`);
-        
-        // Set flag to prevent new operations during deletion
-        this.isDeleting = true;
-        
-        return new Promise((resolve, reject) => {
-            if (this.db) {
-                this.db.close(); // Close the connection before deleting
-                this.db = null;
-                console.debug(`[UserDatabase] Database connection closed for ${this.DB_NAME}.`);
-            }
-
-            // Use setTimeout to give pending transactions time to complete
-            // This matches the implementation in chatDB for consistency
-            setTimeout(() => {
-                const request = indexedDB.deleteDatabase(this.DB_NAME);
-
-                request.onsuccess = () => {
-                    console.debug(`[UserDatabase] Database ${this.DB_NAME} deleted successfully.`);
-                    this.isDeleting = false;
-                    
-                    // Clear localStorage marker used for orphaned database detection
-                    if (typeof localStorage !== 'undefined') {
-                        localStorage.removeItem('openmates_user_db_initialized');
-                        // Also clear the cleanup marker if this is the last database being deleted
-                        // (chatDB will also try to clear it, but clearing twice is harmless)
-                        localStorage.removeItem('openmates_needs_cleanup');
-                        console.debug('[UserDatabase] Cleared localStorage markers after database deletion');
-                    }
-                    
-                    resolve();
-                };
-
-                request.onerror = (event) => {
-                    console.error(`[UserDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
-                    this.isDeleting = false;
-                    reject((event.target as IDBOpenDBRequest).error);
-                };
-
-                // CRITICAL: Do NOT reject on onblocked - just log a warning
-                // The deletion will succeed once all connections close
-                // Rejecting here caused logout errors when other operations were in progress
-                request.onblocked = (event) => {
+                countRequest.onsuccess = () => {
+                  const recordCount = countRequest.result;
+                  if (recordCount > 0) {
                     console.warn(
-                        `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
-                        event
+                      "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found",
+                      recordCount,
+                      "user records",
                     );
-                    // Don't reject - the deletion will proceed once connections close
-                    // This is consistent with how chatDB handles this case
+                    console.warn(
+                      "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                    );
+                    if (typeof localStorage !== "undefined") {
+                      localStorage.setItem("openmates_needs_cleanup", "true");
+                    }
+                    forcedLogoutInProgress.set(true);
+                  }
+                  db.close();
                 };
-            }, 100); // Small delay to allow pending transactions to complete
-        });
+
+                countRequest.onerror = () => {
+                  db.close();
+                };
+              };
+
+              checkRequest.onerror = () => {
+                // Database doesn't exist or can't be opened, no cleanup needed
+              };
+            } catch {
+              // Error checking database, assume no cleanup needed
+            }
+          }
+        }
+      }
     }
+
+    // CRITICAL: Prevent initialization during logout to avoid race conditions
+    // If forced logout is in progress (missing master key scenario), or if user is actively
+    // logging out, we should NOT re-initialize the database. This prevents a race condition
+    // where the database is re-opened after it was closed for deletion but before the
+    // actual deleteDatabase() call completes.
+    //
+    // EXCEPTION: Allow initialization during login/auth attempts to prevent blocking
+    // legitimate authentication flows (e.g., after server restart WebSocket auth errors)
+    const { isCheckingAuth } = await import("../stores/authState");
+    const isAuthInProgress = get(isCheckingAuth);
+    if (
+      (get(forcedLogoutInProgress) || get(isLoggingOut)) &&
+      !isAuthInProgress
+    ) {
+      console.debug(
+        "[UserDatabase] Skipping init() - logout in progress (forcedLogout:",
+        get(forcedLogoutInProgress),
+        ", isLoggingOut:",
+        get(isLoggingOut),
+        ", isCheckingAuth:",
+        isAuthInProgress,
+        ")",
+      );
+      throw new Error(
+        "Database initialization blocked during logout - data will be deleted",
+      );
+    }
+
+    console.debug("[UserDatabase] Initializing user database");
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.VERSION);
+
+      request.onerror = () => {
+        console.error("[UserDatabase] Error opening database:", request.error);
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        console.debug("[UserDatabase] Database opened successfully");
+        this.db = request.result;
+
+        // Set marker in localStorage to indicate database has been initialized
+        // This is used by orphaned database detection to know if cleanup is needed
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("openmates_user_db_initialized", "true");
+        }
+
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        console.debug("[UserDatabase] Database upgrade needed");
+        const db = (event.target as IDBOpenDBRequest).result;
+
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME);
+        }
+      };
+    });
+  }
+
+  /**
+   * Save user data to IndexedDB
+   */
+  async saveUserData(userData: User): Promise<void> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping saveUserData - database is being deleted",
+      );
+      return;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      // console.debug(userData);
+
+      // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
+      // This prevents server sync from overwriting the user's current chat selection on tab reload
+      // Only update last_opened from server if it has a meaningful value
+      const lastOpenedRequest = store.get("last_opened");
+      let localLastOpened: string = "";
+
+      lastOpenedRequest.onsuccess = () => {
+        localLastOpened = lastOpenedRequest.result || "";
+
+        // Only store essential fields
+        // Store user ID (required for hidden chat salt generation and other features)
+        if (userData.id) {
+          store.put(userData.id, "id");
+        }
+        store.put(userData.username || "", "username");
+        store.put(!!userData.is_admin, "is_admin"); // Convert to boolean
+        store.put(userData.profile_image_url || null, "profile_image_url");
+        store.put(userData.credits || 0, "credits");
+        store.put(userData.tfa_app_name || null, "tfa_app_name");
+        store.put(!!userData.tfa_enabled, "tfa_enabled"); // Store 2FA enabled status
+        // Use boolean flags from backend
+        store.put(
+          !!userData.consent_privacy_and_apps_default_settings,
+          "consent_privacy_and_apps_default_settings",
+        );
+        store.put(
+          !!userData.consent_mates_default_settings,
+          "consent_mates_default_settings",
+        );
+        // Add language and darkmode
+        store.put(userData.language || "en", "language");
+        store.put(!!userData.darkmode, "darkmode");
+        store.put(userData.currency || "", "currency"); // Save currency
+        store.put(userData.last_sync_timestamp || 0, "last_sync_timestamp");
+
+        // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
+        // Only update from server if server has a meaningful value (not null, undefined, or empty string)
+        // This ensures tab reload uses the user's current chat selection, not stale server data
+        const serverLastOpened = userData.last_opened;
+        if (serverLastOpened && serverLastOpened.trim() !== "") {
+          // Server has a meaningful value, use it (for cross-device sync)
+          store.put(serverLastOpened, "last_opened");
+          console.debug(
+            `[UserDatabase] Updated last_opened from server: ${serverLastOpened}`,
+          );
+        } else if (localLastOpened) {
+          // Server value is empty/null, preserve local value
+          store.put(localLastOpened, "last_opened");
+          console.debug(
+            `[UserDatabase] Preserved local last_opened (server value was empty): ${localLastOpened}`,
+          );
+        } else {
+          // Both are empty, store empty string
+          store.put("", "last_opened");
+        }
+
+        // Save top recommended apps (encrypted)
+        if (userData.encrypted_top_recommended_apps !== undefined) {
+          store.put(
+            userData.encrypted_top_recommended_apps,
+            "encrypted_top_recommended_apps",
+          );
+        }
+        // Save top recommended apps (decrypted, for local use)
+        if (userData.top_recommended_apps !== undefined) {
+          store.put(
+            JSON.stringify(userData.top_recommended_apps || []),
+            "top_recommended_apps",
+          );
+        }
+        // Save random explore apps and timestamp
+        if (userData.random_explore_apps !== undefined) {
+          store.put(
+            JSON.stringify(userData.random_explore_apps || []),
+            "random_explore_apps",
+          );
+        }
+        if (userData.random_explore_apps_timestamp !== undefined) {
+          store.put(
+            userData.random_explore_apps_timestamp || 0,
+            "random_explore_apps_timestamp",
+          );
+        }
+        // Save auto top-up fields - log error if missing from backend response
+        if ("auto_topup_low_balance_enabled" in userData) {
+          store.put(
+            !!userData.auto_topup_low_balance_enabled,
+            "auto_topup_low_balance_enabled",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response! Available keys:",
+            Object.keys(userData),
+          );
+        }
+        if ("auto_topup_low_balance_threshold" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_threshold ?? null,
+            "auto_topup_low_balance_threshold",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response!",
+          );
+        }
+        if ("auto_topup_low_balance_amount" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_amount ?? null,
+            "auto_topup_low_balance_amount",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response!",
+          );
+        }
+        if ("auto_topup_low_balance_currency" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_currency ?? null,
+            "auto_topup_low_balance_currency",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response!",
+          );
+        }
+      };
+
+      lastOpenedRequest.onerror = () => {
+        // If we can't read local last_opened, fall back to server value or empty string
+        console.warn(
+          "[UserDatabase] Could not read local last_opened, using server value",
+        );
+        const serverLastOpened = userData.last_opened;
+        store.put(serverLastOpened || "", "last_opened");
+
+        // Still save other fields
+        store.put(userData.username || "", "username");
+        store.put(!!userData.is_admin, "is_admin");
+        store.put(userData.profile_image_url || null, "profile_image_url");
+        store.put(userData.credits || 0, "credits");
+        store.put(userData.tfa_app_name || null, "tfa_app_name");
+        store.put(!!userData.tfa_enabled, "tfa_enabled");
+        store.put(
+          !!userData.consent_privacy_and_apps_default_settings,
+          "consent_privacy_and_apps_default_settings",
+        );
+        store.put(
+          !!userData.consent_mates_default_settings,
+          "consent_mates_default_settings",
+        );
+        store.put(userData.language || "en", "language");
+        store.put(!!userData.darkmode, "darkmode");
+        store.put(userData.currency || "", "currency");
+        store.put(userData.last_sync_timestamp || 0, "last_sync_timestamp");
+
+        if (userData.encrypted_top_recommended_apps !== undefined) {
+          store.put(
+            userData.encrypted_top_recommended_apps,
+            "encrypted_top_recommended_apps",
+          );
+        }
+        if (userData.top_recommended_apps !== undefined) {
+          store.put(
+            JSON.stringify(userData.top_recommended_apps || []),
+            "top_recommended_apps",
+          );
+        }
+        if (userData.random_explore_apps !== undefined) {
+          store.put(
+            JSON.stringify(userData.random_explore_apps || []),
+            "random_explore_apps",
+          );
+        }
+        if (userData.random_explore_apps_timestamp !== undefined) {
+          store.put(
+            userData.random_explore_apps_timestamp || 0,
+            "random_explore_apps_timestamp",
+          );
+        }
+        // Save auto top-up fields - log error if missing from backend response
+        if ("auto_topup_low_balance_enabled" in userData) {
+          store.put(
+            !!userData.auto_topup_low_balance_enabled,
+            "auto_topup_low_balance_enabled",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response (error path)! Available keys:",
+            Object.keys(userData),
+          );
+        }
+        if ("auto_topup_low_balance_threshold" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_threshold ?? null,
+            "auto_topup_low_balance_threshold",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response (error path)!",
+          );
+        }
+        if ("auto_topup_low_balance_amount" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_amount ?? null,
+            "auto_topup_low_balance_amount",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response (error path)!",
+          );
+        }
+        if ("auto_topup_low_balance_currency" in userData) {
+          store.put(
+            userData.auto_topup_low_balance_currency ?? null,
+            "auto_topup_low_balance_currency",
+          );
+        } else {
+          console.error(
+            "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response (error path)!",
+          );
+        }
+      };
+
+      transaction.oncomplete = () => {
+        console.debug("[UserDatabase] User data saved successfully");
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error(
+          "[UserDatabase] Error saving user data:",
+          transaction.error,
+        );
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
+   * Get user profile data from IndexedDB
+   */
+  async getUserProfile(): Promise<UserProfile | null> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping getUserProfile - database is being deleted",
+      );
+      return null;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      // Get username
+      const idRequest = store.get("id");
+      const usernameRequest = store.get("username");
+      const profileImageRequest = store.get("profile_image_url");
+      const creditsRequest = store.get("credits");
+      const is_adminRequest = store.get("is_admin");
+      const tfa_app_nameRequest = store.get("tfa_app_name");
+      const tfaEnabledRequest = store.get("tfa_enabled"); // Get tfa_enabled
+      const lastOpenedRequest = store.get("last_opened"); // Get last_opened
+      const lastSyncTimestampRequest = store.get("last_sync_timestamp");
+      // Add requests for boolean consent flags
+      const consentPrivacyRequest = store.get(
+        "consent_privacy_and_apps_default_settings",
+      );
+      const consentMatesRequest = store.get("consent_mates_default_settings");
+      // Add requests for language and darkmode
+      const languageRequest = store.get("language");
+      const darkmodeRequest = store.get("darkmode");
+
+      const profile: UserProfile = {
+        user_id: null,
+        username: "",
+        profile_image_url: null,
+        credits: 0,
+        is_admin: false,
+        last_opened: "", // Initialize last_opened
+        last_sync_timestamp: 0,
+        tfa_app_name: null,
+        tfa_enabled: false, // Initialize tfa_enabled
+        // Initialize boolean flags
+        consent_privacy_and_apps_default_settings: false,
+        consent_mates_default_settings: false,
+        language: "en", // Initialize language
+        darkmode: false, // Initialize darkmode
+        currency: "", // Initialize currency
+      };
+
+      const currencyRequest = store.get("currency"); // Add request for currency
+      const topRecommendedAppsRequest = store.get("top_recommended_apps"); // Get top recommended apps (decrypted)
+      const encryptedTopRecommendedAppsRequest = store.get(
+        "encrypted_top_recommended_apps",
+      ); // Get encrypted version
+      const randomExploreAppsRequest = store.get("random_explore_apps"); // Get random explore apps
+      const randomExploreAppsTimestampRequest = store.get(
+        "random_explore_apps_timestamp",
+      ); // Get timestamp
+      // Add requests for auto top-up fields
+      const autoTopupLowBalanceEnabledRequest = store.get(
+        "auto_topup_low_balance_enabled",
+      );
+      const autoTopupLowBalanceThresholdRequest = store.get(
+        "auto_topup_low_balance_threshold",
+      );
+      const autoTopupLowBalanceAmountRequest = store.get(
+        "auto_topup_low_balance_amount",
+      );
+      const autoTopupLowBalanceCurrencyRequest = store.get(
+        "auto_topup_low_balance_currency",
+      );
+
+      idRequest.onsuccess = () => {
+        profile.user_id = idRequest.result || null;
+        console.debug(
+          "[UserDatabase] idRequest success, result:",
+          idRequest.result,
+          "profile.user_id:",
+          profile.user_id,
+        );
+      };
+
+      usernameRequest.onsuccess = () => {
+        profile.username = usernameRequest.result || "";
+      };
+
+      profileImageRequest.onsuccess = () => {
+        profile.profile_image_url = profileImageRequest.result || null;
+      };
+
+      creditsRequest.onsuccess = () => {
+        profile.credits = creditsRequest.result || 0;
+      };
+
+      is_adminRequest.onsuccess = () => {
+        profile.is_admin = !!is_adminRequest.result;
+      };
+
+      tfa_app_nameRequest.onsuccess = () => {
+        profile.tfa_app_name = tfa_app_nameRequest.result || null;
+      };
+
+      tfaEnabledRequest.onsuccess = () => {
+        // Handle tfa_enabled retrieval
+        profile.tfa_enabled = !!tfaEnabledRequest.result;
+      };
+
+      lastOpenedRequest.onsuccess = () => {
+        // Handle last_opened retrieval
+        profile.last_opened = lastOpenedRequest.result || "";
+      };
+
+      lastSyncTimestampRequest.onsuccess = () => {
+        profile.last_sync_timestamp = lastSyncTimestampRequest.result || 0;
+      };
+
+      // Handle boolean flag retrieval
+      consentPrivacyRequest.onsuccess = () => {
+        profile.consent_privacy_and_apps_default_settings =
+          !!consentPrivacyRequest.result;
+      };
+      consentMatesRequest.onsuccess = () => {
+        profile.consent_mates_default_settings = !!consentMatesRequest.result;
+      };
+
+      // Handle language and darkmode retrieval
+      languageRequest.onsuccess = () => {
+        profile.language = languageRequest.result || "en";
+      };
+      darkmodeRequest.onsuccess = () => {
+        profile.darkmode = !!darkmodeRequest.result;
+      };
+
+      currencyRequest.onsuccess = () => {
+        // Handle currency retrieval
+        profile.currency = currencyRequest.result || "";
+      };
+
+      topRecommendedAppsRequest.onsuccess = () => {
+        // Handle top recommended apps retrieval
+        try {
+          profile.top_recommended_apps = topRecommendedAppsRequest.result
+            ? JSON.parse(topRecommendedAppsRequest.result)
+            : undefined;
+        } catch (e) {
+          console.warn(
+            "[UserDatabase] Failed to parse top_recommended_apps:",
+            e,
+          );
+          profile.top_recommended_apps = undefined;
+        }
+      };
+
+      encryptedTopRecommendedAppsRequest.onsuccess = () => {
+        // Handle encrypted top recommended apps retrieval
+        profile.encrypted_top_recommended_apps =
+          encryptedTopRecommendedAppsRequest.result || null;
+      };
+
+      randomExploreAppsRequest.onsuccess = () => {
+        // Handle random explore apps retrieval
+        try {
+          profile.random_explore_apps = randomExploreAppsRequest.result
+            ? JSON.parse(randomExploreAppsRequest.result)
+            : undefined;
+        } catch (e) {
+          console.warn(
+            "[UserDatabase] Failed to parse random_explore_apps:",
+            e,
+          );
+          profile.random_explore_apps = undefined;
+        }
+      };
+
+      randomExploreAppsTimestampRequest.onsuccess = () => {
+        // Handle random explore apps timestamp retrieval
+        profile.random_explore_apps_timestamp =
+          randomExploreAppsTimestampRequest.result || undefined;
+      };
+
+      // Handle auto top-up fields retrieval
+      autoTopupLowBalanceEnabledRequest.onsuccess = () => {
+        profile.auto_topup_low_balance_enabled =
+          autoTopupLowBalanceEnabledRequest.result !== undefined
+            ? !!autoTopupLowBalanceEnabledRequest.result
+            : undefined;
+      };
+      autoTopupLowBalanceThresholdRequest.onsuccess = () => {
+        profile.auto_topup_low_balance_threshold =
+          autoTopupLowBalanceThresholdRequest.result !== undefined
+            ? autoTopupLowBalanceThresholdRequest.result
+            : undefined;
+      };
+      autoTopupLowBalanceAmountRequest.onsuccess = () => {
+        profile.auto_topup_low_balance_amount =
+          autoTopupLowBalanceAmountRequest.result !== undefined
+            ? autoTopupLowBalanceAmountRequest.result
+            : undefined;
+      };
+      autoTopupLowBalanceCurrencyRequest.onsuccess = () => {
+        profile.auto_topup_low_balance_currency =
+          autoTopupLowBalanceCurrencyRequest.result || undefined;
+      };
+
+      transaction.oncomplete = () => {
+        console.debug("[UserDatabase] User profile retrieved:", profile);
+        resolve(profile);
+      };
+
+      transaction.onerror = () => {
+        console.error(
+          "[UserDatabase] Error retrieving user profile:",
+          transaction.error,
+        );
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
+   * Get user credits from IndexedDB
+   */
+  async getUserCredits(): Promise<number> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping getUserCredits - database is being deleted",
+      );
+      return 0;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      const request = store.get("credits");
+
+      request.onsuccess = () => {
+        resolve(request.result || 0);
+      };
+
+      request.onerror = () => {
+        console.error(
+          "[UserDatabase] Error retrieving user credits:",
+          request.error,
+        );
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Clear all user data from IndexedDB
+   */
+  async clearUserData(): Promise<void> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping clearUserData - database is being deleted",
+      );
+      return;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      const clearRequest = store.clear();
+
+      clearRequest.onsuccess = () => {
+        console.debug("[UserDatabase] User data cleared successfully");
+        resolve();
+      };
+
+      clearRequest.onerror = () => {
+        // Correct placement
+        console.error(
+          "[UserDatabase] Error clearing user data:",
+          clearRequest.error,
+        );
+        reject(clearRequest.error);
+      };
+    });
+  }
+  // Removed duplicated closing brackets and incorrect onerror block from here
+
+  /**
+   * Compare stored user data with new data and return if there are differences
+   * @param newUserData User data to compare with stored data
+   */
+  async hasUserDataChanged(newUserData: Partial<User>): Promise<boolean> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping hasUserDataChanged - database is being deleted",
+      );
+      return false;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      const userRequest = store.get("userData");
+
+      userRequest.onsuccess = () => {
+        const storedData = userRequest.result || {};
+
+        const hasChanges =
+          (newUserData.username !== undefined &&
+            storedData.username !== newUserData.username) ||
+          (newUserData.profile_image_url !== undefined &&
+            storedData.profile_image_url !== newUserData.profile_image_url) ||
+          (newUserData.credits !== undefined &&
+            storedData.credits !== newUserData.credits) ||
+          (newUserData.is_admin !== undefined &&
+            storedData.is_admin !== newUserData.is_admin) ||
+          (newUserData.tfa_app_name !== undefined &&
+            storedData.tfa_app_name !== newUserData.tfa_app_name) || // Check tfa_app_name
+          (newUserData.currency !== undefined &&
+            storedData.currency !== newUserData.currency); // Check currency
+
+        resolve(hasChanges);
+      };
+
+      userRequest.onerror = () => {
+        console.error(
+          "[UserDatabase] Error checking user data changes:",
+          userRequest.error,
+        );
+        reject(userRequest.error);
+      };
+    });
+  }
+
+  /**
+   * Get complete user data from IndexedDB
+   */
+  async getUserData(): Promise<User | null> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping getUserData - database is being deleted",
+      );
+      return null;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      const id = store.get("id");
+      const username = store.get("username");
+      const is_admin = store.get("is_admin");
+      const profile_image_url = store.get("profile_image_url");
+      const credits = store.get("credits");
+      const tfa_app_name = store.get("tfa_app_name"); // Get tfa_app_name
+      const currency = store.get("currency"); // Get currency
+      const last_sync_timestamp = store.get("last_sync_timestamp");
+
+      const userData: User = {
+        username: "",
+        is_admin: false,
+        profile_image_url: null,
+        credits: 0,
+        tfa_app_name: null, // Initialize tfa_app_name
+        currency: "", // Initialize currency
+        last_sync_timestamp: 0,
+      };
+
+      id.onsuccess = () => (userData.id = id.result || undefined);
+      username.onsuccess = () => (userData.username = username.result || "");
+      is_admin.onsuccess = () => (userData.is_admin = !!is_admin.result);
+      profile_image_url.onsuccess = () =>
+        (userData.profile_image_url = profile_image_url.result);
+      credits.onsuccess = () => (userData.credits = credits.result || 0);
+      tfa_app_name.onsuccess = () =>
+        (userData.tfa_app_name = tfa_app_name.result); // Assign tfa_app_name
+      currency.onsuccess = () => (userData.currency = currency.result || ""); // Assign currency
+      last_sync_timestamp.onsuccess = () =>
+        (userData.last_sync_timestamp = last_sync_timestamp.result || 0);
+
+      transaction.oncomplete = () => {
+        console.debug("[UserDatabase] User data retrieved:", userData);
+        resolve(userData);
+      };
+
+      transaction.onerror = () => {
+        console.error(
+          "[UserDatabase] Error retrieving user data:",
+          transaction.error,
+        );
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
+   * Update specific fields of the user data
+   */
+  async updateUserData(partialData: Partial<User>): Promise<void> {
+    // Prevent operations during deletion
+    if (this.isDeleting) {
+      console.debug(
+        "[UserDatabase] Skipping updateUserData - database is being deleted",
+      );
+      return;
+    }
+
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      if (partialData.username !== undefined) {
+        store.put(partialData.username, "username");
+      }
+
+      if (partialData.profile_image_url !== undefined) {
+        store.put(partialData.profile_image_url, "profile_image_url");
+      }
+
+      if (partialData.credits !== undefined) {
+        store.put(partialData.credits, "credits");
+      }
+
+      if (partialData.is_admin !== undefined) {
+        store.put(partialData.is_admin, "is_admin");
+      }
+
+      if (partialData.tfa_app_name !== undefined) {
+        store.put(partialData.tfa_app_name, "tfa_app_name");
+      }
+
+      if (partialData.tfa_enabled !== undefined) {
+        // Handle tfa_enabled update
+        store.put(!!partialData.tfa_enabled, "tfa_enabled");
+      }
+
+      // Handle boolean flag updates
+      if (partialData.consent_privacy_and_apps_default_settings !== undefined) {
+        store.put(
+          !!partialData.consent_privacy_and_apps_default_settings,
+          "consent_privacy_and_apps_default_settings",
+        );
+      }
+      if (partialData.consent_mates_default_settings !== undefined) {
+        store.put(
+          !!partialData.consent_mates_default_settings,
+          "consent_mates_default_settings",
+        );
+      }
+      // Add explicit handling for language and darkmode
+      if (partialData.language !== undefined) {
+        store.put(partialData.language, "language");
+      }
+      if (partialData.darkmode !== undefined) {
+        store.put(!!partialData.darkmode, "darkmode");
+      }
+      if (partialData.currency !== undefined) {
+        // Handle currency update
+        store.put(partialData.currency, "currency");
+      }
+      if (partialData.last_sync_timestamp !== undefined) {
+        store.put(partialData.last_sync_timestamp, "last_sync_timestamp");
+      }
+
+      if (partialData.last_opened !== undefined) {
+        store.put(partialData.last_opened, "last_opened");
+      }
+
+      // Handle auto top-up fields updates
+      if (partialData.auto_topup_low_balance_enabled !== undefined) {
+        store.put(
+          !!partialData.auto_topup_low_balance_enabled,
+          "auto_topup_low_balance_enabled",
+        );
+      }
+      if (partialData.auto_topup_low_balance_threshold !== undefined) {
+        store.put(
+          partialData.auto_topup_low_balance_threshold,
+          "auto_topup_low_balance_threshold",
+        );
+      }
+      if (partialData.auto_topup_low_balance_amount !== undefined) {
+        store.put(
+          partialData.auto_topup_low_balance_amount,
+          "auto_topup_low_balance_amount",
+        );
+      }
+      if (partialData.auto_topup_low_balance_currency !== undefined) {
+        store.put(
+          partialData.auto_topup_low_balance_currency,
+          "auto_topup_low_balance_currency",
+        );
+      }
+
+      // Handle email notification fields
+      if (partialData.email_notifications_enabled !== undefined) {
+        store.put(
+          !!partialData.email_notifications_enabled,
+          "email_notifications_enabled",
+        );
+      }
+      if (partialData.email_notification_preferences !== undefined) {
+        store.put(
+          partialData.email_notification_preferences,
+          "email_notification_preferences",
+        );
+      }
+
+      transaction.oncomplete = () => {
+        console.debug("[UserDatabase] User data updated successfully");
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error(
+          "[UserDatabase] Error updating user data:",
+          transaction.error,
+        );
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
+   * Deletes the entire user database.
+   *
+   * This method sets the isDeleting flag to prevent new operations from starting,
+   * closes the existing connection, and waits a short delay before attempting deletion.
+   * The delay allows any pending transactions to complete before the deletion request.
+   *
+   * NOTE: Unlike the previous implementation, this does NOT reject on onblocked.
+   * Instead, it logs a warning and waits for other connections to close.
+   * The deletion will succeed once all connections are closed.
+   */
+  async deleteDatabase(): Promise<void> {
+    console.debug(
+      `[UserDatabase] Attempting to delete database: ${this.DB_NAME}`,
+    );
+
+    // Set flag to prevent new operations during deletion
+    this.isDeleting = true;
+
+    return new Promise((resolve, reject) => {
+      if (this.db) {
+        this.db.close(); // Close the connection before deleting
+        this.db = null;
+        console.debug(
+          `[UserDatabase] Database connection closed for ${this.DB_NAME}.`,
+        );
+      }
+
+      // Use setTimeout to give pending transactions time to complete
+      // This matches the implementation in chatDB for consistency
+      setTimeout(() => {
+        const request = indexedDB.deleteDatabase(this.DB_NAME);
+
+        request.onsuccess = () => {
+          console.debug(
+            `[UserDatabase] Database ${this.DB_NAME} deleted successfully.`,
+          );
+          this.isDeleting = false;
+
+          // Clear localStorage marker used for orphaned database detection
+          if (typeof localStorage !== "undefined") {
+            localStorage.removeItem("openmates_user_db_initialized");
+            // Also clear the cleanup marker if this is the last database being deleted
+            // (chatDB will also try to clear it, but clearing twice is harmless)
+            localStorage.removeItem("openmates_needs_cleanup");
+            console.debug(
+              "[UserDatabase] Cleared localStorage markers after database deletion",
+            );
+          }
+
+          resolve();
+        };
+
+        request.onerror = (event) => {
+          console.error(
+            `[UserDatabase] Error deleting database ${this.DB_NAME}:`,
+            (event.target as IDBOpenDBRequest).error,
+          );
+          this.isDeleting = false;
+          reject((event.target as IDBOpenDBRequest).error);
+        };
+
+        // CRITICAL: Do NOT reject on onblocked - just log a warning
+        // The deletion will succeed once all connections close
+        // Rejecting here caused logout errors when other operations were in progress
+        request.onblocked = (event) => {
+          console.warn(
+            `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
+            event,
+          );
+          // Don't reject - the deletion will proceed once connections close
+          // This is consistent with how chatDB handles this case
+        };
+      }, 100); // Small delay to allow pending transactions to complete
+    });
+  }
 }
 
 export const userDB = new UserDatabaseService();

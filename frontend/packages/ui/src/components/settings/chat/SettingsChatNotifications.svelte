@@ -16,6 +16,7 @@ When enabled, notifications are sent to the user's login email (from account set
     import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
+    import { webSocketService } from '../../../services/websocketService';
     
     // Local state for push notifications
     let isRequestingPermission = $state(false);
@@ -126,6 +127,24 @@ When enabled, notifications are sent to the user's login email (from account set
     // =====================================================
     
     /**
+     * Send email notification settings to server via WebSocket.
+     * Server will encrypt the email and store it.
+     */
+    async function sendEmailSettingsToServer(enabled: boolean, email: string | null): Promise<void> {
+        try {
+            await webSocketService.sendMessage('email_notification_settings', {
+                enabled,
+                email,  // Plaintext email - server will encrypt it
+                preferences: emailPreferences
+            });
+            console.debug('[SettingsChatNotifications] Sent email notification settings to server');
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Failed to send email notification settings:', error);
+            throw error;
+        }
+    }
+    
+    /**
      * Handle email notifications enable/disable toggle.
      * When enabled: automatically uses the user's login email from account settings.
      * When disabled: clears the notification email from the server.
@@ -140,34 +159,41 @@ When enabled, notifications are sent to the user's login email (from account set
         
         try {
             if (!emailNotificationsEnabled) {
-                // Enabling: fetch the login email and use it for notifications
+                // Enabling: fetch the login email and send to server for encryption
                 const loginEmail = await getEmailDecryptedWithMasterKey();
                 if (!loginEmail) {
                     console.error('[SettingsChatNotifications] Could not retrieve login email for notifications');
                     return;
                 }
                 
-                emailNotificationsEnabled = true;
+                // Send to server via WebSocket (server encrypts and stores)
+                await sendEmailSettingsToServer(true, loginEmail);
                 
+                // Update local state optimistically
+                emailNotificationsEnabled = true;
                 updateProfile({
                     email_notifications_enabled: true,
-                    email_notification_email: loginEmail,
                     email_notification_preferences: emailPreferences
                 });
                 
                 console.debug('[SettingsChatNotifications] Email notifications enabled with login email');
             } else {
-                // Disabling: clear the notification email from server
-                emailNotificationsEnabled = false;
+                // Disabling: send disable request to server
+                await sendEmailSettingsToServer(false, null);
                 
+                // Update local state
+                emailNotificationsEnabled = false;
                 updateProfile({
                     email_notifications_enabled: false,
-                    email_notification_email: '',
                     email_notification_preferences: emailPreferences
                 });
                 
-                console.debug('[SettingsChatNotifications] Email notifications disabled, email cleared');
+                console.debug('[SettingsChatNotifications] Email notifications disabled');
             }
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Error toggling email notifications:', error);
+            // Revert local state on error
+            emailNotificationsEnabled = !emailNotificationsEnabled;
         } finally {
             isSavingEmail = false;
         }
@@ -176,16 +202,28 @@ When enabled, notifications are sent to the user's login email (from account set
     /**
      * Toggle AI responses email notification preference
      */
-    function handleToggleAIResponses(): void {
-        emailPreferences = {
+    async function handleToggleAIResponses(): Promise<void> {
+        const newPreferences = {
             ...emailPreferences,
             aiResponses: !emailPreferences.aiResponses
         };
-        syncEmailPreferencesToServer();
+        
+        // Update local state first
+        emailPreferences = newPreferences;
+        
+        // Sync to server if email notifications are enabled
+        if (emailNotificationsEnabled) {
+            await syncEmailPreferencesToServer();
+        } else {
+            // Just update local profile
+            updateProfile({
+                email_notification_preferences: newPreferences
+            });
+        }
     }
     
     /**
-     * Sync email notification preferences (not the email itself) to server
+     * Sync email notification preferences to server via WebSocket
      */
     async function syncEmailPreferencesToServer(): Promise<void> {
         if (!$authStore.isAuthenticated) {
@@ -193,11 +231,24 @@ When enabled, notifications are sent to the user's login email (from account set
             return;
         }
         
-        updateProfile({
-            email_notification_preferences: emailPreferences
-        });
-        
-        console.debug('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
+        try {
+            // Get current email to include in the update (server needs it to maintain encryption)
+            const loginEmail = await getEmailDecryptedWithMasterKey();
+            await webSocketService.sendMessage('email_notification_settings', {
+                enabled: emailNotificationsEnabled,
+                email: loginEmail,
+                preferences: emailPreferences
+            });
+            
+            // Update local profile
+            updateProfile({
+                email_notification_preferences: emailPreferences
+            });
+            
+            console.debug('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Failed to sync email preferences:', error);
+        }
     }
 </script>
 

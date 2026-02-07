@@ -35,6 +35,7 @@ from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_e
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler import handle_reject_settings_memory_suggestion # Handler for rejecting settings/memory suggestions
+from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 
 logger = logging.getLogger(__name__)
 
@@ -1587,6 +1588,20 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "email_notification_settings":
+                # Handle email notification settings update
+                logger.debug(f"Handling email_notification_settings with payload: {payload}")
+                await handle_email_notification_settings(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
