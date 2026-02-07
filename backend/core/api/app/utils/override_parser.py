@@ -7,12 +7,14 @@
 # Supported syntax:
 #   @ai-model:{model_id}              - Force a specific AI model
 #   @ai-model:{model_id}:{provider}   - Force a specific AI model with provider
+#   @best-model:{category}            - Use top-ranked model in a leaderboard category
 #   @mate:{mate_id}                   - Force a specific mate/persona
 #   @skill:{app_id}:{skill_id}        - Force using a specific skill
 #   @focus:{app_id}:{focus_id}        - Force a specific focus mode
 #
-# Example:
+# Examples:
 #   "What is 2+2? @ai-model:claude-opus-4-5" -> Uses Claude Opus 4.5 for this request
+#   "Write code @best-model:coding" -> Uses the top coding model from leaderboard
 
 import re
 import logging
@@ -30,6 +32,7 @@ class UserOverrides:
     Attributes:
         model_id: Overridden AI model ID (e.g., "claude-opus-4-5-20251101")
         model_provider: Overridden model provider (e.g., "anthropic", "openrouter")
+        best_model_category: Category for dynamic best-model resolution (e.g., "coding", "math")
         mate_id: Overridden mate/persona ID (e.g., "coder", "researcher")
         skills: List of (app_id, skill_id) tuples for forced skill usage
         focus_modes: List of (app_id, focus_id) tuples for forced focus modes
@@ -38,6 +41,7 @@ class UserOverrides:
     """
     model_id: Optional[str] = None
     model_provider: Optional[str] = None
+    best_model_category: Optional[str] = None
     mate_id: Optional[str] = None
     skills: List[Tuple[str, str]] = field(default_factory=list)
     focus_modes: List[Tuple[str, str]] = field(default_factory=list)
@@ -52,6 +56,14 @@ class UserOverrides:
 # Examples: @ai-model:claude-opus-4-5, @ai-model:gpt-5.2:openrouter
 _MODEL_PATTERN = re.compile(
     r'@ai-model:([a-zA-Z0-9._-]+)(?::([a-zA-Z0-9_-]+))?',
+    re.IGNORECASE
+)
+
+# @best-model:{category}
+# Examples: @best-model:coding, @best-model:math, @best-model:reasoning
+# Dynamically resolves to the top-ranked model in that leaderboard category
+_BEST_MODEL_PATTERN = re.compile(
+    r'@best-model:([a-zA-Z0-9_-]+)',
     re.IGNORECASE
 )
 
@@ -115,6 +127,19 @@ def parse_overrides(message: str, log_prefix: str = "") -> UserOverrides:
             f"{log_prefix} USER_OVERRIDE: Model override detected. "
             f"model_id={overrides.model_id}, provider={overrides.model_provider}"
         )
+
+    # Parse @best-model override (mutually exclusive with @ai-model)
+    # Only parse if no direct model_id was specified
+    if not overrides.model_id:
+        best_model_match = _BEST_MODEL_PATTERN.search(message)
+        if best_model_match:
+            overrides.best_model_category = best_model_match.group(1).lower()
+            overrides.has_overrides = True
+            cleaned = _BEST_MODEL_PATTERN.sub('', cleaned)
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Best-model category override detected. "
+                f"category={overrides.best_model_category}"
+            )
 
     # Parse @mate override
     mate_match = _MATE_PATTERN.search(message)
