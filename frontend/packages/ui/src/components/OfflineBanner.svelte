@@ -24,6 +24,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore';
     import { notificationStore } from '../stores/notificationStore';
     import { text } from '../i18n/translations';
+    import { authStore } from '../stores/authStore';
 
     /**
      * Track the notification ID so we can auto-dismiss it when back online.
@@ -57,11 +58,11 @@
         const message = $text(
             'notifications.connection.offline_banner.text',
             { default: 'You are offline. Your chats are still available.' }
-        );
+        ) as string;
         const title = $text(
-            'notifications.connection.offline_banner.title',
+            'notifications.connection.offline_banner.title.text',
             { default: 'You are offline' }
-        );
+        ) as string;
 
         offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
             title,
@@ -117,10 +118,23 @@
      * Effect that reacts to WebSocket status changes.
      * WebSocket disconnection is a reliable signal that we've lost connectivity,
      * but we add a small delay to avoid flashing during brief reconnects.
+     *
+     * IMPORTANT: WebSocket-based offline detection is ONLY used for authenticated users.
+     * Unauthenticated users don't connect to WebSocket, so 'disconnected' status is expected
+     * and should NOT trigger the offline notification.
      */
     $effect(() => {
         const wsState = $websocketStatus;
         const browserOnline = $isOnline;
+        const isAuthenticated = $authStore.isAuthenticated;
+
+        // Skip WebSocket-based detection for unauthenticated users
+        // They don't use WebSocket, so 'disconnected' is the normal state
+        if (!isAuthenticated) {
+            clearWsOfflineTimer();
+            wsDisconnectedSince = null;
+            return;
+        }
 
         if (wsState.status === 'connected') {
             // WebSocket connected — hide notification and reset state
