@@ -255,6 +255,13 @@
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+    
+    // Paste a translated retry prompt into the message input so the user can
+    // immediately ask the assistant to try again with web search / app skills.
+    const retryText = $text('chat.report_bad_answer.retry_message.text');
+    if (retryText) {
+      window.dispatchEvent(new CustomEvent('setRetryMessage', { detail: { text: retryText } }));
+    }
   }
 
   /**

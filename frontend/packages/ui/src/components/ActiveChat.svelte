@@ -1323,6 +1323,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    // Handler for the dislike/report-bad-answer retry prompt.
+    // When the user clicks the thumbs-down button on an assistant message,
+    // ChatMessage dispatches a 'setRetryMessage' event with a translated
+    // prompt asking the assistant to try again with web search / app skills.
+    function handleSetRetryMessage(event: Event) {
+        const detail = (event as CustomEvent<{ text: string }>).detail;
+        if (detail?.text && messageInputFieldRef) {
+            console.debug('[ActiveChat] Setting retry message from dislike button:', detail.text);
+            messageInputFieldRef.setSuggestionText(detail.text);
+            messageInputFieldRef.focus();
+        }
+    }
+
     // Handler for when user adds a settings/memories suggestion
     // Removes the suggestion from the list so it no longer displays
     function handleSettingsMemorySuggestionAdded(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
@@ -4399,6 +4412,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('language-changed', handleLanguageChange);
         window.addEventListener('language-changed-complete', handleLanguageChange);
 
+        // Listen for the dislike/retry prompt from ChatMessage's report-bad-answer flow
+        window.addEventListener('setRetryMessage', handleSetRetryMessage);
+
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -4745,6 +4761,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListenerCallback);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListenerCallback);
             window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListenerCallback);
+            window.removeEventListener('setRetryMessage', handleSetRetryMessage);
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
