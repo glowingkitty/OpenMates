@@ -61,7 +61,8 @@
     appSettingsMemoriesResponse = undefined,
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
-    isThinkingStreaming = false
+    isThinkingStreaming = false,
+    piiMappings = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -81,6 +82,7 @@
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent?: string; // Decrypted thinking content
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
+    piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
   } = $props();
   
   // State for thinking section expansion
@@ -1025,6 +1027,7 @@
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
               {selectable}
+              {piiMappings}
               on:message-embed-click={handleEmbedClick}
           />
         {:else if hasExampleChatsPlaceholder}
@@ -1042,6 +1045,7 @@
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
               {selectable}
+              {piiMappings}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

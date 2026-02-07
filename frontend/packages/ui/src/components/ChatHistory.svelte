@@ -242,6 +242,21 @@
   });
 
   /**
+   * Derived state: Cumulative PII mappings from all user messages.
+   * Passed to every ChatMessage so ReadOnlyMessage can apply decorations
+   * to highlight restored PII values in both user and assistant messages.
+   */
+  let cumulativePIIMappingsArray = $derived.by(() => {
+    const allMappings: PIIMapping[] = [];
+    for (const msg of messages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        allMappings.push(...msg.pii_mappings);
+      }
+    }
+    return allMappings;
+  });
+
+  /**
    * Derived state: Filter out system messages that are app_settings_memories_response.
    * These are displayed as part of the user's message, not as separate chat bubbles.
    */
@@ -935,6 +950,7 @@
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
+                        piiMappings={cumulativePIIMappingsArray}
                     />
                 </div>
             {/each}

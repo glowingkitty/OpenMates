@@ -453,12 +453,16 @@ interface PIIMappingGeneric {
 }
 
 /**
- * Restore PII placeholders in text with original values and HTML highlighting.
- * Used when rendering messages to display the original PII values with visual indication.
+ * Restore PII placeholders in text with the original plain-text values.
+ * The replacement is plain text (no HTML) so the result can safely be passed
+ * through a markdown parser or TipTap without escaping issues.
+ *
+ * Visual highlighting is applied separately via ProseMirror decorations
+ * in the ReadOnlyMessage component using {@link findRestoredPIIPositions}.
  *
  * @param text Text containing PII placeholders (e.g., "[EMAIL_1]")
  * @param mappings Array of PII mappings from storage
- * @returns Text with placeholders replaced by highlighted original values
+ * @returns Text with placeholders replaced by original plain-text values
  */
 export function restorePIIInText(
   text: string,
@@ -469,30 +473,67 @@ export function restorePIIInText(
   let result = text;
 
   for (const mapping of mappings) {
-    if (result.includes(mapping.placeholder)) {
-      // Create an inline HTML span with:
-      // - class for CSS styling
-      // - data-pii-type for type-specific styling
-      // - title for hover tooltip explaining this is restored PII
-      const restoredMarkup = `<span class="pii-restored" data-pii-type="${mapping.type}" title="${getPIILabel(mapping.type)} (restored from placeholder)">${escapeHtml(mapping.original)}</span>`;
-
-      result = result.split(mapping.placeholder).join(restoredMarkup);
-    }
+    // Replace all occurrences of the placeholder with the original value (plain text)
+    result = result.split(mapping.placeholder).join(mapping.original);
   }
 
   return result;
 }
 
 /**
- * Escape HTML special characters to prevent XSS when rendering restored PII.
+ * A restored PII position in rendered text, used for ProseMirror decoration.
  */
-function escapeHtml(text: string): string {
-  const htmlEscapes: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  };
-  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
+export interface RestoredPIIPosition {
+  /** Start index in the text (0-based) */
+  startIndex: number;
+  /** End index in the text (exclusive) */
+  endIndex: number;
+  /** PII type for styling (e.g. "EMAIL", "PHONE") */
+  type: string;
+  /** Human-readable label for tooltips */
+  label: string;
+}
+
+/**
+ * Find positions of restored PII values in a rendered text string.
+ * Called after placeholder replacement to locate where each original value
+ * sits in the final text, so ProseMirror decorations can highlight them.
+ *
+ * @param text Text that has already been through restorePIIInText()
+ * @param mappings The same PII mappings used for restoration
+ * @returns Array of positions suitable for building ProseMirror Decoration.inline()
+ */
+export function findRestoredPIIPositions(
+  text: string,
+  mappings: PIIMappingGeneric[],
+): RestoredPIIPosition[] {
+  if (!text || !mappings || mappings.length === 0) return [];
+
+  const positions: RestoredPIIPosition[] = [];
+
+  for (const mapping of mappings) {
+    const original = mapping.original;
+    if (!original) continue;
+
+    // Find all occurrences of the original value in the text
+    let searchFrom = 0;
+    while (searchFrom < text.length) {
+      const idx = text.indexOf(original, searchFrom);
+      if (idx === -1) break;
+
+      positions.push({
+        startIndex: idx,
+        endIndex: idx + original.length,
+        type: mapping.type,
+        label: getPIILabel(mapping.type),
+      });
+
+      // Move past this occurrence to find the next one
+      searchFrom = idx + original.length;
+    }
+  }
+
+  // Sort by position for consistent decoration ordering
+  positions.sort((a, b) => a.startIndex - b.startIndex);
+  return positions;
 }

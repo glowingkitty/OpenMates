@@ -13,6 +13,9 @@
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
+    import { Decoration, DecorationSet } from 'prosemirror-view';
+    import { findRestoredPIIPositions } from '../components/enter_message/services/piiDetectionService';
+    import type { PIIMapping } from '../types/chat';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -21,12 +24,14 @@
         content, 
         isStreaming = false, 
         _embedUpdateTimestamp = 0,
-        selectable = false
+        selectable = false,
+        piiMappings = undefined
     }: { 
         content: any; 
         isStreaming?: boolean; 
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
+        piiMappings?: PIIMapping[];
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -529,6 +534,53 @@
         editor.view.dom.addEventListener('touchend', handleTouchEnd as EventListener);
         editor.view.dom.addEventListener('touchcancel', handleTouchEnd as EventListener);
         editorCreated = true;
+        
+        // Apply PII highlighting decorations after editor is created
+        applyPIIDecorations(editor);
+    }
+    
+    /**
+     * Apply ProseMirror decorations to highlight restored PII values in read-only messages.
+     * Searches the rendered editor text for original PII values and applies inline
+     * decorations with CSS classes matching the PII type (email, phone, API key, etc.).
+     */
+    function applyPIIDecorations(editorInstance: Editor) {
+        if (!piiMappings || piiMappings.length === 0 || !editorInstance || editorInstance.isDestroyed) return;
+        
+        try {
+            const editorText = editorInstance.getText();
+            const positions = findRestoredPIIPositions(editorText, piiMappings);
+            
+            if (positions.length === 0) return;
+            
+            const { state, view } = editorInstance;
+            const { doc } = state;
+            
+            const decorations = positions.map(pos => {
+                // TipTap/ProseMirror positions are 1-indexed, text positions are 0-indexed
+                const from = Math.max(1, Math.min(pos.startIndex + 1, doc.content.size));
+                const to = Math.max(1, Math.min(pos.endIndex + 1, doc.content.size));
+                
+                // Use "pii-restored" class + data-pii-type attribute for type-specific CSS
+                // Existing CSS rules in this component target [data-pii-type="EMAIL"], etc.
+                return Decoration.inline(from, to, {
+                    class: 'pii-restored',
+                    'data-pii-type': pos.type,
+                    title: `${pos.label} (restored from placeholder)`
+                });
+            });
+            
+            const decorationSet = DecorationSet.create(doc, decorations);
+            view.setProps({
+                decorations: () => decorationSet,
+            });
+            // Dispatch a no-op transaction to force ProseMirror to apply the decorations
+            view.dispatch(state.tr);
+            
+            logger.debug(`Applied ${decorations.length} PII decorations to read-only message`);
+        } catch (error) {
+            console.error('[ReadOnlyMessage] Error applying PII decorations:', error);
+        }
     }
 
     onMount(() => {
@@ -641,6 +693,9 @@
                 
                 // Now safely replace content - the min-height prevents visual collapse
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
+                
+                // Re-apply PII decorations after content update
+                applyPIIDecorations(editor);
                 
                 // STREAMING FIX: After content renders, update min-height if content grew taller
                 // This allows smooth upward growth while preventing any shrinkage during streaming
