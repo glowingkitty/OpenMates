@@ -220,6 +220,13 @@ export async function sendNewMessageImpl(
       "[ChatSyncService:Senders] WebSocket not connected. Message saved locally with 'waiting_for_internet' status.",
     );
 
+    // Show notification to inform user that message couldn't be sent
+    notificationStore.warning(
+      "Connection lost. Your message will be sent when you're back online.",
+      5000, // Auto-dismiss after 5 seconds
+      true, // Dismissible
+    );
+
     // Update message status to 'waiting_for_internet' if it's currently 'sending'
     // This ensures the UI shows the correct status when offline
     if (message.status === "sending") {
