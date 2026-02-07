@@ -2854,6 +2854,64 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
+     * Handler for resuming the last chat from the "Resume last chat?" UI.
+     * Loads the chat stored in phasedSyncState.resumeChatData and clears the resume state.
+     */
+    async function handleResumeLastChat() {
+        const resumeChat = $phasedSyncState.resumeChatData;
+        if (!resumeChat) {
+            console.warn('[ActiveChat] No resume chat data available');
+            return;
+        }
+
+        console.info(`[ActiveChat] Resuming last chat: ${resumeChat.chat_id}`);
+
+        // Clear the resume state first
+        phasedSyncState.clearResumeChatData();
+
+        // Mark that we've loaded the initial chat (prevents further auto-selection)
+        phasedSyncState.markInitialChatLoaded();
+
+        // Update the active chat store
+        activeChatStore.setActiveChat(resumeChat.chat_id);
+
+        // Load the chat
+        await loadChat(resumeChat);
+
+        // Dispatch event to notify Chats.svelte to update selection
+        const globalSelectEvent = new CustomEvent('globalChatSelected', {
+            bubbles: true,
+            composed: true,
+            detail: { chatId: resumeChat.chat_id }
+        });
+        window.dispatchEvent(globalSelectEvent);
+
+        console.debug('[ActiveChat] Resume chat loaded and events dispatched');
+    }
+
+    /**
+     * Handler for dismissing the "Resume last chat?" UI and starting a new chat instead.
+     * Clears the resume state without loading the chat.
+     */
+    function handleDismissResumeChat() {
+        console.info('[ActiveChat] User chose to start a new chat instead of resuming');
+        
+        // Clear the resume state
+        phasedSyncState.clearResumeChatData();
+
+        // Mark that user made an explicit choice
+        phasedSyncState.markUserMadeExplicitChoice();
+
+        // Focus the message input if on desktop
+        if (isDesktop() && messageInputFieldRef) {
+            setTimeout(() => {
+                messageInputFieldRef.focus();
+                console.debug('[ActiveChat] Auto-focused message input after dismissing resume chat');
+            }, 100);
+        }
+    }
+
+    /**
      * Handler for the share button click.
      * Opens the settings menu and navigates to the share submenu.
      * This allows users to share the current chat with various options
@@ -4845,7 +4903,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
 
                     <!-- Update the welcome content to use transition and showWelcome -->
-                    {#if showWelcome}
+                    <!-- ONLY show welcome message when there's no resume chat to display -->
+                    <!-- If user has a previous chat to resume, skip the "Hey {username}" greeting -->
+                    {#if showWelcome && !$phasedSyncState.resumeChatData}
                         <div
                             class="center-content"
                             transition:fade={{ duration: 300 }}
@@ -4907,6 +4967,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if showWelcome && !$phasedSyncState.initialSyncCompleted}
                             <div class="sync-loading-message" transition:fade={{ duration: 200 }}>
                                 Loading chats...
+                            </div>
+                        {/if}
+                        
+                        <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
+                        <!-- Only visible when sync is complete and there's a resume chat available -->
+                        {#if showWelcome && $phasedSyncState.initialSyncCompleted && $phasedSyncState.resumeChatData}
+                            <div class="resume-last-chat-section" transition:fade={{ duration: 300 }}>
+                                <div class="resume-last-chat-header">
+                                    <span class="resume-title">{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</span>
+                                </div>
+                                <button 
+                                    class="resume-chat-card"
+                                    onclick={handleResumeLastChat}
+                                    type="button"
+                                >
+                                    <div class="resume-chat-icon">
+                                        <div class="icon icon_chat"></div>
+                                    </div>
+                                    <div class="resume-chat-content">
+                                        <span class="resume-chat-title">{$phasedSyncState.resumeChatTitle || 'Untitled Chat'}</span>
+                                    </div>
+                                    <div class="resume-chat-arrow">
+                                        <div class="icon icon_chevron_right"></div>
+                                    </div>
+                                </button>
+                                <button 
+                                    class="resume-start-new-link"
+                                    onclick={handleDismissResumeChat}
+                                    type="button"
+                                >
+                                    {$text('chats.resume_last_chat.start_new.text', { default: 'or start a new chat' })}
+                                </button>
                             </div>
                         {/if}
                         
@@ -5803,6 +5895,118 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-color: var(--color-grey-15);
         border-radius: 8px;
         font-style: italic;
+    }
+
+    /* Resume Last Chat section - shown above NewChatSuggestions after login */
+    .resume-last-chat-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        max-width: 629px;
+        width: 100%;
+    }
+
+    .resume-last-chat-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .resume-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-grey-70);
+    }
+
+    .resume-chat-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 14px 16px;
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+
+    .resume-chat-card:hover {
+        background-color: var(--color-grey-15);
+        border-color: var(--color-grey-40);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .resume-chat-card:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    .resume-chat-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--color-primary-40), var(--color-primary-60));
+        flex-shrink: 0;
+    }
+
+    .resume-chat-icon .icon {
+        width: 20px;
+        height: 20px;
+        filter: brightness(0) invert(1);
+    }
+
+    .resume-chat-content {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .resume-chat-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-grey-90);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    .resume-chat-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .resume-chat-arrow .icon {
+        width: 16px;
+        height: 16px;
+        opacity: 0.5;
+    }
+
+    .resume-start-new-link {
+        font-size: 13px;
+        color: var(--color-grey-60);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .resume-start-new-link:hover {
+        color: var(--color-primary-60);
+        background-color: var(--color-grey-10);
     }
     
     /* Read-only indicator for shared chats */

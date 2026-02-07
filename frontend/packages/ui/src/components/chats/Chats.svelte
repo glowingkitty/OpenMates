@@ -546,25 +546,63 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* Per sync.md: Phase 1 handler saves data to IndexedDB BEFORE dispatching this event,
 		* so the chat should be available immediately.
 		* 
-		* CRITICAL FIX: Only auto-select the Phase 1 chat if the user is not already in a different chat.
-		* This prevents Phase 1 from overriding a new chat the user just created.
+		* NEW BEHAVIOR: Instead of auto-selecting the Phase 1 chat, we store it in the
+		* resume state. The UI shows "Resume last chat?" above new chat suggestions,
+		* and the user can click to resume or start fresh.
 		*/
-	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
+	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => {
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
 		
-		// CRITICAL: Check if we should auto-select this chat
-		// Don't auto-select if user is already in a different chat (e.g., a new chat they just created)
+		// CRITICAL: Check if we should show the resume UI for this chat
+		// Don't show if user is already in a different chat (e.g., a new chat they just created)
 		if (!phasedSyncState.shouldAutoSelectPhase1Chat(targetChatId)) {
-			console.info(`[Chats] Skipping Phase 1 auto-select - user is in a different chat`);
+			console.info(`[Chats] Skipping Phase 1 resume UI - user is in a different chat`);
 			// Still update the list to show the synced chat in the sidebar
 			await updateChatListFromDB();
 			return;
 		}
 		
-		// Queue the chat for selection and update the list
-		// The Phase 1 handler has already saved data to IndexedDB
-		_chatIdToSelectAfterUpdate = targetChatId;
+		// NEW: Instead of auto-selecting, store the chat in resume state for the "Resume last chat?" UI
+		// Get the chat from IndexedDB (Phase 1 handler already saved it)
+		try {
+			const chat = await chatDB.getChat(targetChatId);
+			if (chat) {
+				// Decrypt the title for display
+				let decryptedTitle: string | null = null;
+				if (chat.encrypted_title) {
+					try {
+						const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
+						// First decrypt the chat key if we have it encrypted
+						let chatKey = chatDB.getChatKey(targetChatId);
+						if (!chatKey && chat.encrypted_chat_key) {
+							chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+							if (chatKey) {
+								chatDB.setChatKey(targetChatId, chatKey);
+							}
+						}
+						if (chatKey) {
+							decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+						}
+					} catch (decryptError) {
+						console.warn('[Chats] Failed to decrypt Phase 1 chat title:', decryptError);
+					}
+				}
+				
+				// Use cleartext title for demo chats, decrypted title otherwise
+				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+				
+				// Store in resume state for the UI
+				phasedSyncState.setResumeChatData(chat, displayTitle);
+				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId})`);
+			} else {
+				console.warn(`[Chats] Phase 1 chat ${targetChatId} not found in IndexedDB after sync`);
+			}
+		} catch (error) {
+			console.error('[Chats] Error loading Phase 1 chat for resume state:', error);
+		}
+		
+		// Update the chat list to show the synced chat in the sidebar
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 	};

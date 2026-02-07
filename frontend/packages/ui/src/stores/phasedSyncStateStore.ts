@@ -11,9 +11,11 @@
  * - Persists sync state across component mount/unmount cycles
  * - Resets on logout or connection loss
  * - Prevents Phase 1 auto-selection when user is in an active chat
+ * - Stores resume chat data for "Resume last chat?" UI feature
  */
 
 import { writable } from "svelte/store";
+import type { Chat } from "../types/chat";
 
 /**
  * Special sentinel value indicating the user is in "new chat" mode.
@@ -61,6 +63,19 @@ export interface PhasedSyncState {
    * When true, sync phases will NEVER override the user's choice.
    */
   userMadeExplicitChoice: boolean;
+
+  /**
+   * Chat data for the "Resume last chat?" feature.
+   * When set, the UI shows a "Resume last chat?" prompt instead of auto-opening.
+   * User can click to resume or dismiss to start a new chat.
+   */
+  resumeChatData: Chat | null;
+
+  /**
+   * Decrypted title for the resume chat.
+   * Stored separately since Chat.encrypted_title needs decryption.
+   */
+  resumeChatTitle: string | null;
 }
 
 const initialState: PhasedSyncState = {
@@ -70,6 +85,8 @@ const initialState: PhasedSyncState = {
   lastSyncTimestamp: null,
   initialChatLoaded: false,
   userMadeExplicitChoice: false,
+  resumeChatData: null,
+  resumeChatTitle: null,
 };
 
 const { subscribe, set, update } = writable<PhasedSyncState>(initialState);
@@ -211,6 +228,44 @@ export const phasedSyncState = {
       return state;
     });
     return can;
+  },
+
+  /**
+   * Set the resume chat data for the "Resume last chat?" UI.
+   * Called when Phase 1 receives the last opened chat.
+   * @param chat - The chat to show in the resume UI
+   * @param decryptedTitle - The decrypted title to display
+   */
+  setResumeChatData: (chat: Chat, decryptedTitle: string | null) => {
+    update((state) => ({
+      ...state,
+      resumeChatData: chat,
+      resumeChatTitle: decryptedTitle,
+    }));
+  },
+
+  /**
+   * Clear the resume chat data.
+   * Called when user clicks to resume (chat is loaded) or dismisses the prompt.
+   */
+  clearResumeChatData: () => {
+    update((state) => ({
+      ...state,
+      resumeChatData: null,
+      resumeChatTitle: null,
+    }));
+  },
+
+  /**
+   * Check if there's a resume chat available.
+   */
+  hasResumeChatData: (): boolean => {
+    let has = false;
+    update((state) => {
+      has = state.resumeChatData !== null;
+      return state;
+    });
+    return has;
   },
 
   /**
