@@ -232,6 +232,11 @@ directus_users:
       note: "User's notification preferences: { newMessages: boolean, serverEvents: boolean, softwareUpdates: boolean }"
       default: '{"newMessages": true, "serverEvents": true, "softwareUpdates": false}'
 
+    push_notification_banner_shown:
+      type: boolean
+      default: false
+      note: "Whether the push notification permission banner has been shown to this user. Once true, the banner won't appear again."
+
     # Payment tier system fields
     payment_tier:
       type: integer

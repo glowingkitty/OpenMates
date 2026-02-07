@@ -22,6 +22,8 @@
         requiresPWAInstall
     } from '../stores/pushNotificationStore';
     import { pushNotificationService } from '../services/pushNotificationService';
+    import { authStore } from '../stores/authStore';
+    import { updateProfile } from '../stores/userProfile';
     
     // Note: icons.css is loaded globally via index.ts and +layout.svelte
     // No need to import it here - global icon classes (clickable-icon, icon_*) are available
@@ -33,9 +35,15 @@
     let showIOSInstructions = $state(false);
     
     // Mark the banner as shown once it renders, so it won't reappear in future sessions.
-    // This persists to localStorage via the store.
+    // This persists to localStorage via the store AND syncs to server for cross-device persistence.
     onMount(() => {
         pushNotificationStore.markBannerShown();
+        
+        // Sync to server if user is authenticated (persists across devices)
+        if ($authStore.isAuthenticated) {
+            updateProfile({ push_notification_banner_shown: true });
+            console.debug('[PushNotificationBanner] Synced banner_shown to server');
+        }
     });
     
     /**

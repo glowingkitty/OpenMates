@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import { userDB } from "../services/userDB";
+import { pushNotificationStore } from "./pushNotificationStore";
 
 export interface UserProfile {
   user_id: string | null;
@@ -41,6 +42,7 @@ export interface UserProfile {
     serverEvents: boolean;
     softwareUpdates: boolean;
   };
+  push_notification_banner_shown?: boolean; // Whether the banner has been shown (persists across devices)
   // AI model preferences for the AI Ask skill
   // Disabled models are excluded from @ mention dropdown and auto-selection
   disabled_ai_models?: string[]; // Array of disabled model IDs (e.g., ["claude-sonnet-4-5-20250929"])
@@ -93,6 +95,16 @@ export async function loadUserProfileFromDB(): Promise<void> {
         "[UserProfileStore] Profile loaded from DB:",
         profileFromDB,
       );
+
+      // Sync push notification settings from profile to push notification store
+      // This ensures bannerShownBefore, enabled, and preferences are loaded from server-synced data
+      pushNotificationStore.loadFromUserProfile({
+        push_notification_enabled: profileFromDB.push_notification_enabled,
+        push_notification_preferences:
+          profileFromDB.push_notification_preferences,
+        push_notification_banner_shown:
+          profileFromDB.push_notification_banner_shown,
+      });
     } else {
       console.debug(
         "[UserProfileStore] No profile found in DB, using default.",

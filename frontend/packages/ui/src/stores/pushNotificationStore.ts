@@ -384,6 +384,7 @@ export const pushNotificationStore = {
   loadFromUserProfile: (profile: {
     push_notification_enabled?: boolean;
     push_notification_preferences?: PushNotificationPreferences;
+    push_notification_banner_shown?: boolean;
   }) => {
     update((state) => {
       const newState = { ...state };
@@ -429,6 +430,25 @@ export const pushNotificationStore = {
         }
       }
 
+      // Load banner shown state from profile (server-synced, persists across devices)
+      if (typeof profile.push_notification_banner_shown === "boolean") {
+        newState.bannerShownBefore = profile.push_notification_banner_shown;
+        // Also update localStorage for offline consistency
+        if (browser) {
+          try {
+            localStorage.setItem(
+              STORAGE_KEY_BANNER_SHOWN,
+              JSON.stringify(profile.push_notification_banner_shown),
+            );
+          } catch (e) {
+            console.error(
+              "[PushNotificationStore] Failed to save banner shown state:",
+              e,
+            );
+          }
+        }
+      }
+
       console.debug(
         "[PushNotificationStore] Loaded from user profile:",
         newState,
@@ -444,11 +464,13 @@ export const pushNotificationStore = {
   getServerSyncData: (): {
     push_notification_enabled: boolean;
     push_notification_preferences: PushNotificationPreferences;
+    push_notification_banner_shown: boolean;
   } => {
     const state = get(pushNotificationStore);
     return {
       push_notification_enabled: state.enabled,
       push_notification_preferences: state.preferences,
+      push_notification_banner_shown: state.bannerShownBefore,
     };
   },
 

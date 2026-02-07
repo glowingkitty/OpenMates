@@ -41,7 +41,8 @@ When enabled, notifications are sent to the user's login email (from account set
         const syncData = pushNotificationStore.getServerSyncData();
         updateProfile({
             push_notification_enabled: syncData.push_notification_enabled,
-            push_notification_preferences: syncData.push_notification_preferences
+            push_notification_preferences: syncData.push_notification_preferences,
+            push_notification_banner_shown: syncData.push_notification_banner_shown
         });
         console.debug('[SettingsChatNotifications] Synced settings to server:', syncData);
     }
