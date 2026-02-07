@@ -525,8 +525,9 @@
                 if ($authStore.isAuthenticated) {
                     await markEmbedAsShared(embedContext.embed_id);
                     
-                    // Update server to mark embed as shared (set is_private=false, is_shared=true)
-                    await updateEmbedShareMetadata(embedContext.embed_id, true);
+                    // Queue server update to mark embed as shared (set is_private=false, is_shared=true)
+                    // Uses retry queue for reliability - if the request fails, it will be retried
+                    await shareMetadataQueue.queueEmbedShareUpdate(embedContext.embed_id, true);
                 }
                 
                 console.debug('[SettingsShare] Encrypted embed share link generated:', generatedLink);
@@ -902,48 +903,6 @@
             }
         } catch (error) {
             console.error('[SettingsShare] Error marking embed as shared:', error);
-        }
-    }
-    
-    /**
-     * Update embed share metadata on server
-     * Sets is_private and is_shared on the server
-     */
-    async function updateEmbedShareMetadata(embedId: string, isShared: boolean) {
-        if (!embedId || !$authStore.isAuthenticated) return;
-        
-        try {
-            const { getApiEndpoint } = await import('../../../config/api');
-            
-            const response = await fetch(getApiEndpoint('/v1/share/embed/metadata'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({
-                    embed_id: embedId,
-                    is_shared: isShared  // Mark embed as shared on server (sets is_private=false, is_shared=true)
-                }),
-                credentials: 'include' // Include cookies for authentication
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                console.warn('[SettingsShare] Failed to update embed share metadata:', errorData);
-                return;
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                console.debug('[SettingsShare] Successfully updated embed share metadata:', embedId);
-            } else {
-                console.warn('[SettingsShare] Embed share metadata update returned success=false:', data);
-            }
-        } catch (error) {
-            console.error('[SettingsShare] Error updating embed share metadata:', error);
-            // Don't block link generation if metadata update fails
         }
     }
     
