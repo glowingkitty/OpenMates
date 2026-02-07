@@ -692,21 +692,28 @@ function parseAppYaml(appId, filePath) {
       }
     }
 
-    // Only include apps that have at least one skill, focus mode, or settings_and_memories
-    // with a stage matching the current environment (production or development).
+    // Check for instructions - apps with instructions are valid even without skills/focuses/memories
+    // Instructions are injected into the AI system prompt to enable app-specific behaviors
+    // (e.g., docs app injects document generation instructions)
+    const hasInstructions =
+      Array.isArray(appData.instructions) && appData.instructions.length > 0;
+
+    // Only include apps that have at least one skill, focus mode, settings_and_memories,
+    // or instructions matching the current environment (production or development).
     // Apps are included if ANY of their items match the environment stage, regardless
     // of app-level stage field (which we don't check).
     const hasContent =
       appMetadata.skills.length > 0 ||
       appMetadata.focus_modes.length > 0 ||
-      appMetadata.settings_and_memories.length > 0;
+      appMetadata.settings_and_memories.length > 0 ||
+      hasInstructions;
 
     if (!hasContent) {
       const stageType = INCLUDE_DEVELOPMENT
         ? "production or development"
         : "production";
       console.warn(
-        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, or settings_and_memories found. Excluding from App Store.`,
+        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, settings_and_memories, or instructions found. Excluding from App Store.`,
       );
       return null;
     }
