@@ -4,8 +4,8 @@
 
 # App metadata
 app_id: docs
-name: Docs
-description: Document creation and management
+name_translation_key: docs.text
+description_translation_key: docs.description.text
 icon: docs
 category: productivity
 stage: production
@@ -31,7 +31,7 @@ instructions:
 skills: []
 
 # Focuses (planned for future implementation)
-focuses: []
+focus_modes: []
 
-# Settings (planned for future implementation)
-settings: []
+# Settings and memories (planned for future implementation)
+settings_and_memories: []

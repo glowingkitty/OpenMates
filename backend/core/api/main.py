@@ -207,9 +207,11 @@ def filter_app_components_by_stage(app_metadata_json: Dict[str, Any], server_env
     has_valid_skill = len(filtered_metadata.get("skills", [])) > 0
     has_valid_focus = len(filtered_metadata.get("focuses", [])) > 0
     has_valid_memory = len(filtered_metadata.get("settings_and_memories", [])) > 0
+    has_instructions = len(filtered_metadata.get("instructions", [])) > 0
     
-    # Return filtered metadata if app has at least one valid component, otherwise None
-    if has_valid_skill or has_valid_focus or has_valid_memory:
+    # Return filtered metadata if app has at least one valid component or instructions, otherwise None
+    # Apps with only instructions (e.g., docs) are valid - they inject behavior into the AI system prompt
+    if has_valid_skill or has_valid_focus or has_valid_memory or has_instructions:
         return filtered_metadata
     else:
         return None

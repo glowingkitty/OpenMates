@@ -918,6 +918,52 @@ code.description:
   cs: Pište, testujte, vylepšujte a spouštějte kód.
   sv: Skriv, testa, förbättra och kör kod.
   verified_by_human: [en, de]
+docs:
+  context: App name for the Docs app
+  en: Docs
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  verified_by_human: []
+docs.description:
+  context: Description for the Docs app
+  en: Create documents, reports, articles, and other rich formatted content.
+  de: Erstelle Dokumente, Berichte, Artikel und andere formatierte Inhalte.
+  zh: 创建文档、报告、文章和其他丰富的格式化内容。
+  es: Crea documentos, informes, artículos y otro contenido con formato enriquecido.
+  fr: Créez des documents, rapports, articles et autres contenus mis en forme.
+  pt: Crie documentos, relatórios, artigos e outros conteúdos formatados.
+  ru: Создавайте документы, отчёты, статьи и другой форматированный контент.
+  ja: ドキュメント、レポート、記事などのリッチフォーマットコンテンツを作成します。
+  ko: 문서, 보고서, 기사 및 기타 서식 있는 콘텐츠를 만드세요.
+  it: Crea documenti, report, articoli e altri contenuti formattati.
+  tr: Belgeler, raporlar, makaleler ve diğer zengin biçimli içerikler oluşturun.
+  vi: Tạo tài liệu, báo cáo, bài viết và các nội dung định dạng phong phú khác.
+  id: Buat dokumen, laporan, artikel, dan konten berformat lainnya.
+  pl: Twórz dokumenty, raporty, artykuły i inne sformatowane treści.
+  nl: Maak documenten, rapporten, artikelen en andere opgemaakte content.
+  ar: أنشئ مستندات وتقارير ومقالات ومحتوى منسق آخر.
+  hi: दस्तावेज़, रिपोर्ट, लेख और अन्य समृद्ध स्वरूपित सामग्री बनाएँ।
+  th: สร้างเอกสาร รายงาน บทความ และเนื้อหาที่จัดรูปแบบอื่นๆ
+  cs: Vytvářejte dokumenty, zprávy, články a další formátovaný obsah.
+  sv: Skapa dokument, rapporter, artiklar och annat formaterat innehåll.
+  verified_by_human: []
 books:
   context: App name for the Books app
   en: Books
