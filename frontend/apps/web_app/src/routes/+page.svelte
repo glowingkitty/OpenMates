@@ -782,6 +782,23 @@
 				);
 				forcedLogoutInProgress.set(true);
 
+				// Show auto-logout notification explaining the user needs "Stay logged in"
+				// This must be triggered here because checkAuth() will skip its notification
+				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
+				// Use setTimeout to ensure the notification container is rendered first.
+				setTimeout(() => {
+					const t = get(text);
+					notificationStore.autoLogout(
+						t('login.auto_logout_notification.message.text'),
+						undefined,
+						7000,
+						t('login.auto_logout_notification.title.text')
+					);
+					console.debug(
+						'[+page.svelte] Showed auto-logout notification for stayLoggedIn=false reload'
+					);
+				}, 500);
+
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
 				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
 				if (originalHash) {
