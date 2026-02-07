@@ -182,6 +182,10 @@
     let currentPIIDecorations: any[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
+    // Debounce timer for PII detection - avoids running 16 regex patterns on every keystroke
+    let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    // How long to wait after the last keystroke before running PII detection (ms)
+    const PII_DEBOUNCE_MS = 300;
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -1168,6 +1172,7 @@
         // The unsubscribeAiTyping is also handled there.
         
         // Clean up PII detection state
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
         currentPIIDecorations = [];
         lastPIIText = '';
     });
@@ -1394,13 +1399,48 @@
     // =============================================================================
     
     /**
-     * Run PII detection on the current editor content and update PII decoration cache.
-     * Called synchronously from handleEditorUpdate so PII decorations are always
-     * in sync with the unified parser decorations (no debounce race condition).
+     * Schedule PII detection with debounce to avoid running 16 regex patterns
+     * on every keystroke. The detection runs after PII_DEBOUNCE_MS of inactivity.
+     * 
+     * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
+     */
+    function runPIIDetection(editor: Editor) {
+        if (!editor || editor.isDestroyed) return;
+        
+        const text = editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        
+        // If text was cleared, update immediately (no need to debounce cleanup)
+        if (!text || text.trim().length === 0) {
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+            lastPIIText = text;
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Debounce: cancel any pending detection and schedule a new one
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
+        piiDebounceTimer = setTimeout(() => {
+            piiDebounceTimer = null;
+            runPIIDetectionImmediate(editor);
+        }, PII_DEBOUNCE_MS);
+    }
+    
+    /**
+     * Run PII detection immediately (no debounce).
+     * Used when the debounce timer fires and when the user interacts with PII
+     * UI (exclusions, undo-all).
+     * 
+     * After building PII decorations, calls rebuildDecorationSet() to merge
+     * them into the visible decoration set alongside any unclosed-block
+     * decorations that applyHighlightingColors previously created.
      * 
      * Optimization: skips re-detection if text hasn't changed since last run.
      */
-    function runPIIDetection(editor: Editor) {
+    function runPIIDetectionImmediate(editor: Editor) {
         if (!editor || editor.isDestroyed) return;
         
         const text = editor.getText();
@@ -1425,6 +1465,11 @@
         } else {
             currentPIIDecorations = [];
         }
+        
+        // Rebuild the full decoration set so PII highlights become visible.
+        // rebuildDecorationSet merges currentPIIDecorations into the view and
+        // dispatches a transaction to refresh the display.
+        rebuildDecorationSet(editor);
     }
     
     /**
@@ -1476,9 +1521,9 @@
         // Invalidate last text cache so detection re-runs immediately
         lastPIIText = '';
         
-        // Re-run detection and rebuild decorations synchronously
+        // Re-run detection immediately (no debounce) and rebuild decorations
         if (editor && !editor.isDestroyed) {
-            runPIIDetection(editor);
+            runPIIDetectionImmediate(editor);
             // Rebuild the full decoration set with updated PII decorations
             rebuildDecorationSet(editor);
         }
@@ -1557,12 +1602,15 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // PII Detection: Run BEFORE unified parsing so PII decorations are built
-        // and ready to be merged into the decoration set by applyHighlightingColors.
-        // Runs synchronously but skips work when text hasn't changed.
+        // PII Detection: Debounced to avoid running 16 regex patterns per keystroke.
+        // Schedules detection after PII_DEBOUNCE_MS of typing inactivity.
+        // When it fires, runPIIDetectionImmediate() builds PII decorations and
+        // calls rebuildDecorationSet() to merge them into the visible decoration set.
         runPIIDetection(editor);
 
-        // Use unified parser for write mode (merges PII decorations automatically)
+        // Use unified parser for write mode (handles unclosed-block decorations).
+        // PII decorations from currentPIIDecorations are merged in by
+        // applyHighlightingColors when unclosed blocks exist.
         handleUnifiedParsing(editor);
 
         // Dispatch live text change event so parent components can react on each keystroke

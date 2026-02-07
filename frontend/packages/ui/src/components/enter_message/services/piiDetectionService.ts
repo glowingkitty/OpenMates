@@ -95,10 +95,12 @@ function luhnCheck(cardNumber: string): boolean {
 }
 
 /**
- * Generate a unique ID for a PII match
+ * Generate a stable, deterministic ID for a PII match.
+ * Uses type + position so the same match always gets the same ID across
+ * re-detections. This makes exclusion lookups O(1) via Set.has().
  */
 function generateMatchId(type: PIIType, startIndex: number): string {
-  return `pii-${type}-${startIndex}-${Date.now()}`;
+  return `pii-${type}-${startIndex}`;
 }
 
 /**
@@ -256,28 +258,42 @@ const PII_PATTERNS: PIIPattern[] = [
 ];
 
 /**
+ * Minimum text length before running PII detection.
+ * Most PII patterns (emails, phone numbers, API keys) need at least 6 characters.
+ * This avoids running 16 regexes on very short text like "hi" or "ok".
+ */
+const MIN_PII_TEXT_LENGTH = 6;
+
+/**
  * Detect all PII in the given text
  *
  * @param text The text to scan for PII
- * @param excludedIds Set of match IDs that user has excluded (clicked to restore)
+ * @param excludedIds Set of match IDs that user has excluded (clicked to restore).
+ *   IDs use the stable format "pii-TYPE-startIndex" so Set.has() works directly.
  * @returns Array of PII matches found in the text
  */
 export function detectPII(
   text: string,
   excludedIds: Set<string> = new Set(),
 ): PIIMatch[] {
+  // Early exit for very short text — no PII pattern can match
+  if (!text || text.length < MIN_PII_TEXT_LENGTH) return [];
+
   const matches: PIIMatch[] = [];
   const coveredRanges: Array<{ start: number; end: number }> = [];
 
   // Track how many of each type we've found (for placeholder numbering)
   const typeCounts: Record<PIIType, number> = {} as Record<PIIType, number>;
 
+  const hasExclusions = excludedIds.size > 0;
+
   for (const pattern of PII_PATTERNS) {
-    // Reset regex state
-    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    // Reset regex lastIndex directly instead of creating a new RegExp object.
+    // The patterns are defined with the 'g' flag so resetting lastIndex is sufficient.
+    pattern.regex.lastIndex = 0;
     let regexMatch;
 
-    while ((regexMatch = regex.exec(text)) !== null) {
+    while ((regexMatch = pattern.regex.exec(text)) !== null) {
       const matchText = regexMatch[0];
       const startIndex = regexMatch.index;
       const endIndex = startIndex + matchText.length;
@@ -297,20 +313,12 @@ export function detectPII(
         continue;
       }
 
-      // Generate match ID
+      // Generate stable match ID (deterministic: type + position)
       const matchId = generateMatchId(pattern.type, startIndex);
 
-      // Skip if user has excluded this match
-      // Note: We check by type and position since IDs regenerate on re-detection
-      const isExcluded = Array.from(excludedIds).some((id) => {
-        const parts = id.split("-");
-        // Format: pii-TYPE-startIndex-timestamp
-        return (
-          parts[1] === pattern.type && parseInt(parts[2], 10) === startIndex
-        );
-      });
-
-      if (isExcluded) continue;
+      // Skip if user has excluded this match.
+      // IDs are now stable ("pii-TYPE-startIndex") so a direct Set.has() works — O(1).
+      if (hasExclusions && excludedIds.has(matchId)) continue;
 
       // Increment type count for placeholder numbering
       typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
