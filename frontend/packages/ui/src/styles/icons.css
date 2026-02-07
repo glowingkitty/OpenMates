@@ -759,6 +759,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.docs {
+  background: var(--color-app-docs);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/docs.svg");
+  }
+}
+
 /* Skill icons - used in app skill previews for specific skill types */
 .icon_rounded.search {
   /* Search skill icon - grey background, search icon */

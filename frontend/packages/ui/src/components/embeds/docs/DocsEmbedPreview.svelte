@@ -4,15 +4,13 @@
   Preview component for Document embeds (document_html).
   Uses UnifiedEmbedPreview as base and provides document-specific details content.
   
-  Renders an A4-like document preview with:
-  - White page background simulating a Word/Google Docs document
-  - Document content rendered with proper typography
-  - Filename (e.g. "Report.docx") shown in the bottom bar instead of title
-  - Doc icon visible in the bottom bar gradient circle
+  Renders an A4-like document preview using CSS transform: scale() to shrink a
+  full-sized document page into the preview card. This ensures the preview is
+  an exact miniature of the fullscreen view.
   
   Sizes:
-  - Desktop: 300x200px
-  - Mobile: 150x290px
+  - Desktop: 300x200px (preview card)
+  - Mobile: 150x290px (preview card)
 -->
 
 <script lang="ts">
@@ -200,27 +198,39 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="doc-details" class:mobile={isMobileLayout}>
       {#if sanitizedHtml}
-        <!-- A4-like document page preview -->
-        <div class="doc-page-wrapper">
-          <div class="doc-page">
-            <div class="doc-page-content">
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
-              {@html sanitizedHtml}
+        <!--
+          A4-like document preview using CSS transform: scale().
+          We render the document at full size (816px wide, same as fullscreen)
+          inside a container, then scale it down to fit the preview card.
+          This creates an exact miniature of the fullscreen document view.
+        -->
+        <div class="doc-page-viewport">
+          <div class="doc-page-scaler">
+            <div class="doc-page">
+              <div class="doc-page-content">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
+                {@html sanitizedHtml}
+              </div>
             </div>
           </div>
         </div>
       {:else if status === 'processing'}
-        <!-- Processing state -->
-        <div class="processing-placeholder">
-          <div class="doc-page-wrapper">
+        <!-- Processing state - skeleton A4 page -->
+        <div class="doc-page-viewport">
+          <div class="doc-page-scaler">
             <div class="doc-page processing-page">
               <div class="processing-lines">
-                <div class="line-placeholder" style="width: 70%"></div>
-                <div class="line-placeholder" style="width: 100%"></div>
-                <div class="line-placeholder" style="width: 85%"></div>
                 <div class="line-placeholder" style="width: 60%"></div>
-                <div class="line-placeholder" style="width: 90%"></div>
-                <div class="line-placeholder" style="width: 45%"></div>
+                <div class="line-spacer"></div>
+                <div class="line-placeholder" style="width: 100%"></div>
+                <div class="line-placeholder" style="width: 95%"></div>
+                <div class="line-placeholder" style="width: 80%"></div>
+                <div class="line-placeholder" style="width: 100%"></div>
+                <div class="line-placeholder" style="width: 70%"></div>
+                <div class="line-spacer"></div>
+                <div class="line-placeholder heading" style="width: 45%"></div>
+                <div class="line-placeholder" style="width: 100%"></div>
+                <div class="line-placeholder" style="width: 88%"></div>
               </div>
             </div>
           </div>
@@ -237,7 +247,13 @@
 
 <style>
   /* ===========================================
-     Document Details Content - A4-like Preview
+     Document Details - A4-like scaled preview
+     
+     Strategy: Render the document at full size
+     (816px width, matching the fullscreen view)
+     then use CSS transform: scale() to shrink it
+     into the preview card. This creates an exact
+     miniature that matches the fullscreen layout.
      =========================================== */
   
   .doc-details {
@@ -245,136 +261,138 @@
     flex-direction: column;
     height: 100%;
     background: var(--color-grey-20);
-    border-radius: 4px;
     overflow: hidden;
   }
   
-  /* A4 page wrapper - centers the white page with subtle shadow */
-  .doc-page-wrapper {
+  /* Viewport clips the scaled page to the preview size */
+  .doc-page-viewport {
     flex: 1;
     min-height: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 8px 12px 4px;
-    overflow: hidden;
-  }
-  
-  .doc-details.mobile .doc-page-wrapper {
-    padding: 6px 8px 4px;
-  }
-  
-  /* White A4 page simulation */
-  .doc-page {
-    width: 100%;
-    max-width: 240px;
-    background: white;
-    border-radius: 3px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-    padding: 10px 12px;
     overflow: hidden;
     position: relative;
-    max-height: 100%;
   }
   
-  .doc-details.mobile .doc-page {
-    padding: 6px 8px;
+  /* Scaler: holds the full-size page and applies transform: scale() */
+  /* Desktop preview is ~276px wide (300 - padding), so scale = 276/816 ≈ 0.338 */
+  .doc-page-scaler {
+    width: 816px;
+    transform: scale(0.338);
+    transform-origin: top left;
   }
   
-  /* Page content - scaled down document rendering */
+  .doc-details.mobile .doc-page-scaler {
+    /* Mobile preview is ~126px wide (150 - padding), scale = 126/816 ≈ 0.155 */
+    transform: scale(0.155);
+  }
+  
+  /* White A4 page - same styling as fullscreen for exact match */
+  .doc-page {
+    width: 100%;
+    background: white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+    padding: 56px 72px 72px;
+    min-height: 600px;
+  }
+  
+  /* Page content - full-size typography matching fullscreen */
   .doc-page-content {
-    font-size: 7px;
-    line-height: 1.4;
-    color: #333;
+    color: #1a1a1a;
+    font-size: 15px;
+    line-height: 1.75;
     word-break: break-word;
-    overflow: hidden;
-    max-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
   
-  .doc-details.mobile .doc-page-content {
-    font-size: 5.5px;
-    line-height: 1.3;
-  }
-  
-  /* Document preview typography - compact for small A4 page preview */
+  /* Document typography - matches DocsEmbedFullscreen exactly */
   .doc-page-content :global(h1) {
-    font-size: 10px;
+    font-size: 26px;
     font-weight: 700;
-    margin: 0 0 4px;
-    color: #111;
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    color: #0d0d0d;
+    line-height: 1.3;
   }
 
   .doc-page-content :global(h2) {
-    font-size: 9px;
+    font-size: 21px;
     font-weight: 600;
-    margin: 4px 0 3px;
-    color: #222;
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eeeeee;
+    color: #1a1a1a;
+    line-height: 1.35;
   }
 
   .doc-page-content :global(h3),
   .doc-page-content :global(h4),
   .doc-page-content :global(h5),
   .doc-page-content :global(h6) {
-    font-size: 8px;
+    font-size: 18px;
     font-weight: 600;
-    margin: 3px 0 2px;
-    color: #333;
+    margin: 24px 0 8px;
+    color: #1a1a1a;
+    line-height: 1.4;
   }
   
   .doc-page-content :global(p) {
-    margin: 0 0 3px;
+    margin: 0 0 12px;
   }
   
   .doc-page-content :global(ul),
   .doc-page-content :global(ol) {
-    margin: 0 0 3px;
-    padding-left: 10px;
+    padding-left: 28px;
+    margin: 0 0 12px;
   }
   
   .doc-page-content :global(li) {
-    margin: 0 0 1px;
+    margin: 4px 0;
   }
   
   .doc-page-content :global(blockquote) {
-    margin: 0 0 3px;
-    padding: 2px 4px;
-    border-left: 1.5px solid #ccc;
-    color: #666;
-    font-style: italic;
+    border-left: 3px solid #1a73e8;
+    margin: 16px 0;
+    padding: 8px 16px;
+    color: #555;
+    background: #f8f9fa;
+    border-radius: 0 4px 4px 0;
   }
   
   .doc-page-content :global(table) {
-    font-size: 6px;
     border-collapse: collapse;
-    margin: 0 0 3px;
     width: 100%;
+    margin: 16px 0;
+    font-size: 14px;
   }
   
   .doc-page-content :global(th),
   .doc-page-content :global(td) {
-    padding: 1px 2px;
-    border: 0.5px solid #ddd;
+    border: 1px solid #dadce0;
+    padding: 10px 14px;
+    text-align: left;
   }
 
   .doc-page-content :global(th) {
-    background: #f5f5f5;
+    background: #f1f3f4;
     font-weight: 600;
   }
   
   .doc-page-content :global(code) {
-    font-size: 6px;
-    background: #f5f5f5;
-    padding: 0 2px;
-    border-radius: 1px;
+    background: #f1f3f4;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
   }
   
   .doc-page-content :global(pre) {
-    font-size: 6px;
-    background: #f5f5f5;
-    padding: 3px;
-    border-radius: 2px;
-    overflow: hidden;
-    margin: 0 0 3px;
+    background: #f8f9fa;
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    border: 1px solid #e8eaed;
   }
   
   .doc-page-content :global(a) {
@@ -394,27 +412,19 @@
   
   .doc-page-content :global(hr) {
     border: none;
-    border-top: 0.5px solid #ddd;
-    margin: 3px 0;
+    border-top: 1px solid #dadce0;
+    margin: 28px 0;
   }
   
   .doc-page-content :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 2px;
+    border-radius: 4px;
   }
   
   /* ===========================================
      Processing State - Skeleton A4 page
      =========================================== */
-  
-  .processing-placeholder {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
   
   .processing-page {
     display: flex;
@@ -424,24 +434,37 @@
   .processing-lines {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 14px;
     width: 100%;
-    padding: 2px 0;
   }
   
   .line-placeholder {
-    height: 4px;
-    background: #e0e0e0;
-    border-radius: 2px;
+    height: 12px;
+    background: #e8e8e8;
+    border-radius: 6px;
     animation: shimmer-line 1.5s infinite ease-in-out;
+  }
+  
+  .line-placeholder.heading {
+    height: 20px;
+    background: #ddd;
+  }
+  
+  .line-spacer {
+    height: 8px;
   }
   
   .line-placeholder:nth-child(1) { animation-delay: 0s; }
   .line-placeholder:nth-child(2) { animation-delay: 0.1s; }
-  .line-placeholder:nth-child(3) { animation-delay: 0.2s; }
-  .line-placeholder:nth-child(4) { animation-delay: 0.3s; }
-  .line-placeholder:nth-child(5) { animation-delay: 0.4s; }
-  .line-placeholder:nth-child(6) { animation-delay: 0.5s; }
+  .line-placeholder:nth-child(3) { animation-delay: 0.15s; }
+  .line-placeholder:nth-child(4) { animation-delay: 0.2s; }
+  .line-placeholder:nth-child(5) { animation-delay: 0.25s; }
+  .line-placeholder:nth-child(6) { animation-delay: 0.3s; }
+  .line-placeholder:nth-child(7) { animation-delay: 0.35s; }
+  .line-placeholder:nth-child(8) { animation-delay: 0.4s; }
+  .line-placeholder:nth-child(9) { animation-delay: 0.45s; }
+  .line-placeholder:nth-child(10) { animation-delay: 0.5s; }
+  .line-placeholder:nth-child(11) { animation-delay: 0.55s; }
   
   @keyframes shimmer-line {
     0%, 100% {
