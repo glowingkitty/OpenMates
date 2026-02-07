@@ -191,12 +191,19 @@ export const notificationStore = {
 
   /**
    * Show auto-logout notification
-   * @param message Primary message (e.g., "Consider activating 'Stay logged in'.")
-   * @param messageSecondary Secondary message (e.g., "During login, to remain connected.")
+   * @param message Primary message (e.g., "Enable 'Stay logged in' during login to prevent this.")
+   * @param messageSecondary Secondary message (optional)
+   * @param duration Duration in ms (default 7000)
+   * @param title Custom title (default "You have been logged out")
    */
-  autoLogout: (message: string, messageSecondary?: string, duration?: number) =>
+  autoLogout: (
+    message: string,
+    messageSecondary?: string,
+    duration?: number,
+    title?: string,
+  ) =>
     notificationStore.addNotificationWithOptions("auto_logout", {
-      title: "Auto logout",
+      title: title ?? "You have been logged out",
       message,
       messageSecondary,
       duration: duration ?? 7000,

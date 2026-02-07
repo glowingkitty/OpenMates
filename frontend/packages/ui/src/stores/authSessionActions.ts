@@ -29,6 +29,7 @@ import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // I
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
 import { isLoggingOut, forcedLogoutInProgress } from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
+import { text } from "../i18n/translations"; // Import text store for translations
 
 // Import core auth state and related flags
 import {
@@ -197,10 +198,14 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
-        // Show notification that user was logged out
-        notificationStore.warning(
-          "You have been logged out. Please log in again.",
-          5000,
+        // Show notification that user was logged out with hint about "Stay logged in"
+        // This is triggered when user logged in without "Stay logged in" and page was reloaded
+        const $text = get(text);
+        notificationStore.autoLogout(
+          $text("login.auto_logout_notification.message.text"),
+          undefined, // No secondary message needed
+          7000, // Show for 7 seconds so user can read the hint
+          $text("login.auto_logout_notification.title.text"),
         );
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
@@ -459,10 +464,14 @@ export async function checkAuth(
         );
         window.dispatchEvent(new CustomEvent("userLoggingOut"));
 
-        // Show notification that user was logged out
-        notificationStore.warning(
-          "You have been logged out. Please log in again.",
-          5000,
+        // Show notification that user was logged out with hint about "Stay logged in"
+        // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
+        const $text = get(text);
+        notificationStore.autoLogout(
+          $text("login.auto_logout_notification.message.text"),
+          undefined, // No secondary message needed
+          7000, // Show for 7 seconds so user can read the hint
+          $text("login.auto_logout_notification.title.text"),
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo
