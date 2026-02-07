@@ -54,8 +54,7 @@ async def handle_email_notification_settings(
         
         if enabled and email:
             # Encrypt email using server-side vault encryption
-            cached_user = await cache_service.get_user(user_id)
-            vault_key_id = cached_user.get("vault_key_id") if cached_user else None
+            vault_key_id = await cache_service.get_user_vault_key_id(user_id)
             
             if not vault_key_id:
                 logger.error(f"No vault key ID found for user {user_id}. Cannot encrypt notification email.")
