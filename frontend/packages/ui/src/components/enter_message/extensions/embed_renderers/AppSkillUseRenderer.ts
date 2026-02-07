@@ -102,6 +102,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Determine status - prefer embedData status, then attrs.status, then 'processing'
     const status = embedData?.status || attrs.status || "processing";
 
+    // CRITICAL: Skip rendering error embeds - they should be hidden from users
+    // Failed skill executions should not be shown in the user experience
+    if (status === "error") {
+      console.debug(
+        `[AppSkillUseRenderer] Hiding error embed from user:`,
+        attrs.contentRef || attrs.id,
+      );
+      content.innerHTML = "";
+      return;
+    }
+
     // CRITICAL: Merge query from multiple sources to ensure it's available for display
     // Priority: decodedContent > embedData > attrs
     if (!decodedContent) {

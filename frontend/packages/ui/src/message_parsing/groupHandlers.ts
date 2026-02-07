@@ -762,12 +762,40 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
   }
 
   createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {
+    // CRITICAL: Filter out error embeds - they should not be shown to users
+    // Failed skill executions are hidden from the user experience
+    const validEmbeds = embedNodes.filter((embed) => {
+      if (embed.status === "error") {
+        console.debug(
+          `[AppSkillUseGroupHandler] Filtering out error embed from group:`,
+          embed.id,
+        );
+        return false;
+      }
+      return true;
+    });
+
+    // If all embeds were filtered out, return an empty/hidden group
+    if (validEmbeds.length === 0) {
+      console.debug(
+        "[AppSkillUseGroupHandler] All embeds filtered out - creating empty group",
+      );
+      return {
+        id: generateDeterministicGroupId(embedNodes),
+        type: "app-skill-use-group",
+        status: "finished",
+        contentRef: null,
+        groupedItems: [],
+        groupCount: 0,
+      } as EmbedNodeAttributes;
+    }
+
     // Generate deterministic group ID BEFORE sorting (based on first item in original order)
     // This is critical for streaming updates - the group ID must remain stable
-    const groupId = generateDeterministicGroupId(embedNodes);
+    const groupId = generateDeterministicGroupId(validEmbeds);
 
     // Sort according to status: processing first, then finished
-    const sortedEmbeds = [...embedNodes].sort((a, b) => {
+    const sortedEmbeds = [...validEmbeds].sort((a, b) => {
       if (a.status === "processing" && b.status !== "processing") return -1;
       if (a.status !== "processing" && b.status === "processing") return 1;
       return 0; // Keep original order for same status

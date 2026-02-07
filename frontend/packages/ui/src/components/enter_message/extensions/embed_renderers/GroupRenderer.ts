@@ -479,6 +479,18 @@ export class GroupRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
 
+    // CRITICAL: Skip rendering error embeds - they should be hidden from users
+    // Failed skill executions are not shown in the user experience
+    if (status === "error") {
+      console.debug(
+        `[GroupRenderer] Skipping error embed - hiding from user:`,
+        embedId || item.id,
+      );
+      // Remove the target element from DOM since we won't render anything
+      target.remove();
+      return;
+    }
+
     // Merge query from multiple sources
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =

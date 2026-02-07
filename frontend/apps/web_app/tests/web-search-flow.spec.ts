@@ -527,8 +527,14 @@ test('multiple web searches are grouped in a horizontally scrollable container',
 	logCheckpoint(`group-scroll-container overflow-x: "${overflowX}"`);
 	expect(['auto', 'scroll', 'visible']).toContain(overflowX);
 
-	// Verify each group item contains a web search embed preview
-	// Only check the first few items that are in "finished" status (skip any with errors)
+	// Verify that NO error embeds are visible - they should be filtered out completely
+	// Error embeds should not be shown to users at all
+	const errorEmbeds = page.locator('.unified-embed-preview[data-status="error"]');
+	const errorCount = await errorEmbeds.count();
+	logCheckpoint(`Error embeds found (should be 0): ${errorCount}`);
+	expect(errorCount).toBe(0);
+
+	// Verify each group item contains a web search embed preview with valid status
 	let verifiedItems = 0;
 	for (let i = 0; i < groupItemCount && verifiedItems < 3; i++) {
 		const item = groupItems.nth(i);
@@ -537,10 +543,13 @@ test('multiple web searches are grouped in a horizontally scrollable container',
 		);
 		await expect(preview).toBeVisible({ timeout: 5000 });
 
-		// Check if this item has finished status (not error)
+		// Check the status - should only be 'finished' or 'processing', never 'error'
 		const dataStatus = await preview.getAttribute('data-status');
+		logCheckpoint(`Group item ${i + 1} has status "${dataStatus}".`);
+		expect(['finished', 'processing']).toContain(dataStatus);
+
+		// Only check details for finished items
 		if (dataStatus !== 'finished') {
-			logCheckpoint(`Group item ${i + 1} has status "${dataStatus}", skipping.`);
 			continue;
 		}
 
