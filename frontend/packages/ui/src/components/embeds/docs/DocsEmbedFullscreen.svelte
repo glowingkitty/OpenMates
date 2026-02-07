@@ -4,10 +4,13 @@
   Fullscreen view for Document embeds (document_html).
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
   
-  Shows:
-  - Document title and word count in bottom bar
-  - Full sanitized HTML content rendered with proper typography
-  - Copy button (copies plain text), Download (as .html file), Share
+  Designed to look like reading a document in Microsoft Word / Google Docs:
+  - Grey background canvas (like the grey area around the page)
+  - White A4-ratio page centered with shadow (like a printed page)
+  - Proper document typography with serif/sans-serif fonts
+  - Zoom controls to scale the document view
+  - Filename shown in bottom bar (e.g., "Report.docx")
+  - Copy (plain text), Download (as .html), Share actions
 -->
 
 <script lang="ts">
@@ -18,7 +21,9 @@
     sanitizeDocumentHtml,
     stripHtmlTags,
     countDocWords,
-    extractDocumentTitle
+    extractDocumentTitle,
+    extractDocumentFilename,
+    generateFilenameFromTitle
   } from './docsEmbedContent';
   
   /**
@@ -29,6 +34,8 @@
     htmlContent: string;
     /** Document title */
     title?: string;
+    /** Document filename (e.g. "Report.docx") */
+    filename?: string;
     /** Word count */
     wordCount?: number;
     /** Close handler */
@@ -52,6 +59,7 @@
   let {
     htmlContent,
     title,
+    filename,
     wordCount = 0,
     onClose,
     embedId,
@@ -72,14 +80,22 @@
     return extractDocumentTitle(htmlContent) || $text('embeds.document_snippet.text');
   });
   
+  // Extract or generate filename for display
+  let displayFilename = $derived.by(() => {
+    if (filename) return filename;
+    const extracted = extractDocumentFilename(htmlContent);
+    if (extracted) return extracted;
+    return generateFilenameFromTitle(displayTitle);
+  });
+  
   // Calculate word count from content if not provided
   let actualWordCount = $derived.by(() => {
     if (wordCount > 0) return wordCount;
     return countDocWords(htmlContent);
   });
   
-  // Build skill name for BasicInfosBar
-  let skillName = $derived(displayTitle);
+  // Build skill name for BasicInfosBar: show filename (e.g., "Report.docx")
+  let skillName = $derived(displayFilename);
   
   // No header in fullscreen for documents (buttons overlay the top area)
   const fullscreenTitle = '';
@@ -98,6 +114,27 @@
   
   // Icon for documents
   const skillIconName = 'docs';
+  
+  // Zoom state
+  const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
+  let zoomIndex = $state(2); // Start at 100%
+  let zoomLevel = $derived(ZOOM_LEVELS[zoomIndex]);
+  
+  function zoomIn() {
+    if (zoomIndex < ZOOM_LEVELS.length - 1) {
+      zoomIndex++;
+    }
+  }
+  
+  function zoomOut() {
+    if (zoomIndex > 0) {
+      zoomIndex--;
+    }
+  }
+  
+  function resetZoom() {
+    zoomIndex = 2; // 100%
+  }
   
   // Handle copy document content to clipboard (plain text)
   async function handleCopy() {
@@ -118,7 +155,7 @@
       console.debug('[DocsEmbedFullscreen] Starting document download');
       
       // Create a full HTML document with basic styling for readability
-      const filename = (displayTitle || 'document').replace(/[^a-zA-Z0-9_-]/g, '_') + '.html';
+      const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.html';
       const fullHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +190,7 @@ ${sanitizedHtml}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -214,7 +251,7 @@ ${sanitizedHtml}
 
 <!-- 
   Pass BasicInfosBar props to UnifiedEmbedFullscreen for consistent bottom bar
-  Document embeds show: title + word count
+  Document embeds show: filename + word count
 -->
 <UnifiedEmbedFullscreen
   appId="docs"
@@ -239,10 +276,36 @@ ${sanitizedHtml}
 >
   {#snippet content()}
     {#if sanitizedHtml}
-      <!-- Full document content with sanitized HTML -->
-      <div class="doc-fullscreen-container">
-        <div class="doc-fullscreen-content">
-          {@html sanitizedHtml}
+      <!-- Google Docs / Word-like document viewer -->
+      <div class="doc-viewer-canvas">
+        <!-- Zoom controls bar -->
+        <div class="doc-zoom-bar">
+          <button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomIndex === 0}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="zoom-label" onclick={resetZoom} aria-label="Reset zoom" title="Click to reset">
+            {zoomLevel}%
+          </button>
+          <button class="zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomIndex === ZOOM_LEVELS.length - 1}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Scrollable page area -->
+        <div class="doc-page-scroll">
+          <div class="doc-page-container" style="transform: scale({zoomLevel / 100}); transform-origin: top center;">
+            <!-- White A4 page -->
+            <div class="doc-page">
+              <div class="doc-page-content">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
+                {@html sanitizedHtml}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     {:else}
@@ -255,200 +318,352 @@ ${sanitizedHtml}
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* Document fullscreen container */
-  .doc-fullscreen-container {
+  /* ===========================================
+     Document Viewer Canvas - Google Docs style
+     Grey background with centered white page
+     =========================================== */
+  
+  .doc-viewer-canvas {
     width: 100%;
-    max-width: 800px;
-    margin: 70px auto 0;
-    padding: 0 24px 40px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-grey-15);
+    padding-top: 60px; /* Space for the top action bar */
   }
-
-  /* Document content typography - clean document-like rendering */
-  .doc-fullscreen-content {
+  
+  /* ===========================================
+     Zoom Controls Bar
+     =========================================== */
+  
+  .doc-zoom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 0;
+    flex-shrink: 0;
+    z-index: 5;
+  }
+  
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: var(--color-grey-25);
+    color: var(--color-font-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+    padding: 0;
+    min-width: auto;
+  }
+  
+  .zoom-btn:hover:not(:disabled) {
+    background: var(--color-grey-30);
     color: var(--color-font-primary);
-    font-size: 16px;
-    line-height: 1.7;
+  }
+  
+  .zoom-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  
+  .zoom-label {
+    min-width: 52px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: var(--color-grey-25);
+    color: var(--color-font-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s;
+    padding: 0 8px;
+  }
+  
+  .zoom-label:hover {
+    background: var(--color-grey-30);
+  }
+  
+  /* ===========================================
+     Scrollable Page Area
+     =========================================== */
+  
+  .doc-page-scroll {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 0 24px 100px;
+  }
+  
+  .doc-page-container {
+    width: 816px; /* Standard US Letter / A4-ish width at 96 DPI */
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+  
+  /* ===========================================
+     White A4 Page
+     =========================================== */
+  
+  .doc-page {
+    width: 100%;
+    background: white;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 4px 12px rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    min-height: 1056px; /* A4-ish height at 96 DPI */
+    /* Realistic A4 margins: ~1 inch = 96px top/bottom, ~1 inch = 96px left/right */
+    padding: 72px 84px 96px;
+  }
+  
+  /* ===========================================
+     Document Content Typography
+     Clean, professional document styling
+     =========================================== */
+  
+  .doc-page-content {
+    color: #1a1a1a;
+    font-size: 15px;
+    line-height: 1.75;
     word-break: break-word;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
   /* Headings */
-  .doc-fullscreen-content :global(h1) {
-    font-size: 2em;
+  .doc-page-content :global(h1) {
+    font-size: 26px;
     font-weight: 700;
-    margin: 0 0 0.6em;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--color-grey-25);
-    color: var(--color-font-primary);
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    color: #0d0d0d;
+    line-height: 1.3;
   }
 
-  .doc-fullscreen-content :global(h2) {
-    font-size: 1.5em;
+  .doc-page-content :global(h2) {
+    font-size: 21px;
     font-weight: 600;
-    margin: 1.5em 0 0.5em;
-    padding-bottom: 0.2em;
-    border-bottom: 1px solid var(--color-grey-20);
-    color: var(--color-font-primary);
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eeeeee;
+    color: #1a1a1a;
+    line-height: 1.35;
   }
 
-  .doc-fullscreen-content :global(h3) {
-    font-size: 1.25em;
+  .doc-page-content :global(h3) {
+    font-size: 18px;
     font-weight: 600;
-    margin: 1.2em 0 0.4em;
-    color: var(--color-font-primary);
+    margin: 24px 0 8px;
+    color: #1a1a1a;
+    line-height: 1.4;
   }
 
-  .doc-fullscreen-content :global(h4),
-  .doc-fullscreen-content :global(h5),
-  .doc-fullscreen-content :global(h6) {
-    font-size: 1.1em;
+  .doc-page-content :global(h4),
+  .doc-page-content :global(h5),
+  .doc-page-content :global(h6) {
+    font-size: 16px;
     font-weight: 600;
-    margin: 1em 0 0.3em;
-    color: var(--color-font-primary);
+    margin: 20px 0 6px;
+    color: #2a2a2a;
+    line-height: 1.4;
   }
 
   /* Paragraphs */
-  .doc-fullscreen-content :global(p) {
-    margin: 0.8em 0;
+  .doc-page-content :global(p) {
+    margin: 0 0 12px;
   }
 
   /* Lists */
-  .doc-fullscreen-content :global(ul),
-  .doc-fullscreen-content :global(ol) {
-    padding-left: 2em;
-    margin: 0.8em 0;
+  .doc-page-content :global(ul),
+  .doc-page-content :global(ol) {
+    padding-left: 28px;
+    margin: 0 0 12px;
   }
 
-  .doc-fullscreen-content :global(li) {
-    margin: 0.3em 0;
+  .doc-page-content :global(li) {
+    margin: 4px 0;
   }
 
-  .doc-fullscreen-content :global(li > ul),
-  .doc-fullscreen-content :global(li > ol) {
-    margin: 0.2em 0;
+  .doc-page-content :global(li > ul),
+  .doc-page-content :global(li > ol) {
+    margin: 4px 0;
   }
 
   /* Blockquotes */
-  .doc-fullscreen-content :global(blockquote) {
-    border-left: 3px solid var(--color-primary);
-    margin: 1em 0;
-    padding: 0.5em 1em;
-    color: var(--color-font-secondary);
-    background: var(--color-grey-15);
-    border-radius: 0 6px 6px 0;
+  .doc-page-content :global(blockquote) {
+    border-left: 3px solid #1a73e8;
+    margin: 16px 0;
+    padding: 8px 16px;
+    color: #555;
+    background: #f8f9fa;
+    border-radius: 0 4px 4px 0;
   }
 
-  .doc-fullscreen-content :global(blockquote p) {
-    margin: 0.3em 0;
+  .doc-page-content :global(blockquote p) {
+    margin: 4px 0;
   }
 
   /* Tables */
-  .doc-fullscreen-content :global(table) {
+  .doc-page-content :global(table) {
     border-collapse: collapse;
     width: 100%;
-    margin: 1em 0;
-    font-size: 0.95em;
-    overflow-x: auto;
-    display: block;
+    margin: 16px 0;
+    font-size: 14px;
   }
 
-  .doc-fullscreen-content :global(th),
-  .doc-fullscreen-content :global(td) {
-    border: 1px solid var(--color-grey-25);
-    padding: 8px 12px;
+  .doc-page-content :global(th),
+  .doc-page-content :global(td) {
+    border: 1px solid #dadce0;
+    padding: 10px 14px;
     text-align: left;
   }
 
-  .doc-fullscreen-content :global(th) {
-    background: var(--color-grey-15);
+  .doc-page-content :global(th) {
+    background: #f1f3f4;
     font-weight: 600;
+    color: #1a1a1a;
   }
 
-  .doc-fullscreen-content :global(tr:nth-child(even)) {
-    background: var(--color-grey-10);
+  .doc-page-content :global(tr:nth-child(even)) {
+    background: #fafafa;
   }
 
   /* Inline code */
-  .doc-fullscreen-content :global(code) {
-    background: var(--color-grey-15);
+  .doc-page-content :global(code) {
+    background: #f1f3f4;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.9em;
+    font-size: 13px;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    color: #d63384;
   }
 
   /* Code blocks */
-  .doc-fullscreen-content :global(pre) {
-    background: var(--color-grey-15);
-    padding: 16px;
+  .doc-page-content :global(pre) {
+    background: #f8f9fa;
+    padding: 16px 20px;
     border-radius: 8px;
     overflow-x: auto;
-    margin: 1em 0;
+    margin: 16px 0;
+    border: 1px solid #e8eaed;
   }
 
-  .doc-fullscreen-content :global(pre code) {
+  .doc-page-content :global(pre code) {
     background: none;
     padding: 0;
     border-radius: 0;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.5;
+    color: inherit;
   }
 
   /* Links */
-  .doc-fullscreen-content :global(a) {
-    color: var(--color-primary);
+  .doc-page-content :global(a) {
+    color: #1a73e8;
     text-decoration: underline;
     text-underline-offset: 2px;
   }
 
-  .doc-fullscreen-content :global(a:hover) {
-    opacity: 0.8;
+  .doc-page-content :global(a:hover) {
+    color: #1558b0;
   }
 
   /* Horizontal rules */
-  .doc-fullscreen-content :global(hr) {
+  .doc-page-content :global(hr) {
     border: none;
-    border-top: 1px solid var(--color-grey-25);
-    margin: 2em 0;
+    border-top: 1px solid #dadce0;
+    margin: 28px 0;
   }
 
   /* Images */
-  .doc-fullscreen-content :global(img) {
+  .doc-page-content :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 6px;
-    margin: 1em 0;
+    border-radius: 4px;
+    margin: 12px 0;
   }
 
   /* Strong and emphasis */
-  .doc-fullscreen-content :global(strong) {
+  .doc-page-content :global(strong) {
     font-weight: 600;
   }
 
-  .doc-fullscreen-content :global(em) {
+  .doc-page-content :global(em) {
     font-style: italic;
   }
 
   /* Definition lists */
-  .doc-fullscreen-content :global(dl) {
-    margin: 1em 0;
+  .doc-page-content :global(dl) {
+    margin: 12px 0;
   }
 
-  .doc-fullscreen-content :global(dt) {
+  .doc-page-content :global(dt) {
     font-weight: 600;
-    margin-top: 0.5em;
+    margin-top: 8px;
   }
 
-  .doc-fullscreen-content :global(dd) {
-    margin-left: 2em;
-    margin-bottom: 0.5em;
+  .doc-page-content :global(dd) {
+    margin-left: 28px;
+    margin-bottom: 8px;
   }
 
-  /* Empty state */
+  /* ===========================================
+     Empty State
+     =========================================== */
+  
   .empty-state {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
+    padding-top: 80px;
+  }
+
+  /* ===========================================
+     Responsive: Mobile
+     =========================================== */
+  
+  @media (max-width: 900px) {
+    .doc-page-container {
+      width: 100%;
+    }
+    
+    .doc-page {
+      padding: 40px 32px 60px;
+      min-height: auto;
+      border-radius: 0;
+    }
+    
+    .doc-page-scroll {
+      padding: 0 0 100px;
+    }
+    
+    .doc-page-content {
+      font-size: 14px;
+    }
+    
+    .doc-page-content :global(h1) {
+      font-size: 22px;
+    }
+    
+    .doc-page-content :global(h2) {
+      font-size: 18px;
+    }
+    
+    .doc-page-content :global(h3) {
+      font-size: 16px;
+    }
   }
 </style>

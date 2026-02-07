@@ -157,6 +157,44 @@ export function extractDocumentTitle(html: string): string | undefined {
 }
 
 /**
+ * Extract filename from document HTML content
+ * Looks for <!-- filename: "Name.docx" --> comment pattern
+ * The LLM is instructed to include this as the second line of document_html content
+ *
+ * @param html - HTML content that may contain a filename comment
+ * @returns Extracted filename or undefined if not found
+ */
+export function extractDocumentFilename(html: string): string | undefined {
+  if (!html) return undefined;
+
+  const filenameMatch = html.match(/<!--\s*filename:\s*["'](.+?)["']\s*-->/);
+  return filenameMatch ? filenameMatch[1] : undefined;
+}
+
+/**
+ * Generate a fallback .docx filename from the document title
+ * Converts the title to a snake_case filename with .docx extension
+ *
+ * @param title - Document title to convert
+ * @returns Generated filename (e.g., "Rental_Agreement.docx")
+ */
+export function generateFilenameFromTitle(title: string): string {
+  if (!title) return "Document.docx";
+
+  // Replace spaces and special chars with underscores, keep alphanumeric and underscores
+  const sanitized = title
+    .replace(/[^a-zA-Z0-9\s_-]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+
+  // Truncate to reasonable length
+  const truncated = sanitized.substring(0, 50);
+
+  return truncated ? `${truncated}.docx` : "Document.docx";
+}
+
+/**
  * Strip HTML tags from content to get plain text
  * Used for word count calculation and preview text extraction
  *
@@ -231,27 +269,38 @@ export function extractPreviewText(
 export interface ParsedDocContent {
   html: string;
   title: string | undefined;
+  filename: string | undefined;
   wordCount: number;
   previewText: string;
 }
 
 export function parseDocEmbedContent(
   content: string | Record<string, unknown>,
-  hints?: { title?: string },
+  hints?: { title?: string; filename?: string },
 ): ParsedDocContent {
   let html = "";
   let title: string | undefined;
+  let filename: string | undefined;
 
   if (typeof content === "string") {
     html = content;
   } else if (content && typeof content === "object") {
     html = (content.html as string) || (content.code as string) || "";
     title = (content.title as string) || undefined;
+    filename = (content.filename as string) || undefined;
   }
 
   // Extract title from content if not provided
   if (!title) {
     title = extractDocumentTitle(html) || hints?.title;
+  }
+
+  // Extract filename from content if not provided
+  if (!filename) {
+    filename =
+      extractDocumentFilename(html) ||
+      hints?.filename ||
+      (title ? generateFilenameFromTitle(title) : undefined);
   }
 
   const wordCount = countDocWords(html);
@@ -260,6 +309,7 @@ export function parseDocEmbedContent(
   return {
     html,
     title,
+    filename,
     wordCount,
     previewText,
   };

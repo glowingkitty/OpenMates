@@ -24,7 +24,9 @@ instructions:
       When the user asks you to create, write, or generate a document, report, article, blog post,
       essay, cover letter, proposal, memo, guide, or any substantial formatted content:
       - Use the ```document_html code fence to produce the document
-      - Include a <!-- title: "..." --> comment as the first line
+      - Include a <!-- title: "..." --> comment as the first line with the document title
+      - Include a <!-- filename: "Descriptive_Name.docx" --> comment as the second line with a .docx filename
+        The filename should be a short, descriptive name using underscores (e.g., "Rental_Agreement.docx", "Cover_Letter_Google.docx", "Q4_Sales_Report.docx")
       - Use semantic HTML for proper structure (h1-h6, p, ul/ol, table, blockquote, etc.)
       - The document will be rendered as an interactive preview card that the user can open in fullscreen
 

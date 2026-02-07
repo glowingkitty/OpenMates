@@ -230,6 +230,7 @@ async function initializeRegistry(): Promise<void> {
       props: {
         htmlContent,
         title: data.decodedContent?.title || data.attrs?.title,
+        filename: data.decodedContent?.filename || data.attrs?.filename,
         wordCount:
           data.decodedContent?.word_count || data.attrs?.wordCount || 0,
         onClose: data.onClose,

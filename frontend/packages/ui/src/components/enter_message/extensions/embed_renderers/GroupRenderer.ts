@@ -888,6 +888,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Use decoded content if available, otherwise fall back to item attributes
     const htmlContent = decodedContent?.html || item.code || "";
     const title = decodedContent?.title || item.title;
+    const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
 
     // Determine status
@@ -918,6 +919,7 @@ export class GroupRenderer implements EmbedRenderer {
         props: {
           id: embedId || item.id || "",
           title,
+          filename,
           wordCount,
           status,
           taskId,
@@ -1530,6 +1532,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Use decoded content if available, otherwise fall back to item attributes
     const htmlContent = decodedContent?.html || item.code || "";
     const title = decodedContent?.title || item.title;
+    const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
 
     // Determine status
@@ -1562,6 +1565,7 @@ export class GroupRenderer implements EmbedRenderer {
         props: {
           id: embedId,
           title,
+          filename,
           wordCount,
           status: status as "processing" | "finished" | "error",
           isMobile: false,
