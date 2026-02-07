@@ -25,6 +25,7 @@
     import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
+    import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
@@ -5256,6 +5257,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             language={codeLanguage}
                             filename={codeFilename}
                             lineCount={codeLineCount}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {/if}
+                {:else if embedFullscreenData.embedType === 'docs-doc'}
+                    <!-- Document Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.html || embedFullscreenData.attrs?.code}
+                        {@const htmlContent = coerceString(embedFullscreenData.decodedContent?.html ?? embedFullscreenData.attrs?.code, '')}
+                        {@const docTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
+                        {@const docWordCount = coerceNumber(embedFullscreenData.decodedContent?.word_count ?? embedFullscreenData.attrs?.wordCount, 0)}
+                        <DocsEmbedFullscreen 
+                            htmlContent={htmlContent}
+                            title={docTitle}
+                            wordCount={docWordCount}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
