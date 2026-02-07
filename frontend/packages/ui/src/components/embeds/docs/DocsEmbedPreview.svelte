@@ -6,7 +6,7 @@
   
   Details content structure:
   - Processing: "Generating document..." placeholder with pulsing dot
-  - Finished: Document title + preview text (first ~200 words, plain text)
+  - Finished: Rendered HTML preview (first portion of document with styling)
   - Error: Empty placeholder with document icon
   
   Sizes:
@@ -17,7 +17,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { extractPreviewText, extractDocumentTitle, countDocWords } from './docsEmbedContent';
+  import { sanitizeDocumentHtml, extractDocumentTitle, countDocWords } from './docsEmbedContent';
   
   /**
    * Props for document embed preview
@@ -75,8 +75,8 @@
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
   
-  // Extract preview text from HTML content (first ~200 words, plain text)
-  let previewText = $derived.by(() => extractPreviewText(htmlContent, 50));
+  // Sanitize HTML content for safe rendering in preview
+  let sanitizedHtml = $derived(sanitizeDocumentHtml(htmlContent));
   
   // Extract title from content if not provided via props
   let displayTitle = $derived.by(() => {
@@ -174,10 +174,14 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="doc-details" class:mobile={isMobileLayout}>
-      {#if previewText}
-        <!-- Document preview with plain text excerpt -->
+      {#if sanitizedHtml}
+        <!-- Document preview with rendered HTML (truncated via CSS) -->
         <div class="doc-preview-container">
-          <div class="doc-preview-text">{previewText}</div>
+          <div class="doc-preview-content">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
+            {@html sanitizedHtml}
+          </div>
+          <div class="doc-preview-fade"></div>
         </div>
       {:else if status === 'processing'}
         <!-- Processing state -->
@@ -230,24 +234,122 @@
     background: transparent;
   }
   
-  .doc-preview-text {
+  /* Rendered HTML content preview */
+  .doc-preview-content {
     margin: 0;
     padding: 0;
-    font-size: 12px;
-    line-height: 1.6;
-    overflow: hidden;
-    color: var(--color-font-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 7;
-    -webkit-box-orient: vertical;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .doc-details.mobile .doc-preview-text {
     font-size: 11px;
     line-height: 1.5;
-    -webkit-line-clamp: 10;
+    overflow: hidden;
+    color: var(--color-font-secondary);
+    word-break: break-word;
+    max-height: 100%;
+  }
+  
+  /* Fade overlay at bottom to indicate more content */
+  .doc-preview-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background: linear-gradient(to bottom, transparent, var(--color-grey-15));
+    pointer-events: none;
+  }
+  
+  .doc-details.mobile .doc-preview-content {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  
+  /* Document preview typography - compact for small preview */
+  .doc-preview-content :global(h1),
+  .doc-preview-content :global(h2),
+  .doc-preview-content :global(h3),
+  .doc-preview-content :global(h4),
+  .doc-preview-content :global(h5),
+  .doc-preview-content :global(h6) {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--color-font-primary);
+  }
+  
+  .doc-preview-content :global(p) {
+    margin: 0 0 6px;
+  }
+  
+  .doc-preview-content :global(ul),
+  .doc-preview-content :global(ol) {
+    margin: 0 0 6px;
+    padding-left: 16px;
+  }
+  
+  .doc-preview-content :global(li) {
+    margin: 0 0 2px;
+  }
+  
+  .doc-preview-content :global(blockquote) {
+    margin: 0 0 6px;
+    padding: 4px 8px;
+    border-left: 2px solid var(--color-grey-30);
+    color: var(--color-font-tertiary);
+    font-style: italic;
+  }
+  
+  .doc-preview-content :global(table) {
+    font-size: 10px;
+    border-collapse: collapse;
+    margin: 0 0 6px;
+  }
+  
+  .doc-preview-content :global(th),
+  .doc-preview-content :global(td) {
+    padding: 2px 4px;
+    border: 1px solid var(--color-grey-25);
+  }
+  
+  .doc-preview-content :global(code) {
+    font-size: 10px;
+    background: var(--color-grey-20);
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+  
+  .doc-preview-content :global(pre) {
+    font-size: 10px;
+    background: var(--color-grey-20);
+    padding: 4px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0 0 6px;
+  }
+  
+  .doc-preview-content :global(a) {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+  
+  .doc-preview-content :global(strong),
+  .doc-preview-content :global(b) {
+    font-weight: 600;
+  }
+  
+  .doc-preview-content :global(em),
+  .doc-preview-content :global(i) {
+    font-style: italic;
+  }
+  
+  .doc-preview-content :global(hr) {
+    border: none;
+    border-top: 1px solid var(--color-grey-25);
+    margin: 6px 0;
+  }
+  
+  .doc-preview-content :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
   }
   
   .processing-placeholder {
