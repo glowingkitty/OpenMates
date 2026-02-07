@@ -33,6 +33,17 @@
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
 }
 
+/* Phone numbers: green */
+:global(.ProseMirror .pii-highlight-phone) {
+  background-color: rgba(34, 197, 94, 0.2);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+}
+
+:global(.ProseMirror .pii-highlight-phone:hover) {
+  background-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.6);
+}
+
 :global(.ProseMirror .pii-highlight-api-key) {
   background-color: rgba(239, 68, 68, 0.2);
   box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);

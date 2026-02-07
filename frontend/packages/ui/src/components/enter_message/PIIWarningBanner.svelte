@@ -45,10 +45,7 @@
                     {$text('enter_message.pii.banner_title.text', { default: 'Sensitive data detected' })}
                 </span>
                 <span class="banner-description">
-                    {$text('enter_message.pii.banner_description.text', { 
-                        default: 'Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original.',
-                        summary
-                    })}
+                    Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original.
                 </span>
             </div>
             <button

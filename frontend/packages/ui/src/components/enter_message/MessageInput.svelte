@@ -177,8 +177,11 @@
     // Set of PII match IDs that user has clicked to exclude from replacement
     // These won't be replaced when sending and won't be highlighted
     let piiExclusions = $state<Set<string>>(new Set());
-    // Debounce timer for PII detection to avoid excessive processing on every keystroke
-    let piiDetectionTimeout: NodeJS.Timeout | null = null;
+    // Cache of current PII Decoration objects to merge with unclosed-block decorations.
+    // Stored separately so they survive when applyHighlightingColors rebuilds the decoration set.
+    let currentPIIDecorations: any[] = [];
+    // Cache the last text we ran PII detection on to skip redundant work
+    let lastPIIText = '';
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -224,8 +227,13 @@
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
                 console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
-                // Clear decorations when no unclosed blocks
-                currentDecorationSet = DecorationSet.empty;
+                // No unclosed blocks, but preserve PII decorations if any
+                if (currentPIIDecorations.length > 0) {
+                    const { state: st, view: vw } = editor;
+                    currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
+                } else {
+                    currentDecorationSet = DecorationSet.empty;
+                }
                 if (decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
                 }
@@ -868,7 +876,9 @@
                 });
             });
 
-            currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
+            // Merge unclosed-block decorations with PII decorations so both are visible
+            const allDecorations = [...tipTapDecorations, ...currentPIIDecorations];
+            currentDecorationSet = DecorationSet.create(doc, allDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
                     decorations: () => currentDecorationSet ?? DecorationSet.empty,
@@ -876,7 +886,7 @@
                 decorationPropsSet = true;
             }
             // Always dispatch to refresh (also clears when empty)
-            console.debug('[MessageInput] Dispatching transaction with decorations:', tipTapDecorations.length > 0 ? tipTapDecorations : 'empty');
+            console.debug('[MessageInput] Dispatching transaction with decorations:', allDecorations.length, '(blocks:', tipTapDecorations.length, 'pii:', currentPIIDecorations.length, ')');
             view.dispatch(state.tr);
 
         } catch (error) {
@@ -1157,11 +1167,9 @@
         // For chatSyncService listeners, they are added in onMount and should be cleaned up in its return.
         // The unsubscribeAiTyping is also handled there.
         
-        // Clean up PII detection timeout
-        if (piiDetectionTimeout) {
-            clearTimeout(piiDetectionTimeout);
-            piiDetectionTimeout = null;
-        }
+        // Clean up PII detection state
+        currentPIIDecorations = [];
+        lastPIIText = '';
     });
 
     // --- Editor Lifecycle Handlers ---
@@ -1386,58 +1394,49 @@
     // =============================================================================
     
     /**
-     * Debounced PII detection to avoid excessive processing on every keystroke.
-     * Waits 300ms after the user stops typing before running detection.
-     */
-    function debouncedPIIDetection(editor: Editor) {
-        if (piiDetectionTimeout) {
-            clearTimeout(piiDetectionTimeout);
-        }
-        
-        piiDetectionTimeout = setTimeout(() => {
-            runPIIDetection(editor);
-        }, 300);
-    }
-    
-    /**
-     * Run PII detection on the current editor content and apply highlighting decorations.
+     * Run PII detection on the current editor content and update PII decoration cache.
+     * Called synchronously from handleEditorUpdate so PII decorations are always
+     * in sync with the unified parser decorations (no debounce race condition).
+     * 
+     * Optimization: skips re-detection if text hasn't changed since last run.
      */
     function runPIIDetection(editor: Editor) {
         if (!editor || editor.isDestroyed) return;
         
         const text = editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        lastPIIText = text;
+        
         if (!text || text.trim().length === 0) {
             detectedPII = [];
-            clearPIIDecorations(editor);
+            currentPIIDecorations = [];
             return;
         }
         
-        // Detect PII, excluding any matches the user has clicked to restore
+        // Detect PII, excluding any matches the user has clicked to keep
         const matches = detectPII(text, piiExclusions);
         detectedPII = matches;
         
         if (matches.length > 0) {
-            console.debug('[MessageInput] 🔒 PII detected:', matches.map(m => ({
-                type: m.type,
-                startIndex: m.startIndex,
-                endIndex: m.endIndex
-            })));
-            applyPIIDecorations(editor, matches);
+            console.debug('[MessageInput] PII detected:', matches.length, 'matches');
+            buildPIIDecorations(editor, matches);
         } else {
-            clearPIIDecorations(editor);
+            currentPIIDecorations = [];
         }
     }
     
     /**
-     * Apply TipTap decorations to highlight detected PII.
-     * Each PII match gets a colored background and becomes clickable.
+     * Build PII Decoration objects and store them in currentPIIDecorations.
+     * These are merged into the main decoration set by applyHighlightingColors
+     * or directly when no unclosed blocks exist.
      */
-    function applyPIIDecorations(editor: Editor, matches: PIIMatch[]) {
-        const { state, view } = editor;
-        const { doc } = state;
+    function buildPIIDecorations(editor: Editor, matches: PIIMatch[]) {
+        const { doc } = editor.state;
         
         try {
-            const decorations = matches.map(match => {
+            currentPIIDecorations = matches.map(match => {
                 // TipTap positions are 1-indexed, text positions are 0-indexed
                 const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
                 const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
@@ -1446,9 +1445,11 @@
                 let className = 'pii-highlight';
                 if (match.type === 'EMAIL') {
                     className += ' pii-highlight-email';
+                } else if (match.type === 'PHONE') {
+                    className += ' pii-highlight-phone';
                 } else if (match.type.includes('KEY') || match.type.includes('TOKEN') || match.type.includes('PAT')) {
                     className += ' pii-highlight-api-key';
-                } else if (match.type === 'CREDIT_CARD') {
+                } else if (match.type === 'CREDIT_CARD' || match.type === 'SSN') {
                     className += ' pii-highlight-card';
                 }
                 
@@ -1459,45 +1460,10 @@
                     title: `Click to keep original (${match.type.toLowerCase().replace(/_/g, ' ')})`
                 });
             });
-            
-            // Merge with existing decorations (unclosed blocks, etc.)
-            // We create a separate decoration set for PII that coexists with the existing one
-            const piiDecorationSet = DecorationSet.create(doc, decorations);
-            
-            // For now, we'll use a combined approach - set both decoration sets
-            // The existing currentDecorationSet handles syntax highlighting
-            // We need to merge them together
-            if (currentDecorationSet && currentDecorationSet.find().length > 0) {
-                // Merge existing decorations with PII decorations
-                const mergedDecorations = [...currentDecorationSet.find(), ...decorations];
-                currentDecorationSet = DecorationSet.create(doc, mergedDecorations);
-            } else {
-                currentDecorationSet = piiDecorationSet;
-            }
-            
-            if (!decorationPropsSet) {
-                view.setProps({
-                    decorations: () => currentDecorationSet ?? DecorationSet.empty,
-                });
-                decorationPropsSet = true;
-            }
-            
-            // Dispatch transaction to apply decorations
-            view.dispatch(state.tr);
-            
         } catch (error) {
-            console.error('[MessageInput] Error applying PII decorations:', error);
+            console.error('[MessageInput] Error building PII decorations:', error);
+            currentPIIDecorations = [];
         }
-    }
-    
-    /**
-     * Clear PII decorations from the editor.
-     * PII decorations are part of currentDecorationSet and will be cleared
-     * naturally when no PII is detected and applyHighlightingColors is called.
-     */
-    function clearPIIDecorations(_editor: Editor) {
-        // No-op: PII decorations are managed through currentDecorationSet
-        // and will be cleared when the decoration set is rebuilt
     }
     
     /**
@@ -1507,37 +1473,65 @@
     function handlePIIClick(matchId: string) {
         // Add to exclusions set
         piiExclusions = new Set([...piiExclusions, matchId]);
+        // Invalidate last text cache so detection re-runs immediately
+        lastPIIText = '';
         
-        // Re-run detection to update highlighting (excluded match will be skipped)
+        // Re-run detection and rebuild decorations synchronously
         if (editor && !editor.isDestroyed) {
             runPIIDetection(editor);
+            // Rebuild the full decoration set with updated PII decorations
+            rebuildDecorationSet(editor);
         }
         
-        console.debug('[MessageInput] 🔓 PII exclusion added:', matchId);
+        console.debug('[MessageInput] PII exclusion added:', matchId);
     }
     
     /**
      * Handle "Undo All" from the PII warning banner.
-     * Clears all exclusions and detected PII, allowing all text to remain as-is.
+     * Excludes all detected PII so nothing gets replaced on send.
      */
     function handlePIIUndoAll() {
         // Mark all current detections as excluded
+        const newExclusions = new Set(piiExclusions);
         for (const match of detectedPII) {
-            piiExclusions = new Set([...piiExclusions, match.id]);
+            newExclusions.add(match.id);
         }
+        piiExclusions = newExclusions;
         
-        // Clear detected PII (they're all excluded now)
+        // Clear detected PII and decorations
         detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
         
-        // Clear decorations
+        // Rebuild decoration set without PII decorations
         if (editor && !editor.isDestroyed) {
-            clearPIIDecorations(editor);
-            // Dispatch to update view
-            const { state, view } = editor;
-            view.dispatch(state.tr);
+            rebuildDecorationSet(editor);
         }
         
-        console.debug('[MessageInput] 🔓 All PII exclusions applied, user chose to keep original text');
+        console.debug('[MessageInput] All PII exclusions applied, user chose to keep original text');
+    }
+    
+    /**
+     * Rebuild the currentDecorationSet from scratch using the current PII decorations.
+     * Called after PII exclusions change to immediately update the view.
+     */
+    function rebuildDecorationSet(editor: Editor) {
+        const { state, view } = editor;
+        if (currentPIIDecorations.length > 0) {
+            // Re-run the unified parser to get unclosed-block decorations, then merge
+            // For simplicity, just rebuild with PII only - the next editor update
+            // will call handleUnifiedParsing which merges both
+            currentDecorationSet = DecorationSet.create(state.doc, currentPIIDecorations);
+        } else {
+            currentDecorationSet = DecorationSet.empty;
+        }
+        if (!decorationPropsSet) {
+            view.setProps({
+                decorations: () => currentDecorationSet ?? DecorationSet.empty,
+            });
+            decorationPropsSet = true;
+        }
+        view.dispatch(state.tr);
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
@@ -1546,8 +1540,11 @@
             hasContent = newHasContent;
             if (!newHasContent) {
                 console.debug("[MessageInput] Content cleared, triggering draft deletion.");
-                // Clear PII detections when content is cleared
+                // Clear PII detections and exclusions when content is cleared
                 detectedPII = [];
+                piiExclusions = new Set();
+                currentPIIDecorations = [];
+                lastPIIText = '';
             }
         }
         
@@ -1560,12 +1557,13 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // Use unified parser for write mode
+        // PII Detection: Run BEFORE unified parsing so PII decorations are built
+        // and ready to be merged into the decoration set by applyHighlightingColors.
+        // Runs synchronously but skips work when text hasn't changed.
+        runPIIDetection(editor);
+
+        // Use unified parser for write mode (merges PII decorations automatically)
         handleUnifiedParsing(editor);
-        
-        // PII Detection: Detect sensitive data and apply highlighting decorations
-        // Debounced to avoid excessive processing on every keystroke
-        debouncedPIIDetection(editor);
 
         // Dispatch live text change event so parent components can react on each keystroke
         // This enables precise, character-by-character search in new chat suggestions
