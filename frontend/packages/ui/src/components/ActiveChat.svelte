@@ -551,6 +551,15 @@
             // This is especially important on mobile where event timing might be off
             // Only trigger if we have a current chat that's not a demo chat (user was logged in)
             // CRITICAL: Don't clear shared chats - they're valid for non-auth users
+            // CRITICAL: Skip this entirely during initial deep link processing - the user is loading
+            // a draft or specific chat from the URL, not logging out. This effect was incorrectly
+            // firing when currentChat changed from null to the draft chat, causing demo-for-everyone
+            // to overwrite the draft immediately after it loaded.
+            if (get(deepLinkProcessing)) {
+                console.debug('[ActiveChat] Skipping auth state effect - deep link processing in progress');
+                return;
+            }
+            
             if (currentChat && !isPublicChat(currentChat.chat_id)) {
                 // Check if this is a shared chat (has chat key in cache or is in sessionStorage shared_chats)
                 // chatDB.getChatKey is synchronous, so we can check immediately
@@ -559,6 +568,16 @@
                     ? JSON.parse(sessionStorage.getItem('shared_chats') || '[]')
                     : [];
                 const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
+                
+                // CRITICAL: Also check if this is a sessionStorage draft chat (non-auth user's unsaved work)
+                // Draft chats are valid for non-authenticated users and should NOT be overwritten with demo-for-everyone
+                const isSessionStorageDraft = loadSessionStorageDraft(currentChat.chat_id) !== null;
+                
+                if (isSessionStorageDraft && !$isLoggingOut) {
+                    // This is a sessionStorage draft - don't clear it, it's the user's unsaved work
+                    console.debug('[ActiveChat] Auth state effect - keeping sessionStorage draft chat:', currentChat.chat_id);
+                    return; // Keep the draft chat loaded
+                }
                 
                 if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
