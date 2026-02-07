@@ -1895,6 +1895,27 @@ export async function sendEncryptedStoragePackage(
       ? await encryptWithChatKey(plaintext_category, chatKey)
       : null;
 
+    // Encrypt PII mappings if the user message has any (for cross-device sync).
+    // PII mappings map placeholders like [EMAIL_1] back to original values.
+    let encryptedPIIMappings: string | null = null;
+    if (user_message.pii_mappings && user_message.pii_mappings.length > 0) {
+      try {
+        const piiMappingsJson = JSON.stringify(user_message.pii_mappings);
+        encryptedPIIMappings = await encryptWithChatKey(
+          piiMappingsJson,
+          chatKey,
+        );
+        console.debug(
+          `[ChatSyncService:Senders] Encrypted PII mappings for message ${user_message.message_id}: ${user_message.pii_mappings.length} mappings`,
+        );
+      } catch (piiEncryptError) {
+        console.error(
+          `[ChatSyncService:Senders] Failed to encrypt PII mappings for message ${user_message.message_id}:`,
+          piiEncryptError,
+        );
+      }
+    }
+
     // Create encrypted metadata payload for new handler
     // CRITICAL: Only include metadata fields if they're actually set (not null)
     // For follow-up messages, metadata fields should be undefined/null and NOT included
@@ -1904,6 +1925,7 @@ export async function sendEncryptedStoragePackage(
       encrypted_content: string;
       encrypted_sender_name?: string;
       encrypted_category?: string;
+      encrypted_pii_mappings?: string;
       encrypted_title?: string;
       encrypted_chat_category?: string;
       encrypted_icon?: string;
@@ -1951,6 +1973,10 @@ export async function sendEncryptedStoragePackage(
     }
     if (encryptedCategory) {
       metadataPayload.encrypted_chat_category = encryptedCategory;
+    }
+    // Include encrypted PII mappings on the user message (for cross-device PII restoration)
+    if (encryptedPIIMappings) {
+      metadataPayload.encrypted_pii_mappings = encryptedPIIMappings;
     }
 
     console.info("[ChatSyncService:Senders] Sending encrypted chat metadata:", {

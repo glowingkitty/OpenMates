@@ -231,7 +231,8 @@ async def _async_persist_new_chat_message_task(
     new_last_edited_overall_timestamp: Optional[int] = None,
     task_id: str = "UNKNOWN",
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
-    user_id: Optional[str] = None # User ID for sync cache updates (not hashed)
+    user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
+    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
 ):
     """
     Async logic for:
@@ -310,6 +311,9 @@ async def _async_persist_new_chat_message_task(
                 # Only include encrypted_model_name for assistant messages
                 if encrypted_model_name and role == 'assistant':
                     new_message_dict["encrypted_model_name"] = encrypted_model_name
+                # Include encrypted PII mappings if provided (user messages with PII detection)
+                if encrypted_pii_mappings:
+                    new_message_dict["encrypted_pii_mappings"] = encrypted_pii_mappings
                 new_message_json = json.dumps(new_message_dict)
                 
                 # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
@@ -438,6 +442,9 @@ async def _async_persist_new_chat_message_task(
         # Only include encrypted_model_name for assistant messages
         if encrypted_model_name and role == 'assistant':
             message_data_for_directus["encrypted_model_name"] = encrypted_model_name
+        # Include encrypted PII mappings if provided (user messages with PII detection)
+        if encrypted_pii_mappings:
+            message_data_for_directus["encrypted_pii_mappings"] = encrypted_pii_mappings
 
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data_for_directus
@@ -495,7 +502,8 @@ def persist_new_chat_message_task(
     new_chat_messages_version: Optional[int] = None,
     new_last_edited_overall_timestamp: Optional[int] = None,
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
-    user_id: Optional[str] = None # User ID for sync cache updates (not hashed)
+    user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
+    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -512,7 +520,8 @@ def persist_new_chat_message_task(
             role, encrypted_sender_name, encrypted_category, encrypted_model_name, # Pass new encrypted params including model_name
             encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
-            task_id, encrypted_chat_key, user_id # Pass encrypted chat key and user_id for device sync
+            task_id, encrypted_chat_key, user_id, # Pass encrypted chat key and user_id for device sync
+            encrypted_pii_mappings  # Pass encrypted PII mappings for cross-device restoration
         ))
     except Exception as e:
         logger.error(

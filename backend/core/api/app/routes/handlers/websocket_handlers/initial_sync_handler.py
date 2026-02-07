@@ -324,6 +324,7 @@ async def handle_initial_sync(
                                 'encrypted_thinking_signature': msg.get('encrypted_thinking_signature'),
                                 'has_thinking': msg.get('has_thinking'),
                                 'thinking_token_count': msg.get('thinking_token_count'),
+                                'encrypted_pii_mappings': msg.get('encrypted_pii_mappings'),
                                 'status': msg.get('status', 'delivered'),
                                 'created_at': msg.get('created_at', int(datetime.now(timezone.utc).timestamp()))
                             }

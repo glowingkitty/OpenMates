@@ -92,6 +92,7 @@ MESSAGE_ALL_FIELDS = (
     "encrypted_thinking_signature," # Added encrypted thinking signature (assistant only)
     "has_thinking," # Added thinking metadata flag
     "thinking_token_count," # Added thinking token count
+    "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
@@ -481,6 +482,7 @@ class ChatMethods:
                 "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
                 "has_thinking": message_data.get("has_thinking"),
                 "thinking_token_count": message_data.get("thinking_token_count"),
+                "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }
