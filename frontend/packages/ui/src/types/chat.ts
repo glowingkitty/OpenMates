@@ -61,6 +61,24 @@ export interface Message {
   // Metadata (not encrypted - for UI rendering and cost tracking)
   has_thinking?: boolean; // Quick check if message has thinking content
   thinking_token_count?: number; // Token count for thinking (for cost tracking)
+
+  // PII (Personally Identifiable Information) anonymization fields
+  // Used to store placeholder-to-original-value mappings for client-side restoration
+  // Server only sees placeholders (e.g., [EMAIL_1]), client restores originals for display
+  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_1]": { original: "user@example.com", type: "EMAIL" }, ... }
+  pii_mappings?: PIIMapping[]; // Decrypted PII mappings (computed on-demand, never stored)
+}
+
+/**
+ * A single PII mapping entry for restoration
+ */
+export interface PIIMapping {
+  /** The placeholder text (e.g., "[EMAIL_1]") */
+  placeholder: string;
+  /** The original PII value (e.g., "user@example.com") */
+  original: string;
+  /** The type of PII for styling purposes */
+  type: string;
 }
 
 // Represents the state of a full chat on the client, aligned with chat_sync_architecture.md

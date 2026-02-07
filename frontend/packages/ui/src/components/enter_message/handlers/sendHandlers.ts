@@ -20,6 +20,8 @@ import { notificationStore } from "../../../stores/notificationStore";
 import {
   detectPII,
   replacePIIWithPlaceholders,
+  createPIIMappingsForStorage,
+  type PIIMappingForStorage,
 } from "../services/piiDetectionService"; // PII anonymization
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
@@ -185,9 +187,14 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
  * Creates a message payload from markdown content
  * @param markdown The processed markdown content (with URLs already converted to embeds)
  * @param chatId The ID of the current chat
+ * @param piiMappings Optional PII mappings for restoration (stored encrypted with message)
  * @returns Message payload object with markdown content
  */
-function createMessagePayload(markdown: string, chatId: string): Message {
+function createMessagePayload(
+  markdown: string,
+  chatId: string,
+  piiMappings?: PIIMappingForStorage[],
+): Message {
   // Validate markdown content
   if (!markdown || typeof markdown !== "string") {
     console.error("Invalid markdown content:", markdown);
@@ -214,6 +221,9 @@ function createMessagePayload(markdown: string, chatId: string): Message {
     sender_name: "user", // Set default sender name for Phase 2 encryption
     encrypted_content: null, // Will be set during Phase 2 encryption
     // category will be set by server during preprocessing and sent back via chat_metadata_for_encryption
+    // PII mappings for client-side restoration (will be encrypted during Phase 2)
+    pii_mappings:
+      piiMappings && piiMappings.length > 0 ? piiMappings : undefined,
   };
 
   // current_chat_title removed - not needed for dual-phase architecture
@@ -305,6 +315,8 @@ export async function handleSend(
   // This protects user privacy by ensuring emails, API keys, credit cards, etc.
   // are not sent to the server in plain text.
   // Users can click on highlighted PII in the editor to exclude specific matches.
+  // The PII mappings are stored encrypted with the message for later restoration.
+  let piiMappingsForStorage: PIIMappingForStorage[] = [];
   try {
     const piiMatches = detectPII(markdown, activePIIExclusions);
     if (piiMatches.length > 0) {
@@ -317,11 +329,16 @@ export async function handleSend(
           matchLength: m.match.length,
         })),
       );
+
+      // Create PII mappings for storage - these will be encrypted with the message
+      // and used to restore original values when rendering messages
+      piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+
       markdown = replacePIIWithPlaceholders(markdown, piiMatches);
       console.debug(
         "[handleSend] 🔒 PII anonymization complete, replaced",
         piiMatches.length,
-        "sensitive items",
+        "sensitive items. Mappings will be stored with message.",
       );
     }
   } catch (error) {
@@ -555,7 +572,12 @@ export async function handleSend(
 
     // Create new message payload using the processed markdown and determined chatIdToUse
     // The markdown has already been processed to convert URLs to embed references
-    messagePayload = createMessagePayload(markdown, chatIdToUse);
+    // Include PII mappings so they can be encrypted and stored with the message
+    messagePayload = createMessagePayload(
+      markdown,
+      chatIdToUse,
+      piiMappingsForStorage,
+    );
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)

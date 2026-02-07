@@ -13,6 +13,8 @@
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
   import { truncateTiptapContent } from '../utils/messageTruncation';
+  import { restorePIIInText } from './enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../types/chat';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
@@ -56,6 +58,7 @@
     appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
+    pii_mappings?: PIIMapping[]; // PII mappings for restoration (from user message)
   }
 
   // Add optional embed/app-card metadata without widening the core message type.
@@ -64,18 +67,66 @@
     _embedUpdateTimestamp?: number;
   };
 
+  /**
+   * Build a cumulative PII mappings lookup from all user messages in the chat.
+   * This allows assistant messages to restore PII from any preceding user message.
+   * 
+   * The approach: Aggregate all PII mappings from user messages, keyed by placeholder.
+   * Later messages with the same placeholder override earlier ones (unlikely but handled).
+   */
+  function buildCumulativePIIMappings(allMessages: GlobalMessage[]): Map<string, PIIMapping> {
+    const cumulativeMappings = new Map<string, PIIMapping>();
+    
+    for (const msg of allMessages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        for (const mapping of msg.pii_mappings) {
+          cumulativeMappings.set(mapping.placeholder, mapping);
+        }
+      }
+    }
+    
+    return cumulativeMappings;
+  }
+
+  /**
+   * Restore PII placeholders in markdown content using the provided mappings.
+   * Returns the markdown with placeholders replaced by highlighted original values.
+   */
+  function restorePIIInMarkdown(
+    markdown: string, 
+    mappings: Map<string, PIIMapping>
+  ): string {
+    if (mappings.size === 0) return markdown;
+    
+    // Convert Map to array for the restorePIIInText function
+    const mappingsArray = Array.from(mappings.values());
+    return restorePIIInText(markdown, mappingsArray);
+  }
+
   // Helper function to map incoming message structure to InternalMessage
-  function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
+  // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
+  function G_mapToInternalMessage(
+    incomingMessage: GlobalMessage,
+    piiMappings?: Map<string, PIIMapping>
+  ): InternalMessage {
     // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
     // We need to convert it to Tiptap JSON for display purposes
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
+      let contentToProcess = incomingMessage.content;
+      
+      // PII RESTORATION: Restore PII placeholders with original values before parsing
+      // This applies to both user and assistant messages when mappings are available
+      if (piiMappings && piiMappings.size > 0) {
+        contentToProcess = restorePIIInMarkdown(contentToProcess, piiMappings);
+      }
+      
       // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
       // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
       // This ensures users see "processing" state during streaming instead of waiting for embed data
       const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(incomingMessage.content, parseMode, { unifiedParsingEnabled: true });
+      const tiptapJson = parse_message(contentToProcess, parseMode, { unifiedParsingEnabled: true });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
@@ -109,7 +160,8 @@
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
       original_message: incomingMessage, // Store original for full content loading
       appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
-      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp // Force re-render when embed data arrives
+      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp, // Force re-render when embed data arrives
+      pii_mappings: incomingMessage.pii_mappings // Preserve PII mappings
     };
   }
  
@@ -296,7 +348,16 @@
    */
   export function addMessage(incomingMessage: GlobalMessage) {
     console.debug('Adding message to chat history (raw):', incomingMessage);
-    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage);
+    
+    // Build cumulative PII mappings from existing messages + the new message
+    // This allows assistant messages to restore PII from any preceding user message
+    const allOriginalMessages = [
+      ...messages.map(m => m.original_message).filter((m): m is GlobalMessage => m !== undefined),
+      incomingMessage
+    ];
+    const piiMappings = buildCumulativePIIMappings(allOriginalMessages);
+    
+    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage, piiMappings);
     console.debug('Adding message to chat history (processed):', messageForHistory);
     
     // Track if this is a new user message for scrolling behavior
@@ -369,10 +430,13 @@
 
     const previousMessagesLength = messages.length;
     
+    // Build cumulative PII mappings from all user messages in the incoming array
+    // This allows assistant messages to restore PII from any preceding user message
+    const piiMappings = buildCumulativePIIMappings(newMessagesArray);
     
     const newInternalMessages = newMessagesArray.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
-        const newInternalMessage = G_mapToInternalMessage(newMessage);
+        const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
 
         // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
         // Streaming messages need to re-render on every chunk update

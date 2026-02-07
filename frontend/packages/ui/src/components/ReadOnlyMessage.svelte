@@ -987,4 +987,167 @@
     }
 
     /* Remove artificial margins - whitespace should be preserved naturally */
+
+    /* ==========================================================================
+       PII RESTORED HIGHLIGHTING
+       Styles for PII values that were anonymized (replaced with placeholders)
+       and then restored for display. Visual indication helps users understand
+       what data was protected during transmission.
+       ========================================================================== */
+    
+    /* Base style for all restored PII */
+    :global(.read-only-message .pii-restored) {
+        background: linear-gradient(
+            135deg,
+            rgba(255, 165, 0, 0.15) 0%,
+            rgba(255, 140, 0, 0.15) 100%
+        );
+        border-radius: 3px;
+        padding: 1px 4px;
+        margin: 0 1px;
+        border-bottom: 1px dashed rgba(255, 140, 0, 0.5);
+        cursor: help;
+        transition: background 0.2s ease;
+    }
+
+    :global(.read-only-message .pii-restored:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(255, 165, 0, 0.25) 0%,
+            rgba(255, 140, 0, 0.25) 100%
+        );
+    }
+
+    /* Type-specific styling for different PII categories */
+    
+    /* Email addresses - blue tint */
+    :global(.read-only-message .pii-restored[data-pii-type="EMAIL"]) {
+        background: linear-gradient(
+            135deg,
+            rgba(59, 130, 246, 0.15) 0%,
+            rgba(37, 99, 235, 0.15) 100%
+        );
+        border-bottom-color: rgba(59, 130, 246, 0.5);
+    }
+
+    :global(.read-only-message .pii-restored[data-pii-type="EMAIL"]:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(59, 130, 246, 0.25) 0%,
+            rgba(37, 99, 235, 0.25) 100%
+        );
+    }
+
+    /* Phone numbers - green tint */
+    :global(.read-only-message .pii-restored[data-pii-type="PHONE"]) {
+        background: linear-gradient(
+            135deg,
+            rgba(34, 197, 94, 0.15) 0%,
+            rgba(22, 163, 74, 0.15) 100%
+        );
+        border-bottom-color: rgba(34, 197, 94, 0.5);
+    }
+
+    :global(.read-only-message .pii-restored[data-pii-type="PHONE"]:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(34, 197, 94, 0.25) 0%,
+            rgba(22, 163, 74, 0.25) 100%
+        );
+    }
+
+    /* API keys and tokens - red/orange tint (more prominent for security-sensitive data) */
+    :global(.read-only-message .pii-restored[data-pii-type="OPENAI_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="ANTHROPIC_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="AWS_ACCESS_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="AWS_SECRET_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="GITHUB_PAT"]),
+    :global(.read-only-message .pii-restored[data-pii-type="STRIPE_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="GOOGLE_API_KEY"]),
+    :global(.read-only-message .pii-restored[data-pii-type="SLACK_TOKEN"]),
+    :global(.read-only-message .pii-restored[data-pii-type="JWT"]),
+    :global(.read-only-message .pii-restored[data-pii-type="PRIVATE_KEY"]) {
+        background: linear-gradient(
+            135deg,
+            rgba(239, 68, 68, 0.15) 0%,
+            rgba(220, 38, 38, 0.15) 100%
+        );
+        border-bottom-color: rgba(239, 68, 68, 0.5);
+    }
+
+    :global(.read-only-message .pii-restored[data-pii-type="OPENAI_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="ANTHROPIC_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="AWS_ACCESS_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="AWS_SECRET_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="GITHUB_PAT"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="STRIPE_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="GOOGLE_API_KEY"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="SLACK_TOKEN"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="JWT"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="PRIVATE_KEY"]:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(239, 68, 68, 0.25) 0%,
+            rgba(220, 38, 38, 0.25) 100%
+        );
+    }
+
+    /* Credit cards and SSN - purple tint (financial/identity sensitive) */
+    :global(.read-only-message .pii-restored[data-pii-type="CREDIT_CARD"]),
+    :global(.read-only-message .pii-restored[data-pii-type="SSN"]) {
+        background: linear-gradient(
+            135deg,
+            rgba(168, 85, 247, 0.15) 0%,
+            rgba(147, 51, 234, 0.15) 100%
+        );
+        border-bottom-color: rgba(168, 85, 247, 0.5);
+    }
+
+    :global(.read-only-message .pii-restored[data-pii-type="CREDIT_CARD"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="SSN"]:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(168, 85, 247, 0.25) 0%,
+            rgba(147, 51, 234, 0.25) 100%
+        );
+    }
+
+    /* IP addresses - gray tint (less sensitive) */
+    :global(.read-only-message .pii-restored[data-pii-type="IPV4"]),
+    :global(.read-only-message .pii-restored[data-pii-type="IPV6"]) {
+        background: linear-gradient(
+            135deg,
+            rgba(107, 114, 128, 0.15) 0%,
+            rgba(75, 85, 99, 0.15) 100%
+        );
+        border-bottom-color: rgba(107, 114, 128, 0.5);
+    }
+
+    :global(.read-only-message .pii-restored[data-pii-type="IPV4"]:hover),
+    :global(.read-only-message .pii-restored[data-pii-type="IPV6"]:hover) {
+        background: linear-gradient(
+            135deg,
+            rgba(107, 114, 128, 0.25) 0%,
+            rgba(75, 85, 99, 0.25) 100%
+        );
+    }
+
+    /* Dark mode adjustments for PII restored highlighting */
+    @media (prefers-color-scheme: dark) {
+        :global(.read-only-message .pii-restored) {
+            background: linear-gradient(
+                135deg,
+                rgba(255, 165, 0, 0.2) 0%,
+                rgba(255, 140, 0, 0.2) 100%
+            );
+        }
+
+        :global(.read-only-message .pii-restored:hover) {
+            background: linear-gradient(
+                135deg,
+                rgba(255, 165, 0, 0.3) 0%,
+                rgba(255, 140, 0, 0.3) 100%
+            );
+        }
+    }
 </style>

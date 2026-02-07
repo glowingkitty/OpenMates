@@ -85,6 +85,8 @@ export function hasNewEncryptedFields(
     // Thinking content/signature must be persisted even if status doesn't advance.
     ["encrypted_thinking_content", "encrypted_thinking_content"],
     ["encrypted_thinking_signature", "encrypted_thinking_signature"],
+    // PII mappings for client-side restoration of anonymized data
+    ["encrypted_pii_mappings", "encrypted_pii_mappings"],
   ];
 
   return pairs.some(([existingKey, incomingKey]) => {

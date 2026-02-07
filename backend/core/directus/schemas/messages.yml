@@ -35,7 +35,7 @@ messages:
       note: "[Encrypted] Sender name, encrypted using chat-specific key"
 
     encrypted_category:
-      type: string  
+      type: string
       note: "[Encrypted] Category, encrypted using chat-specific key"
 
     encrypted_model_name:
@@ -68,3 +68,7 @@ messages:
     updated_at:
       type: integer
       note: "Unix timestamp (seconds) when the message was last updated. Crucial for delta syncs."
+
+    encrypted_pii_mappings:
+      type: textfield
+      note: "[Encrypted] JSON mapping of PII placeholders to original values. Used for client-side restoration of anonymized data. Format: [{placeholder: '[EMAIL_1]', original: 'user@example.com', type: 'EMAIL'}, ...]"

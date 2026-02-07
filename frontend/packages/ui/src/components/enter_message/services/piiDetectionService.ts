@@ -369,9 +369,11 @@ export function replacePIIWithPlaceholders(
 }
 
 /**
- * Get human-readable label for a PII type
+ * Get human-readable label for a PII type.
+ * Accepts string to support both PIIType enum values and generic string types
+ * from deserialized PII mappings.
  */
-export function getPIILabel(type: PIIType): string {
+export function getPIILabel(type: string): string {
   const pattern = PII_PATTERNS.find((p) => p.type === type);
   return pattern?.label ?? type;
 }
@@ -401,4 +403,88 @@ export function createPIISummary(matches: PIIMatch[]): string {
   }
 
   return parts.join(", ");
+}
+
+/**
+ * PIIMapping format for storage (matches the PIIMapping interface in types/chat.ts)
+ */
+export interface PIIMappingForStorage {
+  /** The placeholder text (e.g., "[EMAIL_1]") */
+  placeholder: string;
+  /** The original PII value (e.g., "user@example.com") */
+  original: string;
+  /** The type of PII for styling purposes */
+  type: PIIType;
+}
+
+/**
+ * Convert PII matches to storage format for message persistence.
+ * This creates an array of mappings that can be encrypted and stored
+ * with the message for later restoration.
+ *
+ * @param matches PII matches from detectPII()
+ * @returns Array of PII mappings ready for storage
+ */
+export function createPIIMappingsForStorage(
+  matches: PIIMatch[],
+): PIIMappingForStorage[] {
+  return matches.map((match) => ({
+    placeholder: match.placeholder,
+    original: match.match,
+    type: match.type,
+  }));
+}
+
+/**
+ * Generic PII mapping interface for restoration (accepts both PIIMapping and PIIMappingForStorage)
+ */
+interface PIIMappingGeneric {
+  placeholder: string;
+  original: string;
+  type: string;
+}
+
+/**
+ * Restore PII placeholders in text with original values and HTML highlighting.
+ * Used when rendering messages to display the original PII values with visual indication.
+ *
+ * @param text Text containing PII placeholders (e.g., "[EMAIL_1]")
+ * @param mappings Array of PII mappings from storage
+ * @returns Text with placeholders replaced by highlighted original values
+ */
+export function restorePIIInText(
+  text: string,
+  mappings: PIIMappingGeneric[],
+): string {
+  if (!mappings || mappings.length === 0) return text;
+
+  let result = text;
+
+  for (const mapping of mappings) {
+    if (result.includes(mapping.placeholder)) {
+      // Create an inline HTML span with:
+      // - class for CSS styling
+      // - data-pii-type for type-specific styling
+      // - title for hover tooltip explaining this is restored PII
+      const restoredMarkup = `<span class="pii-restored" data-pii-type="${mapping.type}" title="${getPIILabel(mapping.type)} (restored from placeholder)">${escapeHtml(mapping.original)}</span>`;
+
+      result = result.split(mapping.placeholder).join(restoredMarkup);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Escape HTML special characters to prevent XSS when rendering restored PII.
+ */
+function escapeHtml(text: string): string {
+  const htmlEscapes: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
 }
