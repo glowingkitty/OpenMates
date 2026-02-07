@@ -95,21 +95,33 @@
     /**
      * Effect that reacts to browser online/offline status changes.
      * Browser events are instant (when they work), so we show/hide immediately.
+     *
+     * For unauthenticated users: Only use browser online/offline status.
+     * For authenticated users: Also check WebSocket status before hiding.
      */
     $effect(() => {
         const online = $isOnline;
+        const isAuthenticated = $authStore.isAuthenticated;
 
         if (!online) {
             // Browser says offline — show immediately
             showOfflineNotification();
         } else if (online && offlineNotificationId !== null) {
-            // Browser says online — but only hide if WebSocket is also connected
-            // (to avoid premature dismissal when browser event fires but WS is still down)
-            const wsState = $websocketStatus;
-            if (wsState.status === 'connected') {
+            // Browser says online — decide whether to hide based on auth status
+            if (!isAuthenticated) {
+                // Unauthenticated users don't use WebSocket, so trust browser status
                 hideOfflineNotification();
                 clearWsOfflineTimer();
                 wsDisconnectedSince = null;
+            } else {
+                // Authenticated users: only hide if WebSocket is also connected
+                // (to avoid premature dismissal when browser event fires but WS is still down)
+                const wsState = $websocketStatus;
+                if (wsState.status === 'connected') {
+                    hideOfflineNotification();
+                    clearWsOfflineTimer();
+                    wsDisconnectedSince = null;
+                }
             }
         }
     });
