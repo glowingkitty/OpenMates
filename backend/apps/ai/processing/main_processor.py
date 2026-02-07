@@ -8,6 +8,7 @@ import httpx
 import datetime
 import os
 import copy
+import hashlib
 from toon_format import encode
 
 # Import Pydantic models for type hinting
@@ -60,6 +61,32 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Force the LLM to answer with gathered information by setting tool_choice="none".
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
+
+
+def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> str:
+    """
+    Create a deterministic hash of skill arguments for deduplication.
+    
+    This prevents the same skill from being executed multiple times with identical
+    arguments within a single AI response. This commonly happens when LLMs
+    (especially Gemini) repeatedly call the same tool across iterations even after
+    receiving a successful result.
+    
+    The hash is computed from (app_id, skill_id, sorted_json_arguments).
+    Same skill with different arguments will have different hashes and execute normally.
+    
+    Args:
+        app_id: The app identifier (e.g., 'reminder')
+        skill_id: The skill identifier (e.g., 'set-reminder')
+        arguments: The parsed arguments dict from the tool call
+        
+    Returns:
+        MD5 hash string for deduplication lookup
+    """
+    # Sort keys for deterministic hashing regardless of JSON key order
+    args_str = json.dumps(arguments, sort_keys=True, default=str)
+    hash_input = f"{app_id}:{skill_id}:{args_str}"
+    return hashlib.md5(hash_input.encode()).hexdigest()
 
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
@@ -1160,6 +1187,14 @@ async def handle_main_processing(
     budget_warning_injected = False
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     
+    # === SKILL CALL DEDUPLICATION ===
+    # Track successfully completed skill calls to prevent duplicate executions.
+    # Some LLMs (especially Gemini) repeatedly call the same tool across iterations
+    # even after receiving a successful result. This wastes credits and creates
+    # duplicate side effects (e.g., multiple reminders for "set me a reminder").
+    # Key: hash of (app_id, skill_id, arguments), Value: dict with results and embed_id
+    completed_skill_calls: Dict[str, Dict[str, Any]] = {}
+    
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
         
@@ -1294,6 +1329,20 @@ async def handle_main_processing(
                             app_id, skill_id = tool_name.split('_', 1)
                         else:
                             app_id, skill_id = "unknown", "unknown"
+                    
+                    # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
+                    # Check if this exact skill call was already executed in a previous iteration.
+                    # If so, skip creating placeholder - the execution phase will also skip it.
+                    # This prevents duplicate embeds from appearing in the stream.
+                    call_hash = _hash_skill_arguments(app_id, skill_id, parsed_args)
+                    if call_hash in completed_skill_calls:
+                        logger.info(
+                            f"{log_prefix} INLINE: [DEDUP] Skipping placeholder for duplicate '{app_id}.{skill_id}' "
+                            f"(hash={call_hash[:8]}...). Already executed successfully in a previous iteration."
+                        )
+                        # Don't create placeholder embed - skip to next chunk
+                        # The execution phase will also detect this duplicate and skip execution
+                        continue
                     
                     # Create placeholder embed IMMEDIATELY (before skill execution)
                     if cache_service and user_vault_key_id and directus_service and app_id != "unknown":
@@ -1652,6 +1701,33 @@ async def handle_main_processing(
                     force_no_tools = True
                     continue  # Skip to next tool call
                 
+                # === DEDUPLICATION CHECK (EXECUTION PHASE) ===
+                # Check if this exact skill call was already executed in a previous iteration.
+                # If so, skip execution and return the previous result to the LLM.
+                # This prevents duplicate side effects (e.g., multiple reminders) and wasted credits.
+                call_hash = _hash_skill_arguments(app_id, skill_id, parsed_args)
+                if call_hash in completed_skill_calls:
+                    previous_result = completed_skill_calls[call_hash]
+                    logger.info(
+                        f"{log_prefix} [DEDUP] Skipping duplicate '{app_id}.{skill_id}' (hash={call_hash[:8]}...). "
+                        f"Returning cached result from previous iteration."
+                    )
+                    # Return a synthetic tool result telling the LLM this was already done
+                    # This is NOT visible to users - it's only in the LLM message history
+                    tool_response_message = {
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "already_completed",
+                            "message": f"This {skill_id} action was already performed successfully earlier in this response. "
+                                       f"No need to call it again with the same parameters.",
+                            "previous_embed_id": previous_result.get("embed_id")
+                        })
+                    }
+                    current_message_history.append(tool_response_message)
+                    continue  # Skip to next tool call
+                
                 # Update budget counters (only for non-system tools)
                 if app_id != "system":
                     total_skill_calls += requests_in_this_call
@@ -1967,6 +2043,23 @@ async def handle_main_processing(
                         cache_service=cache_service
                         # max_retries uses default (1 retry = 2 total attempts)
                     )
+                    
+                    # === RECORD SUCCESSFUL SKILL EXECUTION FOR DEDUPLICATION ===
+                    # Store this successful call so subsequent iterations won't re-execute it.
+                    # This prevents duplicate side effects (e.g., multiple reminders) when LLMs
+                    # repeatedly call the same tool across iterations.
+                    # Only record if we got valid results (not cancelled, not error).
+                    if results:
+                        embed_id_for_dedup = placeholder_embed_data.get("embed_id") if placeholder_embed_data else None
+                        completed_skill_calls[call_hash] = {
+                            "embed_id": embed_id_for_dedup,
+                            "skill_task_id": skill_task_id,
+                        }
+                        logger.info(
+                            f"{log_prefix} [DEDUP] Recorded successful '{app_id}.{skill_id}' call "
+                            f"(hash={call_hash[:8]}..., embed_id={embed_id_for_dedup})"
+                        )
+                        
                 except SkillCancelledException:
                     # User cancelled this specific skill - continue with cancelled result
                     # The main AI response will continue, just without this skill's data
