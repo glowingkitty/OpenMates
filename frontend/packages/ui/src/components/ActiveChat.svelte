@@ -301,6 +301,8 @@
     };
 
     type MessageWithAppCards = ChatMessageModel & { appCards?: AppCardEntry[] };
+    /** Extended message type with transient embed metadata (not persisted, used for UI state) */
+    type MessageWithEmbedMeta = ChatMessageModel & { _embedErrors?: Set<string> };
 
     const dispatch = createEventDispatcher();
     
@@ -4566,11 +4568,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Only update the specific message that contains this embed
                     // For now, update all streaming/assistant messages to be safe
                     if (msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant') {
-                        return {
+                        const updated: typeof msg = {
                             ...msg,
                             // Add a timestamp to force content re-processing
                             _embedUpdateTimestamp: Date.now()
                         };
+                        // Track embed errors on the message so ChatMessage can show an error banner
+                        // instead of rendering the broken embed card
+                        if (status === 'error') {
+                            const existingErrors: Set<string> = (msg as MessageWithEmbedMeta)._embedErrors ?? new Set();
+                            existingErrors.add(embed_id);
+                            (updated as MessageWithEmbedMeta)._embedErrors = existingErrors;
+                            console.info(`[ActiveChat] Tracked embed error on message ${message_id}: embed ${embed_id}`);
+                        }
+                        return updated;
                     }
                     return msg;
                 });

@@ -57,6 +57,7 @@
     original_message?: GlobalMessage; // Store original message for full content loading
     appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
+    _embedErrors?: Set<string>; // Embed IDs that errored (tracked by ActiveChat for error banners)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
     pii_mappings?: PIIMapping[]; // PII mappings for restoration (from user message)
   }
@@ -65,6 +66,7 @@
   type MessageWithEmbedMetadata = GlobalMessage & {
     appCards?: AppCardData[];
     _embedUpdateTimestamp?: number;
+    _embedErrors?: Set<string>;
   };
 
   /**
@@ -161,6 +163,7 @@
       original_message: incomingMessage, // Store original for full content loading
       appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
       _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp, // Force re-render when embed data arrives
+      _embedErrors: (incomingMessage as MessageWithEmbedMetadata)._embedErrors, // Propagate embed error tracking from ActiveChat
       pii_mappings: incomingMessage.pii_mappings // Preserve PII mappings
     };
   }
@@ -947,6 +950,7 @@
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
+                        hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}

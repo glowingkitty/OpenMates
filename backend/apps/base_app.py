@@ -455,7 +455,11 @@ class BaseApp:
                         k: v for k, v in request_body.items() 
                         if not k.startswith("_") or k in context_fields
                     }
-                    logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
+                    logger.info(
+                        f"No Pydantic model found for skill '{skill_definition.id}', using kwargs. "
+                        f"request_body keys: {list(request_body.keys())}, "
+                        f"clean_request_body keys: {list(clean_request_body.keys())}"
+                    )
                     
                     # Merge context fields into clean_request_body for non-Pydantic skills
                     # Filter skill_kwargs to only include arguments that the execute method actually accepts
@@ -467,6 +471,32 @@ class BaseApp:
                     }
                     
                     clean_request_body.update(supported_skill_kwargs)
+                    
+                    # Validate that all required parameters are present before calling execute()
+                    # This catches cases where the LLM hallucinated wrong parameter names
+                    # (e.g. sending "reminder_text" instead of "prompt") and provides a clear error
+                    missing_params = []
+                    for param_name, param in execute_params.items():
+                        if param_name == 'self':
+                            continue
+                        # Only check required parameters (no default, not **kwargs)
+                        if (param.default is inspect.Parameter.empty 
+                                and param.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)):
+                            if param_name not in clean_request_body:
+                                missing_params.append(param_name)
+                    
+                    if missing_params:
+                        logger.error(
+                            f"Skill '{skill_definition.id}' is missing required parameters: {missing_params}. "
+                            f"Received keys: {list(clean_request_body.keys())}. "
+                            f"This is likely caused by the LLM sending incorrect parameter names."
+                        )
+                        raise HTTPException(
+                            status_code=422,
+                            detail=f"Missing required parameters for skill '{skill_definition.id}': {missing_params}. "
+                                   f"Received: {[k for k in clean_request_body if not k.startswith('_')]}."
+                        )
+                    
                     response = await skill_instance.execute(**clean_request_body)
 
                 # Ensure response is properly serialized before returning

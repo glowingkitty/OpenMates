@@ -58,6 +58,7 @@
     original_message = null,
     containerWidth = 0,
     _embedUpdateTimestamp = 0,
+    hasEmbedErrors = false,
     appSettingsMemoriesResponse = undefined,
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
@@ -78,6 +79,7 @@
     original_message?: any;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
+    hasEmbedErrors?: boolean; // Whether any embeds in this message failed (shows error banner)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent?: string; // Decrypted thinking content
@@ -262,6 +264,52 @@
     if (retryText) {
       window.dispatchEvent(new CustomEvent('setRetryMessage', { detail: { text: retryText } }));
     }
+  }
+
+  /**
+   * Opens the report issue settings page pre-filled with context about a failed embed/skill.
+   * Reuses the same share-link generation logic as handleReportBadAnswer
+   * but with a title focused on the skill processing error.
+   */
+  async function handleReportEmbedError() {
+    if (!original_message) return;
+
+    const chatId = original_message.chat_id;
+    const messageId = original_message.message_id;
+
+    // Construct share URL with encryption key (same logic as handleReportBadAnswer)
+    let link = `${window.location.origin}/share/chat/${chatId}`;
+    if (!isPublicChat(chatId)) {
+      try {
+        const chatKey = chatDB.getChatKey(chatId);
+        if (chatKey) {
+          let chatKeyBase64: string;
+          if (chatKey instanceof Uint8Array) {
+            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
+          } else if (typeof chatKey === 'string') {
+            chatKeyBase64 = chatKey;
+          } else {
+            throw new Error('Unexpected chat key format');
+          }
+          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
+          link += `#key=${encryptedBlob}&messageid=${messageId}`;
+        }
+      } catch (error) {
+        console.error(`[ChatMessage] Error generating share key blob for embed error report:`, error);
+      }
+    } else {
+      link += `#messageid=${messageId}`;
+    }
+
+    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
+
+    reportIssueStore.set({
+      title: 'App skill processing error',
+      description: template
+    });
+
+    settingsDeepLink.set('report_issue');
+    panelState.openSettings();
   }
 
   /**
@@ -1144,6 +1192,16 @@
         </button>
       </div>
     {/if}
+    {#if role === 'assistant' && hasEmbedErrors}
+      <div class="embed-error-banner">
+        <span class="embed-error-text">
+          {$text('chat.embed_error.message.text')}
+          <span class="embed-error-link" onclick={handleReportEmbedError} onkeydown={(e) => { if (e.key === 'Enter') handleReportEmbedError(); }} role="button" tabindex="0">
+            {$text('chat.embed_error.report_link.text')}
+          </span>
+        </span>
+      </div>
+    {/if}
     {#if messageStatusText}
       <div class="message-status">
         {messageStatusText}
@@ -1324,6 +1382,33 @@
 
   .pending {
     opacity: 0.7;
+  }
+
+  /* Error banner shown below assistant messages when an app skill embed fails */
+  .embed-error-banner {
+    margin-top: 8px;
+    margin-left: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+  }
+
+  .embed-error-text {
+    font-size: 13px;
+    color: var(--color-grey-60, #888);
+    line-height: 1.4;
+  }
+
+  .embed-error-link {
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+  }
+
+  .embed-error-link:hover {
+    text-decoration-style: solid;
   }
 
   .message-status {
