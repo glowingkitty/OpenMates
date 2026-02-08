@@ -128,12 +128,17 @@
   // When present, we use DemoMessageContent for special placeholder handling
   // We check original_message.content because at this point `content` is already TipTap JSON
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
-  const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
-  const APP_STORE_PLACEHOLDER = '[[app_store_group]]';
+  const DEMO_PLACEHOLDERS = [
+    '[[example_chats_group]]',
+    '[[app_store_group]]',
+    '[[skills_group]]',
+    '[[focus_modes_group]]',
+    '[[settings_memories_group]]',
+  ];
   let hasExampleChatsPlaceholder = $derived((() => {
     const originalContent = original_message?.content;
     if (typeof originalContent === 'string') {
-      return originalContent.includes(EXAMPLE_CHATS_PLACEHOLDER) || originalContent.includes(APP_STORE_PLACEHOLDER);
+      return DEMO_PLACEHOLDERS.some(p => originalContent.includes(p));
     }
     return false;
   })());

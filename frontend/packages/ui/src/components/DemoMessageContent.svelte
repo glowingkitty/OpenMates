@@ -2,25 +2,28 @@
   frontend/packages/ui/src/components/DemoMessageContent.svelte
   
   A wrapper component for rendering demo chat message content that handles
-  special placeholders like [[example_chats_group]] and [[app_store_group]].
+  special placeholders like [[example_chats_group]], [[app_store_group]],
+  [[skills_group]], [[focus_modes_group]], and [[settings_memories_group]].
   
   This component:
   1. Splits content at placeholder markers
   2. Renders each markdown section using ReadOnlyMessage
-  3. Inserts the ExampleChatsGroup component at [[example_chats_group]] positions
-  4. Inserts the AppStoreGroup component at [[app_store_group]] positions
+  3. Inserts the corresponding group component at each placeholder position
 -->
 
 <script lang="ts">
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import ExampleChatsGroup from './embeds/ExampleChatsGroup.svelte';
   import AppStoreGroup from './embeds/AppStoreGroup.svelte';
+  import SkillsGroup from './embeds/SkillsGroup.svelte';
+  import FocusModesGroup from './embeds/FocusModesGroup.svelte';
+  import SettingsMemoriesGroup from './embeds/SettingsMemoriesGroup.svelte';
   
   /**
    * Props interface for DemoMessageContent
    */
   interface Props {
-    /** The message content (may contain [[example_chats_group]] and [[app_store_group]] placeholders) */
+    /** The message content (may contain special placeholders) */
     content: string;
     /** Current chat ID to exclude from example chats group */
     chatId?: string;
@@ -41,9 +44,29 @@
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
   const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
   const APP_STORE_PLACEHOLDER = '[[app_store_group]]';
+  const SKILLS_PLACEHOLDER = '[[skills_group]]';
+  const FOCUS_MODES_PLACEHOLDER = '[[focus_modes_group]]';
+  const SETTINGS_MEMORIES_PLACEHOLDER = '[[settings_memories_group]]';
   
-  // All supported placeholder tokens
-  const PLACEHOLDERS = [EXAMPLE_CHATS_PLACEHOLDER, APP_STORE_PLACEHOLDER] as const;
+  // All supported placeholder tokens and their part types
+  const PLACEHOLDERS = [
+    EXAMPLE_CHATS_PLACEHOLDER,
+    APP_STORE_PLACEHOLDER,
+    SKILLS_PLACEHOLDER,
+    FOCUS_MODES_PLACEHOLDER,
+    SETTINGS_MEMORIES_PLACEHOLDER,
+  ] as const;
+  
+  /** Map placeholder strings to their part type identifiers */
+  const PLACEHOLDER_TYPE_MAP: Record<string, string> = {
+    [EXAMPLE_CHATS_PLACEHOLDER]: 'example_chats_group',
+    [APP_STORE_PLACEHOLDER]: 'app_store_group',
+    [SKILLS_PLACEHOLDER]: 'skills_group',
+    [FOCUS_MODES_PLACEHOLDER]: 'focus_modes_group',
+    [SETTINGS_MEMORIES_PLACEHOLDER]: 'settings_memories_group',
+  };
+  
+  type PartType = 'markdown' | 'example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -55,7 +78,7 @@
     
     if (!hasAnyPlaceholder) {
       // No placeholder, return single part
-      return [{ type: 'markdown' as const, content }];
+      return [{ type: 'markdown' as PartType, content }];
     }
     
     // Build a regex that matches any placeholder (escaped for regex safety)
@@ -65,13 +88,12 @@
     // Split at any placeholder, keeping the delimiters in the result
     const segments = content.split(placeholderRegex);
     
-    const parts: Array<{ type: 'markdown' | 'example_chats_group' | 'app_store_group'; content: string }> = [];
+    const parts: Array<{ type: PartType; content: string }> = [];
     
     for (const segment of segments) {
-      if (segment === EXAMPLE_CHATS_PLACEHOLDER) {
-        parts.push({ type: 'example_chats_group', content: '' });
-      } else if (segment === APP_STORE_PLACEHOLDER) {
-        parts.push({ type: 'app_store_group', content: '' });
+      const partType = PLACEHOLDER_TYPE_MAP[segment];
+      if (partType) {
+        parts.push({ type: partType as PartType, content: '' });
       } else if (segment.trim()) {
         parts.push({ type: 'markdown', content: segment });
       }
@@ -98,6 +120,12 @@
         <ExampleChatsGroup excludeChatId={chatId} />
       {:else if part.type === 'app_store_group'}
         <AppStoreGroup />
+      {:else if part.type === 'skills_group'}
+        <SkillsGroup />
+      {:else if part.type === 'focus_modes_group'}
+        <FocusModesGroup />
+      {:else if part.type === 'settings_memories_group'}
+        <SettingsMemoriesGroup />
       {/if}
     {/each}
   </div>
