@@ -5,68 +5,85 @@ icon_image: |
 category: personal
 last_updated: "2025-11-12"
 settings_and_memories:
+  # Trips: Planned or past trips with destination and dates
   - id: trips
     name_translation_key: travel.trips.text
     description_translation_key: travel.trips.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
       type: object
       properties:
         destination:
           type: string
           description: City or country
+          is_title: true
         start_date:
           type: string
           format: date
-          description: YYYY-MM-DD
+          description: Start date (YYYY-MM-DD)
+          is_subtitle: true
         end_date:
           type: string
           format: date
-          description: YYYY-MM-DD
+          description: End date (YYYY-MM-DD)
         notes:
           type: string
-          description: Additional notes
+          description: Additional notes about the trip
       required:
         - destination
-        - start_date
+  # Preferred airlines: Airlines the user prefers to fly with
   - id: preferred_airlines
     name_translation_key: travel.preferred_airlines.text
     description_translation_key: travel.preferred_airlines.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
-      type: array
-      items:
-        type: string
-      description: List of preferred airlines
+      type: object
+      properties:
+        name:
+          type: string
+          description: Airline name (e.g., Lufthansa, British Airways)
+          is_title: true
+      required:
+        - name
+  # Preferred transport methods: How the user prefers to travel
   - id: preferred_transport_methods
     name_translation_key: travel.preferred_transport_methods.text
     description_translation_key: travel.preferred_transport_methods.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
-      type: array
-      items:
-        type: string
-        enum:
-          - bike
-          - public_transport
-          - train
-          - plane
-          - car
-          - walking
-      description: List of preferred transport methods, ordered by preference
+      type: object
+      properties:
+        method:
+          type: string
+          description: Transport method
+          enum:
+            - bike
+            - public_transport
+            - train
+            - plane
+            - car
+            - walking
+          is_title: true
+      required:
+        - method
+  # Travel interests: Things the user enjoys doing while travelling
   - id: interests
     name_translation_key: travel.interests.text
     description_translation_key: travel.interests.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
-      type: array
-      items:
-        type: string
-      description: List of travel-related interests
+      type: object
+      properties:
+        name:
+          type: string
+          description: Travel interest (e.g., hiking, museums, local cuisine)
+          is_title: true
+      required:
+        - name
 skills:
   - id: search_connections
     name_translation_key: travel.search_connections.text
