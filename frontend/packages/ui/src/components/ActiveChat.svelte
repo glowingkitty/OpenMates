@@ -31,6 +31,7 @@
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
     import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
+    import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -288,6 +289,25 @@
         status: WebSearchSkillPreviewData['status'];
         results: WebReadResult[];
         url?: string;
+    };
+
+    type TravelConnectionResult = {
+        embed_id: string;
+        type?: string;
+        transport_method?: string;
+        trip_type?: string;
+        total_price?: string;
+        currency?: string;
+        bookable_seats?: number;
+        last_ticketing_date?: string;
+        origin?: string;
+        destination?: string;
+        departure?: string;
+        arrival?: string;
+        duration?: string;
+        stops?: number;
+        carriers?: string[];
+        hash?: string;
     };
 
     type AppCardEntry = {
@@ -755,6 +775,10 @@
         return Array.isArray(results) ? (results as CodeGetDocsResult[]) : [];
     }
 
+    function getTravelConnectionResults(results?: unknown[]): TravelConnectionResult[] {
+        return Array.isArray(results) ? (results as TravelConnectionResult[]) : [];
+    }
+
     // Coerce skill preview status to embed status (embed data doesn't support "cancelled").
     function toEmbedStatus(status: SkillPreviewData['status']): EmbedResolverData['status'] {
         return status === 'cancelled' ? 'error' : status;
@@ -859,7 +883,6 @@
             if (!t) return null;
             switch (t) {
                 case 'app_skill_use':
-                    return 'app-skill-use';
                 case 'app-skill-use':
                     return 'app-skill-use';
                 case 'web-website':
@@ -868,6 +891,10 @@
                 case 'code':
                 case 'code-code':
                     return 'code-code';
+                case 'document':
+                case 'docs-doc':
+                    return 'docs-doc';
+                case 'video':
                 case 'videos-video':
                     return 'videos-video';
                 default:
@@ -5199,6 +5226,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'travel' && skillId === 'search_connections'}
+                        <!-- Travel Search Connections Fullscreen -->
+                        <TravelSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Amadeus'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                            results={getTravelConnectionResults(embedFullscreenData.decodedContent?.results)}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
