@@ -1589,6 +1589,10 @@
 		// Listen for hash changes (e.g., user pastes a new URL with different chat_id)
 		window.addEventListener('hashchange', handleHashChange);
 
+		// Listen for demo chat selection from embed preview cards (ExampleChatsGroup)
+		// These cards are nested deep in message content and can't use Svelte events
+		window.addEventListener('demoChatSelected', handleDemoChatSelected);
+
 		// Listen for pending deep link processing after successful login
 		// This handles cases where user opened a deep link while not authenticated
 		const pendingDeepLinkHandlerWrapper = (event: Event) => {
@@ -1625,6 +1629,8 @@
 		if (pendingDeepLinkHandler) {
 			window.removeEventListener('processPendingDeepLink', pendingDeepLinkHandler);
 		}
+		// Remove demo chat selection event listener
+		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
 		// Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
@@ -1869,6 +1875,40 @@
 		// if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
 		//    panelState.toggleActivityHistory(); // Or a specific close action
 		// }
+	}
+
+	/**
+	 * Handle demo chat selected from embed preview cards (ExampleChatsGroup)
+	 * These are community demo chats rendered inside message content that need
+	 * to be loaded when clicked. Unlike sidebar clicks which use Svelte events,
+	 * embed cards use window events because they're nested deep in the component tree.
+	 */
+	async function handleDemoChatSelected(event: Event) {
+		const customEvent = event as CustomEvent;
+		const selectedChat: Chat = customEvent.detail?.chat;
+		if (!selectedChat?.chat_id) return;
+
+		console.debug('[+page.svelte] Received demoChatSelected event:', selectedChat.chat_id);
+
+		const loadChatWithRetry = async (retries = 20): Promise<void> => {
+			if (activeChat) {
+				console.debug('[+page.svelte] activeChat ready, loading demo chat:', selectedChat.chat_id);
+				activeChat.loadChat(selectedChat);
+				console.debug(
+					'[+page.svelte] ✅ Successfully called loadChat for demo chat:',
+					selectedChat.chat_id
+				);
+				return;
+			} else if (retries > 0) {
+				const delay = retries > 10 ? 50 : 100;
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return loadChatWithRetry(retries - 1);
+			} else {
+				console.error('[+page.svelte] ⚠️ activeChat not available for demo chat load');
+			}
+		};
+
+		await loadChatWithRetry();
 	}
 
 	// Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)

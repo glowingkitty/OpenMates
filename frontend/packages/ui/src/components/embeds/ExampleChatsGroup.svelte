@@ -19,6 +19,7 @@
   import { getAllCommunityDemoChats } from '../../demo_chats';
   import { communityDemoStore } from '../../demo_chats/communityDemoStore';
   import { activeChatStore } from '../../stores/activeChatStore';
+  import { getCommunityDemoChat } from '../../demo_chats/communityDemoStore';
   
   /**
    * Props interface for ExampleChatsGroup
@@ -50,12 +51,31 @@
   })());
   
   // Handle click on a chat card - navigate to the demo chat
+  // CRITICAL: Must both update the sidebar highlight AND trigger chat loading
+  // activeChatStore.setActiveChat() alone only updates the store + URL hash,
+  // but the hashchange handler ignores programmatic hash updates (isProgrammaticHashUpdate).
+  // We need to dispatch a window event so +page.svelte can call activeChat.loadChat().
   function handleChatClick(chatId: string) {
     console.debug('[ExampleChatsGroup] Chat clicked:', chatId);
     
-    // Use activeChatStore to navigate to the chat
-    // This also updates the URL hash via updateUrlHash() internally
+    // Get the full Chat object from the community demo store
+    const chat = getCommunityDemoChat(chatId);
+    if (!chat) {
+      console.warn('[ExampleChatsGroup] Chat not found in community demo store:', chatId);
+      return;
+    }
+    
+    // Update sidebar highlight via activeChatStore (also updates URL hash)
     activeChatStore.setActiveChat(chatId);
+    
+    // Dispatch event to trigger chat loading in +page.svelte
+    // This is needed because activeChatStore.setActiveChat() triggers a programmatic
+    // hash update that the hashchange handler intentionally ignores (to prevent loops)
+    window.dispatchEvent(new CustomEvent('demoChatSelected', {
+      detail: { chat },
+      bubbles: true,
+      composed: true
+    }));
   }
 </script>
 
