@@ -149,44 +149,34 @@
     }
   }
 
-  // Handle download document as HTML file
+  // Handle download document as a valid .docx file using client-side HTML-to-DOCX conversion.
+  // This keeps the content on the client (important for E2E encryption) and avoids server round-trips.
   async function handleDownload() {
     try {
-      console.debug('[DocsEmbedFullscreen] Starting document download');
-      
-      // Create a full HTML document with basic styling for readability
-      const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.html';
-      const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${displayTitle || 'Document'}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; line-height: 1.6; color: #333; }
-    h1 { font-size: 2em; margin-bottom: 0.5em; }
-    h2 { font-size: 1.5em; margin-top: 1.5em; }
-    h3 { font-size: 1.25em; margin-top: 1.2em; }
-    p { margin: 0.8em 0; }
-    ul, ol { padding-left: 2em; }
-    blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #666; }
-    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-    th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-    th { background: #f5f5f5; font-weight: 600; }
-    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-    pre { background: #f5f5f5; padding: 16px; border-radius: 6px; overflow-x: auto; }
-    pre code { background: none; padding: 0; }
-    a { color: #0066cc; }
-    img { max-width: 100%; height: auto; }
-  </style>
-</head>
-<body>
-${sanitizedHtml}
-</body>
-</html>`;
-      
-      // Create download blob
-      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
+
+      // Dynamic import to avoid loading the library until the user actually clicks download
+      const { default: HTMLtoDOCX } = await import('html-to-docx');
+
+      const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
+
+      // Convert sanitized HTML to a valid .docx Blob.
+      // html-to-docx expects a clean HTML string for the body content.
+      const docxBlob = await HTMLtoDOCX(sanitizedHtml, null, {
+        title: displayTitle || 'Document',
+        margins: {
+          top: 1440,    // 1 inch in TWIP
+          right: 1440,
+          bottom: 1440,
+          left: 1440,
+        },
+        font: 'Calibri',
+        fontSize: 22,   // 11pt in HIP (half-points)
+        table: { row: { cantSplit: true } },
+      });
+
+      // Create download link and trigger the download
+      const blob = docxBlob instanceof Blob ? docxBlob : new Blob([docxBlob]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -195,7 +185,7 @@ ${sanitizedHtml}
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       notificationStore.success('Document downloaded successfully');
     } catch (error) {
       console.error('[DocsEmbedFullscreen] Failed to download document:', error);
