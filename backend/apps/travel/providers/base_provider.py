@@ -58,7 +58,11 @@ class ConnectionResult(BaseModel):
     currency: Optional[str] = Field(default=None, description="Price currency code (e.g., 'EUR')")
     bookable_seats: Optional[int] = Field(default=None, description="Number of remaining bookable seats")
     last_ticketing_date: Optional[str] = Field(default=None, description="Last date to purchase (YYYY-MM-DD)")
-    booking_url: Optional[str] = Field(default=None, description="Deep link URL for booking (e.g., Google Flights)")
+    booking_url: Optional[str] = Field(default=None, description="Direct airline booking URL")
+    booking_provider: Optional[str] = Field(default=None, description="Name of the booking provider (e.g., 'Lufthansa')")
+    validating_airline_code: Optional[str] = Field(
+        default=None, description="IATA code of the validating/ticketing airline (e.g., 'LH')"
+    )
     legs: List[LegResult] = Field(default_factory=list, description="Ordered list of trip legs")
 
 

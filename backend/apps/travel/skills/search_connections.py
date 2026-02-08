@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.travel.providers.airline_urls import get_airline_booking_url
 from backend.apps.travel.providers.amadeus_provider import AmadeusProvider
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
@@ -282,7 +283,6 @@ class SearchConnectionsSkill(BaseSkill):
                 "currency": connection.currency,
                 "bookable_seats": connection.bookable_seats,
                 "last_ticketing_date": connection.last_ticketing_date,
-                "booking_url": connection.booking_url,
                 "legs": [leg.model_dump() for leg in connection.legs],
                 "hash": self._generate_connection_hash(connection),
             }
@@ -309,16 +309,30 @@ class SearchConnectionsSkill(BaseSkill):
                 result_dict["carriers"] = list(carriers)
                 result_dict["carrier_codes"] = list(carrier_codes)
 
-                # Build booking URL (Google Flights deep link)
+                # Build direct airline booking URL.
+                # Priority: validating airline > first segment carrier > skip.
+                # The validating airline is the one that issues the ticket,
+                # so it's the most relevant for booking.
                 if connection.transport_method == "airplane" and first_leg.segments:
                     origin_iata = first_leg.segments[0].departure_station
                     dest_iata = first_leg.segments[-1].arrival_station
                     dep_date = first_leg.departure[:10] if first_leg.departure else ""
-                    if origin_iata and dest_iata and dep_date:
-                        result_dict["booking_url"] = (
-                            f"https://www.google.com/travel/flights?"
-                            f"q=flights+from+{origin_iata}+to+{dest_iata}+on+{dep_date}"
+                    booking_carrier = (
+                        connection.validating_airline_code
+                        or first_leg.segments[0].carrier_code
+                        or ""
+                    )
+                    if origin_iata and dest_iata and dep_date and booking_carrier:
+                        booking_url, airline_name = get_airline_booking_url(
+                            carrier_code=booking_carrier,
+                            origin_iata=origin_iata,
+                            destination_iata=dest_iata,
+                            departure_date=dep_date,
+                            passengers=passengers,
                         )
+                        if booking_url:
+                            result_dict["booking_url"] = booking_url
+                            result_dict["booking_provider"] = airline_name
 
             results.append(result_dict)
 

@@ -39,6 +39,7 @@
     bookable_seats?: number;
     last_ticketing_date?: string;
     booking_url?: string;
+    booking_provider?: string;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -249,6 +250,7 @@
       bookable_seats: content.bookable_seats as number | undefined,
       last_ticketing_date: content.last_ticketing_date as string | undefined,
       booking_url: content.booking_url as string | undefined,
+      booking_provider: content.booking_provider as string | undefined,
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,

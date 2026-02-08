@@ -15,6 +15,9 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { onDestroy } from 'svelte';
+  import 'leaflet/dist/leaflet.css';
+  import type { Map as LeafletMap, TileLayer } from 'leaflet';
   
   /** Segment data within a leg */
   interface SegmentData {
@@ -55,6 +58,7 @@
     bookable_seats?: number;
     last_ticketing_date?: string;
     booking_url?: string;
+    booking_provider?: string;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -145,23 +149,11 @@
     return `${stops} stops`;
   }
   
-  // Booking URL (either from backend or constructed from IATA codes)
-  let bookingUrl = $derived.by(() => {
-    if (connection.booking_url) return connection.booking_url;
-    // Fallback: construct Google Flights link from first/last segment
-    if (connection.legs && connection.legs.length > 0) {
-      const firstLeg = connection.legs[0];
-      if (firstLeg.segments && firstLeg.segments.length > 0) {
-        const originIata = firstLeg.segments[0].departure_station;
-        const destIata = firstLeg.segments[firstLeg.segments.length - 1].arrival_station;
-        const depDate = firstLeg.departure?.slice(0, 10) || '';
-        if (originIata && destIata && depDate) {
-          return `https://www.google.com/travel/flights?q=flights+from+${originIata}+to+${destIata}+on+${depDate}`;
-        }
-      }
-    }
-    return '';
-  });
+  // Booking URL from backend (direct airline link)
+  let bookingUrl = $derived(connection.booking_url || '');
+  
+  // Booking provider name (airline name from backend, e.g., "Lufthansa")
+  let bookingProvider = $derived(connection.booking_provider || connection.carriers?.[0] || '');
   
   // Handle booking button click
   function handleBooking() {
@@ -172,6 +164,324 @@
   
   // Skill name for bottom bar
   let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Connection Details');
+  
+  // ---------------------------------------------------------------------------
+  // PDF Download (jspdf)
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Generate and download a PDF itinerary for this connection.
+   * Uses jspdf (dynamically imported) to create a clean A4 document
+   * with route, price, date, leg details, and carrier info.
+   */
+  async function handleDownload() {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let y = 20;
+      
+      // --- Title ---
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      const titleText = routeDisplay || 'Flight Itinerary';
+      doc.text(titleText, pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      
+      // --- Trip type and price ---
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      const subTitle = [tripTypeLabel, formattedPrice].filter(Boolean).join(' · ');
+      if (subTitle) {
+        doc.text(subTitle, pageWidth / 2, y, { align: 'center' });
+        y += 8;
+      }
+      
+      // --- Carriers ---
+      if (connection.carriers && connection.carriers.length > 0) {
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(connection.carriers.join(', '), pageWidth / 2, y, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        y += 12;
+      } else {
+        y += 4;
+      }
+      
+      // --- Separator line ---
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(20, y, pageWidth - 20, y);
+      y += 10;
+      
+      // --- Legs ---
+      if (connection.legs && connection.legs.length > 0) {
+        for (const leg of connection.legs) {
+          // Check if we need a new page
+          if (y > 250) {
+            doc.addPage();
+            y = 20;
+          }
+          
+          // Leg header
+          const legLabel = getLegLabel(leg, connection.legs?.length ?? 0);
+          doc.setFontSize(13);
+          doc.setFont('helvetica', 'bold');
+          const legHeaderParts = [
+            legLabel ? `${legLabel}:` : '',
+            `${leg.origin} → ${leg.destination}`,
+          ].filter(Boolean);
+          doc.text(legHeaderParts.join(' '), 20, y);
+          y += 6;
+          
+          // Leg meta
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          const legMeta = [
+            formatDate(leg.departure),
+            leg.duration,
+            getStopsLabel(leg.stops),
+          ].filter(Boolean).join(' · ');
+          doc.text(legMeta, 20, y);
+          doc.setTextColor(0, 0, 0);
+          y += 8;
+          
+          // Segments
+          for (const seg of leg.segments) {
+            if (y > 265) {
+              doc.addPage();
+              y = 20;
+            }
+            
+            // Departure
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(formatTime(seg.departure_time), 25, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(seg.departure_station, 50, y);
+            y += 5;
+            
+            // Flight info
+            doc.setFontSize(9);
+            doc.setTextColor(80, 80, 80);
+            const flightInfo = [seg.carrier, seg.number, seg.duration].filter(Boolean).join(' · ');
+            doc.text(flightInfo, 30, y);
+            doc.setTextColor(0, 0, 0);
+            y += 5;
+            
+            // Arrival
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(formatTime(seg.arrival_time), 25, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(seg.arrival_station, 50, y);
+            y += 8;
+          }
+          
+          y += 6;
+        }
+      }
+      
+      // --- Booking info footer ---
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(20, y, pageWidth - 20, y);
+      y += 8;
+      
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      
+      if (connection.bookable_seats != null && connection.bookable_seats > 0) {
+        doc.text(`${connection.bookable_seats} seat(s) remaining`, 20, y);
+        y += 5;
+      }
+      if (connection.last_ticketing_date) {
+        doc.text(`Book by ${connection.last_ticketing_date}`, 20, y);
+        y += 5;
+      }
+      
+      // Footer
+      y += 5;
+      doc.setFontSize(8);
+      doc.text('Generated by OpenMates', pageWidth / 2, y, { align: 'center' });
+      
+      // Download
+      const originCode = connection.legs?.[0]?.segments?.[0]?.departure_station || 'flight';
+      const destCode = connection.legs?.[0]?.segments?.at(-1)?.arrival_station || 'itinerary';
+      const dateStr = connection.departure?.slice(0, 10) || 'unknown';
+      doc.save(`${originCode}-${destCode}_${dateStr}.pdf`);
+    } catch (err) {
+      console.error('[TravelConnectionEmbedFullscreen] PDF download failed:', err);
+    }
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Route map (Leaflet / OpenStreetMap)
+  // ---------------------------------------------------------------------------
+  
+  /** Reference to the map container DOM element */
+  let mapContainer: HTMLDivElement | undefined = $state(undefined);
+  
+  /** Leaflet module reference (dynamically imported) */
+  let L: typeof import('leaflet') | null = null;
+  
+  /** Leaflet map instance */
+  let map: LeafletMap | null = null;
+  
+  /** Whether the map has been initialized */
+  let mapInitialized = $state(false);
+  
+  /** Detect dark mode from CSS custom property or media query */
+  let isDarkMode = $derived.by(() => {
+    if (typeof window === 'undefined') return false;
+    const cssVar = getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim();
+    if (cssVar === '1' || cssVar === 'true') return true;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
+  
+  /**
+   * Collect all unique airport coordinates from the connection legs/segments.
+   * Returns an ordered array of waypoints: [(lat, lng, iataCode), ...]
+   * following the flight path from first departure to final arrival.
+   */
+  let routeWaypoints = $derived.by(() => {
+    if (!connection.legs || connection.legs.length === 0) return [];
+    
+    const waypoints: Array<{ lat: number; lng: number; code: string }> = [];
+    const seen = new Set<string>();
+    
+    for (const leg of connection.legs) {
+      if (!leg.segments) continue;
+      for (const seg of leg.segments) {
+        // Add departure airport
+        if (
+          seg.departure_latitude != null &&
+          seg.departure_longitude != null &&
+          seg.departure_station &&
+          !seen.has(seg.departure_station)
+        ) {
+          waypoints.push({
+            lat: seg.departure_latitude,
+            lng: seg.departure_longitude,
+            code: seg.departure_station,
+          });
+          seen.add(seg.departure_station);
+        }
+        // Add arrival airport
+        if (
+          seg.arrival_latitude != null &&
+          seg.arrival_longitude != null &&
+          seg.arrival_station &&
+          !seen.has(seg.arrival_station)
+        ) {
+          waypoints.push({
+            lat: seg.arrival_latitude,
+            lng: seg.arrival_longitude,
+            code: seg.arrival_station,
+          });
+          seen.add(seg.arrival_station);
+        }
+      }
+    }
+    return waypoints;
+  });
+  
+  /**
+   * Initialize the Leaflet map when the container is mounted and waypoints are available.
+   */
+  async function initializeMap() {
+    if (!mapContainer || routeWaypoints.length < 2 || mapInitialized) return;
+    
+    try {
+      L = await import('leaflet');
+      
+      // Create map with default view
+      const firstWp = routeWaypoints[0];
+      map = L.map(mapContainer, {
+        center: [firstWp.lat, firstWp.lng],
+        zoom: 5,
+        zoomControl: true,
+        scrollWheelZoom: false,
+        attributionControl: true,
+      });
+      
+      // Add OSM tile layer
+      const tileLayer: TileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        className: isDarkMode ? 'dark-tiles' : '',
+      }).addTo(map);
+      
+      // Custom airport marker icon
+      const airportIcon = L.divIcon({
+        className: 'travel-route-marker',
+        html: '<div class="marker-dot"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      
+      // Add markers for each waypoint
+      for (const wp of routeWaypoints) {
+        L.marker([wp.lat, wp.lng], { icon: airportIcon })
+          .addTo(map)
+          .bindPopup(wp.code);
+      }
+      
+      // Draw route polyline connecting all waypoints
+      const latLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
+      L.polyline(latLngs, {
+        color: 'var(--color-primary, #6366f1)',
+        weight: 2.5,
+        opacity: 0.7,
+        dashArray: '8, 6',
+      }).addTo(map);
+      
+      // Fit bounds to show all waypoints with padding
+      const bounds = L.latLngBounds(latLngs);
+      map.fitBounds(bounds, { padding: [40, 40] });
+      
+      // Listen for dark mode changes
+      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const updateDarkMode = () => {
+        if (tileLayer && map) {
+          const container = tileLayer.getContainer();
+          if (container) {
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              container.classList.add('dark-tiles');
+            } else {
+              container.classList.remove('dark-tiles');
+            }
+          }
+        }
+      };
+      darkModeQuery.addEventListener('change', updateDarkMode);
+      
+      mapInitialized = true;
+    } catch (err) {
+      console.error('[TravelConnectionEmbedFullscreen] Failed to initialize map:', err);
+    }
+  }
+  
+  // Initialize map when container is ready and waypoints are available
+  $effect(() => {
+    if (mapContainer && routeWaypoints.length >= 2 && !mapInitialized) {
+      initializeMap();
+    }
+  });
+  
+  // Cleanup on destroy
+  onDestroy(() => {
+    if (map) {
+      map.remove();
+      map = null;
+    }
+  });
 </script>
 
 <UnifiedEmbedFullscreen
@@ -179,6 +489,7 @@
   skillId="connection"
   title=""
   {onClose}
+  onDownload={handleDownload}
   skillIconName="search"
   status="finished"
   {skillName}
@@ -200,13 +511,18 @@
           <div class="carriers">{connection.carriers.join(', ')}</div>
         {/if}
         
-        <!-- Booking CTA button -->
-        {#if bookingUrl}
+        <!-- Booking CTA button - links directly to the airline's website -->
+        {#if bookingUrl && bookingProvider}
           <button class="cta-button" onclick={handleBooking}>
-            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', 'Google Flights')}
+            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', bookingProvider)}
           </button>
         {/if}
       </div>
+      
+      <!-- Route Map (OpenStreetMap via Leaflet) -->
+      {#if routeWaypoints.length >= 2}
+        <div class="route-map-container" bind:this={mapContainer}></div>
+      {/if}
       
       <!-- Legs Timeline -->
       {#if connection.legs && connection.legs.length > 0}
@@ -392,6 +708,71 @@
   .cta-button:active {
     background-color: var(--color-button-primary-pressed);
     transform: translateY(0);
+  }
+  
+  /* ===========================================
+     Route Map
+     =========================================== */
+  
+  .route-map-container {
+    width: 100%;
+    height: 200px;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    background-color: var(--color-grey-10, #f5f5f5);
+  }
+  
+  @container fullscreen (max-width: 500px) {
+    .route-map-container {
+      height: 160px;
+      border-radius: 12px;
+    }
+  }
+  
+  /* Leaflet overrides scoped to this component */
+  .route-map-container :global(.leaflet-container) {
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background-color: var(--color-grey-10, #f5f5f5);
+  }
+  
+  .route-map-container :global(.leaflet-control-attribution) {
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+  
+  .route-map-container :global(.leaflet-control-zoom) {
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+  
+  .route-map-container :global(.leaflet-control-zoom a) {
+    background-color: var(--color-bg-primary, #fff);
+    color: var(--color-font-primary, #333);
+    border-color: var(--color-grey-20, #e5e5e5);
+  }
+  
+  /* Custom airport marker */
+  .route-map-container :global(.travel-route-marker) {
+    background: transparent;
+    border: none;
+  }
+  
+  .route-map-container :global(.travel-route-marker .marker-dot) {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--color-primary, #6366f1);
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    margin: 2px;
+  }
+  
+  /* Dark mode tile inversion */
+  .route-map-container :global(.dark-tiles) {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
   }
   
   /* ===========================================

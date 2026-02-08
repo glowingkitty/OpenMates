@@ -544,12 +544,19 @@ class AmadeusProvider(BaseTransportProvider):
                     segments=segments_out,
                 ))
 
+            # Extract the validating airline code from the offer.
+            # validatingAirlineCodes is an array; the first entry is the primary
+            # ticketing/validating airline for the entire itinerary.
+            validating_codes = offer.get("validatingAirlineCodes", [])
+            validating_code = validating_codes[0] if validating_codes else None
+
             results.append(ConnectionResult(
                 transport_method="airplane",
                 total_price=price.get("total"),
                 currency=price.get("currency"),
                 bookable_seats=offer.get("numberOfBookableSeats"),
                 last_ticketing_date=offer.get("lastTicketingDate"),
+                validating_airline_code=validating_code,
                 legs=legs_out,
             ))
 
