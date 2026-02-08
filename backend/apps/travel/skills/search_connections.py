@@ -145,7 +145,8 @@ class SearchConnectionsSkill(BaseSkill):
         validated_requests, validation_error = self._validate_requests_array(
             requests=requests,
             required_field="legs",
-            skill_name="SearchConnectionsSkill",
+            field_display_name="legs",
+            empty_error_message="No connection search requests provided",
             logger=logger,
         )
         if validation_error:
@@ -172,7 +173,6 @@ class SearchConnectionsSkill(BaseSkill):
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
             requests=validated_requests,
-            skill_name="SearchConnectionsSkill",
             logger=logger,
         )
 
@@ -188,12 +188,17 @@ class SearchConnectionsSkill(BaseSkill):
 
     async def _process_single_request(
         self,
-        request: Dict[str, Any],
+        req: Dict[str, Any],
         request_id: Any,
         **kwargs: Any,
     ) -> tuple:
         """
         Process a single connection search request.
+
+        Args:
+            req: The request dict (named 'req' to match BaseSkill._process_requests_in_parallel)
+            request_id: The request ID
+            **kwargs: Additional keyword arguments (e.g., all_providers)
 
         Returns:
             Tuple of (request_id, results_list, error_string_or_none)
@@ -201,13 +206,13 @@ class SearchConnectionsSkill(BaseSkill):
         all_providers: List[BaseTransportProvider] = kwargs.get("all_providers", [])
 
         # Extract parameters with defaults
-        legs = request.get("legs", [])
-        transport_methods = request.get("transport_methods", ["airplane"])
-        passengers = request.get("passengers", 1)
-        travel_class = request.get("travel_class", "economy")
-        max_results = request.get("max_results", 5)
-        non_stop_only = request.get("non_stop_only", False)
-        currency = request.get("currency", "EUR")
+        legs = req.get("legs", [])
+        transport_methods = req.get("transport_methods", ["airplane"])
+        passengers = req.get("passengers", 1)
+        travel_class = req.get("travel_class", "economy")
+        max_results = req.get("max_results", 5)
+        non_stop_only = req.get("non_stop_only", False)
+        currency = req.get("currency", "EUR")
 
         # Validate legs
         if not legs or not isinstance(legs, list):

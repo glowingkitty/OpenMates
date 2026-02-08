@@ -72,7 +72,7 @@ skills:
     name_translation_key: travel.search_connections.text
     description_translation_key: travel.search_connections.description.text
     stage: development
-    class_path: skills.search_connections.SearchConnectionsSkill
+    class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     providers:
       - Amadeus
     exclude_fields_for_llm:
