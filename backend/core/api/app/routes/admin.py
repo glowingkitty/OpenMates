@@ -535,10 +535,19 @@ async def get_server_stats(
         # We prefer the latest daily record as it's pre-aggregated
         current_stats = daily_stats[0] if daily_stats else {}
 
+        # 4. Fetch newsletter subscriber count (confirmed subscribers only)
+        newsletter_subscribers_count = 0
+        try:
+            from backend.core.api.app.routes.newsletter import get_total_newsletter_subscribers_count
+            newsletter_subscribers_count = await get_total_newsletter_subscribers_count(directus_service)
+        except Exception as e:
+            logger.error(f"Error fetching newsletter subscribers count: {e}", exc_info=True)
+
         return {
             "current": current_stats,
             "daily_history": daily_stats,
             "monthly_history": monthly_stats,
+            "newsletter_subscribers_count": newsletter_subscribers_count,
             "timestamp": datetime.now().isoformat()
         }
 

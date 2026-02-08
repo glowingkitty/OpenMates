@@ -2516,6 +2516,27 @@ server_stats.total_liability_sub:
   th: เครดิตคงค้าง
   cs: Nevyplacené kredity
   sv: Utestående krediter
+server_stats.newsletter_subscribers:
+  en: Newsletter Subscribers
+  de: Newsletter-Abonnenten
+  zh: 新闻订阅者
+  es: Suscriptores del boletín
+  fr: Abonnés à la newsletter
+  pt: Assinantes da newsletter
+  ru: Подписчики рассылки
+  ja: ニュースレター購読者
+  ko: 뉴스레터 구독자
+  it: Iscritti alla newsletter
+  tr: Bülten Aboneleri
+  vi: Người đăng ký bản tin
+  id: Pelanggan Buletin
+  pl: Subskrybenci newslettera
+  nl: Nieuwsbriefabonnees
+  ar: المشتركون في النشرة الإخبارية
+  hi: न्यूज़लेटर सदस्य
+  th: ผู้สมัครรับจดหมายข่าว
+  cs: Odběratelé newsletteru
+  sv: Nyhetsbrevsprenumeranter
 server_stats.latest_activity:
   en: Latest Day Activity ({date})
   de: Letzte Tagesaktivität ({date})
