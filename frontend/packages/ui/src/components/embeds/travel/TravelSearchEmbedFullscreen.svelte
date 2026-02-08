@@ -38,6 +38,7 @@
     currency?: string;
     bookable_seats?: number;
     last_ticketing_date?: string;
+    booking_url?: string;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -45,6 +46,7 @@
     duration?: string;
     stops?: number;
     carriers?: string[];
+    carrier_codes?: string[];
     hash?: string;
     /** Full leg data for detailed fullscreen view */
     legs?: LegData[];
@@ -69,8 +71,12 @@
     number?: string;
     departure_station: string;
     departure_time: string;
+    departure_latitude?: number;
+    departure_longitude?: number;
     arrival_station: string;
     arrival_time: string;
+    arrival_latitude?: number;
+    arrival_longitude?: number;
     duration: string;
   }
   
@@ -156,7 +162,7 @@
   let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
   
   // Skill name from translations
-  let skillName = $derived($text('travel.search_connections.text') || 'Search Connections');
+  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search Connections');
   
   // "via {provider}" text
   let viaProvider = $derived(
@@ -218,6 +224,21 @@
       }
     }
     
+    // Extract carrier_codes - could be direct array or TOON-flattened
+    let carrier_codes: string[] = [];
+    if (Array.isArray(content.carrier_codes)) {
+      carrier_codes = content.carrier_codes as string[];
+    } else {
+      for (let i = 0; i < 20; i++) {
+        const cc = content[`carrier_codes_${i}`];
+        if (typeof cc === 'string') {
+          carrier_codes.push(cc);
+        } else {
+          break;
+        }
+      }
+    }
+    
     return {
       embed_id: embedId,
       type: (content.type as string) || 'connection',
@@ -227,6 +248,7 @@
       currency: (content.currency as string) || 'EUR',
       bookable_seats: content.bookable_seats as number | undefined,
       last_ticketing_date: content.last_ticketing_date as string | undefined,
+      booking_url: content.booking_url as string | undefined,
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,
@@ -234,6 +256,7 @@
       duration: content.duration as string | undefined,
       stops: (content.stops as number) || 0,
       carriers,
+      carrier_codes,
       hash: content.hash as string | undefined,
       legs,
     };
@@ -279,8 +302,12 @@
         number: content[`legs_${legIndex}_segments_${j}_number`] as string | undefined,
         departure_station: (content[`legs_${legIndex}_segments_${j}_departure_station`] as string) || '',
         departure_time: (content[`legs_${legIndex}_segments_${j}_departure_time`] as string) || '',
+        departure_latitude: content[`legs_${legIndex}_segments_${j}_departure_latitude`] as number | undefined,
+        departure_longitude: content[`legs_${legIndex}_segments_${j}_departure_longitude`] as number | undefined,
         arrival_station: (content[`legs_${legIndex}_segments_${j}_arrival_station`] as string) || '',
         arrival_time: (content[`legs_${legIndex}_segments_${j}_arrival_time`] as string) || '',
+        arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
+        arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
         duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
       });
     }
@@ -308,6 +335,34 @@
       return transformLegacyResults(ctx.legacyResults);
     }
     return [];
+  }
+  
+  /**
+   * Calculate the cheapest 20% price threshold for highlighting
+   */
+  function getCheapestThreshold(results: ConnectionResult[]): number {
+    const prices = results
+      .filter(r => r.total_price)
+      .map(r => parseFloat(r.total_price!))
+      .filter(p => !isNaN(p))
+      .sort((a, b) => a - b);
+    if (prices.length === 0) return 0;
+    // Bottom 20% index (at least 1 result)
+    const idx = Math.max(0, Math.ceil(prices.length * 0.2) - 1);
+    return prices[idx];
+  }
+  
+  /**
+   * Format date for header display (e.g., "March 7, 2026")
+   */
+  function formatHeaderDate(isoString?: string): string {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
   }
   
   /**
@@ -366,7 +421,7 @@
   skillId="search_connections"
   title=""
   onClose={handleMainClose}
-  skillIconName="travel"
+  skillIconName="search"
   status={fullscreenStatus}
   {skillName}
   showStatus={true}
@@ -384,10 +439,15 @@
 >
   {#snippet content(ctx)}
     {@const connectionResults = getConnectionResults(ctx)}
+    {@const cheapestThreshold = getCheapestThreshold(connectionResults)}
+    {@const firstDeparture = connectionResults.length > 0 ? connectionResults[0].departure : undefined}
     
-    <!-- Header with route summary and provider -->
+    <!-- Header with route summary, search params, and provider -->
     <div class="fullscreen-header">
       <div class="search-query">{query}</div>
+      {#if firstDeparture}
+        <div class="search-date">{formatHeaderDate(firstDeparture)}</div>
+      {/if}
       <div class="search-provider">{viaProvider}</div>
     </div>
     
@@ -425,7 +485,9 @@
               duration={result.duration}
               stops={result.stops}
               carriers={result.carriers}
+              carrierCodes={result.carrier_codes}
               bookableSeats={result.bookable_seats}
+              isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}
               status="finished"
               isMobile={false}
               onFullscreen={() => handleConnectionFullscreen(result)}
@@ -472,6 +534,13 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  
+  .search-date {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-font-primary);
+    margin-top: 6px;
   }
   
   .search-provider {
@@ -564,8 +633,5 @@
      Skill Icon Styling
      =========================================== */
   
-  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="travel"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
+  /* Skill icon uses the existing 'search' icon mapping from BasicInfosBar */
 </style>

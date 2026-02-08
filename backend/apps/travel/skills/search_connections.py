@@ -282,6 +282,7 @@ class SearchConnectionsSkill(BaseSkill):
                 "currency": connection.currency,
                 "bookable_seats": connection.bookable_seats,
                 "last_ticketing_date": connection.last_ticketing_date,
+                "booking_url": connection.booking_url,
                 "legs": [leg.model_dump() for leg in connection.legs],
                 "hash": self._generate_connection_hash(connection),
             }
@@ -299,10 +300,25 @@ class SearchConnectionsSkill(BaseSkill):
 
                 # Carrier summary (unique carriers across all segments)
                 carriers = set()
+                carrier_codes = set()
                 for leg in connection.legs:
                     for seg in leg.segments:
                         carriers.add(seg.carrier)
+                        if seg.carrier_code:
+                            carrier_codes.add(seg.carrier_code)
                 result_dict["carriers"] = list(carriers)
+                result_dict["carrier_codes"] = list(carrier_codes)
+
+                # Build booking URL (Google Flights deep link)
+                if connection.transport_method == "airplane" and first_leg.segments:
+                    origin_iata = first_leg.segments[0].departure_station
+                    dest_iata = first_leg.segments[-1].arrival_station
+                    dep_date = first_leg.departure[:10] if first_leg.departure else ""
+                    if origin_iata and dest_iata and dep_date:
+                        result_dict["booking_url"] = (
+                            f"https://www.google.com/travel/flights?"
+                            f"q=flights+from+{origin_iata}+to+{dest_iata}+on+{dep_date}"
+                        )
 
             results.append(result_dict)
 

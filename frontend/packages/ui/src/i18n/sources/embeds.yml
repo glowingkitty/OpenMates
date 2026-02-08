@@ -1480,3 +1480,187 @@ reminder.already_fired:
   cs: Tato připomínka již byla spuštěna
   sv: Denna påminnelse har redan utlösts
   verified_by_human: [en, de]
+connection:
+  context: Singular label for a travel connection result
+  en: connection
+  de: Verbindung
+  zh: 连接
+  es: conexión
+  fr: connexion
+  pt: conexão
+  ru: соединение
+  ja: 接続
+  ko: 연결
+  it: connessione
+  tr: bağlantı
+  vi: kết nối
+  id: koneksi
+  pl: połączenie
+  nl: verbinding
+  ar: اتصال
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelse
+  verified_by_human: [en, de]
+connections:
+  context: Plural label for travel connection results
+  en: connections
+  de: Verbindungen
+  zh: 连接
+  es: conexiones
+  fr: connexions
+  pt: conexões
+  ru: соединений
+  ja: 接続
+  ko: 연결
+  it: connessioni
+  tr: bağlantılar
+  vi: kết nối
+  id: koneksi
+  pl: połączenia
+  nl: verbindingen
+  ar: اتصالات
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelser
+  verified_by_human: [en, de]
+from:
+  context: Price prefix, e.g. 'from EUR 330'
+  en: from
+  de: ab
+  zh: 从
+  es: desde
+  fr: "à partir de"
+  pt: "a partir de"
+  ru: от
+  ja: から
+  ko: 부터
+  it: da
+  tr: den itibaren
+  vi: từ
+  id: dari
+  pl: od
+  nl: vanaf
+  ar: من
+  hi: से
+  th: จาก
+  cs: od
+  sv: från
+  verified_by_human: [en, de]
+search_failed:
+  context: Error title when a skill search fails
+  en: Search failed
+  de: Suche fehlgeschlagen
+  zh: 搜索失败
+  es: Búsqueda fallida
+  fr: Recherche échouée
+  pt: Pesquisa falhou
+  ru: Поиск не удался
+  ja: 検索に失敗しました
+  ko: 검색 실패
+  it: Ricerca fallita
+  tr: Arama başarısız
+  vi: Tìm kiếm thất bại
+  id: Pencarian gagal
+  pl: Wyszukiwanie nie powiodło się
+  nl: Zoeken mislukt
+  ar: فشل البحث
+  hi: खोज विफल
+  th: การค้นหาล้มเหลว
+  cs: Hledání selhalo
+  sv: Sökningen misslyckades
+  verified_by_human: [en, de]
+loading:
+  context: Loading state text while results are being fetched
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  verified_by_human: [en, de]
+no_results:
+  context: Message when no results were found
+  en: No connections found.
+  de: Keine Verbindungen gefunden.
+  zh: 未找到连接。
+  es: No se encontraron conexiones.
+  fr: Aucune connexion trouvée.
+  pt: Nenhuma conexão encontrada.
+  ru: Соединения не найдены.
+  ja: 接続が見つかりません。
+  ko: 연결을 찾을 수 없습니다.
+  it: Nessuna connessione trovata.
+  tr: Bağlantı bulunamadı.
+  vi: Không tìm thấy kết nối.
+  id: Tidak ada koneksi ditemukan.
+  pl: Nie znaleziono połączeń.
+  nl: Geen verbindingen gevonden.
+  ar: لم يتم العثور على اتصالات.
+  hi: कोई कनेक्शन नहीं मिला।
+  th: ไม่พบการเชื่อมต่อ
+  cs: Nebyly nalezeny žádné spoje.
+  sv: Inga förbindelser hittades.
+  verified_by_human: [en, de]
+book_on:
+  context: CTA button text, e.g. 'Book on Google Flights'
+  en: Book on {provider}
+  de: Buchen auf {provider}
+  zh: 在{provider}上预订
+  es: Reservar en {provider}
+  fr: Réserver sur {provider}
+  pt: Reservar no {provider}
+  ru: Забронировать на {provider}
+  ja: "{provider}で予約"
+  ko: "{provider}에서 예약"
+  it: Prenota su {provider}
+  tr: "{provider} üzerinden rezerve et"
+  vi: Đặt trên {provider}
+  id: Pesan di {provider}
+  pl: Zarezerwuj na {provider}
+  nl: Boek op {provider}
+  ar: احجز على {provider}
+  hi: "{provider} पर बुक करें"
+  th: จองบน {provider}
+  cs: Rezervovat na {provider}
+  sv: Boka på {provider}
+  verified_by_human: [en, de]
+download_itinerary:
+  context: Button label to download travel itinerary as PDF
+  en: Download itinerary
+  de: Reiseplan herunterladen
+  zh: 下载行程
+  es: Descargar itinerario
+  fr: "Télécharger l'itinéraire"
+  pt: Baixar itinerário
+  ru: Скачать маршрут
+  ja: 旅程をダウンロード
+  ko: 여행 일정 다운로드
+  it: Scarica itinerario
+  tr: Güzergahı indir
+  vi: Tải hành trình
+  id: Unduh rencana perjalanan
+  pl: Pobierz plan podróży
+  nl: Reisplan downloaden
+  ar: تحميل خط السير
+  hi: यात्रा कार्यक्रम डाउनलोड करें
+  th: ดาวน์โหลดกำหนดการเดินทาง
+  cs: Stáhnout itinerář
+  sv: Ladda ner resplan
+  verified_by_human: [en, de]

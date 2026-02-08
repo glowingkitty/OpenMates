@@ -57,6 +57,9 @@ _token_cache: Dict[str, Any] = {
 # IATA code cache: city name -> IATA code (persists for process lifetime)
 _iata_cache: Dict[str, str] = {}
 
+# Airport coordinate cache: IATA code -> (latitude, longitude)
+_coord_cache: Dict[str, Tuple[float, float]] = {}
+
 
 # ---------------------------------------------------------------------------
 # Credential loading
@@ -208,6 +211,7 @@ class AmadeusProvider(BaseTransportProvider):
         """
         Resolve a city name to its primary IATA airport code using the
         Amadeus location search API. Results are cached in-process.
+        Also caches geographic coordinates for map display.
 
         Args:
             city_name: City name (e.g., 'Munich', 'London').
@@ -227,7 +231,7 @@ class AmadeusProvider(BaseTransportProvider):
                     "subType": "AIRPORT,CITY",
                     "keyword": city_name.strip(),
                     "page[limit]": 5,
-                    "view": "LIGHT",
+                    "view": "FULL",
                 },
                 headers={
                     "Authorization": f"Bearer {token}",
@@ -248,16 +252,27 @@ class AmadeusProvider(BaseTransportProvider):
 
         # Prefer CITY type for broad coverage, fall back to first AIRPORT result
         iata_code = None
+        selected_loc = None
         for loc in locations:
             if loc.get("subType") == "CITY":
                 iata_code = loc.get("iataCode")
+                selected_loc = loc
                 break
         if not iata_code:
             iata_code = locations[0].get("iataCode")
+            selected_loc = locations[0]
 
         if iata_code:
             _iata_cache[cache_key] = iata_code
-            logger.debug(f"Resolved '{city_name}' -> IATA '{iata_code}'")
+            # Cache geographic coordinates from the FULL view response
+            geo_code = selected_loc.get("geoCode", {}) if selected_loc else {}
+            lat = geo_code.get("latitude")
+            lon = geo_code.get("longitude")
+            if lat is not None and lon is not None:
+                _coord_cache[iata_code] = (float(lat), float(lon))
+                logger.debug(f"Resolved '{city_name}' -> IATA '{iata_code}' ({lat}, {lon})")
+            else:
+                logger.debug(f"Resolved '{city_name}' -> IATA '{iata_code}' (no coordinates)")
 
         return iata_code
 
@@ -483,14 +498,24 @@ class AmadeusProvider(BaseTransportProvider):
                     dep = seg.get("departure", {})
                     arr = seg.get("arrival", {})
 
+                    # Look up cached coordinates for departure and arrival airports
+                    dep_iata = dep.get("iataCode", "")
+                    arr_iata = arr.get("iataCode", "")
+                    dep_coords = _coord_cache.get(dep_iata)
+                    arr_coords = _coord_cache.get(arr_iata)
+
                     segments_out.append(SegmentResult(
                         carrier=carrier_name,
                         carrier_code=carrier_code,
                         number=f"{carrier_code}{seg.get('number', '')}",
-                        departure_station=dep.get("iataCode", ""),
+                        departure_station=dep_iata,
                         departure_time=dep.get("at", ""),
-                        arrival_station=arr.get("iataCode", ""),
+                        departure_latitude=dep_coords[0] if dep_coords else None,
+                        departure_longitude=dep_coords[1] if dep_coords else None,
+                        arrival_station=arr_iata,
                         arrival_time=arr.get("at", ""),
+                        arrival_latitude=arr_coords[0] if arr_coords else None,
+                        arrival_longitude=arr_coords[1] if arr_coords else None,
                         duration=_format_duration(seg.get("duration", "")),
                     ))
 
@@ -518,9 +543,6 @@ class AmadeusProvider(BaseTransportProvider):
                     stops=stops,
                     segments=segments_out,
                 ))
-
-            # Determine trip type label
-            trip_type = "round_trip" if is_round_trip else ("multi_city" if len(legs_out) > 1 else "one_way")
 
             results.append(ConnectionResult(
                 transport_method="airplane",

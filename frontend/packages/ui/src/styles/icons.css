@@ -752,6 +752,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.travel {
+  background: var(--color-app-travel);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/travel.svg");
+  }
+}
+
 .icon_rounded.book {
   background: var(--color-app-books);
   &::after {

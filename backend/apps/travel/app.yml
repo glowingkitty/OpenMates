@@ -168,7 +168,7 @@ skills:
               max_results:
                 type: integer
                 description: Maximum number of connection options to return per transport method.
-                default: 5
+                default: 6
               non_stop_only:
                 type: boolean
                 description: If true, only return direct/non-stop connections.

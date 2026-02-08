@@ -45,8 +45,12 @@
     stops?: number;
     /** Carrier names */
     carriers?: string[];
+    /** IATA carrier codes (e.g., ['LH', 'BA']) for airline logos */
+    carrierCodes?: string[];
     /** Number of bookable seats remaining */
     bookableSeats?: number;
+    /** Whether this connection is among the cheapest results */
+    isCheapest?: boolean;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
@@ -70,7 +74,9 @@
     duration,
     stops = 0,
     carriers = [],
+    carrierCodes = [],
     bookableSeats,
+    isCheapest = false,
     status = 'finished',
     isMobile = false,
     onFullscreen
@@ -98,6 +104,27 @@
   
   let departureTime = $derived(formatTime(departure));
   let arrivalTime = $derived(formatTime(arrival));
+  
+  // Format departure date for display (e.g., "Fri, Mar 7, 2026")
+  let departureDate = $derived.by(() => {
+    if (!departure) return '';
+    try {
+      const date = new Date(departure);
+      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  });
+  
+  // Generate airline logo URLs from carrier codes via image proxy
+  let airlineLogos = $derived.by(() => {
+    if (!carrierCodes || carrierCodes.length === 0) return [];
+    // Show max 3 airline logos
+    return carrierCodes.slice(0, 3).map(code => ({
+      code,
+      url: `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(`https://images.kiwi.com/airlines/64/${code}.png`)}&max_width=32`,
+    }));
+  });
   
   // Stops label
   let stopsLabel = $derived.by(() => {
@@ -145,7 +172,7 @@
   {id}
   appId="travel"
   skillId="connection"
-  skillIconName="travel"
+  skillIconName="search"
   {status}
   skillName={routeDisplay}
   {isMobile}
@@ -156,10 +183,26 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout}>
-      <!-- Price (prominent) -->
-      {#if formattedPrice}
-        <div class="connection-price">{formattedPrice}</div>
-      {/if}
+      <!-- Price row with airline logos -->
+      <div class="price-row">
+        {#if formattedPrice}
+          <div class="connection-price" class:cheapest={isCheapest}>{formattedPrice}</div>
+        {/if}
+        {#if airlineLogos.length > 0}
+          <div class="airline-logos">
+            {#each airlineLogos as logo}
+              <img
+                class="airline-logo"
+                src={logo.url}
+                alt={logo.code}
+                width="20"
+                height="20"
+                loading="lazy"
+              />
+            {/each}
+          </div>
+        {/if}
+      </div>
       
       <!-- Route -->
       <div class="connection-route">
@@ -167,6 +210,11 @@
           <span class="route-text">{origin} → {destination}</span>
         {/if}
       </div>
+      
+      <!-- Trip date -->
+      {#if departureDate}
+        <div class="connection-date">{departureDate}</div>
+      {/if}
       
       <!-- Time and duration row -->
       <div class="connection-times">
@@ -214,6 +262,13 @@
     justify-content: flex-start;
   }
   
+  /* Price row with airline logos */
+  .price-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
   /* Price - prominent display */
   .connection-price {
     font-size: 18px;
@@ -222,8 +277,35 @@
     line-height: 1.2;
   }
   
+  .connection-price.cheapest {
+    color: var(--color-success, #22c55e);
+  }
+  
   .connection-details.mobile .connection-price {
     font-size: 16px;
+  }
+  
+  /* Airline logos */
+  .airline-logos {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+  
+  .airline-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-grey-20);
+  }
+  
+  /* Trip date */
+  .connection-date {
+    font-size: 12px;
+    color: var(--color-grey-60);
+    line-height: 1.3;
   }
   
   /* Route */

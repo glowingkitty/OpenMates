@@ -23,8 +23,12 @@
     number?: string;
     departure_station: string;
     departure_time: string;
+    departure_latitude?: number;
+    departure_longitude?: number;
     arrival_station: string;
     arrival_time: string;
+    arrival_latitude?: number;
+    arrival_longitude?: number;
     duration: string;
   }
   
@@ -50,6 +54,7 @@
     currency?: string;
     bookable_seats?: number;
     last_ticketing_date?: string;
+    booking_url?: string;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -57,6 +62,7 @@
     duration?: string;
     stops?: number;
     carriers?: string[];
+    carrier_codes?: string[];
     hash?: string;
     legs?: LegData[];
   }
@@ -139,8 +145,33 @@
     return `${stops} stops`;
   }
   
+  // Booking URL (either from backend or constructed from IATA codes)
+  let bookingUrl = $derived.by(() => {
+    if (connection.booking_url) return connection.booking_url;
+    // Fallback: construct Google Flights link from first/last segment
+    if (connection.legs && connection.legs.length > 0) {
+      const firstLeg = connection.legs[0];
+      if (firstLeg.segments && firstLeg.segments.length > 0) {
+        const originIata = firstLeg.segments[0].departure_station;
+        const destIata = firstLeg.segments[firstLeg.segments.length - 1].arrival_station;
+        const depDate = firstLeg.departure?.slice(0, 10) || '';
+        if (originIata && destIata && depDate) {
+          return `https://www.google.com/travel/flights?q=flights+from+${originIata}+to+${destIata}+on+${depDate}`;
+        }
+      }
+    }
+    return '';
+  });
+  
+  // Handle booking button click
+  function handleBooking() {
+    if (bookingUrl) {
+      window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
   // Skill name for bottom bar
-  let skillName = $derived($text('travel.search_connections.text') || 'Connection Details');
+  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Connection Details');
 </script>
 
 <UnifiedEmbedFullscreen
@@ -148,7 +179,7 @@
   skillId="connection"
   title=""
   {onClose}
-  skillIconName="travel"
+  skillIconName="search"
   status="finished"
   {skillName}
   showStatus={false}
@@ -167,6 +198,13 @@
         <div class="trip-type-badge">{tripTypeLabel}</div>
         {#if connection.carriers && connection.carriers.length > 0}
           <div class="carriers">{connection.carriers.join(', ')}</div>
+        {/if}
+        
+        <!-- Booking CTA button -->
+        {#if bookingUrl}
+          <button class="cta-button" onclick={handleBooking}>
+            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', 'Google Flights')}
+          </button>
         {/if}
       </div>
       
@@ -328,6 +366,32 @@
     font-size: 14px;
     color: var(--color-grey-60);
     margin-top: 8px;
+  }
+  
+  /* CTA Booking Button */
+  .cta-button {
+    background-color: var(--color-button-primary);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 12px 24px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.15s;
+    margin-top: 16px;
+    min-width: 200px;
+  }
+  
+  .cta-button:hover {
+    background-color: var(--color-button-primary-hover);
+    transform: translateY(-1px);
+  }
+  
+  .cta-button:active {
+    background-color: var(--color-button-primary-pressed);
+    transform: translateY(0);
   }
   
   /* ===========================================
@@ -549,8 +613,5 @@
      Skill Icon Styling
      =========================================== */
   
-  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="travel"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
+  /* Skill icon uses the existing 'search' icon mapping from BasicInfosBar */
 </style>

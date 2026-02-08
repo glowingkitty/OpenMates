@@ -28,8 +28,12 @@ class SegmentResult(BaseModel):
     number: Optional[str] = Field(default=None, description="Flight/train number (e.g., 'LH2472', 'ICE 1234')")
     departure_station: str = Field(description="Departure airport code or station name")
     departure_time: str = Field(description="Departure time in ISO 8601 format")
+    departure_latitude: Optional[float] = Field(default=None, description="Departure location latitude")
+    departure_longitude: Optional[float] = Field(default=None, description="Departure location longitude")
     arrival_station: str = Field(description="Arrival airport code or station name")
     arrival_time: str = Field(description="Arrival time in ISO 8601 format")
+    arrival_latitude: Optional[float] = Field(default=None, description="Arrival location latitude")
+    arrival_longitude: Optional[float] = Field(default=None, description="Arrival location longitude")
     duration: str = Field(description="Segment duration (e.g., '2h 30m')")
 
 
@@ -54,6 +58,7 @@ class ConnectionResult(BaseModel):
     currency: Optional[str] = Field(default=None, description="Price currency code (e.g., 'EUR')")
     bookable_seats: Optional[int] = Field(default=None, description="Number of remaining bookable seats")
     last_ticketing_date: Optional[str] = Field(default=None, description="Last date to purchase (YYYY-MM-DD)")
+    booking_url: Optional[str] = Field(default=None, description="Deep link URL for booking (e.g., Google Flights)")
     legs: List[LegResult] = Field(default_factory=list, description="Ordered list of trip legs")
 
 

@@ -192,10 +192,10 @@
   }
   
   // Skill display name from translations
-  let skillName = $derived($text('travel.search_connections.text') || 'Search Connections');
+  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search Connections');
   
   // Skill icon
-  const skillIconName = 'travel';
+  const skillIconName = 'search';
   
   // Get "via {provider}" text
   let viaProvider = $derived(
@@ -233,6 +233,19 @@
       }
     }
     return query || '';
+  });
+  
+  // Date display: extract departure date from first result
+  let dateDisplay = $derived.by(() => {
+    if (flatResults.length === 0) return '';
+    const first = flatResults[0];
+    if (!first.departure) return '';
+    try {
+      const date = new Date(first.departure);
+      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
   });
   
   // Price range display
@@ -295,6 +308,11 @@
     <div class="travel-search-details" class:mobile={isMobileLayout}>
       <!-- Route summary (e.g., "Munich (MUC) → London Heathrow (LHR)") -->
       <div class="search-query">{routeSummary || query}</div>
+      
+      <!-- Trip date (e.g., "Fri, Mar 7") -->
+      {#if dateDisplay}
+        <div class="search-date">{dateDisplay}</div>
+      {/if}
       
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
@@ -366,6 +384,18 @@
     line-clamp: 4;
   }
   
+  /* Trip date */
+  .search-date {
+    font-size: 14px;
+    color: var(--color-grey-80);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  
+  .travel-search-details.mobile .search-date {
+    font-size: 12px;
+  }
+  
   /* Provider subtitle */
   .search-provider {
     font-size: 14px;
@@ -435,17 +465,5 @@
     word-break: break-word;
   }
   
-  /* ===========================================
-     Skill Icon Styling (skill-specific)
-     =========================================== */
-  
-  :global(.unified-embed-preview .skill-icon[data-skill-icon="travel"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
-  
-  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="travel"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
+  /* Skill icon uses the existing 'search' icon mapping from BasicInfosBar */
 </style>
