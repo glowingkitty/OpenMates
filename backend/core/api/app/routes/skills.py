@@ -138,7 +138,8 @@ async def call_app_skill(
             'web': 'app-web',
             'videos': 'app-videos',
             'news': 'app-news',
-            'maps': 'app-maps'
+            'maps': 'app-maps',
+            'travel': 'app-travel',
         }
 
         hostname = app_hostnames.get(app_id)

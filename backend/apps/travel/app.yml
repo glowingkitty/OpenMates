@@ -3,7 +3,7 @@ description_translation_key: travel.description.text
 icon_image: |
   travel.svg
 category: personal
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   - id: trips
     name_translation_key: travel.trips.text
@@ -28,8 +28,8 @@ settings_and_memories:
           type: string
           description: Additional notes
       required:
-      - destination
-      - start_date
+        - destination
+        - start_date
   - id: preferred_airlines
     name_translation_key: travel.preferred_airlines.text
     description_translation_key: travel.preferred_airlines.description.text
@@ -50,12 +50,12 @@ settings_and_memories:
       items:
         type: string
         enum:
-        - bike
-        - public_transport
-        - train
-        - plane
-        - car
-        - walking
+          - bike
+          - public_transport
+          - train
+          - plane
+          - car
+          - walking
       description: List of preferred transport methods, ordered by preference
   - id: interests
     name_translation_key: travel.interests.text
@@ -71,9 +71,96 @@ skills:
   - id: search_connections
     name_translation_key: travel.search_connections.text
     description_translation_key: travel.search_connections.description.text
-    stage: planning
-    class_path: |
-      skills.search_connections.SearchConnectionsSkill
+    stage: development
+    class_path: skills.search_connections.SearchConnectionsSkill
     providers:
-      - Citymapper
-      - Lyko.tech
+      - Amadeus
+    exclude_fields_for_llm:
+      - type
+      - hash
+      - carrier_code
+      - segments
+    suggestions_follow_up_requests:
+      - Search for cheaper dates
+      - Show only direct flights
+      - Search for trains instead
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of connection search requests. Each request searches for
+            transport connections for a complete trip (one-way, round trip,
+            or multi-stop).
+          items:
+            type: object
+            properties:
+              legs:
+                type: array
+                description: >
+                  Ordered list of trip legs. One-way trip = 1 leg.
+                  Round trip = 2 legs (outbound + return). Multi-stop = N legs.
+                  Each leg specifies an origin, destination, and departure date.
+                items:
+                  type: object
+                  properties:
+                    origin:
+                      type: string
+                      description: >
+                        Origin city or location name (e.g. "Munich", "London Heathrow",
+                        "Berlin"). The system resolves this to airport codes or
+                        coordinates internally.
+                    destination:
+                      type: string
+                      description: Destination city or location name.
+                    date:
+                      type: string
+                      description: Departure date in YYYY-MM-DD format.
+                  required:
+                    - origin
+                    - destination
+                    - date
+              transport_methods:
+                type: array
+                description: >
+                  Transport types to search. Currently supported: ["airplane"].
+                  Future: "train", "bus", "boat".
+                items:
+                  type: string
+                  enum:
+                    - airplane
+                    - train
+                    - bus
+                    - boat
+                default:
+                  - airplane
+              passengers:
+                type: integer
+                description: Number of adult passengers.
+                default: 1
+              travel_class:
+                type: string
+                description: Cabin class for flights.
+                enum:
+                  - economy
+                  - premium_economy
+                  - business
+                  - first
+                default: economy
+              max_results:
+                type: integer
+                description: Maximum number of connection options to return per transport method.
+                default: 5
+              non_stop_only:
+                type: boolean
+                description: If true, only return direct/non-stop connections.
+                default: false
+              currency:
+                type: string
+                description: Preferred currency for prices (ISO 4217 code).
+                default: EUR
+            required:
+              - legs
+      required:
+        - requests

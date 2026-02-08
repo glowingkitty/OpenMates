@@ -28,6 +28,9 @@ export const embedRenderers: EmbedRendererRegistry = {
   // Use GroupRenderer for sheet/table embeds (individual and grouped)
   "sheets-sheet": new GroupRenderer(),
   "sheets-sheet-group": new GroupRenderer(),
+  // Use GroupRenderer for travel connection embeds (individual and grouped)
+  "travel-connection": new GroupRenderer(),
+  "travel-connection-group": new GroupRenderer(),
   // Image renderer for static images and SVGs (used in legal documents)
   image: new ImageRenderer(),
 };

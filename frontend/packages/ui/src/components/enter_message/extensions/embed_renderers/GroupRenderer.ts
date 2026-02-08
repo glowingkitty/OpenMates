@@ -25,6 +25,7 @@ import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte"
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
+import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -588,6 +589,24 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Google",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "travel" && skillId === "search_connections") {
+        const component = mount(TravelSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Amadeus",
             status,
             results,
             taskId,
