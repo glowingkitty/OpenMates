@@ -14,7 +14,7 @@
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
     import { Decoration, DecorationSet } from 'prosemirror-view';
-    import { findRestoredPIIPositions } from '../components/enter_message/services/piiDetectionService';
+    import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
     import type { PIIMapping } from '../types/chat';
 
     // Props using Svelte 5 runes mode
@@ -540,40 +540,88 @@
     }
     
     /**
+     * Find PII original values directly in the ProseMirror document and return
+     * their correct document positions. This avoids the position mismatch that
+     * occurs when using flat-text indices (from editor.getText()) because
+     * ProseMirror positions include structural offsets for block boundaries
+     * (each paragraph open/close adds to the position count).
+     *
+     * Walks every text node in the document and searches for each PII original
+     * value within that node's text content, yielding exact ProseMirror positions.
+     */
+    function findPIIPositionsInDoc(doc: import('prosemirror-model').Node, mappings: PIIMapping[]): Array<{
+        from: number;
+        to: number;
+        type: string;
+        label: string;
+    }> {
+        const results: Array<{ from: number; to: number; type: string; label: string }> = [];
+        // Build a lookup of original values → PII type for fast matching
+        const piiLookup = mappings.map(m => ({
+            original: m.original,
+            type: m.type || 'UNKNOWN',
+            label: getPIILabel(m.type || 'UNKNOWN'),
+        }));
+        
+        doc.descendants((node, pos) => {
+            if (!node.isText || !node.text) return;
+            const nodeText = node.text;
+            // For each PII mapping, search for all occurrences within this text node
+            for (const pii of piiLookup) {
+                if (!pii.original) continue;
+                let searchFrom = 0;
+                while (searchFrom < nodeText.length) {
+                    const idx = nodeText.indexOf(pii.original, searchFrom);
+                    if (idx === -1) break;
+                    // ProseMirror position: pos is the absolute position of the text node start
+                    const from = pos + idx;
+                    const to = from + pii.original.length;
+                    results.push({ from, to, type: pii.type, label: pii.label });
+                    searchFrom = idx + pii.original.length;
+                }
+            }
+        });
+        
+        // Sort by position and deduplicate overlapping ranges
+        results.sort((a, b) => a.from - b.from);
+        return results;
+    }
+
+    /**
      * Apply ProseMirror decorations to highlight restored PII values in read-only messages.
-     * Searches the rendered editor text for original PII values and applies inline
-     * decorations with CSS classes matching the PII type (email, phone, API key, etc.).
+     * 
+     * Searches the ProseMirror document directly (not flat text) to find correct
+     * positions for PII values. Also strips link marks from PII ranges so that
+     * emails don't render as clickable <a> tags.
      */
     function applyPIIDecorations(editorInstance: Editor) {
         if (!piiMappings || piiMappings.length === 0 || !editorInstance || editorInstance.isDestroyed) return;
         
         try {
-            const editorText = editorInstance.getText();
-            const positions = findRestoredPIIPositions(editorText, piiMappings);
-            
-            if (positions.length === 0) return;
-            
             const { state, view } = editorInstance;
             const { doc } = state;
             
-            // Step 1: Remove link marks from PII ranges so emails/URLs in PII don't
+            // Find PII positions by walking the ProseMirror document directly.
+            // This gives correct positions that account for block-level structural offsets.
+            const piiPositions = findPIIPositionsInDoc(doc, piiMappings);
+            
+            if (piiPositions.length === 0) return;
+            
+            // Step 1: Remove link marks from PII ranges so emails/URLs don't
             // render as clickable <a> tags. PII values should be plain highlighted text.
             const linkMarkType = state.schema.marks.link;
             if (linkMarkType) {
                 let tr = state.tr;
                 let hasLinkRemovals = false;
-                for (const pos of positions) {
-                    const from = Math.max(1, Math.min(pos.startIndex + 1, doc.content.size));
-                    const to = Math.max(1, Math.min(pos.endIndex + 1, doc.content.size));
-                    // Check if any link mark exists in this range
+                for (const pos of piiPositions) {
                     let hasLink = false;
-                    doc.nodesBetween(from, to, (node) => {
+                    doc.nodesBetween(pos.from, pos.to, (node) => {
                         if (node.isText && linkMarkType.isInSet(node.marks)) {
                             hasLink = true;
                         }
                     });
                     if (hasLink) {
-                        tr = tr.removeMark(from, to, linkMarkType);
+                        tr = tr.removeMark(pos.from, pos.to, linkMarkType);
                         hasLinkRemovals = true;
                     }
                 }
@@ -587,13 +635,12 @@
             const updatedState = editorInstance.state;
             const updatedDoc = updatedState.doc;
             
-            const decorations = positions.map(pos => {
-                // TipTap/ProseMirror positions are 1-indexed, text positions are 0-indexed
-                const from = Math.max(1, Math.min(pos.startIndex + 1, updatedDoc.content.size));
-                const to = Math.max(1, Math.min(pos.endIndex + 1, updatedDoc.content.size));
-                
-                // Unified yellow highlight — same style as MessageInput editor
-                return Decoration.inline(from, to, {
+            // Re-find positions in updated doc (link removal doesn't change positions,
+            // but re-finding ensures consistency after the transaction).
+            const updatedPositions = findPIIPositionsInDoc(updatedDoc, piiMappings);
+            
+            const decorations = updatedPositions.map(pos => {
+                return Decoration.inline(pos.from, pos.to, {
                     class: 'pii-restored',
                     'data-pii-type': pos.type,
                     title: `${pos.label} (restored from placeholder)`
@@ -1080,7 +1127,7 @@
        No links, no underlines — just a subtle yellow background.
        ========================================================================== */
 
-    /* Single unified style for all restored PII — yellow highlight, 70% opacity */
+    /* Single unified style for all restored PII — yellow highlight */
     :global(.read-only-message .pii-restored) {
         background-color: rgba(250, 204, 21, 0.3);
         border-radius: 3px;
@@ -1089,13 +1136,6 @@
         border-bottom: none;
         text-decoration: none !important;
         cursor: default;
-        transition: background-color 0.15s ease;
-        opacity: 0.7;
-    }
-
-    :global(.read-only-message .pii-restored:hover) {
-        background-color: rgba(250, 204, 21, 0.5);
-        opacity: 1;
     }
 
     /* Override link styling when PII is inside an anchor tag (e.g. email auto-linked).
