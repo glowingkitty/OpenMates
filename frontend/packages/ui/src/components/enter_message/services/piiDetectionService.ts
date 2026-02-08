@@ -8,8 +8,10 @@
  *
  * Supported patterns (high reliability, low false positives):
  * - Email addresses
- * - Phone numbers (US/international formats)
- * - API keys (AWS, OpenAI, Anthropic, GitHub, Stripe, Google, Slack)
+ * - Phone numbers (US, EU, international formats with spaces/dashes/slashes)
+ * - API keys (AWS, OpenAI, Anthropic, GitHub, Stripe, Google, Slack, Twilio,
+ *   SendGrid, Azure, Hugging Face, Databricks, Firebase)
+ * - Generic secrets (api_key=..., password=..., token=..., etc.)
  * - Credit card numbers (with Luhn validation)
  * - Social Security Numbers (SSN)
  * - IP addresses (IPv4 and IPv6)
@@ -31,6 +33,13 @@ export type PIIType =
   | "STRIPE_KEY"
   | "GOOGLE_API_KEY"
   | "SLACK_TOKEN"
+  | "TWILIO_KEY"
+  | "SENDGRID_KEY"
+  | "AZURE_KEY"
+  | "HUGGINGFACE_KEY"
+  | "DATABRICKS_TOKEN"
+  | "FIREBASE_KEY"
+  | "GENERIC_SECRET"
   | "CREDIT_CARD"
   | "SSN"
   | "IPV4"
@@ -165,6 +174,63 @@ const PII_PATTERNS: PIIPattern[] = [
     label: "AWS Secret Key",
     getPlaceholder: (_, i) => `[AWS_SECRET_${i + 1}]`,
   },
+  {
+    type: "TWILIO_KEY",
+    // Twilio Account SID (AC...) and Auth Token (SK...)
+    regex: /\b(?:AC[a-f0-9]{32}|SK[a-f0-9]{32})\b/g,
+    label: "Twilio Key",
+    getPlaceholder: (_, i) => `[TWILIO_KEY_${i + 1}]`,
+  },
+  {
+    type: "SENDGRID_KEY",
+    // SendGrid API keys start with SG.
+    regex: /\bSG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}\b/g,
+    label: "SendGrid API Key",
+    getPlaceholder: (_, i) => `[SENDGRID_KEY_${i + 1}]`,
+  },
+  {
+    type: "AZURE_KEY",
+    // Azure subscription keys are 32-character hex strings, matched only when
+    // preceded by a contextual keyword to avoid false positives on random hex.
+    regex:
+      /(?:azure|subscription|ocp-apim)[_-]?(?:key|secret|token)['":\s=]+([0-9a-f]{32})\b/gi,
+    label: "Azure Key",
+    getPlaceholder: (_, i) => `[AZURE_KEY_${i + 1}]`,
+  },
+  {
+    type: "HUGGINGFACE_KEY",
+    // Hugging Face API tokens: hf_...
+    regex: /\bhf_[a-zA-Z0-9]{34,}\b/g,
+    label: "Hugging Face Token",
+    getPlaceholder: (_, i) => `[HF_TOKEN_${i + 1}]`,
+  },
+  {
+    type: "DATABRICKS_TOKEN",
+    // Databricks personal access tokens: dapi...
+    regex: /\bdapi[a-f0-9]{32,40}\b/g,
+    label: "Databricks Token",
+    getPlaceholder: (_, i) => `[DATABRICKS_TOKEN_${i + 1}]`,
+  },
+  {
+    type: "FIREBASE_KEY",
+    // Firebase server keys typically start with AAAA and are ~152 chars
+    regex: /\bAAAA[A-Za-z0-9_-]{100,200}\b/g,
+    label: "Firebase Key",
+    getPlaceholder: (_, i) => `[FIREBASE_KEY_${i + 1}]`,
+  },
+
+  {
+    type: "GENERIC_SECRET",
+    // Generic secret/key/token/password patterns — catches assignment-style secrets
+    // that don't match any vendor-specific pattern above. Requires a keyword like
+    // "api_key", "secret", "password", "token", "auth", "credential", "access_key",
+    // followed by an assignment operator and a value of 8+ alphanumeric characters.
+    // The value must be 8+ chars to avoid matching trivial assignments like key="id".
+    regex:
+      /(?:api[_-]?key|api[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token|bearer[_-]?token|private[_-]?key|password|passwd|credential|client[_-]?secret|app[_-]?secret|signing[_-]?key|encryption[_-]?key)['":\s=]+['"]?([A-Za-z0-9_\-/.+=]{8,200})['"]?/gi,
+    label: "Secret/Credential",
+    getPlaceholder: (_, i) => `[SECRET_${i + 1}]`,
+  },
 
   // Private keys and tokens
   {
@@ -220,12 +286,38 @@ const PII_PATTERNS: PIIPattern[] = [
   },
   {
     type: "PHONE",
-    // US phone formats: +1 (XXX) XXX-XXXX, XXX-XXX-XXXX, (XXX) XXX-XXXX, etc.
-    // Also international E.164 format: +XXXXXXXXXXX
+    // Comprehensive phone number detection covering multiple international formats:
+    //
+    // Branch 1 — International with country code (+ or 00 prefix):
+    //   Matches +49 2123 21234, +44 20 7946 0958, +1 (555) 123-4567,
+    //   0049 2123 21234, 0044-20-7946-0958, +492123212234 (E.164)
+    //   Requires country code digit [1-9] then 6-14 more digits with optional
+    //   separators (space, dash, dot, slash, parens) between groups.
+    //
+    // Branch 2 — US/Canada format without country code:
+    //   Matches (555) 123-4567, 555-123-4567, 555.123.4567
+    //   Area code starts with [2-9] per NANP rules.
+    //
+    // Branch 3 — Local format with leading 0 (common in DE, UK, FR, etc.):
+    //   Matches 01123/121/31222, 030 1234 5678, 0171-123-4567
+    //   Leading 0 + at least 7 more digits with separators.
+    //
+    // Validation function filters false positives (plain numbers, years, etc.)
     regex:
-      /(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b|\+[1-9]\d{6,14}\b/g,
+      /(?:(?:\+|00)[1-9]\d{0,2}[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})|(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}|(?:0\d[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})/g,
     label: "Phone Number",
     getPlaceholder: (_, i) => `[PHONE_${i + 1}]`,
+    // Validate: require at least 7 digits total (country code excluded) to avoid
+    // matching short number-like strings (zip codes, years, short IDs).
+    validate: (match: string) => {
+      const digits = match.replace(/\D/g, "");
+      // Phone numbers have at least 7 digits (local) and at most 15 (ITU-T E.164)
+      if (digits.length < 7 || digits.length > 15) return false;
+      // Reject matches that are purely a year-like 4-digit number (shouldn't happen
+      // given min 7 digits, but guard against edge cases)
+      if (/^\d{4}$/.test(match.trim())) return false;
+      return true;
+    },
   },
 
   // IP Addresses

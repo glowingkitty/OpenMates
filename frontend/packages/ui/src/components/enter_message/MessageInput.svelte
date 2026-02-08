@@ -182,10 +182,20 @@
     let currentPIIDecorations: any[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
-    // Debounce timer for PII detection - avoids running 16 regex patterns on every keystroke
+    // Debounce timer for PII detection - safety net fallback for edge cases
     let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    // How long to wait after the last keystroke before running PII detection (ms)
-    const PII_DEBOUNCE_MS = 300;
+    // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
+    // This catches edge cases like slow typing followed by an immediate send.
+    const PII_DEBOUNCE_MS = 800;
+    // Characters that trigger immediate PII detection (natural word/token boundaries).
+    // PII patterns like emails, phone numbers, and API keys are only fully formed
+    // after the user types a delimiter, so we detect at these boundaries instead of
+    // running 16+ regex patterns on every single keystroke.
+    const PII_TRIGGER_CHARS = new Set([' ', ',', '.', '\n', '/', ')', ']', '}', ';', ':', '\t']);
+    // Flag set by paste handlers to force immediate PII detection on next editor update.
+    // Paste events inject complete content (possibly containing PII) so detection should
+    // not wait for a delimiter character.
+    let piiPasteDetectionPending = false;
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -1091,7 +1101,10 @@
                         }
                     }
                     
-                    // No special handling needed - allow default paste
+                    // No special handling needed - allow default paste.
+                    // Flag for immediate PII detection on the next editor update,
+                    // since pasted text may contain complete PII patterns.
+                    piiPasteDetectionPending = true;
                     return false;
                 }
             }
@@ -1399,12 +1412,21 @@
     // =============================================================================
     
     /**
-     * Schedule PII detection with debounce to avoid running 16 regex patterns
-     * on every keystroke. The detection runs after PII_DEBOUNCE_MS of inactivity.
-     * 
+     * Hybrid PII detection trigger: runs detection at natural word/token boundaries
+     * (delimiter characters) instead of on every keystroke. This avoids running 16+
+     * regex patterns per character while still catching PII at the exact moment it
+     * becomes complete (e.g. after the space following an email address).
+     *
+     * Three trigger modes:
+     * 1. **Delimiter**: Immediate detection when user types a delimiter char (space,
+     *    comma, dot, newline, slash, etc.) — these mark the end of a token/word.
+     * 2. **Paste**: Immediate detection after paste events (content arrives complete).
+     * 3. **Debounce fallback**: If no delimiter is typed for PII_DEBOUNCE_MS, run
+     *    detection anyway as a safety net (e.g. slow typing then clicking Send).
+     *
      * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
      */
-    function runPIIDetection(editor: Editor) {
+    function runPIIDetection(editor: Editor, forcedByPaste = false) {
         if (!editor || editor.isDestroyed) return;
         
         const text = editor.getText();
@@ -1421,12 +1443,25 @@
             return;
         }
         
-        // Debounce: cancel any pending detection and schedule a new one
-        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
-        piiDebounceTimer = setTimeout(() => {
-            piiDebounceTimer = null;
+        // Determine if the latest character typed is a delimiter (word boundary).
+        // Compare current text to last detected text to find what was just typed.
+        const lastChar = text.length > 0 ? text[text.length - 1] : '';
+        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+        
+        if (forcedByPaste || isDelimiter) {
+            // Trigger 1 & 2: Delimiter typed or paste event — run immediately
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
             runPIIDetectionImmediate(editor);
-        }, PII_DEBOUNCE_MS);
+        } else {
+            // Trigger 3: No delimiter — schedule fallback debounce.
+            // This catches cases where the user finishes typing PII but doesn't type
+            // a trailing delimiter before sending.
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
+            piiDebounceTimer = setTimeout(() => {
+                piiDebounceTimer = null;
+                runPIIDetectionImmediate(editor);
+            }, PII_DEBOUNCE_MS);
+        }
     }
     
     /**
@@ -1486,13 +1521,16 @@
                 const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
                 const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
                 
-                // Determine CSS class based on PII type
+                // Determine CSS class based on PII type category
                 let className = 'pii-highlight';
                 if (match.type === 'EMAIL') {
                     className += ' pii-highlight-email';
                 } else if (match.type === 'PHONE') {
                     className += ' pii-highlight-phone';
-                } else if (match.type.includes('KEY') || match.type.includes('TOKEN') || match.type.includes('PAT')) {
+                } else if (
+                    match.type.includes('KEY') || match.type.includes('TOKEN') ||
+                    match.type.includes('PAT') || match.type === 'GENERIC_SECRET'
+                ) {
                     className += ' pii-highlight-api-key';
                 } else if (match.type === 'CREDIT_CARD' || match.type === 'SSN') {
                     className += ' pii-highlight-card';
@@ -1602,11 +1640,11 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // PII Detection: Debounced to avoid running 16 regex patterns per keystroke.
-        // Schedules detection after PII_DEBOUNCE_MS of typing inactivity.
-        // When it fires, runPIIDetectionImmediate() builds PII decorations and
-        // calls rebuildDecorationSet() to merge them into the visible decoration set.
-        runPIIDetection(editor);
+        // PII Detection: hybrid trigger — immediate on delimiter chars and paste events,
+        // debounce fallback for regular typing. See runPIIDetection() for details.
+        const wasPaste = piiPasteDetectionPending;
+        piiPasteDetectionPending = false;
+        runPIIDetection(editor, wasPaste);
 
         // Use unified parser for write mode (handles unclosed-block decorations).
         // PII decorations from currentPIIDecorations are merged in by
