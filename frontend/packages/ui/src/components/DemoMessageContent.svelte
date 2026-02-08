@@ -36,7 +36,8 @@
   }: Props = $props();
   
   // Placeholder constant
-  const EXAMPLE_CHATS_PLACEHOLDER = '{example_chats_group}';
+  // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
+  const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
   
   // Split content at the placeholder
   let contentParts = $derived((() => {

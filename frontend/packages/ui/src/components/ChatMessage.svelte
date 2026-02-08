@@ -124,10 +124,11 @@
   // Breakpoint is 500px to match the original media query
   let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
 
-  // Check if original_message content contains the {example_chats_group} placeholder (used in demo chats)
+  // Check if original_message content contains the [[example_chats_group]] placeholder (used in demo chats)
   // When present, we use DemoMessageContent for special placeholder handling
   // We check original_message.content because at this point `content` is already TipTap JSON
-  const EXAMPLE_CHATS_PLACEHOLDER = '{example_chats_group}';
+  // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
+  const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
   let hasExampleChatsPlaceholder = $derived((() => {
     const originalContent = original_message?.content;
     if (typeof originalContent === 'string') {
