@@ -1,24 +1,23 @@
 <!--
   frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
   
-  A horizontal scrollable container displaying a group of ChatEmbedPreview
-  components for example/demo chats.
+  A horizontal scrollable container displaying ChatEmbedPreview cards
+  for EXAMPLE CHATS (community demos fetched from server).
   
   This component is rendered within demo chat messages when the
-  {example_chats_group} placeholder is encountered.
+  [[example_chats_group]] placeholder is encountered.
   
-  Features:
-  - Horizontal scrolling with smooth scrolling behavior
-  - Touch-friendly scrolling on mobile
-  - Displays community demo chats and static intro chats (excluding the current chat)
-  - Click on a chat card navigates to that demo chat
+  Only shows community demo chats (the "EXAMPLE CHATS" section in the sidebar),
+  NOT intro chats (which are the static "For everyone", "For developers", etc.).
+  
+  Scrolling behavior matches the standard embed group layout used by
+  other embed types (smooth horizontal scroll, no snap).
 -->
 
 <script lang="ts">
-import ChatEmbedPreview from './ChatEmbedPreview.svelte';
-  import { getAllCommunityDemoChats, INTRO_CHATS } from '../../demo_chats';
+  import ChatEmbedPreview from './ChatEmbedPreview.svelte';
+  import { getAllCommunityDemoChats } from '../../demo_chats';
   import { communityDemoStore } from '../../demo_chats/communityDemoStore';
-  import type { DemoChat } from '../../demo_chats/types';
   import { activeChatStore } from '../../stores/activeChatStore';
   
   /**
@@ -36,41 +35,18 @@ import ChatEmbedPreview from './ChatEmbedPreview.svelte';
   // Reference communityDemoStore for reactivity
   let _communityDemoStoreValue = $derived($communityDemoStore);
   
-  // Get all example chats to display (excluding current chat and legal chats)
+  // Get community demo chats (example chats) to display, excluding current chat
+  // These are already Chat objects with cleartext fields (title, category, icon, chat_summary)
+  // IMPORTANT: Do NOT include INTRO_CHATS here - only community demos from the server
   let exampleChats = $derived((() => {
     // Ensure reactivity by referencing the store
     void _communityDemoStoreValue;
     
-    // Get static intro chats (excluding the current chat)
-    const introDemoChats: DemoChat[] = INTRO_CHATS
-      .filter(chat => chat.chat_id !== excludeChatId);
-    
-    // Get community demo chats from the store (these are already Chat objects)
+    // Get community demo chats from the store
     const communityChats = getAllCommunityDemoChats();
     
-    // Convert community chats back to DemoChat format for ChatEmbedPreview
-    // Community chats have: chat_id, title, category, icon, etc.
-    const communityDemoChats: DemoChat[] = communityChats
-      .filter(chat => chat.chat_id !== excludeChatId)
-      .map(chat => ({
-        chat_id: chat.chat_id,
-        slug: chat.chat_id.replace('demo-', ''),
-        title: chat.title || '',
-        description: '',
-        keywords: [],
-        messages: [],
-        metadata: {
-          category: chat.category || chat.encrypted_category || 'general_knowledge',
-          icon_names: (chat.icon || chat.encrypted_icon || 'message-circle').split(','),
-          featured: true,
-          order: 100,
-          lastUpdated: new Date().toISOString()
-        }
-      }));
-    
-    // Combine and sort by order
-    return [...introDemoChats, ...communityDemoChats]
-      .sort((a, b) => a.metadata.order - b.metadata.order);
+    // Filter out the current chat and return as-is (already Chat objects)
+    return communityChats.filter(chat => chat.chat_id !== excludeChatId);
   })());
   
   // Handle click on a chat card - navigate to the demo chat
@@ -78,22 +54,21 @@ import ChatEmbedPreview from './ChatEmbedPreview.svelte';
     console.debug('[ExampleChatsGroup] Chat clicked:', chatId);
     
     // Use activeChatStore to navigate to the chat
-    // This is the standard pattern used throughout the app for chat navigation
+    // This also updates the URL hash via updateUrlHash() internally
     activeChatStore.setActiveChat(chatId);
-    
-    // Also update the URL hash for deep linking support
-    if (typeof window !== 'undefined') {
-      window.location.hash = `chat-id=${chatId}`;
-    }
   }
 </script>
 
 {#if exampleChats.length > 0}
   <div class="example-chats-group-wrapper">
     <div class="example-chats-group">
-      {#each exampleChats as demoChat (demoChat.chat_id)}
+      {#each exampleChats as chat (chat.chat_id)}
         <ChatEmbedPreview
-          {demoChat}
+          chatId={chat.chat_id}
+          title={chat.title || ''}
+          summary={chat.chat_summary || ''}
+          category={chat.category || 'general_knowledge'}
+          iconName={chat.icon || 'message-circle'}
           onClick={handleChatClick}
         />
       {/each}
@@ -110,27 +85,23 @@ import ChatEmbedPreview from './ChatEmbedPreview.svelte';
     overflow: hidden;
   }
   
+  /* Match the standard embed group scroll container layout:
+     - Smooth horizontal scrolling (no snap)
+     - Same gap, padding, and scrollbar styling as group-scroll-container */
   .example-chats-group {
     display: flex;
-    flex-direction: row;
-    gap: 16px;
-    padding: 8px 4px;
-    /* Enable horizontal scrolling */
+    gap: 8px;
+    align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
-    /* Smooth scrolling on touch devices */
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    /* Snap scrolling for better UX */
-    scroll-snap-type: x proximity;
-    /* Hide scrollbar but keep functionality */
+    padding: 4px 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--color-grey-40) transparent;
+    scrollbar-color: var(--color-grey-60) transparent;
   }
   
-  /* Custom scrollbar styling for WebKit browsers */
+  /* Custom scrollbar styling for WebKit browsers (matches embed groups) */
   .example-chats-group::-webkit-scrollbar {
-    height: 6px;
+    height: 4px;
   }
   
   .example-chats-group::-webkit-scrollbar-track {
@@ -138,17 +109,12 @@ import ChatEmbedPreview from './ChatEmbedPreview.svelte';
   }
   
   .example-chats-group::-webkit-scrollbar-thumb {
-    background-color: var(--color-grey-40);
-    border-radius: 3px;
-  }
-  
-  .example-chats-group::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-grey-50);
+    background-color: var(--color-grey-60);
+    border-radius: 2px;
   }
   
   /* Ensure cards don't shrink */
   .example-chats-group > :global(*) {
     flex-shrink: 0;
-    scroll-snap-align: start;
   }
 </style>

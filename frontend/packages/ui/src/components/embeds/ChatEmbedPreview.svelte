@@ -1,50 +1,61 @@
 <!--
   frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
   
-  A preview card for demo/example chats, styled to match the UnifiedEmbedPreview
+  A preview card for example/demo chats, styled to match the UnifiedEmbedPreview
   layout used by other embeds (300x200px desktop).
   
   Structure (matching UnifiedEmbedPreview + BasicInfosBar pattern):
-  - Center content area: chat description/summary text
-  - Bottom bar (61px): category gradient circle with chat icon → 
-    small category-specific Lucide icon → title + category name
+  - Center content area: chat summary text
+  - Bottom bar (61px): OpenMates gradient circle with chat icon →
+    small category-specific Lucide icon → title (2 lines) + category name
+  
+  All chat embed previews use the same OpenMates AI gradient (--color-app-ai)
+  for the large circle, regardless of category. The category is shown as
+  text next to the title.
   
   Click to navigate to the demo chat.
 -->
 
 <script lang="ts">
   import { text } from '@repo/ui';
-  import type { DemoChat } from '../../demo_chats/types';
-  import { translateDemoChat } from '../../demo_chats/translateDemoChat';
-  import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../../utils/categoryUtils';
+  import { getValidIconName, getLucideIcon } from '../../utils/categoryUtils';
   
   /**
    * Props interface for ChatEmbedPreview
+   * Accepts direct cleartext values (not translation keys) since community
+   * demo chats already have decrypted data from the server.
    */
   interface Props {
-    /** The demo chat to display */
-    demoChat: DemoChat;
+    /** Chat ID for navigation */
+    chatId: string;
+    /** Cleartext chat title */
+    title: string;
+    /** Cleartext chat summary (shown in center content area) */
+    summary: string;
+    /** Category string (e.g., 'general_knowledge', 'programming') */
+    category: string;
+    /** Icon name from Lucide library */
+    iconName: string;
     /** Click handler - called when the card is clicked */
     onClick?: (chatId: string) => void;
   }
   
   let {
-    demoChat,
+    chatId,
+    title,
+    summary,
+    category,
+    iconName,
     onClick
   }: Props = $props();
   
-  // Translate the demo chat to get localized title and description
-  let translatedChat = $derived(translateDemoChat(demoChat));
-  
-  // Get category gradient colors for the circle in the bottom bar
-  let gradientColors = $derived(getCategoryGradientColors(demoChat.metadata.category) || { start: '#6366f1', end: '#4f46e5' });
-  let gradientStyle = $derived(`background: linear-gradient(135deg, ${gradientColors.start} 9.04%, ${gradientColors.end} 90.06%);`);
-  
   // Get translated category name for the bottom bar subtitle
-  let categoryName = $derived($text(`mates.${demoChat.metadata.category}.text`, { default: demoChat.metadata.category.replace(/_/g, ' ') }));
+  let categoryName = $derived(
+    $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ') })
+  );
   
   // Get Lucide icon component for the small skill-like icon in the bottom bar
-  let validIconName = $derived(getValidIconName(demoChat.metadata.icon_names || [], demoChat.metadata.category));
+  let validIconName = $derived(getValidIconName(iconName ? [iconName] : [], category));
   let IconComponent = $derived(getLucideIcon(validIconName));
   
   // Track hover state for tilt effect (matching UnifiedEmbedPreview)
@@ -93,7 +104,7 @@
   // Handle click
   function handleClick() {
     if (onClick) {
-      onClick(demoChat.chat_id);
+      onClick(chatId);
     }
   }
   
@@ -117,17 +128,22 @@
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   type="button"
-  aria-label={translatedChat.title}
+  aria-label={title}
 >
-  <!-- Details section: chat description/summary centered in the content area -->
+  <!-- Details section: chat summary centered in the content area -->
   <div class="details-section">
-    <span class="description-text">{translatedChat.description}</span>
+    {#if summary}
+      <span class="summary-text">{summary}</span>
+    {:else}
+      <span class="summary-text placeholder">{title}</span>
+    {/if}
   </div>
   
   <!-- Bottom bar: matches BasicInfosBar desktop layout (61px, grey-30 bg, 30px radius) -->
   <div class="bottom-bar">
-    <!-- Category gradient circle (61x61px) with chat icon inside -->
-    <div class="category-circle" style={gradientStyle}>
+    <!-- OpenMates gradient circle (61x61px) with chat icon inside -->
+    <!-- All chat embeds use the same --color-app-ai gradient -->
+    <div class="gradient-circle">
       <div class="chat-icon-container">
         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -140,10 +156,10 @@
       <IconComponent size={22} color="var(--color-grey-70)" />
     </div>
     
-    <!-- Title + category name (like status-text in BasicInfosBar) -->
+    <!-- Title (2 lines) + category name -->
     <div class="info-text">
-      <span class="title">{translatedChat.title}</span>
-      <span class="category">{categoryName}</span>
+      <span class="title-text">{title}</span>
+      <span class="category-text">{categoryName}</span>
     </div>
   </div>
 </button>
@@ -208,7 +224,7 @@
   }
   
   /* ===========================================
-     Details Section - Chat Description/Summary
+     Details Section - Chat Summary
      =========================================== */
   
   .details-section {
@@ -221,8 +237,8 @@
     padding: 16px 20px 8px 20px;
   }
   
-  .description-text {
-    font-size: 16px;
+  .summary-text {
+    font-size: 14px;
     font-weight: 500;
     color: var(--color-grey-80);
     line-height: 1.4;
@@ -235,6 +251,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
+  }
+  
+  /* When showing title as placeholder (no summary available), style slightly different */
+  .summary-text.placeholder {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-grey-70);
   }
   
   /* ===========================================
@@ -254,8 +277,8 @@
     flex-shrink: 0;
   }
   
-  /* Category gradient circle: 61x61px (matches BasicInfosBar app-icon-circle) */
-  .category-circle {
+  /* Gradient circle: 61x61px with OpenMates AI gradient (same for all chat embeds) */
+  .gradient-circle {
     width: 61px;
     height: 61px;
     min-width: 61px;
@@ -264,6 +287,8 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    /* Use the standard OpenMates AI gradient for all chat embeds */
+    background: var(--color-app-ai);
   }
   
   .chat-icon-container {
@@ -286,7 +311,7 @@
   }
   
   /* ===========================================
-     Info Text - Title + Category Name
+     Info Text - Title (2 lines) + Category Name
      =========================================== */
   
   .info-text {
@@ -300,23 +325,25 @@
     padding-right: 16px;
   }
   
-  .title {
+  /* Title: 2 lines with ellipsis (replaces mate name from original design) */
+  .title-text {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.2;
-    /* Single line with ellipsis (matching BasicInfosBar title-text) */
+    /* Two lines with ellipsis (matching BasicInfosBar title-text.two-lines) */
     display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
   }
   
-  .category {
-    font-size: 16px;
+  /* Category name: single line under the title */
+  .category-text {
+    font-size: 14px;
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
