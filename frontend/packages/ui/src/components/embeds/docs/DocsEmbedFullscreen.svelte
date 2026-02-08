@@ -115,6 +115,17 @@
   // Icon for documents
   const skillIconName = 'docs';
   
+  // =============================================
+  // A4 Page Dimensions (at 96 DPI)
+  // =============================================
+  // Full A4 page: 816 x 1056 px
+  // Padding: 72px top, 84px left/right, 96px bottom
+  // Usable content height per page: 1056 - 72 - 96 = 888px
+  const PAGE_HEIGHT = 1056;
+  const PAGE_PADDING_TOP = 72;
+  const PAGE_PADDING_BOTTOM = 96;
+  const PAGE_CONTENT_HEIGHT = PAGE_HEIGHT - PAGE_PADDING_TOP - PAGE_PADDING_BOTTOM;
+
   // Zoom state
   const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
   let zoomIndex = $state(2); // Start at 100%
@@ -135,6 +146,34 @@
   function resetZoom() {
     zoomIndex = 2; // 100%
   }
+
+  // =============================================
+  // Page Pagination
+  // Measures rendered content and calculates how
+  // many fixed-height A4 pages are needed
+  // =============================================
+  let measureEl: HTMLDivElement | undefined = $state(undefined);
+  let pageCount = $state(1);
+
+  // Recalculate page count whenever sanitizedHtml changes or the measure element mounts
+  $effect(() => {
+    if (!measureEl || !sanitizedHtml) {
+      pageCount = 1;
+      return;
+    }
+
+    // Use requestAnimationFrame to ensure DOM has rendered the content
+    const raf = requestAnimationFrame(() => {
+      if (!measureEl) return;
+      const contentHeight = measureEl.scrollHeight;
+      pageCount = Math.max(1, Math.ceil(contentHeight / PAGE_CONTENT_HEIGHT));
+    });
+
+    return () => cancelAnimationFrame(raf);
+  });
+
+  // Generate array of page indices for iteration in the template
+  let pages = $derived(Array.from({ length: pageCount }, (_, i) => i));
   
   // Handle copy document content to clipboard (plain text)
   async function handleCopy() {
@@ -303,18 +342,38 @@ ${sanitizedHtml}
               <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
           </button>
+          {#if pageCount > 1}
+            <span class="page-count-label">{pageCount} pages</span>
+          {/if}
         </div>
         
-        <!-- Scrollable page area -->
+        <!-- Hidden off-screen measurement container: renders all content to measure total height -->
+        <div class="doc-measure-container" aria-hidden="true">
+          <div class="doc-page-content" bind:this={measureEl}>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
+            {@html sanitizedHtml}
+          </div>
+        </div>
+
+        <!-- Scrollable page area with individual A4 pages -->
         <div class="doc-page-scroll">
           <div class="doc-page-container" style="transform: scale({zoomLevel / 100}); transform-origin: top center;">
-            <!-- White A4 page -->
-            <div class="doc-page">
-              <div class="doc-page-content">
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
-                {@html sanitizedHtml}
+            {#each pages as pageIndex (pageIndex)}
+              <!-- Individual A4 page: clips content to show only this page's portion -->
+              <div class="doc-page">
+                <div class="doc-page-clip">
+                  <div
+                    class="doc-page-content"
+                    style="transform: translateY(-{pageIndex * PAGE_CONTENT_HEIGHT}px);"
+                  >
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
+                    {@html sanitizedHtml}
+                  </div>
+                </div>
+                <!-- Page number footer -->
+                <div class="doc-page-number">{pageIndex + 1}</div>
               </div>
-            </div>
+            {/each}
           </div>
         </div>
       </div>
@@ -419,22 +478,72 @@ ${sanitizedHtml}
     width: 816px; /* Standard US Letter / A4-ish width at 96 DPI */
     flex-shrink: 0;
     transition: transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 24px; /* Visual gap between pages, like Google Docs */
+  }
+
+  /* ===========================================
+     Hidden Measurement Container
+     Renders content off-screen to measure total
+     height for page count calculation
+     =========================================== */
+
+  .doc-measure-container {
+    position: absolute;
+    left: -99999px;
+    top: 0;
+    width: 648px; /* 816px - 84px - 84px = content width inside page padding */
+    visibility: hidden;
+    pointer-events: none;
   }
   
   /* ===========================================
-     White A4 Page
+     White A4 Page (fixed height, clipped)
      =========================================== */
   
   .doc-page {
     width: 100%;
+    height: 1056px; /* Fixed A4 page height */
     background: white;
     box-shadow: 
       0 1px 3px rgba(0, 0, 0, 0.12),
       0 4px 12px rgba(0, 0, 0, 0.08);
     border-radius: 4px;
-    min-height: 1056px; /* A4-ish height at 96 DPI */
-    /* Realistic A4 margins: ~1 inch = 96px top/bottom, ~1 inch = 96px left/right */
-    padding: 72px 84px 96px;
+    /* Realistic A4 margins: ~1 inch left/right */
+    padding: 72px 84px 0;
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  /* Clip container: limits visible content area to one page's worth */
+  .doc-page-clip {
+    width: 100%;
+    height: 888px; /* PAGE_CONTENT_HEIGHT: 1056 - 72 (top padding) - 96 (bottom space) */
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Page number displayed at bottom of each page */
+  .doc-page-number {
+    position: absolute;
+    bottom: 36px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    pointer-events: none;
+  }
+
+  /* Page count label in the zoom bar */
+  .page-count-label {
+    font-size: 12px;
+    color: var(--color-font-secondary);
+    margin-left: 8px;
+    opacity: 0.7;
   }
   
   /* ===========================================
@@ -648,12 +757,37 @@ ${sanitizedHtml}
   @media (max-width: 900px) {
     .doc-page-container {
       width: 100%;
+      gap: 16px;
     }
     
     .doc-page {
+      /* On mobile, use auto height and show content as a continuous flow
+         since the screen is too narrow for a proper A4 simulation */
+      height: auto;
       padding: 40px 32px 60px;
-      min-height: auto;
       border-radius: 0;
+    }
+
+    .doc-page-clip {
+      height: auto;
+      overflow: visible;
+    }
+
+    .doc-page-content {
+      /* Reset translateY on mobile since pages aren't clipped */
+      transform: none !important;
+    }
+
+    /* On mobile, only show the first page's content (hide duplicate pages) */
+    .doc-page:not(:first-child) {
+      display: none;
+    }
+
+    .doc-page-number {
+      position: relative;
+      bottom: auto;
+      margin-top: 24px;
+      padding-bottom: 8px;
     }
     
     .doc-page-scroll {
@@ -674,6 +808,10 @@ ${sanitizedHtml}
     
     .doc-page-content :global(h3) {
       font-size: 16px;
+    }
+
+    .doc-measure-container {
+      display: none;
     }
   }
 </style>
