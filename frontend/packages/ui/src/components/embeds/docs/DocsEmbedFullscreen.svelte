@@ -150,34 +150,54 @@
   }
 
   // Handle download document as a valid .docx file using client-side HTML-to-DOCX conversion.
+  // Uses html-docx-js-typescript which works entirely in the browser (no Node.js deps).
   // This keeps the content on the client (important for E2E encryption) and avoids server round-trips.
   async function handleDownload() {
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
 
       // Dynamic import to avoid loading the library until the user actually clicks download
-      const { default: HTMLtoDOCX } = await import('html-to-docx');
+      const { asBlob } = await import('html-docx-js-typescript');
 
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
 
-      // Convert sanitized HTML to a valid .docx Blob.
-      // html-to-docx expects a clean HTML string for the body content.
-      const docxBlob = await HTMLtoDOCX(sanitizedHtml, null, {
-        title: displayTitle || 'Document',
-        margins: {
-          top: 1440,    // 1 inch in TWIP
-          right: 1440,
-          bottom: 1440,
-          left: 1440,
-        },
-        font: 'Calibri',
-        fontSize: 22,   // 11pt in HIP (half-points)
-        table: { row: { cantSplit: true } },
-      });
+      // Wrap the sanitized HTML in a full document structure with styling.
+      // html-docx-js-typescript converts the HTML+CSS into a Word-compatible MHTML container
+      // that opens correctly in Word, LibreOffice, and Google Docs.
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${displayTitle || 'Document'}</title>
+  <style>
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #333; }
+    h1 { font-size: 20pt; margin-bottom: 0.5em; }
+    h2 { font-size: 16pt; margin-top: 1.5em; }
+    h3 { font-size: 13pt; margin-top: 1.2em; }
+    p { margin: 0.5em 0; }
+    ul, ol { padding-left: 2em; }
+    blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #666; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+    th { background: #f0f0f0; font-weight: bold; }
+    code { font-family: 'Courier New', monospace; background: #f5f5f5; padding: 2px 4px; font-size: 10pt; }
+    pre { background: #f5f5f5; padding: 12px; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
+    a { color: #0563C1; }
+    img { max-width: 100%; }
+  </style>
+</head>
+<body>
+${sanitizedHtml}
+</body>
+</html>`;
 
-      // Create download link and trigger the download
-      const blob = docxBlob instanceof Blob ? docxBlob : new Blob([docxBlob]);
-      const url = URL.createObjectURL(blob);
+      // Convert to .docx blob with 1-inch margins
+      const docxBlob = await asBlob(fullHtml, {
+        margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+      }) as Blob;
+
+      // Trigger the download
+      const url = URL.createObjectURL(docxBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = downloadFilename;
