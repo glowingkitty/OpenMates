@@ -2,66 +2,25 @@
 
 /* =============================================================================
    PII (Personally Identifiable Information) Highlighting Styles
-   Used by the PII detection system to highlight sensitive data in the editor
+   Unified yellow highlight for ALL PII types (emails, phones, API keys, etc.)
+   in the message input editor. Same visual style is used in ReadOnlyMessage.
    ============================================================================= */
 
-/* Base PII highlight style - warning orange background with clickable appearance */
+/* Single unified PII highlight style - yellow background at 70% opacity, clickable */
 :global(.ProseMirror .pii-highlight) {
-  background-color: rgba(245, 158, 11, 0.25);
+  background-color: rgba(250, 204, 21, 0.3);
   border-radius: 3px;
   padding: 1px 2px;
   margin: 0 -2px;
   cursor: pointer;
   transition: background-color 0.15s ease;
-  /* Add subtle border to make it look clickable */
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4);
+  text-decoration: none;
+  opacity: 0.7;
 }
 
 :global(.ProseMirror .pii-highlight:hover) {
-  background-color: rgba(245, 158, 11, 0.4);
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.6);
-}
-
-/* Specific PII type variations for visual distinction */
-:global(.ProseMirror .pii-highlight-email) {
-  background-color: rgba(59, 130, 246, 0.2);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
-}
-
-:global(.ProseMirror .pii-highlight-email:hover) {
-  background-color: rgba(59, 130, 246, 0.35);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
-}
-
-/* Phone numbers: green */
-:global(.ProseMirror .pii-highlight-phone) {
-  background-color: rgba(34, 197, 94, 0.2);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
-}
-
-:global(.ProseMirror .pii-highlight-phone:hover) {
-  background-color: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.6);
-}
-
-:global(.ProseMirror .pii-highlight-api-key) {
-  background-color: rgba(239, 68, 68, 0.2);
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
-}
-
-:global(.ProseMirror .pii-highlight-api-key:hover) {
-  background-color: rgba(239, 68, 68, 0.35);
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.6);
-}
-
-:global(.ProseMirror .pii-highlight-card) {
-  background-color: rgba(168, 85, 247, 0.2);
-  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.4);
-}
-
-:global(.ProseMirror .pii-highlight-card:hover) {
-  background-color: rgba(168, 85, 247, 0.35);
-  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.6);
+  background-color: rgba(250, 204, 21, 0.5);
+  opacity: 1;
 }
 
 /* =============================================================================

@@ -1521,23 +1521,10 @@
                 const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
                 const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
                 
-                // Determine CSS class based on PII type category
-                let className = 'pii-highlight';
-                if (match.type === 'EMAIL') {
-                    className += ' pii-highlight-email';
-                } else if (match.type === 'PHONE') {
-                    className += ' pii-highlight-phone';
-                } else if (
-                    match.type.includes('KEY') || match.type.includes('TOKEN') ||
-                    match.type.includes('PAT') || match.type === 'GENERIC_SECRET'
-                ) {
-                    className += ' pii-highlight-api-key';
-                } else if (match.type === 'CREDIT_CARD' || match.type === 'SSN') {
-                    className += ' pii-highlight-card';
-                }
-                
+                // All PII types use the same unified yellow highlight style.
+                // The data-pii-type attribute is kept for tooltip display and click handling.
                 return Decoration.inline(from, to, {
-                    class: className,
+                    class: 'pii-highlight',
                     'data-pii-id': match.id,
                     'data-pii-type': match.type,
                     title: `Click to keep original (${match.type.toLowerCase().replace(/_/g, ' ')})`

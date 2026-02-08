@@ -556,13 +556,43 @@
             const { state, view } = editorInstance;
             const { doc } = state;
             
+            // Step 1: Remove link marks from PII ranges so emails/URLs in PII don't
+            // render as clickable <a> tags. PII values should be plain highlighted text.
+            const linkMarkType = state.schema.marks.link;
+            if (linkMarkType) {
+                let tr = state.tr;
+                let hasLinkRemovals = false;
+                for (const pos of positions) {
+                    const from = Math.max(1, Math.min(pos.startIndex + 1, doc.content.size));
+                    const to = Math.max(1, Math.min(pos.endIndex + 1, doc.content.size));
+                    // Check if any link mark exists in this range
+                    let hasLink = false;
+                    doc.nodesBetween(from, to, (node) => {
+                        if (node.isText && linkMarkType.isInSet(node.marks)) {
+                            hasLink = true;
+                        }
+                    });
+                    if (hasLink) {
+                        tr = tr.removeMark(from, to, linkMarkType);
+                        hasLinkRemovals = true;
+                    }
+                }
+                if (hasLinkRemovals) {
+                    view.dispatch(tr);
+                }
+            }
+            
+            // Step 2: Apply PII highlight decorations.
+            // Re-read state after potential link-removal transaction.
+            const updatedState = editorInstance.state;
+            const updatedDoc = updatedState.doc;
+            
             const decorations = positions.map(pos => {
                 // TipTap/ProseMirror positions are 1-indexed, text positions are 0-indexed
-                const from = Math.max(1, Math.min(pos.startIndex + 1, doc.content.size));
-                const to = Math.max(1, Math.min(pos.endIndex + 1, doc.content.size));
+                const from = Math.max(1, Math.min(pos.startIndex + 1, updatedDoc.content.size));
+                const to = Math.max(1, Math.min(pos.endIndex + 1, updatedDoc.content.size));
                 
-                // Use "pii-restored" class + data-pii-type attribute for type-specific CSS
-                // Existing CSS rules in this component target [data-pii-type="EMAIL"], etc.
+                // Unified yellow highlight — same style as MessageInput editor
                 return Decoration.inline(from, to, {
                     class: 'pii-restored',
                     'data-pii-type': pos.type,
@@ -570,12 +600,12 @@
                 });
             });
             
-            const decorationSet = DecorationSet.create(doc, decorations);
+            const decorationSet = DecorationSet.create(updatedDoc, decorations);
             view.setProps({
                 decorations: () => decorationSet,
             });
             // Dispatch a no-op transaction to force ProseMirror to apply the decorations
-            view.dispatch(state.tr);
+            view.dispatch(updatedState.tr);
             
             logger.debug(`Applied ${decorations.length} PII decorations to read-only message`);
         } catch (error) {
@@ -1045,164 +1075,44 @@
 
     /* ==========================================================================
        PII RESTORED HIGHLIGHTING
-       Styles for PII values that were anonymized (replaced with placeholders)
-       and then restored for display. Visual indication helps users understand
-       what data was protected during transmission.
+       Unified yellow highlight for ALL PII types in read-only messages.
+       Same visual style as the message input editor (MessageInput.styles.css).
+       No links, no underlines — just a subtle yellow background.
        ========================================================================== */
-    
-    /* Base style for all restored PII */
+
+    /* Single unified style for all restored PII — yellow highlight, 70% opacity */
     :global(.read-only-message .pii-restored) {
-        background: linear-gradient(
-            135deg,
-            rgba(255, 165, 0, 0.15) 0%,
-            rgba(255, 140, 0, 0.15) 100%
-        );
+        background-color: rgba(250, 204, 21, 0.3);
         border-radius: 3px;
         padding: 1px 4px;
         margin: 0 1px;
-        border-bottom: 1px dashed rgba(255, 140, 0, 0.5);
-        cursor: help;
-        transition: background 0.2s ease;
+        border-bottom: none;
+        text-decoration: none !important;
+        cursor: default;
+        transition: background-color 0.15s ease;
+        opacity: 0.7;
     }
 
     :global(.read-only-message .pii-restored:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(255, 165, 0, 0.25) 0%,
-            rgba(255, 140, 0, 0.25) 100%
-        );
+        background-color: rgba(250, 204, 21, 0.5);
+        opacity: 1;
     }
 
-    /* Type-specific styling for different PII categories */
-    
-    /* Email addresses - blue tint */
-    :global(.read-only-message .pii-restored[data-pii-type="EMAIL"]) {
-        background: linear-gradient(
-            135deg,
-            rgba(59, 130, 246, 0.15) 0%,
-            rgba(37, 99, 235, 0.15) 100%
-        );
-        border-bottom-color: rgba(59, 130, 246, 0.5);
-    }
-
-    :global(.read-only-message .pii-restored[data-pii-type="EMAIL"]:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(59, 130, 246, 0.25) 0%,
-            rgba(37, 99, 235, 0.25) 100%
-        );
-    }
-
-    /* Phone numbers - green tint */
-    :global(.read-only-message .pii-restored[data-pii-type="PHONE"]) {
-        background: linear-gradient(
-            135deg,
-            rgba(34, 197, 94, 0.15) 0%,
-            rgba(22, 163, 74, 0.15) 100%
-        );
-        border-bottom-color: rgba(34, 197, 94, 0.5);
-    }
-
-    :global(.read-only-message .pii-restored[data-pii-type="PHONE"]:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(34, 197, 94, 0.25) 0%,
-            rgba(22, 163, 74, 0.25) 100%
-        );
-    }
-
-    /* API keys and tokens - red/orange tint (more prominent for security-sensitive data) */
-    :global(.read-only-message .pii-restored[data-pii-type="OPENAI_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="ANTHROPIC_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="AWS_ACCESS_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="AWS_SECRET_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="GITHUB_PAT"]),
-    :global(.read-only-message .pii-restored[data-pii-type="STRIPE_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="GOOGLE_API_KEY"]),
-    :global(.read-only-message .pii-restored[data-pii-type="SLACK_TOKEN"]),
-    :global(.read-only-message .pii-restored[data-pii-type="JWT"]),
-    :global(.read-only-message .pii-restored[data-pii-type="PRIVATE_KEY"]) {
-        background: linear-gradient(
-            135deg,
-            rgba(239, 68, 68, 0.15) 0%,
-            rgba(220, 38, 38, 0.15) 100%
-        );
-        border-bottom-color: rgba(239, 68, 68, 0.5);
-    }
-
-    :global(.read-only-message .pii-restored[data-pii-type="OPENAI_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="ANTHROPIC_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="AWS_ACCESS_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="AWS_SECRET_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="GITHUB_PAT"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="STRIPE_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="GOOGLE_API_KEY"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="SLACK_TOKEN"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="JWT"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="PRIVATE_KEY"]:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(239, 68, 68, 0.25) 0%,
-            rgba(220, 38, 38, 0.25) 100%
-        );
-    }
-
-    /* Credit cards and SSN - purple tint (financial/identity sensitive) */
-    :global(.read-only-message .pii-restored[data-pii-type="CREDIT_CARD"]),
-    :global(.read-only-message .pii-restored[data-pii-type="SSN"]) {
-        background: linear-gradient(
-            135deg,
-            rgba(168, 85, 247, 0.15) 0%,
-            rgba(147, 51, 234, 0.15) 100%
-        );
-        border-bottom-color: rgba(168, 85, 247, 0.5);
-    }
-
-    :global(.read-only-message .pii-restored[data-pii-type="CREDIT_CARD"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="SSN"]:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(168, 85, 247, 0.25) 0%,
-            rgba(147, 51, 234, 0.25) 100%
-        );
-    }
-
-    /* IP addresses - gray tint (less sensitive) */
-    :global(.read-only-message .pii-restored[data-pii-type="IPV4"]),
-    :global(.read-only-message .pii-restored[data-pii-type="IPV6"]) {
-        background: linear-gradient(
-            135deg,
-            rgba(107, 114, 128, 0.15) 0%,
-            rgba(75, 85, 99, 0.15) 100%
-        );
-        border-bottom-color: rgba(107, 114, 128, 0.5);
-    }
-
-    :global(.read-only-message .pii-restored[data-pii-type="IPV4"]:hover),
-    :global(.read-only-message .pii-restored[data-pii-type="IPV6"]:hover) {
-        background: linear-gradient(
-            135deg,
-            rgba(107, 114, 128, 0.25) 0%,
-            rgba(75, 85, 99, 0.25) 100%
-        );
-    }
-
-    /* Dark mode adjustments for PII restored highlighting */
-    @media (prefers-color-scheme: dark) {
-        :global(.read-only-message .pii-restored) {
-            background: linear-gradient(
-                135deg,
-                rgba(255, 165, 0, 0.2) 0%,
-                rgba(255, 140, 0, 0.2) 100%
-            );
-        }
-
-        :global(.read-only-message .pii-restored:hover) {
-            background: linear-gradient(
-                135deg,
-                rgba(255, 165, 0, 0.3) 0%,
-                rgba(255, 140, 0, 0.3) 100%
-            );
-        }
+    /* Override link styling when PII is inside an anchor tag (e.g. email auto-linked).
+       PII values must NOT appear as clickable links — strip all link appearance. */
+    :global(.read-only-message a .pii-restored),
+    :global(.read-only-message .pii-restored a),
+    :global(.read-only-message a.pii-restored),
+    :global(.read-only-message .ProseMirror a .pii-restored),
+    :global(.read-only-message .ProseMirror .pii-restored a),
+    :global(.read-only-message .ProseMirror a.pii-restored) {
+        background: rgba(250, 204, 21, 0.3) !important;
+        background-clip: border-box !important;
+        -webkit-background-clip: border-box !important;
+        -webkit-text-fill-color: inherit !important;
+        color: inherit !important;
+        text-decoration: none !important;
+        pointer-events: none;
+        cursor: default;
     }
 </style>
