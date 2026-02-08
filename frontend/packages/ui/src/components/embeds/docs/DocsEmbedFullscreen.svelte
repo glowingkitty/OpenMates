@@ -5,12 +5,37 @@
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
   
   Designed to look like reading a document in Microsoft Word / Google Docs:
-  - Grey background canvas (like the grey area around the page)
+  - Grey background canvas (the grey area around and between pages)
   - White A4-ratio pages centered with shadow (like printed pages)
-  - Content flows naturally; page separators are inserted visually
+  - Content flows naturally; grey gaps appear between pages
   - Zoom controls to scale the document view
   - Filename shown in bottom bar (e.g., "Report.docx")
-  - Copy (plain text), Download (as .html), Share actions
+  - Copy (plain text), Download (as .docx), Share actions
+  
+  Page rendering approach:
+  1. Render all content in a single tall white div with page margins
+  2. Measure the content, calculate how many pages are needed
+  3. The paper-stack container uses a CSS gradient background that draws
+     grey gaps at each page boundary
+  4. A column layout on the content wrapper creates "column breaks" at
+     page boundaries by using CSS column-fill with a fixed column height
+     equal to the page content height. Each column = one page of content.
+     The columns are stacked vertically (not side by side) via a transform.
+     
+  Actually, the simplest correct approach:
+  We use a single white container with content flowing normally.
+  At each page boundary, the grey gap is painted as a background band
+  that overlays the white. The content text does flow through these bands,
+  but we offset it using a CSS trick: the content wrapper uses
+  `background-clip: content-box` with vertical padding that accounts for 
+  the grey gaps.
+  
+  Final approach (what we actually do):
+  We render content once. After measuring, we insert invisible "spacer"
+  elements into the DOM at page-break Y positions. Each spacer has a
+  height equal to the gap + top/bottom page margins. This pushes subsequent
+  content past the grey gap area. The background gradient draws the
+  page/gap pattern, and the spacers keep text aligned to page content areas.
 -->
 
 <script lang="ts">
@@ -118,12 +143,15 @@
   // =============================================
   // US Letter Page Dimensions (at 96 DPI)
   // =============================================
-  // US Letter: 8.5" × 11" = 816 × 1056 px at 96 DPI
-  // Margins: 1 inch = 96px all sides
-  // Content area height per page: 1056 - 96 - 96 = 864px
-  const PAGE_HEIGHT = 1056;
-  const PAGE_PADDING_Y = 96;
-  const PAGE_CONTENT_HEIGHT = PAGE_HEIGHT - PAGE_PADDING_Y - PAGE_PADDING_Y; // 864px
+  // US Letter: 8.5" × 11" = 816 × 1056 px
+  // Page margin: 96px top/bottom (1 inch), 96px left/right
+  // Usable content height per page: 1056 - 96 - 96 = 864px
+  // Gap between pages: 32px (grey canvas visible)
+  // At each page break, the spacer height = bottom margin + gap + top margin = 96 + 32 + 96 = 224px
+  const PAGE_CONTENT_HEIGHT = 864;
+  const PAGE_GAP = 32;
+  const PAGE_MARGIN_Y = 96;
+  const SPACER_HEIGHT = PAGE_MARGIN_Y + PAGE_GAP + PAGE_MARGIN_Y; // 224px
 
   // Zoom state
   const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
@@ -147,39 +175,114 @@
   }
 
   // =============================================
-  // Page Count & Separator Positioning
+  // Page Break Spacer Injection
   // =============================================
-  // After rendering, we measure the content height and calculate where
-  // page separators should be placed. The content itself flows naturally
-  // (no clipping or duplication). Separators are visual-only overlays.
+  // After content renders, we walk the DOM to find which elements
+  // cross page boundaries, and insert spacer divs that push
+  // subsequent content into the next page's content area.
+  //
+  // This is the same technique used by Google Docs:
+  // content flows naturally, but spacers at page breaks
+  // ensure text doesn't appear in the grey gap between pages.
   let contentEl: HTMLDivElement | undefined = $state(undefined);
   let pageCount = $state(1);
 
-  // Recalculate page count when content renders or changes
+  // CSS class for injected spacers so we can identify and remove them
+  const SPACER_CLASS = 'doc-page-break-spacer';
+
   $effect(() => {
     if (!contentEl || !sanitizedHtml) {
       pageCount = 1;
       return;
     }
 
-    // Wait for DOM render, then measure
     const raf = requestAnimationFrame(() => {
       if (!contentEl) return;
-      const totalHeight = contentEl.scrollHeight;
-      pageCount = Math.max(1, Math.ceil(totalHeight / PAGE_CONTENT_HEIGHT));
+      
+      // Remove any previously injected spacers
+      contentEl.querySelectorAll(`.${SPACER_CLASS}`).forEach(el => el.remove());
+
+      // Measure the natural content height (without spacers)
+      const naturalHeight = contentEl.scrollHeight;
+      const numPages = Math.max(1, Math.ceil(naturalHeight / PAGE_CONTENT_HEIGHT));
+      
+      if (numPages <= 1) {
+        pageCount = numPages;
+        return;
+      }
+
+      // For each page break (between page N and page N+1), find the child element
+      // that straddles the boundary and insert a spacer before it.
+      // We work from bottom to top so insertions don't shift positions of earlier breaks.
+      let insertedSpacers = 0;
+      
+      for (let breakIdx = numPages - 1; breakIdx >= 1; breakIdx--) {
+        // The Y position of this page break in the content (before any spacers from this pass)
+        // Account for spacers already inserted below this point
+        const breakY = breakIdx * PAGE_CONTENT_HEIGHT + insertedSpacers * SPACER_HEIGHT;
+        
+        // Find the top-level child element that contains or straddles this break point
+        const children = contentEl.children;
+        let targetChild: Element | null = null;
+        
+        for (let c = 0; c < children.length; c++) {
+          const child = children[c];
+          if (child.classList.contains(SPACER_CLASS)) continue;
+          
+          const rect = child.getBoundingClientRect();
+          const contentRect = contentEl.getBoundingClientRect();
+          const childTop = rect.top - contentRect.top;
+          const childBottom = childTop + rect.height;
+          
+          if (childBottom > breakY) {
+            targetChild = child;
+            break;
+          }
+        }
+        
+        if (targetChild) {
+          const spacer = document.createElement('div');
+          spacer.className = SPACER_CLASS;
+          spacer.style.height = `${SPACER_HEIGHT}px`;
+          spacer.style.flexShrink = '0';
+          spacer.setAttribute('aria-hidden', 'true');
+          
+          // Insert spacer before the element that crosses the page boundary
+          contentEl.insertBefore(spacer, targetChild);
+          insertedSpacers++;
+        }
+      }
+      
+      pageCount = numPages;
     });
 
     return () => cancelAnimationFrame(raf);
   });
 
-  // Generate page separator positions (Y offsets within the content)
-  // Each separator sits at the boundary between two pages
-  let separatorPositions = $derived.by(() => {
-    const positions: number[] = [];
-    for (let i = 1; i < pageCount; i++) {
-      positions.push(i * PAGE_CONTENT_HEIGHT);
+  // Total height of the paper stack including all pages + gaps
+  let totalPaperHeight = $derived(
+    pageCount * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y) + (pageCount - 1) * PAGE_GAP
+  );
+
+  // Build CSS gradient that paints the page background pattern:
+  // white for each page area, transparent (grey shows through) for gaps
+  let paperBgStyle = $derived.by(() => {
+    if (pageCount <= 1) return '';
+    
+    const pageHeight = PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y; // 1056
+    const stops: string[] = [];
+    
+    for (let i = 0; i < pageCount; i++) {
+      const pageStart = i * (pageHeight + PAGE_GAP);
+      const pageEnd = pageStart + pageHeight;
+      
+      stops.push(`white ${pageStart}px, white ${pageEnd}px`);
+      if (i < pageCount - 1) {
+        stops.push(`transparent ${pageEnd}px, transparent ${pageEnd + PAGE_GAP}px`);
+      }
     }
-    return positions;
+    
+    return `background: linear-gradient(to bottom, ${stops.join(', ')});`;
   });
   
   // Handle copy document content to clipboard (plain text)
@@ -195,21 +298,14 @@
     }
   }
 
-  // Handle download document as a valid .docx file using client-side HTML-to-DOCX conversion.
-  // Uses html-docx-js-typescript which works entirely in the browser (no Node.js deps).
-  // This keeps the content on the client (important for E2E encryption) and avoids server round-trips.
+  // Handle download document as a valid .docx file
   async function handleDownload() {
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
 
-      // Dynamic import to avoid loading the library until the user actually clicks download
       const { asBlob } = await import('html-docx-js-typescript');
-
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
 
-      // Wrap the sanitized HTML in a full document structure with styling.
-      // html-docx-js-typescript converts the HTML+CSS into a Word-compatible MHTML container
-      // that opens correctly in Word, LibreOffice, and Google Docs.
       const fullHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -237,12 +333,10 @@ ${sanitizedHtml}
 </body>
 </html>`;
 
-      // Convert to .docx blob with 1-inch margins
       const docxBlob = await asBlob(fullHtml, {
         margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
       }) as Blob;
 
-      // Trigger the download
       const url = URL.createObjectURL(docxBlob);
       const a = document.createElement('a');
       a.href = url;
@@ -259,7 +353,7 @@ ${sanitizedHtml}
     }
   }
 
-  // Handle share - opens share settings menu for this specific document embed
+  // Handle share
   async function handleShare() {
     try {
       console.debug('[DocsEmbedFullscreen] Opening share settings for document embed:', {
@@ -269,7 +363,7 @@ ${sanitizedHtml}
       });
 
       if (!embedId) {
-        console.warn('[DocsEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        console.warn('[DocsEmbedFullscreen] No embed_id available');
         notificationStore.error('Unable to share this document. Missing embed ID.');
         return;
       }
@@ -296,8 +390,6 @@ ${sanitizedHtml}
 
       settingsDeepLink.set('shared/share');
       panelState.openSettings();
-
-      console.debug('[DocsEmbedFullscreen] Opened share settings for document embed');
     } catch (error) {
       console.error('[DocsEmbedFullscreen] Error opening share settings:', error);
       notificationStore.error('Failed to open share menu. Please try again.');
@@ -305,10 +397,6 @@ ${sanitizedHtml}
   }
 </script>
 
-<!-- 
-  Pass BasicInfosBar props to UnifiedEmbedFullscreen for consistent bottom bar
-  Document embeds show: filename + word count
--->
 <UnifiedEmbedFullscreen
   appId="docs"
   skillId="doc"
@@ -332,7 +420,6 @@ ${sanitizedHtml}
 >
   {#snippet content()}
     {#if sanitizedHtml}
-      <!-- Google Docs / Word-like document viewer -->
       <div class="doc-viewer-canvas">
         <!-- Zoom controls bar -->
         <div class="doc-zoom-bar">
@@ -354,30 +441,44 @@ ${sanitizedHtml}
           {/if}
         </div>
 
-        <!-- Scrollable page area: single continuous content with visual page breaks -->
+        <!-- Scrollable area with grey canvas -->
         <div class="doc-page-scroll">
-          <div class="doc-page-container" style="transform: scale({zoomLevel / 100}); transform-origin: top center;">
-            <!-- White page canvas with content flowing naturally -->
-            <div class="doc-page">
-              <!-- Page separators: grey bands that overlay the content at page boundaries -->
-              {#each separatorPositions as yPos (yPos)}
-                <div class="doc-page-separator" style="top: {yPos + PAGE_PADDING_Y}px;">
-                  <div class="doc-page-separator-shadow-bottom"></div>
-                  <div class="doc-page-separator-gap"></div>
-                  <div class="doc-page-separator-shadow-top"></div>
-                </div>
+          <div class="doc-page-scaler" style="transform: scale({zoomLevel / 100}); transform-origin: top center;">
+            <!--
+              Paper stack container:
+              - Sized to hold all pages (1056px each) with 32px gaps between them
+              - Background gradient paints white page rects and transparent (grey) gaps
+              - Individual box-shadow overlays give each page its drop shadow
+            -->
+            <div
+              class="doc-paper-stack"
+              style="height: {totalPaperHeight}px; {paperBgStyle}"
+            >
+              <!-- Per-page drop shadows for realistic paper look -->
+              {#each Array(pageCount) as _, i}
+                <div
+                  class="doc-page-shadow"
+                  style="top: {i * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y + PAGE_GAP)}px; height: {PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y}px;"
+                ></div>
               {/each}
 
-              <div class="doc-page-content" bind:this={contentEl}>
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
-                {@html sanitizedHtml}
+              <!--
+                Content wrapper: starts at the first page top margin (96px from top).
+                Has left/right margins matching page margins.
+                Content flows naturally through the wrapper.
+                Injected spacer divs at page breaks push content past the grey gaps.
+              -->
+              <div class="doc-content-wrapper">
+                <div class="doc-page-content" bind:this={contentEl}>
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
+                  {@html sanitizedHtml}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     {:else}
-      <!-- Empty state -->
       <div class="empty-state">
         <p>{$text('embeds.document_no_content.text')}</p>
       </div>
@@ -387,8 +488,7 @@ ${sanitizedHtml}
 
 <style>
   /* ===========================================
-     Document Viewer Canvas - Google Docs style
-     Grey background with centered white page
+     Document Viewer Canvas
      =========================================== */
   
   .doc-viewer-canvas {
@@ -397,11 +497,11 @@ ${sanitizedHtml}
     display: flex;
     flex-direction: column;
     background: var(--color-grey-15);
-    padding-top: 60px; /* Space for the top action bar */
+    padding-top: 60px;
   }
   
   /* ===========================================
-     Zoom Controls Bar
+     Zoom Controls
      =========================================== */
   
   .doc-zoom-bar {
@@ -461,7 +561,6 @@ ${sanitizedHtml}
     background: var(--color-grey-30);
   }
 
-  /* Page count label in the zoom bar */
   .page-count-label {
     font-size: 12px;
     color: var(--color-font-secondary);
@@ -470,7 +569,7 @@ ${sanitizedHtml}
   }
   
   /* ===========================================
-     Scrollable Page Area
+     Scrollable Area
      =========================================== */
   
   .doc-page-scroll {
@@ -480,74 +579,58 @@ ${sanitizedHtml}
     justify-content: center;
     padding: 0 24px 100px;
   }
-  
-  .doc-page-container {
-    width: 816px; /* Standard US Letter width at 96 DPI */
+
+  .doc-page-scaler {
+    width: 816px;
     flex-shrink: 0;
     transition: transform 0.2s ease;
   }
   
   /* ===========================================
-     White Page
-     Single continuous page that holds all content.
-     Page separators overlay it to create the
-     visual illusion of multiple pages.
+     Paper Stack
+     Holds all pages. Background gradient draws
+     the white/grey pattern. Grey = canvas showing.
      =========================================== */
   
-  .doc-page {
+  .doc-paper-stack {
     width: 100%;
-    background: white;
-    box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 4px 12px rgba(0, 0, 0, 0.08);
-    border-radius: 4px;
-    /* 1-inch margins on all sides */
-    padding: 96px;
     position: relative;
-    min-height: 1056px;
+    background: white; /* fallback for single page */
+    border-radius: 4px;
   }
 
   /* ===========================================
-     Page Separators
-     Visual bands that simulate page breaks.
-     Each separator is positioned absolutely at
-     the Y offset where a page boundary falls.
-     It spans the full width and shows the grey
-     canvas background + subtle page-edge shadows.
+     Per-Page Drop Shadow
      =========================================== */
 
-  .doc-page-separator {
+  .doc-page-shadow {
     position: absolute;
     left: 0;
     right: 0;
-    height: 40px; /* Total height of the separator band */
-    z-index: 2;
+    border-radius: 4px;
     pointer-events: none;
-    display: flex;
-    flex-direction: column;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 0;
   }
 
-  /* Bottom edge shadow of the ending page */
-  .doc-page-separator-shadow-bottom {
-    height: 4px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
-  }
+  /* ===========================================
+     Content Wrapper
+     Positioned inside the paper stack, offset by
+     the first page's top margin. Left/right margins
+     match page margins. Content flows through,
+     with spacer divs injected at page breaks.
+     =========================================== */
 
-  /* Grey gap between pages (canvas showing through) */
-  .doc-page-separator-gap {
-    flex: 1;
-    background: var(--color-grey-15);
-  }
-
-  /* Top edge shadow of the starting page */
-  .doc-page-separator-shadow-top {
-    height: 4px;
-    background: linear-gradient(to top, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  .doc-content-wrapper {
+    position: relative;
+    margin: 96px 96px 96px; /* Page margins: top, left/right, bottom */
+    z-index: 1;
   }
 
   /* ===========================================
      Document Content Typography
-     Clean, professional document styling
      =========================================== */
   
   .doc-page-content {
@@ -556,11 +639,8 @@ ${sanitizedHtml}
     line-height: 1.75;
     word-break: break-word;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    position: relative;
-    z-index: 1;
   }
 
-  /* Headings */
   .doc-page-content :global(h1) {
     font-size: 26px;
     font-weight: 700;
@@ -599,12 +679,10 @@ ${sanitizedHtml}
     line-height: 1.4;
   }
 
-  /* Paragraphs */
   .doc-page-content :global(p) {
     margin: 0 0 12px;
   }
 
-  /* Lists */
   .doc-page-content :global(ul),
   .doc-page-content :global(ol) {
     padding-left: 28px;
@@ -620,7 +698,6 @@ ${sanitizedHtml}
     margin: 4px 0;
   }
 
-  /* Blockquotes */
   .doc-page-content :global(blockquote) {
     border-left: 3px solid #1a73e8;
     margin: 16px 0;
@@ -634,7 +711,6 @@ ${sanitizedHtml}
     margin: 4px 0;
   }
 
-  /* Tables */
   .doc-page-content :global(table) {
     border-collapse: collapse;
     width: 100%;
@@ -659,7 +735,6 @@ ${sanitizedHtml}
     background: #fafafa;
   }
 
-  /* Inline code */
   .doc-page-content :global(code) {
     background: #f1f3f4;
     padding: 2px 6px;
@@ -669,7 +744,6 @@ ${sanitizedHtml}
     color: #d63384;
   }
 
-  /* Code blocks */
   .doc-page-content :global(pre) {
     background: #f8f9fa;
     padding: 16px 20px;
@@ -688,7 +762,6 @@ ${sanitizedHtml}
     color: inherit;
   }
 
-  /* Links */
   .doc-page-content :global(a) {
     color: #1a73e8;
     text-decoration: underline;
@@ -699,14 +772,12 @@ ${sanitizedHtml}
     color: #1558b0;
   }
 
-  /* Horizontal rules */
   .doc-page-content :global(hr) {
     border: none;
     border-top: 1px solid #dadce0;
     margin: 28px 0;
   }
 
-  /* Images */
   .doc-page-content :global(img) {
     max-width: 100%;
     height: auto;
@@ -714,7 +785,6 @@ ${sanitizedHtml}
     margin: 12px 0;
   }
 
-  /* Strong and emphasis */
   .doc-page-content :global(strong) {
     font-weight: 600;
   }
@@ -723,7 +793,6 @@ ${sanitizedHtml}
     font-style: italic;
   }
 
-  /* Definition lists */
   .doc-page-content :global(dl) {
     margin: 12px 0;
   }
@@ -756,18 +825,21 @@ ${sanitizedHtml}
      =========================================== */
   
   @media (max-width: 900px) {
-    .doc-page-container {
+    .doc-page-scaler {
       width: 100%;
     }
     
-    .doc-page {
-      padding: 40px 32px 60px;
-      min-height: auto;
+    .doc-paper-stack {
       border-radius: 0;
+      height: auto !important;
+      background: white !important;
     }
 
-    /* Hide page separators on mobile - content flows as one block */
-    .doc-page-separator {
+    .doc-content-wrapper {
+      margin: 40px 32px 60px;
+    }
+
+    .doc-page-shadow {
       display: none;
     }
     
