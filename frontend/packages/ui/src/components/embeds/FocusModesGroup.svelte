@@ -2,10 +2,16 @@
   frontend/packages/ui/src/components/embeds/FocusModesGroup.svelte
   
   A horizontal scrollable container displaying AppStoreCard components
-  for all available focus modes across all apps.
+  for available focus modes across all apps (excluding AI app).
   
   This component is rendered within demo chat messages when the
   [[focus_modes_group]] placeholder is encountered.
+  
+  Features:
+  - Excludes focus modes from the AI app (always used, focus on other apps)
+  - Limits display to first 10 items
+  - Shows "+ N more" badge at the end when items are truncated
+  - Supports custom sort order via sortOrder prop
   
   Uses the same AppStoreCard design as the Settings App Store but scaled up
   for the chat context.
@@ -17,7 +23,14 @@
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import { getAvailableApps } from '../../services/appSkillsService';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { text } from '@repo/ui';
   import type { AppMetadata, FocusModeMetadata } from '../../types/apps';
+  
+  /** Maximum number of items to display before showing "+N more" */
+  const MAX_DISPLAY_ITEMS = 10;
+  
+  /** App ID to exclude (AI app is always used, focus on other apps) */
+  const EXCLUDED_APP_ID = 'ai';
   
   /**
    * Represents a focus mode with its parent app context,
@@ -31,20 +44,40 @@
   }
   
   /**
-   * Get all focus modes across all apps, each wrapped with parent app context.
-   * Sorted alphabetically by focus mode name translation key for consistent display.
+   * Props interface for FocusModesGroup
    */
-  let allFocusModes = $derived((() => {
+  interface Props {
+    /**
+     * Custom sort order for focus modes. Array of "appId/focusModeId" strings in desired display order.
+     * Focus modes in this array appear first (in the specified order),
+     * followed by any remaining focus modes sorted alphabetically.
+     * If not provided, focus modes are sorted alphabetically by name translation key.
+     */
+    sortOrder?: string[];
+  }
+  
+  let {
+    sortOrder
+  }: Props = $props();
+  
+  /**
+   * Get all focus modes across all apps (excluding AI app), each wrapped with parent app context.
+   * Supports custom sort order via sortOrder prop.
+   */
+  let filteredFocusModes = $derived((() => {
     const appsMap = getAvailableApps();
     const focusModes: FocusModeWithApp[] = [];
     
     for (const app of Object.values(appsMap)) {
+      // Exclude AI app focus modes
+      if (app.id === EXCLUDED_APP_ID) continue;
+      
       for (const focusMode of app.focus_modes) {
         focusModes.push({
           focusMode,
           appId: app.id,
           cardApp: {
-            id: app.id, // Use appId so gradient matches the app
+            id: app.id,
             name_translation_key: focusMode.name_translation_key,
             description_translation_key: focusMode.description_translation_key,
             icon_image: app.icon_image,
@@ -58,32 +91,66 @@
       }
     }
     
-    // Sort by focus mode name translation key for consistent ordering
+    if (sortOrder && sortOrder.length > 0) {
+      // Custom sort: focus modes in sortOrder come first, then remaining alphabetically
+      const ordered: FocusModeWithApp[] = [];
+      const remaining: FocusModeWithApp[] = [];
+      
+      for (const key of sortOrder) {
+        const item = focusModes.find(f => `${f.appId}/${f.focusMode.id}` === key);
+        if (item) ordered.push(item);
+      }
+      
+      for (const item of focusModes) {
+        if (!sortOrder.includes(`${item.appId}/${item.focusMode.id}`)) {
+          remaining.push(item);
+        }
+      }
+      
+      remaining.sort((a, b) => 
+        (a.focusMode.name_translation_key || a.focusMode.id).localeCompare(b.focusMode.name_translation_key || b.focusMode.id)
+      );
+      return [...ordered, ...remaining];
+    }
+    
+    // Default: sort by focus mode name translation key
     return focusModes.sort((a, b) => 
       (a.focusMode.name_translation_key || a.focusMode.id).localeCompare(b.focusMode.name_translation_key || b.focusMode.id)
     );
   })());
   
+  /** Focus modes to display (limited to MAX_DISPLAY_ITEMS) */
+  let displayFocusModes = $derived(filteredFocusModes.slice(0, MAX_DISPLAY_ITEMS));
+  
+  /** Count of remaining focus modes not shown */
+  let remainingCount = $derived(Math.max(0, filteredFocusModes.length - MAX_DISPLAY_ITEMS));
+  
   /**
    * Handle focus mode card click - open the App Store to the focus mode's detail page.
-   * Uses settingsDeepLink store + panelState.openSettings() to navigate.
    */
   async function handleFocusModeSelect(appId: string, focusModeId: string) {
     console.debug('[FocusModesGroup] Focus mode selected:', appId, focusModeId);
     
-    // Set the deep link to the focus mode's detail page
     settingsDeepLink.set(`app_store/${appId}/focus/${focusModeId}`);
     
-    // Open the settings panel (which will pick up the deep link)
+    const { panelState } = await import('../../stores/panelStateStore');
+    panelState.openSettings();
+  }
+  
+  /**
+   * Handle "+N more" badge click - open the App Store overview
+   */
+  async function handleMoreClick() {
+    settingsDeepLink.set('app_store');
     const { panelState } = await import('../../stores/panelStateStore');
     panelState.openSettings();
   }
 </script>
 
-{#if allFocusModes.length > 0}
+{#if displayFocusModes.length > 0}
   <div class="focus-modes-group-wrapper">
     <div class="focus-modes-group">
-      {#each allFocusModes as { focusMode, appId, cardApp } (`${appId}-${focusMode.id}`)}
+      {#each displayFocusModes as { focusMode, appId, cardApp } (`${appId}-${focusMode.id}`)}
         <div class="focus-mode-card-scaled">
           <AppStoreCard 
             app={cardApp} 
@@ -91,6 +158,18 @@
           />
         </div>
       {/each}
+      
+      <!-- Show "+ N more" badge when there are more items than displayed -->
+      {#if remainingCount > 0}
+        <button
+          class="more-badge"
+          onclick={handleMoreClick}
+          type="button"
+          aria-label={$text('app_store.plus_n_more.text', { values: { count: remainingCount } })}
+        >
+          <span class="more-text">+ {remainingCount}</span>
+        </button>
+      {/if}
     </div>
   </div>
 {/if}
@@ -138,5 +217,37 @@
   
   .focus-modes-group > :global(*) {
     flex-shrink: 0;
+  }
+  
+  /* "+N more" badge at the end of the scrollable list */
+  .more-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    height: 148px;
+    padding: 0 16px;
+    background-color: var(--color-grey-30);
+    border-radius: 12px;
+    border: 1px solid var(--color-grey-40);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+  
+  .more-badge:hover {
+    background-color: var(--color-grey-35);
+    transform: translateY(-2px);
+  }
+  
+  .more-badge:active {
+    transform: scale(0.96);
+  }
+  
+  .more-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-grey-70);
+    white-space: nowrap;
   }
 </style>

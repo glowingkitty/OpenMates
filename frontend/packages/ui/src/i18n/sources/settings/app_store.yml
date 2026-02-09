@@ -1134,7 +1134,7 @@ app_settings_memories.add_entry:
   pt: Adicionar entrada
   ru: Добавить запись
   ja: エントリを追加
-  ko: 항목 추가
+  ko: 항목 추加
   it: Aggiungi voce
   tr: Giriş ekle
   vi: Thêm mục
@@ -1146,4 +1146,12 @@ app_settings_memories.add_entry:
   th: เพิ่มรายการ
   cs: Přidat položku
   sv: Lägg till post
+  verified_by_human: []
+app_store.plus_n_more:
+  context: Shows remaining count in scrollable app/skill/focus mode/settings lists (e.g. "+ 5 more")
+  en: "+ {count} more"
+  de: "+ {count} weitere"
+  es: "+ {count} más"
+  fr: "+ {count} de plus"
+  it: "+ {count} in più"
   verified_by_human: []

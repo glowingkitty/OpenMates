@@ -5,19 +5,17 @@
   layout used by other embeds (300x200px desktop).
   
   Structure (matching UnifiedEmbedPreview + BasicInfosBar pattern):
-  - Center content area: chat summary text
-  - Bottom bar (61px): OpenMates gradient circle with chat icon →
-    small category-specific Lucide icon → title (2 lines) + category name
+  - Center content area: first user message preview (or summary fallback)
+  - Bottom bar (full width, 61px): Category gradient circle with category icon →
+    title only (2 lines max, no mate name)
   
-  All chat embed previews use the same OpenMates AI gradient (--color-app-ai)
-  for the large circle, regardless of category. The category is shown as
-  text next to the title.
+  The gradient circle uses the chat's category-specific gradient from theme.css,
+  with the Lucide category icon rendered inside it in white.
   
   Click to navigate to the demo chat.
 -->
 
 <script lang="ts">
-  import { text } from '@repo/ui';
   import { getValidIconName, getLucideIcon } from '../../utils/categoryUtils';
   
   /**
@@ -30,8 +28,8 @@
     chatId: string;
     /** Cleartext chat title */
     title: string;
-    /** Cleartext chat summary (shown in center content area) */
-    summary: string;
+    /** Cleartext text shown in the center content area (first user message or summary) */
+    previewText: string;
     /** Category string (e.g., 'general_knowledge', 'programming') */
     category: string;
     /** Icon name from Lucide library */
@@ -43,20 +41,35 @@
   let {
     chatId,
     title,
-    summary,
+    previewText,
     category,
     iconName,
     onClick
   }: Props = $props();
   
-  // Get translated category name for the bottom bar subtitle
-  let categoryName = $derived(
-    $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ') })
-  );
-  
-  // Get Lucide icon component for the small skill-like icon in the bottom bar
+  // Get Lucide icon component for the category circle in the bottom bar
   let validIconName = $derived(getValidIconName(iconName ? [iconName] : [], category));
   let IconComponent = $derived(getLucideIcon(validIconName));
+  
+  // Derive the app/category ID for the gradient CSS variable
+  // Maps known categories to their app gradients from theme.css
+  let categoryGradientId = $derived((() => {
+    // Map categories to their corresponding app gradient IDs from theme.css
+    const categoryToAppMap: Record<string, string> = {
+      'general_knowledge': 'ai',
+      'programming': 'code',
+      'web_search': 'web',
+      'cooking': 'ai',
+      'travel': 'maps',
+      'news': 'news',
+      'science': 'ai',
+      'education': 'ai',
+      'health': 'life_coaching',
+      'finance': 'ai',
+      'openmates_official': 'ai',
+    };
+    return categoryToAppMap[category] || 'ai';
+  })());
   
   // Track hover state for tilt effect (matching UnifiedEmbedPreview)
   let isHovering = $state(false);
@@ -130,36 +143,32 @@
   type="button"
   aria-label={title}
 >
-  <!-- Details section: chat summary centered in the content area -->
+  <!-- Details section: first user message preview or summary centered in the content area -->
   <div class="details-section">
-    {#if summary}
-      <span class="summary-text">{summary}</span>
+    {#if previewText}
+      <span class="preview-text">{previewText}</span>
     {:else}
-      <span class="summary-text placeholder">{title}</span>
+      <span class="preview-text placeholder">{title}</span>
     {/if}
   </div>
   
-  <!-- Bottom bar: matches BasicInfosBar desktop layout (61px, grey-30 bg, 30px radius) -->
+  <!-- Bottom bar: full width, no border-radius (card's overflow:hidden handles corners) -->
+  <!-- Shows category gradient circle with icon + title only (no mate name) -->
   <div class="bottom-bar">
-    <!-- OpenMates gradient circle (61x61px) with chat icon inside -->
-    <!-- All chat embeds use the same --color-app-ai gradient -->
-    <div class="gradient-circle">
-      <div class="chat-icon-container">
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
+    <!-- Category gradient circle (61x61px) with Lucide category icon inside -->
+    <!-- Uses the category-specific gradient from theme.css -->
+    <div
+      class="gradient-circle"
+      style="background: var(--color-app-{categoryGradientId});"
+    >
+      <div class="category-icon-inner">
+        <IconComponent size={26} color="white" />
       </div>
     </div>
     
-    <!-- Small category-specific Lucide icon (like the skill icon in BasicInfosBar) -->
-    <div class="category-icon-container">
-      <IconComponent size={22} color="var(--color-grey-70)" />
-    </div>
-    
-    <!-- Title (2 lines) + category name -->
+    <!-- Title only (2 lines max, no mate/category name subtitle) -->
     <div class="info-text">
       <span class="title-text">{title}</span>
-      <span class="category-text">{categoryName}</span>
     </div>
   </div>
 </button>
@@ -224,7 +233,7 @@
   }
   
   /* ===========================================
-     Details Section - Chat Summary
+     Details Section - First User Message Preview
      =========================================== */
   
   .details-section {
@@ -237,7 +246,7 @@
     padding: 16px 20px 8px 20px;
   }
   
-  .summary-text {
+  .preview-text {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-grey-80);
@@ -253,31 +262,35 @@
     word-break: break-word;
   }
   
-  /* When showing title as placeholder (no summary available), style slightly different */
-  .summary-text.placeholder {
+  /* When showing title as placeholder (no preview text available), style slightly different */
+  .preview-text.placeholder {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-grey-70);
   }
   
   /* ===========================================
-     Bottom Bar - Matches BasicInfosBar Desktop
+     Bottom Bar - Full Width (no separate border-radius)
+     Card's overflow:hidden + border-radius handles corners
      =========================================== */
   
   .bottom-bar {
     display: flex;
     align-items: center;
     gap: 10px;
-    /* Match BasicInfosBar desktop dimensions */
+    /* Match BasicInfosBar height */
     height: 61px;
     min-height: 61px;
     background-color: var(--color-grey-30);
-    border-radius: 30px;
+    /* NO border-radius - the card's overflow:hidden + border-radius:30px handles corners.
+       This ensures the bottom bar appears truly full-width without visible rounded top corners. */
+    border-radius: 0;
     padding: 0;
     flex-shrink: 0;
   }
   
-  /* Gradient circle: 61x61px with OpenMates AI gradient (same for all chat embeds) */
+  /* Category gradient circle: 61x61px with category-specific gradient */
+  /* Contains the Lucide category icon in white */
   .gradient-circle {
     width: 61px;
     height: 61px;
@@ -287,31 +300,23 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    /* Use the standard OpenMates AI gradient for all chat embeds */
-    background: var(--color-app-ai);
   }
   
-  .chat-icon-container {
+  /* Inner container for the Lucide icon inside the gradient circle */
+  .category-icon-inner {
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  
-  /* Small category icon (matches BasicInfosBar skill-icon sizing) */
-  .category-icon-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
   }
   
   /* Ensure Lucide SVG renders correctly */
-  .category-icon-container :global(svg) {
+  .category-icon-inner :global(svg) {
     display: block;
   }
   
   /* ===========================================
-     Info Text - Title (2 lines) + Category Name
+     Info Text - Title Only (2 lines max)
+     No mate name or category subtitle
      =========================================== */
   
   .info-text {
@@ -320,18 +325,17 @@
     justify-content: center;
     flex: 1;
     min-width: 0;
-    gap: 2px;
     /* Ensure text doesn't overflow into the rounded corner area */
     padding-right: 16px;
   }
   
-  /* Title: 2 lines with ellipsis (replaces mate name from original design) */
+  /* Title: 2 lines max with ellipsis */
   .title-text {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.2;
-    /* Two lines with ellipsis (matching BasicInfosBar title-text.two-lines) */
+    /* Two lines with ellipsis */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -339,16 +343,5 @@
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
-  }
-  
-  /* Category name: single line under the title */
-  .category-text {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-grey-70);
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 </style>

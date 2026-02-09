@@ -10,6 +10,10 @@
   Only shows community demo chats (the "EXAMPLE CHATS" section in the sidebar),
   NOT intro chats (which are the static "For everyone", "For developers", etc.).
   
+  Each card shows:
+  - The first few lines of the first user message (like chat history sidebar)
+  - Category gradient circle with icon + chat title in the bottom bar
+  
   Scrolling behavior matches the standard embed group layout used by
   other embed types (smooth horizontal scroll, no snap).
 -->
@@ -19,7 +23,7 @@
   import { getAllCommunityDemoChats } from '../../demo_chats';
   import { communityDemoStore } from '../../demo_chats/communityDemoStore';
   import { activeChatStore } from '../../stores/activeChatStore';
-  import { getCommunityDemoChat } from '../../demo_chats/communityDemoStore';
+  import { getCommunityDemoChat, getCommunityDemoMessages } from '../../demo_chats/communityDemoStore';
   
   /**
    * Props interface for ExampleChatsGroup
@@ -49,6 +53,25 @@
     // Filter out the current chat and return as-is (already Chat objects)
     return communityChats.filter(chat => chat.chat_id !== excludeChatId);
   })());
+  
+  /**
+   * Get the first few lines of the first user message for a chat.
+   * This mimics how the chat history sidebar shows message previews.
+   * Falls back to the chat_summary if no user message is found.
+   */
+  function getPreviewText(chatId: string, fallbackSummary: string | null | undefined): string {
+    const messages = getCommunityDemoMessages(chatId);
+    
+    // Find the first user message in the chat
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    if (firstUserMsg && firstUserMsg.content) {
+      // Return the raw content - the ChatEmbedPreview's CSS will handle clamping to 4 lines
+      return firstUserMsg.content;
+    }
+    
+    // Fall back to summary if no user message found
+    return fallbackSummary || '';
+  }
   
   // Handle click on a chat card - navigate to the demo chat
   // CRITICAL: Must both update the sidebar highlight AND trigger chat loading
@@ -86,7 +109,7 @@
         <ChatEmbedPreview
           chatId={chat.chat_id}
           title={chat.title || ''}
-          summary={chat.chat_summary || ''}
+          previewText={getPreviewText(chat.chat_id, chat.chat_summary)}
           category={chat.category || 'general_knowledge'}
           iconName={chat.icon || 'message-circle'}
           onClick={handleChatClick}

@@ -2,10 +2,16 @@
   frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
   
   A horizontal scrollable container displaying AppStoreCard components
-  for all available apps in the App Store.
+  for available apps in the App Store.
   
   This component is rendered within demo chat messages when the
   [[app_store_group]] placeholder is encountered.
+  
+  Features:
+  - Excludes the AI app (always used, focus should be on other apps)
+  - Limits display to first 10 items
+  - Shows "+ N more" badge at the end when items are truncated
+  - Supports custom sort order via sortOrder prop
   
   Uses the same AppStoreCard design as the Settings App Store but scaled up
   to look more fitting in the chat message context.
@@ -17,17 +23,70 @@
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import { getAvailableApps } from '../../services/appSkillsService';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { text } from '@repo/ui';
+  
+  /** Maximum number of items to display before showing "+N more" */
+  const MAX_DISPLAY_ITEMS = 10;
+  
+  /** App ID to exclude (AI app is always used, focus on other apps) */
+  const EXCLUDED_APP_ID = 'ai';
   
   /**
-   * Get all available apps sorted alphabetically by name.
-   * Uses the static appsMetadata (no API call, works offline).
+   * Props interface for AppStoreGroup
    */
-  let allApps = $derived((() => {
+  interface Props {
+    /**
+     * Custom sort order for apps. Array of app IDs in desired display order.
+     * Apps in this array appear first (in the specified order),
+     * followed by any remaining apps sorted alphabetically.
+     * If not provided, apps are sorted alphabetically by name.
+     */
+    sortOrder?: string[];
+  }
+  
+  let {
+    sortOrder
+  }: Props = $props();
+  
+  /**
+   * Get all available apps excluding the AI app.
+   * Supports custom sort order via sortOrder prop.
+   * Limited to MAX_DISPLAY_ITEMS for display.
+   */
+  let filteredApps = $derived((() => {
     const appsMap = getAvailableApps();
-    const appsList = Object.values(appsMap);
-    // Sort alphabetically by app name for consistent display
+    const appsList = Object.values(appsMap)
+      .filter(app => app.id !== EXCLUDED_APP_ID);
+    
+    if (sortOrder && sortOrder.length > 0) {
+      // Custom sort: apps in sortOrder come first (in that order), then remaining alphabetically
+      const ordered = [];
+      const remaining = [];
+      
+      for (const appId of sortOrder) {
+        const app = appsList.find(a => a.id === appId);
+        if (app) ordered.push(app);
+      }
+      
+      for (const app of appsList) {
+        if (!sortOrder.includes(app.id)) {
+          remaining.push(app);
+        }
+      }
+      
+      remaining.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+      return [...ordered, ...remaining];
+    }
+    
+    // Default: sort alphabetically by app name
     return appsList.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
   })());
+  
+  /** Apps to display (limited to MAX_DISPLAY_ITEMS) */
+  let displayApps = $derived(filteredApps.slice(0, MAX_DISPLAY_ITEMS));
+  
+  /** Count of remaining apps not shown */
+  let remainingCount = $derived(Math.max(0, filteredApps.length - MAX_DISPLAY_ITEMS));
   
   /**
    * Handle app card click - open the App Store to the specific app's detail page.
@@ -45,14 +104,26 @@
   }
 </script>
 
-{#if allApps.length > 0}
+{#if displayApps.length > 0}
   <div class="app-store-group-wrapper">
     <div class="app-store-group">
-      {#each allApps as app (app.id)}
+      {#each displayApps as app (app.id)}
         <div class="app-card-scaled">
           <AppStoreCard {app} onSelect={handleAppSelect} />
         </div>
       {/each}
+      
+      <!-- Show "+ N more" badge when there are more items than displayed -->
+      {#if remainingCount > 0}
+        <button
+          class="more-badge"
+          onclick={() => handleAppSelect('')}
+          type="button"
+          aria-label={$text('app_store.plus_n_more.text', { values: { count: remainingCount } })}
+        >
+          <span class="more-text">+ {remainingCount}</span>
+        </button>
+      {/if}
     </div>
   </div>
 {/if}
@@ -110,5 +181,37 @@
   /* Ensure cards don't shrink */
   .app-store-group > :global(*) {
     flex-shrink: 0;
+  }
+  
+  /* "+N more" badge at the end of the scrollable list */
+  .more-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    height: 148px;
+    padding: 0 16px;
+    background-color: var(--color-grey-30);
+    border-radius: 12px;
+    border: 1px solid var(--color-grey-40);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+  
+  .more-badge:hover {
+    background-color: var(--color-grey-35);
+    transform: translateY(-2px);
+  }
+  
+  .more-badge:active {
+    transform: scale(0.96);
+  }
+  
+  .more-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-grey-70);
+    white-space: nowrap;
   }
 </style>

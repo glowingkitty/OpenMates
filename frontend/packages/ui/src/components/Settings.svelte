@@ -127,6 +127,10 @@ changes to the documentation (to keep the documentation up to date).
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
+    // Timestamp when settings was last programmatically opened (e.g., via deep link from AppStoreCard click)
+    // Used to prevent handleClickOutside from immediately closing settings on the same click event.
+    // On mobile, the same tap that opens settings also triggers the document click listener which would close it.
+    let lastProgrammaticOpenTime = 0;
     let isTeamEnabled = $state(true);
     // Use incognito mode store instead of local state
     let isIncognitoEnabled = $derived($incognitoMode);
@@ -1036,6 +1040,15 @@ changes to the documentation (to keep the documentation up to date).
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
     	if ($isMobileView) {
+    		// CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
+    		// On mobile, the same tap that triggers openSettings() also bubbles up to document,
+    		// causing handleClickOutside to immediately close the just-opened panel.
+    		// A 300ms grace period prevents this race condition while still allowing
+    		// genuine outside clicks to close the panel normally.
+    		if (Date.now() - lastProgrammaticOpenTime < 300) {
+    			return;
+    		}
+    		
     		const settingsMenu = document.querySelector('.settings-menu');
     		const profileWrapper = document.querySelector('.profile-container-wrapper');
     		const closeButton = document.querySelector('.close-icon-container');
@@ -1491,10 +1504,13 @@ changes to the documentation (to keep the documentation up to date).
     // The reverse sync (local -> panelState) is handled by toggleMenu() and other close handlers
     $effect(() => {
     	// If panelState says settings should be open but our local state says closed
-    	// This handles external opens (e.g., from share button)
+    	// This handles external opens (e.g., from share button, AppStoreCard clicks)
     	if ($panelState.isSettingsOpen && !isMenuVisible) {
     		isMenuVisible = true;
     		settingsMenuVisible.set(true); // Also update the store for consistency
+    		// Record the programmatic open time so handleClickOutside doesn't immediately close
+    		// the panel on mobile (where the same tap event bubbles to document)
+    		lastProgrammaticOpenTime = Date.now();
    
             // Delay hiding the original profile until after transform animation (400ms)
             // This ensures it moves to its position first, then hides, matching manual toggle
