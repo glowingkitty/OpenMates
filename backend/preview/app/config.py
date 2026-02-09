@@ -166,7 +166,7 @@ class Settings(BaseSettings):
     
     # Allowed origins for CORS (comma-separated or "*")
     cors_origins: str = Field(
-        default="https://openmates.org,https://app.openmates.org,http://localhost:5173,http://localhost:3000",
+        default="https://openmates.org,http://localhost:5173,http://localhost:3000",
         description="Allowed CORS origins"
     )
     

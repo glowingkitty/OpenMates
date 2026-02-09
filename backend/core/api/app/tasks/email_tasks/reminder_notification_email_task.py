@@ -121,7 +121,7 @@ async def _async_send_reminder_notification(
 
         # Generate chat URL for the button
         # CRITICAL: The frontend uses hash-based routing for chat navigation: /#chat-id={id}
-        base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
+        base_url = os.getenv("FRONTEND_URL", "https://openmates.org")
         chat_url = f"{base_url}/#chat-id={chat_id}"
 
         # Create a short excerpt of the reminder prompt for the email subject line

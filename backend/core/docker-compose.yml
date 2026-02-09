@@ -169,7 +169,7 @@ services:
       E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
       E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
-      E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://app.openmates.org}"
+      E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \

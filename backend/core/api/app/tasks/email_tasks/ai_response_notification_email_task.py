@@ -138,7 +138,7 @@ async def _async_send_ai_response_notification(
         sanitized_title = escape(chat_title) if chat_title else None
 
         # Generate chat URL for the button
-        base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
+        base_url = os.getenv("FRONTEND_URL", "https://openmates.org")
         chat_url = f"{base_url}/chat/{chat_id}"
 
         # Prepare email context
