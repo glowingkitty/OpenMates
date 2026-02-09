@@ -6355,9 +6355,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         gap: 25px; /* Space between buttons */
     }
 
-    /* PII toggle button: subtle yellow tint when PII is revealed (active) */
+    /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */
     .pii-toggle-active {
-        background-color: rgba(250, 204, 21, 0.3) !important;
+        background-color: rgba(245, 158, 11, 0.3) !important;
     }
 
     /* Background wrapper for new chat button to ensure it's always visible */

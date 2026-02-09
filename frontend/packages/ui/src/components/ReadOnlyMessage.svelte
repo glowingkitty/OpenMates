@@ -558,35 +558,50 @@
         label: string;
     }> {
         const results: Array<{ from: number; to: number; type: string; label: string }> = [];
-        // Build a lookup of original values → PII type for fast matching
-        const piiLookup = mappings.map(m => ({
-            original: m.original,
-            type: m.type || 'UNKNOWN',
-            label: getPIILabel(m.type || 'UNKNOWN'),
-        }));
+        // Build lookup entries that search for BOTH originals and placeholders.
+        // The text might contain either depending on the current visibility state.
+        const piiLookup: Array<{ searchText: string; type: string; label: string }> = [];
+        for (const m of mappings) {
+            const type = m.type || 'UNKNOWN';
+            const label = getPIILabel(type);
+            if (m.original) {
+                piiLookup.push({ searchText: m.original, type, label });
+            }
+            if (m.placeholder) {
+                piiLookup.push({ searchText: m.placeholder, type, label });
+            }
+        }
         
         doc.descendants((node, pos) => {
             if (!node.isText || !node.text) return;
             const nodeText = node.text;
             // For each PII mapping, search for all occurrences within this text node
             for (const pii of piiLookup) {
-                if (!pii.original) continue;
                 let searchFrom = 0;
                 while (searchFrom < nodeText.length) {
-                    const idx = nodeText.indexOf(pii.original, searchFrom);
+                    const idx = nodeText.indexOf(pii.searchText, searchFrom);
                     if (idx === -1) break;
                     // ProseMirror position: pos is the absolute position of the text node start
                     const from = pos + idx;
-                    const to = from + pii.original.length;
+                    const to = from + pii.searchText.length;
                     results.push({ from, to, type: pii.type, label: pii.label });
-                    searchFrom = idx + pii.original.length;
+                    searchFrom = idx + pii.searchText.length;
                 }
             }
         });
         
         // Sort by position and deduplicate overlapping ranges
         results.sort((a, b) => a.from - b.from);
-        return results;
+        // Remove overlapping results (keep the first one found)
+        const deduped: typeof results = [];
+        let lastEnd = -1;
+        for (const r of results) {
+            if (r.from >= lastEnd) {
+                deduped.push(r);
+                lastEnd = r.to;
+            }
+        }
+        return deduped;
     }
 
     /**
@@ -597,8 +612,8 @@
      * emails don't render as clickable <a> tags.
      *
      * Two modes:
-     * - piiRevealed=true: Highlights original values with full opacity (yellow bg)
-     * - piiRevealed=false (default): Hides original text and shows placeholder via CSS overlay
+     * - piiRevealed=true: Shows original values with orange bold text
+     * - piiRevealed=false (default): Replaces originals with placeholders, shown in green bold text
      */
     function applyPIIDecorations(editorInstance: Editor) {
         if (!piiMappings || piiMappings.length === 0 || !editorInstance || editorInstance.isDestroyed) return;
@@ -636,52 +651,72 @@
                 }
             }
             
-            // Step 2: Apply PII highlight decorations.
-            // Re-read state after potential link-removal transaction.
+            // Step 2: In HIDDEN mode, replace the actual text with placeholders.
+            // In REVEALED mode, restore originals (in case we previously replaced them).
+            // This is done via ProseMirror transactions so the DOM updates naturally.
+            const afterLinkState = editorInstance.state;
+            const afterLinkDoc = afterLinkState.doc;
+            const afterLinkPositions = findPIIPositionsInDoc(afterLinkDoc, piiMappings);
+            
+            // Build lookup maps for both directions
+            const originalToPlaceholder = new Map<string, string>();
+            const placeholderToOriginal = new Map<string, string>();
+            for (const m of piiMappings) {
+                originalToPlaceholder.set(m.original, m.placeholder);
+                placeholderToOriginal.set(m.placeholder, m.original);
+            }
+            
+            // Replace text content: swap originals↔placeholders depending on mode
+            let replaceTr = afterLinkState.tr;
+            let hasReplacements = false;
+            // Process positions in reverse order to avoid offset shifts
+            for (let i = afterLinkPositions.length - 1; i >= 0; i--) {
+                const pos = afterLinkPositions[i];
+                // Extract the current text in this range
+                let currentText = '';
+                afterLinkDoc.nodesBetween(pos.from, pos.to, (node, nodePos) => {
+                    if (node.isText && node.text) {
+                        const start = Math.max(0, pos.from - nodePos);
+                        const end = Math.min(node.text.length, pos.to - nodePos);
+                        currentText += node.text.slice(start, end);
+                    }
+                });
+                
+                let targetText: string | null = null;
+                if (!piiRevealed && originalToPlaceholder.has(currentText)) {
+                    // Hidden mode: replace original with placeholder
+                    targetText = originalToPlaceholder.get(currentText)!;
+                } else if (piiRevealed && placeholderToOriginal.has(currentText)) {
+                    // Revealed mode: replace placeholder with original
+                    targetText = placeholderToOriginal.get(currentText)!;
+                }
+                
+                if (targetText && targetText !== currentText) {
+                    const textNode = afterLinkState.schema.text(targetText);
+                    replaceTr = replaceTr.replaceWith(pos.from, pos.to, textNode);
+                    hasReplacements = true;
+                }
+            }
+            if (hasReplacements) {
+                view.dispatch(replaceTr);
+            }
+            
+            // Step 3: Apply PII highlight decorations on the (potentially updated) doc.
             const updatedState = editorInstance.state;
             const updatedDoc = updatedState.doc;
             
-            // Re-find positions in updated doc (link removal doesn't change positions,
-            // but re-finding ensures consistency after the transaction).
+            // Re-find positions in updated doc after text replacements
             const updatedPositions = findPIIPositionsInDoc(updatedDoc, piiMappings);
             
-            // Build a reverse lookup: original value → placeholder string
-            // Used when PII is hidden to show the placeholder text via CSS
-            const originalToPlaceholder = new Map<string, string>();
-            for (const m of piiMappings) {
-                originalToPlaceholder.set(m.original, m.placeholder);
-            }
+            const cssClass = piiRevealed ? 'pii-restored pii-revealed' : 'pii-restored pii-hidden';
+            const titleSuffix = piiRevealed ? '(sensitive data)' : '(hidden for privacy)';
             
             const decorations = updatedPositions.map(pos => {
-                if (piiRevealed) {
-                    // REVEALED MODE: Show original values with full-opacity yellow highlight
-                    return Decoration.inline(pos.from, pos.to, {
-                        class: 'pii-restored pii-revealed',
-                        'data-pii-type': pos.type,
-                        title: `${pos.label} (sensitive data)`
-                    });
-                } else {
-                    // HIDDEN MODE: Hide original text and show placeholder via CSS overlay
-                    // The original text is made transparent; a CSS ::after pseudo-element
-                    // displays the placeholder text (e.g., "[EMAIL_1]") instead.
-                    // Find the original text in this range to look up its placeholder
-                    let originalText = '';
-                    updatedDoc.nodesBetween(pos.from, pos.to, (node, nodePos) => {
-                        if (node.isText && node.text) {
-                            const start = Math.max(0, pos.from - nodePos);
-                            const end = Math.min(node.text.length, pos.to - nodePos);
-                            originalText += node.text.slice(start, end);
-                        }
-                    });
-                    const placeholder = originalToPlaceholder.get(originalText) || `[${pos.type}]`;
-                    
-                    return Decoration.inline(pos.from, pos.to, {
-                        class: 'pii-restored pii-hidden',
-                        'data-pii-type': pos.type,
-                        'data-pii-placeholder': placeholder,
-                        title: `${pos.label} (hidden for privacy)`
-                    });
-                }
+                return Decoration.inline(pos.from, pos.to, {
+                    class: cssClass,
+                    'data-pii-type': pos.type,
+                    title: `${pos.label} ${titleSuffix}`
+                });
             });
             
             const decorationSet = DecorationSet.create(updatedDoc, decorations);
@@ -1176,56 +1211,33 @@
        Same visual style as the message input editor (MessageInput.styles.css).
        No links, no underlines — just a subtle yellow background.
        
-       Two modes controlled by CSS classes:
-       - .pii-revealed: Original values visible with full-opacity yellow highlight
-       - .pii-hidden: Original text hidden, placeholder shown via CSS overlay
+        Two modes controlled by CSS classes:
+        - .pii-revealed: Original values shown in orange bold (warns sensitive data is exposed)
+        - .pii-hidden: Placeholders shown in green bold (indicates data is safely anonymized)
        ========================================================================== */
 
     /* Base style for all restored PII — shared by both revealed and hidden modes.
-       Renders as regular inline text (NOT inline code) with a subtle highlight. */
+       Uses bold colored text instead of background highlights for clean appearance. */
     :global(.read-only-message .pii-restored) {
-        border-radius: 3px;
-        padding: 1px 4px;
-        margin: 0 1px;
         border-bottom: none;
         text-decoration: none !important;
         cursor: default;
         font-family: inherit;
         font-size: inherit;
-        font-weight: inherit;
         letter-spacing: inherit;
+        font-weight: 600;
     }
 
-    /* REVEALED MODE: Show original values with full-opacity yellow background */
+    /* REVEALED MODE: Orange/amber bold text — warns that sensitive data is exposed */
     :global(.read-only-message .pii-restored.pii-revealed) {
-        background-color: rgba(250, 204, 21, 1);
-        color: #1a1a1a;
+        color: #f59e0b;
     }
 
-    /* HIDDEN MODE: Hide original text and show placeholder via CSS overlay.
-       The original text becomes transparent; a ::after pseudo-element renders
-       the placeholder string (e.g., "[EMAIL_1]") from the data attribute. */
+    /* HIDDEN MODE: Green-toned bold text — indicates data is safely anonymized.
+       The original text is replaced by the placeholder in the DOM via ProseMirror,
+       so no CSS overlay trick is needed. */
     :global(.read-only-message .pii-restored.pii-hidden) {
-        background-color: rgba(250, 204, 21, 0.3);
-        color: transparent;
-        position: relative;
-        user-select: none;
-        -webkit-user-select: none;
-        white-space: nowrap;
-        overflow: hidden;
-    }
-    :global(.read-only-message .pii-restored.pii-hidden::after) {
-        content: attr(data-pii-placeholder);
-        position: absolute;
-        left: 0;
-        top: 0;
-        padding: inherit;
-        color: var(--color-font-primary, #e0e0e0);
-        font-family: inherit;
-        font-size: inherit;
-        font-weight: inherit;
-        white-space: nowrap;
-        pointer-events: none;
+        color: #4ade80;
     }
 
     /* Override link styling when PII is inside an anchor tag (e.g. email auto-linked).
@@ -1236,8 +1248,6 @@
     :global(.read-only-message .ProseMirror a .pii-restored),
     :global(.read-only-message .ProseMirror .pii-restored a),
     :global(.read-only-message .ProseMirror a.pii-restored) {
-        background-clip: border-box !important;
-        -webkit-background-clip: border-box !important;
         -webkit-text-fill-color: inherit !important;
         color: inherit !important;
         text-decoration: none !important;

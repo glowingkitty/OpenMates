@@ -12,12 +12,13 @@ import {
   loadEmbeds,
   decodeToonContent,
 } from "./embedResolver";
-import { replacePIIOriginalsWithPlaceholders } from "../components/enter_message/services/piiDetectionService";
+import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 
 /**
  * Options for controlling PII handling during export.
- * When piiHidden is true, original PII values in message content are replaced
- * with their placeholders (e.g., "[EMAIL_1]") to protect sensitive data.
+ * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_1]").
+ * When piiHidden is false (revealed), we restore originals for the export.
+ * When piiHidden is true (default), content keeps placeholders as-is.
  */
 export interface PIIExportOptions {
   /** Whether PII should be hidden in the export (placeholders instead of originals) */
@@ -28,21 +29,22 @@ export interface PIIExportOptions {
 
 /**
  * Apply PII handling to message content based on export options.
- * When PII is hidden, replaces original values with placeholders.
- * When PII is revealed, content is returned as-is (originals already present).
+ * Message content from DB has PLACEHOLDERS. When PII is revealed (piiHidden=false),
+ * we restore original values for the export. When hidden, content keeps placeholders.
  */
 function applyPIIToContent(
   content: string,
   piiOptions?: PIIExportOptions,
 ): string {
-  if (
-    !piiOptions ||
-    !piiOptions.piiHidden ||
-    piiOptions.piiMappings.length === 0
-  ) {
+  if (!piiOptions || piiOptions.piiMappings.length === 0) {
     return content;
   }
-  return replacePIIOriginalsWithPlaceholders(content, piiOptions.piiMappings);
+  if (!piiOptions.piiHidden) {
+    // Revealed mode: restore placeholders → originals for export
+    return restorePIIInText(content, piiOptions.piiMappings);
+  }
+  // Hidden mode: content already has placeholders from DB, return as-is
+  return content;
 }
 
 /**

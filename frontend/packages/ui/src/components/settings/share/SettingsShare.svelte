@@ -28,7 +28,7 @@
     import { userDB } from '../../../services/userDB';
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
-    import { replacePIIOriginalsWithPlaceholders } from '../../../components/enter_message/services/piiDetectionService';
+    // PII detection service is dynamically imported where needed (restorePIIInText in community share)
     
     // Define interface for embed context to avoid 'any'
     interface EmbedContext {
@@ -1041,29 +1041,31 @@
                     const { computeSHA256 } = await import('../../../message_parsing/utils');
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
+                    // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {
-                        // Build cumulative PII mappings from user messages for potential stripping
+                        // Build cumulative PII mappings from user messages for restoration
                         const allPIIMappings: import('../../../types/chat').PIIMapping[] = [];
-                        if (!includeSensitiveData) {
-                            for (const msg of messages) {
-                                if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
-                                    allPIIMappings.push(...msg.pii_mappings);
-                                }
+                        for (const msg of messages) {
+                            if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+                                allPIIMappings.push(...msg.pii_mappings);
                             }
                         }
 
+                        // Import restorePIIInText for when user opts to include sensitive data
+                        const { restorePIIInText } = await import('../../../components/enter_message/services/piiDetectionService');
+
                         decryptedMessages = messages.map(msg => {
                             let content = msg.content || '';
-                            // PRIVACY: When includeSensitiveData is OFF (default), replace any
-                            // restored PII original values back with placeholders before sharing.
-                            // This ensures personal information doesn't leak into shared/community content.
-                            if (!includeSensitiveData && allPIIMappings.length > 0 && typeof content === 'string') {
-                                content = replacePIIOriginalsWithPlaceholders(content, allPIIMappings);
+                            // Content from DB has PLACEHOLDERS. When includeSensitiveData is ON,
+                            // restore originals so the shared content shows actual personal data.
+                            // When OFF (default), content keeps placeholders — no action needed.
+                            if (includeSensitiveData && allPIIMappings.length > 0 && typeof content === 'string') {
+                                content = restorePIIInText(content, allPIIMappings);
                             }
                             return {
                                 role: msg.role,
-                                content, // TipTap JSON string (with PII stripped if configured)
+                                content, // Content with placeholders (default) or originals (if includeSensitiveData)
                                 category: msg.category,
                                 model_name: msg.model_name,
                                 created_at: msg.created_at

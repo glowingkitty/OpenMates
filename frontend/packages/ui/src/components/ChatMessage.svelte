@@ -484,19 +484,21 @@
         contentToCopy = selection.toString();
         console.debug('[ChatMessage] Copying selected text');
       } else {
-        // Otherwise copy the full message content
+        // original_message.content has PLACEHOLDERS (raw from DB).
+        // When PII is revealed, we need to restore originals for the user.
+        // When PII is hidden, the raw content already has placeholders — use as-is.
         contentToCopy = typeof original_message?.content === 'string' 
           ? original_message.content 
           : JSON.stringify(content);
-        console.debug('[ChatMessage] Copying full message content');
-      }
-
-      // When PII is hidden, replace restored original values back with placeholders.
-      // The content already has originals (restored by ChatHistory), so we reverse the restoration.
-      if (!piiRevealed && piiMappings && piiMappings.length > 0) {
-        const { replacePIIOriginalsWithPlaceholders } = await import('./enter_message/services/piiDetectionService');
-        contentToCopy = replacePIIOriginalsWithPlaceholders(contentToCopy, piiMappings);
-        console.debug('[ChatMessage] Replaced PII originals with placeholders for copy (hidden mode)');
+        
+        if (piiRevealed && piiMappings && piiMappings.length > 0) {
+          // Revealed mode: user wants originals — restore placeholders → originals
+          const { restorePIIInText } = await import('./enter_message/services/piiDetectionService');
+          contentToCopy = restorePIIInText(contentToCopy, piiMappings);
+          console.debug('[ChatMessage] Restored PII originals for copy (revealed mode)');
+        } else {
+          console.debug('[ChatMessage] Copying message with placeholders (hidden mode)');
+        }
       }
         
       await navigator.clipboard.writeText(contentToCopy);

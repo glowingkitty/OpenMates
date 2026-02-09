@@ -21,7 +21,7 @@ import {
 } from "./embedResolver";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
-import { replacePIIOriginalsWithPlaceholders } from "../components/enter_message/services/piiDetectionService";
+import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 
 /**
  * Converts a single message to markdown format
@@ -48,12 +48,15 @@ async function convertMessageToMarkdown(
       content = tipTapToCanonicalMarkdown(message.content);
     }
 
-    // Apply PII handling: replace originals with placeholders when PII is hidden
-    if (piiOptions?.piiHidden && piiOptions.piiMappings.length > 0) {
-      content = replacePIIOriginalsWithPlaceholders(
-        content,
-        piiOptions.piiMappings,
-      );
+    // Apply PII handling: message content from DB has PLACEHOLDERS.
+    // When PII is revealed (piiHidden=false), restore originals for export.
+    // When hidden, content keeps placeholders as-is.
+    if (
+      piiOptions &&
+      !piiOptions.piiHidden &&
+      piiOptions.piiMappings.length > 0
+    ) {
+      content = restorePIIInText(content, piiOptions.piiMappings);
     }
 
     return `## ${role} - ${timestamp}\n\n${content}\n\n`;
