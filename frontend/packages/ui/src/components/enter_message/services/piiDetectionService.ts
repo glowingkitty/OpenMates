@@ -772,6 +772,24 @@ export interface PIIMappingForStorage {
 }
 
 /**
+ * Convert detected PII matches into the storage format used by message encryption.
+ * Maps PIIMatch.match (the detected text) to PIIMappingForStorage.original,
+ * preserving placeholder and type for later restoration.
+ *
+ * @param matches Array of PII matches from detectPII()
+ * @returns Array of mappings suitable for encrypted storage with messages
+ */
+export function createPIIMappingsForStorage(
+  matches: PIIMatch[],
+): PIIMappingForStorage[] {
+  return matches.map((m) => ({
+    placeholder: m.placeholder,
+    original: m.match,
+    type: m.type,
+  }));
+}
+
+/**
  * Replace PII original values back with their placeholders in text.
  * Used when copying/downloading/sharing content with PII hidden.
  * This is the reverse of restorePIIInText().
