@@ -124,10 +124,14 @@ export default defineConfig({
 				// Manual chunk splitting strategy to improve caching and load performance
 				// Split large dependencies into separate chunks that can be cached independently
 				manualChunks(id) {
-					// TipTap and ProseMirror (~2MB) - loaded only for message input
-					if (id.includes('tiptap') || id.includes('prosemirror')) {
-						return 'editor';
-					}
+				// TipTap and ProseMirror (~2MB) - loaded only for message input
+				if (id.includes('tiptap') || id.includes('prosemirror')) {
+					return 'editor';
+				}
+				// CKEditor 5 (~2-3MB) - loaded lazily for document fullscreen viewing
+				if (id.includes('ckeditor5') || id.includes('@ckeditor')) {
+					return 'ckeditor';
+				}
 					// Translation files (~1.5MB total) - loaded per-language as needed
 					if (
 						id.includes('/chunks/de.js') ||

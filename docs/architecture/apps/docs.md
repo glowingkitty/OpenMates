@@ -49,7 +49,7 @@ Let me generate the document you requested.
 
 ##### Document | Processing | Fullscreen view
 
-Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and instantiated with CKEditor in fullscreen.
+Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and rendered with CKEditor 5 (DecoupledEditor in read-only mode) in fullscreen. CKEditor is dynamically imported on first open to keep the initial bundle small (~2-3MB loaded lazily). See [CKEditorDocViewer.svelte](../../../frontend/packages/ui/src/components/embeds/docs/CKEditorDocViewer.svelte).
 
 Figma design:
 
@@ -96,7 +96,7 @@ Let me generate the document you requested.
 
 ##### Document | Finished | Fullscreen view
 
-Show document in fullscreen mode, with preview element in bottom of the screen (with filename, pages count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and instantiated with CKEditor in fullscreen.
+Show document in fullscreen mode, with preview element in bottom of the screen (with filename, pages count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and rendered with CKEditor 5 (DecoupledEditor) in fullscreen. Editing mode can be enabled by toggling CKEditor's read-only lock (not yet implemented).
 
 Figma design:
 
