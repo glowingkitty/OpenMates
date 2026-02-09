@@ -15,6 +15,7 @@
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../types/chat';
+  import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
@@ -305,6 +306,15 @@
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+
+  // PII visibility: derive whether PII is revealed for the current chat.
+  // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
+  let piiRevealedMap = $state<Map<string, boolean>>(new Map());
+  // Subscribe to the store to keep piiRevealedMap in sync
+  const unsubPiiVisibility = piiVisibilityStore.subscribe(map => {
+      piiRevealedMap = map;
+  });
+  let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
@@ -910,6 +920,8 @@
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    // Unsubscribe from PII visibility store
+    unsubPiiVisibility();
   });
 </script>
 
@@ -955,6 +967,7 @@
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                         piiMappings={cumulativePIIMappingsArray}
+                        {piiRevealed}
                     />
                 </div>
             {/each}

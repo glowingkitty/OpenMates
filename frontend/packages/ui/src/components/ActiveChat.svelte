@@ -74,6 +74,7 @@
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
+    import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
@@ -1794,6 +1795,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
+
+    // PII visibility state: tracks whether current chat has sensitive data and if it's revealed
+    // Only show the toggle button when the chat actually contains PII-anonymized messages
+    let chatHasPII = $derived.by(() => {
+        if (!currentMessages || currentMessages.length === 0) return false;
+        return currentMessages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
+    });
+    // Subscribe to PII visibility store to get reactive state updates
+    let piiRevealedMap = $state<Map<string, boolean>>(new Map());
+    const unsubPiiVisibility = piiVisibilityStore.subscribe(map => {
+        piiRevealedMap = map;
+    });
+    let piiRevealed = $derived(currentChat?.chat_id ? (piiRevealedMap.get(currentChat.chat_id) ?? false) : false);
+
+    /** Toggle PII visibility for the current chat */
+    function handleTogglePIIVisibility() {
+        if (currentChat?.chat_id) {
+            piiVisibilityStore.toggle(currentChat.chat_id);
+        }
+    }
     
     // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty
     // This handles the case where suggestions were stored in the database but weren't loaded
@@ -4817,6 +4838,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (Though Svelte's lifecycle should prevent this)
         // unsubscribeAiTyping(); // Already in onMount return
         // chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Already in onMount return
+        
+        // Unsubscribe from PII visibility store
+        unsubPiiVisibility();
     });
 </script>
 
@@ -4926,6 +4950,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
+                            <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
+                            {#if chatHasPII && !showWelcome}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
+                                        class:pii-toggle-active={piiRevealed}
+                                        aria-label={piiRevealed
+                                            ? $text('chat.pii_hide.text', { default: 'Hide sensitive data' })
+                                            : $text('chat.pii_show.text', { default: 'Show sensitive data' })}
+                                        onclick={handleTogglePIIVisibility}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             <!-- Minimize chat button - only shows in side-by-side mode -->
                             <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
                             {#if showSideBySideFullscreen}
@@ -6313,6 +6353,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .right-buttons {
         display: flex;
         gap: 25px; /* Space between buttons */
+    }
+
+    /* PII toggle button: subtle yellow tint when PII is revealed (active) */
+    .pii-toggle-active {
+        background-color: rgba(250, 204, 21, 0.3) !important;
     }
 
     /* Background wrapper for new chat button to ensure it's always visible */

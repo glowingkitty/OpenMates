@@ -63,7 +63,8 @@
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
     isThinkingStreaming = false,
-    piiMappings = undefined
+    piiMappings = undefined,
+    piiRevealed = false
   }: {
     role?: MessageRole;
     category?: string;
@@ -85,6 +86,7 @@
     thinkingContent?: string; // Decrypted thinking content
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
     piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
+    piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
   } = $props();
   
   // State for thinking section expansion
@@ -468,7 +470,9 @@
   // Removed handleMessageClick to avoid intrusive menu on tap
 
   /**
-   * Copies the full message content to clipboard, or selected text if available
+   * Copies the full message content to clipboard, or selected text if available.
+   * Respects PII visibility state: when PII is hidden, placeholders are used
+   * instead of original values in the copied content.
    */
   async function handleCopyMessage() {
     try {
@@ -485,6 +489,14 @@
           ? original_message.content 
           : JSON.stringify(content);
         console.debug('[ChatMessage] Copying full message content');
+      }
+
+      // When PII is hidden, replace restored original values back with placeholders.
+      // The content already has originals (restored by ChatHistory), so we reverse the restoration.
+      if (!piiRevealed && piiMappings && piiMappings.length > 0) {
+        const { replacePIIOriginalsWithPlaceholders } = await import('./enter_message/services/piiDetectionService');
+        contentToCopy = replacePIIOriginalsWithPlaceholders(contentToCopy, piiMappings);
+        console.debug('[ChatMessage] Replaced PII originals with placeholders for copy (hidden mode)');
       }
         
       await navigator.clipboard.writeText(contentToCopy);
@@ -1092,6 +1104,7 @@
               {_embedUpdateTimestamp}
               {selectable}
               {piiMappings}
+              {piiRevealed}
               on:message-embed-click={handleEmbedClick}
           />
         {:else if hasExampleChatsPlaceholder}
@@ -1110,6 +1123,7 @@
               {_embedUpdateTimestamp}
               {selectable}
               {piiMappings}
+              {piiRevealed}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

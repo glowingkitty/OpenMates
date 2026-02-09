@@ -14,8 +14,9 @@
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
   import { chatListCache } from '../../services/chatListCache'; // Global cache for last messages
   import ChatContextMenu from './ChatContextMenu.svelte';
-  import { copyChatToClipboard } from '../../services/chatExportService';
+  import { copyChatToClipboard, type PIIExportOptions } from '../../services/chatExportService';
   import { downloadChatAsZip } from '../../services/zipExportService';
+  import { piiVisibilityStore } from '../../stores/piiVisibilityStore';
   import type { DecryptedChatData } from '../../types/chat';
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
@@ -1018,6 +1019,29 @@
   }
 
   /**
+   * Build PII export options from the current PII visibility state and message mappings.
+   * When PII is hidden (default), the export will contain placeholders instead of originals.
+   */
+  function buildPIIExportOptions(chatId: string, messages: Message[]): PIIExportOptions | undefined {
+    // Collect all PII mappings from user messages
+    const allMappings: import('../../types/chat').PIIMapping[] = [];
+    for (const msg of messages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        allMappings.push(...msg.pii_mappings);
+      }
+    }
+    // If there are no PII mappings, no special handling needed
+    if (allMappings.length === 0) return undefined;
+
+    // Check if PII is currently revealed for this chat
+    const isRevealed = piiVisibilityStore.isRevealed(chatId);
+    return {
+      piiHidden: !isRevealed,
+      piiMappings: allMappings,
+    };
+  }
+
+  /**
    * Download chat as YAML file
    * Supports drafts-only chats (both authenticated and non-authenticated users)
    */
@@ -1066,8 +1090,11 @@
         }
       }
       
-      // Download as ZIP with YAML, Markdown, and code files
-      await downloadChatAsZip(chatForExport, messages);
+      // Build PII export options: respect the current visibility state
+      const piiOptions = buildPIIExportOptions(chat.chat_id, messages);
+
+      // Download as ZIP with YAML, Markdown, and code files, respecting PII visibility
+      await downloadChatAsZip(chatForExport, messages, piiOptions);
 
       console.debug('[Chat] Download completed for chat:', chat.chat_id);
       notificationStore.success('Chat downloaded successfully');
@@ -1128,8 +1155,12 @@
         }
       }
       
+      // Build PII export options: respect the current visibility state.
+      // When PII is hidden (default), exported content uses placeholders instead of originals.
+      const piiOptions = buildPIIExportOptions(chat.chat_id, messages);
+
       // Copy to clipboard (YAML with embedded link, handles empty messages array and drafts)
-      await copyChatToClipboard(chatForExport, messages);
+      await copyChatToClipboard(chatForExport, messages, piiOptions);
       
       console.debug('[Chat] Chat copied to clipboard (YAML with embedded link)');
       notificationStore.success('Chat copied to clipboard');

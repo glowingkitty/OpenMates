@@ -28,6 +28,7 @@
     import { userDB } from '../../../services/userDB';
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
+    import { replacePIIOriginalsWithPlaceholders } from '../../../components/enter_message/services/piiDetectionService';
     
     // Define interface for embed context to avoid 'any'
     interface EmbedContext {
@@ -94,6 +95,13 @@
 
     // Share with Community state - only for chats, not embeds
     let shareWithCommunity = $state(false);
+
+    // Include sensitive data state - when false (default), PII is stripped from shared content.
+    // Users must explicitly opt-in to include their personal information in shared chats.
+    let includeSensitiveData = $state(false);
+
+    // Whether the current chat has any PII mappings (used to conditionally show the sensitive data toggle)
+    let chatHasPII = $state(false);
 
     // Generated share link state
     let generatedLink = $state('');
@@ -778,6 +786,32 @@
             }, 150);
         }
     });
+
+    // Check whether the current chat contains PII mappings
+    // This determines if we show the "Include sensitive data" toggle
+    $effect(() => {
+        const chatId = currentChatId;
+        if (!chatId || isEmbedSharing) {
+            chatHasPII = false;
+            return;
+        }
+        // Async check - load messages and see if any have pii_mappings
+        (async () => {
+            try {
+                const { chatDB } = await import('../../../services/db');
+                const { getMessagesForChat } = await import('../../../services/db/messageOperations');
+                const messages = await getMessagesForChat(chatDB as any, chatId);
+                if (messages && messages.length > 0) {
+                    chatHasPII = messages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
+                } else {
+                    chatHasPII = false;
+                }
+            } catch (error) {
+                console.error('[SettingsShare] Error checking chat PII:', error);
+                chatHasPII = false;
+            }
+        })();
+    });
     
     // Also check on mount in case the chatId is already set
     // Only initialize if we don't already have a shared chat (to maintain stability)
@@ -1009,14 +1043,33 @@
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {
-                        decryptedMessages = messages.map(msg => ({
-                            role: msg.role,
-                            content: msg.content || '', // TipTap JSON string
-                            category: msg.category, // Include category (already decrypted by getMessagesForChat)
-                            model_name: msg.model_name, // Include model name for assistant messages
-                            created_at: msg.created_at
-                        }));
-                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing`);
+                        // Build cumulative PII mappings from user messages for potential stripping
+                        const allPIIMappings: import('../../../types/chat').PIIMapping[] = [];
+                        if (!includeSensitiveData) {
+                            for (const msg of messages) {
+                                if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+                                    allPIIMappings.push(...msg.pii_mappings);
+                                }
+                            }
+                        }
+
+                        decryptedMessages = messages.map(msg => {
+                            let content = msg.content || '';
+                            // PRIVACY: When includeSensitiveData is OFF (default), replace any
+                            // restored PII original values back with placeholders before sharing.
+                            // This ensures personal information doesn't leak into shared/community content.
+                            if (!includeSensitiveData && allPIIMappings.length > 0 && typeof content === 'string') {
+                                content = replacePIIOriginalsWithPlaceholders(content, allPIIMappings);
+                            }
+                            return {
+                                role: msg.role,
+                                content, // TipTap JSON string (with PII stripped if configured)
+                                category: msg.category,
+                                model_name: msg.model_name,
+                                created_at: msg.created_at
+                            };
+                        });
+                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing (includeSensitiveData: ${includeSensitiveData})`);
                     }
                     
                     // Get all embeds for this chat
@@ -1531,6 +1584,33 @@
                 {/if}
             {/if}
 
+            <!-- Include Sensitive Data Toggle (only shown when chat has PII) -->
+            {#if chatHasPII && !isEmbedSharing}
+                <div class="option-row">
+                    <div class="option-label">
+                        <div class="icon settings_size {includeSensitiveData ? 'icon_visible' : 'icon_hidden'}"></div>
+                        <span>{$text('settings.share.include_sensitive_data.text', { default: 'Include sensitive data' })}</span>
+                    </div>
+                    <Toggle
+                        bind:checked={includeSensitiveData}
+                        name="include-sensitive-data"
+                        ariaLabel="Toggle include sensitive data"
+                    />
+                </div>
+
+                <!-- Sensitive Data Warning (shown when toggle is ON) -->
+                {#if includeSensitiveData}
+                    <div class="community-info warning" transition:slide={{ duration: 200, easing: cubicOut }}>
+                        <div class="info-icon">&#9888;&#65039;</div>
+                        <p>
+                            {$text('settings.share.include_sensitive_data_warning.text', { 
+                                default: 'Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients.' 
+                            })}
+                        </p>
+                    </div>
+                {/if}
+            {/if}
+
             <!-- Password Protection Toggle -->
             <div class="option-row" class:disabled={isPasswordDisabled}>
                 <div class="option-label">
@@ -2003,6 +2083,11 @@
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
+    }
+
+    .community-info.warning {
+        background-color: rgba(250, 204, 21, 0.1);
+        border-color: rgba(250, 204, 21, 0.3);
     }
     
     /* Back to configuration button */

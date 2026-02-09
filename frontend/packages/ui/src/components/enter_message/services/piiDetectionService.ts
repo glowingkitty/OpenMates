@@ -17,6 +17,14 @@
  * - IP addresses (IPv4 and IPv6)
  * - Private keys (PEM format)
  * - JWT tokens
+ * - IBAN / bank account numbers (with ISO 7064 Mod 97-10 validation)
+ * - Home folder paths (/home/user/, /Users/user/, C:\Users\user\)
+ * - Terminal prompts with user@hostname (marco@MacBook ~ %, user@server:~$)
+ * - MAC addresses (network hardware identifiers)
+ * - Passport numbers (context-dependent, major country formats)
+ * - Tax ID / VAT numbers (EU VAT format + context-dependent national formats)
+ * - Vehicle license plate numbers (context-dependent)
+ * - Cryptocurrency wallet addresses (Bitcoin Legacy/SegWit, Ethereum)
  */
 
 /**
@@ -45,7 +53,15 @@ export type PIIType =
   | "IPV4"
   | "IPV6"
   | "PRIVATE_KEY"
-  | "JWT";
+  | "JWT"
+  | "IBAN"
+  | "HOME_FOLDER"
+  | "USER_AT_HOSTNAME"
+  | "MAC_ADDRESS"
+  | "PASSPORT"
+  | "TAX_ID"
+  | "VEHICLE_PLATE"
+  | "CRYPTO_WALLET";
 
 /**
  * A detected PII match in text
@@ -101,6 +117,43 @@ function luhnCheck(cardNumber: string): boolean {
     isEven = !isEven;
   }
   return sum % 10 === 0;
+}
+
+/**
+ * IBAN validation using ISO 7064 Mod 97-10 check digit algorithm.
+ * Rearranges the IBAN (move first 4 chars to end), converts letters to numbers
+ * (A=10, B=11, ..., Z=35), and checks if the result mod 97 equals 1.
+ *
+ * @param iban IBAN string (may contain spaces)
+ * @returns true if valid IBAN check digits
+ */
+function ibanCheck(iban: string): boolean {
+  // Remove spaces and convert to uppercase
+  const cleaned = iban.replace(/\s/g, "").toUpperCase();
+  if (cleaned.length < 15 || cleaned.length > 34) return false;
+
+  // Move first 4 chars to end
+  const rearranged = cleaned.substring(4) + cleaned.substring(0, 4);
+
+  // Convert letters to numbers (A=10, B=11, ..., Z=35)
+  let numericStr = "";
+  for (const char of rearranged) {
+    const code = char.charCodeAt(0);
+    if (code >= 65 && code <= 90) {
+      // A-Z → 10-35
+      numericStr += (code - 55).toString();
+    } else {
+      numericStr += char;
+    }
+  }
+
+  // Mod 97 on the large number (process in chunks to avoid BigInt)
+  let remainder = 0;
+  for (const digit of numericStr) {
+    remainder = (remainder * 10 + parseInt(digit, 10)) % 97;
+  }
+
+  return remainder === 1;
 }
 
 /**
@@ -347,12 +400,203 @@ const PII_PATTERNS: PIIPattern[] = [
     label: "IPv6 Address",
     getPlaceholder: (_, i) => `[IPV6_${i + 1}]`,
   },
+
+  // Bank account numbers (IBAN)
+  {
+    type: "IBAN",
+    // IBAN format: 2-letter country code + 2 check digits + up to 30 alphanumeric chars.
+    // Supports both compact (DE89370400440532013000) and spaced (DE89 3704 0044 0532 0130 00).
+    // Country code is required to reduce false positives on random alphanumeric strings.
+    regex:
+      /\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b/g,
+    label: "IBAN",
+    getPlaceholder: (_, i) => `[IBAN_${i + 1}]`,
+    validate: ibanCheck,
+  },
+
+  // Home folder / user directory paths that leak the local username.
+  //   /home/marco/projects/foo, /Users/marco/.ssh/config, C:\Users\Marco\Documents
+  //   PS C:\Users\Marco>, PS /home/marco>
+  {
+    type: "HOME_FOLDER",
+    // Two branches:
+    // Branch 1 — Unix/macOS/Windows home directory paths:
+    //   /home/user, /Users/user, C:\Users\user
+    //   Username: 1-64 alphanumeric/dash/underscore/dot chars.
+    //   Requires trailing slash, backslash, or word boundary.
+    //
+    // Branch 2 — PowerShell prompt with home path:
+    //   PS C:\Users\user> or PS /home/user>
+    regex:
+      /(?:\/home\/|\/Users\/|[A-Z]:\\Users\\)[a-zA-Z0-9_.-]{1,64}(?=[/\\]|\b)|PS [A-Z]:\\Users\\[a-zA-Z0-9_.-]{1,64}(?=[\\>]|\b)|PS \/(?:home|Users)\/[a-zA-Z0-9_.-]{1,64}(?=[/>]|\b)/g,
+    label: "Home Folder",
+    getPlaceholder: (_, i) => `[HOME_PATH_${i + 1}]`,
+    // Exclude common system/service accounts that are not personal
+    validate: (match: string) => {
+      const username = match
+        .replace(/^(?:PS\s+)?(?:\/home\/|\/Users\/|[A-Z]:\\Users\\)/i, "")
+        .toLowerCase();
+      const systemAccounts = new Set([
+        "root",
+        "admin",
+        "shared",
+        "public",
+        "default",
+        "guest",
+        "nobody",
+        "daemon",
+        "www-data",
+        "ubuntu",
+      ]);
+      return !systemAccounts.has(username);
+    },
+  },
+
+  // Terminal prompt user@hostname patterns that leak username and machine name.
+  //   marco@Marcos-MacBook-Pro-3 ~ %      (zsh on macOS)
+  //   marco@devserver:~/projects$          (bash on Linux)
+  //   [marco@centos8 ~]$                   (RHEL/CentOS bash)
+  {
+    type: "USER_AT_HOSTNAME",
+    // Matches user@hostname followed by common terminal prompt context characters
+    // (colon, space, tilde, ~). The hostname may contain dots (FQDN) and dashes.
+    // The lookahead for [:~ \s] ensures we only match in prompt-like contexts,
+    // not in email addresses (which are caught earlier by the EMAIL pattern
+    // due to pattern ordering — EMAIL is checked before USER_AT_HOSTNAME).
+    regex:
+      /\b[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,31}@[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}(?=[\s:~])/g,
+    label: "User@Hostname",
+    getPlaceholder: (_, i) => `[USER_HOST_${i + 1}]`,
+    // Exclude well-known service accounts and non-personal user@host patterns
+    validate: (match: string) => {
+      const username = match.split("@")[0].toLowerCase();
+      const host = (match.split("@")[1] ?? "").toLowerCase();
+
+      // Skip well-known service patterns (git@github.com, etc.)
+      // These are not personal identity leaks.
+      const serviceHosts = new Set([
+        "github.com",
+        "gitlab.com",
+        "bitbucket.org",
+        "ssh.dev.azure.com",
+      ]);
+      if (serviceHosts.has(host)) return false;
+
+      const systemAccounts = new Set([
+        "root",
+        "admin",
+        "guest",
+        "nobody",
+        "daemon",
+        "www-data",
+        "noreply",
+        "no-reply",
+        "git",
+        "svn",
+        "user",
+        "test",
+        "ubuntu",
+      ]);
+      return !systemAccounts.has(username);
+    },
+  },
+
+  // MAC addresses (network hardware identifiers)
+  {
+    type: "MAC_ADDRESS",
+    // Standard MAC address formats:
+    // - Colon-separated: AA:BB:CC:DD:EE:FF
+    // - Dash-separated: AA-BB-CC-DD-EE-FF
+    // Case-insensitive, requires word boundaries to avoid matching inside hex strings.
+    regex: /\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/g,
+    label: "MAC Address",
+    getPlaceholder: (_, i) => `[MAC_${i + 1}]`,
+    // Exclude broadcast and zero addresses
+    validate: (match: string) => {
+      const normalized = match.replace(/[:-]/g, "").toUpperCase();
+      if (normalized === "000000000000" || normalized === "FFFFFFFFFFFF")
+        return false;
+      return true;
+    },
+  },
+
+  // Passport numbers (major countries — context-dependent to reduce false positives)
+  {
+    type: "PASSPORT",
+    // Matches passport numbers when preceded by a context keyword like "passport",
+    // "reisepass", "passeport", or passport-number-like labels.
+    // Formats covered:
+    //   - US: 9 digits (C + 8 digits, or 9 digits)
+    //   - DE: 9 alphanumeric (C followed by 8 chars, or 9 uppercase alphanumeric)
+    //   - UK: 9 digits
+    //   - FR: 2 digits + 2 letters + 5 digits
+    //   - Generic: 6-9 alphanumeric (with context keyword requirement)
+    // The context keyword requirement is critical to avoid matching random short strings.
+    regex:
+      /(?:passport|reisepass|passeport|pass(?:port)?[\s._-]?(?:no|nr|num(?:ber)?|#))[:\s#=]*([A-Z0-9]{6,9})\b/gi,
+    label: "Passport Number",
+    getPlaceholder: (_, i) => `[PASSPORT_${i + 1}]`,
+  },
+
+  // Tax ID / VAT numbers (EU VAT + context-dependent national formats)
+  {
+    type: "TAX_ID",
+    // Two branches:
+    // Branch 1 — EU VAT numbers: 2-letter country prefix + 8-12 alphanumeric digits.
+    //   e.g., DE123456789, GB123456789, FR12345678901, ATU12345678
+    //   Requires \b boundaries to avoid matching inside longer strings.
+    //
+    // Branch 2 — Context-dependent: matches when preceded by keywords like
+    //   "tax id", "tax number", "steuer", "steuernummer", "tin", "vat",
+    //   "tax identification", followed by a colon/equals/space and a number.
+    //   This catches national tax IDs like US EIN (XX-XXXXXXX), German
+    //   Steuernummer (XXX/XXX/XXXXX), etc.
+    regex:
+      /\b(?:AT ?U\d{8}|BE ?0?\d{9,10}|BG ?\d{9,10}|HR ?\d{11}|CY ?\d{8}[A-Z]|CZ ?\d{8,10}|DK ?\d{8}|EE ?\d{9}|FI ?\d{8}|FR ?[0-9A-Z]{2}\d{9}|DE ?\d{9}|EL ?\d{9}|HU ?\d{8}|IE ?\d{7}[A-Z]{1,2}|IT ?\d{11}|LV ?\d{11}|LT ?\d{9,12}|LU ?\d{8}|MT ?\d{8}|NL ?\d{9}B\d{2}|PL ?\d{10}|PT ?\d{9}|RO ?\d{2,10}|SK ?\d{10}|SI ?\d{8}|ES ?[A-Z0-9]\d{7}[A-Z0-9]|SE ?\d{12}|GB ?\d{9}(?:\d{3})?)\b|(?:tax[\s_-]?(?:id|number|no|nr)|steuer(?:nummer|identifikationsnummer|nr|ident(?:nummer)?)?|tin|vat[\s_-]?(?:id|number|no|nr)?|tax[\s_-]?identification(?:[\s_-]?number)?)[:\s#=]+([A-Z0-9\s/-]{5,20})/gi,
+    label: "Tax ID",
+    getPlaceholder: (_, i) => `[TAX_ID_${i + 1}]`,
+  },
+
+  // Vehicle license plate numbers (DE, AT, CH, UK, FR, NL, IT, ES, PL, US)
+  {
+    type: "VEHICLE_PLATE",
+    // Context-dependent: requires a preceding keyword like "license plate",
+    // "kennzeichen", "nummernschild", "immatriculation", "plate number", etc.
+    // to avoid false positives on random letter-number combinations.
+    //
+    // Without context, plate formats (e.g., "B AB 1234") are too ambiguous
+    // and would match many non-plate strings. The keyword requirement
+    // eliminates nearly all false positives while still catching explicit mentions.
+    regex:
+      /(?:license[\s_-]?plate|plate[\s_-]?(?:number|no|nr)|kennzeichen|nummernschild|kfz[\s_-]?kennzeichen|immatriculation|registration[\s_-]?(?:number|no|nr|plate)|vrm|numberplate)[:\s#=]*([A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,6})\b/gi,
+    label: "Vehicle Plate",
+    getPlaceholder: (_, i) => `[PLATE_${i + 1}]`,
+  },
+
+  // Cryptocurrency wallet addresses (Bitcoin + Ethereum)
+  {
+    type: "CRYPTO_WALLET",
+    // Three branches:
+    // Branch 1 — Bitcoin Bech32 (SegWit): bc1 + 25-87 lowercase alphanumeric chars
+    //   e.g., bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+    //
+    // Branch 2 — Bitcoin Legacy (P2PKH/P2SH): starts with 1 or 3, 25-34 base58 chars
+    //   e.g., 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+    //   Base58 excludes 0, O, I, l to avoid ambiguity.
+    //
+    // Branch 3 — Ethereum: 0x + 40 hex characters
+    //   e.g., 0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18
+    regex:
+      /\b(?:bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|0x[0-9a-fA-F]{40})\b/g,
+    label: "Crypto Wallet",
+    getPlaceholder: (_, i) => `[WALLET_${i + 1}]`,
+  },
 ];
 
 /**
  * Minimum text length before running PII detection.
  * Most PII patterns (emails, phone numbers, API keys) need at least 6 characters.
- * This avoids running 16 regexes on very short text like "hi" or "ok".
+ * This avoids running 32 regexes on very short text like "hi" or "ok".
  */
 const MIN_PII_TEXT_LENGTH = 6;
 
@@ -506,6 +750,16 @@ export function createPIISummary(matches: PIIMatch[]): string {
 }
 
 /**
+ * Generic PII mapping interface with the minimum fields needed for placeholder/original operations.
+ * Both PIIMapping (types/chat.ts) and PIIMappingForStorage satisfy this interface.
+ */
+export interface PIIMappingGeneric {
+  placeholder: string;
+  original: string;
+  type?: string;
+}
+
+/**
  * PIIMapping format for storage (matches the PIIMapping interface in types/chat.ts)
  */
 export interface PIIMappingForStorage {
@@ -518,39 +772,40 @@ export interface PIIMappingForStorage {
 }
 
 /**
- * Convert PII matches to storage format for message persistence.
- * This creates an array of mappings that can be encrypted and stored
- * with the message for later restoration.
+ * Replace PII original values back with their placeholders in text.
+ * Used when copying/downloading/sharing content with PII hidden.
+ * This is the reverse of restorePIIInText().
  *
- * @param matches PII matches from detectPII()
- * @returns Array of PII mappings ready for storage
+ * @param text Text containing PII original values (already restored)
+ * @param mappings Array of PII mappings with placeholder/original pairs
+ * @returns Text with original values replaced by placeholders
  */
-export function createPIIMappingsForStorage(
-  matches: PIIMatch[],
-): PIIMappingForStorage[] {
-  return matches.map((match) => ({
-    placeholder: match.placeholder,
-    original: match.match,
-    type: match.type,
-  }));
+export function replacePIIOriginalsWithPlaceholders(
+  text: string,
+  mappings: PIIMappingGeneric[],
+): string {
+  if (!mappings || mappings.length === 0) return text;
+
+  let result = text;
+
+  // Sort by original length descending to replace longer matches first
+  // This prevents partial replacement issues (e.g., replacing "john" before "john@example.com")
+  const sortedMappings = [...mappings].sort(
+    (a, b) => (b.original?.length || 0) - (a.original?.length || 0),
+  );
+
+  for (const mapping of sortedMappings) {
+    if (!mapping.original) continue;
+    // Replace all occurrences of the original value with the placeholder
+    result = result.split(mapping.original).join(mapping.placeholder);
+  }
+
+  return result;
 }
 
 /**
- * Generic PII mapping interface for restoration (accepts both PIIMapping and PIIMappingForStorage)
- */
-interface PIIMappingGeneric {
-  placeholder: string;
-  original: string;
-  type: string;
-}
-
-/**
- * Restore PII placeholders in text with the original plain-text values.
- * The replacement is plain text (no HTML) so the result can safely be passed
- * through a markdown parser or TipTap without escaping issues.
- *
- * Visual highlighting is applied separately via ProseMirror decorations
- * in the ReadOnlyMessage component using {@link findRestoredPIIPositions}.
+ * Restore PII placeholders in text with their original values.
+ * Used for displaying the original user content in read-only messages.
  *
  * @param text Text containing PII placeholders (e.g., "[EMAIL_1]")
  * @param mappings Array of PII mappings from storage

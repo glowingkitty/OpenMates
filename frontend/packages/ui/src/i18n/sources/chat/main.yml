@@ -644,3 +644,13 @@ settings_memories_suggestions.privacy_notice:
   cs: "Vaše nastavení a vzpomínky jsou šifrovány a mohou být dešifrovány pouze vašimi zařízeními."
   sv: "Dina inställningar och minnen är krypterade och kan endast dekrypteras av dina enheter."
   verified_by_human: []
+
+pii_hide:
+  context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
+  en: Hide sensitive data
+  de: Sensible Daten ausblenden
+
+pii_show:
+  context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
+  en: Show sensitive data
+  de: Sensible Daten anzeigen

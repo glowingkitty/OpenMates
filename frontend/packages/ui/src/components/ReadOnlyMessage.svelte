@@ -25,13 +25,15 @@
         isStreaming = false, 
         _embedUpdateTimestamp = 0,
         selectable = false,
-        piiMappings = undefined
+        piiMappings = undefined,
+        piiRevealed = false
     }: { 
         content: any; 
         isStreaming?: boolean; 
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
         piiMappings?: PIIMapping[];
+        piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -593,6 +595,10 @@
      * Searches the ProseMirror document directly (not flat text) to find correct
      * positions for PII values. Also strips link marks from PII ranges so that
      * emails don't render as clickable <a> tags.
+     *
+     * Two modes:
+     * - piiRevealed=true: Highlights original values with full opacity (yellow bg)
+     * - piiRevealed=false (default): Hides original text and shows placeholder via CSS overlay
      */
     function applyPIIDecorations(editorInstance: Editor) {
         if (!piiMappings || piiMappings.length === 0 || !editorInstance || editorInstance.isDestroyed) return;
@@ -639,12 +645,43 @@
             // but re-finding ensures consistency after the transaction).
             const updatedPositions = findPIIPositionsInDoc(updatedDoc, piiMappings);
             
+            // Build a reverse lookup: original value → placeholder string
+            // Used when PII is hidden to show the placeholder text via CSS
+            const originalToPlaceholder = new Map<string, string>();
+            for (const m of piiMappings) {
+                originalToPlaceholder.set(m.original, m.placeholder);
+            }
+            
             const decorations = updatedPositions.map(pos => {
-                return Decoration.inline(pos.from, pos.to, {
-                    class: 'pii-restored',
-                    'data-pii-type': pos.type,
-                    title: `${pos.label} (restored from placeholder)`
-                });
+                if (piiRevealed) {
+                    // REVEALED MODE: Show original values with full-opacity yellow highlight
+                    return Decoration.inline(pos.from, pos.to, {
+                        class: 'pii-restored pii-revealed',
+                        'data-pii-type': pos.type,
+                        title: `${pos.label} (sensitive data)`
+                    });
+                } else {
+                    // HIDDEN MODE: Hide original text and show placeholder via CSS overlay
+                    // The original text is made transparent; a CSS ::after pseudo-element
+                    // displays the placeholder text (e.g., "[EMAIL_1]") instead.
+                    // Find the original text in this range to look up its placeholder
+                    let originalText = '';
+                    updatedDoc.nodesBetween(pos.from, pos.to, (node, nodePos) => {
+                        if (node.isText && node.text) {
+                            const start = Math.max(0, pos.from - nodePos);
+                            const end = Math.min(node.text.length, pos.to - nodePos);
+                            originalText += node.text.slice(start, end);
+                        }
+                    });
+                    const placeholder = originalToPlaceholder.get(originalText) || `[${pos.type}]`;
+                    
+                    return Decoration.inline(pos.from, pos.to, {
+                        class: 'pii-restored pii-hidden',
+                        'data-pii-type': pos.type,
+                        'data-pii-placeholder': placeholder,
+                        title: `${pos.label} (hidden for privacy)`
+                    });
+                }
             });
             
             const decorationSet = DecorationSet.create(updatedDoc, decorations);
@@ -654,7 +691,7 @@
             // Dispatch a no-op transaction to force ProseMirror to apply the decorations
             view.dispatch(updatedState.tr);
             
-            logger.debug(`Applied ${decorations.length} PII decorations to read-only message`);
+            logger.debug(`Applied ${decorations.length} PII decorations (revealed: ${piiRevealed}) to read-only message`);
         } catch (error) {
             console.error('[ReadOnlyMessage] Error applying PII decorations:', error);
         }
@@ -797,6 +834,19 @@
         }
     });
 
+
+    // Re-apply PII decorations when piiRevealed changes (user toggled visibility)
+    // This allows instant switching between showing placeholders and original values
+    // without re-processing the entire message content.
+    let previousPiiRevealed = $state(piiRevealed);
+    $effect(() => {
+        if (piiRevealed !== previousPiiRevealed) {
+            previousPiiRevealed = piiRevealed;
+            if (editor && !editor.isDestroyed) {
+                applyPIIDecorations(editor);
+            }
+        }
+    });
 
     onDestroy(() => {
         if (editor) {
@@ -1125,17 +1175,57 @@
        Unified yellow highlight for ALL PII types in read-only messages.
        Same visual style as the message input editor (MessageInput.styles.css).
        No links, no underlines — just a subtle yellow background.
+       
+       Two modes controlled by CSS classes:
+       - .pii-revealed: Original values visible with full-opacity yellow highlight
+       - .pii-hidden: Original text hidden, placeholder shown via CSS overlay
        ========================================================================== */
 
-    /* Single unified style for all restored PII — yellow highlight */
+    /* Base style for all restored PII — shared by both revealed and hidden modes.
+       Renders as regular inline text (NOT inline code) with a subtle highlight. */
     :global(.read-only-message .pii-restored) {
-        background-color: rgba(250, 204, 21, 0.3);
         border-radius: 3px;
         padding: 1px 4px;
         margin: 0 1px;
         border-bottom: none;
         text-decoration: none !important;
         cursor: default;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        letter-spacing: inherit;
+    }
+
+    /* REVEALED MODE: Show original values with full-opacity yellow background */
+    :global(.read-only-message .pii-restored.pii-revealed) {
+        background-color: rgba(250, 204, 21, 1);
+        color: #1a1a1a;
+    }
+
+    /* HIDDEN MODE: Hide original text and show placeholder via CSS overlay.
+       The original text becomes transparent; a ::after pseudo-element renders
+       the placeholder string (e.g., "[EMAIL_1]") from the data attribute. */
+    :global(.read-only-message .pii-restored.pii-hidden) {
+        background-color: rgba(250, 204, 21, 0.3);
+        color: transparent;
+        position: relative;
+        user-select: none;
+        -webkit-user-select: none;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    :global(.read-only-message .pii-restored.pii-hidden::after) {
+        content: attr(data-pii-placeholder);
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: inherit;
+        color: var(--color-font-primary, #e0e0e0);
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        white-space: nowrap;
+        pointer-events: none;
     }
 
     /* Override link styling when PII is inside an anchor tag (e.g. email auto-linked).
@@ -1146,7 +1236,6 @@
     :global(.read-only-message .ProseMirror a .pii-restored),
     :global(.read-only-message .ProseMirror .pii-restored a),
     :global(.read-only-message .ProseMirror a.pii-restored) {
-        background: rgba(250, 204, 21, 0.3) !important;
         background-clip: border-box !important;
         -webkit-background-clip: border-box !important;
         -webkit-text-fill-color: inherit !important;
