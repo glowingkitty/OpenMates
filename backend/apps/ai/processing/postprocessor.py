@@ -145,6 +145,7 @@ class PostProcessingResult(BaseModel):
     new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (max 5 words each)")
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
+    chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
     # Phase 1 output: Categories that might be relevant for generating new settings/memories
     relevant_settings_memory_categories: List[str] = Field(default_factory=list, description="Up to 3 category IDs (format: app_id.item_type) that could have new entries based on conversation")
     # Phase 2 output: Actual suggested entries (populated by separate memory generation step)
@@ -316,11 +317,21 @@ async def handle_postprocessing(
             else:
                 logger.warning(f"[Task ID: {task_id}] [PostProcessor] Invalid category ID '{category_id}' filtered out (not in available categories)")
     
+    # Validate chat_summary from post-processing LLM
+    postproc_chat_summary = llm_result.arguments.get("chat_summary")
+    if postproc_chat_summary and isinstance(postproc_chat_summary, str) and postproc_chat_summary.strip():
+        postproc_chat_summary = postproc_chat_summary.strip()
+        logger.debug(f"[Task ID: {task_id}] [PostProcessor] chat_summary generated (length: {len(postproc_chat_summary)} characters)")
+    else:
+        logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
+        postproc_chat_summary = None
+
     result = PostProcessingResult(
         follow_up_request_suggestions=llm_result.arguments.get("follow_up_request_suggestions", []),
         new_chat_request_suggestions=llm_result.arguments.get("new_chat_request_suggestions", []),
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
+        chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         relevant_settings_memory_categories=validated_categories[:3]  # Limit to 3 categories for Phase 2
     )
 

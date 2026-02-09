@@ -47,7 +47,7 @@ chats:
 
     encrypted_chat_summary:
       type: text
-      note: "[Encrypted] Chat summary (2-3 sentences) generated during post-processing, encrypted using chat-specific key"
+      note: "[Encrypted] Chat summary (max 20 words) generated during post-processing, encrypted using chat-specific key"
 
     encrypted_chat_tags:
       type: text

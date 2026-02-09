@@ -1481,9 +1481,13 @@ async def _async_process_ai_skill_ask_task(
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
-            # Note: chat_summary and chat_tags come from preprocessing (full history context)
-            # Use the extracted variables (chat_summary, chat_tags) which are safe to use here
-            # since we only reach this point if postprocessing_result was successfully created
+            # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
+            # chat_tags: from preprocessing (full history context)
+            final_chat_summary = postprocessing_result.chat_summary or chat_summary
+            if postprocessing_result.chat_summary:
+                logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
+            else:
+                logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
             # Convert suggested_settings_memories to serializable format
             suggested_settings_memories_serialized = [
                 entry.model_dump() for entry in postprocessing_result.suggested_settings_memories
@@ -1498,8 +1502,8 @@ async def _async_process_ai_skill_ask_task(
                 "user_id_hash": request_data.user_id_hash,
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
-                "chat_summary": chat_summary,  # From preprocessing (full history) - use extracted variable
-                "chat_tags": chat_tags,  # From preprocessing (full history) - use extracted variable
+                "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
+                "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
                 # Phase 2: Suggested settings/memories entries (sent as plaintext, client encrypts)
@@ -1525,9 +1529,10 @@ async def _async_process_ai_skill_ask_task(
                     # FULL assistant response that was generated
                     "assistant_response": aggregated_final_response,
                     "assistant_response_length": len(aggregated_final_response) if aggregated_final_response else 0,
-                    # FULL chat summary from preprocessing
-                    "chat_summary": chat_summary,
-                    "chat_summary_length": len(chat_summary) if chat_summary else 0,
+                    # Chat summary: prefer post-processing (includes latest exchange), fall back to preprocessing
+                    "chat_summary": final_chat_summary if postprocessing_result else chat_summary,
+                    "chat_summary_length": len(final_chat_summary) if (postprocessing_result and final_chat_summary) else (len(chat_summary) if chat_summary else 0),
+                    "chat_summary_source": "post-processing" if (postprocessing_result and postprocessing_result.chat_summary) else "preprocessing",
                     # Chat tags from preprocessing
                     "chat_tags": chat_tags,
                     # Available apps for recommendations

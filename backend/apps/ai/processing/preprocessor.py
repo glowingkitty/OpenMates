@@ -59,7 +59,7 @@ class PreprocessingResult(BaseModel):
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
-    chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
+    chat_summary: Optional[str] = Field(None, description="Concise summary (max 20 words) of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")

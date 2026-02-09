@@ -109,7 +109,7 @@ export interface Chat {
   waiting_for_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message. Chat should still be visible in sidebar.
 
   // New encrypted fields for zero-knowledge architecture from message processing
-  encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
+  encrypted_chat_summary?: string | null; // Encrypted chat summary (max 20 words) generated during post-processing
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
