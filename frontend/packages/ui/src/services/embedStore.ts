@@ -33,7 +33,9 @@ const embedCache = new Map<string, EmbedStoreEntry>();
 const embedKeyCache = new Map<string, Uint8Array>();
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
-let toonDecode: ((toonString: string) => any) | null = null;
+let toonDecode:
+  | ((toonString: string, options?: { strict?: boolean }) => any)
+  | null = null;
 
 /**
  * Initialize TOON decoder (lazy-loaded)
@@ -75,16 +77,25 @@ async function decodeToonContentLocal(
 
   if (toonDecode) {
     try {
-      return toonDecode(toonContent);
+      // Use non-strict mode to be lenient with content that may have edge-case formatting
+      // (e.g., large pasted text with unusual indentation or special characters)
+      return toonDecode(toonContent, { strict: false });
     } catch (error) {
       console.debug(
         "[EmbedStore] TOON decode failed, trying JSON fallback:",
-        error,
+        error instanceof Error ? error.message : String(error),
+        {
+          contentLength: toonContent.length,
+          contentPreview: toonContent.substring(0, 200),
+        },
       );
       try {
         return JSON.parse(toonContent);
       } catch (jsonError) {
-        console.error("[EmbedStore] JSON fallback also failed:", jsonError);
+        console.error(
+          "[EmbedStore] JSON fallback also failed:",
+          jsonError instanceof Error ? jsonError.message : String(jsonError),
+        );
         return null;
       }
     }

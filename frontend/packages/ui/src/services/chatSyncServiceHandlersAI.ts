@@ -11,7 +11,9 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
-let toonDecode: ((toonString: string) => unknown) | null = null;
+let toonDecode:
+  | ((toonString: string, options?: { strict?: boolean }) => unknown)
+  | null = null;
 async function decodeToonContentSafe(
   toonContent: string | null | undefined,
 ): Promise<unknown> {
@@ -33,11 +35,17 @@ async function decodeToonContentSafe(
   }
   if (toonDecode) {
     try {
-      return toonDecode(toonContent);
+      // Use non-strict mode to be lenient with content that may have edge-case formatting
+      // (e.g., large pasted text with unusual indentation or special characters)
+      return toonDecode(toonContent, { strict: false });
     } catch (err) {
       console.debug(
         "[ChatSyncService:AI] TOON decode failed, JSON fallback:",
-        err,
+        err instanceof Error ? err.message : String(err),
+        {
+          contentLength: toonContent.length,
+          contentPreview: toonContent.substring(0, 200),
+        },
       );
     }
   }
