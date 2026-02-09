@@ -10,7 +10,7 @@ settings_and_memories:
     name_translation_key: travel.trips.text
     description_translation_key: travel.trips.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -37,7 +37,7 @@ settings_and_memories:
     name_translation_key: travel.preferred_airlines.text
     description_translation_key: travel.preferred_airlines.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -52,7 +52,7 @@ settings_and_memories:
     name_translation_key: travel.preferred_transport_methods.text
     description_translation_key: travel.preferred_transport_methods.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -74,7 +74,7 @@ settings_and_memories:
     name_translation_key: travel.interests.text
     description_translation_key: travel.interests.description.text
     type: list
-    stage: development
+    stage: production
     schema:
       type: object
       properties:
@@ -88,7 +88,7 @@ skills:
   - id: search_connections
     name_translation_key: travel.search.text
     description_translation_key: travel.search.description.text
-    stage: development
+    stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     providers:
       - Duffel
