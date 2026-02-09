@@ -3,8 +3,9 @@ Search Connections skill for the travel app.
 
 Searches for transport connections (flights, and in the future trains/buses/boats)
 between locations. Uses a provider abstraction layer where each transport method
-is handled by a dedicated provider (AmadeusProvider for flights, TransitousProvider
-for trains/buses).
+is handled by a dedicated provider (DuffelProvider preferred for flights with
+better LCC coverage, AmadeusProvider as fallback, TransitousProvider for
+trains/buses).
 
 The skill follows the standard BaseSkill request/response pattern with the
 'requests' array convention used by all OpenMates skills.
@@ -21,6 +22,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.apps.travel.providers.airline_urls import get_airline_booking_url
 from backend.apps.travel.providers.amadeus_provider import AmadeusProvider
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
+from backend.apps.travel.providers.duffel_provider import DuffelProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
 
 logger = logging.getLogger(__name__)
@@ -51,7 +53,7 @@ class SearchConnectionsResponse(BaseModel):
         default_factory=list,
         description="List of result groups, each with 'id' and 'results' array",
     )
-    provider: str = Field(default="Amadeus")
+    provider: str = Field(default="Duffel")
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -67,9 +69,13 @@ def _create_providers() -> List[BaseTransportProvider]:
     """
     Instantiate all available transport providers.
 
-    Currently: AmadeusProvider (flights) + TransitousProvider (stub).
+    DuffelProvider is listed first (preferred for flights — better LCC coverage,
+    competitive pricing, and airport coordinates in every response).
+    AmadeusProvider is kept as fallback. TransitousProvider is a stub for future
+    train/bus support.
     """
     return [
+        DuffelProvider(),
         AmadeusProvider(use_production=False),
         TransitousProvider(),
     ]
@@ -158,7 +164,7 @@ class SearchConnectionsSkill(BaseSkill):
         # 3. Create providers and inject secrets_manager
         all_providers = _create_providers()
         for provider in all_providers:
-            if isinstance(provider, AmadeusProvider):
+            if isinstance(provider, (AmadeusProvider, DuffelProvider)):
                 provider._secrets_manager = secrets_manager
 
         # 4. Process requests in parallel
@@ -182,7 +188,7 @@ class SearchConnectionsSkill(BaseSkill):
             response_class=SearchConnectionsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="Amadeus",
+            provider="Duffel",
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )

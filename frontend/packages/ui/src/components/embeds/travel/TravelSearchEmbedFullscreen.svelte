@@ -163,7 +163,7 @@
   let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
   
   // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search Connections');
+  let skillName = $derived($text('app_skills.travel.search.text') || 'Search');
   
   // "via {provider}" text
   let viaProvider = $derived(
@@ -198,8 +198,12 @@
               number: seg.number as string | undefined,
               departure_station: (seg.departure_station as string) || '',
               departure_time: (seg.departure_time as string) || '',
+              departure_latitude: seg.departure_latitude as number | undefined,
+              departure_longitude: seg.departure_longitude as number | undefined,
               arrival_station: (seg.arrival_station as string) || '',
               arrival_time: (seg.arrival_time as string) || '',
+              arrival_latitude: seg.arrival_latitude as number | undefined,
+              arrival_longitude: seg.arrival_longitude as number | undefined,
               duration: (seg.duration as string) || '',
             }))
           : reconstructSegments(content, i),

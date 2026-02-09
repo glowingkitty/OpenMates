@@ -86,11 +86,12 @@ settings_and_memories:
         - name
 skills:
   - id: search_connections
-    name_translation_key: travel.search_connections.text
-    description_translation_key: travel.search_connections.description.text
+    name_translation_key: travel.search.text
+    description_translation_key: travel.search.description.text
     stage: development
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     providers:
+      - Duffel
       - Amadeus
     exclude_fields_for_llm:
       - type

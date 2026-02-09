@@ -163,7 +163,7 @@
   }
   
   // Skill name for bottom bar
-  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Connection Details');
+  let skillName = $derived($text('app_skills.travel.search.text') || 'Search');
   
   // ---------------------------------------------------------------------------
   // PDF Download (jspdf)
