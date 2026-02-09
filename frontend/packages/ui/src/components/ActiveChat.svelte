@@ -1944,6 +1944,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 
                 // Notify backend about the active chat
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
+                
+                // Update URL hash with the new chat ID
+                // This ensures the URL reflects the active chat even when
+                // Chats.svelte is not mounted (e.g., sidebar closed on mobile)
+                activeChatStore.setActiveChat(currentChat.chat_id);
+                console.debug("[ActiveChat] Updated URL hash via draftEditorUIState for chat:", currentChat.chat_id);
             }
             // Reset the signal
             draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
@@ -2762,6 +2768,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             temporaryChatId = null;
             console.debug("[ActiveChat] New chat created from message, cleared temporary chat ID");
             
+            // CRITICAL: Update the URL hash directly with the new chat ID.
+            // Don't rely solely on Chats.svelte's globalChatSelected handler since
+            // Chats.svelte may not be mounted (e.g., sidebar closed on mobile).
+            activeChatStore.setActiveChat(currentChat.chat_id);
+            console.debug("[ActiveChat] Updated URL hash with new chat ID:", currentChat.chat_id);
+            
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
@@ -2771,9 +2783,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
             }
             
-            // Dispatch global event to update UI (sidebar highlights) and URL
+            // Dispatch global event to update UI (sidebar highlights)
+            // Use currentChat instead of newChat since newChat may be undefined
+            // when the chat was loaded from DB rather than passed from sendHandlers
             const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
-                detail: { chat: newChat },
+                detail: { chat: currentChat },
                 bubbles: true,
                 composed: true
             });
