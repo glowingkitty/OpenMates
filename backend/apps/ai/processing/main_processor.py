@@ -894,6 +894,11 @@ async def handle_main_processing(
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
     
+    # Add app deep linking instruction so the AI uses correct relative hash links
+    # Only include when apps are available (no point linking to apps that don't exist)
+    if discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
+    
     # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
     # Load instructions from each available app's app.yml configuration.
     # These instructions are ONLY included when the app is actually discovered/available.

@@ -359,7 +359,14 @@ follow_up_instruction: |
   2.  **Clarity on AI Capabilities:** Do not over-promise. Be clear about what you can and cannot do. If a follow-up is not feasible, don't suggest it.
 
 base_link_encouragement_instruction: |
-  **Include relevant links**: When providing information, explanations, or recommendations, proactively include relevant inline links using markdown format `[descriptive text](https://example.com)` to help users explore topics further. Prioritize authoritative sources like official documentation, reputable educational resources, and established knowledge bases.
+  **Include relevant links**: When providing information, explanations, or recommendations, proactively include relevant inline links using markdown format `[descriptive text](https://example.com)` to help users explore topics further. Prioritize authoritative sources like official documentation, reputable educational resources, and established knowledge bases. When suggesting available apps or features, use internal deep links (see app deep linking rules).
+
+base_app_deep_linking_instruction: |
+  **App Deep Linking:** When referencing available apps in your responses, link to them using relative hash-based deep links. Format: `[link text](/#settings/appstore/{app_id})`. Examples:
+  - `[set a reminder](/#settings/appstore/reminder)`
+  - `[create a document](/#settings/appstore/docs)`
+  - `[web search settings](/#settings/appstore/web)`
+  NEVER use absolute URLs like `https://openmates.org/apps/...` — these pages do not exist. Always use the relative `/#settings/appstore/{app_id}` format.
 
 # Instruction for proactively using available app skills before answering time-sensitive questions
 # NOTE: This instruction is only included when apps are available (conditional in main_processor.py)
