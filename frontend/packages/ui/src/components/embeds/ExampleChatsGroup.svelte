@@ -11,8 +11,8 @@
   NOT intro chats (which are the static "For everyone", "For developers", etc.).
   
   Each card shows:
-  - The first few lines of the first user message (like chat history sidebar)
-  - Category gradient circle with icon + chat title in the bottom bar
+  - Chat summary (AI-generated description) in the center content area
+  - Bottom bar with consistent chat icon + title + small category circle
   
   Scrolling behavior matches the standard embed group layout used by
   other embed types (smooth horizontal scroll, no snap).
@@ -55,22 +55,25 @@
   })());
   
   /**
-   * Get the first few lines of the first user message for a chat.
-   * This mimics how the chat history sidebar shows message previews.
-   * Falls back to the chat_summary if no user message is found.
+   * Get the preview text for a chat embed card.
+   * Prefers the chat_summary (AI-generated description of the chat topic)
+   * over the first user message, as the summary is more informative
+   * and matches the Figma design reference.
    */
-  function getPreviewText(chatId: string, fallbackSummary: string | null | undefined): string {
-    const messages = getCommunityDemoMessages(chatId);
+  function getPreviewText(chatId: string, chatSummary: string | null | undefined): string {
+    // Prefer summary - it's a concise AI-generated description of the chat topic
+    if (chatSummary) {
+      return chatSummary;
+    }
     
-    // Find the first user message in the chat
+    // Fall back to first user message if no summary available
+    const messages = getCommunityDemoMessages(chatId);
     const firstUserMsg = messages.find(m => m.role === 'user');
     if (firstUserMsg && firstUserMsg.content) {
-      // Return the raw content - the ChatEmbedPreview's CSS will handle clamping to 4 lines
       return firstUserMsg.content;
     }
     
-    // Fall back to summary if no user message found
-    return fallbackSummary || '';
+    return '';
   }
   
   // Handle click on a chat card - navigate to the demo chat

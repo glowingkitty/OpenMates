@@ -4,19 +4,22 @@
   A preview card for example/demo chats, styled to match the UnifiedEmbedPreview
   layout used by other embeds (300x200px desktop).
   
-  Structure (matching UnifiedEmbedPreview + BasicInfosBar pattern):
-  - Center content area: first user message preview (or summary fallback)
-  - Bottom bar (full width, 61px): Category gradient circle with category icon →
-    title only (2 lines max, no mate name)
+  Structure (matching Figma design reference):
+  - Center content area: chat summary (AI-generated description of the chat topic)
+  - Bottom bar (full width, 61px):
+    - Large circle (61x61px) with consistent chat icon (MessageSquareText) + primary blue gradient
+    - Title with small category circle (24px) showing the category-specific gradient + icon
   
-  The gradient circle uses the chat's category-specific gradient from theme.css,
-  with the Lucide category icon rendered inside it in white.
+  The large circle always uses the primary blue gradient for a consistent look,
+  while the small category circle next to the title shows the chat's category
+  (similar to how Chat.svelte renders the category circle in the sidebar).
   
   Click to navigate to the demo chat.
 -->
 
 <script lang="ts">
-  import { getValidIconName, getLucideIcon } from '../../utils/categoryUtils';
+  import { getValidIconName, getLucideIcon, getCategoryGradientColors } from '../../utils/categoryUtils';
+  import { MessageSquareText } from '@lucide/svelte';
   
   /**
    * Props interface for ChatEmbedPreview
@@ -28,7 +31,7 @@
     chatId: string;
     /** Cleartext chat title */
     title: string;
-    /** Cleartext text shown in the center content area (first user message or summary) */
+    /** Cleartext text shown in the center content area (chat summary or fallback) */
     previewText: string;
     /** Category string (e.g., 'general_knowledge', 'programming') */
     category: string;
@@ -47,29 +50,12 @@
     onClick
   }: Props = $props();
   
-  // Get Lucide icon component for the category circle in the bottom bar
+  // Get Lucide icon component for the small category circle next to the title
   let validIconName = $derived(getValidIconName(iconName ? [iconName] : [], category));
-  let IconComponent = $derived(getLucideIcon(validIconName));
+  let CategoryIconComponent = $derived(getLucideIcon(validIconName));
   
-  // Derive the app/category ID for the gradient CSS variable
-  // Maps known categories to their app gradients from theme.css
-  let categoryGradientId = $derived((() => {
-    // Map categories to their corresponding app gradient IDs from theme.css
-    const categoryToAppMap: Record<string, string> = {
-      'general_knowledge': 'ai',
-      'programming': 'code',
-      'web_search': 'web',
-      'cooking': 'ai',
-      'travel': 'maps',
-      'news': 'news',
-      'science': 'ai',
-      'education': 'ai',
-      'health': 'life_coaching',
-      'finance': 'ai',
-      'openmates_official': 'ai',
-    };
-    return categoryToAppMap[category] || 'ai';
-  })());
+  // Get category gradient colors for the small category circle
+  let categoryGradientColors = $derived(getCategoryGradientColors(category));
   
   // Track hover state for tilt effect (matching UnifiedEmbedPreview)
   let isHovering = $state(false);
@@ -143,7 +129,7 @@
   type="button"
   aria-label={title}
 >
-  <!-- Details section: first user message preview or summary centered in the content area -->
+  <!-- Details section: chat summary centered in the content area -->
   <div class="details-section">
     {#if previewText}
       <span class="preview-text">{previewText}</span>
@@ -153,22 +139,30 @@
   </div>
   
   <!-- Bottom bar: full width, no border-radius (card's overflow:hidden handles corners) -->
-  <!-- Shows category gradient circle with icon + title only (no mate name) -->
+  <!-- Shows consistent chat icon circle + title with small category circle -->
   <div class="bottom-bar">
-    <!-- Category gradient circle (61x61px) with Lucide category icon inside -->
-    <!-- Uses the category-specific gradient from theme.css -->
-    <div
-      class="gradient-circle"
-      style="background: var(--color-app-{categoryGradientId});"
-    >
-      <div class="category-icon-inner">
-        <IconComponent size={26} color="white" />
+    <!-- Chat icon circle (61x61px) with consistent primary blue gradient -->
+    <!-- All chat embed previews use the same chat icon for visual consistency -->
+    <div class="gradient-circle" style="background: var(--color-primary);">
+      <div class="chat-icon-inner">
+        <MessageSquareText size={26} color="white" />
       </div>
     </div>
     
-    <!-- Title only (2 lines max, no mate/category name subtitle) -->
+    <!-- Title with small category circle (similar to Chat.svelte sidebar pattern) -->
     <div class="info-text">
-      <span class="title-text">{title}</span>
+      <div class="title-row">
+        <!-- Small category circle showing category-specific gradient + icon -->
+        {#if categoryGradientColors}
+          <div
+            class="small-category-circle"
+            style="background: linear-gradient(135deg, {categoryGradientColors.start}, {categoryGradientColors.end})"
+          >
+            <CategoryIconComponent size={12} color="white" />
+          </div>
+        {/if}
+        <span class="title-text">{title}</span>
+      </div>
     </div>
   </div>
 </button>
@@ -233,7 +227,7 @@
   }
   
   /* ===========================================
-     Details Section - First User Message Preview
+     Details Section - Chat Summary Preview
      =========================================== */
   
   .details-section {
@@ -289,8 +283,8 @@
     flex-shrink: 0;
   }
   
-  /* Category gradient circle: 61x61px with category-specific gradient */
-  /* Contains the Lucide category icon in white */
+  /* Chat icon gradient circle: 61x61px with consistent primary blue gradient */
+  /* All chat embed previews show the same chat icon for visual consistency */
   .gradient-circle {
     width: 61px;
     height: 61px;
@@ -302,21 +296,20 @@
     flex-shrink: 0;
   }
   
-  /* Inner container for the Lucide icon inside the gradient circle */
-  .category-icon-inner {
+  /* Inner container for the chat icon inside the gradient circle */
+  .chat-icon-inner {
     display: flex;
     align-items: center;
     justify-content: center;
   }
   
   /* Ensure Lucide SVG renders correctly */
-  .category-icon-inner :global(svg) {
+  .chat-icon-inner :global(svg) {
     display: block;
   }
   
   /* ===========================================
-     Info Text - Title Only (2 lines max)
-     No mate name or category subtitle
+     Info Text - Title with Small Category Circle
      =========================================== */
   
   .info-text {
@@ -327,6 +320,33 @@
     min-width: 0;
     /* Ensure text doesn't overflow into the rounded corner area */
     padding-right: 16px;
+  }
+  
+  /* Row containing the small category circle and title text */
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  
+  /* Small category circle (24x24px) shown next to the title
+     Uses the category-specific gradient from theme.css with the Lucide category icon
+     Similar to the category circle in Chat.svelte sidebar but smaller */
+  .small-category-circle {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  /* Ensure Lucide SVG in small circle renders correctly */
+  .small-category-circle :global(svg) {
+    display: block;
   }
   
   /* Title: 2 lines max with ellipsis */
