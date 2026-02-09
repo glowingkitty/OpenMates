@@ -335,6 +335,7 @@ export interface AIBackgroundResponseCompletedPayload {
   task_id: string;
   full_content: string;
   model_name?: string | null;
+  category?: string | null; // Mate category for proper display (icon, color)
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response

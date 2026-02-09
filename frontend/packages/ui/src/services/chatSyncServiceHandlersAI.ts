@@ -551,14 +551,15 @@ export async function handleAIBackgroundResponseCompletedImpl(
       return;
     }
 
-    // Get the category from typing store if available
-    // If not in typing store (chat was switched), try to get from chat metadata
+    // Get the category and model_name from the payload first (most reliable source),
+    // then fall back to typing store if not available (e.g., for older payloads)
     const { get } = await import("svelte/store");
     const typingStatus = get(aiTypingStore);
     let category =
-      typingStatus?.chatId === payload.chat_id
+      payload.category ||
+      (typingStatus?.chatId === payload.chat_id
         ? typingStatus.category
-        : undefined;
+        : undefined);
     const modelName =
       payload.model_name ||
       (typingStatus?.chatId === payload.chat_id

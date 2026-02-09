@@ -1207,6 +1207,8 @@ interface PendingAIResponsePayload {
   content: string; // PLAINTEXT AI response content (full_content_so_far)
   user_id: string; // User's UUID
   fired_at: number; // Unix timestamp when the AI response was generated
+  model_name?: string; // AI model name used for the response (for encryption and display)
+  category?: string; // Mate category of the response (for encryption and display)
 }
 
 /**
@@ -1287,6 +1289,8 @@ export async function handlePendingAIResponseImpl(
 
     // Create the assistant message
     // Store as markdown string (same as handleAIBackgroundResponseCompletedImpl)
+    // Include model_name and category so they get encrypted by chatDB.saveMessage
+    // and sent back to server via sendCompletedAIResponse for proper display
     const now = Math.floor(Date.now() / 1000);
     const aiMessage = {
       message_id: message_id,
@@ -1296,6 +1300,11 @@ export async function handlePendingAIResponseImpl(
       status: "synced" as const,
       created_at: payload.fired_at || now,
       encrypted_content: "", // Will be set by encryption in chatDB.saveMessage
+      // Include model_name and category if available from the pending delivery payload.
+      // These are needed for proper mate icon display and model badge rendering.
+      // When encrypted by chatDB.saveMessage, they become encrypted_model_name and encrypted_category.
+      model_name: payload.model_name || undefined,
+      category: payload.category || undefined,
     };
 
     // Save to IndexedDB (chatDB handles encryption with chat key)

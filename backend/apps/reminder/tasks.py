@@ -211,6 +211,7 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                         chat_title=chat_title,
                         is_new_chat=(target_type == "new_chat"),
                         directus_service=directus_service,
+                        encryption_service=encryption_service,
                     )
                 except Exception as email_error:
                     # Email notification failure should not fail the reminder
@@ -363,12 +364,48 @@ async def _dispatch_reminder_ai_request(
                 if decrypted_history:
                     cached_messages = json.loads(decrypted_history)
                     for msg in cached_messages:
-                        message_history.append({
-                            "content": msg.get("content", ""),
-                            "role": msg.get("role", "user"),
-                            "created_at": msg.get("created_at", int(time.time())),
-                        })
-                    logger.debug(
+                        # get_ai_messages_history() returns List[str] (JSON strings from Redis),
+                        # so each element may be a raw JSON string that needs parsing first.
+                        if isinstance(msg, str):
+                            try:
+                                msg = json.loads(msg)
+                            except (json.JSONDecodeError, TypeError):
+                                logger.debug("Skipping unparseable cached message for reminder AI request")
+                                continue
+                        
+                        if not isinstance(msg, dict):
+                            logger.debug(f"Skipping non-dict cached message (type={type(msg).__name__})")
+                            continue
+                        
+                        # Extract content from vault-encrypted cache messages.
+                        # These are server-side encrypted with encryption_key_user_server,
+                        # so we need to decrypt the encrypted_content field.
+                        encrypted_content = msg.get("encrypted_content")
+                        if encrypted_content:
+                            try:
+                                decrypted_content = await encryption_service.decrypt_with_user_key(
+                                    ciphertext=encrypted_content,
+                                    key_id=vault_key_id
+                                )
+                                if decrypted_content:
+                                    message_history.append({
+                                        "content": decrypted_content,
+                                        "role": msg.get("role", "user"),
+                                        "created_at": msg.get("created_at", int(time.time())),
+                                    })
+                            except Exception as e_decrypt:
+                                logger.debug(f"Could not decrypt cached message for reminder AI request: {e_decrypt}")
+                                continue
+                        else:
+                            # Fallback: if content is plaintext (shouldn't happen in normal flow)
+                            content = msg.get("content", "")
+                            if content:
+                                message_history.append({
+                                    "content": content,
+                                    "role": msg.get("role", "user"),
+                                    "created_at": msg.get("created_at", int(time.time())),
+                                })
+                    logger.info(
                         f"Restored {len(message_history)} messages from cached history "
                         f"for reminder AI request"
                     )
@@ -437,11 +474,13 @@ async def _send_reminder_email_notification(
     chat_title: str | None,
     is_new_chat: bool,
     directus_service,
+    encryption_service,
 ) -> bool:
     """
     Send an email notification for a fired reminder.
     
     Checks if the user has email notifications enabled before sending.
+    Decrypts the vault-encrypted notification email before dispatching.
     Uses a Celery task to send the email asynchronously.
     
     Args:
@@ -452,6 +491,7 @@ async def _send_reminder_email_notification(
         chat_title: Optional title of the chat
         is_new_chat: Whether a new chat was created
         directus_service: Directus service for fetching user profile
+        encryption_service: EncryptionService for decrypting vault-encrypted fields
         
     Returns:
         True if email was dispatched, False otherwise
@@ -467,11 +507,32 @@ async def _send_reminder_email_notification(
         user_profile = user_profile_result[1]
         
         # Check if user has email notifications enabled
-        notification_email = user_profile.get("notification_email")
         email_notifications_enabled = user_profile.get("email_notifications_enabled", False)
-        
-        if not notification_email or not email_notifications_enabled:
+        if not email_notifications_enabled:
             logger.debug(f"User {user_id} does not have email notifications enabled")
+            return False
+        
+        # Decrypt the vault-encrypted notification email
+        encrypted_notification_email = user_profile.get("encrypted_notification_email")
+        if not encrypted_notification_email:
+            logger.debug(f"User {user_id} has no encrypted_notification_email configured")
+            return False
+        
+        vault_key_id = user_profile.get("vault_key_id")
+        if not vault_key_id:
+            logger.warning(f"User {user_id} has no vault_key_id, cannot decrypt notification email")
+            return False
+        
+        try:
+            notification_email = await encryption_service.decrypt_with_user_key(
+                encrypted_notification_email, vault_key_id
+            )
+        except Exception as decrypt_error:
+            logger.error(f"Failed to decrypt notification email for user {user_id}: {decrypt_error}", exc_info=True)
+            return False
+        
+        if not notification_email:
+            logger.warning(f"Notification email decryption returned empty result for user {user_id}")
             return False
         
         # Get user preferences for the email
@@ -494,7 +555,7 @@ async def _send_reminder_email_notification(
             queue='email'
         )
         
-        logger.info(f"Dispatched reminder email notification to {notification_email} for user {user_id}")
+        logger.info(f"Dispatched reminder email notification for user {user_id}")
         return True
         
     except Exception as e:

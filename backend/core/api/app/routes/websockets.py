@@ -59,7 +59,9 @@ async def _check_user_offline_and_send_email(
     response_preview: str,
     task_id: Optional[str] = None,
     max_attempts: int = 3,
-    delay_seconds: int = 5
+    delay_seconds: int = 5,
+    model_name: Optional[str] = None,
+    category: Optional[str] = None,
 ) -> None:
     """
     Check if user is offline with retries, then send email notification if still offline.
@@ -108,9 +110,7 @@ async def _check_user_offline_and_send_email(
     try:
         if hasattr(app.state, 'cache_service'):
             cache_service: CacheService = app.state.cache_service
-            await cache_service.add_pending_reminder_delivery(
-                user_id=user_id,
-                delivery_payload={
+            delivery_payload = {
                     "type": "ai_response",  # Distinguishes from "reminder" system messages
                     "chat_id": chat_id,
                     "message_id": task_id or str(uuid.uuid4()),
@@ -118,6 +118,15 @@ async def _check_user_offline_and_send_email(
                     "user_id": user_id,
                     "fired_at": int(time.time()),
                 }
+            # Include model_name and category so the client can encrypt them
+            # for proper display (mate icon, model badge) after offline delivery
+            if model_name:
+                delivery_payload["model_name"] = model_name
+            if category:
+                delivery_payload["category"] = category
+            await cache_service.add_pending_reminder_delivery(
+                user_id=user_id,
+                delivery_payload=delivery_payload
             )
             logger.info(f"{log_prefix} Queued AI response for pending delivery")
     except Exception as e:
@@ -169,10 +178,33 @@ async def _send_offline_email_notification(
         logger.debug(f"{log_prefix} Email notifications disabled for user")
         return
     
-    # Check if notification email is configured (must be decrypted in cache)
-    notification_email = cached_user.get("decrypted_notification_email")
-    if not notification_email:
+    # Decrypt the notification email from cache (stored as vault-encrypted ciphertext)
+    encrypted_notification_email = cached_user.get("encrypted_notification_email")
+    if not encrypted_notification_email:
         logger.debug(f"{log_prefix} No notification email configured")
+        return
+    
+    # Need encryption service to decrypt vault-encrypted email
+    if not hasattr(app.state, 'encryption_service'):
+        logger.warning(f"{log_prefix} Encryption service not available, cannot decrypt notification email")
+        return
+    
+    encryption_service: EncryptionService = app.state.encryption_service
+    vault_key_id = cached_user.get("vault_key_id")
+    if not vault_key_id:
+        logger.warning(f"{log_prefix} No vault_key_id in cached user data, cannot decrypt notification email")
+        return
+    
+    try:
+        notification_email = await encryption_service.decrypt_with_user_key(
+            encrypted_notification_email, vault_key_id
+        )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to decrypt notification email: {e}", exc_info=True)
+        return
+    
+    if not notification_email:
+        logger.warning(f"{log_prefix} Notification email decryption returned empty result")
         return
     
     # Check if AI responses preference is enabled
@@ -449,6 +481,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "task_id": redis_payload.get("task_id"),
                                     "full_content": full_content,
                                     "model_name": redis_payload.get("model_name"),
+                                    "category": redis_payload.get("category"),
                                     "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
                                     "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
                                     "rejection_reason": redis_payload.get("rejection_reason")
@@ -494,7 +527,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     response_preview=redis_payload.get("full_content_so_far", ""),
                                     task_id=redis_payload.get("task_id"),
                                     max_attempts=3,
-                                    delay_seconds=5
+                                    delay_seconds=5,
+                                    model_name=redis_payload.get("model_name"),
+                                    category=redis_payload.get("category"),
                                 )
                             )
                 else:

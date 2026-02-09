@@ -552,6 +552,12 @@ class ChatCacheMixin:
             if 'draft_json' in data_to_set: # Defensively remove if schema not yet updated
                 del data_to_set['draft_json']
             
+            # Redis hash values must be strings, bytes, ints, or floats.
+            # Convert boolean values to int (0/1) for Redis compatibility.
+            for k, v in data_to_set.items():
+                if isinstance(v, bool):
+                    data_to_set[k] = int(v)
+            
             await client.hmset(key, data_to_set)
             await client.expire(key, ttl if ttl is not None else self.CHAT_LIST_ITEM_DATA_TTL)
             return True

@@ -295,13 +295,28 @@ async def _update_chat_metadata(
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
     """
-    # 1. Fetch current metadata to get current messages_v
-    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-    current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
-    new_messages_v = current_messages_v + 1
+    # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
+    # This prevents race conditions where system messages and AI responses compete for version numbers.
+    # Previously this used a Directus read-modify-write which was non-atomic and could collide
+    # with the cache-based HINCRBY used by system_message_handler.
+    new_messages_v = None
+    if cache_service:
+        new_messages_v = await cache_service.increment_chat_component_version(
+            request_data.user_id, request_data.chat_id, "messages_v"
+        )
+    
+    if new_messages_v is None:
+        # Fallback: if cache is unavailable, read from Directus (non-atomic, but better than nothing)
+        logger.warning(
+            f"{log_prefix} [MESSAGES_V_TRACKING] Cache unavailable for atomic increment, "
+            f"falling back to Directus read-modify-write for chat {request_data.chat_id}"
+        )
+        chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+        current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
+        new_messages_v = current_messages_v + 1
 
     fields_to_update = {
-        "messages_v": new_messages_v,  # Increment messages_v in Directus directly!
+        "messages_v": new_messages_v,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category,
@@ -311,7 +326,7 @@ async def _update_chat_metadata(
     logger.info(
         f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
         f"chat_id={request_data.chat_id}, "
-        f"updating messages_v in Directus: {current_messages_v} -> {new_messages_v}, "
+        f"updating messages_v in Directus to {new_messages_v} (via cache atomic increment), "
         f"source=stream_consumer._update_chat_metadata"
     )
     
