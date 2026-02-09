@@ -268,6 +268,14 @@ class SearchConnectionsSkill(BaseSkill):
         if not all_connections and errors:
             return (request_id, [], "; ".join(errors))
 
+        # If we got results from at least one provider, don't propagate
+        # errors from other providers (partial success is still success).
+        # Only report errors when ALL providers failed (handled above).
+        if all_connections and errors:
+            for err in errors:
+                logger.info(f"Ignoring provider error (other providers succeeded): {err}")
+            errors = []
+
         # Convert ConnectionResult objects to dicts for the response
         results = []
         for connection in all_connections:
