@@ -92,7 +92,6 @@ skills:
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     providers:
       - Duffel
-      - Amadeus
     exclude_fields_for_llm:
       - type
       - hash

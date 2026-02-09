@@ -4,7 +4,7 @@ Base transport provider abstraction for the travel app.
 Defines unified data models (ConnectionResult, LegResult, SegmentResult) and
 the abstract BaseTransportProvider class that all transport providers must implement.
 This enables a clean separation between the skill layer and individual provider APIs
-(Amadeus for flights, Transitous for trains/buses, etc.).
+(Duffel for flights, Transitous for trains/buses, etc.).
 """
 
 import logging

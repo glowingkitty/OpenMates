@@ -3,7 +3,7 @@ Airline IATA code to booking URL mapping for the travel app.
 
 Maps IATA 2-letter carrier codes to airline booking website URLs.
 Used to generate direct deep links to airline booking pages from
-flight search results (since Amadeus does not provide booking URLs).
+flight search results.
 
 Deep link strategy:
 - For airlines with known booking URL patterns, we construct a direct

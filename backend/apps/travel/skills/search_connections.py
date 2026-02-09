@@ -3,9 +3,8 @@ Search Connections skill for the travel app.
 
 Searches for transport connections (flights, and in the future trains/buses/boats)
 between locations. Uses a provider abstraction layer where each transport method
-is handled by a dedicated provider (DuffelProvider preferred for flights with
-better LCC coverage, AmadeusProvider as fallback, TransitousProvider for
-trains/buses).
+is handled by a dedicated provider (DuffelProvider for flights,
+TransitousProvider for trains/buses).
 
 The skill follows the standard BaseSkill request/response pattern with the
 'requests' array convention used by all OpenMates skills.
@@ -20,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.travel.providers.airline_urls import get_airline_booking_url
-from backend.apps.travel.providers.amadeus_provider import AmadeusProvider
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.duffel_provider import DuffelProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
@@ -69,14 +67,12 @@ def _create_providers() -> List[BaseTransportProvider]:
     """
     Instantiate all available transport providers.
 
-    DuffelProvider is listed first (preferred for flights — better LCC coverage,
-    competitive pricing, and airport coordinates in every response).
-    AmadeusProvider is kept as fallback. TransitousProvider is a stub for future
-    train/bus support.
+    DuffelProvider handles flights (best LCC coverage, competitive pricing,
+    and airport coordinates in every response). TransitousProvider is a stub
+    for future train/bus support.
     """
     return [
         DuffelProvider(),
-        AmadeusProvider(use_production=False),
         TransitousProvider(),
     ]
 
@@ -164,7 +160,7 @@ class SearchConnectionsSkill(BaseSkill):
         # 3. Create providers and inject secrets_manager
         all_providers = _create_providers()
         for provider in all_providers:
-            if isinstance(provider, (AmadeusProvider, DuffelProvider)):
+            if isinstance(provider, DuffelProvider):
                 provider._secrets_manager = secrets_manager
 
         # 4. Process requests in parallel

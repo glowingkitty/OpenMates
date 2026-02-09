@@ -6,12 +6,12 @@ Duffel API. Duffel provides access to 300+ airlines including low-cost
 carriers (easyJet, Vueling, Spirit, etc.) via NDC direct-connect, GDS
 (Travelport), and Hahn Air interline ticketing.
 
-Key differences from Amadeus:
-- Better LCC coverage and more competitive pricing
+Key features:
+- Best LCC coverage and competitive pricing (300+ airlines)
 - Airport coordinates included in every response (no separate cache needed)
 - Bearer token auth (no OAuth2 flow)
 - Slices (legs) support city and airport IATA codes natively
-- Places API for city-name-to-IATA resolution
+- Built-in city-name-to-IATA fallback mapping for reliable resolution
 
 API docs: https://duffel.com/docs/api
 """

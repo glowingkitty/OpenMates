@@ -5279,7 +5279,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Travel Search Connections Fullscreen -->
                         <TravelSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Amadeus'}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Duffel'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getTravelConnectionResults(embedFullscreenData.decodedContent?.results)}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
