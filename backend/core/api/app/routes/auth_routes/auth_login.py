@@ -1526,7 +1526,11 @@ async def lookup_user(
                             "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
                             "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
                             "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
-                            "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency")
+                            "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
+                            # Email notification fields (encrypted_notification_email is vault-encrypted)
+                            "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
+                            "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
+                            "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
                         }
                         
                         # CACHE TFA DATA: Cache encrypted TFA secret for faster login
