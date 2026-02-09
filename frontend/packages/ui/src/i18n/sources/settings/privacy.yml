@@ -1,0 +1,395 @@
+privacy:
+  context: Privacy settings menu item
+  en: Privacy
+  de: Datenschutz
+  verified_by_human: []
+privacy.description:
+  context: Description text on privacy settings page explaining data processing
+  en: If you want to learn more about how OpenMates is processing your data, check the privacy policy.
+  de: Wenn du mehr darüber erfahren möchtest, wie OpenMates deine Daten verarbeitet, schau dir die Datenschutzrichtlinie an.
+  verified_by_human: []
+privacy.open_privacy_policy:
+  context: Link text to open the OpenMates privacy policy
+  en: Open OpenMates privacy policy
+  de: OpenMates Datenschutzrichtlinie öffnen
+  verified_by_human: []
+privacy.anonymization:
+  context: Section heading for anonymization settings
+  en: Anonymization
+  de: Anonymisierung
+  verified_by_human: []
+privacy.hide_personal_data:
+  context: Toggle label for hiding personal data in chats
+  en: Hide personal data
+  de: Persönliche Daten verbergen
+  verified_by_human: []
+privacy.hide_personal_data.chats:
+  context: Subtitle for the hide personal data toggle
+  en: Chats
+  de: Chats
+  verified_by_human: []
+privacy.hide_personal_data.description:
+  context: Description text explaining the hide personal data feature
+  en: OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here.
+  de: OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren.
+  verified_by_human: []
+privacy.nearby_by_default:
+  context: Toggle label for nearby by default location setting
+  en: Nearby by default
+  de: Standardmäßig in der Nähe
+  verified_by_human: []
+privacy.maps_location:
+  context: Subtitle for the nearby by default toggle
+  en: Maps | Location
+  de: Karten | Standort
+  verified_by_human: []
+privacy.device_permissions:
+  context: Section heading for device permission settings
+  en: Device permissions
+  de: Geräteberechtigungen
+  verified_by_human: []
+privacy.microphone:
+  context: Toggle label for microphone permission
+  en: Microphone
+  de: Mikrofon
+  verified_by_human: []
+privacy.camera:
+  context: Toggle label for camera permission
+  en: Camera
+  de: Kamera
+  verified_by_human: []
+privacy.location:
+  context: Toggle label for location permission
+  en: Location
+  de: Standort
+  verified_by_human: []
+privacy.auto_deletion:
+  context: Section heading for auto deletion settings
+  en: Auto deletion
+  de: Automatische Löschung
+  verified_by_human: []
+privacy.auto_deletion.chats:
+  context: Label for chat auto deletion setting
+  en: Chats
+  de: Chats
+  verified_by_human: []
+privacy.auto_deletion.chats.value:
+  context: Default value for chat auto deletion
+  en: 90 days & older
+  de: 90 Tage & älter
+  verified_by_human: []
+privacy.auto_deletion.files:
+  context: Label for files auto deletion setting
+  en: Files (on OpenMates)
+  de: Dateien (auf OpenMates)
+  verified_by_human: []
+privacy.auto_deletion.files.value:
+  context: Default value for files auto deletion
+  en: 90 days & older
+  de: 90 Tage & älter
+  verified_by_human: []
+privacy.auto_deletion.usage_data:
+  context: Label for usage data auto deletion setting
+  en: Usage data
+  de: Nutzungsdaten
+  verified_by_human: []
+privacy.auto_deletion.usage_data.value:
+  context: Default value for usage data auto deletion
+  en: 1 year & older
+  de: 1 Jahr & älter
+  verified_by_human: []
+privacy.auto_deletion.compliance_logs:
+  context: Label for compliance logs auto deletion setting
+  en: Compliance logs
+  de: Compliance-Protokolle
+  verified_by_human: []
+privacy.auto_deletion.compliance_logs.value:
+  context: Default value for compliance logs auto deletion
+  en: 1 year & older
+  de: 1 Jahr & älter
+  verified_by_human: []
+privacy.auto_deletion.invoices:
+  context: Label for invoices auto deletion setting
+  en: Invoices
+  de: Rechnungen
+  verified_by_human: []
+privacy.auto_deletion.invoices.value:
+  context: Default value for invoices auto deletion
+  en: 10 years & older
+  de: 10 Jahre & älter
+  verified_by_human: []
+privacy.auto_deletion.compliance_note:
+  context: Note about legal compliance for auto deletion
+  en: The compliance logs and invoices auto deletion time can not be reduced, because of legal compliance.
+  de: Die automatische Löschzeit für Compliance-Protokolle und Rechnungen kann aufgrund gesetzlicher Vorschriften nicht reduziert werden.
+  verified_by_human: []
+privacy.names:
+  context: Section heading for names in hide personal data
+  en: Names
+  de: Namen
+  verified_by_human: []
+privacy.add_name:
+  context: Button text to add a new name entry
+  en: Add name
+  de: Name hinzufügen
+  verified_by_human: []
+privacy.addresses:
+  context: Section heading for addresses in hide personal data
+  en: Addresses
+  de: Adressen
+  verified_by_human: []
+privacy.add_address:
+  context: Button text to add a new address entry
+  en: Add address
+  de: Adresse hinzufügen
+  verified_by_human: []
+privacy.birthday:
+  context: Section heading for birthday in hide personal data
+  en: Birthday
+  de: Geburtstag
+  verified_by_human: []
+privacy.add_birthday:
+  context: Button text to add a new birthday entry
+  en: Add birthday
+  de: Geburtstag hinzufügen
+  verified_by_human: []
+privacy.for_everyone:
+  context: Section heading for universal PII detection patterns
+  en: For everyone
+  de: Für alle
+  verified_by_human: []
+privacy.email_addresses:
+  context: Toggle label for email address detection
+  en: E-mail addresses
+  de: E-Mail-Adressen
+  verified_by_human: []
+privacy.phone_numbers:
+  context: Toggle label for phone number detection
+  en: Phone numbers
+  de: Telefonnummern
+  verified_by_human: []
+privacy.credit_card_numbers:
+  context: Toggle label for credit card number detection
+  en: Credit card numbers
+  de: Kreditkartennummern
+  verified_by_human: []
+privacy.iban_bank_account:
+  context: Toggle label for IBAN/bank account detection
+  en: IBAN / Bank account numbers
+  de: IBAN / Bankkontonummern
+  verified_by_human: []
+privacy.tax_id_vat:
+  context: Toggle label for tax ID/VAT detection
+  en: Tax ID / VAT
+  de: Steuer-ID / USt-IdNr.
+  verified_by_human: []
+privacy.crypto_wallets:
+  context: Toggle label for cryptocurrency wallet detection
+  en: Crypto wallets
+  de: Krypto-Wallets
+  verified_by_human: []
+privacy.social_security_numbers:
+  context: Toggle label for social security number detection
+  en: Social security numbers
+  de: Sozialversicherungsnummern
+  verified_by_human: []
+privacy.passport_numbers:
+  context: Toggle label for passport number detection
+  en: Passport numbers
+  de: Passnummern
+  verified_by_human: []
+privacy.for_developers:
+  context: Section heading for developer-specific PII detection patterns
+  en: For developers
+  de: Für Entwickler
+  verified_by_human: []
+privacy.api_keys:
+  context: Toggle label for API key detection
+  en: API keys
+  de: API-Schlüssel
+  verified_by_human: []
+privacy.jwt_tokens:
+  context: Toggle label for JWT token detection
+  en: JWT tokens
+  de: JWT-Token
+  verified_by_human: []
+privacy.private_keys:
+  context: Toggle label for private key detection
+  en: Private keys
+  de: Private Schlüssel
+  verified_by_human: []
+privacy.generic_secrets:
+  context: Toggle label for generic secret detection
+  en: Generic secrets
+  de: Allgemeine Geheimnisse
+  verified_by_human: []
+privacy.ip_addresses:
+  context: Toggle label for IP address detection
+  en: IP addresses
+  de: IP-Adressen
+  verified_by_human: []
+privacy.mac_addresses:
+  context: Toggle label for MAC address detection
+  en: MAC addresses
+  de: MAC-Adressen
+  verified_by_human: []
+privacy.user_at_hostname:
+  context: Toggle label for user@hostname detection
+  en: user@hostname
+  de: user@hostname
+  verified_by_human: []
+privacy.home_folder:
+  context: Toggle label for home folder path detection
+  en: Home folder
+  de: Home-Ordner
+  verified_by_human: []
+privacy.custom:
+  context: Section heading for custom PII entries
+  en: Custom
+  de: Benutzerdefiniert
+  verified_by_human: []
+privacy.add_custom_entry:
+  context: Button text to add a custom PII entry
+  en: Add custom entry
+  de: Benutzerdefinierten Eintrag hinzufügen
+  verified_by_human: []
+privacy.form.title:
+  context: Form field label for entry title
+  en: Title
+  de: Titel
+  verified_by_human: []
+privacy.form.title.placeholder_name:
+  context: Placeholder for name title input
+  en: "example: 'My first name'"
+  de: "Beispiel: 'Mein Vorname'"
+  verified_by_human: []
+privacy.form.title.placeholder_address:
+  context: Placeholder for address title input
+  en: "example: 'Home'"
+  de: "Beispiel: 'Zuhause'"
+  verified_by_human: []
+privacy.form.title.placeholder_birthday:
+  context: Placeholder for birthday title input
+  en: "example: 'Me'"
+  de: "Beispiel: 'Ich'"
+  verified_by_human: []
+privacy.form.title.placeholder_custom:
+  context: Placeholder for custom entry title input
+  en: "example: 'My company name'"
+  de: "Beispiel: 'Mein Firmenname'"
+  verified_by_human: []
+privacy.form.text_to_hide:
+  context: Form field label for the text that should be hidden
+  en: Text to hide
+  de: Text zum Verbergen
+  verified_by_human: []
+privacy.form.text_to_hide.placeholder_name:
+  context: Placeholder for name text input
+  en: "example: 'Max'"
+  de: "Beispiel: 'Max'"
+  verified_by_human: []
+privacy.form.text_to_hide.placeholder_custom:
+  context: Placeholder for custom text to hide input
+  en: "example: 'Acme Corp'"
+  de: "Beispiel: 'Acme GmbH'"
+  verified_by_human: []
+privacy.form.replace_with:
+  context: Form field label for the replacement placeholder
+  en: Replace with
+  de: Ersetzen durch
+  verified_by_human: []
+privacy.form.replace_with.placeholder_name:
+  context: Placeholder for name replacement input
+  en: "example: 'ME_FIRST_NAME'"
+  de: "Beispiel: 'MEIN_VORNAME'"
+  verified_by_human: []
+privacy.form.replace_with.placeholder_address:
+  context: Placeholder for address replacement input
+  en: "example: 'MY_HOME_ADDRESS'"
+  de: "Beispiel: 'MEINE_ADRESSE'"
+  verified_by_human: []
+privacy.form.replace_with.placeholder_birthday:
+  context: Placeholder for birthday replacement input
+  en: "example: 'MY_BIRTHDAY'"
+  de: "Beispiel: 'MEIN_GEBURTSTAG'"
+  verified_by_human: []
+privacy.form.replace_with.placeholder_custom:
+  context: Placeholder for custom replacement input
+  en: "example: 'MY_COMPANY'"
+  de: "Beispiel: 'MEINE_FIRMA'"
+  verified_by_human: []
+privacy.form.date:
+  context: Form field label for birthday date
+  en: Date
+  de: Datum
+  verified_by_human: []
+privacy.form.date.placeholder:
+  context: Placeholder for birthday date input
+  en: "example: '15.03.1990'"
+  de: "Beispiel: '15.03.1990'"
+  verified_by_human: []
+privacy.form.street:
+  context: Form field label for street address
+  en: Street
+  de: Straße
+  verified_by_human: []
+privacy.form.street.placeholder:
+  context: Placeholder for street address input
+  en: "example: '123 Main Street'"
+  de: "Beispiel: 'Hauptstraße 123'"
+  verified_by_human: []
+privacy.form.city:
+  context: Form field label for city
+  en: City
+  de: Stadt
+  verified_by_human: []
+privacy.form.city.placeholder:
+  context: Placeholder for city input
+  en: "example: 'Berlin'"
+  de: "Beispiel: 'Berlin'"
+  verified_by_human: []
+privacy.form.state:
+  context: Form field label for state/province
+  en: State / Province
+  de: Bundesland
+  verified_by_human: []
+privacy.form.state.placeholder:
+  context: Placeholder for state input
+  en: "example: 'California'"
+  de: "Beispiel: 'Bayern'"
+  verified_by_human: []
+privacy.form.zip:
+  context: Form field label for zip/postal code
+  en: ZIP / Postal code
+  de: PLZ
+  verified_by_human: []
+privacy.form.zip.placeholder:
+  context: Placeholder for zip code input
+  en: "example: '10115'"
+  de: "Beispiel: '10115'"
+  verified_by_human: []
+privacy.form.country:
+  context: Form field label for country
+  en: Country
+  de: Land
+  verified_by_human: []
+privacy.form.country.placeholder:
+  context: Placeholder for country input
+  en: "example: 'Germany'"
+  de: "Beispiel: 'Deutschland'"
+  verified_by_human: []
+privacy.form.save:
+  context: Save button text for personal data form
+  en: Save
+  de: Speichern
+  verified_by_human: []
+privacy.form.delete:
+  context: Delete button text for personal data entry
+  en: Delete
+  de: Löschen
+  verified_by_human: []
+privacy.encryption_note:
+  context: Note explaining that personal data entries are client-side encrypted
+  en: All your personal data entries are encrypted on your device. Not even the OpenMates server can read them.
+  de: Alle deine persönlichen Dateneinträge werden auf deinem Gerät verschlüsselt. Nicht einmal der OpenMates-Server kann sie lesen.
+  verified_by_human: []

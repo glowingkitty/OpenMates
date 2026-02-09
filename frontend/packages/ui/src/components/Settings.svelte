@@ -111,6 +111,14 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+
+    // Import privacy settings components
+    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
+    import SettingsHidePersonalData from './settings/privacy/SettingsHidePersonalData.svelte';
+    import SettingsAddName from './settings/privacy/SettingsAddName.svelte';
+    import SettingsAddAddress from './settings/privacy/SettingsAddAddress.svelte';
+    import SettingsAddBirthday from './settings/privacy/SettingsAddBirthday.svelte';
+    import SettingsAddCustomEntry from './settings/privacy/SettingsAddCustomEntry.svelte';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -168,8 +176,13 @@ changes to the documentation (to keep the documentation up to date).
     // Define base settingsViews map for component mapping
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const baseSettingsViews: Record<string, any> = {
-        // TODO: Uncomment and implement these components when available
-        // 'privacy': SettingsPrivacy,
+        // Privacy settings — anonymization, device permissions, auto deletion
+        'privacy': SettingsPrivacy,
+        'privacy/hide-personal-data': SettingsHidePersonalData,
+        'privacy/hide-personal-data/add-name': SettingsAddName,
+        'privacy/hide-personal-data/add-address': SettingsAddAddress,
+        'privacy/hide-personal-data/add-birthday': SettingsAddBirthday,
+        'privacy/hide-personal-data/add-custom': SettingsAddCustomEntry,
         // 'user': SettingsUser,
         'usage': SettingsUsage,
         'chat': SettingsChat,
