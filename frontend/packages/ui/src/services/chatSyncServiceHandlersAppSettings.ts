@@ -1583,6 +1583,21 @@ export async function handleReminderFiredImpl(
       }),
     );
 
+    // Show in-app notification for the reminder
+    // This ensures the user sees a toast notification even if they're in a different chat
+    const notificationTitle = chat_title || "Reminder";
+    // Extract the prompt from the reminder message content (strip the markdown formatting)
+    const promptMatch = content.match(/\*\*Reminder\*\*\n\n([\s\S]*?)\n\n---/);
+    const notificationPreview = promptMatch
+      ? promptMatch[1].substring(0, 100)
+      : "Your reminder has triggered";
+    notificationStore.chatMessage(
+      chat_id,
+      notificationTitle,
+      notificationPreview,
+      undefined,
+    );
+
     console.info(
       `[ChatSyncService:Reminder] Processed reminder for chat ${chat_id} (${target_type})`,
     );

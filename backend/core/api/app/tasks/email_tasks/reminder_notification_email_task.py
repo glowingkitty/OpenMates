@@ -120,13 +120,20 @@ async def _async_send_reminder_notification(
         sanitized_prompt = sanitized_prompt.replace('\n', '<br/>')
 
         # Generate chat URL for the button
+        # CRITICAL: The frontend uses hash-based routing for chat navigation: /#chat-id={id}
         base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
-        chat_url = f"{base_url}/chat/{chat_id}"
+        chat_url = f"{base_url}/#chat-id={chat_id}"
+
+        # Create a short excerpt of the reminder prompt for the email subject line
+        # Strip HTML tags and truncate for subject readability
+        plain_prompt = reminder_prompt.replace('<br/>', ' ').strip()
+        reminder_excerpt = plain_prompt[:60] + ("..." if len(plain_prompt) > 60 else "")
 
         # Prepare email context
         email_context = {
             "darkmode": darkmode,
             "reminder_prompt": sanitized_prompt,
+            "reminder_excerpt": reminder_excerpt,
             "trigger_time": trigger_time,
             "chat_title": sanitized_title,
             "chat_url": chat_url,

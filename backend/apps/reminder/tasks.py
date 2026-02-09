@@ -165,6 +165,34 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                 # This ensures the server never stores messages encrypted with a key
                 # the client can't access (vault key vs chat key mismatch).
 
+                # PRE-CREATE CHAT IN DIRECTUS (for new_chat targets)
+                # This prevents a race condition where the frontend receives the
+                # reminder_fired WebSocket event and sends chat_system_message_added
+                # before the chat exists in Directus, causing "Chat not found" errors.
+                if target_type == "new_chat" and directus_service:
+                    hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+                    try:
+                        minimal_chat_metadata = {
+                            "id": target_chat_id,
+                            "hashed_user_id": hashed_uid,
+                            "created_at": current_time,
+                            "updated_at": current_time,
+                            "messages_v": 0,
+                            "title_v": 0,
+                            "last_edited_overall_timestamp": current_time,
+                            "last_message_timestamp": current_time,
+                            "unread_count": 1,
+                        }
+                        created_data, is_duplicate = await directus_service.chat.create_chat_in_directus(minimal_chat_metadata)
+                        if created_data:
+                            logger.info(f"Pre-created chat {target_chat_id} in Directus for reminder {reminder_id}")
+                        elif is_duplicate:
+                            logger.debug(f"Chat {target_chat_id} already exists (race condition), continuing")
+                        else:
+                            logger.warning(f"Failed to pre-create chat {target_chat_id} in Directus, continuing anyway")
+                    except Exception as create_err:
+                        logger.warning(f"Error pre-creating chat {target_chat_id}: {create_err}, continuing anyway")
+
                 delivery_payload = {
                     "reminder_id": reminder_id,
                     "chat_id": target_chat_id,
@@ -426,13 +454,20 @@ async def _dispatch_reminder_ai_request(
         user_preferences["timezone"] = user_timezone
 
     # Build AskSkillRequest payload
+    # CRITICAL: For new_chat targets, always set chat_has_title=False so the
+    # AI preprocessor generates title, icon_names, and category for the new chat.
+    # Without this, the preprocessor sees chat_has_title=True (because we have a
+    # decrypted title from the reminder) and skips icon/category generation,
+    # resulting in chats with no icon and no category gradient color.
+    chat_has_title_flag = False if target_type == "new_chat" else bool(chat_title)
+    
     ask_request = {
         "chat_id": chat_id,
         "message_id": message_id,
         "user_id": user_id,
         "user_id_hash": user_id_hash,
         "message_history": message_history,
-        "chat_has_title": bool(chat_title),
+        "chat_has_title": chat_has_title_flag,
         "mate_id": None,  # Let preprocessor determine
         "active_focus_id": None,
         "user_preferences": user_preferences,

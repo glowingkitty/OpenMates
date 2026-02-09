@@ -20,8 +20,9 @@
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section>
         <mj-column>
-          <!-- Bell Icon for Reminder -->
-          <mj-image width="50px" height="50px" src="icons/bell.png" align="center" css-class="email-icon-50" />
+          <!-- Notification Icon for Reminder -->
+          <!-- NOTE: Using mail.png until a dedicated bell/notification icon is added to icons/ -->
+          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" css-class="email-icon-50" />
           <mj-text font-size="30px" padding-bottom="20px">
             <mark>{{ t.email.reminder_notification.header.text }}</mark>
           </mj-text>
