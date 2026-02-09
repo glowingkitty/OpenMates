@@ -299,7 +299,8 @@ class DuffelProvider(BaseTransportProvider):
                 headers=_build_headers(token),
             )
 
-        if response.status_code != 200:
+        # Duffel returns 201 (Created) for offer_requests, not 200
+        if response.status_code not in (200, 201):
             logger.error(
                 f"Duffel offer request failed ({response.status_code}): "
                 f"{response.text[:500]}"
