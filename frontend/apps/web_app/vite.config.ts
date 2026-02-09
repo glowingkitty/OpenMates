@@ -128,10 +128,6 @@ export default defineConfig({
 				if (id.includes('tiptap') || id.includes('prosemirror')) {
 					return 'editor';
 				}
-				// CKEditor 5 (~2-3MB) - loaded lazily for document fullscreen viewing
-				if (id.includes('ckeditor5') || id.includes('@ckeditor')) {
-					return 'ckeditor';
-				}
 					// Translation files (~1.5MB total) - loaded per-language as needed
 					if (
 						id.includes('/chunks/de.js') ||
