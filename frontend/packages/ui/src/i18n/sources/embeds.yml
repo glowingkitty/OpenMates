@@ -1641,6 +1641,52 @@ book_on:
   cs: Rezervovat na {provider}
   sv: Boka på {provider}
   verified_by_human: [en, de]
+copied_to_clipboard:
+  context: Notification shown when content has been copied to clipboard
+  en: Copied to clipboard
+  de: Kopiert
+  zh: 已复制
+  es: Copiado al portapapeles
+  fr: Copié
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào clipboard
+  id: Disalin ke clipboard
+  pl: Skopiowano do schowka
+  nl: Naar klembord gekopieerd
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: Kopierat till urklipp
+  verified_by_human: []
+copy_failed:
+  context: Notification shown when copying to clipboard fails
+  en: Failed to copy to clipboard
+  de: Kopieren fehlgeschlagen
+  zh: 复制失败
+  es: Error al copiar
+  fr: Échec de la copie
+  pt: Falha ao copiar
+  ru: Не удалось скопировать
+  ja: コピーに失敗しました
+  ko: 복사 실패
+  it: Copia fallita
+  tr: Kopyalama başarısız
+  vi: Không thể sao chép
+  id: Gagal menyalin
+  pl: Nie udało się skopiować
+  nl: Kopiëren mislukt
+  ar: فشل النسخ
+  hi: कॉपी करने में विफल
+  th: คัดลอกไม่สำเร็จ
+  cs: Kopírování se nezdařilo
+  sv: Kopiering misslyckades
+  verified_by_human: []
 download_itinerary:
   context: Button label to download travel itinerary as PDF
   en: Download itinerary

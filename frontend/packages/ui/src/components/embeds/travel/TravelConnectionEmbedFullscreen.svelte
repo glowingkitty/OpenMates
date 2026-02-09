@@ -16,6 +16,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
+  import { notificationStore } from '../../../stores/notificationStore';
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap, TileLayer } from 'leaflet';
   
@@ -159,6 +160,93 @@
   function handleBooking() {
     if (bookingUrl) {
       window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Copy flight details to clipboard
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Build a plain-text summary of the connection and copy it to the clipboard.
+   * Format:
+   *   Route · Trip type · Price
+   *   Carriers
+   *   
+   *   [Leg label:] Origin → Destination
+   *   Date · Duration · Stops
+   *     HH:MM  Departure Station
+   *     Carrier · Flight# · Duration
+   *     HH:MM  Arrival Station
+   *   
+   *   Booking info (seats, deadline)
+   */
+  async function handleCopy() {
+    try {
+      const lines: string[] = [];
+      
+      // Header: route, trip type, price
+      const headerParts = [routeDisplay, tripTypeLabel, formattedPrice].filter(Boolean);
+      if (headerParts.length) lines.push(headerParts.join(' · '));
+      
+      // Carriers
+      if (connection.carriers && connection.carriers.length > 0) {
+        lines.push(connection.carriers.join(', '));
+      }
+      
+      lines.push('');
+      
+      // Legs
+      if (connection.legs && connection.legs.length > 0) {
+        for (const leg of connection.legs) {
+          const legLabel = getLegLabel(leg, connection.legs.length);
+          const legHeader = legLabel
+            ? `${legLabel}: ${leg.origin} → ${leg.destination}`
+            : `${leg.origin} → ${leg.destination}`;
+          lines.push(legHeader);
+          
+          const legMeta = [
+            formatDate(leg.departure),
+            leg.duration,
+            getStopsLabel(leg.stops),
+          ].filter(Boolean).join(' · ');
+          if (legMeta) lines.push(legMeta);
+          
+          lines.push('');
+          
+          for (const seg of leg.segments) {
+            lines.push(`  ${formatTime(seg.departure_time)}  ${seg.departure_station}`);
+            const segInfo = [seg.carrier, seg.number, seg.duration].filter(Boolean).join(' · ');
+            if (segInfo) lines.push(`  ${segInfo}`);
+            lines.push(`  ${formatTime(seg.arrival_time)}  ${seg.arrival_station}`);
+            lines.push('');
+          }
+        }
+      } else {
+        // Summary-only fallback
+        if (connection.departure && connection.arrival) {
+          lines.push(`${formatTime(connection.departure)} → ${formatTime(connection.arrival)}`);
+        }
+        if (connection.duration) lines.push(connection.duration);
+        if (connection.stops !== undefined) lines.push(getStopsLabel(connection.stops));
+        lines.push('');
+      }
+      
+      // Booking info
+      if (connection.bookable_seats !== undefined && connection.bookable_seats > 0) {
+        lines.push(`${connection.bookable_seats} seat(s) remaining`);
+      }
+      if (connection.last_ticketing_date) {
+        lines.push(`Book by ${connection.last_ticketing_date}`);
+      }
+      
+      const textContent = lines.join('\n').trim();
+      await navigator.clipboard.writeText(textContent);
+      console.debug('[TravelConnectionEmbedFullscreen] Copied flight details to clipboard');
+      notificationStore.success($text('embeds.copied_to_clipboard.text') || 'Copied to clipboard');
+    } catch (error) {
+      console.error('[TravelConnectionEmbedFullscreen] Failed to copy flight details:', error);
+      notificationStore.error($text('embeds.copy_failed.text') || 'Failed to copy to clipboard');
     }
   }
   
@@ -489,6 +577,7 @@
   skillId="connection"
   title=""
   {onClose}
+  onCopy={handleCopy}
   onDownload={handleDownload}
   skillIconName="search"
   status="finished"
