@@ -316,18 +316,33 @@ class SearchConnectionsSkill(BaseSkill):
                 result_dict["carrier_codes"] = list(carrier_codes)
 
                 # Build direct airline booking URL.
-                # Priority: validating airline > first segment carrier > skip.
-                # The validating airline is the one that issues the ticket,
-                # so it's the most relevant for booking.
+                # Prefer the operating carrier when all segments share the
+                # same carrier code (single-airline itinerary), since users
+                # expect to book on the airline they're actually flying.
+                # Only fall back to validating_airline_code for codeshare /
+                # interline itineraries where segment carriers differ.
                 if connection.transport_method == "airplane" and first_leg.segments:
                     origin_iata = first_leg.segments[0].departure_station
                     dest_iata = first_leg.segments[-1].arrival_station
                     dep_date = first_leg.departure[:10] if first_leg.departure else ""
-                    booking_carrier = (
-                        connection.validating_airline_code
-                        or first_leg.segments[0].carrier_code
-                        or ""
-                    )
+
+                    # Collect all unique operating carrier codes across legs
+                    all_seg_carriers = set()
+                    for leg in connection.legs:
+                        for seg in leg.segments:
+                            if seg.carrier_code:
+                                all_seg_carriers.add(seg.carrier_code)
+
+                    if len(all_seg_carriers) == 1:
+                        # Single airline: use operating carrier
+                        booking_carrier = all_seg_carriers.pop()
+                    else:
+                        # Mixed airlines: prefer validating airline
+                        booking_carrier = (
+                            connection.validating_airline_code
+                            or first_leg.segments[0].carrier_code
+                            or ""
+                        )
                     if origin_iata and dest_iata and dep_date and booking_carrier:
                         booking_url, airline_name = get_airline_booking_url(
                             carrier_code=booking_carrier,
