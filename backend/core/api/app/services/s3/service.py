@@ -11,8 +11,8 @@ from fastapi import HTTPException
 import os
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
-# Import ClientError for exception handling
-from botocore.exceptions import ClientError 
+# Import ClientError and timeout exceptions for exception handling
+from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError
 from urllib.parse import urlparse
 from typing import Optional, Dict
 
@@ -88,12 +88,14 @@ class S3UploadService:
             config=s3v4_config
         )
         
-        # Separate client for uploads with older signature method
+        # Separate client for uploads with older signature method.
+        # read_timeout=60 accommodates larger files (e.g., 700KB+ encrypted images)
+        # that previously timed out at 15s on Hetzner Object Storage.
         upload_config = Config(
             signature_version='s3',  # Use older signature version which is more lenient
             s3={'addressing_style': 'path'},
             connect_timeout=15,
-            read_timeout=15,
+            read_timeout=60,
             retries={'max_attempts': 3}
         )
         # Create a separate client for uploads
@@ -324,7 +326,9 @@ class S3UploadService:
             else:
                 cache_control = 'no-cache, no-store, must-revalidate'
             
-            # Try uploading with retries and exponential backoff
+            # Try uploading with retries and exponential backoff.
+            # Catches both S3 ClientError (e.g., 5xx) and transient network errors
+            # (timeouts, connection drops) that previously bypassed the retry loop.
             for attempt in range(max_retries):
                 try:
                     # Configure put_object parameters based on bucket configuration
@@ -355,13 +359,28 @@ class S3UploadService:
                     break
                 except ClientError as e:
                     error_code = e.response['Error']['Code']
-                    logger.warning(f"Upload attempt {attempt + 1} failed with error: {error_code}")
+                    logger.warning(f"Upload attempt {attempt + 1} failed with ClientError: {error_code}")
                     
                     # If we've reached the maximum number of retries, re-raise the exception
                     if attempt == max_retries - 1:
                         raise
                     
                     # Otherwise, wait and retry with exponential backoff
+                    wait_time = retry_delay * (2 ** attempt)
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    
+                    # Reset the file position to the beginning for the next attempt
+                    file_obj.seek(0)
+                except (ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError) as e:
+                    # Transient network errors (timeouts, connection drops) are retryable.
+                    # Previously these were NOT caught here and fell through to the outer
+                    # except block, causing immediate failure without any retries.
+                    logger.warning(f"Upload attempt {attempt + 1} failed with network error: {type(e).__name__}: {e}")
+                    
+                    if attempt == max_retries - 1:
+                        raise
+                    
                     wait_time = retry_delay * (2 ** attempt)
                     logger.info(f"Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
