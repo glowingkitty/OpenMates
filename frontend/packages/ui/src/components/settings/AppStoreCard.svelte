@@ -337,9 +337,11 @@
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
-    <!-- Skill cards show max 3 providers with decreasing opacity -->
+    <!-- Skill cards show first 4 providers with decreasing opacity, plus a "+N" counter if more exist -->
     {#if isSkillCard && orderedProviders.length > 0}
-        {@const displayedProviders = orderedProviders.slice(0, 3)}
+        {@const maxSkillProviderIcons = 4}
+        {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
+        {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
         <div class="skill-providers">
             <span class="via-text">via</span>
             {#each displayedProviders as provider, index}
@@ -347,6 +349,9 @@
                     <ProviderIcon name={provider} size="30px" />
                 </div>
             {/each}
+            {#if remainingCount > 0}
+                <span class="skill-providers-remaining">+{remainingCount}</span>
+            {/if}
         </div>
     {/if}
 </div>
@@ -515,6 +520,15 @@
         align-items: center;
         flex-shrink: 0;
         /* Opacity is now set dynamically via inline style for decreasing opacity effect */
+    }
+    
+    /* Remaining provider count shown after the last visible icon (e.g., "+3") */
+    .skill-providers-remaining {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     
 </style>
