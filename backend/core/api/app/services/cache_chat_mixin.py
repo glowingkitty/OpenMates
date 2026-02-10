@@ -933,11 +933,12 @@ class ChatCacheMixin:
     
     # ========== AI CACHE METHODS (Vault-encrypted messages for AI inference) ==========
     
-    async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 100) -> bool:
+    async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 500) -> bool:
         """
         Adds a vault-encrypted message to AI inference cache (prepends).
         Used by message_received_handler.py when storing new messages for AI context.
-        Automatically limits to last 100 messages per chat.
+        Automatically limits to last 500 messages per chat to support 120k token context windows.
+        Token-based truncation is applied at inference time (preprocessor/main_processor).
         Also enforces TOP_N_MESSAGES_COUNT limit (LRU eviction of oldest chats).
         """
         client = await self.client

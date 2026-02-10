@@ -15,7 +15,7 @@ from toon_format import encode
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.utils.mate_utils import MateConfig
-from backend.apps.ai.utils.llm_utils import call_main_llm_stream
+from backend.apps.ai.utils.llm_utils import call_main_llm_stream, truncate_message_history_to_token_budget
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -261,7 +261,7 @@ def _filter_skill_results_for_llm(
 
 
 DEFAULT_APP_INTERNAL_PORT = 8000
-APPROX_MAX_CONVERSATION_TOKENS = 80000
+APPROX_MAX_CONVERSATION_TOKENS = 120000
 AVG_CHARS_PER_TOKEN = 4
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -1143,6 +1143,14 @@ async def handle_main_processing(
             # But we can map just the skill ID if the app ID is implicit? No, explicit is better.
 
     current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
+    
+    # Truncate message history to fit within the conversation token budget.
+    # This ensures the main LLM receives the most recent context within its context window,
+    # dropping oldest messages first when history exceeds the limit.
+    current_message_history = truncate_message_history_to_token_budget(
+        current_message_history,
+        max_tokens=APPROX_MAX_CONVERSATION_TOKENS,
+    )
     
     # Track all tool calls for code block generation
     # This will be used to prepend a code block with skill input/output/metadata to the assistant response
@@ -2033,13 +2041,33 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 
                 try:
+                    # For async skills (e.g., images.generate), thread placeholder embed_ids
+                    # so the Celery task can update the existing placeholder instead of creating new embeds.
+                    # This enables the in-place "processing" -> "finished" transition.
+                    skill_arguments = parsed_args
+                    if placeholder_embed_data:
+                        # Extract placeholder embed_ids to pass to the skill
+                        _placeholder_ids = []
+                        if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple"):
+                            # Multiple placeholders
+                            for p in placeholder_embed_data.get("placeholders", []):
+                                _placeholder_ids.append(p.get("embed_id"))
+                        elif isinstance(placeholder_embed_data, dict) and "embed_id" in placeholder_embed_data:
+                            # Single placeholder
+                            _placeholder_ids.append(placeholder_embed_data["embed_id"])
+                        
+                        if _placeholder_ids:
+                            # Inject as metadata field (underscore prefix = stripped before Pydantic validation)
+                            skill_arguments = parsed_args.copy()
+                            skill_arguments["_placeholder_embed_ids"] = _placeholder_ids
+                    
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
                     results = await execute_skill_with_multiple_requests(
                         app_id=app_id,
                         skill_id=skill_id,
-                        arguments=parsed_args,
+                        arguments=skill_arguments,
                         timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
                         chat_id=request_data.chat_id,
                         message_id=request_data.message_id,
@@ -2150,6 +2178,71 @@ async def handle_main_processing(
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
 
+                # =====================================================================
+                # ASYNC SKILL DETECTION
+                # =====================================================================
+                # Long-running skills (e.g., images.generate) return immediately with
+                # {"status": "processing", "task_id": "...", "embed_id": "..."}
+                # and dispatch a Celery task that will update the embed asynchronously.
+                #
+                # For these skills, we SKIP the normal embed update flow because:
+                # 1. The placeholder embed is already in "processing" state
+                # 2. The Celery task will update it to "finished" when done
+                # 3. The TOON encoding / update_embed_with_results flow doesn't apply
+                #
+                # We still need to:
+                # - Create a minimal tool_result for the LLM (so it knows the task was dispatched)
+                # - Publish a "processing" skill status (placeholder already shows this)
+                # - Skip TOON encoding, embed updates, and credit charging
+                # =====================================================================
+                is_async_skill = False
+                if results and len(results) == 1 and isinstance(results[0], dict):
+                    first_result = results[0]
+                    if first_result.get("status") == "processing" and ("task_id" in first_result or "task_ids" in first_result):
+                        is_async_skill = True
+                        logger.info(
+                            f"{log_prefix} Detected async skill '{app_id}.{skill_id}' with status='processing'. "
+                            f"Skipping embed update flow - Celery task will handle it. "
+                            f"task_id={first_result.get('task_id')}, embed_id={first_result.get('embed_id')}"
+                        )
+                
+                if is_async_skill:
+                    # For async skills, provide a minimal tool result for the LLM
+                    # This tells the LLM that the task has been dispatched successfully
+                    async_result = results[0]
+                    tool_result_content_str = json.dumps({
+                        "status": "processing",
+                        "message": f"Image generation task has been dispatched and is processing. The result will appear as an embed when ready.",
+                        "embed_id": async_result.get("embed_id"),
+                        "task_id": async_result.get("task_id")
+                    })
+                    
+                    # Publish "finished" skill status (the embed itself stays "processing")
+                    # This tells the frontend that the skill call completed (dispatched successfully)
+                    await _publish_skill_status(
+                        cache_service=cache_service,
+                        task_id=task_id,
+                        request_data=request_data,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        status="finished",
+                        preview_data={
+                            "status": "processing",
+                            "embed_id": async_result.get("embed_id"),
+                            "task_id": async_result.get("task_id"),
+                            "prompt": parsed_args.get("requests", [{}])[0].get("prompt", "") if isinstance(parsed_args, dict) else "",
+                            "model": parsed_args.get("requests", [{}])[0].get("model", "") if isinstance(parsed_args, dict) else "",
+                        }
+                    )
+                    
+                    # Skip everything below (TOON encoding, embed updates, credit charging)
+                    # and yield the tool result for the LLM
+                    # The tool_result_content_str is used by the LLM iteration loop
+
+                # SKIP normalization, TOON encoding, embed updates, and credit charging for async skills.
+                # These skills (e.g., images.generate) dispatch Celery tasks and return immediately.
+                # The tool_result_content_str was already set above; we jump directly to tool_call_info tracking.
+                
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return
                 # a response object with its own "results" array.
@@ -2160,7 +2253,7 @@ async def handle_main_processing(
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
                 
-                if results and all(isinstance(r, dict) and "results" in r for r in results):
+                if not is_async_skill and results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
                     # Skills no longer provide preview_data - we'll create it in main_processor
                     response_ignore_fields = first_response.get("ignore_fields_for_inference")
@@ -2238,11 +2331,13 @@ async def handle_main_processing(
                 # - results_toon: Full TOON-encoded results (added below)
                 # - query: Extracted from input arguments if available (for frontend previews)
                 # - provider: Extracted from response if available (for frontend previews)
+                # NOTE: For async skills, preview_data stays empty - the Celery task handles all data.
+                # tool_result_content_str was already set in the async detection block above.
                 preview_data: Dict[str, Any] = {}
                 
                 # Extract query from input arguments if available (for search skills)
                 # This is used by frontend for preview display
-                if parsed_args and isinstance(parsed_args, dict):
+                if not is_async_skill and parsed_args and isinstance(parsed_args, dict):
                     # Try to extract query from various possible input structures
                     if "query" in parsed_args:
                         preview_data["query"] = parsed_args["query"]
@@ -2253,12 +2348,13 @@ async def handle_main_processing(
                 
                 # Extract provider from response if available
                 # This is used by frontend for preview display
-                if first_response and isinstance(first_response, dict):
+                if not is_async_skill and first_response and isinstance(first_response, dict):
                     if "provider" in first_response:
                         preview_data["provider"] = first_response["provider"]
                 
                 # Add result count (can be derived from results, but useful for frontend)
-                preview_data["result_count"] = len(results) if results else 0
+                if not is_async_skill:
+                    preview_data["result_count"] = len(results) if results else 0
                 
                 # CRITICAL: Add full results in TOON format ONLY (no JSON)
                 # The frontend can decode this TOON string to get all fields (page_age, profile.name, url, etc.)
@@ -2278,40 +2374,41 @@ async def handle_main_processing(
                 # - profile: {name: "..."} → profile_name: "..."
                 # - meta_url: {favicon: "..."} → meta_url_favicon: "..."
                 # - extra_snippets: [...] → extra_snippets: "|".join([...])
-                try:
-                    # DEBUG: Log original JSON structure (first 15 lines)
-                    json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
-                    json_lines = json_before.split('\n')
-                    if len(results) == 1:
-                        # Single result - flatten and encode as TOON
-                        # Note: Single result encoded directly (not wrapped in dict) for efficiency
-                        flattened_result = _flatten_for_toon_tabular(results[0])
-                        results_toon = encode(flattened_result)
-                    else:
-                        # Multiple results - flatten each result, then combine and encode as TOON
-                        # Flattening enables TOON to use tabular format for uniform objects
-                        # This matches the proven approach from toon_encoding_test.ipynb
-                        flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                        results_toon = encode({"results": flattened_results, "count": len(results)})
-                    logger.debug(f"{log_prefix} TOON conversion (preview_data) length={len(results_toon)} chars")
-                    
-                    # Add TOON-encoded full results to preview_data (this is the ONLY place results are stored)
-                    preview_data["results_toon"] = results_toon
-                    logger.debug(
-                        f"{log_prefix} Added full results in TOON format to preview_data ({len(results_toon)} chars). "
-                        f"Frontend can decode TOON to get all fields. No JSON data stored."
-                    )
-                except Exception as e:
-                    # Fallback to JSON if TOON encoding fails (should rarely happen)
-                    logger.warning(f"{log_prefix} TOON encoding failed for preview_data, falling back to JSON: {e}")
-                    if len(results) == 1:
-                        preview_data["results_toon"] = json.dumps(results[0])
-                    else:
-                        preview_data["results_toon"] = json.dumps({"results": results, "count": len(results)})
+                if not is_async_skill:
+                    try:
+                        # DEBUG: Log original JSON structure (first 15 lines)
+                        json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
+                        json_lines = json_before.split('\n')
+                        if len(results) == 1:
+                            # Single result - flatten and encode as TOON
+                            # Note: Single result encoded directly (not wrapped in dict) for efficiency
+                            flattened_result = _flatten_for_toon_tabular(results[0])
+                            results_toon = encode(flattened_result)
+                        else:
+                            # Multiple results - flatten each result, then combine and encode as TOON
+                            # Flattening enables TOON to use tabular format for uniform objects
+                            # This matches the proven approach from toon_encoding_test.ipynb
+                            flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+                            results_toon = encode({"results": flattened_results, "count": len(results)})
+                        logger.debug(f"{log_prefix} TOON conversion (preview_data) length={len(results_toon)} chars")
+                        
+                        # Add TOON-encoded full results to preview_data (this is the ONLY place results are stored)
+                        preview_data["results_toon"] = results_toon
+                        logger.debug(
+                            f"{log_prefix} Added full results in TOON format to preview_data ({len(results_toon)} chars). "
+                            f"Frontend can decode TOON to get all fields. No JSON data stored."
+                        )
+                    except Exception as e:
+                        # Fallback to JSON if TOON encoding fails (should rarely happen)
+                        logger.warning(f"{log_prefix} TOON encoding failed for preview_data, falling back to JSON: {e}")
+                        if len(results) == 1:
+                            preview_data["results_toon"] = json.dumps(results[0])
+                        else:
+                            preview_data["results_toon"] = json.dumps({"results": results, "count": len(results)})
                 
                 # Filter results for current LLM inference (removes non-essential fields to reduce tokens)
                 # Full results are kept in preview_data for UI rendering and will be stored in chat history
-                filtered_results = _filter_skill_results_for_llm(results, ignore_fields_for_inference)
+                filtered_results = _filter_skill_results_for_llm(results, ignore_fields_for_inference) if not is_async_skill else []
                 
                 # CRITICAL: Store FULL results (not filtered) in chat history for persistence
                 # This ensures all fields from Brave search (page_age, profile.name, url, etc.) are available
@@ -2321,54 +2418,58 @@ async def handle_main_processing(
                 # 
                 # IMPORTANT: Flatten nested objects before encoding to enable TOON tabular format
                 # This ensures efficient encoding with tabular arrays instead of repeated field names
-                try:
-                    # DEBUG: Log original JSON structure (first 15 lines)
-                    json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
-                    json_lines = json_before.split('\n')
-                    logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
-                    logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
-                    if len(results) == 1:
-                        # Single result - flatten and encode full result as TOON for chat history
-                        flattened_result = _flatten_for_toon_tabular(results[0])
-                        tool_result_content_str = encode(flattened_result)
-                    else:
-                        # Multiple results - flatten each result, then combine and encode as TOON
-                        # Flattening enables TOON to use tabular format for uniform objects
-                        flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                        tool_result_content_str = encode({"results": flattened_results, "count": len(results)})
-                    
-                    logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
-                    
-                    logger.debug(
-                        f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s). "
-                        f"Full results stored in chat history (all fields preserved). "
-                        f"Filtered {len(filtered_results)} result(s) used for current LLM call (ignored fields: {ignore_fields_for_inference or 'none'})"
-                    )
-                except Exception as e:
-                    # Fallback to JSON if TOON encoding fails
-                    logger.warning(f"{log_prefix} TOON encoding failed for skill '{tool_name}', falling back to JSON: {e}")
-                    if len(results) == 1:
-                        tool_result_content_str = json.dumps(results[0])
-                    else:
-                        tool_result_content_str = json.dumps({"results": results, "count": len(results)})
+                if not is_async_skill:
+                    try:
+                        # DEBUG: Log original JSON structure (first 15 lines)
+                        json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
+                        json_lines = json_before.split('\n')
+                        logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
+                        logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
+                        if len(results) == 1:
+                            # Single result - flatten and encode full result as TOON for chat history
+                            flattened_result = _flatten_for_toon_tabular(results[0])
+                            tool_result_content_str = encode(flattened_result)
+                        else:
+                            # Multiple results - flatten each result, then combine and encode as TOON
+                            # Flattening enables TOON to use tabular format for uniform objects
+                            flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+                            tool_result_content_str = encode({"results": flattened_results, "count": len(results)})
+                        
+                        logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
+                        
+                        logger.debug(
+                            f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s). "
+                            f"Full results stored in chat history (all fields preserved). "
+                            f"Filtered {len(filtered_results)} result(s) used for current LLM call (ignored fields: {ignore_fields_for_inference or 'none'})"
+                        )
+                    except Exception as e:
+                        # Fallback to JSON if TOON encoding fails
+                        logger.warning(f"{log_prefix} TOON encoding failed for skill '{tool_name}', falling back to JSON: {e}")
+                        if len(results) == 1:
+                            tool_result_content_str = json.dumps(results[0])
+                        else:
+                            tool_result_content_str = json.dumps({"results": results, "count": len(results)})
                 
                 # Calculate and charge credits for skill execution
-                await _charge_skill_credits(
-                    task_id=task_id,
-                    request_data=request_data,
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    discovered_apps_metadata=discovered_apps_metadata,
-                    results=results,
-                    parsed_args=parsed_args,
-                    log_prefix=log_prefix
-                )
+                # NOTE: Skip for async skills - credits are charged by the Celery task
+                if not is_async_skill:
+                    await _charge_skill_credits(
+                        task_id=task_id,
+                        request_data=request_data,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        results=results,
+                        parsed_args=parsed_args,
+                        log_prefix=log_prefix
+                    )
                 
                 # STEP 3: Create embeds from results
                 # For multiple requests: Create one app_skill_use embed per request group
                 # For single request: Update the existing placeholder embed
+                # NOTE: Skip for async skills - the Celery task handles embed updates
                 updated_embed_data_list: List[Dict[str, Any]] = []
-                if cache_service and user_vault_key_id and directus_service:
+                if not is_async_skill and cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
 
@@ -2843,19 +2944,22 @@ async def handle_main_processing(
 
                 # Publish "finished" status with preview data
                 # This triggers WebSocket event to update the frontend embed preview
-                await _publish_skill_status(
-                    cache_service=cache_service,
-                    task_id=task_id,
-                    request_data=request_data,
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    status="finished",
-                    preview_data=preview_data if preview_data else None
-                )
+                # NOTE: Skip for async skills - status was already published in the async detection block above
+                if not is_async_skill:
+                    await _publish_skill_status(
+                        cache_service=cache_service,
+                        task_id=task_id,
+                        request_data=request_data,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        status="finished",
+                        preview_data=preview_data if preview_data else None
+                    )
 
                 # Publish embed_update events to notify frontend that embeds have been updated
                 # For multiple requests, publish one event per embed
-                if updated_embed_data_list and cache_service:
+                # NOTE: Skip for async skills - the Celery task handles WebSocket notifications
+                if not is_async_skill and updated_embed_data_list and cache_service:
                     try:
                         client = await cache_service.client
                         if client:

@@ -406,6 +406,97 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
         return []
 
 
+def truncate_message_history_to_token_budget(
+    message_history: List[Dict[str, Any]],
+    max_tokens: int,
+    avg_chars_per_token: float = 4.0,
+) -> List[Dict[str, Any]]:
+    """
+    Truncates message history to fit within a token budget, keeping the most recent messages.
+    
+    Uses a fast character-based token estimation (chars / avg_chars_per_token) to avoid
+    expensive tiktoken encoding on every message. The estimate is conservative - 
+    4 chars/token is the standard average for English text across GPT/Mistral tokenizers.
+    
+    The function iterates backwards from the most recent message (end of list) and
+    accumulates messages until the token budget would be exceeded. This ensures:
+    - The latest user message is always included
+    - Recent context is preserved for accurate summarization
+    - Older messages are dropped first when history exceeds the budget
+    
+    Args:
+        message_history: List of message dicts (internal format with 'role', 'content', etc.)
+        max_tokens: Maximum token budget for the returned history
+        avg_chars_per_token: Average characters per token for estimation (default 4.0)
+        
+    Returns:
+        Truncated list of messages (most recent) fitting within the token budget.
+        Returns the original list if it already fits.
+    """
+    if not message_history:
+        return message_history
+    
+    # Estimate total tokens using character count
+    total_estimated_tokens = 0
+    for msg in message_history:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            total_estimated_tokens += len(content) / avg_chars_per_token
+        elif isinstance(content, list):
+            # Multimodal content (list of content parts)
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text", "")
+                    if text:
+                        total_estimated_tokens += len(text) / avg_chars_per_token
+        # Add overhead per message (role, metadata, formatting ~4 tokens)
+        total_estimated_tokens += 4
+    
+    # If already within budget, return as-is
+    if total_estimated_tokens <= max_tokens:
+        logger.debug(
+            f"Message history ({len(message_history)} messages, ~{int(total_estimated_tokens)} tokens) "
+            f"fits within {max_tokens} token budget. No truncation needed."
+        )
+        return message_history
+    
+    # Iterate backwards (most recent first) and accumulate until budget is exceeded
+    accumulated_tokens = 0
+    cutoff_index = len(message_history)  # Start from end
+    
+    for i in range(len(message_history) - 1, -1, -1):
+        msg = message_history[i]
+        content = msg.get("content", "")
+        msg_tokens = 4  # Base overhead per message
+        
+        if isinstance(content, str):
+            msg_tokens += len(content) / avg_chars_per_token
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text", "")
+                    if text:
+                        msg_tokens += len(text) / avg_chars_per_token
+        
+        if accumulated_tokens + msg_tokens > max_tokens:
+            cutoff_index = i + 1  # This message doesn't fit, start from next one
+            break
+        
+        accumulated_tokens += msg_tokens
+        cutoff_index = i
+    
+    truncated = message_history[cutoff_index:]
+    dropped_count = len(message_history) - len(truncated)
+    
+    logger.info(
+        f"Truncated message history from {len(message_history)} to {len(truncated)} messages "
+        f"(dropped {dropped_count} oldest messages). "
+        f"Estimated tokens: ~{int(accumulated_tokens)}/{max_tokens} budget."
+    )
+    
+    return truncated
+
+
 def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Transforms message history from internal format to LLM API format.

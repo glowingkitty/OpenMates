@@ -1432,6 +1432,16 @@ async def _async_process_ai_skill_ask_task(
             ) if discovered_apps_metadata else []
             logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
 
+            # Build full message history for post-processing (same format as preprocessing)
+            # This allows post-processing to generate summaries from the full chat history
+            # instead of relying on a condensed 20-word summary from preprocessing
+            postprocessing_message_history = []
+            if request_data.message_history:
+                postprocessing_message_history = [
+                    msg.model_dump() if hasattr(msg, 'model_dump') else msg
+                    for msg in request_data.message_history
+                ]
+
             # Phase 1: Post-processing with category selection
             postprocessing_result = await handle_postprocessing(
                 task_id=task_id,
@@ -1439,6 +1449,7 @@ async def _async_process_ai_skill_ask_task(
                 assistant_response=aggregated_final_response,
                 chat_summary=chat_summary,
                 chat_tags=chat_tags,
+                message_history=postprocessing_message_history,
                 base_instructions=base_instructions,
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,

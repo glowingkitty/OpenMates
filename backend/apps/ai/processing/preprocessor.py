@@ -498,6 +498,18 @@ async def handle_preprocessing(
             # For non-user messages, append the dict representation
             sanitized_message_history.append(msg_dict)
     
+    # Truncate message history to fit within 120k token budget for summary generation
+    # This ensures the preprocessing LLM (Mistral Small, 128k context) receives as much
+    # conversation context as possible for generating accurate chat summaries,
+    # while leaving room for the system prompt, tool definitions, and output tokens.
+    # Uses fast character-based estimation (~4 chars/token) to avoid expensive tokenization.
+    from backend.apps.ai.utils.llm_utils import truncate_message_history_to_token_budget
+    PREPROCESSING_MAX_HISTORY_TOKENS = 120000
+    sanitized_message_history = truncate_message_history_to_token_budget(
+        sanitized_message_history,
+        max_tokens=PREPROCESSING_MAX_HISTORY_TOKENS,
+    )
+    
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")
         return PreprocessingResult(
