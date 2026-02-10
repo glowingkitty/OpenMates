@@ -2320,9 +2320,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Save to IndexedDB
                     // Do not "skip on existence": we need to persist streaming content updates
                     // (placeholders often exist before the first chunk arrives).
+                    // We save on: first chunk, final chunk, first-content-after-empty, and
+                    // every 5th chunk as a safety net so content isn't lost if the final
+                    // chunk is missed (e.g., WebSocket disconnect during streaming).
+                    const isPeriodicSave = chunk.sequence > 0 && chunk.sequence % 5 === 0;
                     const shouldPersistChunk =
                         isNewMessageInStream ||
                         chunk.is_final_chunk ||
+                        isPeriodicSave ||
                         (previousContentLengthForPersistence === 0 && newContentLengthForPersistence > 0);
 
                     if (shouldPersistChunk) {
@@ -4600,6 +4605,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
+        
+        // STREAM INTERRUPTION RECOVERY: When the WebSocket reconnects after a disconnect
+        // that interrupted an active AI stream, finalize any streaming messages in the current
+        // chat by saving their current content to the DB and marking them as 'synced'.
+        // The subsequent phased sync will deliver the server-persisted version.
+        const aiStreamInterruptedHandler = (async (event: CustomEvent) => {
+            const { chatId } = event.detail;
+            if (chatId !== currentChat?.chat_id) return;
+
+            console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming messages`);
+            for (const msg of currentMessages) {
+                if (msg.status === 'streaming') {
+                    const finalized = { ...msg, status: 'synced' as const };
+                    const msgIndex = currentMessages.findIndex(m => m.message_id === msg.message_id);
+                    if (msgIndex !== -1) {
+                        currentMessages[msgIndex] = finalized;
+                    }
+                    try {
+                        await chatDB.saveMessage(finalized);
+                        console.info(`[ActiveChat] Finalized interrupted streaming message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error finalizing interrupted message ${msg.message_id}:`, error);
+                    }
+                }
+            }
+            currentMessages = [...currentMessages];
+            if (chatHistoryRef) {
+                chatHistoryRef.updateMessages(currentMessages);
+            }
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
+
         const postProcessingHandler = handlePostProcessingCompleted as EventListenerCallback;
         chatSyncService.addEventListener('postProcessingCompleted', postProcessingHandler);
         console.debug('[ActiveChat] ✅ Registered postProcessingCompleted event listener');
@@ -4816,6 +4853,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
+            chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
             skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
             // Remove language change listener

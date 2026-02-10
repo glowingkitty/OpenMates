@@ -4,6 +4,7 @@ import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
+import { aiTypingStore } from "../stores/aiTypingStore";
 import type {
   OfflineChange,
   Message,
@@ -93,6 +94,34 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Dispatch event for components that need to know when WebSocket is ready
         this.dispatchEvent(new CustomEvent("webSocketConnected"));
+
+        // STREAM INTERRUPTION RECOVERY: If we had active AI streams when the
+        // WebSocket disconnected, the final chunk was likely lost. Clear typing
+        // indicators and notify ActiveChat so it can finalize interrupted messages.
+        // The subsequent phased sync will deliver the persisted version of the message.
+        if (this.activeAITasks.size > 0) {
+          console.warn(
+            `[ChatSyncService] Reconnected with ${this.activeAITasks.size} active AI task(s) - clearing interrupted streams`,
+          );
+          for (const [chatId, taskInfo] of Array.from(
+            this.activeAITasks.entries(),
+          )) {
+            console.info(
+              `[ChatSyncService] Clearing interrupted AI stream for chat ${chatId} (task: ${taskInfo.taskId})`,
+            );
+            aiTypingStore.clearTypingForChat(chatId);
+            this.dispatchEvent(
+              new CustomEvent("aiStreamInterrupted", {
+                detail: {
+                  chatId,
+                  taskId: taskInfo.taskId,
+                  userMessageId: taskInfo.userMessageId,
+                },
+              }),
+            );
+          }
+          this.activeAITasks.clear();
+        }
 
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();

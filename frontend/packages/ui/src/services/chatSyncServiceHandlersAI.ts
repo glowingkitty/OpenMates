@@ -9,6 +9,7 @@ import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
@@ -305,6 +306,11 @@ export function handleAIMessageUpdateImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AIMessageUpdatePayload,
 ): void {
+  // Receiving an AI streaming chunk is proof the WebSocket connection is alive.
+  // Notify the WebSocket service so it doesn't fire a pong timeout mid-stream
+  // (the server may delay its pong response while busy pushing chunks).
+  webSocketService.notifyDataActivity();
+
   // 🔍 STREAMING DEBUG: Log chunk reception with detailed info
   const contentLength = payload.full_content_so_far?.length || 0;
   const contentPreview =
