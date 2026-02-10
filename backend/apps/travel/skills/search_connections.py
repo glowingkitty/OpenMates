@@ -3,7 +3,7 @@ Search Connections skill for the travel app.
 
 Searches for transport connections (flights, and in the future trains/buses/boats)
 between locations. Uses a provider abstraction layer where each transport method
-is handled by a dedicated provider (DuffelProvider for flights,
+is handled by a dedicated provider (SerpApiProvider for flights via Google Flights,
 TransitousProvider for trains/buses).
 
 The skill follows the standard BaseSkill request/response pattern with the
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.travel.providers.airline_urls import get_airline_booking_url
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
-from backend.apps.travel.providers.duffel_provider import DuffelProvider
+from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class SearchConnectionsResponse(BaseModel):
         default_factory=list,
         description="List of result groups, each with 'id' and 'results' array",
     )
-    provider: str = Field(default="Duffel")
+    provider: str = Field(default="Google")
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -67,12 +67,12 @@ def _create_providers() -> List[BaseTransportProvider]:
     """
     Instantiate all available transport providers.
 
-    DuffelProvider handles flights (best LCC coverage, competitive pricing,
-    and airport coordinates in every response). TransitousProvider is a stub
-    for future train/bus support.
+    SerpApiProvider handles flights via Google Flights (comprehensive coverage,
+    real-time pricing, booking links). TransitousProvider is a stub for future
+    train/bus support.
     """
     return [
-        DuffelProvider(),
+        SerpApiProvider(),
         TransitousProvider(),
     ]
 
@@ -157,11 +157,8 @@ class SearchConnectionsSkill(BaseSkill):
         if not validated_requests:
             return SearchConnectionsResponse(results=[], error="No valid requests to process")
 
-        # 3. Create providers and inject secrets_manager
+        # 3. Create providers (SerpApiProvider loads its own API key from env)
         all_providers = _create_providers()
-        for provider in all_providers:
-            if isinstance(provider, DuffelProvider):
-                provider._secrets_manager = secrets_manager
 
         # 4. Process requests in parallel
         all_results = await self._process_requests_in_parallel(
@@ -184,7 +181,7 @@ class SearchConnectionsSkill(BaseSkill):
             response_class=SearchConnectionsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="Duffel",
+            provider="Google",
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )

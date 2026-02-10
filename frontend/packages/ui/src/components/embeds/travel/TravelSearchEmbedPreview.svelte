@@ -51,7 +51,7 @@
     id: string;
     /** Search query summary (e.g., "Munich → London, 2025-03-15") */
     query?: string;
-    /** Search provider (e.g., 'Duffel') */
+    /** Search provider (e.g., 'Google') */
     provider?: string;
     /** Processing status - must match SkillExecutionStatus */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
@@ -81,7 +81,7 @@
   
   // Local reactive state for embed data - these can be updated when embed data changes
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('Duffel');
+  let localProvider = $state<string>('Google');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<ConnectionResult[]>([]);
   let localErrorMessage = $state<string>('');
@@ -91,7 +91,7 @@
   // Initialize local state from props
   $effect(() => {
     localQuery = queryProp || '';
-    localProvider = providerProp || 'Duffel';
+    localProvider = providerProp || 'Google';
     localStatus = statusProp || 'processing';
     localResults = resultsProp || [];
     localTaskId = taskIdProp;

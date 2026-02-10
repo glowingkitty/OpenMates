@@ -87,7 +87,7 @@
   interface Props {
     /** Route summary query (e.g., "Munich → London") */
     query?: string;
-    /** Search provider (e.g., 'Duffel') */
+    /** Search provider (e.g., 'Google') */
     provider?: string;
     /** Pipe-separated embed IDs or array of embed IDs for child connection embeds */
     embedIds?: string | string[];
@@ -137,7 +137,7 @@
   
   // Local reactive state
   let localQuery = $state<string>(queryProp || '');
-  let localProvider = $state<string>(providerProp || 'Duffel');
+  let localProvider = $state<string>(providerProp || 'Google');
   let localEmbedIds = $state<string | string[] | undefined>(embedIds);
   let localResults = $state<unknown[]>(resultsProp || []);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
@@ -146,7 +146,7 @@
   // Keep local state in sync with prop changes
   $effect(() => {
     localQuery = queryProp || '';
-    localProvider = providerProp || 'Duffel';
+    localProvider = providerProp || 'Google';
     localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';

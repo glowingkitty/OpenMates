@@ -1,25 +1,25 @@
 search:
-  context: Skill name for travel search (flights, trains, routes between cities)
-  en: Search
-  de: Suche
-  zh: 搜索
-  es: Buscar
-  fr: Rechercher
-  pt: Pesquisar
-  ru: Поиск
-  ja: 検索
-  ko: 검색
-  it: Cerca
-  tr: Ara
-  vi: Tìm kiếm
-  id: Cari
-  pl: Szukaj
-  nl: Zoeken
-  ar: بحث
-  hi: खोज
-  th: ค้นหา
-  cs: Hledat
-  sv: Sök
+  context: Skill name for travel search connections (flights, trains, routes between cities)
+  en: Search connections
+  de: Verbindungen suchen
+  zh: 搜索连接
+  es: Buscar conexiones
+  fr: Rechercher des connexions
+  pt: Pesquisar conexões
+  ru: Поиск рейсов
+  ja: 接続を検索
+  ko: 연결 검색
+  it: Cerca collegamenti
+  tr: Bağlantı ara
+  vi: Tìm kết nối
+  id: Cari koneksi
+  pl: Szukaj połączeń
+  nl: Verbindingen zoeken
+  ar: بحث عن الاتصالات
+  hi: कनेक्शन खोजें
+  th: ค้นหาเส้นทาง
+  cs: Hledat spojení
+  sv: Sök förbindelser
   verified_by_human:
     - en
     - de

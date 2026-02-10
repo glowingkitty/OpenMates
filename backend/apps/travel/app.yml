@@ -91,7 +91,7 @@ skills:
     stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     providers:
-      - Duffel
+      - Google
     exclude_fields_for_llm:
       - type
       - hash

@@ -26,6 +26,7 @@ import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPrevie
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
+import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -606,7 +607,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Duffel",
+            provider: provider || "Google",
             status,
             results,
             taskId,
@@ -692,6 +693,31 @@ export class GroupRenderer implements EmbedRenderer {
             message: decodedContent?.message || "",
             emailNotificationWarning:
               decodedContent?.email_notification_warning || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle images.generate / images.generate_draft skill
+      if (
+        appId === "images" &&
+        (skillId === "generate" || skillId === "generate_draft")
+      ) {
+        const component = mount(ImageGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             taskId,
