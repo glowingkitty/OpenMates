@@ -412,7 +412,7 @@ async def _stream_google_maas_response(
                             yield delta["content"]
 
                         # Handle tool calls (streamed incrementally)
-                        if "tool_calls" in delta:
+                        if delta.get("tool_calls"):
                             for tc_delta in delta["tool_calls"]:
                                 tc_id = tc_delta.get("id", "")
                                 tc_index = tc_delta.get("index", 0)
