@@ -2263,14 +2263,14 @@ async def handle_main_processing(
                         )
                 
                 if is_async_skill:
-                    # For async skills, provide a minimal tool result for the LLM
-                    # This tells the LLM that the task has been dispatched successfully
+                    # For async skills, provide a clean tool result for the LLM.
+                    # IMPORTANT: Only include a human-readable message - do NOT include
+                    # embed_id, task_id, or other technical fields that the LLM might
+                    # echo back as raw JSON in its response to the user.
                     async_result = results[0]
                     tool_result_content_str = json.dumps({
-                        "status": "processing",
-                        "message": f"Image generation task has been dispatched and is processing. The result will appear as an embed when ready.",
-                        "embed_id": async_result.get("embed_id"),
-                        "task_id": async_result.get("task_id")
+                        "status": "success",
+                        "message": "The image is now being generated and will appear in the chat automatically when ready. Briefly acknowledge this to the user."
                     })
                     
                     # Publish "finished" skill status (the embed itself stays "processing")

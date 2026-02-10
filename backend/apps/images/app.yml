@@ -23,6 +23,9 @@ settings_and_memories:
           description: Optional description of the style or when to use it
       required:
         - name
+instructions:
+  - instruction: |
+      When you use the images-generate or images-generate_draft tool, the result will confirm the image is being generated. In your response, briefly acknowledge the request in a natural conversational way (e.g., "I'm generating that image for you now" or "Your image is being created"). Do NOT output any JSON, technical details, task IDs, embed IDs, or status codes. Keep it short and natural.
 skills:
   - id: generate
     name_translation_key: images.generate.text

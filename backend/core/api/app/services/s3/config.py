@@ -160,6 +160,9 @@ def get_allowed_origins(environment: str) -> List[str]:
     """
     Get allowed origins based on environment.
     
+    Includes both the deployed server origins and local development origins
+    so that S3 CORS allows cross-origin fetches from all valid frontends.
+    
     Args:
         environment: The environment ('development' or 'production')
         
@@ -168,16 +171,36 @@ def get_allowed_origins(environment: str) -> List[str]:
     """
     origins = []
     
-    # Add webapp URLs
+    # Add webapp URLs from shared config (typically localhost for dev)
     webapp_url = URLS_CONFIG.get('base', {}).get('webapp', {}).get(environment)
     if webapp_url:
         origins.append(webapp_url)
     
+    # Add deployed server origins that aren't in the shared config
+    # The shared config urls.yml has localhost for development, but the actual
+    # deployed dev server uses app.dev.openmates.org / dev.openmates.org
+    if environment == 'development':
+        deployed_dev_origins = [
+            'https://app.dev.openmates.org',
+            'https://dev.openmates.org',
+        ]
+        for origin in deployed_dev_origins:
+            if origin not in origins:
+                origins.append(origin)
+    elif environment == 'production':
+        deployed_prod_origins = [
+            'https://app.openmates.org',
+            'https://openmates.org',
+        ]
+        for origin in deployed_prod_origins:
+            if origin not in origins:
+                origins.append(origin)
+    
     # If no origins were found, add defaults
     if not origins:
         if environment == 'development':
-            origins = ['http://localhost:5173']
+            origins = ['http://localhost:5173', 'https://app.dev.openmates.org']
         else:
-            origins = ['https://openmates.org']
+            origins = ['https://openmates.org', 'https://app.openmates.org']
     
     return origins

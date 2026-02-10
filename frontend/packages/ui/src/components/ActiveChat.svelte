@@ -33,6 +33,7 @@
     import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
     import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
+    import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -5599,6 +5600,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             error={error || undefined}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'images' && (skillId === 'generate' || skillId === 'generate_draft')}
+                        <!-- Image Generate Fullscreen -->
+                        {@const imgContent = (embedFullscreenData.decodedContent || {}) as Record<string, unknown>}
+                        <ImageGenerateEmbedFullscreen
+                            prompt={String(imgContent.prompt || '')}
+                            model={String(imgContent.model || '')}
+                            aspectRatio={String(imgContent.aspect_ratio || '')}
+                            s3BaseUrl={String(imgContent.s3_base_url || '')}
+                            files={imgContent.files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
+                            aesKey={String(imgContent.aes_key || '')}
+                            aesNonce={String(imgContent.aes_nonce || '')}
+                            status={embedFullscreenData.embedData?.status || 'finished'}
+                            error={String(imgContent.error || '')}
+                            onClose={handleCloseEmbedFullscreen}
+                            embedId={embedFullscreenData.embedId}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
