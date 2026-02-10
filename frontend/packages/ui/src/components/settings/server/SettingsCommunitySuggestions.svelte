@@ -35,6 +35,7 @@
         category?: string;
         icon?: string;
         status?: string;
+        demo_chat_category?: string;  // 'for_everyone' or 'for_developers'
         created_at: string;
     }
 
@@ -69,6 +70,11 @@
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
     let selectedReplacementChatId = $state<string>('');
+    let selectedDemoChatCategory = $state<string>('for_everyone');  // Category to assign when approving
+
+    // Category limits for demo chats
+    const CATEGORY_LIMITS: Record<string, number> = { for_everyone: 6, for_developers: 4 };
+    const TOTAL_LIMIT = 10;
 
     // Translation progress tracking
     let translationProgress = $state<Map<string, TranslationProgress>>(new Map());
@@ -244,7 +250,8 @@
                 body: JSON.stringify({
                     demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
                     chat_id: suggestion.chat_id,
-                    replace_demo_chat_id: selectedReplacementChatId || null  // ID of demo chat to replace (null for auto-replacement)
+                    replace_demo_chat_id: selectedReplacementChatId || null,  // ID of demo chat to replace (null for auto-replacement)
+                    demo_chat_category: selectedDemoChatCategory  // Target audience: for_everyone or for_developers
                 })
             });
 
@@ -271,6 +278,7 @@
                 category: suggestion.category,
                 icon: suggestion.icon,
                 status: 'translating',
+                demo_chat_category: selectedDemoChatCategory,
                 created_at: new Date().toISOString()
             }];
 
@@ -677,6 +685,18 @@
     function getProgressInfo(demoChatId: string) {
         return translationProgress.get(demoChatId);
     }
+
+    /**
+     * Count demo chats by demo_chat_category
+     */
+    function getCategoryCount(cat: string): number {
+        return currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === cat).length;
+    }
+
+    /**
+     * Check if the selected category is at its limit
+     */
+    let isCategoryAtLimit = $derived(getCategoryCount(selectedDemoChatCategory) >= (CATEGORY_LIMITS[selectedDemoChatCategory] || 6));
 </script>
 
 <div class="community-suggestions">
@@ -689,8 +709,8 @@
     <!-- Current Demo Chats Section -->
     <div class="section">
         <div class="section-header">
-            <h3>Active Demo Chats ({currentDemoChats.length}/5)</h3>
-            <span class="limit-info">Maximum 5 demo chats allowed</span>
+            <h3>Active Demo Chats ({currentDemoChats.length}/{TOTAL_LIMIT})</h3>
+            <span class="limit-info">For everyone: {getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone} | For developers: {getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers}</span>
         </div>
 
         {#if currentDemoChats.length === 0}
@@ -716,6 +736,11 @@
                                         {:else}
                                             {demo.status}
                                         {/if}
+                                    </span>
+                                {/if}
+                                {#if demo.demo_chat_category}
+                                    <span class="audience-tag audience-{demo.demo_chat_category}">
+                                        {demo.demo_chat_category === 'for_developers' ? 'Developers' : 'Everyone'}
                                     </span>
                                 {/if}
                                 {#if demo.category}
@@ -805,7 +830,18 @@
                 {/if}
 
                 <div class="suggestion-actions">
-                    {#if currentDemoChats.length >= 5}
+                    <div class="category-selection">
+                        <label for="category-select-email" class="replacement-label">Target audience:</label>
+                        <select
+                            id="category-select-email"
+                            bind:value={selectedDemoChatCategory}
+                            class="replacement-select"
+                        >
+                            <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
+                            <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                        </select>
+                    </div>
+                    {#if isCategoryAtLimit}
                         <div class="replacement-selection">
                             <label for="replacement-select-email" class="replacement-label">Replace existing demo chat:</label>
                             <select
@@ -814,7 +850,7 @@
                                 class="replacement-select"
                             >
                                 <option value="">Select chat to replace...</option>
-                                {#each currentDemoChats as demo}
+                                {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
                                     <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
                                 {/each}
                             </select>
@@ -830,9 +866,9 @@
                     <button
                         onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
-                        disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
+                        disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
                     >
-                        {#if currentDemoChats.length >= 5}
+                        {#if isCategoryAtLimit}
                             {#if selectedReplacementChatId}
                                 Approve & Replace
                             {:else}
@@ -896,7 +932,18 @@
                         {/if}
 
                         <div class="suggestion-actions">
-                            {#if currentDemoChats.length >= 5}
+                            <div class="category-selection">
+                                <label for="category-select-{suggestion.chat_id}" class="replacement-label">Target audience:</label>
+                                <select
+                                    id="category-select-{suggestion.chat_id}"
+                                    bind:value={selectedDemoChatCategory}
+                                    class="replacement-select"
+                                >
+                                    <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
+                                    <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                                </select>
+                            </div>
+                            {#if isCategoryAtLimit}
                                 <div class="replacement-selection">
                                     <label for="replacement-select-{suggestion.chat_id}" class="replacement-label">Replace existing demo chat:</label>
                                     <select
@@ -905,7 +952,7 @@
                                         class="replacement-select"
                                     >
                                         <option value="">Select chat to replace...</option>
-                                        {#each currentDemoChats as demo}
+                                        {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
                                             <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
                                         {/each}
                                     </select>
@@ -921,9 +968,9 @@
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
                                 class="btn btn-primary btn-small"
-                                disabled={isSubmitting || (currentDemoChats.length >= 5 && !selectedReplacementChatId)}
+                                disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
                             >
-                                {#if currentDemoChats.length >= 5}
+                                {#if isCategoryAtLimit}
                                     {#if selectedReplacementChatId}
                                         Approve & Replace
                                     {:else}
@@ -947,8 +994,11 @@
             <ul>
                 <li>Demo chats are shown to non-authenticated users</li>
                 <li>They showcase OpenMates capabilities to potential users</li>
-                <li>Maximum of 5 demo chats to keep selection curated</li>
-                <li>Oldest demos are automatically removed when approving new ones</li>
+                <li>Maximum of 10 demo chats: 6 "For everyone" + 4 "For developers"</li>
+                <li>"For everyone" chats are shown in the main intro chat</li>
+                <li>"For developers" chats are shown in the developers intro chat</li>
+                <li>All demo chats appear in the "Example Chats" sidebar group</li>
+                <li>Oldest demos in the same category are replaced when at limit</li>
                 <li>Click a chat preview to view the conversation in a new window</li>
             </ul>
         </div>
@@ -1091,6 +1141,34 @@
         font-size: 0.8rem;
         font-weight: 500;
         white-space: nowrap;
+    }
+
+    .audience-tag {
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .audience-for_everyone {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .audience-for_developers {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .category-selection {
+        width: 100%;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        background: var(--color-background-tertiary);
+        border-radius: 6px;
+        border: 1px solid var(--color-border);
     }
 
     .header-tags {

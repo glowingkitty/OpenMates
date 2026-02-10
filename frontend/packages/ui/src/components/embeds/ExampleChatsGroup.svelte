@@ -31,16 +31,19 @@
   interface Props {
     /** Current chat ID to exclude from the list */
     excludeChatId?: string;
+    /** Filter by demo_chat_category - only show chats matching this audience */
+    demoChatCategory?: string;
   }
   
   let {
-    excludeChatId = 'demo-for-everyone'
+    excludeChatId = 'demo-for-everyone',
+    demoChatCategory = 'for_everyone'
   }: Props = $props();
   
   // Reference communityDemoStore for reactivity
   let _communityDemoStoreValue = $derived($communityDemoStore);
   
-  // Get community demo chats (example chats) to display, excluding current chat
+  // Get community demo chats (example chats) to display, filtered by demo_chat_category
   // These are already Chat objects with cleartext fields (title, category, icon, chat_summary)
   // IMPORTANT: Do NOT include INTRO_CHATS here - only community demos from the server
   let exampleChats = $derived((() => {
@@ -50,8 +53,13 @@
     // Get community demo chats from the store
     const communityChats = getAllCommunityDemoChats();
     
-    // Filter out the current chat and return as-is (already Chat objects)
-    return communityChats.filter(chat => chat.chat_id !== excludeChatId);
+    // Filter by demo_chat_category and exclude the current chat
+    return communityChats.filter(chat => {
+      if (chat.chat_id === excludeChatId) return false;
+      // Filter by demo_chat_category if specified
+      const chatCategory = chat.demo_chat_category || 'for_everyone';
+      return chatCategory === demoChatCategory;
+    });
   })());
   
   /**

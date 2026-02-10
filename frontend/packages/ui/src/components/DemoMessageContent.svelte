@@ -43,6 +43,7 @@
   // Placeholder constants
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
   const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
+  const DEV_EXAMPLE_CHATS_PLACEHOLDER = '[[dev_example_chats_group]]';
   const APP_STORE_PLACEHOLDER = '[[app_store_group]]';
   const SKILLS_PLACEHOLDER = '[[skills_group]]';
   const FOCUS_MODES_PLACEHOLDER = '[[focus_modes_group]]';
@@ -51,6 +52,7 @@
   // All supported placeholder tokens and their part types
   const PLACEHOLDERS = [
     EXAMPLE_CHATS_PLACEHOLDER,
+    DEV_EXAMPLE_CHATS_PLACEHOLDER,
     APP_STORE_PLACEHOLDER,
     SKILLS_PLACEHOLDER,
     FOCUS_MODES_PLACEHOLDER,
@@ -60,13 +62,14 @@
   /** Map placeholder strings to their part type identifiers */
   const PLACEHOLDER_TYPE_MAP: Record<string, string> = {
     [EXAMPLE_CHATS_PLACEHOLDER]: 'example_chats_group',
+    [DEV_EXAMPLE_CHATS_PLACEHOLDER]: 'dev_example_chats_group',
     [APP_STORE_PLACEHOLDER]: 'app_store_group',
     [SKILLS_PLACEHOLDER]: 'skills_group',
     [FOCUS_MODES_PLACEHOLDER]: 'focus_modes_group',
     [SETTINGS_MEMORIES_PLACEHOLDER]: 'settings_memories_group',
   };
   
-  type PartType = 'markdown' | 'example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group';
+  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -117,7 +120,9 @@
           {selectable}
         />
       {:else if part.type === 'example_chats_group'}
-        <ExampleChatsGroup excludeChatId={chatId} />
+        <ExampleChatsGroup excludeChatId={chatId} demoChatCategory="for_everyone" />
+      {:else if part.type === 'dev_example_chats_group'}
+        <ExampleChatsGroup excludeChatId={chatId} demoChatCategory="for_developers" />
       {:else if part.type === 'app_store_group'}
         <AppStoreGroup />
       {:else if part.type === 'skills_group'}

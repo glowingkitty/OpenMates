@@ -125,6 +125,7 @@ export interface Chat {
   follow_up_request_suggestions?: string | null; // Cleartext JSON array of follow-up suggestions for demo chats
   icon?: string | null; // Cleartext icon name for demo chats
   category?: string | null; // Cleartext category for demo chats
+  demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
 
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.

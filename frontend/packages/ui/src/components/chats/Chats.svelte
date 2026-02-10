@@ -1401,6 +1401,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const category = chatData.category || '';
 					const icon = chatData.icon || '';
 					const followUpSuggestions = chatData.follow_up_suggestions || [];
+					const demoChatCategory = chatData.demo_chat_category || demoChatMeta.demo_chat_category || 'for_everyone';
 
 					// ARCHITECTURE: Community demo messages are already decrypted server-side
 					// The API returns cleartext content directly (not encrypted)
@@ -1443,6 +1444,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
 						icon: icon || null,
 						category: category || null,
+						demo_chat_category: demoChatCategory || null,  // Target audience: for_everyone or for_developers
 						messages_v: parsedMessages.length,
 						title_v: 0,
 						draft_v: 0,

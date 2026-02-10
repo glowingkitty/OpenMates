@@ -13,10 +13,14 @@ There are **two types** of demo chats:
    - Fixed chat IDs: `demo-for-everyone`, `demo-for-developers`, etc.
 
 2. **Community Demos** (Dynamic/Server-fetched): User-submitted chats approved by admins
-   - Maximum of 5 published demos at a time
+   - Maximum of 10 published demos at a time (6 "for_everyone" + 4 "for_developers")
+   - Each demo has a `demo_chat_category` field: `"for_everyone"` or `"for_developers"`
    - Fetched from server, stored in-memory and IndexedDB
-   - Auto-generated IDs: `demo-1` through `demo-5` (based on creation order)
-   - When limit exceeded, oldest demo is automatically deleted
+   - Auto-generated IDs: `demo-1` through `demo-10` (based on creation order)
+   - When a category limit is exceeded, the oldest demo in that category is automatically replaced
+   - The "For Everyone" intro chat shows only `for_everyone` demos via `[[example_chats_group]]`
+   - The "For Developers" intro chat shows only `for_developers` demos via `[[dev_example_chats_group]]`
+   - All 10 demos appear together under "EXAMPLE CHATS" in the sidebar
 
 **Client-side ID Generation:** Community demos use ephemeral IDs generated client-side. Intro chats use fixed IDs defined in code.
 
@@ -29,6 +33,7 @@ Intro chats are static chats bundled with the application. They're perfect for o
 Create a new YAML file in `frontend/packages/ui/src/i18n/sources/demo_chats/`.
 
 **Reference Examples:**
+
 - [`welcome.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/welcome.yml) - Welcome chat with assistant message
 - [`what_makes_different.yml`](../../frontend/packages/ui/src/i18n/sources/demo_chats/what_makes_different.yml) - Chat with user question and assistant answer
 
@@ -41,10 +46,12 @@ Create a TypeScript file in `frontend/packages/ui/src/demo_chats/data/`.
 **Type Definition:** See [`frontend/packages/ui/src/demo_chats/types.ts`](../../frontend/packages/ui/src/demo_chats/types.ts) for the `DemoChat` interface.
 
 **Reference Examples:**
+
 - [`welcome.ts`](../../frontend/packages/ui/src/demo_chats/data/welcome.ts) - Chat starting with assistant message
 - [`what-makes-different.ts`](../../frontend/packages/ui/src/demo_chats/data/what-makes-different.ts) - Chat with user question and assistant answer
 
 **Important Fields:**
+
 - `chat_id`: Must be unique and start with `demo-` (e.g., `demo-example`)
 - `slug`: URL-friendly identifier (used in routes)
 - `title`/`description`: Use translation keys (e.g., `demo_chats.example_chat.title.text`), not hardcoded text
@@ -55,6 +62,7 @@ Create a TypeScript file in `frontend/packages/ui/src/demo_chats/data/`.
 ### Step 3: Add to Intro Chats Array
 
 Update [`frontend/packages/ui/src/demo_chats/index.ts`](../../frontend/packages/ui/src/demo_chats/index.ts):
+
 1. Import your new chat at the top
 2. Add it to the `INTRO_CHATS` array
 
@@ -102,6 +110,7 @@ This generates the `locales/{locale}.json` files that the app uses at runtime.
 **Design Decision:** Demo chats are public content that should be accessible to all users without authentication. Since the content is intentionally public, encryption is unnecessary and overcomplicating the architecture.
 
 When sharing with community:
+
 1. **Client decrypts locally** - User's browser decrypts the chat using the locally-stored encryption key
 2. **Sends plaintext** - Decrypted messages and embeds are sent to server
 3. **Server stores as cleartext** - Demo chat content is stored in cleartext for faster processing and easier access
@@ -142,6 +151,7 @@ When a user shares a chat with the community:
 ```
 
 **Key Details:**
+
 - Frontend decrypts the chat **locally** using the NaCl key from IndexedDB
 - Plaintext messages, embeds, and metadata are sent to backend
 - Backend stores everything directly as cleartext (no encryption needed)
@@ -172,12 +182,14 @@ When an admin reviews and approves the community suggestion:
 ```
 
 **Admin Preview:**
+
 - Admin loads demo chat metadata from `demo_chats` (stored as cleartext)
 - When previewing, demo messages are loaded and rendered in the UI
 - Admin sees the chat exactly as it will appear to users
 - No access to original user chat needed
 
 **Translation Task:**
+
 - Loads demo messages/embeds (stored as cleartext)
 - Translates to all target languages using LLM
 - Stores translations as cleartext
@@ -185,7 +197,9 @@ When an admin reviews and approves the community suggestion:
 - Sends notification to admin that translation is complete
 
 **Automatic Cleanup:**
-- After publishing, if more than 5 demos exist, the oldest is deleted
+
+- Per-category limits are enforced: 6 for `for_everyone`, 4 for `for_developers`
+- When approving a demo that would exceed the category limit, the admin selects which existing demo in that category to replace
 - Deletion includes: demo_chats entry, all demo_messages, demo_embeds, demo_chat_translations
 
 ### 3. Client Loading Demo Chats
@@ -210,11 +224,13 @@ When any user loads the web app:
 ```
 
 **Client ID Generation:**
+
 - Backend returns demos sorted by timestamp (newest first)
-- Client assigns IDs sequentially: `demo-1`, `demo-2`, `demo-3`, `demo-4`, `demo-5`
+- Client assigns IDs sequentially: `demo-1`, `demo-2`, ..., `demo-10`
 - IDs are ephemeral and regenerated on each load
 
 **Client Storage:**
+
 - **Memory**: `communityDemoStore` holds demo chats for current session
 - **IndexedDB**: `demo_chats_db` stores demo chats for offline access
 - **Content Hash**: Used to detect if server has newer content
@@ -235,6 +251,7 @@ When any user loads the web app:
 ```
 
 **Hash Comparison:**
+
 - Each demo chat has a `content_hash` field (SHA256 of all content)
 - Client sends array of local hashes in timestamp order
 - Server compares hashes by position (index 0 = newest, index 4 = oldest)
@@ -245,67 +262,68 @@ When any user loads the web app:
 
 ### demo_chats (Directus)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Directus internal ID (primary key) |
-| original_chat_id | UUID | Reference to source chat (for tracking only) |
-| title | string | Title (cleartext) |
-| summary | string | Summary (cleartext) |
-| category | string | Category (cleartext) |
-| icon | string | Icon name (cleartext) |
-| follow_up_suggestions | string | JSON array (cleartext) |
-| content_hash | string | SHA256 hash of all content (for change detection) |
-| status | string | pending_approval, translating, published, translation_failed |
-| approved_by_admin | UUID | Admin user ID who approved |
-| approved_at | datetime | When admin approved |
-| is_active | boolean | Whether demo is active (soft delete) |
-| created_at | datetime | Creation timestamp (used for ordering) |
-| updated_at | datetime | Last update timestamp |
+| Field                 | Type     | Description                                                            |
+| --------------------- | -------- | ---------------------------------------------------------------------- |
+| id                    | UUID     | Directus internal ID (primary key)                                     |
+| original_chat_id      | UUID     | Reference to source chat (for tracking only)                           |
+| title                 | string   | Title (cleartext)                                                      |
+| summary               | string   | Summary (cleartext)                                                    |
+| category              | string   | Category (cleartext)                                                   |
+| icon                  | string   | Icon name (cleartext)                                                  |
+| follow_up_suggestions | string   | JSON array (cleartext)                                                 |
+| demo_chat_category    | string   | Category: "for_everyone" or "for_developers" (default: "for_everyone") |
+| content_hash          | string   | SHA256 hash of all content (for change detection)                      |
+| status                | string   | pending_approval, translating, published, translation_failed           |
+| approved_by_admin     | UUID     | Admin user ID who approved                                             |
+| approved_at           | datetime | When admin approved                                                    |
+| is_active             | boolean  | Whether demo is active (soft delete)                                   |
+| created_at            | datetime | Creation timestamp (used for ordering)                                 |
+| updated_at            | datetime | Last update timestamp                                                  |
 
-**Ordering:** Demos are ordered by `created_at` DESC (newest first). The 5 most recent are returned to clients.
+**Ordering:** Demos are ordered by `created_at` DESC (newest first). The 10 most recent are returned to clients (6 for_everyone + 4 for_developers).
 
-**No Fixed IDs:** The `demo_id` field (demo-1, demo-2, etc.) is generated client-side based on position in the sorted list.
+**No Fixed IDs:** The `demo_id` field (demo-1 through demo-10) is generated client-side based on position in the sorted list.
 
 ### demo_messages (Directus)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Directus internal ID (primary key) |
-| demo_chat_id | UUID | Foreign key to demo_chats.id |
-| role | string | user or assistant |
-| content | string | Message content (TipTap JSON, cleartext) |
-| language | string | ISO language code (en, de, zh, etc.) |
+| Field               | Type     | Description                                    |
+| ------------------- | -------- | ---------------------------------------------- |
+| id                  | UUID     | Directus internal ID (primary key)             |
+| demo_chat_id        | UUID     | Foreign key to demo_chats.id                   |
+| role                | string   | user or assistant                              |
+| content             | string   | Message content (TipTap JSON, cleartext)       |
+| language            | string   | ISO language code (en, de, zh, etc.)           |
 | original_created_at | datetime | Original message timestamp (used for ordering) |
-| created_at | datetime | Demo message creation timestamp |
+| created_at          | datetime | Demo message creation timestamp                |
 
 **Note:** Messages are stored per-language. For 20 languages × 10 messages = 200 rows per demo. Messages are ordered by `original_created_at` to maintain conversation flow.
 
 ### demo_embeds (Directus)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Directus internal ID (primary key) |
-| demo_chat_id | UUID | Foreign key to demo_chats.id |
-| original_embed_id | string | Original embed ID (for reference) |
-| type | string | Embed type (web-website, app-skill-use, etc.) |
-| content | string | Embed content (cleartext) |
-| language | string | ISO language code (en, de, zh, etc.) |
-| original_created_at | datetime | Original embed timestamp (used for ordering) |
-| created_at | datetime | Demo embed creation timestamp |
+| Field               | Type     | Description                                   |
+| ------------------- | -------- | --------------------------------------------- |
+| id                  | UUID     | Directus internal ID (primary key)            |
+| demo_chat_id        | UUID     | Foreign key to demo_chats.id                  |
+| original_embed_id   | string   | Original embed ID (for reference)             |
+| type                | string   | Embed type (web-website, app-skill-use, etc.) |
+| content             | string   | Embed content (cleartext)                     |
+| language            | string   | ISO language code (en, de, zh, etc.)          |
+| original_created_at | datetime | Original embed timestamp (used for ordering)  |
+| created_at          | datetime | Demo embed creation timestamp                 |
 
 **Note:** Embeds are currently NOT translated (same content for all languages). Ordered by `original_created_at`.
 
 ### demo_chat_translations (Directus)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Directus internal ID (primary key) |
-| demo_chat_id | UUID | Foreign key to demo_chats.id |
-| language | string | ISO language code (en, de, zh, etc.) |
-| title | string | Translated title (cleartext) |
-| summary | string | Translated summary (cleartext) |
-| follow_up_suggestions | string | Translated suggestions JSON array (cleartext) |
-| created_at | datetime | Creation timestamp |
+| Field                 | Type     | Description                                   |
+| --------------------- | -------- | --------------------------------------------- |
+| id                    | UUID     | Directus internal ID (primary key)            |
+| demo_chat_id          | UUID     | Foreign key to demo_chats.id                  |
+| language              | string   | ISO language code (en, de, zh, etc.)          |
+| title                 | string   | Translated title (cleartext)                  |
+| summary               | string   | Translated summary (cleartext)                |
+| follow_up_suggestions | string   | Translated suggestions JSON array (cleartext) |
+| created_at            | datetime | Creation timestamp                            |
 
 **Note:** All translation content is stored as cleartext for faster processing. The server caches all translations for quick access.
 
@@ -313,13 +331,15 @@ When any user loads the web app:
 
 ### GET /v1/demo/chats
 
-List published demo chats (maximum 5, sorted by creation date).
+List published demo chats (maximum 10, sorted by creation date).
 
 **Query Parameters:**
+
 - `hashes` (optional): Comma-separated list of content hashes for change detection
 - `lang` (optional): Language code for translations (default: browser Accept-Language)
 
 **Response:**
+
 ```json
 {
   "demos": [
@@ -329,30 +349,36 @@ List published demo chats (maximum 5, sorted by creation date).
       "category": "travel",
       "icon": "plane",
       "follow_up_suggestions": ["What about hotels?", "Best time to visit?"],
+      "demo_chat_category": "for_everyone",
       "content_hash": "abc123...",
       "created_at": 1700000000,
-      "updated": true  // Only if hash comparison was requested
+      "updated": true // Only if hash comparison was requested
     }
   ]
 }
 ```
 
 **Notes:**
+
 - No `demo_id` in response - client generates based on position
-- Returns 5 most recent published demos
+- Returns up to 10 most recent published demos (6 for_everyone + 4 for_developers)
+- Each demo includes `demo_chat_category` ("for_everyone" or "for_developers")
 - If `hashes` parameter provided, only changed demos are returned
 
 ### GET /v1/demo/chat/{position}
 
-Get full demo chat data by position (0-4, where 0 = newest).
+Get full demo chat data by position (0-9, where 0 = newest).
 
 **Path Parameters:**
-- `position`: Integer 0-4 representing the demo position
+
+- `position`: Integer 0-9 representing the demo position
 
 **Query Parameters:**
+
 - `lang` (optional): Language code for translations
 
 **Response:**
+
 ```json
 {
   "title": "Planning a trip to Japan",
@@ -395,6 +421,7 @@ Get full demo chat data by position (0-4, where 0 = newest).
 Submit a chat as a community suggestion.
 
 **Request Body:**
+
 ```json
 {
   "chat_id": "user-chat-uuid",
@@ -424,6 +451,7 @@ Submit a chat as a community suggestion.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -436,16 +464,19 @@ Submit a chat as a community suggestion.
 
 ### POST /v1/admin/approve-demo-chat
 
-Approve a pending demo chat for translation and publication.
+Approve a pending demo chat for translation and publication. The admin must select a `demo_chat_category` to determine which intro chat will display this demo.
 
 **Request Body:**
+
 ```json
 {
-  "demo_chat_id": "uuid"
+  "demo_chat_id": "uuid",
+  "demo_chat_category": "for_everyone"
 }
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -458,6 +489,7 @@ Approve a pending demo chat for translation and publication.
 Soft-delete a demo chat (sets `is_active = false`).
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -472,8 +504,9 @@ Soft-delete a demo chat (sets `is_active = false`).
 See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the IndexedDB schema and implementation.
 
 **Key Points:**
-- Demos stored by position (0-4) not by fixed ID
-- Position 0 = newest, position 4 = oldest
+
+- Demos stored by position (0-9) not by fixed ID
+- Position 0 = newest, position 9 = oldest
 - Messages and embeds keyed by `[position, order]`
 - Content hash used for change detection
 
@@ -482,6 +515,7 @@ See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend
 See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the complete loading flow implementation.
 
 **Process:**
+
 1. Get local hashes from IndexedDB (ordered by position)
 2. Fetch demo list with hash comparison via `/v1/demo/chats?hashes=...`
 3. For each changed demo, fetch full data and update local DB
@@ -490,7 +524,7 @@ See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend
 
 ### Generating Display IDs
 
-Display IDs (`demo-1` through `demo-5`) are generated client-side based on position. See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the implementation.
+Display IDs (`demo-1` through `demo-10`) are generated client-side based on position. See [`frontend/packages/ui/src/demo_chats/communityDemoStore.ts`](../../frontend/packages/ui/src/demo_chats/communityDemoStore.ts) for the implementation.
 
 ## Security Considerations
 
@@ -506,7 +540,7 @@ Display IDs (`demo-1` through `demo-5`) are generated client-side based on posit
 
 6. **Admin Review Process**: All community suggestions require admin approval before being published. This prevents malicious or inappropriate content from being displayed.
 
-7. **Automatic Cleanup**: When more than 5 published demos exist, the oldest is automatically deleted (including all associated messages, embeds, and translations).
+7. **Automatic Cleanup**: Per-category limits (6 for_everyone, 4 for_developers) are enforced. When a category is full, the admin selects which existing demo in that category to replace during approval.
 
 ## Cache Strategy
 
@@ -518,17 +552,18 @@ All demo chats are fully cached in memory for instant loading without database q
 
 1. **Demo List Cache** (per language):
    - **Key**: `public:demo_chats:list:{lang}`
-   - **Value**: Array of 5 most recent demo chat metadata (decrypted)
+   - **Value**: Array of up to 10 demo chat metadata (decrypted), each including `demo_chat_category`
    - **TTL**: 1 hour
    - **Contains**: title, summary, category, icon, follow_up_suggestions, content_hash, created_at
 
 2. **Demo Full Data Cache** (per position and language):
-   - **Key**: `public:demo_chats:data:{position}:{lang}` (position 0-4)
+   - **Key**: `public:demo_chats:data:{position}:{lang}` (position 0-9)
    - **Value**: Full demo chat data including all messages and embeds (decrypted)
    - **TTL**: 1 hour
    - **Contains**: Complete chat data ready to send to client
 
 **Cache Warming:**
+
 - On application startup, cache is warmed for all 20 supported languages
 - Cache is automatically refreshed when:
   - A new demo is published (triggers full cache clear and rewarm)
@@ -536,6 +571,7 @@ All demo chats are fully cached in memory for instant loading without database q
   - TTL expires (lazy reload on next request)
 
 **Cache Flow:**
+
 ```
 Client Request → Check Cache →
   ├─ HIT: Return cached data (instant)
@@ -547,7 +583,7 @@ Client Request → Check Cache →
 - **Database**: `demo_chats_db` - Separate from user's chat database
 - **Persistence**: Until explicitly cleared or demo hash changes
 - **Offline Access**: Full demo content available offline
-- **Position-Based**: Demos stored by position (0-4) not by fixed ID
+- **Position-Based**: Demos stored by position (0-9) not by fixed ID
 - **Language-Specific**: Each language's translations stored separately
 
 ## Implementation Checklist

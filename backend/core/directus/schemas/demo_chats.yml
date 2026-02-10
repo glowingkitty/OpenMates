@@ -8,7 +8,12 @@ demo_chats:
       required: true
     category:
       type: textfield
-      note: "Category for grouping demo chats (cleartext)"
+      note: "Category for grouping demo chats (cleartext) - the mate/topic category (e.g., travel, cooking)"
+    demo_chat_category:
+      type: string
+      length: 20
+      default: "for_everyone"
+      note: "Target audience category: 'for_everyone' (shown in For Everyone intro chat, max 6) or 'for_developers' (shown in For Developers intro chat, max 4). Set by admin during approval."
     title:
       type: textfield
       note: "Title of the chat (cleartext)"
@@ -50,4 +55,4 @@ demo_chats:
     updated_at:
       type: timestamp
       note: "When the demo chat was last updated"
-  note: "Demo chats are ordered by created_at DESC. Client generates display IDs (demo-1 to demo-5) based on position. Maximum 5 published demos maintained automatically."
+  note: "Demo chats are ordered by created_at DESC. Client generates display IDs (demo-1 to demo-10) based on position. Maximum 10 published demos (6 for_everyone + 4 for_developers) maintained automatically. demo_chat_category determines which intro chat shows them."

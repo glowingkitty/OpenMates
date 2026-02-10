@@ -51,6 +51,7 @@ class ApproveDemoChatRequest(BaseModel):
     demo_chat_id: str  # UUID of the demo_chats entry
     chat_id: str  # The original chat_id (for verification)
     replace_demo_chat_id: str | None = None  # Optional: UUID of demo chat to replace (if at limit)
+    demo_chat_category: str = "for_everyone"  # Target audience: "for_everyone" (default, max 6) or "for_developers" (max 4)
 
 class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
@@ -217,10 +218,22 @@ async def approve_demo_chat(
     Updates an existing demo_chat entry (status='pending_approval') to
     status='translating' and triggers the translation task.
     
-    Enforces a limit of 5 published demo chats - if at limit, deactivates the oldest.
+    Enforces a limit of 10 published demo chats total (6 for_everyone + 4 for_developers).
+    Admin selects the demo_chat_category ("for_everyone" or "for_developers") during approval.
     """
     try:
         from datetime import datetime, timezone
+        
+        # Validate demo_chat_category
+        if payload.demo_chat_category not in ("for_everyone", "for_developers"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid demo_chat_category: {payload.demo_chat_category}. Must be 'for_everyone' or 'for_developers'."
+            )
+        
+        # Category-specific limits: 6 for "for_everyone", 4 for "for_developers"
+        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
+        category_limit = CATEGORY_LIMITS[payload.demo_chat_category]
         
         # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
         demo_chats = await directus_service.get_items("demo_chats", {
@@ -246,10 +259,13 @@ async def approve_demo_chat(
         # The demo_chat entry already contains all content needed for translation,
         # independent of whether the original user chat was deleted.
 
-        # Check current published demo chat count and remove one if at limit
+        # Check current published demo chat count for the selected category
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
-        if len(current_demos) >= 5:
-            # Determine which demo to replace
+        # Filter demos by the target category
+        category_demos = [d for d in current_demos if d.get("demo_chat_category") == payload.demo_chat_category]
+        
+        if len(category_demos) >= category_limit:
+            # Determine which demo to replace (from the same category)
             demo_to_remove_id = None
             
             if payload.replace_demo_chat_id:
@@ -263,10 +279,10 @@ async def approve_demo_chat(
                 demo_to_remove_id = payload.replace_demo_chat_id
                 logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
             else:
-                # No replacement specified - fall back to oldest demo
-                current_demos.sort(key=lambda x: x.get("created_at", ""))
-                demo_to_remove_id = current_demos[0]["id"]
-                logger.info(f"No replacement specified, defaulting to oldest demo chat {demo_to_remove_id}")
+                # No replacement specified - fall back to oldest demo in the same category
+                category_demos.sort(key=lambda x: x.get("created_at", ""))
+                demo_to_remove_id = category_demos[0]["id"]
+                logger.info(f"No replacement specified, defaulting to oldest '{payload.demo_chat_category}' demo chat {demo_to_remove_id}")
             
             logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
             
@@ -280,11 +296,12 @@ async def approve_demo_chat(
             await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
             logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
         
-        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID
+        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID, demo_chat_category
         updates = {
             "status": "translating",
             "approved_by_admin": admin_user.id,  # Store admin UUID
-            "approved_at": datetime.now(timezone.utc).isoformat()
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "demo_chat_category": payload.demo_chat_category  # Store target audience category
         }
         
         result = await directus_service.update_item("demo_chats", payload.demo_chat_id, updates, admin_required=True)
@@ -440,21 +457,24 @@ async def get_admin_demo_chats(
             if not summary:
                 summary = demo.get("summary")
 
-            # Get category and icon from original demo entry (stored as cleartext)
+            # Get category, icon, and demo_chat_category from original demo entry (stored as cleartext)
             category = demo.get("category")
             icon = demo.get("icon")
+            demo_chat_category = demo.get("demo_chat_category", "for_everyone")
             
             demo["title"] = title or "Demo Chat"
             demo["summary"] = summary
             demo["category"] = category
             demo["icon"] = icon
+            demo["demo_chat_category"] = demo_chat_category
             
             enriched_demos.append(demo)
 
         return {
             "demo_chats": enriched_demos,
             "count": len(enriched_demos),
-            "limit": 5
+            "limit": 10,
+            "category_limits": {"for_everyone": 6, "for_developers": 4}
         }
 
     except Exception as e:
