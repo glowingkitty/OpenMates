@@ -22,6 +22,7 @@ This document consolidates all coding standards, guidelines, and instructions fo
 14. [Docker Debug Mode](#docker-debug-mode)
 15. [Frontend Development Workflow](#frontend-development-workflow)
 16. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
+17. [Branch and Server Mapping](#branch-and-server-mapping)
 
 ---
 
@@ -953,6 +954,46 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 | `backend/apps/<app>/`         | `app-<app>`, `app-<app>-worker` (if exists) |
 | `backend/shared/`             | All services using shared code              |
 | Directus schema files         | `cms`, `cms-setup`                          |
+
+---
+
+## Branch and Server Mapping
+
+### Branch → Server Mapping
+
+| Branch | Server | URL |
+| ------ | ----------- | ---------------------------------------- |
+| `dev` | Development | `https://dev.openmates.org` / `https://api.dev.openmates.org` |
+| `main` | Production | `https://openmates.org` / `https://api.openmates.org` |
+
+- The **development server** runs the `dev` branch — this is where we work and push changes.
+- The **production server** runs the `main` branch — this is the live server that users interact with.
+
+### Debugging Production Issues
+
+When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`:
+
+```bash
+# View a specific file as it exists on the main (production) branch
+git show main:backend/core/api/app/routes/settings.py
+
+# View a specific file at a specific line range (pipe through head/tail)
+git show main:backend/core/api/app/routes/settings.py | head -200
+
+# Compare a file between dev and main
+git diff main..dev -- backend/core/api/app/routes/settings.py
+
+# Check what's different between dev and main overall
+git diff main..dev --stat
+
+# View the last few commits on main
+git log main --oneline -10
+```
+
+**Key rules:**
+- Always use `git show main:<path>` to check production code — **do NOT switch branches** on the dev server
+- Use the [Admin Debug API](#admin-debug-api-remote-debugging) with the **production base URL** (`https://api.openmates.org`) to inspect production data and logs
+- When a user reports a production issue, first check if the relevant code differs between `dev` and `main`
 
 ---
 

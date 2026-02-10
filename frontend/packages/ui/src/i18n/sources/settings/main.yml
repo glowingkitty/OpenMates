@@ -5335,6 +5335,29 @@ report_issue_success:
   cs: Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu!
   sv: Problem rapporterat framgångsrikt. Tack för din feedback!
   verified_by_human: []
+report_issue_success_with_id:
+  context: Success message after submitting issue report, includes the issue ID for reference. {issue_id} is replaced with the actual UUID.
+  en: "Issue reported successfully. Thank you for your feedback! Your issue ID: {issue_id}"
+  de: "Problem erfolgreich gemeldet. Vielen Dank für dein Feedback! Deine Problem-ID: {issue_id}"
+  zh: "问题已成功报告。感谢您的反馈！您的问题 ID：{issue_id}"
+  es: "Problema reportado con éxito. ¡Gracias por tus comentarios! Tu ID de problema: {issue_id}"
+  fr: "Problème signalé avec succès. Merci pour vos commentaires ! Votre ID de problème : {issue_id}"
+  pt: "Problema reportado com sucesso. Obrigado pelo seu feedback! Seu ID do problema: {issue_id}"
+  ru: "Проблема успешно отправлена. Спасибо за ваш отзыв! Ваш ID проблемы: {issue_id}"
+  ja: "問題が正常に報告されました。フィードバックありがとうございます！問題ID：{issue_id}"
+  ko: "문제가 성공적으로 신고되었습니다. 피드백을 주셔서 감사합니다! 문제 ID: {issue_id}"
+  it: "Problema segnalato con successo. Grazie per il tuo feedback! Il tuo ID problema: {issue_id}"
+  tr: "Sorun başarıyla bildirildi. Geri bildiriminiz için teşekkürler! Sorun ID'niz: {issue_id}"
+  vi: "Đã báo cáo sự cố thành công. Cảm ơn phản hồi của bạn! ID sự cố của bạn: {issue_id}"
+  id: "Masalah berhasil dilaporkan. Terima kasih atas masukan Anda! ID masalah Anda: {issue_id}"
+  pl: "Problem został pomyślnie zgłoszony. Dziękujemy za opinię! Twój ID problemu: {issue_id}"
+  nl: "Probleem succesvol gemeld. Bedankt voor uw feedback! Uw probleem-ID: {issue_id}"
+  ar: "تم الإبلاغ عن المشكلة بنجاح. شكرًا لملاحظاتك! معرف المشكلة الخاص بك: {issue_id}"
+  hi: "समस्या सफलतापूर्वक रिपोर्ट की गई। आपकी प्रतिक्रिया के लिए धन्यवाद! आपकी समस्या ID: {issue_id}"
+  th: "รายงานปัญหาสำเร็จแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ! ID ปัญหาของคุณ: {issue_id}"
+  cs: "Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu! Vaše ID problému: {issue_id}"
+  sv: "Problem rapporterat framgångsrikt. Tack för din feedback! Ditt problem-ID: {issue_id}"
+  verified_by_human: []
 report_issue_error:
   context: Error message when submitting issue report fails
   en: Failed to submit issue. Please try again later.

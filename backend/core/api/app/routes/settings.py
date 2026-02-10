@@ -1926,6 +1926,7 @@ class IssueReportResponse(BaseModel):
     """Response model for issue reporting endpoint"""
     success: bool
     message: str
+    issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
 
 
 @router.post(
@@ -2190,7 +2191,8 @@ async def report_issue(
         
         return IssueReportResponse(
             success=True,
-            message="Issue report submitted successfully. Thank you for your feedback!"
+            message="Issue report submitted successfully. Thank you for your feedback!",
+            issue_id=issue_id  # Return issue ID so frontend can display it for admin lookup
         )
         
     except Exception as e:

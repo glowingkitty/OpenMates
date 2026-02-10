@@ -166,6 +166,7 @@ async def _async_send_issue_report_email(
         issue_report_data = {
             'issue_report': {
                 'metadata': {
+                    'issue_id': issue_id,  # Database ID for easy admin lookup
                     'generated_at': datetime.now(timezone.utc).isoformat(),
                     'report_timestamp': timestamp,
                     'title': issue_title,
@@ -245,6 +246,7 @@ async def _async_send_issue_report_email(
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for issue report emails
+            "issue_id": issue_id,  # Include issue ID for easy admin lookup via /v1/admin/debug/issues/{issue_id}
             "issue_title": sanitized_title,
             "issue_description": sanitized_description,
             "chat_or_embed_url": sanitized_url,

@@ -381,6 +381,7 @@
             interface ApiResponse {
                 success?: boolean;
                 message?: string;
+                issue_id?: string;
                 detail?: Array<{
                     type: string;
                     loc: (string | number)[];
@@ -415,12 +416,19 @@
             }
             
             if (response.ok && data.success) {
-                // Show success message
-                successMessage = data.message || $text('settings.report_issue_success.text');
+                // Build success message with issue ID if available
+                const baseSuccessMessage = $text('settings.report_issue_success.text');
+                if (data.issue_id) {
+                    // Show success message with the issue ID for reference
+                    const issueIdMessage = $text('settings.report_issue_success_with_id.text').replace('{issue_id}', data.issue_id);
+                    successMessage = issueIdMessage;
+                } else {
+                    successMessage = data.message || baseSuccessMessage;
+                }
                 
                 // Show notification
                 notificationStore.success(
-                    $text('settings.report_issue_success.text'),
+                    baseSuccessMessage,
                     5000
                 );
                 

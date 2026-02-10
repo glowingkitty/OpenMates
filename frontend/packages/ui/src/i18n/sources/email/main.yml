@@ -3553,6 +3553,29 @@ issue_report.new_issue_reported:
   cs: Byl nahlášen nový problém
   sv: Ett nytt problem har rapporterats
   verified_by_human: []
+issue_report.issue_id_label:
+  context: Label for issue ID in issue report email, used by admin to look up issue details via API
+  en: Issue ID
+  de: Problem-ID
+  zh: 问题 ID
+  es: ID del problema
+  fr: ID du problème
+  pt: ID do problema
+  ru: ID проблемы
+  ja: 問題ID
+  ko: 문제 ID
+  it: ID problema
+  tr: Sorun ID
+  vi: ID sự cố
+  id: ID masalah
+  pl: ID problemu
+  nl: Probleem-ID
+  ar: معرف المشكلة
+  hi: समस्या ID
+  th: ID ปัญหา
+  cs: ID problému
+  sv: Problem-ID
+  verified_by_human: []
 issue_report.title_label:
   context: Label for issue title in email
   en: Title
