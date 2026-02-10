@@ -488,6 +488,44 @@
   }
   
   /**
+   * Handle share - opens share settings for this travel search embed
+   */
+  async function handleShare() {
+    try {
+      console.debug('[TravelSearchEmbedFullscreen] Opening share settings:', { embedId, query, provider });
+      
+      if (!embedId) {
+        console.warn('[TravelSearchEmbedFullscreen] No embed_id available - cannot create share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this travel search. Missing embed ID.');
+        return;
+      }
+      
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+      
+      const embedContext = {
+        type: 'travel_search',
+        embed_id: embedId,
+        query: query,
+        provider: provider
+      };
+      
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
+      navigateToSettings('shared/share', 'Share Travel Search', 'share', 'settings.share.share_travel_search.text');
+      settingsDeepLink.set('shared/share');
+      panelState.openSettings();
+      
+      console.debug('[TravelSearchEmbedFullscreen] Opened share settings');
+    } catch (error) {
+      console.error('[TravelSearchEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
+  }
+  
+  /**
    * Handle closing the entire search fullscreen
    */
   function handleMainClose() {
@@ -505,6 +543,7 @@
   skillId="search_connections"
   title=""
   onClose={handleMainClose}
+  onShare={handleShare}
   skillIconName="search"
   status={fullscreenStatus}
   {skillName}
