@@ -639,8 +639,8 @@ async def handle_main_processing(
                     f"User sent new message - auto-rejecting previous request."
                 )
                 
-                # Delete the pending context (auto-reject)
-                await cache_service.delete_pending_app_settings_memories_request(request_data.chat_id)
+                # Delete the pending context (auto-reject) and clean up per-user index
+                await cache_service.delete_pending_app_settings_memories_request(request_data.chat_id, user_id=request_data.user_id)
                 
                 # Notify client to dismiss the permission dialog
                 # Use Redis pub/sub to send to WebSocket
