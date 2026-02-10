@@ -3601,6 +3601,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
+        // SANITIZE STALE MESSAGE STATUSES: After a page reload, messages may be stuck
+        // in transient states ('processing', 'sending') in IndexedDB if the AI task was
+        // dispatched but the worker never picked it up, or the page was closed mid-flight.
+        // Reset these to 'synced' so the typing indicator doesn't show permanently.
+        // The phased sync will reconcile with the server's authoritative state.
+        let sanitizedCount = 0;
+        for (let i = 0; i < newMessages.length; i++) {
+            const msg = newMessages[i];
+            if (msg.role === 'user' && (msg.status === 'processing' || msg.status === 'sending')) {
+                newMessages[i] = { ...msg, status: 'synced' as const };
+                sanitizedCount++;
+                // Persist the corrected status to IndexedDB
+                chatDB.saveMessage(newMessages[i]).catch(error => {
+                    console.error(`[ActiveChat] Error sanitizing stale ${msg.status} message ${msg.message_id}:`, error);
+                });
+            }
+        }
+        if (sanitizedCount > 0) {
+            console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale user message(s) from processing/sending to synced`);
+        }
+
         currentMessages = newMessages;
 
         // Hide welcome screen when we have messages to display
@@ -4738,9 +4759,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chatId } = event.detail;
             if (chatId !== currentChat?.chat_id) return;
 
-            console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming messages`);
+            console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming/processing messages`);
             for (const msg of currentMessages) {
-                if (msg.status === 'streaming') {
+                // Recover messages stuck in 'streaming' (stream was interrupted mid-flight)
+                // AND 'processing' (task was dispatched but worker never picked it up / crashed)
+                if (msg.status === 'streaming' || (msg.role === 'user' && msg.status === 'processing')) {
                     const finalized = { ...msg, status: 'synced' as const };
                     const msgIndex = currentMessages.findIndex(m => m.message_id === msg.message_id);
                     if (msgIndex !== -1) {
@@ -4748,7 +4771,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                     try {
                         await chatDB.saveMessage(finalized);
-                        console.info(`[ActiveChat] Finalized interrupted streaming message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
+                        console.info(`[ActiveChat] Finalized interrupted ${msg.status} message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
                     } catch (error) {
                         console.error(`[ActiveChat] Error finalizing interrupted message ${msg.message_id}:`, error);
                     }
