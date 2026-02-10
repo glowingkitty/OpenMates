@@ -295,7 +295,7 @@
       booking_url: content.booking_url as string | undefined,
       booking_provider: content.booking_provider as string | undefined,
       booking_token: content.booking_token as string | undefined,
-      booking_context: content.booking_context as Record<string, string> | undefined,
+      booking_context: reconstructBookingContext(content),
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,
@@ -311,6 +311,34 @@
       co2_typical_kg: content.co2_typical_kg as number | undefined,
       co2_difference_percent: content.co2_difference_percent as number | undefined,
     };
+  }
+  
+  /**
+   * Reconstruct booking_context dict from TOON-flattened content.
+   * TOON flattening turns booking_context.departure_id → booking_context_departure_id.
+   * If content already has a native booking_context object (non-TOON path), return it as-is.
+   */
+  function reconstructBookingContext(content: Record<string, unknown>): Record<string, string> | undefined {
+    // If the content already has a native booking_context object, use it directly
+    if (content.booking_context && typeof content.booking_context === 'object' && !Array.isArray(content.booking_context)) {
+      return content.booking_context as Record<string, string>;
+    }
+    
+    // Reconstruct from TOON-flattened keys: booking_context_departure_id, booking_context_arrival_id, etc.
+    const contextKeys = [
+      'departure_id', 'arrival_id', 'outbound_date', 'return_date',
+      'type', 'currency', 'gl', 'adults', 'travel_class',
+    ];
+    const ctx: Record<string, string> = {};
+    let found = false;
+    for (const key of contextKeys) {
+      const val = content[`booking_context_${key}`];
+      if (val !== undefined && val !== null) {
+        ctx[key] = String(val);
+        found = true;
+      }
+    }
+    return found ? ctx : undefined;
   }
   
   /**

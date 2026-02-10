@@ -1013,7 +1013,9 @@ async def lookup_booking_url(
         "hl": "en",
     }
 
-    # Merge in the original search context params required by SerpAPI
+    # Merge in the original search context params required by SerpAPI.
+    # booking_context carries the original search parameters (departure_id,
+    # arrival_id, etc.) that SerpAPI requires alongside the booking_token.
     if booking_context:
         for key in (
             "departure_id", "arrival_id", "outbound_date", "return_date",
@@ -1022,6 +1024,21 @@ async def lookup_booking_url(
             val = booking_context.get(key)
             if val:
                 params[key] = val
+        # Verify that the critical departure_id parameter is present
+        if "departure_id" not in params:
+            logger.error(
+                "booking_context provided but missing 'departure_id'. "
+                f"Context keys: {list(booking_context.keys())}. "
+                "SerpAPI will reject this request."
+            )
+    else:
+        logger.warning(
+            "No booking_context provided for booking lookup. "
+            "Required search parameters (departure_id, arrival_id, etc.) "
+            "will be missing from the SerpAPI request. This likely means "
+            "the frontend did not receive booking_context from the embed data "
+            "(possible TOON encoding issue)."
+        )
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:

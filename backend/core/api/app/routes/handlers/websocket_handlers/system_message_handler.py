@@ -109,24 +109,30 @@ async def handle_chat_system_message_added(
         # Note: ChatMethods.get_chat_metadata is accessed via directus_service.chat
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
         if not chat_metadata:
-            logger.error(f"[SystemMessage] Chat {chat_id} not found in Directus")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Chat not found", "chat_id": chat_id}},
-                user_id,
-                device_fingerprint_hash
+            # Chat may not exist in Directus yet if this is a brand-new chat.
+            # The persist_new_chat_message task creates the chat asynchronously,
+            # so system messages (e.g., app-settings confirmations) can arrive
+            # before the chat record is persisted. This is a known race condition.
+            # Instead of returning a user-visible error, log a warning and proceed
+            # with persisting the system message — the chat record will be created
+            # shortly by the persistence task.
+            logger.warning(
+                f"[SystemMessage] Chat {chat_id} not found in Directus yet — "
+                f"likely a new chat whose persistence task hasn't completed. "
+                f"Proceeding with system message storage (message_id: {message_id})."
             )
-            return
         
-        # Verify chat owner using hashed_user_id
+        # Verify chat owner using hashed_user_id (only if chat already exists in Directus)
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        if chat_metadata.get("hashed_user_id") != hashed_user_id:
-            logger.warning(f"[SystemMessage] User {user_id} attempted to add message to chat {chat_id} owned by another user")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Not authorized to modify this chat", "chat_id": chat_id}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+        if chat_metadata:
+            if chat_metadata.get("hashed_user_id") != hashed_user_id:
+                logger.warning(f"[SystemMessage] User {user_id} attempted to add message to chat {chat_id} owned by another user")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Not authorized to modify this chat", "chat_id": chat_id}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
         
         # ZERO-KNOWLEDGE ARCHITECTURE: System messages are encrypted client-side with the chat key
         # The server stores the encrypted content directly in Directus without re-encryption.
