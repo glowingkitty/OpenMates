@@ -70,6 +70,13 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
   private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
+  // DATA INCONSISTENCY RE-SYNC: Batches chat IDs from chatDataInconsistency events
+  // and triggers a single requestChatContentBatch after a short debounce.
+  // This ensures immediate re-sync instead of waiting for the next full sync cycle.
+  private inconsistentChatIds: Set<string> = new Set();
+  private inconsistencyDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly INCONSISTENCY_DEBOUNCE_MS = 500; // Batch inconsistencies detected within 500ms
+
   constructor() {
     super();
     this.registerWebSocketHandlers();
@@ -519,6 +526,49 @@ export class ChatSynchronizationService extends EventTarget {
           err,
         );
       });
+
+    // DATA INCONSISTENCY RE-SYNC LISTENER
+    // When Phase 2/3 detects that local message count < server message count,
+    // a chatDataInconsistency event is dispatched. Without this listener, the
+    // fix only takes effect on the next full page reload (messages_v is reset
+    // to 0 in IndexedDB, but no immediate re-fetch is triggered).
+    // This listener batches affected chat IDs and triggers an immediate
+    // requestChatContentBatch via WebSocket to fetch the missing messages.
+    this.addEventListener("chatDataInconsistency", ((event: CustomEvent) => {
+      const { chatId } = event.detail as {
+        chatId: string;
+        localCount: number;
+        serverCount: number;
+        phase: string;
+      };
+      console.info(
+        `[ChatSyncService] Queuing immediate re-sync for inconsistent chat ${chatId} (from ${event.detail.phase})`,
+      );
+      this.inconsistentChatIds.add(chatId);
+
+      // Debounce: Phase 2/3 may detect multiple inconsistencies in quick succession
+      // as they iterate through chats. Batch them into a single WebSocket request.
+      if (this.inconsistencyDebounceTimer) {
+        clearTimeout(this.inconsistencyDebounceTimer);
+      }
+      this.inconsistencyDebounceTimer = setTimeout(() => {
+        const chatIds = Array.from(this.inconsistentChatIds);
+        this.inconsistentChatIds.clear();
+        this.inconsistencyDebounceTimer = null;
+
+        if (chatIds.length > 0) {
+          console.info(
+            `[ChatSyncService] Triggering immediate re-sync for ${chatIds.length} inconsistent chat(s): ${chatIds.join(", ")}`,
+          );
+          this.requestChatContentBatch(chatIds).catch((error) => {
+            console.error(
+              "[ChatSyncService] Failed to request re-sync for inconsistent chats:",
+              error,
+            );
+          });
+        }
+      }, this.INCONSISTENCY_DEBOUNCE_MS);
+    }) as EventListener);
   }
 
   // --- Getters/Setters for handlers ---

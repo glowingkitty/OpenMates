@@ -1159,22 +1159,21 @@
 			const handlePhase1ChatLoad = async () => {
 				console.debug('[+page.svelte] Phase 1 complete, loading last opened chat');
 				await handleSyncCompleteAndLoadChat();
-			};
 
-			// Mark sync completed when phasedSyncComplete fires (after all phases)
-			const handleSyncCompleted = () => {
-				console.debug('[+page.svelte] Full sync complete, marking as completed');
+				// UX IMPROVEMENT: Mark sync as completed after Phase 1 so that
+				// NewChatSuggestions and the "Resume last chat" card appear immediately.
+				// Previously gated behind phasedSyncComplete (after ALL phases), which
+				// caused a delay where users saw "Loading chats..." for several seconds.
+				// Phase 2/3 data (more chats, updated suggestions) flows in silently.
 				phasedSyncState.markSyncCompleted();
+				console.debug('[+page.svelte] Marked sync as completed after Phase 1 for faster UX');
 			};
 
 			// Only Phase 1 triggers chat loading - this is the "last opened chat" data
 			chatSyncService.addEventListener('phase_1_last_chat_ready', handlePhase1ChatLoad);
 
-			// phasedSyncComplete marks overall sync as done (for sync status UI)
-			chatSyncService.addEventListener('phasedSyncComplete', handleSyncCompleted);
-
 			console.debug(
-				'[+page.svelte] Sync event listeners registered (Phase 1 for chat load, phasedSyncComplete for status)'
+				'[+page.svelte] Sync event listeners registered (Phase 1 for chat load + sync completion)'
 			);
 		}
 

@@ -546,7 +546,11 @@ export interface ServerBatchMessageFormat {
 }
 
 export interface ChatContentBatchResponsePayload {
-  messages_by_chat_id: Record<string, ServerBatchMessageFormat[]>; // Use the new specific type here
+  messages_by_chat_id: Record<string, (ServerBatchMessageFormat | string)[]>; // Messages may be JSON strings (from sync cache) or objects
+  versions_by_chat_id?: Record<
+    string,
+    { messages_v: number; server_message_count: number }
+  >; // Per-chat version info for updating local tracking
 }
 
 export interface OfflineSyncCompletePayload {
