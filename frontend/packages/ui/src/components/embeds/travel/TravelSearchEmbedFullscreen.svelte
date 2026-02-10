@@ -51,6 +51,20 @@
     hash?: string;
     /** Full leg data for detailed fullscreen view */
     legs?: LegData[];
+    /** Rich metadata from Google Flights */
+    airline_logo?: string;
+    co2_kg?: number;
+    co2_typical_kg?: number;
+    co2_difference_percent?: number;
+  }
+  
+  /** Layover data between segments */
+  interface LayoverData {
+    airport: string;
+    airport_code?: string;
+    duration?: string;
+    duration_minutes?: number;
+    overnight?: boolean;
   }
   
   /** Leg data for fullscreen detail view */
@@ -63,6 +77,7 @@
     duration: string;
     stops: number;
     segments: SegmentData[];
+    layovers?: LayoverData[];
   }
   
   /** Segment data within a leg */
@@ -79,6 +94,13 @@
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    /** Rich metadata from Google Flights */
+    airplane?: string;
+    airline_logo?: string;
+    legroom?: string;
+    travel_class?: string;
+    extensions?: string[];
+    often_delayed?: boolean;
   }
   
   /**
@@ -205,8 +227,23 @@
               arrival_latitude: seg.arrival_latitude as number | undefined,
               arrival_longitude: seg.arrival_longitude as number | undefined,
               duration: (seg.duration as string) || '',
+              airplane: seg.airplane as string | undefined,
+              airline_logo: seg.airline_logo as string | undefined,
+              legroom: seg.legroom as string | undefined,
+              travel_class: seg.travel_class as string | undefined,
+              extensions: Array.isArray(seg.extensions) ? seg.extensions as string[] : undefined,
+              often_delayed: seg.often_delayed as boolean | undefined,
             }))
           : reconstructSegments(content, i),
+        layovers: Array.isArray(leg.layovers)
+          ? (leg.layovers as Record<string, unknown>[]).map(lay => ({
+              airport: (lay.airport as string) || '',
+              airport_code: lay.airport_code as string | undefined,
+              duration: lay.duration as string | undefined,
+              duration_minutes: lay.duration_minutes as number | undefined,
+              overnight: lay.overnight as boolean | undefined,
+            }))
+          : undefined,
       }));
     } else {
       // Try to reconstruct legs from TOON-flattened format (legs_0_origin, legs_0_destination, etc.)
@@ -265,6 +302,10 @@
       carrier_codes,
       hash: content.hash as string | undefined,
       legs,
+      airline_logo: content.airline_logo as string | undefined,
+      co2_kg: content.co2_kg as number | undefined,
+      co2_typical_kg: content.co2_typical_kg as number | undefined,
+      co2_difference_percent: content.co2_difference_percent as number | undefined,
     };
   }
   
@@ -315,6 +356,11 @@
         arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
         arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
         duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
+        airplane: content[`legs_${legIndex}_segments_${j}_airplane`] as string | undefined,
+        airline_logo: content[`legs_${legIndex}_segments_${j}_airline_logo`] as string | undefined,
+        legroom: content[`legs_${legIndex}_segments_${j}_legroom`] as string | undefined,
+        travel_class: content[`legs_${legIndex}_segments_${j}_travel_class`] as string | undefined,
+        often_delayed: content[`legs_${legIndex}_segments_${j}_often_delayed`] as boolean | undefined,
       });
     }
     return segments;

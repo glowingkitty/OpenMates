@@ -34,6 +34,22 @@
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    /** Rich metadata from Google Flights */
+    airplane?: string;
+    airline_logo?: string;
+    legroom?: string;
+    travel_class?: string;
+    extensions?: string[];
+    often_delayed?: boolean;
+  }
+  
+  /** Layover data between segments */
+  interface LayoverData {
+    airport: string;
+    airport_code?: string;
+    duration?: string;
+    duration_minutes?: number;
+    overnight?: boolean;
   }
   
   /** Leg data */
@@ -46,6 +62,7 @@
     duration: string;
     stops: number;
     segments: SegmentData[];
+    layovers?: LayoverData[];
   }
   
   /** Connection data */
@@ -70,6 +87,11 @@
     carrier_codes?: string[];
     hash?: string;
     legs?: LegData[];
+    /** Rich metadata from Google Flights */
+    airline_logo?: string;
+    co2_kg?: number;
+    co2_typical_kg?: number;
+    co2_difference_percent?: number;
   }
   
   interface Props {
@@ -600,6 +622,18 @@
           <div class="carriers">{connection.carriers.join(', ')}</div>
         {/if}
         
+        <!-- CO2 emissions -->
+        {#if connection.co2_kg != null}
+          <div class="co2-info" class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0} class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}>
+            <span class="co2-value">{connection.co2_kg} kg CO2</span>
+            {#if connection.co2_difference_percent != null}
+              <span class="co2-diff">
+                {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
+              </span>
+            {/if}
+          </div>
+        {/if}
+        
         <!-- Booking CTA button - links directly to the airline's website -->
         {#if bookingUrl && bookingProvider}
           <button class="cta-button" onclick={handleBooking}>
@@ -644,12 +678,33 @@
                     <!-- Flight/train info bar -->
                     <div class="segment-info">
                       <div class="timeline-line"></div>
-                      <div class="segment-details">
-                        <span class="carrier-name">{segment.carrier}</span>
-                        {#if segment.number}
-                          <span class="flight-number">{segment.number}</span>
+                      <div class="segment-details-block">
+                        <div class="segment-details">
+                          {#if segment.airline_logo}
+                            <img class="segment-airline-logo" src={segment.airline_logo} alt={segment.carrier} />
+                          {/if}
+                          <span class="carrier-name">{segment.carrier}</span>
+                          {#if segment.number}
+                            <span class="flight-number">{segment.number}</span>
+                          {/if}
+                          <span class="segment-duration">{segment.duration}</span>
+                        </div>
+                        {#if segment.airplane || segment.legroom || segment.travel_class}
+                          <div class="segment-meta">
+                            {#if segment.airplane}
+                              <span>{segment.airplane}</span>
+                            {/if}
+                            {#if segment.travel_class}
+                              <span>{segment.travel_class}</span>
+                            {/if}
+                            {#if segment.legroom}
+                              <span>{segment.legroom}</span>
+                            {/if}
+                          </div>
                         {/if}
-                        <span class="segment-duration">{segment.duration}</span>
+                        {#if segment.often_delayed}
+                          <div class="segment-warning">Often delayed by 30+ min</div>
+                        {/if}
                       </div>
                     </div>
                     
@@ -662,9 +717,24 @@
                     
                     <!-- Layover indicator between segments -->
                     {#if segIdx < leg.segments.length - 1}
+                      {@const layover = leg.layovers?.[segIdx]}
                       <div class="layover">
                         <div class="layover-line"></div>
-                        <span class="layover-label">Connection</span>
+                        <div class="layover-info">
+                          <span class="layover-label">
+                            {#if layover?.duration}
+                              {layover.duration} layover
+                            {:else}
+                              Connection
+                            {/if}
+                          </span>
+                          {#if layover?.airport}
+                            <span class="layover-airport">{layover.airport}{layover.airport_code ? ` (${layover.airport_code})` : ''}</span>
+                          {/if}
+                          {#if layover?.overnight}
+                            <span class="layover-overnight">Overnight</span>
+                          {/if}
+                        </div>
                       </div>
                     {/if}
                   </div>
@@ -771,6 +841,37 @@
     font-size: 14px;
     color: var(--color-grey-60);
     margin-top: 8px;
+  }
+  
+  /* CO2 emissions display */
+  .co2-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background-color: var(--color-grey-15, rgba(0, 0, 0, 0.05));
+    font-size: 12px;
+    color: var(--color-grey-60);
+  }
+  
+  .co2-info.co2-good {
+    background-color: rgba(34, 197, 94, 0.1);
+    color: var(--color-success, #16a34a);
+  }
+  
+  .co2-info.co2-bad {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--color-error, #dc2626);
+  }
+  
+  .co2-value {
+    font-weight: 500;
+  }
+  
+  .co2-diff {
+    opacity: 0.8;
   }
   
   /* CTA Booking Button */
@@ -970,13 +1071,27 @@
     justify-self: center;
   }
   
+  .segment-details-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
+  }
+  
   .segment-details {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
     color: var(--color-grey-60);
-    padding: 4px 0;
+  }
+  
+  .segment-airline-logo {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    object-fit: contain;
+    flex-shrink: 0;
   }
   
   .carrier-name {
@@ -990,6 +1105,26 @@
   
   .segment-duration {
     color: var(--color-grey-50);
+  }
+  
+  .segment-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--color-grey-50);
+  }
+  
+  .segment-meta span:not(:last-child)::after {
+    content: '·';
+    margin-left: 6px;
+    color: var(--color-grey-40);
+  }
+  
+  .segment-warning {
+    font-size: 11px;
+    color: var(--color-warning, #f59e0b);
+    font-weight: 500;
   }
   
   /* Layover between segments */
@@ -1016,12 +1151,31 @@
     grid-column: 2;
   }
   
-  .layover-label {
+  .layover-info {
     grid-column: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  
+  .layover-label {
     font-size: 12px;
     color: var(--color-warning, #f59e0b);
     font-weight: 500;
     font-style: italic;
+  }
+  
+  .layover-airport {
+    font-size: 11px;
+    color: var(--color-grey-50);
+    font-style: normal;
+  }
+  
+  .layover-overnight {
+    font-size: 11px;
+    color: var(--color-error, #dc2626);
+    font-weight: 500;
+    font-style: normal;
   }
   
   /* ===========================================

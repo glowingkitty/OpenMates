@@ -35,6 +35,23 @@ class SegmentResult(BaseModel):
     arrival_latitude: Optional[float] = Field(default=None, description="Arrival location latitude")
     arrival_longitude: Optional[float] = Field(default=None, description="Arrival location longitude")
     duration: str = Field(description="Segment duration (e.g., '2h 30m')")
+    # Rich metadata from Google Flights via SerpAPI
+    airplane: Optional[str] = Field(default=None, description="Aircraft type (e.g., 'Airbus A321neo', 'Boeing 787')")
+    airline_logo: Optional[str] = Field(default=None, description="URL to airline logo image")
+    legroom: Optional[str] = Field(default=None, description="Legroom info (e.g., '29 in', '32 in')")
+    travel_class: Optional[str] = Field(default=None, description="Actual cabin class (e.g., 'Economy', 'Business')")
+    extensions: Optional[List[str]] = Field(default=None, description="Tags/features (e.g., 'Wi-Fi for a fee', 'In-seat USB outlet')")
+    often_delayed: Optional[bool] = Field(default=None, description="True if flight is often delayed by >30 min")
+
+
+class LayoverResult(BaseModel):
+    """Layover between segments within a leg."""
+
+    airport: str = Field(description="Layover airport name (e.g., 'Barcelona-El Prat Airport')")
+    airport_code: Optional[str] = Field(default=None, description="IATA code of the layover airport (e.g., 'BCN')")
+    duration: Optional[str] = Field(default=None, description="Layover duration (e.g., '2h 15m')")
+    duration_minutes: Optional[int] = Field(default=None, description="Layover duration in minutes")
+    overnight: Optional[bool] = Field(default=None, description="True if layover spans overnight")
 
 
 class LegResult(BaseModel):
@@ -48,6 +65,7 @@ class LegResult(BaseModel):
     duration: str = Field(description="Total leg duration (e.g., '2h 30m')")
     stops: int = Field(description="Number of intermediate stops/transfers")
     segments: List[SegmentResult] = Field(default_factory=list, description="Ordered list of segments")
+    layovers: Optional[List[LayoverResult]] = Field(default=None, description="Layover details between segments")
 
 
 class ConnectionResult(BaseModel):
@@ -64,6 +82,11 @@ class ConnectionResult(BaseModel):
         default=None, description="IATA code of the validating/ticketing airline (e.g., 'LH')"
     )
     legs: List[LegResult] = Field(default_factory=list, description="Ordered list of trip legs")
+    # Rich metadata from Google Flights via SerpAPI
+    airline_logo: Optional[str] = Field(default=None, description="URL to primary airline logo image")
+    co2_kg: Optional[int] = Field(default=None, description="CO2 emissions in kg for this connection")
+    co2_typical_kg: Optional[int] = Field(default=None, description="Typical CO2 emissions in kg for this route")
+    co2_difference_percent: Optional[int] = Field(default=None, description="CO2 difference vs typical (e.g., -7 = 7% less)")
 
 
 # ---------------------------------------------------------------------------

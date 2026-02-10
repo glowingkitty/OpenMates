@@ -18,7 +18,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.travel.providers.airline_urls import get_airline_booking_url
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
@@ -316,45 +315,22 @@ class SearchConnectionsSkill(BaseSkill):
                 result_dict["carriers"] = list(carriers)
                 result_dict["carrier_codes"] = list(carrier_codes)
 
-                # Build direct airline booking URL.
-                # Prefer the operating carrier when all segments share the
-                # same carrier code (single-airline itinerary), since users
-                # expect to book on the airline they're actually flying.
-                # Only fall back to validating_airline_code for codeshare /
-                # interline itineraries where segment carriers differ.
-                if connection.transport_method == "airplane" and first_leg.segments:
-                    origin_iata = first_leg.segments[0].departure_station
-                    dest_iata = first_leg.segments[-1].arrival_station
-                    dep_date = first_leg.departure[:10] if first_leg.departure else ""
+                # Booking URL: use the provider-supplied URL (fetched via
+                # SerpAPI booking_token for the cheapest results). The provider
+                # converts POST-based Google redirect URLs to clickable GET URLs.
+                if connection.booking_url:
+                    result_dict["booking_url"] = connection.booking_url
+                    result_dict["booking_provider"] = connection.booking_provider
 
-                    # Collect all unique operating carrier codes across legs
-                    all_seg_carriers = set()
-                    for leg in connection.legs:
-                        for seg in leg.segments:
-                            if seg.carrier_code:
-                                all_seg_carriers.add(seg.carrier_code)
-
-                    if len(all_seg_carriers) == 1:
-                        # Single airline: use operating carrier
-                        booking_carrier = all_seg_carriers.pop()
-                    else:
-                        # Mixed airlines: prefer validating airline
-                        booking_carrier = (
-                            connection.validating_airline_code
-                            or first_leg.segments[0].carrier_code
-                            or ""
-                        )
-                    if origin_iata and dest_iata and dep_date and booking_carrier:
-                        booking_url, airline_name = get_airline_booking_url(
-                            carrier_code=booking_carrier,
-                            origin_iata=origin_iata,
-                            destination_iata=dest_iata,
-                            departure_date=dep_date,
-                            passengers=passengers,
-                        )
-                        if booking_url:
-                            result_dict["booking_url"] = booking_url
-                            result_dict["booking_provider"] = airline_name
+            # Rich metadata from Google Flights (CO2, airline logo)
+            if connection.airline_logo:
+                result_dict["airline_logo"] = connection.airline_logo
+            if connection.co2_kg is not None:
+                result_dict["co2_kg"] = connection.co2_kg
+            if connection.co2_typical_kg is not None:
+                result_dict["co2_typical_kg"] = connection.co2_typical_kg
+            if connection.co2_difference_percent is not None:
+                result_dict["co2_difference_percent"] = connection.co2_difference_percent
 
             results.append(result_dict)
 

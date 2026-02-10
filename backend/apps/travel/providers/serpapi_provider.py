@@ -16,16 +16,17 @@ Key features:
 API docs: https://serpapi.com/google-flights-api
 """
 
+import asyncio
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List, Optional, Tuple
 import httpx
 
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
     ConnectionResult,
+    LayoverResult,
     LegResult,
     SegmentResult,
 )
@@ -48,6 +49,93 @@ _TRAVEL_CLASS_MAP: Dict[str, str] = {
     "business": "3",
     "first": "4",
 }
+
+# Number of cheapest results for which we auto-fetch booking URLs.
+# Each booking lookup costs 1 extra SerpAPI credit (~$0.025).
+MAX_BOOKING_LOOKUPS = 3
+
+# Map IATA airport codes to Google Flights gl (geolocation) country codes.
+# Used to set the gl parameter so SerpAPI returns results matching the
+# departure country (same as visiting google.com/flights from that country).
+_IATA_TO_GL: Dict[str, str] = {
+    # Germany
+    "BER": "de", "MUC": "de", "FRA": "de", "HAM": "de", "DUS": "de",
+    "CGN": "de", "STR": "de", "NUE": "de", "HAJ": "de", "LEJ": "de",
+    "DRS": "de", "DTM": "de", "PAD": "de", "FMO": "de", "SCN": "de",
+    # UK
+    "LHR": "uk", "LGW": "uk", "STN": "uk", "LTN": "uk", "LCY": "uk",
+    "MAN": "uk", "EDI": "uk", "BHX": "uk", "GLA": "uk", "BRS": "uk",
+    # France
+    "CDG": "fr", "ORY": "fr", "NCE": "fr", "LYS": "fr", "MRS": "fr",
+    "TLS": "fr", "BOD": "fr",
+    # Netherlands
+    "AMS": "nl",
+    # Belgium
+    "BRU": "be",
+    # Switzerland
+    "ZRH": "ch", "GVA": "ch",
+    # Austria
+    "VIE": "at",
+    # Italy
+    "FCO": "it", "MXP": "it", "VCE": "it", "FLR": "it", "NAP": "it",
+    "BLQ": "it", "TRN": "it",
+    # Spain
+    "MAD": "es", "BCN": "es", "AGP": "es", "SVQ": "es", "VLC": "es",
+    "PMI": "es", "IBZ": "es", "TFS": "es",
+    # Portugal
+    "LIS": "pt", "OPO": "pt",
+    # Ireland
+    "DUB": "ie",
+    # Scandinavia
+    "CPH": "dk", "ARN": "se", "OSL": "no", "HEL": "fi",
+    # Eastern Europe
+    "WAW": "pl", "KRK": "pl", "PRG": "cz", "BUD": "hu",
+    "OTP": "ro", "SOF": "bg", "BEG": "rs", "ZAG": "hr",
+    # Baltics
+    "RIX": "lv", "VNO": "lt", "TLL": "ee",
+    # Greece / Turkey
+    "ATH": "gr", "SKG": "gr", "IST": "tr", "ESB": "tr", "AYT": "tr",
+    "ADB": "tr",
+    # Iceland
+    "KEF": "is",
+    # US
+    "JFK": "us", "EWR": "us", "LGA": "us", "LAX": "us", "SFO": "us",
+    "ORD": "us", "MIA": "us", "DFW": "us", "IAH": "us", "ATL": "us",
+    "BOS": "us", "IAD": "us", "SEA": "us", "DEN": "us", "LAS": "us",
+    "MCO": "us", "PHX": "us", "PHL": "us", "SAN": "us", "MSP": "us",
+    "DTW": "us", "CLT": "us", "TPA": "us", "PDX": "us",
+    # Canada
+    "YYZ": "ca", "YUL": "ca", "YVR": "ca", "YYC": "ca", "YOW": "ca",
+    # Mexico
+    "MEX": "mx", "CUN": "mx",
+    # Asia
+    "NRT": "jp", "HND": "jp", "KIX": "jp", "ICN": "kr",
+    "PEK": "cn", "PVG": "cn", "HKG": "hk", "TPE": "tw",
+    "SIN": "sg", "BKK": "th", "KUL": "my", "CGK": "id",
+    "DEL": "in", "BOM": "in", "BLR": "in", "MAA": "in",
+    "DXB": "ae", "AUH": "ae", "DOH": "qa", "RUH": "sa", "JED": "sa",
+    "TLV": "il", "MNL": "ph", "HAN": "vn", "SGN": "vn",
+    # Oceania
+    "SYD": "au", "MEL": "au", "BNE": "au", "PER": "au", "AKL": "nz",
+    # Africa
+    "CAI": "eg", "JNB": "za", "CPT": "za", "NBO": "ke",
+    "LOS": "ng", "CMN": "ma", "RAK": "ma",
+    # South America
+    "GRU": "br", "GIG": "br", "EZE": "ar", "BOG": "co", "LIM": "pe",
+    "SCL": "cl",
+}
+
+
+def _get_gl_from_iata(iata_code: str) -> str:
+    """
+    Derive the Google Flights 'gl' (geolocation) parameter from an IATA
+    airport code. Falls back to 'us' if unknown.
+
+    This ensures SerpAPI returns results matching what a user would see
+    when searching from that country on google.com/flights.
+    """
+    return _IATA_TO_GL.get(iata_code, "us")
+
 
 # ---------------------------------------------------------------------------
 # Built-in city name -> IATA fallback mapping
@@ -193,6 +281,33 @@ def _format_duration_minutes(total_minutes: int) -> str:
         return f"{mins}m"
 
 
+def _post_to_get_url(base_url: str, post_data: str) -> str:
+    """
+    Convert a SerpAPI POST-based booking URL to a clickable GET URL.
+
+    SerpAPI booking_request objects contain a URL (e.g.,
+    'https://www.google.com/travel/clk/f') and POST data
+    (e.g., 'u=ADow...'). Per SerpAPI docs, we can convert
+    from POST to GET by appending the post_data key-value
+    pairs as query parameters.
+
+    Args:
+        base_url: The booking URL from SerpAPI (e.g., Google redirect URL).
+        post_data: The URL-encoded POST body (e.g., 'u=value&key2=value2').
+
+    Returns:
+        A clickable GET URL with post_data appended as query params.
+    """
+    if not base_url:
+        return ""
+    if not post_data:
+        return base_url
+
+    # The post_data is already URL-encoded key=value pairs joined by &
+    separator = "&" if "?" in base_url else "?"
+    return f"{base_url}{separator}{post_data}"
+
+
 def _extract_airport_name(airport_dict: dict) -> str:
     """
     Build a display string from a SerpAPI airport object.
@@ -310,7 +425,11 @@ class SerpApiProvider(BaseTransportProvider):
         non_stop_only: bool,
         currency: str,
     ) -> List[ConnectionResult]:
-        """Search for one-way flights. Costs 1 SerpAPI credit."""
+        """Search for one-way flights. Costs 1 SerpAPI credit + up to
+        MAX_BOOKING_LOOKUPS extra credits for booking URL lookups."""
+        # Derive gl from departure airport for locale-accurate results
+        gl = _get_gl_from_iata(resolved_leg["origin"])
+
         params: Dict[str, Any] = {
             "engine": "google_flights",
             "api_key": api_key,
@@ -320,9 +439,10 @@ class SerpApiProvider(BaseTransportProvider):
             "type": "2",  # One-way
             "currency": currency,
             "hl": "en",
-            "gl": "us",
+            "gl": gl,
             "adults": str(passengers),
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+            "deep_search": "true",
         }
         if non_stop_only:
             params["stops"] = "1"  # Non-stop only
@@ -349,6 +469,12 @@ class SerpApiProvider(BaseTransportProvider):
             if connection:
                 results.append(connection)
 
+        # Fetch booking URLs for the cheapest results
+        if results:
+            await self._enrich_with_booking_urls(
+                api_key, results, flight_groups[:max_results], params,
+            )
+
         logger.info(f"SerpAPI one-way returned {len(results)} flight(s)")
         return results
 
@@ -368,7 +494,8 @@ class SerpApiProvider(BaseTransportProvider):
         currency: str,
     ) -> List[ConnectionResult]:
         """
-        Search for round-trip flights. Costs 1 SerpAPI credit.
+        Search for round-trip flights. Costs 1 SerpAPI credit + up to
+        MAX_BOOKING_LOOKUPS extra credits for booking URL lookups.
 
         Google Flights returns round-trip pricing in a single request.
         Each flight group already includes the full round-trip price.
@@ -376,6 +503,9 @@ class SerpApiProvider(BaseTransportProvider):
         """
         outbound = resolved_legs[0]
         return_leg = resolved_legs[1]
+
+        # Derive gl from departure airport for locale-accurate results
+        gl = _get_gl_from_iata(outbound["origin"])
 
         params: Dict[str, Any] = {
             "engine": "google_flights",
@@ -387,9 +517,10 @@ class SerpApiProvider(BaseTransportProvider):
             "type": "1",  # Round trip
             "currency": currency,
             "hl": "en",
-            "gl": "us",
+            "gl": gl,
             "adults": str(passengers),
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+            "deep_search": "true",
         }
         if non_stop_only:
             params["stops"] = "1"
@@ -409,16 +540,17 @@ class SerpApiProvider(BaseTransportProvider):
 
         results = []
         for fg in flight_groups[:max_results]:
-            # For round-trip, the outbound flight group contains the
-            # full round-trip price. We create a 2-leg connection with
-            # the outbound details in leg 0. Leg 1 uses the return
-            # origin/destination from the request with the same segments
-            # structure (simplified since we don't select a specific return).
             connection = self._parse_flight_group(
                 fg, original_legs, currency,
             )
             if connection:
                 results.append(connection)
+
+        # Fetch booking URLs for the cheapest results
+        if results:
+            await self._enrich_with_booking_urls(
+                api_key, results, flight_groups[:max_results], params,
+            )
 
         logger.info(f"SerpAPI round-trip returned {len(results)} flight(s)")
         return results
@@ -440,7 +572,7 @@ class SerpApiProvider(BaseTransportProvider):
     ) -> List[ConnectionResult]:
         """
         Search for multi-city flights. Costs 1 SerpAPI credit for the
-        first leg search.
+        first leg search + up to MAX_BOOKING_LOOKUPS extra for booking URLs.
 
         Multi-city uses the multi_city_json parameter. The initial search
         returns pricing for the full itinerary on the first leg results.
@@ -456,6 +588,9 @@ class SerpApiProvider(BaseTransportProvider):
             for leg in resolved_legs
         ]
 
+        # Derive gl from first leg's departure airport
+        gl = _get_gl_from_iata(resolved_legs[0]["origin"])
+
         params: Dict[str, Any] = {
             "engine": "google_flights",
             "api_key": api_key,
@@ -463,9 +598,10 @@ class SerpApiProvider(BaseTransportProvider):
             "multi_city_json": json.dumps(multi_city_data),
             "currency": currency,
             "hl": "en",
-            "gl": "us",
+            "gl": gl,
             "adults": str(passengers),
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+            "deep_search": "true",
         }
         if non_stop_only:
             params["stops"] = "1"
@@ -489,6 +625,12 @@ class SerpApiProvider(BaseTransportProvider):
             )
             if connection:
                 results.append(connection)
+
+        # Fetch booking URLs for the cheapest results
+        if results:
+            await self._enrich_with_booking_urls(
+                api_key, results, flight_groups[:max_results], params,
+            )
 
         logger.info(f"SerpAPI multi-city returned {len(results)} flight(s)")
         return results
@@ -520,6 +662,163 @@ class SerpApiProvider(BaseTransportProvider):
             return None
 
     # ------------------------------------------------------------------
+    # Booking URL enrichment
+    # ------------------------------------------------------------------
+
+    async def _enrich_with_booking_urls(
+        self,
+        api_key: str,
+        results: List[ConnectionResult],
+        flight_groups: List[dict],
+        base_params: Dict[str, Any],
+    ) -> None:
+        """
+        Fetch booking URLs for the cheapest N results (up to MAX_BOOKING_LOOKUPS).
+
+        For each result that has a booking_token in the original flight group,
+        we make a follow-up SerpAPI call to get booking options. Each call
+        costs 1 extra credit. We pick the best booking option (preferring
+        direct airline over OTA) and store the URL in the ConnectionResult.
+
+        The booking_request from SerpAPI uses POST, but we convert it to a
+        clickable GET URL by appending the post_data as query parameters.
+        """
+        if not results or not flight_groups:
+            return
+
+        # Sort results by price to enrich the cheapest ones
+        priced_indices = []
+        for i, result in enumerate(results):
+            try:
+                price = float(result.total_price) if result.total_price else float("inf")
+            except (ValueError, TypeError):
+                price = float("inf")
+            priced_indices.append((price, i))
+        priced_indices.sort()
+
+        # Select up to MAX_BOOKING_LOOKUPS cheapest results that have booking tokens
+        to_enrich: List[Tuple[int, str]] = []  # (result_index, booking_token)
+        for _price, idx in priced_indices:
+            if len(to_enrich) >= MAX_BOOKING_LOOKUPS:
+                break
+            if idx < len(flight_groups):
+                token = flight_groups[idx].get("booking_token")
+                if token:
+                    to_enrich.append((idx, token))
+
+        if not to_enrich:
+            logger.debug("No booking tokens available for enrichment")
+            return
+
+        logger.info(
+            f"Fetching booking URLs for {len(to_enrich)} cheapest result(s) "
+            f"(costs {len(to_enrich)} extra SerpAPI credit(s))"
+        )
+
+        # Fetch booking data concurrently for all selected results
+        async def _fetch_booking(result_idx: int, token: str) -> None:
+            """Fetch booking options for a single result and update it in-place."""
+            # Build params for the booking_token request — reuse the search
+            # params but add the booking_token
+            booking_params = {
+                k: v for k, v in base_params.items()
+                if k not in ("deep_search", "stops")
+            }
+            booking_params["booking_token"] = token
+
+            data = await self._serpapi_get(booking_params)
+            if not data or data.get("error"):
+                logger.warning(
+                    f"Booking lookup failed for result {result_idx}: "
+                    f"{data.get('error') if data else 'no response'}"
+                )
+                return
+
+            booking_options = data.get("booking_options", [])
+            if not booking_options:
+                logger.debug(f"No booking options for result {result_idx}")
+                return
+
+            # Pick the best booking option:
+            # 1. Prefer direct airline (is_airline=True) over OTA
+            # 2. Among same type, prefer cheapest
+            url, provider_name = self._pick_best_booking_option(booking_options)
+            if url:
+                results[result_idx].booking_url = url
+                results[result_idx].booking_provider = provider_name
+                logger.debug(
+                    f"Result {result_idx}: booking via {provider_name} -> {url[:80]}..."
+                )
+
+        # Run all booking lookups concurrently
+        tasks = [_fetch_booking(idx, token) for idx, token in to_enrich]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    @staticmethod
+    def _pick_best_booking_option(
+        booking_options: List[dict],
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Pick the best booking option from SerpAPI's booking_options array.
+
+        Strategy:
+        1. Prefer direct airline bookings (ticket.airline == True)
+        2. Among airlines, pick the cheapest
+        3. If no airline option, pick the cheapest OTA
+
+        Returns:
+            Tuple of (clickable_url, provider_name) or (None, None).
+        """
+        airline_options: List[Tuple[float, str, str]] = []  # (price, url, name)
+        ota_options: List[Tuple[float, str, str]] = []
+
+        for opt in booking_options:
+            # Handle both "together" and "departing"/"returning" structures.
+            # For simplicity, prefer "together" (full itinerary) over split.
+            tickets = []
+            if opt.get("together"):
+                tickets.append(opt["together"])
+            elif opt.get("departing"):
+                tickets.append(opt["departing"])
+
+            for ticket in tickets:
+                booking_req = ticket.get("booking_request", {})
+                raw_url = booking_req.get("url", "")
+                post_data = booking_req.get("post_data", "")
+                if not raw_url:
+                    continue
+
+                # Convert POST-based Google redirect to a clickable GET URL
+                # by appending post_data as query parameters.
+                # SerpAPI docs: "It's possible to change the request method
+                # from POST to GET by concating the key value pairs in the
+                # post_data to the url"
+                clickable_url = _post_to_get_url(raw_url, post_data)
+
+                book_with = ticket.get("book_with", "Unknown")
+                is_airline = ticket.get("airline", False)
+
+                try:
+                    price = float(ticket.get("price", float("inf")))
+                except (ValueError, TypeError):
+                    price = float("inf")
+
+                if is_airline:
+                    airline_options.append((price, clickable_url, book_with))
+                else:
+                    ota_options.append((price, clickable_url, book_with))
+
+        # Prefer airline, then OTA, sorted by price
+        if airline_options:
+            airline_options.sort()
+            return airline_options[0][1], airline_options[0][2]
+        if ota_options:
+            ota_options.sort()
+            return ota_options[0][1], ota_options[0][2]
+
+        return None, None
+
+    # ------------------------------------------------------------------
     # Response parsing
     # ------------------------------------------------------------------
 
@@ -548,9 +847,9 @@ class SerpApiProvider(BaseTransportProvider):
 
         total_duration = flight_group.get("total_duration", 0)
         price = flight_group.get("price")
-        layovers = flight_group.get("layovers", [])
+        raw_layovers = flight_group.get("layovers", [])
 
-        # Build segments from the flights array
+        # Build segments from the flights array, capturing all rich metadata
         segments: List[SegmentResult] = []
         for seg in flights:
             dep_airport = seg.get("departure_airport", {})
@@ -566,11 +865,17 @@ class SerpApiProvider(BaseTransportProvider):
                 if parts:
                     carrier_code = parts[0]
 
-            # Build departure/arrival times
-            # SerpAPI returns time as "HH:MM" or datetime strings in the
-            # departure_airport/arrival_airport objects
+            # SerpAPI returns time as "YYYY-MM-DD HH:MM" in the airport objects
             dep_time = dep_airport.get("time", "")
             arr_time = arr_airport.get("time", "")
+
+            # Rich metadata from Google Flights
+            airplane = seg.get("airplane")  # e.g., "Airbus A321neo"
+            airline_logo = seg.get("airline_logo")  # URL to 70px logo
+            legroom = seg.get("legroom")  # e.g., "29 in"
+            travel_class = seg.get("travel_class")  # e.g., "Economy"
+            extensions = seg.get("extensions")  # list of feature tags
+            often_delayed = seg.get("often_delayed_by_over_30_min", False)
 
             segments.append(SegmentResult(
                 carrier=airline,
@@ -578,18 +883,34 @@ class SerpApiProvider(BaseTransportProvider):
                 number=flight_number if flight_number else None,
                 departure_station=dep_airport.get("id", ""),
                 departure_time=dep_time,
-                departure_latitude=None,  # Not provided by SerpAPI
+                departure_latitude=None,
                 departure_longitude=None,
                 arrival_station=arr_airport.get("id", ""),
                 arrival_time=arr_time,
                 arrival_latitude=None,
                 arrival_longitude=None,
                 duration=_format_duration_minutes(duration),
+                airplane=airplane,
+                airline_logo=airline_logo,
+                legroom=legroom,
+                travel_class=travel_class,
+                extensions=extensions if extensions else None,
+                often_delayed=often_delayed if often_delayed else None,
             ))
 
-        # Build the leg (SerpAPI returns all segments in a single flight
-        # group, which represents one leg/direction of travel)
-        stops = len(layovers)
+        # Build layover details from the raw layovers array
+        layover_results: List[LayoverResult] = []
+        for lay in raw_layovers:
+            lay_duration_min = lay.get("duration", 0)
+            layover_results.append(LayoverResult(
+                airport=lay.get("name", ""),
+                airport_code=lay.get("id"),
+                duration=_format_duration_minutes(lay_duration_min) if lay_duration_min else None,
+                duration_minutes=lay_duration_min if lay_duration_min else None,
+                overnight=lay.get("overnight"),
+            ))
+
+        stops = len(raw_layovers)
 
         # Origin/destination display: use airport names from first/last segment
         if segments:
@@ -609,7 +930,6 @@ class SerpApiProvider(BaseTransportProvider):
                     origin_code = first_dep.get("id", "")
                     origin_display = f"{user_origin.strip()} ({origin_code})" if origin_code else user_origin.strip()
 
-                # For destination, use the last leg's destination if multi-leg
                 last_original = original_legs[-1] if len(original_legs) > 1 else original_legs[0]
                 user_dest = last_original.get("destination", "")
                 if user_dest and not _IATA_CODE_RE.match(user_dest.strip()):
@@ -633,12 +953,10 @@ class SerpApiProvider(BaseTransportProvider):
             duration=_format_duration_minutes(total_duration),
             stops=stops,
             segments=segments,
+            layovers=layover_results if layover_results else None,
         )
 
-        # Build booking URL from booking_token if available.
-        # The booking_token can be used in a follow-up SerpAPI call to
-        # get actual booking links, but for now we store it as metadata.
-        # The skill layer will use airline_urls.py for direct booking links.
+        # Booking URL and provider are populated later by _enrich_with_booking_urls
         booking_url = None
         booking_provider = None
 
@@ -652,8 +970,16 @@ class SerpApiProvider(BaseTransportProvider):
         if len(carrier_codes) == 1:
             validating_code = carrier_codes.pop()
         elif carrier_codes and segments:
-            # Use the first segment's carrier as the primary
             validating_code = segments[0].carrier_code
+
+        # Carbon emissions data from Google Flights
+        carbon = flight_group.get("carbon_emissions", {})
+        co2_this = carbon.get("this_flight")  # grams
+        co2_typical = carbon.get("typical_for_this_route")  # grams
+        co2_diff = carbon.get("difference_percent")  # e.g., -7
+
+        # Primary airline logo (flight group level)
+        group_airline_logo = flight_group.get("airline_logo")
 
         return ConnectionResult(
             transport_method="airplane",
@@ -665,4 +991,8 @@ class SerpApiProvider(BaseTransportProvider):
             booking_provider=booking_provider,
             validating_airline_code=validating_code,
             legs=[leg],
+            airline_logo=group_airline_logo,
+            co2_kg=round(co2_this / 1000) if co2_this else None,
+            co2_typical_kg=round(co2_typical / 1000) if co2_typical else None,
+            co2_difference_percent=co2_diff,
         )
