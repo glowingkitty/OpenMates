@@ -4,9 +4,9 @@
   A preview card for example/demo chats, styled to match the UnifiedEmbedPreview
   layout used by other embeds (300x200px desktop).
   
-  Structure (matching Figma design reference):
+  Structure (matching Figma design reference and BasicInfosBar styling):
   - Center content area: chat summary (AI-generated description of the chat topic)
-  - Bottom bar (full width, 61px):
+  - Bottom bar (61px, border-radius: 30px, matching BasicInfosBar pill shape):
     - Large circle (61x61px) with consistent chat icon (MessageSquareText) + primary blue gradient
     - Title with small category circle (24px) showing the category-specific gradient + icon
   
@@ -138,7 +138,7 @@
     {/if}
   </div>
   
-  <!-- Bottom bar: full width, no border-radius (card's overflow:hidden handles corners) -->
+  <!-- Bottom bar: matches BasicInfosBar pill-shaped styling (border-radius: 30px) -->
   <!-- Shows consistent chat icon circle + title with small category circle -->
   <div class="bottom-bar">
     <!-- Chat icon circle (61x61px) with consistent primary blue gradient -->
@@ -264,8 +264,9 @@
   }
   
   /* ===========================================
-     Bottom Bar - Full Width (no separate border-radius)
-     Card's overflow:hidden + border-radius handles corners
+     Bottom Bar - Matches BasicInfosBar.desktop styling
+     Uses border-radius: 30px for the pill-shaped bar look
+     that is consistent with all other embed previews.
      =========================================== */
   
   .bottom-bar {
@@ -276,11 +277,11 @@
     height: 61px;
     min-height: 61px;
     background-color: var(--color-grey-30);
-    /* NO border-radius - the card's overflow:hidden + border-radius:30px handles corners.
-       This ensures the bottom bar appears truly full-width without visible rounded top corners. */
-    border-radius: 0;
+    /* Match BasicInfosBar border-radius for consistent pill-shaped bar */
+    border-radius: 30px;
     padding: 0;
     flex-shrink: 0;
+    z-index: 1;
   }
   
   /* Chat icon gradient circle: 61x61px with consistent primary blue gradient */
