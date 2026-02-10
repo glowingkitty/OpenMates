@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
 import os
+import hashlib
 from typing import Optional # Added Dict, Any
 from backend.core.api.app.schemas.auth import SessionResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -121,40 +122,89 @@ async def get_session(
         is_new_device_hash = device_hash not in known_device_hashes
         logger.info(f"Session: Device hash {device_hash[:8]}... is new: {is_new_device_hash} for user {user_id[:6]}...")
 
-        # Step 4: Perform 2FA check if it's a new device and 2FA is enabled
-        if is_new_device_hash and user_data.get("tfa_enabled", False):
-            logger.warning(f"New device detected for user {user_id[:6]} and 2FA is enabled. Triggering 2FA re-auth.")
-            # Return minimal user info needed for the re-auth screen
-            minimal_user_info = UserResponse(
-                id=user_id,
-                username=user_data.get("username"), # Send username if available
-                is_admin=user_data.get("is_admin", False),
-                credits=user_data.get("credits", 0),
-                profile_image_url=user_data.get("profile_image_url"),
-                tfa_app_name=user_data.get("tfa_app_name"),
-                tfa_enabled=True, # Explicitly true as we are triggering 2FA
-                last_opened=user_data.get("last_opened"),
-                consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
-                consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings")),
-                language=user_data.get("language", 'en'),
-                darkmode=user_data.get("darkmode", False),
-                invoice_counter=user_data.get("invoice_counter", 0),
-                # Low balance auto top-up fields (use defaults for minimal user info)
-                # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
-                auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
-                auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
-                auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
-                auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
-            )
-            return SessionResponse(
-                success=False, # Indicate session is not fully valid *yet*
-                message="Device verification required",
-                re_auth_required="2fa",
-                user=minimal_user_info, # Send user info for the verification screen
-                require_invite_code=require_invite_code
-            )
+        # Step 4: Perform re-auth check if it's a new device
+        # Two scenarios require re-authentication on a new device:
+        # 1. User has 2FA (OTP) enabled -> require OTP code
+        # 2. User has passkeys configured (even without OTP 2FA) -> require passkey assertion
+        # This prevents account takeover via stolen session cookies from a different location
+        if is_new_device_hash:
+            tfa_enabled = user_data.get("tfa_enabled", False)
+            
+            if tfa_enabled:
+                logger.warning(f"New device detected for user {user_id[:6]} and 2FA is enabled. Triggering 2FA re-auth.")
+                # Return minimal user info needed for the re-auth screen
+                minimal_user_info = UserResponse(
+                    id=user_id,
+                    username=user_data.get("username"), # Send username if available
+                    is_admin=user_data.get("is_admin", False),
+                    credits=user_data.get("credits", 0),
+                    profile_image_url=user_data.get("profile_image_url"),
+                    tfa_app_name=user_data.get("tfa_app_name"),
+                    tfa_enabled=True, # Explicitly true as we are triggering 2FA
+                    last_opened=user_data.get("last_opened"),
+                    consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
+                    consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings")),
+                    language=user_data.get("language", 'en'),
+                    darkmode=user_data.get("darkmode", False),
+                    invoice_counter=user_data.get("invoice_counter", 0),
+                    # Low balance auto top-up fields (use defaults for minimal user info)
+                    # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                    auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
+                    auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
+                    auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
+                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
+                )
+                return SessionResponse(
+                    success=False, # Indicate session is not fully valid *yet*
+                    message="Device verification required",
+                    re_auth_required="2fa",
+                    user=minimal_user_info, # Send user info for the verification screen
+                    require_invite_code=require_invite_code
+                )
+            
+            # Check if user has passkeys configured (passkey-only users without OTP 2FA)
+            # This ensures passkey users also re-authenticate on new devices to prevent account takeover
+            try:
+                has_passkeys = False
+                hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                passkeys = await directus_service.get_user_passkeys(hashed_user_id)
+                has_passkeys = len(passkeys) > 0 if passkeys else False
+            except Exception as e:
+                logger.error(f"Error checking passkeys for user {user_id[:6]}: {e}", exc_info=True)
+                has_passkeys = False
+            
+            if has_passkeys:
+                logger.warning(f"New device detected for user {user_id[:6]} and passkeys are configured. Triggering passkey re-auth.")
+                minimal_user_info = UserResponse(
+                    id=user_id,
+                    username=user_data.get("username"),
+                    is_admin=user_data.get("is_admin", False),
+                    credits=user_data.get("credits", 0),
+                    profile_image_url=user_data.get("profile_image_url"),
+                    tfa_app_name=user_data.get("tfa_app_name"),
+                    tfa_enabled=False, # Passkey user may not have OTP 2FA
+                    last_opened=user_data.get("last_opened"),
+                    consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
+                    consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings")),
+                    language=user_data.get("language", 'en'),
+                    darkmode=user_data.get("darkmode", False),
+                    invoice_counter=user_data.get("invoice_counter", 0),
+                    auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
+                    auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
+                    auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
+                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
+                )
+                return SessionResponse(
+                    success=False, # Indicate session is not fully valid *yet*
+                    message="Passkey verification required",
+                    re_auth_required="passkey",
+                    user=minimal_user_info, # Send user info for the verification screen
+                    require_invite_code=require_invite_code
+                )
+            
+            logger.debug(f"User {user_id[:6]} does not require re-auth (no 2FA and no passkeys).")
         else:
-             logger.debug(f"User {user_id[:6]} does not require 2FA re-auth (device known or 2FA not enabled).")
+             logger.debug(f"User {user_id[:6]} does not require re-auth (device already known).")
 
 
         # --- Risk assessment passed (or 2FA not enabled), proceed with session validation ---
