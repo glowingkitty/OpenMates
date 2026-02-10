@@ -132,6 +132,7 @@
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
   const DEMO_PLACEHOLDERS = [
     '[[example_chats_group]]',
+    '[[dev_example_chats_group]]',
     '[[app_store_group]]',
     '[[skills_group]]',
     '[[focus_modes_group]]',
