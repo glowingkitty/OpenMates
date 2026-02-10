@@ -3,6 +3,8 @@
 export type EmbedType = 'code-code' | 'sheets-sheet' | 'docs-doc' | 'web-website' | 'videos-video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 
                        // App skill results (new embeds architecture)
                        'app-skill-use' |
+                       // Focus mode activation indicator (countdown + activated state)
+                       'focus-mode-activation' |
                        // Group types (follow pattern: {type}-group)
                        'app-skill-use-group' | 'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
                        // Allow for future extensions
@@ -53,6 +55,11 @@ export interface EmbedNodeAttributes {
   skill_id?: string;
   query?: string;  // Search query for search skills
   provider?: string;  // Search provider for search skills (e.g., 'Brave Search', 'Google')
+  
+  // Focus mode activation metadata
+  // Used by FocusModeActivationRenderer to display the focus mode name and manage state
+  focus_id?: string;  // Full focus mode ID (e.g., 'web-research')
+  focus_mode_name?: string;  // Translated display name of the focus mode
 }
 
 export interface ParseMessageOptions {

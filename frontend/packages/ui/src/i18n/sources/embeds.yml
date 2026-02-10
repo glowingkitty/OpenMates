@@ -1710,3 +1710,232 @@ download_itinerary:
   cs: Stáhnout itinerář
   sv: Ladda ner resplan
   verified_by_human: [en, de]
+image_generate:
+  context: Image generate skill label shown in BasicInfosBar
+  en: Image
+  de: Bild
+  zh: 图片
+  es: Imagen
+  fr: Image
+  pt: Imagem
+  ru: Изображение
+  ja: 画像
+  ko: 이미지
+  it: Immagine
+  tr: Görsel
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obraz
+  nl: Afbeelding
+  ar: صورة
+  hi: चित्र
+  th: รูปภาพ
+  cs: Obrázek
+  sv: Bild
+  verified_by_human: []
+image_generate.error:
+  context: Error message when image generation fails
+  en: Image generation failed
+  de: Bildgenerierung fehlgeschlagen
+  zh: 图片生成失败
+  es: La generación de imagen falló
+  fr: "La génération d'image a échoué"
+  pt: Falha na geração de imagem
+  ru: Ошибка генерации изображения
+  ja: 画像生成に失敗しました
+  ko: 이미지 생성 실패
+  it: Generazione immagine fallita
+  tr: Görsel oluşturma başarısız
+  vi: Tạo hình ảnh thất bại
+  id: Pembuatan gambar gagal
+  pl: Generowanie obrazu nie powiodło się
+  nl: Afbeelding genereren mislukt
+  ar: فشل إنشاء الصورة
+  hi: चित्र बनाना विफल रहा
+  th: สร้างรูปภาพล้มเหลว
+  cs: Generování obrázku selhalo
+  sv: Bildgenerering misslyckades
+  verified_by_human: []
+image_generate.loading:
+  context: Loading text while image is being decrypted
+  en: Loading image...
+  de: Bild wird geladen...
+  zh: 正在加载图片...
+  es: Cargando imagen...
+  fr: "Chargement de l'image..."
+  pt: Carregando imagem...
+  ru: Загрузка изображения...
+  ja: 画像を読み込み中...
+  ko: 이미지 로딩 중...
+  it: Caricamento immagine...
+  tr: Görsel yükleniyor...
+  vi: Đang tải hình ảnh...
+  id: Memuat gambar...
+  pl: Ładowanie obrazu...
+  nl: Afbeelding laden...
+  ar: جاري تحميل الصورة...
+  hi: चित्र लोड हो रहा है...
+  th: กำลังโหลดรูปภาพ...
+  cs: Načítání obrázku...
+  sv: Laddar bild...
+  verified_by_human: []
+image_generate.prompt_label:
+  context: Label for the prompt field in image fullscreen view
+  en: Prompt
+  de: Eingabe
+  zh: 提示
+  es: Indicación
+  fr: Invite
+  pt: Prompt
+  ru: Промпт
+  ja: プロンプト
+  ko: 프롬프트
+  it: Prompt
+  tr: İstem
+  vi: Lời nhắc
+  id: Prompt
+  pl: Prompt
+  nl: Prompt
+  ar: التعليمات
+  hi: प्रॉम्प्ट
+  th: คำสั่ง
+  cs: Výzva
+  sv: Prompt
+  verified_by_human: []
+image_generate.model_label:
+  context: Label for model name in image fullscreen view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  verified_by_human: []
+image_generate.aspect_ratio:
+  context: Label for aspect ratio in image fullscreen view
+  en: Aspect Ratio
+  de: Seitenverhältnis
+  zh: 宽高比
+  es: Relación de aspecto
+  fr: "Rapport d'aspect"
+  pt: Proporção
+  ru: Соотношение сторон
+  ja: アスペクト比
+  ko: 종횡비
+  it: Rapporto aspetto
+  tr: En boy oranı
+  vi: Tỷ lệ khung hình
+  id: Rasio aspek
+  pl: Proporcje
+  nl: Beeldverhouding
+  ar: نسبة العرض إلى الارتفاع
+  hi: पक्षानुपात
+  th: อัตราส่วนภาพ
+  cs: Poměr stran
+  sv: Bildförhållande
+  verified_by_human: []
+image_generate.resolution:
+  context: Label for resolution in image fullscreen view
+  en: Resolution
+  de: Auflösung
+  zh: 分辨率
+  es: Resolución
+  fr: Résolution
+  pt: Resolução
+  ru: Разрешение
+  ja: 解像度
+  ko: 해상도
+  it: Risoluzione
+  tr: Çözünürlük
+  vi: Độ phân giải
+  id: Resolusi
+  pl: Rozdzielczość
+  nl: Resolutie
+  ar: الدقة
+  hi: संकल्प
+  th: ความละเอียด
+  cs: Rozlišení
+  sv: Upplösning
+  verified_by_human: []
+image_generate.download:
+  context: Button label to download the original image
+  en: Download Original
+  de: Original herunterladen
+  zh: 下载原始文件
+  es: Descargar original
+  fr: "Télécharger l'original"
+  pt: Baixar original
+  ru: Скачать оригинал
+  ja: オリジナルをダウンロード
+  ko: 원본 다운로드
+  it: Scarica originale
+  tr: Orijinali indir
+  vi: Tải bản gốc
+  id: Unduh asli
+  pl: Pobierz oryginał
+  nl: Origineel downloaden
+  ar: تحميل الأصلي
+  hi: मूल डाउनलोड करें
+  th: ดาวน์โหลดต้นฉบับ
+  cs: Stáhnout originál
+  sv: Ladda ner original
+  verified_by_human: []
+context_menu.view:
+  context: Context menu action to open embed in fullscreen view
+  en: View
+  de: Anzeigen
+  verified_by_human: []
+context_menu.share:
+  context: Context menu action to share an embed
+  en: Share
+  de: Teilen
+  verified_by_human: []
+context_menu.copy:
+  context: Context menu action to copy embed content
+  en: Copy
+  de: Kopieren
+  verified_by_human: []
+context_menu.download:
+  context: Context menu action to download embed content
+  en: Download
+  de: Herunterladen
+  verified_by_human: []
+context_menu.deactivate:
+  context: Context menu action to deactivate a focus mode
+  en: Deactivate
+  de: Deaktivieren
+  verified_by_human: []
+context_menu.details:
+  context: Context menu action to view focus mode details in app store
+  en: Details
+  de: Details
+  verified_by_human: []
+focus_mode.activated:
+  context: Status text shown on focus mode embed after activation completes
+  en: Focus activated
+  de: Fokus aktiviert
+  verified_by_human: []
+focus_mode.activating:
+  context: Status text shown during focus mode countdown. {seconds} is replaced with the remaining seconds.
+  en: "Activate in {seconds} sec ..."
+  de: "Aktivierung in {seconds} Sek. ..."
+  verified_by_human: []
+focus_mode.reject_hint:
+  context: Helper text below the focus mode card during countdown explaining how to prevent activation
+  en: Click to prevent focus mode & continue regular chat
+  de: Klicken um Fokus-Modus zu verhindern & normal weiterzuchatten
+  verified_by_human: []

@@ -246,6 +246,131 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating processing embed placeholder: {e}", exc_info=True)
             return None
 
+    async def create_focus_mode_activation_embed(
+        self,
+        focus_id: str,
+        app_id: str,
+        focus_mode_name: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a focus mode activation embed that the frontend renders as a
+        countdown indicator (4-3-2-1) with the option for the user to reject.
+
+        This is a lightweight embed that contains focus mode metadata.
+        The frontend uses it to show the activation UI and manage the
+        active focus mode state for the chat.
+
+        Args:
+            focus_id: Full focus mode ID (e.g., 'web-research')
+            app_id: The app that owns the focus mode (e.g., 'web')
+            focus_mode_name: Translated display name of the focus mode
+            chat_id: Chat ID
+            message_id: Message ID
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional main AI task ID
+            log_prefix: Logging prefix
+
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Focus mode activation content - kept minimal
+            activation_content = {
+                "focus_id": focus_id,
+                "app_id": app_id,
+                "focus_mode_name": focus_mode_name,
+                "status": "activated"
+            }
+
+            # Encode to TOON
+            activation_toon = encode(activation_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                activation_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "focus_mode_activation",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "finished",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+
+            # Send plaintext TOON to client via WebSocket
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="focus_mode_activation",
+                content_toon=activation_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix,
+                check_cache_status=False
+            )
+
+            # Build embed reference JSON for the message markdown
+            embed_reference_payload = {
+                "type": "focus_mode_activation",
+                "embed_id": embed_id,
+                "focus_id": focus_id,
+                "app_id": app_id,
+                "focus_mode_name": focus_mode_name
+            }
+            embed_reference = json.dumps(embed_reference_payload)
+
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE] Created focus mode activation embed {embed_id} "
+                f"for focus_id={focus_id} (app={app_id}, name={focus_mode_name})"
+            )
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating focus mode activation embed: {e}", exc_info=True)
+            return None
+
     async def create_code_embed_placeholder(
         self,
         language: str,

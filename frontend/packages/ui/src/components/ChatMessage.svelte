@@ -178,11 +178,13 @@
   let showMenu = $state(false);
   let menuX = $state(0);
   let menuY = $state(0);
-  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code'>('default');
+  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code' | 'focusMode'>('default');
   let selectedNode = $state<any>(null);
-  let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
+  let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'focusMode' | 'default'>('default');
   let selectedAppId = $state<string | null>(null);
   let selectedSkillId = $state<string | null>(null);
+  let selectedFocusId = $state<string | null>(null);
+  let selectedFocusModeName = $state<string | null>(null);
 
   // Message context menu state
   let showMessageMenu = $state(false);
@@ -573,17 +575,25 @@
     // Check DOM element for data attributes first (more reliable for app-skill-use embeds)
     const appId = dom.getAttribute('data-app-id');
     const skillId = dom.getAttribute('data-skill-id');
+    const focusIdAttr = dom.getAttribute('data-focus-id');
+    const focusModeNameAttr = dom.getAttribute('data-focus-mode-name');
+    const embedTypeAttr = dom.getAttribute('data-embed-type');
     selectedAppId = appId;
     selectedSkillId = skillId;
+    selectedFocusId = focusIdAttr;
+    selectedFocusModeName = focusModeNameAttr;
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
+      // Focus mode activation embed
+      if (node.attrs.type === 'focus-mode-activation' || embedTypeAttr === 'focus-mode-activation') {
+        menuType = 'focusMode';
+        embedType = 'focusMode';
       // Code embeds can have different type values: 'code', 'code-code', 'code-block', 'code-code-group'
-      const isCodeEmbed = node.attrs.type === 'code' || 
+      } else if (node.attrs.type === 'code' || 
                           node.attrs.type === 'code-code' || 
                           node.attrs.type === 'code-block' || 
-                          node.attrs.type?.startsWith('code-code');
-      if (isCodeEmbed) {
+                          node.attrs.type?.startsWith('code-code')) {
         menuType = 'code';
         embedType = 'code';
       } else if (node.attrs.type === 'pdf') {
@@ -759,6 +769,40 @@
         selectedNode = null;
       }
 
+      return;
+    }
+
+    // Handle actions for focus mode embeds
+    if (menuType === 'focusMode') {
+      if (action === 'deactivate') {
+        console.debug('[ChatMessage] Focus mode deactivation requested via context menu:', selectedFocusId);
+        // Dispatch deactivation event (handled by ActiveChat or a global listener)
+        document.dispatchEvent(
+          new CustomEvent('focusModeDeactivated', {
+            bubbles: true,
+            detail: {
+              focusId: selectedFocusId,
+              appId: selectedAppId,
+              focusModeName: selectedFocusModeName,
+            },
+          }),
+        );
+      } else if (action === 'details') {
+        console.debug('[ChatMessage] Focus mode details requested via context menu:', selectedFocusId);
+        // Navigate to the focus mode details page in settings / app store
+        document.dispatchEvent(
+          new CustomEvent('focusModeDetailsRequested', {
+            bubbles: true,
+            detail: {
+              focusId: selectedFocusId,
+              appId: selectedAppId,
+            },
+          }),
+        );
+      }
+
+      showMenu = false;
+      selectedNode = null;
       return;
     }
 
@@ -1158,8 +1202,9 @@
       </div>
 
       {#if showMenu}
-        {@const showCopyAction = menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web'}
-        {@const showDownloadAction = menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf'}
+        {@const isFocusMode = menuType === 'focusMode'}
+        {@const showCopyAction = !isFocusMode && (menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web')}
+        {@const showDownloadAction = !isFocusMode && (menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf')}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -1170,10 +1215,12 @@
           y={menuY}
           show={showMenu}
           embedType={embedType}
-          showView={true}
-          showShare={true}
+          showView={!isFocusMode}
+          showShare={!isFocusMode}
           showCopy={showCopyAction}
           showDownload={showDownloadAction}
+          showDeactivate={isFocusMode}
+          showDetails={isFocusMode}
           onClose={() => {
             showMenu = false;
             selectedNode = null;
@@ -1182,6 +1229,8 @@
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
+          onDeactivate={() => handleMenuAction('deactivate')}
+          onDetails={() => handleMenuAction('details')}
         />
       {/if}
 

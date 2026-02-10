@@ -3,6 +3,7 @@
 import { GroupRenderer } from "./GroupRenderer";
 import { ImageRenderer } from "./ImageRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
+import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
 import type { EmbedRendererRegistry } from "./types";
 
 /**
@@ -12,6 +13,8 @@ import type { EmbedRendererRegistry } from "./types";
 export const embedRenderers: EmbedRendererRegistry = {
   // App skill use renderer (web search, code generation, etc.)
   "app-skill-use": new AppSkillUseRenderer(),
+  // Focus mode activation indicator (countdown + activated state)
+  "focus-mode-activation": new FocusModeActivationRenderer(),
   // App skill use group renderer (multiple search requests in horizontal scrollable group)
   "app-skill-use-group": new GroupRenderer(),
   // Use GroupRenderer for all website embeds (individual and grouped)

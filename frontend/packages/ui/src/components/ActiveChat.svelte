@@ -814,6 +814,101 @@
         console.debug('[ActiveChat] showEmbedFullscreen changed:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     });
     
+    // --- Focus mode event handlers ---
+    
+    /**
+     * Deactivate a focus mode: clear local state and tell the backend to
+     * remove the encrypted_active_focus_id from cache and Directus.
+     * The next user message will be sent without active_focus_id so the
+     * AI reverts to normal behaviour.
+     */
+    async function handleFocusModeDeactivation(focusId: string) {
+        if (!focusId) return;
+        const chatId = currentChat?.chat_id;
+        if (!chatId) return;
+        console.debug('[ActiveChat] Deactivating focus mode:', focusId);
+        
+        // Send deactivation to the backend via WebSocket
+        // The backend handler clears cache + dispatches Celery task for Directus
+        try {
+            const { webSocketService } = await import('../services/webSocketService');
+            webSocketService.sendMessage('chat_focus_mode_deactivate', {
+                chat_id: chatId,
+                focus_id: focusId,
+            });
+            console.debug('[ActiveChat] Sent focus mode deactivation to backend');
+        } catch (e) {
+            console.error('[ActiveChat] Error sending focus mode deactivation:', e);
+        }
+    }
+    
+    /**
+     * Add a system message to the chat indicating the focus mode was rejected.
+     * This is a local-only message for now (plaintext system event).
+     */
+    async function handleFocusModeRejectionSystemMessage(focusId: string, focusModeName: string) {
+        const chatId = currentChat?.chat_id;
+        if (!focusId || !chatId) return;
+        const displayName = focusModeName || focusId;
+        const rejectionText = `Rejected ${displayName} focus mode.`;
+        
+        console.debug('[ActiveChat] Adding focus mode rejection system message:', rejectionText);
+        
+        try {
+            // Create a lightweight system-event message in the local chat messages
+            // This mirrors the pattern used by app settings/memories confirmations
+            const messageId = crypto.randomUUID();
+            const now = new Date().toISOString();
+            
+            const systemMessage = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'system' as const,
+                content: rejectionText,
+                created_at: now,
+                status: 'sent' as const,
+            };
+            
+            // Dispatch a chatUpdated event so the message list picks it up
+            const chatSyncService = (await import('../services/chatSyncService')).default;
+            chatSyncService.dispatchEvent(
+                new CustomEvent('chatUpdated', {
+                    detail: {
+                        chat_id: chatId,
+                        type: 'system_message_added',
+                        newMessage: systemMessage,
+                    },
+                }),
+            );
+        } catch (e) {
+            console.error('[ActiveChat] Error creating focus mode rejection system message:', e);
+        }
+    }
+    
+    /**
+     * Navigate to the focus mode details page in the settings / app store.
+     * Deep link format: app_store/{appId}/focus/{focusModeId}
+     */
+    async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
+        if (!focusId || !appId) return;
+        
+        // Extract the focus mode ID within the app (remove app prefix)
+        const focusModeId = focusId.includes('-') ? focusId.split('-').slice(1).join('-') : focusId;
+        
+        try {
+            const { navigateToSettings } = await import('../stores/settingsNavigationStore');
+            const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
+            const { panelState } = await import('../stores/panelStateStore');
+            
+            const deepLink = `app_store/${appId}/focus/${focusModeId}`;
+            navigateToSettings(deepLink, 'Focus Mode Details', 'focus_mode', '');
+            settingsDeepLink.set(deepLink);
+            panelState.openSettings();
+        } catch (e) {
+            console.error('[ActiveChat] Error navigating to focus mode details:', e);
+        }
+    }
+    
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
@@ -4101,6 +4196,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleEmbedFullscreen(event);
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+        
+        // --- Focus mode event listeners ---
+        // Handle focus mode rejection (user clicked during countdown to cancel activation)
+        const focusModeRejectedHandler = (event: CustomEvent) => {
+            const { focusId, focusModeName } = event.detail || {};
+            console.debug('[ActiveChat] Focus mode rejected:', focusId, focusModeName);
+            // Dispatch deactivation to backend (clear cache + Directus)
+            handleFocusModeDeactivation(focusId);
+            // Add a system message indicating the rejection
+            handleFocusModeRejectionSystemMessage(focusId, focusModeName);
+        };
+        document.addEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
+        
+        // Handle focus mode deactivation (user clicked "Deactivate" in context menu)
+        const focusModeDeactivatedHandler = (event: CustomEvent) => {
+            const { focusId } = event.detail || {};
+            console.debug('[ActiveChat] Focus mode deactivated:', focusId);
+            handleFocusModeDeactivation(focusId);
+        };
+        document.addEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
+        
+        // Handle focus mode details request (user clicked "Details" in context menu)
+        const focusModeDetailsHandler = (event: CustomEvent) => {
+            const { focusId, appId } = event.detail || {};
+            console.debug('[ActiveChat] Focus mode details requested:', focusId, appId);
+            handleFocusModeDetailsNavigation(focusId, appId);
+        };
+        document.addEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
         
         // Add event listener for video PiP restore fullscreen events
         // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)

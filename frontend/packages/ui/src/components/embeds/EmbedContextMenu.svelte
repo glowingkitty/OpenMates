@@ -37,7 +37,7 @@
     /** Whether to show the menu */
     show?: boolean;
     /** Embed type to determine available actions */
-    embedType?: 'code' | 'video' | 'website' | 'pdf' | 'default';
+    embedType?: 'code' | 'video' | 'website' | 'pdf' | 'focusMode' | 'default';
     /** Whether to show View action (opens fullscreen) */
     showView?: boolean;
     /** Whether to show Share action */
@@ -46,6 +46,10 @@
     showCopy?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
+    /** Whether to show Deactivate action (for focus mode embeds) */
+    showDeactivate?: boolean;
+    /** Whether to show Details action (for focus mode embeds) */
+    showDetails?: boolean;
     /** Callback when menu should close */
     onClose?: () => void;
     /** Callback when View action is triggered */
@@ -56,6 +60,10 @@
     onCopy?: () => void;
     /** Callback when Download action is triggered */
     onDownload?: () => void;
+    /** Callback when Deactivate action is triggered (focus mode) */
+    onDeactivate?: () => void;
+    /** Callback when Details action is triggered (focus mode) */
+    onDetails?: () => void;
   }
 
   let {
@@ -69,11 +77,15 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    showDeactivate = false,
+    showDetails = false,
     onClose,
     onView,
     onShare,
     onCopy,
-    onDownload
+    onDownload,
+    onDeactivate,
+    onDetails
   }: Props = $props();
 
   let menuElement = $state<HTMLDivElement>();
@@ -182,7 +194,7 @@
   /**
    * Action type for menu items
    */
-  type MenuAction = 'view' | 'share' | 'copy' | 'download';
+  type MenuAction = 'view' | 'share' | 'copy' | 'download' | 'deactivate' | 'details';
 
   /**
    * Get the callback for a given action
@@ -193,6 +205,8 @@
       case 'share': return onShare;
       case 'copy': return onCopy;
       case 'download': return onDownload;
+      case 'deactivate': return onDeactivate;
+      case 'details': return onDetails;
       default: return undefined;
     }
   }
@@ -325,6 +339,28 @@
       >
         <div class="clickable-icon icon_download"></div>
         {$text('embeds.context_menu.download.text', { default: 'Download' })}
+      </button>
+    {/if}
+
+    <!-- Deactivate action - deactivates focus mode (focus mode embeds only) -->
+    {#if showDeactivate}
+      <button
+        class="menu-item deactivate"
+        onclick={(event) => handleButtonClick('deactivate', event)}
+      >
+        <div class="clickable-icon icon_pause"></div>
+        {$text('embeds.context_menu.deactivate.text', { default: 'Deactivate' })}
+      </button>
+    {/if}
+
+    <!-- Details action - opens focus mode details in app store (focus mode embeds only) -->
+    {#if showDetails}
+      <button
+        class="menu-item details"
+        onclick={(event) => handleButtonClick('details', event)}
+      >
+        <div class="clickable-icon icon_info"></div>
+        {$text('embeds.context_menu.details.text', { default: 'Details' })}
       </button>
     {/if}
   </div>

@@ -1803,6 +1803,62 @@ async def handle_main_processing(
                             except Exception as cache_error:
                                 logger.error(f"{log_prefix} [FOCUS_MODE] Error updating cache: {cache_error}", exc_info=True)
                         
+                        # --- Create focus mode activation embed ---
+                        # This embed is rendered by the frontend as a countdown indicator
+                        # (4-3-2-1) that the user can click to reject the focus mode.
+                        if cache_service and user_vault_key_id and directus_service:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service
+                                )
+                                
+                                # Resolve the translated focus mode name for UI display
+                                focus_mode_display_name = focus_id  # fallback
+                                try:
+                                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
+                                    if fm_app_metadata and fm_app_metadata.focuses:
+                                        for fm_def in fm_app_metadata.focuses:
+                                            if fm_def.id == fm_mode_id:
+                                                focus_mode_display_name = translation_service.get_nested_translation(
+                                                    fm_def.name_translation_key
+                                                ) or fm_def.name_translation_key
+                                                break
+                                except Exception:
+                                    pass
+                                
+                                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                                    focus_id=focus_id,
+                                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                                    focus_mode_name=focus_mode_display_name,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if fm_embed_data:
+                                    # Yield the embed reference as a JSON code block so the frontend
+                                    # can parse and render it inline in the message
+                                    fm_embed_ref = fm_embed_data.get("embed_reference")
+                                    if fm_embed_ref:
+                                        yield f"```json\n{fm_embed_ref}\n```\n\n"
+                                        logger.info(
+                                            f"{log_prefix} [FOCUS_MODE] Yielded focus mode activation embed "
+                                            f"(embed_id={fm_embed_data.get('embed_id')})"
+                                        )
+                            except Exception as embed_error:
+                                logger.error(
+                                    f"{log_prefix} [FOCUS_MODE] Error creating focus mode embed: {embed_error}",
+                                    exc_info=True
+                                )
+                        
                         tool_result_content_str = json.dumps({
                             "status": "activated",
                             "focus_id": focus_id,

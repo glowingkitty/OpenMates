@@ -24,6 +24,7 @@ from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draf
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
+from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -1413,6 +1414,17 @@ async def websocket_endpoint(
                 # Handle request to cancel an individual skill execution
                 # This cancels only the specific skill, NOT the entire AI response
                 await handle_cancel_skill(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service
+                )
+            elif message_type == "chat_focus_mode_deactivate":
+                # Handle request to deactivate a focus mode for a chat
+                # Triggered when user rejects during countdown or clicks "Deactivate"
+                await handle_focus_mode_deactivate(
                     websocket=websocket,
                     manager=manager,
                     user_id=user_id,

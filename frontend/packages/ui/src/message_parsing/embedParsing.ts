@@ -13,6 +13,7 @@ import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from "./utils";
 function mapEmbedReferenceType(embedType: string): string {
   const typeMap: Record<string, string> = {
     app_skill_use: "app-skill-use", // New type for app skill results
+    focus_mode_activation: "focus-mode-activation", // Focus mode activation indicator
     website: "web-website",
     video: "videos-video", // YouTube and other video embeds
     place: "maps-place",
@@ -241,6 +242,14 @@ export function parseEmbedNodes(
                 (embedAttrs as any).provider = embedRef.provider;
               }
 
+              // Copy focus mode metadata if present (for focus_mode_activation embeds)
+              if (embedRef.focus_id) {
+                embedAttrs.focus_id = embedRef.focus_id;
+              }
+              if (embedRef.focus_mode_name) {
+                embedAttrs.focus_mode_name = embedRef.focus_mode_name;
+              }
+
               embedNodes.push(embedAttrs);
               console.debug(
                 "[parseEmbedNodes] Created embed from JSON reference:",
@@ -251,6 +260,8 @@ export function parseEmbedNodes(
                   skill_id: embedRef.skill_id,
                   query: embedRef.query,
                   provider: embedRef.provider,
+                  focus_id: embedRef.focus_id,
+                  focus_mode_name: embedRef.focus_mode_name,
                   status: embedAttrs.status,
                   mode,
                 },
