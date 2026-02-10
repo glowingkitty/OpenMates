@@ -80,7 +80,6 @@
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
-    import { appSettingsMemoriesPermissionStore } from '../stores/appSettingsMemoriesPermissionStore'; // Import for clearing permission dialog on chat switch
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import type { 
@@ -3422,13 +3421,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Video in PiP mode - keeping video playing during chat switch');
         }
         
-        // CRITICAL: Clear app settings/memories permission dialog if it belongs to a different chat
-        // This ensures the permission dialog only shows in the chat where the request originated
-        const permissionDialogChatId = appSettingsMemoriesPermissionStore.getCurrentChatId();
-        if (permissionDialogChatId && permissionDialogChatId !== chat.chat_id) {
-            console.debug('[ActiveChat] Clearing permission dialog - switching from chat', permissionDialogChatId, 'to', chat.chat_id);
-            appSettingsMemoriesPermissionStore.clear();
-        }
+        // NOTE: Permission dialog is NOT cleared on chat switch.
+        // ChatHistory.svelte's shouldShowPermissionDialog derived state already checks
+        // $currentPermissionRequest.chatId === currentChatId, so the dialog naturally
+        // hides when switching to a different chat and reappears when switching back.
+        // This preserves the pending request so users can return to the original chat
+        // and still approve/reject the request.
         
         // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted

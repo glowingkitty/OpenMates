@@ -530,12 +530,18 @@ export async function handleSend(
     // No need to fetch current title - server will send metadata after preprocessing
 
     // =============================================================================
-    // AUTO-DISMISS PENDING PERMISSION DIALOG
+    // AUTO-DISMISS PENDING PERMISSION DIALOG (LOCAL ONLY)
     // =============================================================================
     // If user sends a new message while a permission dialog is visible for this chat,
-    // we immediately dismiss it locally (treat as reject). This happens BEFORE sending
-    // the message so the UI updates instantly without waiting for server round-trip.
-    // The server will also auto-reject the pending request when it receives the new message.
+    // we dismiss it locally WITHOUT sending a WebSocket rejection to the server.
+    //
+    // WHY LOCAL-ONLY: Sending an explicit rejection via WebSocket triggers the server's
+    // _trigger_continuation() which creates a new Celery task for the OLD message.
+    // Then the new message ALSO creates a Celery task, resulting in TWO AI responses.
+    //
+    // Instead, we only create the "rejected" system message locally for UI display.
+    // The server's main_processor.py already auto-rejects the pending context when it
+    // receives the new message (deletes from Redis + sends dismiss event to other devices).
     const currentPermissionRequestId =
       appSettingsMemoriesPermissionStore.getCurrentRequestId();
     const currentPermissionChatId =
@@ -543,21 +549,21 @@ export async function handleSend(
 
     if (currentPermissionRequestId && currentPermissionChatId === chatIdToUse) {
       console.info(
-        `[handleSend] Auto-dismissing permission dialog for request ${currentPermissionRequestId} ` +
+        `[handleSend] Auto-dismissing permission dialog locally for request ${currentPermissionRequestId} ` +
           `(user sent new message to chat ${chatIdToUse})`,
       );
 
-      // Create "rejected" system message in chat history (same as clicking "Reject All")
-      // This is done via the handler function for consistency
+      // LOCAL-ONLY dismiss: create "rejected" system message + clear dialog UI
+      // Does NOT send WebSocket rejection (avoids duplicate AI response)
       try {
-        const { handlePermissionDialogExclude } =
+        const { handlePermissionDialogLocalDismiss } =
           await import("../../../services/chatSyncServiceHandlersAppSettings");
-        await handlePermissionDialogExclude(
+        await handlePermissionDialogLocalDismiss(
           chatSyncService,
           currentPermissionRequestId,
         );
         console.info(
-          "[handleSend] Permission dialog auto-dismissed and rejected response recorded",
+          "[handleSend] Permission dialog locally dismissed and rejected response recorded",
         );
       } catch (dismissError) {
         console.error(

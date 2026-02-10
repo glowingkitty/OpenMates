@@ -550,6 +550,62 @@ export async function handlePermissionDialogExclude(
 }
 
 /**
+ * Locally dismiss the permission dialog without sending a WebSocket rejection to the server.
+ *
+ * This is used when the user sends a follow-up message while a permission dialog is pending.
+ * Instead of sending an explicit rejection (which would trigger a server-side continuation task
+ * and produce a SEPARATE AI response), we only:
+ * 1. Create a "rejected" system message in the local chat history (for UI display)
+ * 2. Clear the permission dialog UI
+ * 3. Remove the pending request from the in-memory Map
+ *
+ * The server's main_processor.py already handles auto-rejecting the pending context when it
+ * receives the new message (deletes from Redis + sends dismiss event). By not sending the
+ * WebSocket rejection, we avoid triggering _trigger_continuation which would create a duplicate
+ * AI response alongside the response from the new message.
+ */
+export async function handlePermissionDialogLocalDismiss(
+  serviceInstance: ChatSynchronizationService,
+  requestId: string,
+): Promise<void> {
+  const pendingRequest = pendingPermissionRequests.get(requestId);
+
+  console.info(
+    `[ChatSyncService:AppSettings] Locally dismissing permission dialog for request ${requestId} ` +
+      `(user sent follow-up message - server will auto-reject pending context)`,
+  );
+
+  // Create system message with "rejected" metadata (synced to server for cross-device display)
+  // This ensures the "Rejected App settings & memories request." badge shows under the original user message
+  if (pendingRequest?.messageId && pendingRequest?.chatId) {
+    try {
+      await saveAppSettingsMemoriesResponseMessage(
+        serviceInstance,
+        pendingRequest.chatId,
+        pendingRequest.messageId,
+        "rejected",
+      );
+      console.info(
+        `[ChatSyncService:AppSettings] Created system message for locally dismissed request on message ${pendingRequest.messageId}`,
+      );
+    } catch (saveError) {
+      console.error(
+        "[ChatSyncService:AppSettings] Error saving locally dismissed response message:",
+        saveError,
+      );
+    }
+  }
+
+  // Remove from pending requests (no WebSocket send - server handles its own cleanup)
+  removePendingPermissionRequest(requestId);
+
+  // Clear the dialog UI
+  const { appSettingsMemoriesPermissionStore } =
+    await import("../stores/appSettingsMemoriesPermissionStore");
+  appSettingsMemoriesPermissionStore.clear();
+}
+
+/**
  * Category metadata for app settings/memories response.
  * Simplified structure - display name and icon are loaded client-side based on appId and itemType.
  */
@@ -959,6 +1015,31 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
   // Get the pending request before removing it
   const pendingRequest = pendingPermissionRequests.get(request_id);
 
+  // If the pending request was already removed locally (e.g., by handlePermissionDialogLocalDismiss
+  // when user sent a follow-up message on THIS device), skip creating a duplicate system message
+  // and notification. The local dismiss already handled everything.
+  if (!pendingRequest) {
+    console.info(
+      `[ChatSyncService:AppSettings] Request ${request_id} already handled locally for chat ${chat_id} ` +
+        `(reason: ${reason}) - skipping duplicate dismiss`,
+    );
+
+    // Still dispatch the dismiss event to clear any lingering dialog UI (defensive)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("dismissAppSettingsMemoriesPermissionDialog", {
+          detail: {
+            requestId: request_id,
+            chatId: chat_id,
+            reason: reason,
+            messageId: message_id,
+          },
+        }),
+      );
+    }
+    return;
+  }
+
   console.info(
     `[ChatSyncService:AppSettings] Auto-rejecting request ${request_id} for chat ${chat_id} ` +
       `(reason: ${reason}, original_message: ${message_id})`,
@@ -966,7 +1047,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
 
   // Create system message to show "rejected" state in chat UI
   // This is identical to what happens when user clicks "Reject All"
-  if (pendingRequest?.messageId && pendingRequest?.chatId) {
+  if (pendingRequest.messageId && pendingRequest.chatId) {
     try {
       await saveAppSettingsMemoriesResponseMessage(
         serviceInstance,
@@ -1007,6 +1088,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
   }
 
   // Show a brief notification to user explaining what happened
+  // This only shows for server-initiated dismisses (e.g., from another device)
   notificationStore.addNotification(
     "info",
     "Previous data request was cancelled because you sent a new message",
