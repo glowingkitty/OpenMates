@@ -409,6 +409,7 @@ export async function getEncryptedFields(
   encrypted_model_name?: string;
   encrypted_thinking_content?: string;
   encrypted_thinking_signature?: string;
+  encrypted_pii_mappings?: string;
 }> {
   const chatKey = getOrGenerateChatKey(dbInstance, chatId);
   const encryptedFields: {
@@ -418,6 +419,7 @@ export async function getEncryptedFields(
     encrypted_model_name?: string;
     encrypted_thinking_content?: string;
     encrypted_thinking_signature?: string;
+    encrypted_pii_mappings?: string;
   } = {};
 
   // CRITICAL FIX: await all async encryption calls to prevent storing Promises
@@ -467,6 +469,15 @@ export async function getEncryptedFields(
   if (message.thinking_signature) {
     encryptedFields.encrypted_thinking_signature = await encryptWithChatKey(
       message.thinking_signature,
+      chatKey,
+    );
+  }
+
+  // Encrypt PII mappings if present (user messages with PII detection)
+  if (message.pii_mappings && message.pii_mappings.length > 0) {
+    const piiMappingsJson = JSON.stringify(message.pii_mappings);
+    encryptedFields.encrypted_pii_mappings = await encryptWithChatKey(
+      piiMappingsJson,
       chatKey,
     );
   }

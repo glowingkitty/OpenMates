@@ -1282,6 +1282,7 @@ class ChatDatabase {
     encrypted_model_name?: string;
     encrypted_thinking_content?: string;
     encrypted_thinking_signature?: string;
+    encrypted_pii_mappings?: string;
   }> {
     return chatKeyManagementOps.getEncryptedFields(this, message, chatId);
   }

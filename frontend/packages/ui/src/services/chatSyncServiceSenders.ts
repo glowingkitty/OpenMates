@@ -899,6 +899,7 @@ export async function sendNewMessageImpl(
           encrypted_sender_name: msg.encrypted_sender_name,
           encrypted_category: msg.encrypted_category,
           encrypted_model_name: msg.encrypted_model_name,
+          encrypted_pii_mappings: msg.encrypted_pii_mappings,
           created_at: msg.created_at,
           sender_name: msg.sender_name,
         }) as Message,
@@ -1312,6 +1313,8 @@ export async function sendCompletedAIResponseImpl(
         encrypted_thinking_content: encryptedFields.encrypted_thinking_content,
         encrypted_thinking_signature:
           encryptedFields.encrypted_thinking_signature,
+        // PII mappings (encrypted) - typically only on user messages, included for completeness
+        encrypted_pii_mappings: encryptedFields.encrypted_pii_mappings,
         // Non-encrypted metadata for UI/cost tracking (safe to store as plain integers/booleans)
         has_thinking: aiMessage.has_thinking,
         thinking_token_count: aiMessage.thinking_token_count,

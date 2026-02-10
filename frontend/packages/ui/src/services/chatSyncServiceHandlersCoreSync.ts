@@ -797,6 +797,10 @@ export async function handleChatContentBatchResponseImpl(
           thinking_token_count: message.thinking_token_count as
             | number
             | undefined,
+          // PII mappings for client-side restoration of anonymized data
+          encrypted_pii_mappings: message.encrypted_pii_mappings as
+            | string
+            | undefined,
         };
         preparedMessages.push(messageToSave);
       }
