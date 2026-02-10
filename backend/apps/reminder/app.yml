@@ -25,6 +25,8 @@ skills:
     name_translation_key: reminder.set_reminder.text
     description_translation_key: reminder.set_reminder.description.text
     stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.set_reminder_skill.SetReminderSkill
     tool_schema:
       type: object
@@ -128,6 +130,8 @@ skills:
     name_translation_key: reminder.list_reminders.text
     description_translation_key: reminder.list_reminders.description.text
     stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.list_reminders_skill.ListRemindersSkill
     tool_schema:
       type: object
@@ -144,6 +148,8 @@ skills:
     name_translation_key: reminder.cancel_reminder.text
     description_translation_key: reminder.cancel_reminder.description.text
     stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.cancel_reminder_skill.CancelReminderSkill
     tool_schema:
       type: object

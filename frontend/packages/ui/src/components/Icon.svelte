@@ -291,6 +291,7 @@
     --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
     --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
     --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-bfl: url('@openmates/ui/static/icons/blackforestlabs.svg');
     --icon-url-brave: url('@openmates/ui/static/icons/brave.svg');
     --icon-url-business: url('@openmates/ui/static/icons/business.svg');
     --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
@@ -367,6 +368,7 @@
     --icon-url-offline: url('@openmates/ui/static/icons/offline.svg');
     --icon-url-open: url('@openmates/ui/static/icons/open.svg');
     --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
+    --icon-url-openmates: url('@openmates/ui/static/icons/openmates.svg');
     --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
     --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
     --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');
