@@ -88,14 +88,12 @@ class S3UploadService:
             config=s3v4_config
         )
         
-        # Separate client for uploads with older signature method.
-        # read_timeout=60 accommodates larger files (e.g., 700KB+ encrypted images)
-        # that previously timed out at 15s on Hetzner Object Storage.
+        # Separate client for uploads with older signature method
         upload_config = Config(
             signature_version='s3',  # Use older signature version which is more lenient
             s3={'addressing_style': 'path'},
             connect_timeout=15,
-            read_timeout=60,
+            read_timeout=15,
             retries={'max_attempts': 3}
         )
         # Create a separate client for uploads
@@ -107,6 +105,10 @@ class S3UploadService:
             aws_secret_access_key=secret_key,
             config=upload_config
         )
+        
+        # Store credentials so we can create retry clients with longer timeouts
+        self._upload_access_key = access_key
+        self._upload_secret_key = secret_key
         
         logger.info("S3 clients created.")
 
@@ -306,6 +308,9 @@ class S3UploadService:
         
         max_retries = 5
         retry_delay = 1  # Start with 1 second delay
+        # Progressive timeout: start at 15s, double on each timeout retry (15, 30, 60, 120, 120)
+        base_read_timeout = 15
+        max_read_timeout = 120
         
         try:
             # Log basic information
@@ -325,6 +330,11 @@ class S3UploadService:
                 cache_control = bucket_config['cache_control']
             else:
                 cache_control = 'no-cache, no-store, must-revalidate'
+            
+            # Track the current upload client — starts with the default (15s timeout).
+            # On timeout errors, we create a new client with a longer timeout.
+            current_upload_client = self.upload_client
+            current_read_timeout = base_read_timeout
             
             # Try uploading with retries and exponential backoff.
             # Catches both S3 ClientError (e.g., 5xx) and transient network errors
@@ -351,8 +361,8 @@ class S3UploadService:
                     if combined_metadata:
                         put_params['Metadata'] = combined_metadata
                     
-                    # Upload the file using the dedicated upload client
-                    self.upload_client.put_object(**put_params)
+                    # Upload the file using the current upload client
+                    current_upload_client.put_object(**put_params)
                     
                     # If successful, break out of the retry loop
                     logger.info(f"Upload successful on attempt {attempt + 1}")
@@ -376,10 +386,34 @@ class S3UploadService:
                     # Transient network errors (timeouts, connection drops) are retryable.
                     # Previously these were NOT caught here and fell through to the outer
                     # except block, causing immediate failure without any retries.
-                    logger.warning(f"Upload attempt {attempt + 1} failed with network error: {type(e).__name__}: {e}")
+                    logger.warning(
+                        f"Upload attempt {attempt + 1} failed with network error "
+                        f"(timeout={current_read_timeout}s): {type(e).__name__}: {e}"
+                    )
                     
                     if attempt == max_retries - 1:
                         raise
+                    
+                    # Create a new client with a longer read timeout for the next attempt.
+                    # This avoids penalizing normal uploads with a large default timeout
+                    # while still allowing retries to succeed for larger files.
+                    current_read_timeout = min(current_read_timeout * 2, max_read_timeout)
+                    logger.info(f"Creating retry client with read_timeout={current_read_timeout}s")
+                    retry_config = Config(
+                        signature_version='s3',
+                        s3={'addressing_style': 'path'},
+                        connect_timeout=15,
+                        read_timeout=current_read_timeout,
+                        retries={'max_attempts': 0}  # We handle retries ourselves
+                    )
+                    current_upload_client = boto3.client(
+                        's3',
+                        region_name=self.region_name,
+                        endpoint_url=self.endpoint_url,
+                        aws_access_key_id=self._upload_access_key,
+                        aws_secret_access_key=self._upload_secret_key,
+                        config=retry_config
+                    )
                     
                     wait_time = retry_delay * (2 ** attempt)
                     logger.info(f"Retrying in {wait_time} seconds...")
