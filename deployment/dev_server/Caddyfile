@@ -1,0 +1,432 @@
+# /home/superdev/projects/OpenMates/deployment/dev_server/Caddyfile
+#
+# Caddyfile for OpenMates API (Development)
+# - Handles TLS via Let's Encrypt
+# - Proxies requests to the 'api' Docker container
+# - Enforces path allowlisting
+# - Enforces Origin check for /v1/* routes
+# - Adds security headers
+# - Enables structured logging
+{
+	# Email for ACME account (Let's Encrypt)
+	email letsencrypt83hd@openmates.org
+}
+
+api.dev.openmates.org {
+	# Enable structured logging (JSON format) suitable for log processors like Fail2Ban
+	log {
+		output file /var/log/caddy/api.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	# --- Request Routing ---
+
+	# Define matchers
+	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
+	@webapp_paths path /v1/auth/* /v1/payments/* # Webapp paths that require Origin check
+	@webapp_origin header Origin https://app.dev.openmates.org
+	@options_method method OPTIONS # Renamed for clarity
+	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
+	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
+
+	# --- PUBLIC DEVELOPER API MATCHERS ---
+	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
+	# No Origin check required - external developers access from various clients/servers
+	# FastAPI enforces which settings endpoints support API key auth vs session-only
+	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* # Public API endpoints (authentication enforced by FastAPI)
+
+	# --- PUBLIC SHARE MATCHERS ---
+	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
+	# Security is maintained via encryption keys in URL fragments (never sent to server)
+	@share_paths_get {
+		path /v1/share/*
+		method GET
+	}
+
+	# --- DEMO CHAT MATCHERS ---
+	# Demo chat endpoints are webapp-only (require Origin check)
+	# Security is maintained via encryption keys stored in database (only for approved demo chats)
+	# Non-authenticated users can access demo chats, but only from the webapp origin
+
+
+	# Matcher for WebSocket OPTIONS preflight
+	@websocket_options {
+		path /v1/ws
+		method OPTIONS
+	}
+
+	# Combined matcher for valid OPTIONS preflight for general webapp paths
+	# Note: OPTIONS handling is done by FastAPI's CORSMiddleware, not Caddy
+	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
+	# Includes /v1/apps/* so webapp requests (e.g., booking-link) with session cookies
+	# get proper CORS handling (specific origin, not wildcard) from FastAPI
+	@webapp_general_options {
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/*
+		method OPTIONS
+	}
+
+	# Combined matcher for actual webapp requests (non-OPTIONS) from the correct origin
+	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
+	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
+	# Includes /v1/apps/* so webapp requests with session cookies (e.g., booking-link)
+	# get proper CORS handling from FastAPI instead of the public wildcard handler
+	@webapp_actual {
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/*
+		not method OPTIONS
+	}
+
+	# Combined matcher for actual WebSocket requests (non-OPTIONS) from the correct origin
+	@websocket_actual {
+		path /v1/ws
+		not method OPTIONS # Ensure it's not an OPTIONS request
+	}
+
+	# --- PUBLIC DEVELOPER API OPTIONS MATCHERS (for browser CORS preflight) ---
+	# Allow CORS preflight from any origin for API docs and public API paths
+	# Actual authentication is handled by the backend (API key required for /v1/apps/*)
+	@api_docs_options {
+		path /docs /docs/* /openapi.json
+		method OPTIONS
+	}
+
+	@public_api_options {
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/*
+		method OPTIONS
+	}
+
+	@share_options {
+		path /v1/share/*
+		method OPTIONS
+	}
+
+	# Health API endpoints OPTIONS (for /v1/health/* subpaths like /history and /incidents)
+	@health_api_options {
+		path /v1/health/*
+		method OPTIONS
+	}
+
+	# Route requests using explicit handlers
+	route {
+		# === INTERNAL WEBAPP ROUTES (Origin restriction enforced) ===
+		# These handlers must come FIRST so webapp requests with credentials
+		# get proper CORS handling (FastAPI sets specific origin, not wildcard)
+
+		# 1. Handle valid OPTIONS preflight for general webapp paths (including /v1/settings/*)
+		# Pass through to FastAPI CORSMiddleware instead of responding here
+		# This ensures webapp requests with credentials get proper CORS (specific origin, not wildcard)
+		handle @webapp_general_options {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 2. Handle OPTIONS preflight for WebSocket requests from the correct origin
+		# Pass through to FastAPI CORSMiddleware
+		handle @websocket_options {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# === PUBLIC DEVELOPER API ROUTES (No Origin restriction) ===
+
+		# 3. Handle OPTIONS preflight for API documentation (allow any origin)
+		handle @api_docs_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 4. Handle OPTIONS preflight for public API paths (allow any origin)
+		# Only matches requests that didn't match @webapp_general_options (i.e., no Origin header = API key requests)
+		# Authorization header must be allowed for API key authentication
+		# Supports all HTTP methods (GET, POST, PATCH, DELETE, PUT) for settings endpoints
+		handle @public_api_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, PUT, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type, Authorization"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 4a. Handle OPTIONS preflight for health API endpoints (/v1/health/*)
+		handle @health_api_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 3. Handle API documentation requests (publicly accessible)
+		# Swagger UI at /docs, OpenAPI schema at /openapi.json
+		handle @api_docs_path {
+			encode gzip zstd
+			# Add permissive CORS headers for API docs
+			header Access-Control-Allow-Origin "*"
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
+			}
+		}
+
+		# 5. Handle actual webapp requests (non-OPTIONS) from the correct origin (including /v1/settings/*)
+		# Apply compression only to non-WebSocket requests
+		# CORS headers are added by FastAPI CORSMiddleware (sets specific origin for credentials)
+		# IMPORTANT: Do NOT set any CORS headers here - let FastAPI handle them to ensure credentials work correctly
+		handle @webapp_actual {
+			encode gzip zstd
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Preserve all response headers from FastAPI (including CORS headers)
+				# Don't strip or override any headers - FastAPI CORSMiddleware handles CORS correctly
+			}
+		}
+
+		# === PUBLIC DEVELOPER API ROUTES (No Origin restriction) ===
+		# These handlers come AFTER webapp handlers so API key requests (without Origin header) fall through here
+
+		# 6. Handle Public Developer API requests (/v1/apps/* and /v1/settings/*)
+		# Only matches requests that didn't match @webapp_actual (i.e., no Origin header = API key requests)
+		# Authentication is enforced by FastAPI - endpoints use get_current_user (session-only) or get_current_user_or_api_key (supports both)
+		# FastAPI will reject requests without proper authentication (401/403)
+		handle @public_api_paths {
+			# Add permissive CORS headers for API access
+			header Access-Control-Allow-Origin "*"
+			encode gzip zstd
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
+			}
+		}
+
+		# 7a. Share endpoints OPTIONS - handled by FastAPI CORSMiddleware
+		# Pass OPTIONS requests through to FastAPI instead of responding here
+		# This ensures CORS configuration stays in one place (FastAPI)
+		handle @share_options {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 7b. Handle Share GET endpoints (/v1/share/*)
+		# Publicly accessible for social media crawlers and cross-platform sharing
+		# Security is maintained via encryption keys in URL fragments (never sent to server)
+		# Note: POST endpoints (metadata, unshare) require authentication via webapp routes
+		handle @share_paths_get {
+			# Add permissive CORS headers for cross-origin access
+			header Access-Control-Allow-Origin "*"
+			encode gzip zstd
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
+			}
+		}
+
+		# 8. Handle Revolut Webhook path (POST only)
+		handle @revolut_webhook {
+			method POST
+			encode gzip zstd
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 9. Handle Health Check and Server Info paths (public endpoints, no auth required)
+		# Supports /health, /v1/health, and /v1/server
+		handle @health_path {
+			# No compression for health checks (small responses)
+			# Add CORS headers for public access (monitoring tools, Swagger UI, etc.)
+			header Access-Control-Allow-Origin "*"
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
+			}
+		}
+
+		# 10. Handle actual WebSocket requests (non-OPTIONS) from the correct origin
+		# IMPORTANT: Do NOT apply compression to WebSocket connections!
+		# Compression interferes with WebSocket upgrade handshake, especially on Safari iPad OS
+		handle @websocket_actual {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# For WebSockets (both HTTP/1.1 and HTTP/2 via CONNECT),
+				# Caddy's reverse_proxy handles the necessary Connection and Upgrade headers automatically.
+				# Explicitly setting them from client request headers can be problematic,
+				# especially for HTTP/2 CONNECT where these headers aren't used in the same way
+				# as in an HTTP/1.1 GET upgrade request.
+				# header_up Connection {http.request.header.Connection}
+				# header_up Upgrade {http.request.header.Upgrade}
+				flush_interval -1 # Disable response buffering for WebSockets
+			}
+		}
+
+		# 11. Abort all other requests not explicitly handled above
+		# This ensures that only defined paths are accessible.
+		handle {
+			abort
+		}
+	}
+}
+
+penpot.dev.openmates.org {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/penpot.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN" # Allow framing for Penpot's design tools
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to Penpot on port 9001
+	reverse_proxy localhost:9001 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+	}
+}
+
+pad.dev.openmates.org {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/pad.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN" # Allow framing for collaborative editing
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to Etherpad on port 9002
+	reverse_proxy localhost:9002 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+
+		# WebSocket support for real-time collaboration
+		header_up Connection {http.request.header.Connection}
+		header_up Upgrade {http.request.header.Upgrade}
+	}
+}
+
+jupyter.dev.openmates.org {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/jupyter.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN" # Allow framing for Jupyter notebooks
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to Jupyter on port 8888
+	reverse_proxy localhost:8888 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+
+		# WebSocket support for Jupyter kernels and real-time updates
+		header_up Connection {http.request.header.Connection}
+		header_up Upgrade {http.request.header.Upgrade}
+	}
+}
+
+code.dev.openmates.org {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/code.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to Code on port 4096
+	reverse_proxy localhost:4096 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+
+		# WebSocket support for the code editor
+		header_up Connection {http.request.header.Connection}
+		header_up Upgrade {http.request.header.Upgrade}
+	}
+}
