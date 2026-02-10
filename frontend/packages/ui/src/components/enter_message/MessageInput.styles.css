@@ -2,18 +2,20 @@
 
 /* =============================================================================
    PII (Personally Identifiable Information) Highlighting Styles
-   Unified yellow highlight for ALL PII types (emails, phones, API keys, etc.)
-   in the message input editor. Same visual style is used in ReadOnlyMessage.
+   Orange/amber bold text for ALL PII types (emails, phones, API keys, etc.)
+   in the message input editor. Matches the .pii-revealed style in ReadOnlyMessage.
    ============================================================================= */
 
-/* Single unified PII highlight style - yellow background, clickable in input editor */
+/* Single unified PII highlight style - orange bold text, clickable in input editor */
 :global(.ProseMirror .pii-highlight) {
-  background-color: rgba(250, 204, 21, 0.3);
-  border-radius: 3px;
-  padding: 1px 2px;
-  margin: 0 -2px;
+  color: #f59e0b;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  border-bottom: none;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
 }
 
 /* =============================================================================

@@ -1207,9 +1207,9 @@
 
     /* ==========================================================================
        PII RESTORED HIGHLIGHTING
-       Unified yellow highlight for ALL PII types in read-only messages.
-       Same visual style as the message input editor (MessageInput.styles.css).
-       No links, no underlines — just a subtle yellow background.
+       Bold colored text for ALL PII types in read-only messages.
+       Same orange/amber color as the message input editor (MessageInput.styles.css).
+       No links, no underlines — just bold colored text.
        
         Two modes controlled by CSS classes:
         - .pii-revealed: Original values shown in orange bold (warns sensitive data is exposed)

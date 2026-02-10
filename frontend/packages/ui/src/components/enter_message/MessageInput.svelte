@@ -1521,7 +1521,7 @@
                 const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
                 const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
                 
-                // All PII types use the same unified yellow highlight style.
+                // All PII types use the same orange/amber bold text style (matches ReadOnlyMessage .pii-revealed).
                 // The data-pii-type attribute is kept for tooltip display and click handling.
                 return Decoration.inline(from, to, {
                     class: 'pii-highlight',
