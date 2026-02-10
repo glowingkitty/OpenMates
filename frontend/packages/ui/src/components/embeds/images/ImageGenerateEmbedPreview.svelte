@@ -14,9 +14,10 @@
 -->
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   
   /**
    * Image embed content structure from the backend
@@ -98,6 +99,40 @@
   let isLoadingImage = $state(false);
   let imageError = $state<string | undefined>(undefined);
   
+  // Track which S3 key we retained so we can release on unmount
+  let retainedS3Key: string | undefined = undefined;
+  
+  // Lazy loading: only fetch when the embed scrolls into view
+  let isInView = $state(false);
+  let containerRef: HTMLElement | undefined = $state(undefined);
+  let observer: IntersectionObserver | undefined = undefined;
+  
+  // Set up IntersectionObserver for lazy loading
+  $effect(() => {
+    if (!containerRef) return;
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          isInView = true;
+          // Once visible, no need to keep observing
+          observer?.disconnect();
+        }
+      },
+      { rootMargin: '200px' } // Start loading 200px before entering viewport
+    );
+    observer.observe(containerRef);
+    return () => observer?.disconnect();
+  });
+  
+  // Cleanup: release cached blob URL reference on unmount
+  onDestroy(() => {
+    if (retainedS3Key) {
+      releaseCachedImage(retainedS3Key);
+      retainedS3Key = undefined;
+    }
+    observer?.disconnect();
+  });
+  
   // Initialize local state from props
   $effect(() => {
     localPrompt = promptProp;
@@ -132,12 +167,14 @@
   });
   
   /**
-   * Load and decrypt the preview image from S3
+   * Load and decrypt the preview image from S3.
+   * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
    */
   async function loadPreviewImage() {
-    if (!files?.preview?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) {
+    const s3Key = files?.preview?.s3_key;
+    if (!s3Key || !s3BaseUrl || !aesKey || !aesNonce) {
       console.debug('[ImageGenerateEmbedPreview] Missing data for image load:', {
-        hasFiles: !!files?.preview?.s3_key,
+        hasFiles: !!s3Key,
         hasS3BaseUrl: !!s3BaseUrl,
         hasAesKey: !!aesKey,
         hasAesNonce: !!aesNonce,
@@ -148,13 +185,28 @@
     // Don't reload if we already have an image
     if (imageUrl) return;
     
+    // Check shared cache first (instant hit if another component already decrypted this)
+    const cachedUrl = getCachedImageUrl(s3Key);
+    if (cachedUrl) {
+      imageUrl = cachedUrl;
+      // Release previous key if switching images
+      if (retainedS3Key && retainedS3Key !== s3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = s3Key;
+      retainCachedImage(s3Key);
+      return;
+    }
+    
     isLoadingImage = true;
     imageError = undefined;
     
     try {
-      console.debug('[ImageGenerateEmbedPreview] Loading preview image from S3:', files.preview.s3_key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, files.preview.s3_key, aesKey, aesNonce);
+      console.debug('[ImageGenerateEmbedPreview] Loading preview image from S3:', s3Key);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, s3Key, aesKey, aesNonce);
       imageUrl = URL.createObjectURL(blob);
+      // Retain reference in shared cache so blob URL isn't revoked while we're using it
+      if (retainedS3Key && retainedS3Key !== s3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = s3Key;
+      retainCachedImage(s3Key);
       console.debug('[ImageGenerateEmbedPreview] Preview image loaded successfully');
     } catch (err) {
       // DOMException from Web Crypto API has no enumerable properties and serializes as {}.
@@ -172,9 +224,11 @@
     }
   }
   
-  // Auto-load image when status becomes finished and we have the required data
+  // Auto-load image when status becomes finished, data is available, AND the embed is in view.
+  // The IntersectionObserver sets isInView=true when the embed is within 200px of the viewport,
+  // preventing all images in a long chat from loading simultaneously.
   $effect(() => {
-    if (status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && aesNonce && !imageUrl && !isLoadingImage) {
+    if (isInView && status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && aesNonce && !imageUrl && !isLoadingImage) {
       loadPreviewImage();
     }
   });
@@ -224,7 +278,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="image-preview" class:mobile={isMobileSnippet}>
+    <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
       {#if status === 'processing'}
         <!-- Processing state: shimmer skeleton -->
         <div class="skeleton-content">

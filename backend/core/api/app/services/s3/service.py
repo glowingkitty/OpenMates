@@ -315,8 +315,14 @@ class S3UploadService:
             # Set ACL based on bucket access configuration
             acl = 'private' if bucket_config['access'] == 'private' else 'public-read'
             
-            # Set cache control
-            cache_control = 'no-cache, no-store, must-revalidate'
+            # Set cache control based on bucket configuration.
+            # Immutable buckets (e.g., chatfiles) contain content-addressed encrypted blobs
+            # that never change — aggressive caching lets browsers skip redundant fetches.
+            # Mutable buckets (e.g., profile_images) need no-cache to ensure fresh content.
+            if bucket_config.get('cache_control'):
+                cache_control = bucket_config['cache_control']
+            else:
+                cache_control = 'no-cache, no-store, must-revalidate'
             
             # Try uploading with retries and exponential backoff
             for attempt in range(max_retries):

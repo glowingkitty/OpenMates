@@ -67,6 +67,9 @@ BUCKETS = {
         'max_size': 500 * 1024 * 1024,  # 500MB
         'access': 'public-read',
         'lifecycle_policy': None,  # No auto-delete
+        # Aggressive caching: encrypted blobs are content-addressed (unique S3 key per upload)
+        # and never modified in place, so browsers can cache them indefinitely.
+        'cache_control': 'public, max-age=31536000, immutable',
     },
     'userdata_backups': {
         'name': 'openmates-userdata-backups',

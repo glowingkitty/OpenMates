@@ -9,16 +9,88 @@
  * The plaintext AES key and nonce are included in the embed content (which
  * itself is client-encrypted with the chat's master key).
  *
+ * Includes an in-memory cache of decrypted blob URLs keyed by S3 key,
+ * so that re-mounting a component (e.g. scrolling away and back) does not
+ * trigger a redundant fetch + decrypt cycle.
+ *
  * Flow:
- * 1. Construct full S3 URL from s3_base_url + s3_key
- * 2. Fetch the encrypted blob
- * 3. Import the AES key via Web Crypto API
- * 4. Decrypt using AES-256-GCM with the provided nonce
- * 5. Return as a Blob for rendering via createObjectURL
+ * 1. Check in-memory cache for existing blob URL
+ * 2. If miss: construct full S3 URL from s3_base_url + s3_key
+ * 3. Fetch the encrypted blob
+ * 4. Import the AES key via Web Crypto API
+ * 5. Decrypt using AES-256-GCM with the provided nonce
+ * 6. Create blob URL, store in cache, return
  */
 
 /**
+ * In-memory cache: maps S3 key -> blob URL.
+ *
+ * This survives component unmounts so images don't need to be re-fetched
+ * and re-decrypted when a preview or fullscreen component remounts.
+ * Blob URLs are reference-counted: each component that uses a cached URL
+ * calls `retainCachedImage` on mount and `releaseCachedImage` on unmount.
+ * When the ref count drops to zero the blob URL is revoked after a grace
+ * period to free memory.
+ */
+const imageCache = new Map<
+  string,
+  {
+    blobUrl: string;
+    refCount: number;
+    revokeTimer: ReturnType<typeof setTimeout> | null;
+  }
+>();
+
+/** Grace period before revoking an unreferenced blob URL (ms). */
+const REVOKE_GRACE_MS = 30_000;
+
+/**
+ * Increment the reference count for a cached blob URL.
+ * Call this when a component mounts and starts using the URL.
+ */
+export function retainCachedImage(s3Key: string): void {
+  const entry = imageCache.get(s3Key);
+  if (!entry) return;
+  entry.refCount++;
+  // Cancel any pending revocation since someone is using it again
+  if (entry.revokeTimer) {
+    clearTimeout(entry.revokeTimer);
+    entry.revokeTimer = null;
+  }
+}
+
+/**
+ * Decrement the reference count for a cached blob URL.
+ * When it reaches zero, schedule revocation after a grace period.
+ * Call this when a component unmounts.
+ */
+export function releaseCachedImage(s3Key: string): void {
+  const entry = imageCache.get(s3Key);
+  if (!entry) return;
+  entry.refCount = Math.max(0, entry.refCount - 1);
+  if (entry.refCount === 0 && !entry.revokeTimer) {
+    entry.revokeTimer = setTimeout(() => {
+      // Double-check ref count hasn't increased since timer was set
+      const current = imageCache.get(s3Key);
+      if (current && current.refCount === 0) {
+        URL.revokeObjectURL(current.blobUrl);
+        imageCache.delete(s3Key);
+      }
+    }, REVOKE_GRACE_MS);
+  }
+}
+
+/**
+ * Get a cached blob URL if available, without fetching.
+ */
+export function getCachedImageUrl(s3Key: string): string | undefined {
+  return imageCache.get(s3Key)?.blobUrl;
+}
+
+/**
  * Fetch an encrypted image from S3 and decrypt it client-side.
+ * Results are cached in memory keyed by s3Key so that subsequent calls
+ * for the same image return instantly.
  *
  * @param s3BaseUrl - Base URL of the S3 bucket (e.g. "https://openmates-chatfiles.nbg1.your-objectstorage.com")
  * @param s3Key - Relative file key in the bucket (e.g. "user_id/timestamp_id_preview.webp")
@@ -32,6 +104,18 @@ export async function fetchAndDecryptImage(
   aesKeyBase64: string,
   nonceBase64: string,
 ): Promise<Blob> {
+  // 0. Check cache first — return existing blob if we already decrypted this image
+  const cached = imageCache.get(s3Key);
+  if (cached) {
+    // Return a fresh Blob reference from the cached blob URL.
+    // The caller will create its own objectURL, but we also keep our canonical one.
+    // Actually, callers use URL.createObjectURL on the returned Blob, so just
+    // fetch the blob from the cached URL to avoid re-decrypting.
+    // Simpler: re-fetch from blob URL (instant, no network)
+    const resp = await fetch(cached.blobUrl);
+    return resp.blob();
+  }
+
   // 1. Construct the full S3 URL
   const url = `${s3BaseUrl}/${s3Key}`;
 
@@ -72,7 +156,13 @@ export async function fetchAndDecryptImage(
   // 6. Determine MIME type from the s3_key extension
   const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
 
-  return new Blob([decryptedData], { type: mimeType });
+  const blob = new Blob([decryptedData], { type: mimeType });
+
+  // 7. Cache the decrypted blob URL for future use
+  const blobUrl = URL.createObjectURL(blob);
+  imageCache.set(s3Key, { blobUrl, refCount: 0, revokeTimer: null });
+
+  return blob;
 }
 
 /**

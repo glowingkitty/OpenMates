@@ -12,9 +12,10 @@
 -->
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   
   /**
    * Props for image generate embed fullscreen
@@ -81,10 +82,17 @@
   }: Props = $props();
   
   // Image state
+  // Progressive loading: show the preview image instantly while the full-res version loads.
+  // The preview is typically already cached from the inline embed, so it appears immediately.
+  let previewImageUrl = $state<string | undefined>(undefined);
   let fullImageUrl = $state<string | undefined>(undefined);
   let isLoadingImage = $state(false);
   let imageError = $state<string | undefined>(undefined);
   let isDownloading = $state(false);
+  
+  // Track retained S3 keys for cleanup
+  let retainedPreviewKey: string | undefined = undefined;
+  let retainedFullKey: string | undefined = undefined;
   
   // Skill display
   let skillName = $derived($text('embeds.image_generate.text'));
@@ -105,22 +113,48 @@
   });
   
   /**
-   * Load and decrypt the full-resolution image from S3
+   * Load the full-resolution image from S3 with progressive enhancement.
+   * 1. Instantly show the cached preview (likely already decrypted by the inline preview)
+   * 2. Fetch + decrypt the full-resolution image in the background
+   * 3. Swap to full-res when ready
    */
   async function loadFullImage() {
-    // Use 'full' format for fullscreen, fallback to 'preview'
-    const fileData = files?.full || files?.preview;
-    if (!fileData?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return;
-    
+    if (!s3BaseUrl || !aesKey || !aesNonce) return;
     if (fullImageUrl) return;
+    
+    // Step 1: Show cached preview instantly for progressive loading
+    const previewKey = files?.preview?.s3_key;
+    if (previewKey && !previewImageUrl) {
+      const cachedPreview = getCachedImageUrl(previewKey);
+      if (cachedPreview) {
+        previewImageUrl = cachedPreview;
+        retainedPreviewKey = previewKey;
+        retainCachedImage(previewKey);
+      }
+    }
+    
+    // Step 2: Load the full-res version
+    const fullFileData = files?.full || files?.preview;
+    if (!fullFileData?.s3_key) return;
+    
+    // Check cache for full-res too
+    const cachedFull = getCachedImageUrl(fullFileData.s3_key);
+    if (cachedFull) {
+      fullImageUrl = cachedFull;
+      retainedFullKey = fullFileData.s3_key;
+      retainCachedImage(fullFileData.s3_key);
+      return;
+    }
     
     isLoadingImage = true;
     imageError = undefined;
     
     try {
-      console.debug('[ImageGenerateEmbedFullscreen] Loading full image from S3:', fileData.s3_key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, fileData.s3_key, aesKey, aesNonce);
+      console.debug('[ImageGenerateEmbedFullscreen] Loading full image from S3:', fullFileData.s3_key);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce);
       fullImageUrl = URL.createObjectURL(blob);
+      retainedFullKey = fullFileData.s3_key;
+      retainCachedImage(fullFileData.s3_key);
     } catch (err) {
       console.error('[ImageGenerateEmbedFullscreen] Failed to load full image:', err);
       imageError = err instanceof Error ? err.message : 'Failed to load image';
@@ -134,6 +168,12 @@
     if (status === 'finished' && !fullImageUrl && !isLoadingImage) {
       loadFullImage();
     }
+  });
+  
+  // Cleanup: release cached image references on unmount
+  onDestroy(() => {
+    if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
+    if (retainedFullKey) releaseCachedImage(retainedFullKey);
   });
   
   /**
@@ -193,16 +233,26 @@
           <p class="error-message">{error}</p>
         </div>
       {:else}
-        <!-- Image display -->
+        <!-- Image display with progressive loading:
+             1. Show cached preview instantly (blurred) while full-res loads
+             2. Swap to full-res when ready -->
         <div class="image-section">
-          {#if isLoadingImage}
+          {#if fullImageUrl}
+            <div class="image-wrapper">
+              <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+            </div>
+          {:else if previewImageUrl && isLoadingImage}
+            <!-- Progressive: show preview while full-res loads -->
+            <div class="image-wrapper progressive">
+              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="full-image preview-placeholder" />
+              <div class="progressive-overlay">
+                <div class="loading-spinner small"></div>
+              </div>
+            </div>
+          {:else if isLoadingImage}
             <div class="image-loading">
               <div class="loading-spinner"></div>
               <span class="loading-text">{$text('embeds.image_generate.loading.text')}</span>
-            </div>
-          {:else if fullImageUrl}
-            <div class="image-wrapper">
-              <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
             </div>
           {:else if imageError}
             <div class="error-container">
@@ -285,6 +335,35 @@
     object-fit: contain;
     border-radius: 8px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Progressive loading: show blurred preview while full-res loads */
+  .image-wrapper.progressive {
+    position: relative;
+  }
+  
+  .preview-placeholder {
+    filter: blur(2px);
+    transition: filter 0.3s ease;
+  }
+  
+  .progressive-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .loading-spinner.small {
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
   }
   
   /* Loading state */
