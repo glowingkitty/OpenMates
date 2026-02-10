@@ -754,6 +754,43 @@ async def call_preprocessing_llm(
 
     transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
 
+    # CRITICAL: Strip tool_calls from assistant messages and remove tool-role messages entirely.
+    # The preprocessing LLM must only see plain user/assistant text conversation.
+    # If previous assistant messages contained tool_calls (e.g., images-generate, web-search),
+    # the preprocessing LLM may mimic those tool calls instead of calling the expected
+    # 'analyze_request_properties' tool. This was observed in production where the LLM
+    # called 'images-generate' instead of the preprocessing tool because the message history
+    # contained a previous images-generate tool call.
+    filtered_messages_for_llm = []
+    tool_messages_stripped = 0
+    tool_calls_stripped = 0
+    for msg in transformed_messages_for_llm:
+        if msg.get("role") == "tool":
+            # Skip tool result messages entirely - preprocessing doesn't need them
+            tool_messages_stripped += 1
+            continue
+        if msg.get("role") == "assistant" and "tool_calls" in msg:
+            # Strip tool_calls from assistant messages, keep only the text content
+            tool_calls_stripped += 1
+            cleaned_msg = {"role": "assistant"}
+            if msg.get("content"):
+                cleaned_msg["content"] = msg["content"]
+            else:
+                # If assistant message had only tool_calls and no text content, skip it
+                # to avoid sending an empty assistant message
+                continue
+            filtered_messages_for_llm.append(cleaned_msg)
+            continue
+        filtered_messages_for_llm.append(msg)
+    
+    if tool_messages_stripped > 0 or tool_calls_stripped > 0:
+        logger.info(
+            f"[{task_id}] LLM Utils: Stripped {tool_messages_stripped} tool-role message(s) and "
+            f"{tool_calls_stripped} tool_calls from assistant message(s) for preprocessing. "
+            f"Messages: {len(transformed_messages_for_llm)} -> {len(filtered_messages_for_llm)}"
+        )
+    transformed_messages_for_llm = filtered_messages_for_llm
+
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
         

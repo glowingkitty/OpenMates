@@ -1406,6 +1406,11 @@ async def _async_process_ai_skill_ask_task(
         chat_summary = preprocessing_result.chat_summary if preprocessing_result and not preprocessing_failed else None
         chat_tags = preprocessing_result.chat_tags if preprocessing_result and not preprocessing_failed else []
 
+        # Extract available app IDs from discovered_apps_metadata for post-processing validation
+        # NOTE: This must be defined before the preprocessing_failed branch, because
+        # the debug caching code below references it regardless of which branch is taken.
+        available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
+
         # CRITICAL: chat_summary is required for post-processing
         # If missing, log detailed information to understand why the preprocessing LLM didn't return it
         if preprocessing_failed or not chat_summary:
@@ -1442,8 +1447,6 @@ async def _async_process_ai_skill_ask_task(
             # Skip post-processing but log the error for debugging
             postprocessing_result = None
         else:
-            # Extract available app IDs from discovered_apps_metadata for post-processing validation
-            available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
             if not available_app_ids:
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
