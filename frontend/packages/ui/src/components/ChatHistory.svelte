@@ -21,7 +21,8 @@
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
-    AppSettingsMemoriesResponseContent
+    AppSettingsMemoriesResponseContent,
+    AppSettingsMemoriesRequestContent
   } from '../services/chatSyncServiceHandlersAppSettings';
   import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
@@ -31,9 +32,12 @@
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import SettingsMemoriesSuggestions from './SettingsMemoriesSuggestions.svelte';
   import { 
+    appSettingsMemoriesPermissionStore,
     isPermissionDialogVisible,
     currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
+  import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -190,6 +194,23 @@
   }
 
   /**
+   * Parse system message content to check if it's an app_settings_memories_request.
+   * Returns the parsed content or null if not a valid request.
+   */
+  function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
+    if (typeof content !== 'string') return null;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_request') {
+        return parsed as AppSettingsMemoriesRequestContent;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+    return null;
+  }
+
+  /**
    * Helper to read thinking entries from the map with a stable signature.
    * This keeps template logic concise and avoids unsupported {@const} placement.
    */
@@ -197,6 +218,29 @@
     if (!messageId) return undefined;
     return thinkingContentByTask.get(messageId);
   }
+
+  /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories REQUEST.
+   * System messages with type 'app_settings_memories_request' contain the request metadata
+   * (requested_keys, categories) and should be displayed as part of the user's message, not separately.
+   * 
+   * Used together with appSettingsMemoriesResponseMap to detect "unpaired" requests
+   * (a request without a matching response) which indicates a pending permission dialog.
+   */
+  let appSettingsMemoriesRequestMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesRequestContent>();
+    
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        if (request) {
+          map.set(request.user_message_id, request);
+        }
+      }
+    }
+    
+    return map;
+  });
 
   /**
    * Derived state: Create a lookup map of user_message_id → app settings/memories response.
@@ -261,8 +305,9 @@
   });
 
   /**
-   * Derived state: Filter out system messages that are app_settings_memories_response.
-   * These are displayed as part of the user's message, not as separate chat bubbles.
+   * Derived state: Filter out system messages for app_settings_memories request and response.
+   * Request system messages drive the permission dialog (not rendered as chat bubbles).
+   * Response system messages are displayed as part of the user's message (included/rejected badge).
    */
   let displayMessages = $derived.by(() => {
     return messages.filter(msg => {
@@ -270,6 +315,11 @@
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
         if (response?.type === 'app_settings_memories_response') {
+          return false;
+        }
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        // Filter out app_settings_memories_request system messages
+        if (request?.type === 'app_settings_memories_request') {
           return false;
         }
       }
@@ -325,6 +375,65 @@
     currentChatId && 
     $currentPermissionRequest.chatId === currentChatId
   );
+
+  /**
+   * Derived state: Detect unpaired app settings/memories requests.
+   * An "unpaired" request is a request system message that has no matching response system message
+   * (both reference the same user_message_id). This indicates the user hasn't responded yet.
+   *
+   * When an unpaired request is detected for the current chat, the permission dialog is shown
+   * automatically. This handles the case where the user logs out/in or refreshes while a
+   * permission dialog was pending - the dialog re-appears from the persisted system message.
+   */
+  let unpairedRequest = $derived.by(() => {
+    // Find the first unpaired request in this chat's messages
+    for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
+      if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        return request;
+      }
+    }
+    return null;
+  });
+
+  /**
+   * Effect: When an unpaired request is detected and no dialog is currently visible,
+   * rebuild the full PendingPermissionRequest and show the dialog via the store.
+   * This handles session recovery (logout/login, refresh, cross-device sync).
+   */
+  $effect(() => {
+    if (!unpairedRequest || !currentChatId) return;
+    
+    // Don't show if a dialog is already visible (either for this request or another)
+    if ($isPermissionDialogVisible) return;
+
+    // Rebuild full categories with display info from the persisted minimal metadata
+    const fullCategories: AppSettingsMemoriesCategory[] = unpairedRequest.categories.map(cat => ({
+      key: `${cat.appId}-${cat.itemType}`,
+      appId: cat.appId,
+      itemType: cat.itemType,
+      displayName: formatDisplayName(cat.itemType),
+      entryCount: cat.entryCount,
+      iconGradient: getAppGradient(cat.appId),
+      selected: true, // Default all to selected when recovering
+    }));
+
+    // Rebuild the PendingPermissionRequest for the store
+    const recoveredRequest: PendingPermissionRequest = {
+      requestId: unpairedRequest.request_id,
+      chatId: currentChatId,
+      messageId: unpairedRequest.user_message_id,
+      categories: fullCategories,
+      yamlContent: '', // YAML content not stored in system message (not needed for dialog)
+      createdAt: Date.now(),
+    };
+
+    console.info(
+      `[ChatHistory] Recovered unpaired permission request ${unpairedRequest.request_id} ` +
+      `for chat ${currentChatId} - showing dialog`
+    );
+
+    appSettingsMemoriesPermissionStore.showDialog(recoveredRequest);
+  });
 
   // Determine if we should show settings/memories suggestions
   // Only show after the last assistant message when:

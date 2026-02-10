@@ -95,7 +95,7 @@ export function removePendingPermissionRequest(requestId: string): void {
  * Generate a human-readable display name from an item_type
  * Converts "preferred_technologies" -> "Preferred technologies"
  */
-function formatDisplayName(itemType: string): string {
+export function formatDisplayName(itemType: string): string {
   return itemType
     .split("_")
     .map((word, index) =>
@@ -107,7 +107,7 @@ function formatDisplayName(itemType: string): string {
 /**
  * Get CSS gradient for an app ID from theme variables
  */
-function getAppGradient(appId: string): string {
+export function getAppGradient(appId: string): string {
   const gradientMap: Record<string, string> = {
     code: "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
     travel: "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)",
@@ -295,7 +295,39 @@ export async function handleRequestAppSettingsMemoriesImpl(
       }
     }
 
-    // Store the pending request
+    // Persist the request as a system message in chat history.
+    // This ensures the request survives logout/login and cross-device sync.
+    // ChatHistory.svelte will detect "unpaired" requests (no matching response)
+    // and re-show the permission dialog automatically.
+    if (payload.message_id) {
+      try {
+        await saveAppSettingsMemoriesRequestMessage(
+          serviceInstance,
+          chat_id,
+          payload.message_id,
+          request_id,
+          validKeys,
+          categories.map((cat) => ({
+            appId: cat.appId,
+            itemType: cat.itemType,
+            entryCount: cat.entryCount,
+          })),
+        );
+        console.info(
+          `[ChatSyncService:AppSettings] Persisted request ${request_id} as system message for message ${payload.message_id}`,
+        );
+      } catch (saveError) {
+        console.error(
+          "[ChatSyncService:AppSettings] Error saving request system message:",
+          saveError,
+        );
+        // Continue - dialog can still show from in-memory state even if persistence fails
+      }
+    }
+
+    // Store the pending request in-memory for immediate dialog display
+    // NOTE: This in-memory Map will be removed in a follow-up task once ChatHistory.svelte
+    // drives the dialog from the persisted system message instead
     const pendingRequest: PendingPermissionRequest = {
       requestId: request_id,
       chatId: chat_id,
@@ -339,13 +371,34 @@ export async function handleRequestAppSettingsMemoriesImpl(
  * 2. Send decrypted data to server via WebSocket
  * 3. Server caches data for AI processing
  * 4. Create a system message with response metadata (synced to server for cross-device display)
+ *
+ * The request data is retrieved from the permission store (which may have been populated
+ * from the in-memory Map for fresh requests, or from a recovered system message after
+ * session recovery). The in-memory Map is checked as a fallback.
  */
 export async function handlePermissionDialogConfirm(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
   selectedKeys: string[],
 ): Promise<void> {
-  const pendingRequest = pendingPermissionRequests.get(requestId);
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    // Request was recovered from system message - build from the store
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
   if (!pendingRequest) {
     console.error(
       `[ChatSyncService:AppSettings] No pending request found for ID: ${requestId}`,
@@ -492,12 +545,31 @@ export async function handlePermissionDialogConfirm(
  * the AI continuation task to process the request WITHOUT the app settings/memories.
  * The server's app_settings_memories_confirmed_handler detects is_rejection=true
  * when the array is empty and continues processing accordingly.
+ *
+ * The request data is retrieved from the in-memory Map (fresh request) or from
+ * the permission store (recovered request from system message).
  */
 export async function handlePermissionDialogExclude(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
 ): Promise<void> {
-  const pendingRequest = pendingPermissionRequests.get(requestId);
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
 
   console.info(
     `[ChatSyncService:AppSettings] User rejected app settings/memories for request ${requestId}`,
@@ -563,12 +635,31 @@ export async function handlePermissionDialogExclude(
  * receives the new message (deletes from Redis + sends dismiss event). By not sending the
  * WebSocket rejection, we avoid triggering _trigger_continuation which would create a duplicate
  * AI response alongside the response from the new message.
+ *
+ * The request data is retrieved from the in-memory Map (fresh request) or from
+ * the permission store (recovered request from system message).
  */
 export async function handlePermissionDialogLocalDismiss(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
 ): Promise<void> {
-  const pendingRequest = pendingPermissionRequests.get(requestId);
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
 
   console.info(
     `[ChatSyncService:AppSettings] Locally dismissing permission dialog for request ${requestId} ` +
@@ -603,6 +694,32 @@ export async function handlePermissionDialogLocalDismiss(
   const { appSettingsMemoriesPermissionStore } =
     await import("../stores/appSettingsMemoriesPermissionStore");
   appSettingsMemoriesPermissionStore.clear();
+}
+
+/**
+ * Category metadata for app settings/memories request.
+ * Simplified structure - display name and icon are loaded client-side based on appId and itemType.
+ */
+export interface AppSettingsMemoriesRequestCategory {
+  appId: string; // e.g., "code"
+  itemType: string; // e.g., "preferred_technologies" (without app prefix)
+  entryCount: number; // Number of entries in this category
+}
+
+/**
+ * Content structure for app settings/memories REQUEST system message.
+ * This is JSON-stringified and stored in the message content field.
+ *
+ * Persisting the request as a system message means it survives logout/login,
+ * cross-device sync, and browser refreshes. ChatHistory.svelte can then detect
+ * "unpaired" requests (no matching response system message) to re-show the dialog.
+ */
+export interface AppSettingsMemoriesRequestContent {
+  type: "app_settings_memories_request";
+  user_message_id: string; // The user message that triggered this request
+  request_id: string; // Server-assigned request ID (for WebSocket confirm/reject)
+  requested_keys: string[]; // Array of "app_id-item_type" format (e.g., "code-preferred_technologies")
+  categories: AppSettingsMemoriesRequestCategory[]; // Parsed category metadata for dialog display
 }
 
 /**
@@ -739,6 +856,137 @@ async function saveAppSettingsMemoriesResponseMessage(
   } catch (sendError) {
     console.error(
       `[ChatSyncService:AppSettings] Error sending system message to server:`,
+      sendError,
+    );
+    // Message is still saved locally, will be synced later
+  }
+}
+
+/**
+ * Create and save a system message for app settings/memories REQUEST.
+ * This message is stored in IndexedDB and synced to the server for cross-device persistence.
+ *
+ * By persisting the request as a system message, it survives logout/login and
+ * cross-device sync. ChatHistory.svelte detects "unpaired" requests (no matching
+ * response system message with the same user_message_id) to re-show the permission dialog.
+ *
+ * IMPORTANT: System messages are encrypted client-side with the chat key (zero-knowledge architecture)
+ * just like regular messages. The server stores the encrypted content directly in Directus.
+ *
+ * @param serviceInstance - The ChatSynchronizationService instance
+ * @param chatId - The chat ID
+ * @param userMessageId - The user message ID that triggered the request
+ * @param requestId - The server-assigned request ID (for WebSocket confirm/reject)
+ * @param requestedKeys - Array of "app_id-item_type" format keys
+ * @param categories - Parsed category metadata for dialog display
+ */
+async function saveAppSettingsMemoriesRequestMessage(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  userMessageId: string,
+  requestId: string,
+  requestedKeys: string[],
+  categories: AppSettingsMemoriesRequestCategory[],
+): Promise<void> {
+  // Import required utilities
+  const { generateUUID } = await import("../message_parsing/utils");
+  const { webSocketService } = await import("./websocketService");
+  const { encryptWithChatKey } = await import("./cryptoService");
+
+  // Generate unique message ID (format: last 10 chars of chat_id + uuid)
+  const chatIdSuffix = chatId.slice(-10);
+  const messageId = `${chatIdSuffix}-${generateUUID()}`;
+
+  // Create system message content with request metadata
+  // Categories are stored with minimal metadata (appId, itemType, entryCount)
+  // Display name and icon gradient are loaded client-side based on appId and itemType
+  const requestContent: AppSettingsMemoriesRequestContent = {
+    type: "app_settings_memories_request",
+    user_message_id: userMessageId,
+    request_id: requestId,
+    requested_keys: requestedKeys,
+    categories: categories.map((cat) => ({
+      appId: cat.appId,
+      itemType: cat.itemType,
+      entryCount: cat.entryCount,
+    })),
+  };
+
+  const contentString = JSON.stringify(requestContent);
+
+  // Get chat key for encryption (zero-knowledge architecture)
+  const chatKey = chatDB.getChatKey(chatId);
+  if (!chatKey) {
+    console.error(
+      `[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt request system message`,
+    );
+    throw new Error(`No chat key found for chat ${chatId}`);
+  }
+
+  // Encrypt content with chat key (same as regular messages)
+  const encryptedContent = await encryptWithChatKey(contentString, chatKey);
+  if (!encryptedContent) {
+    console.error(
+      `[ChatSyncService:AppSettings] Failed to encrypt request system message content`,
+    );
+    throw new Error("Failed to encrypt request system message content");
+  }
+
+  // Create the system message
+  const now = Math.floor(Date.now() / 1000);
+  const systemMessage = {
+    message_id: messageId,
+    chat_id: chatId,
+    role: "system" as const,
+    content: contentString,
+    created_at: now,
+    status: "sending" as const,
+    encrypted_content: encryptedContent, // Pre-encrypted with chat key
+  };
+
+  // Save to IndexedDB (already has encrypted_content, won't re-encrypt)
+  await chatDB.saveMessage(systemMessage);
+  console.debug(
+    `[ChatSyncService:AppSettings] Saved request system message ${messageId} to IndexedDB`,
+  );
+
+  // Send ENCRYPTED content to server for persistence and cross-device sync
+  // Server stores this directly in Directus without re-encryption (zero-knowledge)
+  const payload = {
+    chat_id: chatId,
+    message: {
+      message_id: messageId,
+      role: "system",
+      encrypted_content: encryptedContent, // Send encrypted, not plaintext!
+      created_at: now,
+    },
+  };
+
+  try {
+    await webSocketService.sendMessage("chat_system_message_added", payload);
+
+    // Update message status to synced
+    const syncedMessage = { ...systemMessage, status: "synced" as const };
+    await chatDB.saveMessage(syncedMessage);
+
+    console.debug(
+      `[ChatSyncService:AppSettings] Sent request system message ${messageId} to server`,
+    );
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chatId,
+          type: "system_message_added",
+          newMessage: syncedMessage,
+        },
+      }),
+    );
+  } catch (sendError) {
+    console.error(
+      `[ChatSyncService:AppSettings] Error sending request system message to server:`,
       sendError,
     );
     // Message is still saved locally, will be synced later
@@ -1012,8 +1260,20 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
     return;
   }
 
-  // Get the pending request before removing it
-  const pendingRequest = pendingPermissionRequests.get(request_id);
+  // Get the pending request before removing it - try in-memory Map then permission store
+  let pendingRequest = pendingPermissionRequests.get(request_id);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === request_id
+    ) {
+      pendingRequest = storeState.currentRequest;
+    }
+  }
 
   // If the pending request was already removed locally (e.g., by handlePermissionDialogLocalDismiss
   // when user sent a follow-up message on THIS device), skip creating a duplicate system message

@@ -1153,86 +1153,6 @@ async def _deliver_pending_reminders(
         logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
-async def _deliver_pending_app_settings_memories_requests(
-    cache_service: CacheService,
-    manager: ConnectionManager,
-    user_id: str,
-    device_fingerprint_hash: str,
-):
-    """
-    Re-deliver pending app settings/memories permission requests on reconnection.
-    
-    When a user logs out (or loses connection) while a permission dialog was pending,
-    the pending request context remains in Redis (7-day TTL). On reconnection, we
-    check for any pending requests and re-send them so the client can re-display
-    the permission dialog.
-    
-    Uses the per-user index (Redis set) to efficiently find all pending requests
-    without scanning all keys. Each pending request contains the original request_id,
-    chat_id, requested_keys, and message_id needed to reconstruct the dialog.
-    
-    Uses a longer delay than pending reminders to ensure the client has fully
-    initialized its sync and loaded the chat data before receiving the request.
-    """
-    try:
-        # Wait for client to finish initialization, sync, and chat loading
-        # This needs to be after Phase 1 sync completes so the chat is loaded
-        await asyncio.sleep(5)
-        
-        pending_requests = await cache_service.get_pending_app_settings_memories_requests_for_user(user_id)
-        if not pending_requests:
-            return
-        
-        logger.info(
-            f"[PENDING_APP_SETTINGS] Found {len(pending_requests)} pending app settings/memories "
-            f"request(s) for user {user_id[:8]}... - re-sending to client"
-        )
-        
-        for context in pending_requests:
-            try:
-                request_id = context.get("request_id")
-                chat_id = context.get("chat_id")
-                requested_keys = context.get("requested_keys", [])
-                message_id = context.get("message_id")
-                
-                if not request_id or not chat_id or not requested_keys:
-                    logger.warning(
-                        f"[PENDING_APP_SETTINGS] Skipping incomplete pending request for chat {chat_id}: "
-                        f"request_id={request_id}, keys={len(requested_keys)}"
-                    )
-                    continue
-                
-                # Re-send the request to the client (same format as the original)
-                # The client's handleRequestAppSettingsMemoriesImpl will show the dialog
-                await manager.send_personal_message(
-                    {
-                        "type": "request_app_settings_memories",
-                        "payload": {
-                            "request_id": request_id,
-                            "chat_id": chat_id,
-                            "requested_keys": requested_keys,
-                            "yaml_content": "",  # YAML not needed for re-delivery (dialog uses categories)
-                            "message_id": message_id
-                        }
-                    },
-                    user_id,
-                    device_fingerprint_hash
-                )
-                logger.info(
-                    f"[PENDING_APP_SETTINGS] Re-sent request {request_id} for chat {chat_id} "
-                    f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
-                )
-                
-            except Exception as e:
-                logger.error(
-                    f"[PENDING_APP_SETTINGS] Failed to re-deliver request for "
-                    f"chat {context.get('chat_id', 'unknown')}: {e}"
-                )
-    
-    except Exception as e:
-        logger.error(f"[PENDING_APP_SETTINGS] Error delivering pending requests: {e}", exc_info=True)
-
-
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -1261,12 +1181,12 @@ async def websocket_endpoint(
         _deliver_pending_reminders(cache_service, manager, user_id, device_fingerprint_hash)
     )
     
-    # Re-deliver any pending app settings/memories permission requests.
-    # These persist in Redis for 7 days and need to be re-sent if the user
-    # logged out/disconnected without responding to the permission dialog.
-    asyncio.create_task(
-        _deliver_pending_app_settings_memories_requests(cache_service, manager, user_id, device_fingerprint_hash)
-    )
+    # NOTE: Pending app settings/memories permission requests are no longer re-delivered
+    # via WebSocket on reconnect. Instead, the request is persisted as a system message
+    # in the chat history (encrypted, zero-knowledge). ChatHistory.svelte detects "unpaired"
+    # requests (no matching response system message) and re-shows the permission dialog
+    # automatically. This is more reliable than the previous Redis-based approach because
+    # it works across all devices via the normal message sync infrastructure.
 
     try:
         while True:

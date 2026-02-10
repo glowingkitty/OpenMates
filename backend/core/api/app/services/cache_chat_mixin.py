@@ -1890,10 +1890,6 @@ class ChatCacheMixin:
         """Get Redis key for pending app settings/memories request context."""
         return f"pending_app_settings_memories_request:{chat_id}"
     
-    def _get_pending_app_settings_memories_user_index_key(self, user_id: str) -> str:
-        """Get Redis key for the per-user index of chat IDs with pending requests."""
-        return f"pending_app_settings_memories_user_index:{user_id}"
-    
     async def store_pending_app_settings_memories_request(
         self,
         chat_id: str,
@@ -1906,12 +1902,14 @@ class ChatCacheMixin:
         When the AI needs app settings/memories that aren't in cache, we store
         the request context so we can re-trigger processing when user confirms/rejects.
         
-        Also maintains a per-user index set so we can efficiently find all pending
-        requests for a user on WebSocket reconnection.
-        
         NOTE: We store MINIMAL context - NOT the message_history!
         The chat history is already cached on the server (recent chats are cached).
         When continuing, we retrieve the chat from cache using get_chat_messages().
+        
+        NOTE: The per-user index was removed because permission request persistence
+        is now handled client-side via encrypted system messages in chat history.
+        The client (ChatHistory.svelte) detects "unpaired" requests and re-shows
+        the dialog automatically after session recovery.
         
         Args:
             chat_id: Chat ID
@@ -1946,14 +1944,6 @@ class ChatCacheMixin:
             import json
             context_json = json.dumps(context)
             await client.set(key, context_json, ex=ttl)
-            
-            # Maintain per-user index of chat IDs with pending requests
-            # This enables efficient lookup on WebSocket reconnection
-            user_id = context.get("user_id")
-            if user_id:
-                index_key = self._get_pending_app_settings_memories_user_index_key(user_id)
-                await client.sadd(index_key, chat_id)
-                await client.expire(index_key, ttl)  # Same TTL as the request itself
             
             logger.info(f"Stored pending app settings/memories request context for chat {chat_id} with TTL {ttl}s")
             return True
@@ -2000,11 +1990,10 @@ class ChatCacheMixin:
         Delete pending app settings/memories request context.
         
         Called after the request has been processed (user confirmed/rejected).
-        Also removes the chat_id from the per-user index if user_id is provided.
         
         Args:
             chat_id: Chat ID
-            user_id: User ID (optional, used to clean up per-user index)
+            user_id: User ID (kept for API compatibility, no longer used for index cleanup)
             
         Returns:
             True if deleted (or didn't exist), False on error
@@ -2015,85 +2004,9 @@ class ChatCacheMixin:
         
         key = self._get_pending_app_settings_memories_request_key(chat_id)
         try:
-            # If user_id not provided, try to get it from the pending context before deleting
-            if not user_id:
-                try:
-                    import json
-                    data = await client.get(key)
-                    if data:
-                        context = json.loads(data.decode('utf-8') if isinstance(data, bytes) else data)
-                        user_id = context.get("user_id")
-                except Exception:
-                    pass  # Best-effort - index cleanup is not critical
-            
             await client.delete(key)
-            
-            # Clean up per-user index
-            if user_id:
-                index_key = self._get_pending_app_settings_memories_user_index_key(user_id)
-                await client.srem(index_key, chat_id)
-            
             logger.debug(f"Deleted pending app settings/memories request context for chat {chat_id}")
             return True
         except Exception as e:
             logger.error(f"Error deleting pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
             return False
-    
-    async def get_pending_app_settings_memories_requests_for_user(
-        self,
-        user_id: str
-    ) -> list:
-        """
-        Get all pending app settings/memories requests for a user.
-        
-        Uses the per-user index to efficiently find all pending requests.
-        Validates each entry still exists (index may have stale entries if
-        the request expired or was deleted without index cleanup).
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            List of pending request context dicts (each containing request_id,
-            chat_id, requested_keys, message_id, etc.)
-        """
-        client = await self.client
-        if not client:
-            return []
-        
-        index_key = self._get_pending_app_settings_memories_user_index_key(user_id)
-        try:
-            # Get all chat IDs from the user's index
-            chat_ids = await client.smembers(index_key)
-            if not chat_ids:
-                return []
-            
-            pending_requests = []
-            stale_chat_ids = []
-            
-            for chat_id_raw in chat_ids:
-                chat_id = chat_id_raw.decode('utf-8') if isinstance(chat_id_raw, bytes) else chat_id_raw
-                context = await self.get_pending_app_settings_memories_request(chat_id)
-                if context:
-                    # Verify it belongs to this user (defensive check)
-                    if context.get("user_id") == user_id:
-                        pending_requests.append(context)
-                    else:
-                        stale_chat_ids.append(chat_id)
-                else:
-                    # Request expired or was deleted - mark for index cleanup
-                    stale_chat_ids.append(chat_id)
-            
-            # Clean up stale entries from the index
-            if stale_chat_ids:
-                for stale_id in stale_chat_ids:
-                    await client.srem(index_key, stale_id)
-                logger.debug(f"Cleaned up {len(stale_chat_ids)} stale entries from pending requests index for user {user_id}")
-            
-            if pending_requests:
-                logger.info(f"Found {len(pending_requests)} pending app settings/memories requests for user {user_id}")
-            
-            return pending_requests
-        except Exception as e:
-            logger.error(f"Error getting pending app settings/memories requests for user {user_id}: {e}", exc_info=True)
-            return []
