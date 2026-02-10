@@ -154,6 +154,32 @@ async function initializeRegistry(): Promise<void> {
       };
     }
 
+    // Image generation
+    if (
+      appId === "images" &&
+      (skillId === "generate" || skillId === "generate_draft")
+    ) {
+      const { default: component } =
+        await import("../components/embeds/images/ImageGenerateEmbedFullscreen.svelte");
+      return {
+        component,
+        props: {
+          prompt: data.decodedContent?.prompt || "",
+          model: data.decodedContent?.model || "",
+          aspectRatio: data.decodedContent?.aspect_ratio || "",
+          s3BaseUrl: data.decodedContent?.s3_base_url || "",
+          files: data.decodedContent?.files || undefined,
+          aesKey: data.decodedContent?.aes_key || "",
+          aesNonce: data.decodedContent?.aes_nonce || "",
+          status: data.embedData?.status || "finished",
+          error: data.decodedContent?.error || "",
+          onClose: data.onClose,
+          embedId: data.embedId,
+          skillId: data.decodedContent?.skill_id || skillId || "generate",
+        },
+      };
+    }
+
     // Fallback for unknown app skills
     return null;
   });

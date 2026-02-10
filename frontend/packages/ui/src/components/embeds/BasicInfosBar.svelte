@@ -285,6 +285,11 @@
     mask-image: url('@openmates/ui/static/icons/image.svg');
   }
   
+  .basic-infos-bar .skill-icon[data-skill-icon="ai"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+  }
+  
   /* Status text container */
   .basic-infos-bar.desktop .status-text {
     display: flex;

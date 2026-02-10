@@ -48,6 +48,8 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    /** Skill identifier ('generate' or 'generate_draft') - determines display title */
+    skillId?: 'generate' | 'generate_draft';
     /** Image prompt */
     prompt?: string;
     /** S3 base URL for image files */
@@ -72,6 +74,7 @@
   
   let {
     id,
+    skillId: skillIdProp = 'generate',
     prompt: promptProp,
     s3BaseUrl: s3BaseUrlProp,
     files: filesProp,
@@ -155,9 +158,14 @@
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
   
-  // Skill display name
-  const skillIconName = 'image';
-  let skillName = $derived($text('embeds.image_generate.text'));
+  // Skill display name - use correct translation key based on skillId
+  // 'generate' -> "Generate", 'generate_draft' -> "Generate Draft"
+  const skillIconName = 'ai';
+  let skillName = $derived(
+    skillIdProp === 'generate_draft'
+      ? $text('embeds.image_generate_draft.text')
+      : $text('embeds.image_generate.text')
+  );
   
   // Truncate prompt for preview (2 lines max)
   let promptPreview = $derived.by(() => {
@@ -265,7 +273,7 @@
 <UnifiedEmbedPreview
   {id}
   appId="images"
-  skillId="generate"
+  skillId={skillIdProp}
   {skillIconName}
   {status}
   {skillName}

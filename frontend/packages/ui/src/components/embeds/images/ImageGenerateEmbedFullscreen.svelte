@@ -55,10 +55,12 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Whether to show the "chat" button */
+     /** Whether to show the "chat" button */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /** Skill identifier ('generate' or 'generate_draft') - determines display title */
+    skillId?: 'generate' | 'generate_draft';
   }
   
   let {
@@ -78,7 +80,8 @@
     onNavigatePrevious,
     onNavigateNext,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    skillId: skillIdProp = 'generate'
   }: Props = $props();
   
   // Image state
@@ -94,9 +97,13 @@
   let retainedPreviewKey: string | undefined = undefined;
   let retainedFullKey: string | undefined = undefined;
   
-  // Skill display
-  let skillName = $derived($text('embeds.image_generate.text'));
-  const skillIconName = 'image';
+  // Skill display - use correct translation key based on skillId
+  let skillName = $derived(
+    skillIdProp === 'generate_draft'
+      ? $text('embeds.image_generate_draft.text')
+      : $text('embeds.image_generate.text')
+  );
+  const skillIconName = 'ai';
   
   // Format model name for display
   let modelDisplay = $derived.by(() => {
@@ -207,7 +214,7 @@
 
 <UnifiedEmbedFullscreen
   appId="images"
-  skillId="generate"
+  skillId={skillIdProp}
   {skillIconName}
   {skillName}
   showStatus={false}

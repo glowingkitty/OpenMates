@@ -1756,6 +1756,29 @@ image_generate:
   cs: Generovat
   sv: Generera
   verified_by_human: []
+image_generate_draft:
+  context: Image generate draft skill label shown in BasicInfosBar - shows the skill name "Generate Draft"
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草稿
+  es: Generar borrador
+  fr: "Générer un brouillon"
+  pt: Gerar rascunho
+  ru: Генерация черновика
+  ja: 下書き生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: "Tạo bản nháp"
+  id: Buat draf
+  pl: "Generuj szkic"
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट बनाएं
+  th: สร้างแบบร่าง
+  cs: "Generovat návrh"
+  sv: Generera utkast
+  verified_by_human: []
 image_generate.error:
   context: Error message when image generation fails
   en: Image generation failed

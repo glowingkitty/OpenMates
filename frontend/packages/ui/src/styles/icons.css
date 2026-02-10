@@ -806,6 +806,14 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.images {
+  /* Image generate embed preview icon - uses AI gradient to match the mate profile look */
+  background: var(--color-app-images);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/ai.svg");
+  }
+}
+
 .icon_rounded.chat {
   /* Chat embed preview icon - uses primary blue gradient matching --color-app-chat */
   background: var(--color-app-chat);

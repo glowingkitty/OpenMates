@@ -1262,6 +1262,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
     const error = decodedContent?.error || "";
+    // Determine the actual skill ID from embed content or attributes
+    const imageSkillId =
+      decodedContent?.skill_id || attrs.skill_id || "generate";
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1292,6 +1295,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
+          skillId: imageSkillId as "generate" | "generate_draft",
           prompt,
           s3BaseUrl,
           files,
