@@ -121,6 +121,8 @@
           chatId={chat.chat_id}
           title={chat.title || ''}
           previewText={getPreviewText(chat.chat_id, chat.chat_summary)}
+          category={chat.category || 'general_knowledge'}
+          iconName={chat.icon || 'message-circle'}
           onClick={handleChatClick}
         />
       {/each}

@@ -47,6 +47,8 @@
     showSkillIcon?: boolean;
     /** Custom status text (overrides default status text) */
     customStatusText?: string;
+    /** Optional snippet rendered before the title text (e.g., a small category circle for chat embeds) */
+    titleIcon?: import('svelte').Snippet;
   }
   
   let {
@@ -62,7 +64,8 @@
     faviconUrl,
     faviconIsCircular = false,
     showSkillIcon = true,
-    customStatusText
+    customStatusText,
+    titleIcon
   }: Props = $props();
   
   // Status text from translations or custom text
@@ -152,7 +155,9 @@
     <!-- Status text with optional favicon next to title -->
     <div class="status-text" class:single-line={!showStatus}>
       <span class="status-label">
-        {#if faviconUrl}
+        {#if titleIcon}
+          {@render titleIcon()}
+        {:else if faviconUrl}
           <img 
             src={faviconUrl} 
             alt="" 
