@@ -264,7 +264,15 @@ async def approve_demo_chat(
         # independent of whether the original user chat was deleted.
 
         # Check current published demo chat count for the selected category
-        current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
+        # Query Directus directly to avoid cache format issues
+        current_demos = await directus_service.get_items("demo_chats", {
+            "filter": {
+                "is_active": {"_eq": True},
+                "status": {"_eq": "published"}
+            },
+            "sort": "-created_at"
+        })
+        current_demos = current_demos or []
         # Filter demos by the target category
         category_demos = [d for d in current_demos if d.get("demo_chat_category") == payload.demo_chat_category]
         
@@ -564,12 +572,17 @@ async def update_demo_chat_category(
             }
 
         # Check that the target category has room (excluding this demo from the count)
+        # Query Directus directly to avoid cache format issues
         CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
-        current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
-        target_category_count = sum(
-            1 for d in current_demos
-            if d.get("demo_chat_category") == new_category and d["id"] != demo_chat_id
-        )
+        published_demos = await directus_service.get_items("demo_chats", {
+            "filter": {
+                "is_active": {"_eq": True},
+                "status": {"_eq": "published"},
+                "demo_chat_category": {"_eq": new_category},
+                "id": {"_neq": demo_chat_id}
+            }
+        })
+        target_category_count = len(published_demos) if published_demos else 0
 
         if target_category_count >= CATEGORY_LIMITS[new_category]:
             raise HTTPException(
