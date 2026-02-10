@@ -77,6 +77,7 @@
     last_ticketing_date?: string;
     booking_url?: string;
     booking_provider?: string;
+    google_flights_url?: string;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -178,10 +179,15 @@
   // Booking provider name (airline name from backend, e.g., "Lufthansa")
   let bookingProvider = $derived(connection.booking_provider || connection.carriers?.[0] || '');
   
-  // Handle booking button click
+  // Google Flights fallback URL (for flights without a direct booking URL)
+  let googleFlightsUrl = $derived(connection.google_flights_url || '');
+  
+  // Handle booking button click — prefer direct airline, fall back to Google Flights
   function handleBooking() {
     if (bookingUrl) {
       window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+    } else if (googleFlightsUrl) {
+      window.open(googleFlightsUrl, '_blank', 'noopener,noreferrer');
     }
   }
   
@@ -503,6 +509,56 @@
   });
   
   /**
+   * Compute intermediate points along a great-circle arc between two coordinates.
+   * Uses the spherical interpolation (slerp) formula to produce a smooth curved
+   * line that follows the Earth's surface — essential for long-distance flights
+   * where a straight line on a Mercator projection looks incorrect.
+   *
+   * @param lat1 Start latitude (degrees)
+   * @param lng1 Start longitude (degrees)
+   * @param lat2 End latitude (degrees)
+   * @param lng2 End longitude (degrees)
+   * @param numPoints Number of intermediate points (more = smoother curve)
+   * @returns Array of [lat, lng] tuples along the arc
+   */
+  function greatCircleArc(
+    lat1: number, lng1: number,
+    lat2: number, lng2: number,
+    numPoints: number = 50,
+  ): [number, number][] {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const toDeg = (r: number) => (r * 180) / Math.PI;
+
+    const φ1 = toRad(lat1), λ1 = toRad(lng1);
+    const φ2 = toRad(lat2), λ2 = toRad(lng2);
+
+    // Central angle via Haversine
+    const dφ = φ2 - φ1;
+    const dλ = λ2 - λ1;
+    const a = Math.sin(dφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(dλ / 2) ** 2;
+    const d = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    // If the two points are very close, a straight line is fine
+    if (d < 0.0001) {
+      return [[lat1, lng1], [lat2, lng2]];
+    }
+
+    const points: [number, number][] = [];
+    for (let i = 0; i <= numPoints; i++) {
+      const f = i / numPoints;
+      const A = Math.sin((1 - f) * d) / Math.sin(d);
+      const B = Math.sin(f * d) / Math.sin(d);
+      const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
+      const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
+      const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+      const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+      const lng = toDeg(Math.atan2(y, x));
+      points.push([lat, lng]);
+    }
+    return points;
+  }
+
+  /**
    * Initialize the Leaflet map when the container is mounted and waypoints are available.
    */
   async function initializeMap() {
@@ -543,17 +599,24 @@
           .bindPopup(wp.code);
       }
       
-      // Draw route polyline connecting all waypoints
-      const latLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
-      L.polyline(latLngs, {
-        color: 'var(--color-primary, #6366f1)',
-        weight: 2.5,
-        opacity: 0.7,
-        dashArray: '8, 6',
-      }).addTo(map);
+      // Draw geodesic (great-circle) arcs between consecutive waypoints.
+      // This produces the curved flight route lines that follow the
+      // Earth's surface, looking correct even for long-haul flights.
+      for (let i = 0; i < routeWaypoints.length - 1; i++) {
+        const wp1 = routeWaypoints[i];
+        const wp2 = routeWaypoints[i + 1];
+        const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
+        const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+        L.polyline(arcLatLngs, {
+          color: 'var(--color-primary, #6366f1)',
+          weight: 2.5,
+          opacity: 0.7,
+        }).addTo(map);
+      }
       
       // Fit bounds to show all waypoints with padding
-      const bounds = L.latLngBounds(latLngs);
+      const waypointLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
+      const bounds = L.latLngBounds(waypointLatLngs);
       map.fitBounds(bounds, { padding: [40, 40] });
       
       // Listen for dark mode changes
@@ -634,10 +697,14 @@
           </div>
         {/if}
         
-        <!-- Booking CTA button - links directly to the airline's website -->
+        <!-- Booking CTA button - links to airline website or Google Flights -->
         {#if bookingUrl && bookingProvider}
           <button class="cta-button" onclick={handleBooking}>
             {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', bookingProvider)}
+          </button>
+        {:else if googleFlightsUrl}
+          <button class="cta-button cta-google-flights" onclick={handleBooking}>
+            {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
           </button>
         {/if}
       </div>
@@ -681,7 +748,7 @@
                       <div class="segment-details-block">
                         <div class="segment-details">
                           {#if segment.airline_logo}
-                            <img class="segment-airline-logo" src={segment.airline_logo} alt={segment.carrier} />
+                            <img class="segment-airline-logo" src={`https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(segment.airline_logo)}&max_width=36`} alt={segment.carrier} />
                           {/if}
                           <span class="carrier-name">{segment.carrier}</span>
                           {#if segment.number}
@@ -898,6 +965,19 @@
   .cta-button:active {
     background-color: var(--color-button-primary-pressed);
     transform: translateY(0);
+  }
+  
+  /* Google Flights fallback CTA — slightly muted to distinguish from direct booking */
+  .cta-google-flights {
+    background-color: var(--color-grey-70, #555);
+  }
+  
+  .cta-google-flights:hover {
+    background-color: var(--color-grey-80, #444);
+  }
+  
+  .cta-google-flights:active {
+    background-color: var(--color-grey-90, #333);
   }
   
   /* ===========================================

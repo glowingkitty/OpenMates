@@ -262,10 +262,10 @@
     const minPrice = Math.min(...prices);
     
     if (prices.length === 1) {
-      return `${currency} ${minPrice.toFixed(0)}`;
+      return `${currency} ${Math.round(minPrice)}`;
     }
     
-    return `${$text('embeds.from.text') || 'from'} ${currency} ${minPrice.toFixed(0)}`;
+    return `${$text('embeds.from.text') || 'from'} ${currency} ${Math.round(minPrice)}`;
   });
   
   // Connection count display

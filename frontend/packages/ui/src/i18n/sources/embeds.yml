@@ -1641,6 +1641,29 @@ book_on:
   cs: Rezervovat na {provider}
   sv: Boka på {provider}
   verified_by_human: [en, de]
+open_google_flights:
+  context: CTA button text when no direct airline booking URL is available
+  en: Open Google Flights
+  de: Google Flights öffnen
+  zh: 打开 Google Flights
+  es: Abrir Google Flights
+  fr: Ouvrir Google Flights
+  pt: Abrir Google Flights
+  ru: Открыть Google Flights
+  ja: Google Flightsを開く
+  ko: Google Flights 열기
+  it: Apri Google Flights
+  tr: Google Flights'ı aç
+  vi: Mở Google Flights
+  id: Buka Google Flights
+  pl: Otwórz Google Flights
+  nl: Google Flights openen
+  ar: افتح Google Flights
+  hi: Google Flights खोलें
+  th: เปิด Google Flights
+  cs: Otevřít Google Flights
+  sv: Öppna Google Flights
+  verified_by_human: [en, de]
 copied_to_clipboard:
   context: Notification shown when content has been copied to clipboard
   en: Copied to clipboard

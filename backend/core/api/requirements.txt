@@ -39,5 +39,6 @@ youtube-transcript-api==1.2.3
 google-api-python-client==2.187.0
 webauthn==2.7.0
 # Note: cbor2 is included as a dependency of webauthn, so we don't need to list it explicitly
+airports-py==3.0.0
 
 # TODO separate requirements file for each app and for core services, to only include what is needed

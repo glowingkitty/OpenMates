@@ -23,6 +23,8 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
 
+from airports import airport_data as _airport_db
+
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
     ConnectionResult,
@@ -124,6 +126,29 @@ _IATA_TO_GL: Dict[str, str] = {
     "GRU": "br", "GIG": "br", "EZE": "ar", "BOG": "co", "LIM": "pe",
     "SCL": "cl",
 }
+
+
+def _get_airport_coords(iata_code: str) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Look up airport coordinates by IATA code using the airports-py package.
+
+    Returns (latitude, longitude) as floats, or (None, None) if unknown.
+    The airports-py package provides a comprehensive offline database of
+    ~28 000 airports with coordinates.
+    """
+    if not iata_code or len(iata_code) != 3:
+        return (None, None)
+    try:
+        results = _airport_db.get_airport_by_iata(iata_code)
+        if results and len(results) > 0:
+            entry = results[0]
+            lat = entry.get("latitude")
+            lng = entry.get("longitude")
+            if lat is not None and lng is not None:
+                return (float(lat), float(lng))
+    except (ValueError, KeyError, TypeError) as e:
+        logger.debug(f"Could not look up coordinates for IATA '{iata_code}': {e}")
+    return (None, None)
 
 
 def _get_gl_from_iata(iata_code: str) -> str:
@@ -877,18 +902,24 @@ class SerpApiProvider(BaseTransportProvider):
             extensions = seg.get("extensions")  # list of feature tags
             often_delayed = seg.get("often_delayed_by_over_30_min", False)
 
+            # Look up airport coordinates for map display
+            dep_iata = dep_airport.get("id", "")
+            arr_iata = arr_airport.get("id", "")
+            dep_lat, dep_lng = _get_airport_coords(dep_iata)
+            arr_lat, arr_lng = _get_airport_coords(arr_iata)
+
             segments.append(SegmentResult(
                 carrier=airline,
                 carrier_code=carrier_code if carrier_code else None,
                 number=flight_number if flight_number else None,
-                departure_station=dep_airport.get("id", ""),
+                departure_station=dep_iata,
                 departure_time=dep_time,
-                departure_latitude=None,
-                departure_longitude=None,
-                arrival_station=arr_airport.get("id", ""),
+                departure_latitude=dep_lat,
+                departure_longitude=dep_lng,
+                arrival_station=arr_iata,
                 arrival_time=arr_time,
-                arrival_latitude=None,
-                arrival_longitude=None,
+                arrival_latitude=arr_lat,
+                arrival_longitude=arr_lng,
                 duration=_format_duration_minutes(duration),
                 airplane=airplane,
                 airline_logo=airline_logo,
@@ -960,6 +991,21 @@ class SerpApiProvider(BaseTransportProvider):
         booking_url = None
         booking_provider = None
 
+        # Build Google Flights fallback URL for flights without direct booking
+        google_flights_url = None
+        if original_legs and segments:
+            dep_code = segments[0].departure_station
+            arr_code = segments[-1].arrival_station
+            dep_date = ""
+            if segments[0].departure_time:
+                # Extract date from "YYYY-MM-DD HH:MM" or ISO format
+                dep_date = segments[0].departure_time[:10]
+            if dep_code and arr_code and dep_date:
+                google_flights_url = (
+                    f"https://www.google.com/travel/flights"
+                    f"?q=Flights+from+{dep_code}+to+{arr_code}+on+{dep_date}"
+                )
+
         # Determine the validating/primary airline for this connection
         carrier_codes = set()
         for seg in segments:
@@ -989,6 +1035,7 @@ class SerpApiProvider(BaseTransportProvider):
             last_ticketing_date=None,
             booking_url=booking_url,
             booking_provider=booking_provider,
+            google_flights_url=google_flights_url,
             validating_airline_code=validating_code,
             legs=[leg],
             airline_logo=group_airline_logo,
