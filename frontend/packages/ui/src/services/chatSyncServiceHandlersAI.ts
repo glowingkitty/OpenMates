@@ -1666,6 +1666,19 @@ export async function handlePostProcessingCompletedImpl(
       console.debug(
         `[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`,
       );
+
+      // CRITICAL: Dispatch chatUpdated so Chats.svelte updates its in-memory chat list.
+      // Without this, the chat object held by the sidebar still has encrypted_chat_summary=null
+      // and the context menu won't show the summary until a full page reload.
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: payload.chat_id,
+            type: "post_processing_metadata",
+            chat,
+          },
+        }),
+      );
     }
 
     // Sync encrypted data back to Directus via WebSocket

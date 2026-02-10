@@ -468,6 +468,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			detail.type === 'title_updated' ||
 			detail.type === 'draft' ||
 			detail.type === 'draft_deleted' ||
+			detail.type === 'post_processing_metadata' ||
 			detail.messagesUpdated === true;
 		if (shouldInvalidateMetadata) {
 			chatMetadataCache.invalidateChat(detail.chat_id);
