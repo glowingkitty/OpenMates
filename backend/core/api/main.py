@@ -819,6 +819,9 @@ async def lifespan(app: FastAPI):
                                     category = demo.get("category")
                                     icon = demo.get("icon")
 
+                                    # Get demo_chat_category (target audience: for_everyone or for_developers)
+                                    demo_chat_category = demo.get("demo_chat_category", "for_everyone")
+
                                     # Add to list with cleartext data
                                     public_demo_chats.append({
                                         "demo_id": display_id,
@@ -827,6 +830,7 @@ async def lifespan(app: FastAPI):
                                         "summary": summary,
                                         "category": category,
                                         "icon": icon,
+                                        "demo_chat_category": demo_chat_category,
                                         "content_hash": demo.get("content_hash", ""),
                                         "created_at": demo.get("created_at"),
                                         "status": demo.get("status")
@@ -869,6 +873,7 @@ async def lifespan(app: FastAPI):
                                         "summary": summary,
                                         "category": category,
                                         "icon": icon,
+                                        "demo_chat_category": demo_chat_category,
                                         "content_hash": demo.get("content_hash", ""),
                                         "follow_up_suggestions": follow_up_suggestions,
                                         "chat_data": {
