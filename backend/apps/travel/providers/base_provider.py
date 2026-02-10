@@ -1,10 +1,11 @@
 """
 Base transport provider abstraction for the travel app.
 
-Defines unified data models (ConnectionResult, LegResult, SegmentResult) and
-the abstract BaseTransportProvider class that all transport providers must implement.
-This enables a clean separation between the skill layer and individual provider APIs
-(SerpAPI/Google Flights for flights, Transitous for trains/buses, etc.).
+Defines unified data models (ConnectionResult, LegResult, SegmentResult,
+PriceCalendarEntry) and the abstract BaseTransportProvider class that all
+transport providers must implement. This enables a clean separation between
+the skill layer and individual provider APIs (SerpAPI/Google Flights for
+flights, Travelpayouts for price calendars, Transitous for trains/buses, etc.).
 """
 
 import logging
@@ -88,6 +89,21 @@ class ConnectionResult(BaseModel):
     co2_kg: Optional[int] = Field(default=None, description="CO2 emissions in kg for this connection")
     co2_typical_kg: Optional[int] = Field(default=None, description="Typical CO2 emissions in kg for this route")
     co2_difference_percent: Optional[int] = Field(default=None, description="CO2 difference vs typical (e.g., -7 = 7% less)")
+
+
+# ---------------------------------------------------------------------------
+# Price calendar data models
+# ---------------------------------------------------------------------------
+
+class PriceCalendarEntry(BaseModel):
+    """One day in a price calendar — the cheapest price found for that date."""
+
+    date: str = Field(description="Departure date (YYYY-MM-DD)")
+    price: float = Field(description="Cheapest price found for this date")
+    transfers: Optional[int] = Field(default=None, description="Number of stops/transfers for the cheapest option")
+    duration_minutes: Optional[int] = Field(default=None, description="Flight duration in minutes")
+    distance_km: Optional[int] = Field(default=None, description="Route distance in km")
+    actual: bool = Field(default=True, description="Whether this price is still current (not expired)")
 
 
 # ---------------------------------------------------------------------------

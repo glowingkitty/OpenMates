@@ -184,3 +184,52 @@ skills:
               - legs
       required:
         - requests
+  - id: price_calendar
+    name_translation_key: travel.price_calendar.text
+    description_translation_key: travel.price_calendar.description.text
+    stage: production
+    class_path: backend.apps.travel.skills.price_calendar.PriceCalendarSkill
+    pricing:
+      per_unit:
+        credits: 1
+    providers:
+      - Travelpayouts
+    suggestions_follow_up_requests:
+      - Search flights for the cheapest date
+      - Show next month
+      - Show previous month
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of price calendar requests. Each request fetches the cheapest
+            cached flight prices for every day of a given month on a route.
+            Ideal for finding the cheapest travel dates at a glance.
+          items:
+            type: object
+            properties:
+              origin:
+                type: string
+                description: >
+                  Origin city or airport name (e.g. "Munich", "Berlin",
+                  "London Heathrow") or IATA code (e.g. "MUC"). The system
+                  resolves city names to airport codes internally.
+              destination:
+                type: string
+                description: Destination city or airport name, or IATA code.
+              month:
+                type: string
+                description: >
+                  Month to show prices for, in YYYY-MM format (e.g. "2026-03").
+              currency:
+                type: string
+                description: Price currency (ISO 4217 code, e.g. "EUR", "USD").
+                default: EUR
+            required:
+              - origin
+              - destination
+              - month
+      required:
+        - requests

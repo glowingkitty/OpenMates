@@ -48,3 +48,17 @@ search.description:
   verified_by_human:
     - en
     - de
+price_calendar:
+  context: Skill name for travel price calendar (monthly flight price heatmap)
+  en: Price Calendar
+  de: Preiskalender
+  verified_by_human:
+    - en
+    - de
+price_calendar.description:
+  context: Description for the travel price calendar skill - shows cheapest flight prices for each day of a month
+  en: Show flight price trends for a month on a route.
+  de: Zeige Flugpreistrends für einen Monat auf einer Strecke.
+  verified_by_human:
+    - en
+    - de

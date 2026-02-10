@@ -1962,3 +1962,45 @@ focus_mode.reject_hint:
   en: "Click or press ESC to prevent focus mode &\ncontinue regular chat"
   de: "Klicken oder ESC drücken um Fokus-Modus zu verhindern &\nnormal weiterzuchatten"
   verified_by_human: []
+days:
+  context: Label for number of days (e.g., "22 / 31 days")
+  en: days
+  de: Tage
+  verified_by_human:
+    - en
+    - de
+cheapest:
+  context: Label for the cheapest price in a price calendar
+  en: Cheapest
+  de: Günstigster
+  verified_by_human:
+    - en
+    - de
+most_expensive:
+  context: Label for the most expensive price in a price calendar
+  en: Most expensive
+  de: Teuerster
+  verified_by_human:
+    - en
+    - de
+coverage:
+  context: Label for data coverage (how many days have price data)
+  en: Coverage
+  de: Abdeckung
+  verified_by_human:
+    - en
+    - de
+no_price_data:
+  context: Message shown when no price data is available for a route
+  en: No price data available for this route
+  de: Keine Preisdaten für diese Strecke verfügbar
+  verified_by_human:
+    - en
+    - de
+price_calendar_note:
+  context: Footnote explaining that price calendar prices are cached estimates
+  en: Prices are cached estimates (~48h old). Search specific dates for live pricing.
+  de: Preise sind zwischengespeicherte Schätzungen (~48h alt). Suche nach konkreten Daten für aktuelle Preise.
+  verified_by_human:
+    - en
+    - de
