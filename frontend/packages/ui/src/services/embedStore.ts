@@ -611,13 +611,12 @@ export class EmbedStore {
             },
           );
 
-          // Clean the base64 string before decryption (remove whitespace, URL decode if needed)
-          let cleanedContent = entry.encrypted_content.trim();
-          try {
-            cleanedContent = decodeURIComponent(cleanedContent);
-          } catch {
-            // Not URL-encoded, use as-is
-          }
+          // Clean the base64 string before decryption (trim whitespace only).
+          // NOTE: Do NOT apply decodeURIComponent here — encrypted base64 ciphertext
+          // can contain '%XX' sequences (e.g. '%2F', '%3D') that decodeURIComponent
+          // would silently corrupt, causing AES-GCM auth tag verification to fail
+          // with a DOMException OperationError.
+          const cleanedContent = entry.encrypted_content.trim();
 
           const decryptedContent = await decryptWithEmbedKey(
             cleanedContent,

@@ -12,6 +12,8 @@ from typing import Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.s3.service import S3UploadService
 
 logger = logging.getLogger(__name__)
 
@@ -767,9 +769,22 @@ async def _async_persist_delete_chat(
 
         # 3. Delete ALL private embeds for this chat from Directus
         # Shared embeds are preserved since they may be referenced elsewhere
+        # Also delete associated S3 files (e.g., generated images) using s3_file_keys metadata
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        
+        # Initialize S3 service for cleaning up S3 files associated with embeds
+        s3_service = None
+        try:
+            secrets_manager = SecretsManager()
+            await secrets_manager.initialize()
+            s3_service = S3UploadService(secrets_manager=secrets_manager)
+            await s3_service.initialize()
+        except Exception as e:
+            logger.warning(f"Failed to initialize S3 service for embed cleanup (chat {chat_id}): {e}. "
+                          f"S3 files will not be cleaned up but embed records will still be deleted.")
+        
         all_embeds_deleted_directus = await directus_service.embed.delete_all_embeds_for_chat(
-            hashed_chat_id
+            hashed_chat_id, s3_service=s3_service
         )
         if all_embeds_deleted_directus:
             logger.info(

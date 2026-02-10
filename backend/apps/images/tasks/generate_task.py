@@ -28,6 +28,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import process_image_for_storage
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
+from backend.core.api.app.services.s3.config import get_bucket_name
 
 logger = logging.getLogger(__name__)
 
@@ -252,81 +253,118 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 "format": "png" if format_key == "original" else "webp"
             }
 
-        # 9. Prepare embed content (will be stored Vault-encrypted in Directus)
-        # This content contains all data needed for the download endpoint
+        # 9. Prepare embed content for client-side storage
+        # 
+        # HYBRID ENCRYPTION MODEL:
+        # - The embed CONTENT (below) is sent as PLAINTEXT TOON via WebSocket.
+        #   The client encrypts it with the chat's master key before storing (standard flow).
+        # - The AES key for S3 image decryption is included IN the embed content (plaintext).
+        #   Since embed content is client-encrypted, the AES key is protected at rest.
+        # - The Vault-wrapped AES key is stored separately for server-side LLM vision inference.
+        #   The server can unwrap it via Vault to decrypt images when needed for vision LLMs.
+        #
+        # CLIENT FLOW:
+        # 1. Client receives send_embed_data with plaintext TOON content
+        # 2. Client encrypts content with chat master key and stores in IndexedDB
+        # 3. To render image: client decodes TOON → extracts aes_key + s3_key →
+        #    fetches encrypted blob from S3 → decrypts with AES-256-GCM → renders
+        generated_at = datetime.now(timezone.utc).isoformat()
+        
+        # Build S3 base URL for the chatfiles bucket so the frontend can construct full URLs
+        # Format: https://{bucket_name}.{region}.your-objectstorage.com
+        chatfiles_bucket = get_bucket_name('chatfiles')
+        s3_base_url = f"https://{chatfiles_bucket}.{task._s3_service.base_domain}"
+        
         embed_content = {
+            "app_id": "images",
+            "skill_id": skill_id,
             "type": "image",
+            "status": "finished",
             "files": files_metadata,
-            "encrypted_aes_key": encrypted_aes_key_vault,
-            "aes_nonce": nonce_b64,
+            "s3_base_url": s3_base_url,     # Base URL for constructing full S3 file URLs
+            "aes_key": aes_key_b64,         # Plaintext AES key for client-side S3 decryption
+            "aes_nonce": nonce_b64,          # GCM nonce shared across all image formats
+            "vault_wrapped_aes_key": encrypted_aes_key_vault,  # For server-side LLM vision access
             "prompt": prompt,
             "model": model_ref,
             "aspect_ratio": aspect_ratio,
-            "generated_at": datetime.now(timezone.utc).isoformat()
+            "generated_at": generated_at
         }
         
-        # 10. Encrypt embed content with Vault for storage
-        embed_content_json = json.dumps(embed_content)
-        encrypted_content, _ = await task._encryption_service.encrypt_with_user_key(
-            embed_content_json, vault_key_id
-        )
-        if not encrypted_content:
-            raise Exception("Failed to encrypt embed content with Vault")
+        # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
+        # Since embed content is client-encrypted (zero-knowledge), the server can't extract
+        # S3 keys from encrypted_content. We cache them here so that store_embed_handler
+        # can persist them as server-accessible metadata on the Directus embed record.
+        s3_file_keys = [
+            {"bucket": "chatfiles", "key": meta["s3_key"]}
+            for meta in files_metadata.values()
+        ]
         
-        # 11. Create embed in Directus
+        try:
+            client = await task._cache_service.client
+            if client:
+                s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
+                await client.set(s3_keys_cache_key, json.dumps(s3_file_keys), ex=3600)  # 1 hour TTL
+                logger.info(f"{log_prefix} Cached {len(s3_file_keys)} S3 file keys for embed {embed_id}")
+        except Exception as e:
+            logger.warning(f"{log_prefix} Failed to cache S3 file keys for embed {embed_id}: {e}")
+        
+        # 10. Encode embed content as TOON for WebSocket delivery
+        # TOON is the standard format used by the embed system for efficient encoding
+        from toon_format import encode as toon_encode
+        content_toon = toon_encode(embed_content)
+        logger.info(f"{log_prefix} TOON-encoded embed content: {len(content_toon)} chars")
+        
+        # 11. Send embed data to client via WebSocket (standard client-encryption flow)
+        # The client will:
+        # 1. Receive plaintext TOON content
+        # 2. Encrypt with chat master key (AES-256-GCM)
+        # 3. Store encrypted in IndexedDB
+        # 4. Send encrypted version back to server for Directus persistence
         now_ts = int(datetime.now(timezone.utc).timestamp())
         hashed_user_id = _hash_value(user_id)
-        hashed_task_id = _hash_value(task_id)
         
-        embed_data = {
-            "embed_id": embed_id,
-            "hashed_user_id": hashed_user_id,
-            "hashed_task_id": hashed_task_id,
-            "status": "finished",
-            "encrypted_content": encrypted_content,
-            # encrypted_type is normally client-encrypted, but for server-generated
-            # embeds we store it Vault-encrypted.
-            "encrypted_type": await _encrypt_type_with_vault(task, "image", vault_key_id),
-            "encryption_mode": "vault",
-            "vault_key_id": vault_key_id,
-            "is_private": False,
-            "is_shared": False,
-            "created_at": now_ts,
-            "updated_at": now_ts
-        }
+        # Use EmbedService.send_embed_data_to_client for standard WebSocket delivery
+        from backend.core.api.app.services.embed_service import EmbedService
+        embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service
+        )
         
-        # Add chat/message context if available (for web app flow)
-        if chat_id:
-            embed_data["hashed_chat_id"] = _hash_value(chat_id)
-        if message_id:
-            embed_data["hashed_message_id"] = _hash_value(message_id)
-        
-        created_embed = await task._directus_service.embed.create_embed(embed_data)
-        if not created_embed:
-            raise Exception("Failed to create embed in Directus")
-        
-        logger.info(f"{log_prefix} Created embed {embed_id} in Directus")
-        
-        # 12. Notify client via WebSocket (for web app flow)
-        # For Vault-encrypted embeds, we send the decrypted content so the client
-        # can render the preview immediately without calling the /content endpoint
-        await task.publish_websocket_event(
+        await embed_service.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="app_skill_use",  # Standard embed type for skill results
+            content_toon=content_toon,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
             user_id_hash=hashed_user_id,
-            event="send_embed_data",
-            payload={
+            status="finished",
+            encryption_mode="client",  # Client-side encryption (standard flow)
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=log_prefix,
+            check_cache_status=False  # Skip dedup check - we know this is the first "finished" event
+        )
+        
+        # 12. Publish embed_update event so frontend re-renders the preview
+        # This is the event that triggers the processing -> finished transition
+        client = await task._cache_service.client
+        if client:
+            channel_key = f"websocket:user:{hashed_user_id}"
+            embed_update_payload = {
+                "type": "embed_update",
+                "event_for_client": "embed_update",
                 "embed_id": embed_id,
-                "type": "image",
-                "content": json.dumps(embed_content),  # Convert to JSON string
-                "status": "finished",
                 "chat_id": chat_id,
                 "message_id": message_id,
-                "user_id": user_id,
-                "encryption_mode": "vault",
-                "vault_key_id": vault_key_id,
-                "createdAt": now_ts,
-                "updatedAt": now_ts
+                "user_id_uuid": user_id,
+                "user_id_hash": hashed_user_id,
+                "status": "finished"
             }
-        )
+            await client.publish(channel_key, json.dumps(embed_update_payload))
+            logger.info(f"{log_prefix} Published embed_update event for embed {embed_id}")
 
         # 13. Prepare result for API response
         # This is what gets returned via task polling and REST API
@@ -347,7 +385,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "prompt": prompt,
             "model": model_ref,
             "aspect_ratio": aspect_ratio,
-            "generated_at": embed_content["generated_at"]
+            "generated_at": generated_at
         }
         
         logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")
