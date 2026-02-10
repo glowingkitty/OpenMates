@@ -29,6 +29,7 @@ import { webSocketService } from "../services/websocketService";
 import {
   authStore,
   needsDeviceVerification,
+  deviceVerificationType,
   authInitialState,
 } from "./authState";
 // Import auth types
@@ -410,6 +411,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     currentSignupStep.set("basics");
     isResettingTFA.set(false);
     needsDeviceVerification.set(false);
+    deviceVerificationType.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
     authStore.set({

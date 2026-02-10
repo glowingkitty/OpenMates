@@ -74,6 +74,7 @@ export const apiEndpoints = {
     passkey_list: "/v1/auth/passkeys", // List all user passkeys
     passkey_rename: "/v1/auth/passkeys/rename", // Rename a passkey
     passkey_delete: "/v1/auth/passkeys/delete", // Delete a passkey
+    passkey_verify_device: "/v1/auth/passkey/verify/device", // Verify passkey for new device verification
 
     // Legacy signup endpoints
     signup: "/v1/auth/signup", // Sign up with username, email, password

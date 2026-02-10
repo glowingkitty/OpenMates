@@ -503,6 +503,75 @@ your_tfa_app:
   cs: vaše aplikace 2FA
   sv: din 2FA-app
   verified_by_human: []
+verify_device_passkey_prompt:
+  context: Text shown when user needs to verify their identity with a passkey on a new device
+  en: Verify your identity with your passkey to continue on this device.
+  de: Bestaetige deine Identitaet mit deinem Passkey, um auf diesem Geraet fortzufahren.
+  zh: 使用您的通行密钥验证身份以在此设备上继续。
+  es: Verifica tu identidad con tu clave de acceso para continuar en este dispositivo.
+  fr: Verifiez votre identite avec votre cle d'acces pour continuer sur cet appareil.
+  pt: Verifique sua identidade com sua chave de acesso para continuar neste dispositivo.
+  ru: Подтвердите свою личность с помощью ключа доступа, чтобы продолжить на этом устройстве.
+  ja: このデバイスで続行するには、パスキーで本人確認を行ってください。
+  ko: 이 기기에서 계속하려면 패스키로 본인 확인을 하세요.
+  it: Verifica la tua identita con la tua passkey per continuare su questo dispositivo.
+  tr: Bu cihazda devam etmek icin geçiş anahtarınızla kimliğinizi doğrulayın.
+  vi: Xac minh danh tinh cua ban bang passkey de tiep tuc tren thiet bi nay.
+  id: Verifikasi identitas Anda dengan passkey untuk melanjutkan di perangkat ini.
+  pl: Zweryfikuj swoja tozsamosc za pomoca klucza dostepu, aby kontynuowac na tym urzadzeniu.
+  nl: Verifieer uw identiteit met uw passkey om door te gaan op dit apparaat.
+  ar: تحقق من هويتك باستخدام مفتاح المرور للمتابعة على هذا الجهاز.
+  hi: इस डिवाइस पर जारी रखने के लिए अपनी पासकी से अपनी पहचान सत्यापित करें।
+  th: ยืนยันตัวตนด้วยพาสคีย์ของคุณเพื่อดำเนินการต่อบนอุปกรณ์นี้
+  cs: Overite svou identitu pomoci pristupoveho klice pro pokracovani na tomto zarizeni.
+  sv: Verifiera din identitet med din nyckelbricka for att fortsatta pa den har enheten.
+  verified_by_human: []
+verify_device_passkey_button:
+  context: Button text to start passkey verification on new device
+  en: Verify with passkey
+  de: Mit Passkey bestätigen
+  zh: 使用通行密钥验证
+  es: Verificar con clave de acceso
+  fr: Vérifier avec clé d'accès
+  pt: Verificar com chave de acesso
+  ru: Подтвердить с помощью ключа доступа
+  ja: パスキーで確認
+  ko: 패스키로 확인
+  it: Verifica con passkey
+  tr: Geçiş anahtarıyla doğrula
+  vi: Xác minh bằng passkey
+  id: Verifikasi dengan passkey
+  pl: Zweryfikuj kluczem dostępu
+  nl: Verifiëren met passkey
+  ar: التحقق بمفتاح المرور
+  hi: पासकी से सत्यापित करें
+  th: ยืนยันด้วยพาสคีย์
+  cs: Ověřit přístupovým klíčem
+  sv: Verifiera med nyckelbricka
+  verified_by_human: []
+verify_device_passkey_error:
+  context: Error message when passkey device verification fails
+  en: Passkey verification failed. Please try again.
+  de: Passkey-Verifizierung fehlgeschlagen. Bitte versuche es erneut.
+  zh: 通行密钥验证失败。请重试。
+  es: La verificación de clave de acceso falló. Por favor, inténtalo de nuevo.
+  fr: La vérification de la clé d'accès a échoué. Veuillez réessayer.
+  pt: A verificação da chave de acesso falhou. Por favor, tente novamente.
+  ru: Проверка ключа доступа не удалась. Пожалуйста, попробуйте снова.
+  ja: パスキーの確認に失敗しました。もう一度お試しください。
+  ko: 패스키 확인에 실패했습니다. 다시 시도해 주세요.
+  it: Verifica passkey non riuscita. Per favore riprova.
+  tr: Geçiş anahtarı doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác minh passkey thất bại. Vui lòng thử lại.
+  id: Verifikasi passkey gagal. Silakan coba lagi.
+  pl: Weryfikacja kluczem dostępu nie powiodła się. Spróbuj ponownie.
+  nl: Passkey-verificatie mislukt. Probeer het opnieuw.
+  ar: فشل التحقق من مفتاح المرور. يرجى المحاولة مرة أخرى.
+  hi: पासकी सत्यापन विफल रहा। कृपया पुनः प्रयास करें।
+  th: การยืนยันพาสคีย์ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Ověření přístupovým klíčem se nezdařilo. Zkuste to prosím znovu.
+  sv: Verifiering med nyckelbricka misslyckades. Försök igen.
+  verified_by_human: []
 2fa_code_placeholder:
   context: Placeholder text for 2FA code input field
   en: Enter 6-digit one-time code

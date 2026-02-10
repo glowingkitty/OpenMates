@@ -553,6 +553,12 @@ class WebSocketService extends EventTarget {
               this.dispatchEvent(
                 new CustomEvent("reAuthRequired", { detail: { type: "2fa" } }),
               );
+            } else if (event.reason?.includes("Passkey required")) {
+              this.dispatchEvent(
+                new CustomEvent("reAuthRequired", {
+                  detail: { type: "passkey" },
+                }),
+              );
             } else {
               this.dispatchEvent(new CustomEvent("authError"));
             }

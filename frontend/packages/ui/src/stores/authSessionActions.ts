@@ -36,6 +36,7 @@ import {
   authStore,
   isCheckingAuth,
   needsDeviceVerification,
+  deviceVerificationType,
 } from "./authState";
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
@@ -65,6 +66,7 @@ export async function checkAuth(
 
   isCheckingAuth.set(true);
   needsDeviceVerification.set(false); // Reset verification need
+  deviceVerificationType.set(null); // Reset verification type
 
   try {
     // Import getSessionId to include session_id in the request
@@ -110,12 +112,16 @@ export async function checkAuth(
       throw fetchError; // Re-throw to be caught by outer catch block
     }
 
-    // Handle Device Verification Required
-    if (!data.success && data.re_auth_required === "2fa") {
+    // Handle Device Verification Required (2FA OTP or passkey)
+    if (
+      !data.success &&
+      (data.re_auth_required === "2fa" || data.re_auth_required === "passkey")
+    ) {
       console.warn(
-        "Session check indicates device 2FA verification is required.",
+        `Session check indicates device ${data.re_auth_required} verification is required.`,
       );
       needsDeviceVerification.set(true);
+      deviceVerificationType.set(data.re_auth_required);
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -275,6 +281,7 @@ export async function checkAuth(
       }
 
       needsDeviceVerification.set(false);
+      deviceVerificationType.set(null);
 
       // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
       // This ensures hash-based signup state works even if set after checkAuth() starts
@@ -653,6 +660,7 @@ export async function checkAuth(
       }
 
       needsDeviceVerification.set(false);
+      deviceVerificationType.set(null);
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -686,6 +694,7 @@ export async function checkAuth(
     );
 
     needsDeviceVerification.set(false);
+    deviceVerificationType.set(null);
 
     try {
       // Load user profile from IndexedDB optimistically
@@ -824,4 +833,5 @@ export function setAuthenticatedState(): void {
     isInitialized: true,
   }));
   needsDeviceVerification.set(false);
+  deviceVerificationType.set(null);
 }
