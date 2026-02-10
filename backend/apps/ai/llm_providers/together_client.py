@@ -399,6 +399,25 @@ async def _stream_together_response(
                     try:
                         chunk = json.loads(line)
                         
+                        # Update usage if present - process BEFORE the choices check because
+                        # some providers (e.g. Together AI for Kimi K2.5) send usage data in
+                        # chunks with empty choices, or in the final chunk without choices.
+                        try:
+                            usage_chunk = chunk.get("usage")
+                            if usage_chunk is not None and isinstance(usage_chunk, dict):
+                                cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
+                                cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
+                                cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
+                                
+                                # Calculate token breakdown from input messages (estimate)
+                                input_messages = payload.get("messages", [])
+                                breakdown = calculate_token_breakdown(input_messages, model_id)
+                                cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")  # type: ignore[assignment]
+                                cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")  # type: ignore[assignment]
+                        except Exception as usage_err:
+                            # Never crash the stream over usage parsing - log and continue
+                            logger.warning(f"{log_prefix} Failed to parse usage data from chunk: {usage_err}. Raw usage value: {chunk.get('usage')!r}")
+                        
                         # Extract content from the chunk
                         choices = chunk.get("choices", [])
                         if not choices:
@@ -466,19 +485,6 @@ async def _stream_together_response(
                             
                             # Clear the buffer after yielding
                             tool_calls_buffer.clear()
-                        
-                        # Update usage if present (value can be None in some chunks)
-                        usage_chunk = chunk.get("usage")
-                        if usage_chunk is not None and isinstance(usage_chunk, dict):
-                            cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
-                            
-                            # Calculate token breakdown from input messages (estimate)
-                            input_messages = payload.get("messages", [])
-                            breakdown = calculate_token_breakdown(input_messages, model_id)
-                            cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")  # type: ignore[assignment]
-                            cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")  # type: ignore[assignment]
                     
                     except json.JSONDecodeError as e:
                         logger.warning(f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)}. Line content: {line[:100]}...")
