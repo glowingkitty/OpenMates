@@ -28,7 +28,7 @@ Focus modes work by temporarily modifying the system instructions that guide the
 
 Focus modes can be activated in several ways:
 
-### 1. Ask the Assistant
+### 1. Ask the Assistant (Auto-Activation)
 
 Simply ask the assistant to use a focus mode:
 
@@ -36,7 +36,11 @@ Simply ask the assistant to use a focus mode:
 - "Let's write code using the code writing focus"
 - "Fact check this information for me"
 
-The assistant will automatically activate the appropriate focus mode and let you know when it's active.
+The assistant will automatically select and activate the appropriate focus mode. When this happens, you'll see an **activation countdown card** appear inline in the chat:
+
+- A compact card shows the app icon, focus mode name, and a **4-second countdown** (4, 3, 2, 1) with an animated progress bar
+- During the countdown, you can **click the card** or **press ESC** to cancel the activation. This prevents the focus mode from applying to future messages and adds a system message noting which focus mode was rejected
+- Once the countdown completes, the card updates to show "Focus activated" and all subsequent AI responses will use the focus mode's specialized prompt
 
 ### 2. Planned: Explicit Request Format
 
@@ -51,10 +55,19 @@ Developers can activate focus modes programmatically via the REST API. See [REST
 
 ## Deactivating Focus Modes
 
-To turn off a focus mode:
+There are several ways to deactivate a focus mode:
 
-- Ask the assistant: "Turn off the focus mode" or "Exit focus mode"
-- Start a new chat (focus modes don't persist across chats)
+- **Context menu**: Right-click (or long-press on mobile) the focus mode activation card in the chat and select **"Deactivate"**. This immediately clears the focus mode so all subsequent messages are processed without it.
+- **Ask the assistant**: Say "Turn off the focus mode" or "Exit focus mode"
+- **Reject during countdown**: Click the activation card or press ESC during the 4-second countdown to prevent activation
+- **Start a new chat**: Focus modes don't persist across chats
+
+### Focus Mode Context Menu
+
+When you right-click (or long-press) a focus mode activation card, a context menu appears with two options:
+
+- **Deactivate** — Stops the active focus mode. All follow-up messages will be processed without the focus mode prompt.
+- **Details** — Opens the focus mode's details in the app store / settings, where you can learn more about what the focus mode does.
 
 ## Example: Research Focus Mode (Web App)
 

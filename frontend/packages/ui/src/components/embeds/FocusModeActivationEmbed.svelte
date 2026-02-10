@@ -125,10 +125,24 @@
     // ChatMessage.svelte picks it up from the embed node
   }
 
+  /**
+   * Handle global ESC key to reject focus mode during countdown
+   */
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && !isActivated && !isRejected) {
+      event.preventDefault();
+      handleRejectClick();
+    }
+  }
+
   onMount(() => {
     startCountdown();
 
+    // Listen for ESC key globally (not just when element is focused)
+    document.addEventListener('keydown', handleKeydown);
+
     return () => {
+      document.removeEventListener('keydown', handleKeydown);
       if (countdownInterval) {
         clearInterval(countdownInterval);
       }
@@ -176,7 +190,7 @@
   {#if !isActivated}
     <div class="reject-hint">
       {$text('embeds.focus_mode.reject_hint.text', {
-        default: 'Click to prevent focus mode & continue regular chat'
+        default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
       })}
     </div>
   {/if}
@@ -289,6 +303,7 @@
     margin-top: 4px;
     padding-left: 2px;
     line-height: 1.3;
+    white-space: pre-line;
   }
 
   /* Dark mode */

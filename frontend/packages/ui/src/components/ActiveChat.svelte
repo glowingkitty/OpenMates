@@ -831,7 +831,7 @@
         // Send deactivation to the backend via WebSocket
         // The backend handler clears cache + dispatches Celery task for Directus
         try {
-            const { webSocketService } = await import('../services/webSocketService');
+            const { webSocketService } = await import('../services/websocketService');
             webSocketService.sendMessage('chat_focus_mode_deactivate', {
                 chat_id: chatId,
                 focus_id: focusId,

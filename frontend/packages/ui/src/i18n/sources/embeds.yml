@@ -1935,7 +1935,7 @@ focus_mode.activating:
   de: "Aktivierung in {seconds} Sek. ..."
   verified_by_human: []
 focus_mode.reject_hint:
-  context: Helper text below the focus mode card during countdown explaining how to prevent activation
-  en: Click to prevent focus mode & continue regular chat
-  de: Klicken um Fokus-Modus zu verhindern & normal weiterzuchatten
+  context: "Helper text below the focus mode card during countdown explaining how to prevent activation. Uses \\n for line break."
+  en: "Click or press ESC to prevent focus mode &\ncontinue regular chat"
+  de: "Klicken oder ESC drücken um Fokus-Modus zu verhindern &\nnormal weiterzuchatten"
   verified_by_human: []
