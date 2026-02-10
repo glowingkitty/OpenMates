@@ -93,19 +93,28 @@ def _build_maas_url(project_id: str, location: str) -> str:
     """
     Build the Google Vertex AI MaaS OpenAI-compatible endpoint URL.
 
-    The endpoint follows the format:
+    For regional endpoints:
     https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/endpoints/openapi/chat/completions
 
-    For location='global', uses 'us-central1' as the API host since global is not
-    a valid Vertex AI API hostname prefix.
+    For global endpoint (e.g., DeepSeek-V3.2):
+    https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/endpoints/openapi/chat/completions
+
+    See: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/maas/call-open-model-apis#global
     """
-    # 'global' location routes to us-central1 for API access
-    api_location = location if location != "global" else "us-central1"
-    return (
-        f"https://{api_location}-aiplatform.googleapis.com/v1/"
-        f"projects/{project_id}/locations/{location}/"
-        f"endpoints/openapi/chat/completions"
-    )
+    if location == "global":
+        # Global endpoint uses plain aiplatform.googleapis.com (no region prefix)
+        return (
+            f"https://aiplatform.googleapis.com/v1/"
+            f"projects/{project_id}/locations/global/"
+            f"endpoints/openapi/chat/completions"
+        )
+    else:
+        # Regional endpoint uses {location}-aiplatform.googleapis.com
+        return (
+            f"https://{location}-aiplatform.googleapis.com/v1/"
+            f"projects/{project_id}/locations/{location}/"
+            f"endpoints/openapi/chat/completions"
+        )
 
 
 async def invoke_google_maas_chat_completions(
@@ -350,10 +359,22 @@ async def _stream_google_maas_response(
                     error_msg = f"HTTP {response.status_code}"
                     try:
                         error_text = error_body.decode("utf-8", errors="ignore").strip()
+                        logger.error(f"{log_prefix} Raw error response body: {error_text[:2000]}")
                         if error_text:
                             try:
                                 error_detail = json.loads(error_text)
-                                error_msg = error_detail.get("error", {}).get("message", error_msg)
+                                # Handle both dict and list error formats from Google
+                                if isinstance(error_detail, dict):
+                                    error_obj = error_detail.get("error", {})
+                                    if isinstance(error_obj, dict):
+                                        error_msg = error_obj.get("message", error_msg)
+                                    else:
+                                        error_msg = f"HTTP {response.status_code}: {str(error_obj)[:500]}"
+                                elif isinstance(error_detail, list):
+                                    # Google sometimes returns error as a JSON array
+                                    error_msg = f"HTTP {response.status_code}: {json.dumps(error_detail)[:500]}"
+                                else:
+                                    error_msg = f"HTTP {response.status_code}: {str(error_detail)[:500]}"
                             except json.JSONDecodeError:
                                 error_msg = f"HTTP {response.status_code}: {error_text[:500]}"
                     except UnicodeDecodeError:
