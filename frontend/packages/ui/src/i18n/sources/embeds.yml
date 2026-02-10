@@ -1734,27 +1734,27 @@ download_itinerary:
   sv: Ladda ner resplan
   verified_by_human: [en, de]
 image_generate:
-  context: Image generate skill label shown in BasicInfosBar
-  en: Image
-  de: Bild
-  zh: 图片
-  es: Imagen
-  fr: Image
-  pt: Imagem
-  ru: Изображение
-  ja: 画像
-  ko: 이미지
-  it: Immagine
-  tr: Görsel
-  vi: Hình ảnh
-  id: Gambar
-  pl: Obraz
-  nl: Afbeelding
-  ar: صورة
-  hi: चित्र
-  th: รูปภาพ
-  cs: Obrázek
-  sv: Bild
+  context: Image generate skill label shown in BasicInfosBar - shows the skill name "Generate"
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерация
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
   verified_by_human: []
 image_generate.error:
   context: Error message when image generation fails

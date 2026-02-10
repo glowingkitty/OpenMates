@@ -280,6 +280,11 @@
     mask-image: url('@openmates/ui/static/icons/reminder.svg');
   }
   
+  .basic-infos-bar .skill-icon[data-skill-icon="image"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
+    mask-image: url('@openmates/ui/static/icons/image.svg');
+  }
+  
   /* Status text container */
   .basic-infos-bar.desktop .status-text {
     display: flex;

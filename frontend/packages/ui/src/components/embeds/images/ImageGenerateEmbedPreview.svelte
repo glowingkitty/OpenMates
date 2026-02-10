@@ -157,8 +157,16 @@
       imageUrl = URL.createObjectURL(blob);
       console.debug('[ImageGenerateEmbedPreview] Preview image loaded successfully');
     } catch (err) {
-      console.error('[ImageGenerateEmbedPreview] Failed to load preview image:', err);
-      imageError = err instanceof Error ? err.message : 'Failed to load image';
+      // DOMException from Web Crypto API has no enumerable properties and serializes as {}.
+      // Extract name and message explicitly for meaningful logging.
+      const errorDetail = err instanceof Error
+        ? `${err.name}: ${err.message || '(no message)'}` 
+        : String(err);
+      console.error('[ImageGenerateEmbedPreview] Failed to load preview image:', errorDetail);
+      // DOMException.message is often empty for OperationError, so fall back to name or generic text
+      imageError = err instanceof Error 
+        ? (err.message || err.name || 'Failed to decrypt image') 
+        : 'Failed to load image';
     } finally {
       isLoadingImage = false;
     }
