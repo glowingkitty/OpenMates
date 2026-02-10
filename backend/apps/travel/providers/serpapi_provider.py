@@ -483,12 +483,25 @@ class SerpApiProvider(BaseTransportProvider):
             data.get("best_flights", []) + data.get("other_flights", [])
         )
 
+        # Build booking_context — the original search params needed for
+        # on-demand booking_token lookup (same params minus deep_search/stops).
+        booking_ctx: Dict[str, str] = {
+            "departure_id": resolved_leg["origin"],
+            "arrival_id": resolved_leg["destination"],
+            "outbound_date": resolved_leg["date"],
+            "type": "2",
+            "currency": currency,
+            "gl": gl,
+            "adults": str(passengers),
+            "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+        }
+
         # Convert to ConnectionResult objects, passing booking_token from
         # each flight group for on-demand booking URL lookup
         results = []
         for fg in flight_groups[:max_results]:
             connection = self._parse_flight_group(
-                fg, [original_leg], currency,
+                fg, [original_leg], currency, booking_context=booking_ctx,
             )
             if connection:
                 results.append(connection)
@@ -556,10 +569,23 @@ class SerpApiProvider(BaseTransportProvider):
             data.get("best_flights", []) + data.get("other_flights", [])
         )
 
+        # Build booking_context for on-demand booking_token lookup
+        booking_ctx: Dict[str, str] = {
+            "departure_id": outbound["origin"],
+            "arrival_id": outbound["destination"],
+            "outbound_date": outbound["date"],
+            "return_date": return_leg["date"],
+            "type": "1",
+            "currency": currency,
+            "gl": gl,
+            "adults": str(passengers),
+            "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+        }
+
         results = []
         for fg in flight_groups[:max_results]:
             connection = self._parse_flight_group(
-                fg, original_legs, currency,
+                fg, original_legs, currency, booking_context=booking_ctx,
             )
             if connection:
                 results.append(connection)
@@ -630,10 +656,23 @@ class SerpApiProvider(BaseTransportProvider):
             data.get("best_flights", []) + data.get("other_flights", [])
         )
 
+        # Build booking_context for multi-city. Use first leg's departure/arrival
+        # as the primary context; SerpAPI needs these for the booking_token lookup.
+        booking_ctx: Dict[str, str] = {
+            "departure_id": resolved_legs[0]["origin"],
+            "arrival_id": resolved_legs[0]["destination"],
+            "outbound_date": resolved_legs[0]["date"],
+            "type": "3",
+            "currency": currency,
+            "gl": gl,
+            "adults": str(passengers),
+            "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
+        }
+
         results = []
         for fg in flight_groups[:max_results]:
             connection = self._parse_flight_group(
-                fg, original_legs, currency,
+                fg, original_legs, currency, booking_context=booking_ctx,
             )
             if connection:
                 results.append(connection)
@@ -676,6 +715,7 @@ class SerpApiProvider(BaseTransportProvider):
         flight_group: dict,
         original_legs: List[dict],
         currency: str,
+        booking_context: Optional[Dict[str, str]] = None,
     ) -> Optional[ConnectionResult]:
         """
         Parse a single SerpAPI flight group into a ConnectionResult.
@@ -689,6 +729,13 @@ class SerpApiProvider(BaseTransportProvider):
         - booking_token: token to retrieve booking links (optional)
         - departure_token: token for selecting this flight in multi-step flows
         - carbon_emissions: CO2 data
+
+        Args:
+            flight_group: Raw SerpAPI flight group dict.
+            original_legs: User-provided leg dicts with origin/destination names.
+            currency: Currency code (e.g., 'EUR').
+            booking_context: Original SerpAPI search parameters to store with
+                each result for on-demand booking_token lookup.
         """
         flights = flight_group.get("flights", [])
         if not flights:
@@ -818,21 +865,6 @@ class SerpApiProvider(BaseTransportProvider):
         booking_url = None
         booking_provider = None
 
-        # Build Google Flights fallback URL for flights without direct booking
-        google_flights_url = None
-        if original_legs and segments:
-            dep_code = segments[0].departure_station
-            arr_code = segments[-1].arrival_station
-            dep_date = ""
-            if segments[0].departure_time:
-                # Extract date from "YYYY-MM-DD HH:MM" or ISO format
-                dep_date = segments[0].departure_time[:10]
-            if dep_code and arr_code and dep_date:
-                google_flights_url = (
-                    f"https://www.google.com/travel/flights"
-                    f"?q=Flights+from+{dep_code}+to+{arr_code}+on+{dep_date}"
-                )
-
         # Determine the validating/primary airline for this connection
         carrier_codes = set()
         for seg in segments:
@@ -863,7 +895,7 @@ class SerpApiProvider(BaseTransportProvider):
             booking_url=booking_url,
             booking_provider=booking_provider,
             booking_token=booking_token,
-            google_flights_url=google_flights_url,
+            booking_context=booking_context,
             validating_airline_code=validating_code,
             legs=[leg],
             airline_logo=group_airline_logo,
@@ -938,18 +970,27 @@ def _pick_best_booking_option(
     return None, None
 
 
-async def lookup_booking_url(booking_token: str) -> Dict[str, Optional[str]]:
+async def lookup_booking_url(
+    booking_token: str,
+    booking_context: Optional[Dict[str, str]] = None,
+) -> Dict[str, Optional[str]]:
     """
     Look up a booking URL for a flight using its SerpAPI booking_token.
 
     This is the on-demand booking lookup called by the REST endpoint
     /v1/apps/travel/booking-link. It costs 1 SerpAPI credit per call.
 
-    The function makes a single SerpAPI request with the booking_token,
-    then picks the best booking option (preferring direct airline over OTA).
+    SerpAPI's booking_token lookup requires the original search parameters
+    (departure_id, arrival_id, outbound_date, type, currency, gl, adults,
+    travel_class) alongside the booking_token. These are passed via the
+    booking_context dict, which was stored in each search result.
 
     Args:
         booking_token: The booking_token from a SerpAPI flight search result.
+        booking_context: Dict of original search parameters needed by SerpAPI
+            for the booking lookup. Keys: departure_id, arrival_id,
+            outbound_date, return_date (optional), type, currency, gl,
+            adults, travel_class.
 
     Returns:
         Dict with 'booking_url' and 'booking_provider' keys.
@@ -962,15 +1003,25 @@ async def lookup_booking_url(booking_token: str) -> Dict[str, Optional[str]]:
     if not api_key:
         raise ValueError("SerpAPI key not available")
 
-    # The booking_token request only needs the engine, api_key, and
-    # booking_token parameters. Currency/gl/hl are optional but help
-    # return locale-appropriate booking options.
+    # SerpAPI booking_token lookup requires the original search parameters
+    # (same params as the initial search, minus deep_search and stops).
+    # These are passed via booking_context from the search result.
     params: Dict[str, Any] = {
         "engine": "google_flights",
         "api_key": api_key,
         "booking_token": booking_token,
         "hl": "en",
     }
+
+    # Merge in the original search context params required by SerpAPI
+    if booking_context:
+        for key in (
+            "departure_id", "arrival_id", "outbound_date", "return_date",
+            "type", "currency", "gl", "adults", "travel_class",
+        ):
+            val = booking_context.get(key)
+            if val:
+                params[key] = val
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:

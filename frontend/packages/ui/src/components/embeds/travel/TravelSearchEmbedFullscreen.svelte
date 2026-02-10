@@ -41,7 +41,7 @@
     booking_url?: string;
     booking_provider?: string;
     booking_token?: string;
-    google_flights_url?: string;
+    booking_context?: Record<string, string>;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -295,7 +295,7 @@
       booking_url: content.booking_url as string | undefined,
       booking_provider: content.booking_provider as string | undefined,
       booking_token: content.booking_token as string | undefined,
-      google_flights_url: content.google_flights_url as string | undefined,
+      booking_context: content.booking_context as Record<string, string> | undefined,
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,

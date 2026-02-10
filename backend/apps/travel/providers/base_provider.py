@@ -10,7 +10,7 @@ flights, Travelpayouts for price calendars, Transitous for trains/buses, etc.).
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -83,7 +83,11 @@ class ConnectionResult(BaseModel):
         default=None,
         description="SerpAPI booking token for on-demand booking URL lookup via /v1/apps/travel/booking-link"
     )
-    google_flights_url: Optional[str] = Field(default=None, description="Google Flights search URL for this route/date")
+    booking_context: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Original SerpAPI search parameters needed for booking_token lookup "
+        "(departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class)"
+    )
     validating_airline_code: Optional[str] = Field(
         default=None, description="IATA code of the validating/ticketing airline (e.g., 'LH')"
     )

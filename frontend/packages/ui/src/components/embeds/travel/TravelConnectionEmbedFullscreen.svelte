@@ -79,7 +79,7 @@
     booking_url?: string;
     booking_provider?: string;
     booking_token?: string;
-    google_flights_url?: string;
+    booking_context?: Record<string, string>;
     origin?: string;
     destination?: string;
     departure?: string;
@@ -181,10 +181,9 @@
   // - idle: booking_token exists but URL not yet fetched -> "Get booking link"
   // - loading: REST request in progress -> spinner
   // - loaded: URL resolved -> "Book on {provider}" (clickable)
-  // - error: lookup failed -> show Google Flights fallback
+  // - error: lookup failed -> no booking button shown
   //
   // If booking_url is already present (pre-resolved), skip to 'loaded' state.
-  // If no booking_token and no booking_url, show Google Flights fallback only.
   // ---------------------------------------------------------------------------
   
   type BookingState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -193,9 +192,6 @@
   let resolvedBookingUrl = $state(connection.booking_url || '');
   let resolvedBookingProvider = $state(connection.booking_provider || '');
   let bookingState = $state<BookingState>(connection.booking_url ? 'loaded' : 'idle');
-  
-  // Google Flights fallback URL (always available for flights with route data)
-  let googleFlightsUrl = $derived(connection.google_flights_url || '');
   
   // Primary carrier name (for display when provider not yet known)
   let primaryCarrier = $derived(connection.carriers?.[0] || '');
@@ -217,7 +213,10 @@
           Accept: 'application/json',
           Origin: window.location.origin,
         },
-        body: JSON.stringify({ booking_token: connection.booking_token }),
+        body: JSON.stringify({
+          booking_token: connection.booking_token,
+          booking_context: connection.booking_context || null,
+        }),
         credentials: 'include',
       });
       
@@ -234,8 +233,8 @@
         resolvedBookingProvider = data.booking_provider || primaryCarrier;
         bookingState = 'loaded';
       } else {
-        // No booking link found — fall back to Google Flights
-        console.log('No booking link available, falling back to Google Flights');
+        // No booking link found
+        console.log('No booking link available from SerpAPI');
         bookingState = 'error';
       }
     } catch (err) {
@@ -251,15 +250,6 @@
   function handleOpenBookingUrl() {
     if (resolvedBookingUrl) {
       window.open(resolvedBookingUrl, '_blank', 'noopener,noreferrer');
-    }
-  }
-  
-  /**
-   * Open Google Flights as a fallback.
-   */
-  function handleOpenGoogleFlights() {
-    if (googleFlightsUrl) {
-      window.open(googleFlightsUrl, '_blank', 'noopener,noreferrer');
     }
   }
   
@@ -775,11 +765,6 @@
           <button class="cta-button" onclick={handleOpenBookingUrl}>
             {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
           </button>
-          {#if googleFlightsUrl}
-            <button class="cta-button cta-google-flights cta-secondary" onclick={handleOpenGoogleFlights}>
-              {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
-            </button>
-          {/if}
         {:else if bookingState === 'loading'}
           <!-- State: loading — fetching booking link -->
           <button class="cta-button cta-loading" disabled>
@@ -790,16 +775,6 @@
           <!-- State: idle — booking token available, user can request link -->
           <button class="cta-button cta-load-booking" onclick={handleLoadBookingLink}>
             {$text('embeds.get_booking_link.text') || 'Get booking link'}
-          </button>
-          {#if googleFlightsUrl}
-            <button class="cta-button cta-google-flights cta-secondary" onclick={handleOpenGoogleFlights}>
-              {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
-            </button>
-          {/if}
-        {:else if googleFlightsUrl}
-          <!-- Fallback: no booking token, or error — show Google Flights only -->
-          <button class="cta-button cta-google-flights" onclick={handleOpenGoogleFlights}>
-            {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
           </button>
         {/if}
       </div>
@@ -1060,28 +1035,6 @@
   .cta-button:active {
     background-color: var(--color-button-primary-pressed);
     transform: translateY(0);
-  }
-  
-  /* Google Flights fallback CTA — slightly muted to distinguish from direct booking */
-  .cta-google-flights {
-    background-color: var(--color-grey-70, #555);
-  }
-  
-  .cta-google-flights:hover {
-    background-color: var(--color-grey-80, #444);
-  }
-  
-  .cta-google-flights:active {
-    background-color: var(--color-grey-90, #333);
-  }
-  
-  /* Secondary CTA (shown alongside primary — smaller, muted) */
-  .cta-secondary {
-    margin-top: 8px;
-    padding: 8px 16px;
-    font-size: 13px;
-    min-width: auto;
-    opacity: 0.8;
   }
   
   /* "Get booking link" button — outlined style to invite action */

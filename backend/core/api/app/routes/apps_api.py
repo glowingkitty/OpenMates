@@ -1068,6 +1068,11 @@ class BookingLinkRequest(BaseModel):
         ...,
         description="The booking_token from a flight search result (from search_connections skill output)."
     )
+    booking_context: Optional[Dict[str, str]] = Field(
+        None,
+        description="Original SerpAPI search parameters needed for booking_token lookup. "
+        "Keys: departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class."
+    )
 
 
 class BookingLinkResponse(BaseModel):
@@ -1129,7 +1134,10 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 f"booking URL (token: {request_body.booking_token[:20]}...)"
             )
 
-            result = await lookup_booking_url(request_body.booking_token)
+            result = await lookup_booking_url(
+                request_body.booking_token,
+                booking_context=request_body.booking_context,
+            )
 
             # Only charge credits if we successfully got a booking URL
             credits_charged = 0

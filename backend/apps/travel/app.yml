@@ -101,6 +101,7 @@ skills:
       - carrier_code
       - segments
       - booking_token
+      - booking_context
     suggestions_follow_up_requests:
       - Search for cheaper dates
       - Show only direct flights

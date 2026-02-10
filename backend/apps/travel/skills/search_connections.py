@@ -322,16 +322,17 @@ class SearchConnectionsSkill(BaseSkill):
                 if connection.booking_token:
                     result_dict["booking_token"] = connection.booking_token
 
+                # Booking context: original SerpAPI search parameters needed
+                # for the booking_token lookup. Stored alongside each result
+                # so the frontend can send them back to the booking-link endpoint.
+                if connection.booking_context:
+                    result_dict["booking_context"] = connection.booking_context
+
                 # Booking URL: populated if booking was already resolved
                 # (not used in the on-demand flow, kept for API compatibility)
                 if connection.booking_url:
                     result_dict["booking_url"] = connection.booking_url
                     result_dict["booking_provider"] = connection.booking_provider
-
-                # Google Flights fallback URL: for flights without a direct
-                # booking URL, link to Google Flights search for this route/date.
-                if connection.google_flights_url:
-                    result_dict["google_flights_url"] = connection.google_flights_url
 
             # Rich metadata from Google Flights (CO2, airline logo)
             if connection.airline_logo:
