@@ -56,6 +56,8 @@
     import VideoEmbedPreview from '../../embeds/videos/VideoEmbedPreview.svelte';
     import CodeEmbedPreview from '../../embeds/code/CodeEmbedPreview.svelte';
     import ReminderEmbedPreview from '../../embeds/reminder/ReminderEmbedPreview.svelte';
+    import TravelSearchEmbedPreview from '../../embeds/travel/TravelSearchEmbedPreview.svelte';
+    import TravelPriceCalendarEmbedPreview from '../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -282,6 +284,33 @@
                         filename: decodedContent.filename || embedContext?.filename,
                         lineCount: decodedContent.lineCount || embedContext?.lineCount || 0,
                         status,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'travel' && (skillId === 'search_connections' || skillId === 'search-connections')) {
+                // Travel search connections embed
+                return {
+                    component: TravelSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Google',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'travel' && (skillId === 'price_calendar' || skillId === 'price-calendar')) {
+                // Travel price calendar embed
+                return {
+                    component: TravelPriceCalendarEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        status: status,
+                        results: decodedContent.results || [],
                         isMobile: false,
                         onFullscreen: () => {}
                     }

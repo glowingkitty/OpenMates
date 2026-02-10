@@ -1110,6 +1110,11 @@ async def handle_preprocessing(
             )
             
             logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions...")
+            # Pass the FULL dynamic_context (same as first call) so the retry LLM has all the info
+            # it needs. We only extract category from the retry result, but having complete context
+            # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
+            # as a union with the first call's skills, since the retry may identify skills the first
+            # call missed (or vice versa).
             retry_llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
                 task_id=f"{request_data.chat_id}_{request_data.message_id}_retry",
                 model_id=preprocessing_model,
@@ -1118,7 +1123,7 @@ async def handle_preprocessing(
                 tool_definition=retry_tool_definition,
                 secrets_manager=secrets_manager,
                 user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-                dynamic_context={"CATEGORIES_LIST": available_categories_list}
+                dynamic_context=dynamic_context  # Use the same full context as the first call
             )
             
             if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
@@ -1146,6 +1151,33 @@ async def handle_preprocessing(
                     validated_category = "general_knowledge"
                     # Update llm_analysis_args with fallback category
                     llm_analysis_args["category"] = validated_category
+                
+                # --- Merge relevant_app_skills from retry into first call's results ---
+                # The retry LLM may select different/additional skills compared to the first call.
+                # Since the first call returned an invalid category, it may also have had a suboptimal
+                # skill selection. We take the UNION of both to maximize coverage.
+                # This is safe because the skill validation logic downstream will filter out any
+                # invalid skills, and the main LLM decides which tools to actually invoke.
+                if retry_llm_call_result.arguments:
+                    retry_skills = retry_llm_call_result.arguments.get("relevant_app_skills")
+                    original_skills = llm_analysis_args.get("relevant_app_skills")
+                    if retry_skills and isinstance(retry_skills, list):
+                        if original_skills and isinstance(original_skills, list):
+                            # Union: combine both lists, preserving order (original first, then retry additions)
+                            original_set = set(original_skills)
+                            merged_skills = list(original_skills) + [s for s in retry_skills if s not in original_set]
+                            if len(merged_skills) > len(original_skills):
+                                logger.info(
+                                    f"{log_prefix} Merged relevant_app_skills from retry into first call results. "
+                                    f"Original: {original_skills}, Retry: {retry_skills}, Merged: {merged_skills}"
+                                )
+                                llm_analysis_args["relevant_app_skills"] = merged_skills
+                        elif not original_skills or not isinstance(original_skills, list):
+                            # First call had no skills, use retry's skills entirely
+                            logger.info(
+                                f"{log_prefix} Using relevant_app_skills from retry (first call had none): {retry_skills}"
+                            )
+                            llm_analysis_args["relevant_app_skills"] = retry_skills
         except Exception as retry_exc:
             logger.error(
                 f"{log_prefix} Exception during category validation retry: {retry_exc}. "
