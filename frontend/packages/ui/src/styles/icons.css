@@ -807,10 +807,10 @@ div.clickable-icon {
 }
 
 .icon_rounded.images {
-  /* Image generate embed preview icon - uses AI gradient to match the mate profile look */
+  /* Image app embed preview icon - matches the Images app store card icon */
   background: var(--color-app-images);
   &::after {
-    background-image: url("@openmates/ui/static/icons/ai.svg");
+    background-image: url("@openmates/ui/static/icons/image.svg");
   }
 }
 
