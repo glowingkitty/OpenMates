@@ -467,6 +467,57 @@
     }
 
     /**
+     * Update the category of an existing demo chat
+     */
+    async function updateDemoChatCategory(demoChatId: string, newCategory: string) {
+        try {
+            isSubmitting = true;
+
+            const response = await fetch(getApiEndpoint(`/v1/admin/demo-chat/${demoChatId}/category`), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    demo_chat_category: newCategory
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                throw new Error(data.detail || 'Failed to update category');
+            }
+
+            // Update locally
+            const demoIndex = currentDemoChats.findIndex(d => d.id === demoChatId);
+            if (demoIndex !== -1) {
+                currentDemoChats[demoIndex] = {
+                    ...currentDemoChats[demoIndex],
+                    demo_chat_category: newCategory
+                };
+                currentDemoChats = [...currentDemoChats];
+            }
+
+            dispatch('showToast', {
+                type: 'success',
+                message: `Category updated to "${newCategory === 'for_developers' ? 'For developers' : 'For everyone'}"`
+            });
+
+        } catch (err) {
+            console.error('Error updating demo chat category:', err);
+            // Reload to revert optimistic update
+            loadCurrentDemoChats();
+            dispatch('showToast', {
+                type: 'error',
+                message: err instanceof Error ? err.message : 'Failed to update category'
+            });
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    /**
      * Format date for display
      */
     function formatDate(dateString: string): string {
@@ -738,11 +789,16 @@
                                         {/if}
                                     </span>
                                 {/if}
-                                {#if demo.demo_chat_category}
-                                    <span class="audience-tag audience-{demo.demo_chat_category}">
-                                        {demo.demo_chat_category === 'for_developers' ? 'Developers' : 'Everyone'}
-                                    </span>
-                                {/if}
+                                <select
+                                    class="category-inline-select category-select-{demo.demo_chat_category || 'for_everyone'}"
+                                    value={demo.demo_chat_category || 'for_everyone'}
+                                    onchange={(e) => updateDemoChatCategory(demo.id, e.currentTarget.value)}
+                                    disabled={isSubmitting}
+                                    title="Change demo chat category"
+                                >
+                                    <option value="for_everyone">Everyone</option>
+                                    <option value="for_developers">Developers</option>
+                                </select>
                                 {#if demo.category}
                                     <span class="category-tag">{demo.category}</span>
                                 {:else if demo.icon}
@@ -1158,6 +1214,38 @@
     }
 
     .audience-for_developers {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .category-inline-select {
+        padding: 0.15rem 0.3rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        cursor: pointer;
+        appearance: auto;
+        transition: border-color 0.2s ease;
+    }
+
+    .category-inline-select:hover:not(:disabled) {
+        border-color: var(--color-border);
+    }
+
+    .category-inline-select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .category-select-for_everyone {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .category-select-for_developers {
         background: #FEF3C7;
         color: #92400E;
     }

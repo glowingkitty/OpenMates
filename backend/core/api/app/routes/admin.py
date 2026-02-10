@@ -53,6 +53,10 @@ class ApproveDemoChatRequest(BaseModel):
     replace_demo_chat_id: str | None = None  # Optional: UUID of demo chat to replace (if at limit)
     demo_chat_category: str = "for_everyone"  # Target audience: "for_everyone" (default, max 6) or "for_developers" (max 4)
 
+class UpdateDemoChatCategoryRequest(BaseModel):
+    """Request model for updating a demo chat's category"""
+    demo_chat_category: str  # New category: "for_everyone" or "for_developers"
+
 class RejectSuggestionRequest(BaseModel):
     """Request model for rejecting a community suggestion"""
     demo_chat_id: str  # UUID of the demo_chats entry
@@ -518,6 +522,86 @@ async def delete_demo_chat(
     except Exception as e:
         logger.error(f"Error deleting demo chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete demo chat")
+
+@router.patch("/demo-chat/{demo_chat_id}/category")
+@limiter.limit("30/minute")
+async def update_demo_chat_category(
+    request: Request,
+    demo_chat_id: str,
+    payload: UpdateDemoChatCategoryRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Update the demo_chat_category of an existing published demo chat.
+    
+    Enforces per-category limits (6 for_everyone, 4 for_developers).
+    If the target category is already at its limit, the request is rejected.
+    """
+    try:
+        new_category = payload.demo_chat_category
+        if new_category not in ("for_everyone", "for_developers"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid demo_chat_category: {new_category}. Must be 'for_everyone' or 'for_developers'."
+            )
+
+        # Verify the demo chat exists and is published or translating
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_id}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        if not demo_chat:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+
+        current_category = demo_chat.get("demo_chat_category", "for_everyone")
+        if current_category == new_category:
+            return {
+                "success": True,
+                "message": "Category unchanged",
+                "demo_chat_category": new_category
+            }
+
+        # Check that the target category has room (excluding this demo from the count)
+        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
+        current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)
+        target_category_count = sum(
+            1 for d in current_demos
+            if d.get("demo_chat_category") == new_category and d["id"] != demo_chat_id
+        )
+
+        if target_category_count >= CATEGORY_LIMITS[new_category]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Category '{new_category}' is already at its limit of {CATEGORY_LIMITS[new_category]}. Remove a demo from that category first."
+            )
+
+        # Update the category
+        result = await directus_service.update_item(
+            "demo_chats", demo_chat_id,
+            {"demo_chat_category": new_category},
+            admin_required=True
+        )
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to update demo chat category")
+
+        # Clear cache so clients pick up the change
+        await directus_service.cache.clear_demo_chats_cache()
+
+        logger.info(f"Admin {admin_user.id} changed demo chat {demo_chat_id} category from '{current_category}' to '{new_category}'")
+
+        return {
+            "success": True,
+            "message": f"Category updated to '{new_category}'",
+            "demo_chat_category": new_category
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating demo chat category: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update demo chat category")
 
 @router.get("/server-stats")
 @limiter.limit("30/minute")
