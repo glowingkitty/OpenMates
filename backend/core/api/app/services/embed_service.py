@@ -1805,6 +1805,134 @@ class EmbedService:
             logger.error(f"{log_prefix} Error updating embed {embed_id} to error status: {e}", exc_info=True)
             return None
 
+    async def update_embed_status_to_cancelled(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing "processing" embed to "cancelled" status when a task is revoked.
+        
+        Similar to update_embed_status_to_error but uses "cancelled" status and a
+        user-friendly cancellation message instead of an error message.
+        
+        Args:
+            embed_id: The embed_id to update (from placeholder)
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID that was executed
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with embed_id and status if successful, None if update fails
+        """
+        try:
+            import hashlib
+            from datetime import datetime
+            from toon_format import encode
+            
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            # Retrieve original placeholder metadata (query, provider, etc.)
+            original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            original_metadata = {}
+            if original_content:
+                for key in ['query', 'provider', 'url', 'input_data']:
+                    if key in original_content:
+                        original_metadata[key] = original_content[key]
+            
+            # Create cancelled content with metadata
+            cancelled_content = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "status": "cancelled",
+                "error": "Cancelled by user",
+                "result_count": 0,
+                "embed_ids": None,
+                **original_metadata
+            }
+            
+            # Convert to TOON (PLAINTEXT)
+            flattened_cancelled = _flatten_for_toon_tabular(cancelled_content)
+            cancelled_content_toon = encode(flattened_cancelled)
+            
+            cancelled_text_length_chars = len(cancelled_content_toon)
+            
+            # Encrypt with vault key
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                cancelled_content_toon,
+                user_vault_key_id
+            )
+            
+            # Update embed in cache
+            updated_at = int(datetime.now().timestamp())
+            updated_embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "cancelled",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "text_length_chars": cancelled_text_length_chars,
+                "created_at": updated_at,
+                "updated_at": updated_at
+            }
+            
+            # Update cache (overwrites placeholder)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=cancelled_content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="cancelled",
+                task_id=task_id,
+                text_length_chars=cancelled_text_length_chars,
+                created_at=updated_at,
+                updated_at=updated_at,
+                log_prefix=log_prefix
+            )
+            
+            logger.info(f"{log_prefix} Updated embed {embed_id} to cancelled status")
+            
+            return {
+                "embed_id": embed_id,
+                "child_embed_ids": [],
+                "status": "cancelled"
+            }
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating embed {embed_id} to cancelled status: {e}", exc_info=True)
+            return None
+
     async def send_embed_data_to_client(
         self,
         embed_id: str,

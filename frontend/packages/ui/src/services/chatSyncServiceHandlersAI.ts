@@ -1365,10 +1365,10 @@ export async function handleAIMessageReadyImpl(
   }
 }
 
-export function handleAITaskCancelRequestedImpl(
+export async function handleAITaskCancelRequestedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AITaskCancelRequestedPayload,
-): void {
+): Promise<void> {
   console.info(
     "[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:",
     payload,
@@ -1387,6 +1387,39 @@ export function handleAITaskCancelRequestedImpl(
       }
     },
   );
+  // Cancel all processing embeds for affected chats and dispatch UI updates
+  // This is done BEFORE dispatching aiTaskEnded so the embed UI updates immediately
+  for (const chatId of chatIdsToClear) {
+    try {
+      const { embedStore } = await import("./embedStore");
+      const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(chatId);
+
+      // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview updates
+      for (const embedId of cancelledEmbedIds) {
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedId,
+              chat_id: chatId,
+              status: "cancelled",
+            },
+          }),
+        );
+      }
+
+      if (cancelledEmbedIds.length > 0) {
+        console.info(
+          `[ChatSyncService:AI] Cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId} due to task cancellation`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[ChatSyncService:AI] Failed to cancel processing embeds for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+
   chatIdsToClear.forEach((chatId) => {
     serviceInstance.activeAITasks.delete(chatId);
     // Clear typing status for this cancelled task
@@ -2570,7 +2603,7 @@ export async function handleSendEmbedDataImpl(
       );
     } else {
       // ============================================================
-      // FINALIZED STATUS (completed/error/etc): Full encryption and persistence
+      // FINALIZED STATUS (completed/error/cancelled/etc): Full encryption and persistence
       // ============================================================
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)

@@ -117,7 +117,7 @@
     type EmbedResolverData = {
         embed_id: string;
         type: string;
-        status: 'processing' | 'finished' | 'error';
+        status: 'processing' | 'finished' | 'error' | 'cancelled';
         content: string;
         text_preview?: string;
         embed_ids?: string[];
@@ -781,9 +781,10 @@
         return Array.isArray(results) ? (results as TravelConnectionResult[]) : [];
     }
 
-    // Coerce skill preview status to embed status (embed data doesn't support "cancelled").
+    // Coerce skill preview status to embed status.
+    // Both embed and skill preview now support 'cancelled' status natively.
     function toEmbedStatus(status: SkillPreviewData['status']): EmbedResolverData['status'] {
-        return status === 'cancelled' ? 'error' : status;
+        return status;
     }
 
     /**

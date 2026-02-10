@@ -66,13 +66,15 @@ async def _cleanup_processing_embeds_on_task_failure(
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    use_cancelled_status: bool = False
 ) -> int:
     """
     Clean up processing embeds when a task fails unexpectedly.
     
     This function finds all embeds in "processing" status that were created by this task
-    and marks them as "error" so the frontend can display the failure state properly.
+    and marks them as "error" (or "cancelled" if task was revoked by user) so the frontend
+    can display the failure state properly.
     
     CRITICAL: This prevents embeds from being stuck in "processing" forever when:
     - Postprocessing LLM fails
@@ -90,6 +92,7 @@ async def _cleanup_processing_embeds_on_task_failure(
         cache_service: Optional CacheService instance
         directus_service: Optional DirectusService instance
         encryption_service: Optional EncryptionService instance
+        use_cancelled_status: If True, mark embeds as "cancelled" instead of "error" (for user-initiated cancellation)
         
     Returns:
         Number of embeds that were cleaned up
@@ -162,27 +165,42 @@ async def _cleanup_processing_embeds_on_task_failure(
                     app_id = embed_data.get("app_id", "unknown")
                     skill_id = embed_data.get("skill_id", "unknown")
                     
+                    target_status = "cancelled" if use_cancelled_status else "error"
                     logger.info(
-                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as error"
+                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as {target_status}"
                     )
                     
-                    # Update embed to error status
+                    # Update embed to error or cancelled status
                     try:
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=embed_id,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message=f"Task failed: {error_message}",
-                            chat_id=chat_id,
-                            message_id=message_id,
-                            user_id=user_id,
-                            user_id_hash=user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
-                        )
+                        if use_cancelled_status:
+                            await embed_service.update_embed_status_to_cancelled(
+                                embed_id=embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                user_id=user_id,
+                                user_id_hash=user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                        else:
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message=f"Task failed: {error_message}",
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                user_id=user_id,
+                                user_id_hash=user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
                         cleaned_count += 1
-                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as error")
+                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as {target_status}")
                     except Exception as update_error:
                         logger.error(f"{log_prefix} Failed to update embed {embed_id} to error: {update_error}")
                         
@@ -211,14 +229,15 @@ async def _cleanup_on_task_failure(
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    use_cancelled_status: bool = False
 ) -> None:
     """
     Comprehensive cleanup when a task fails unexpectedly.
     
     This function performs two critical cleanup operations:
     1. Clears the active_ai_task marker so the typing indicator stops
-    2. Marks processing embeds as error so they don't get stuck
+    2. Marks processing embeds as error (or cancelled) so they don't get stuck
     
     CRITICAL: This ensures that when a task fails for any reason (timeout, exception,
     revocation, CMS errors, etc.), the user can immediately send new messages
@@ -235,6 +254,7 @@ async def _cleanup_on_task_failure(
         cache_service: Optional CacheService instance
         directus_service: Optional DirectusService instance
         encryption_service: Optional EncryptionService instance
+        use_cancelled_status: If True, mark embeds as "cancelled" instead of "error"
     """
     log_prefix = f"[Task ID: {task_id}, ChatID: {chat_id}] TASK_CLEANUP"
     
@@ -264,7 +284,8 @@ async def _cleanup_on_task_failure(
             error_message=error_message,
             cache_service=cache_service,
             directus_service=directus_service,
-            encryption_service=encryption_service
+            encryption_service=encryption_service,
+            use_cancelled_status=use_cancelled_status
         )
         if cleaned_count > 0:
             logger.info(f"{log_prefix} Cleaned up {cleaned_count} processing embed(s)")
@@ -1702,6 +1723,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1712,7 +1735,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message="Task exceeded soft time limit"
+                error_message="Task exceeded soft time limit",
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
@@ -1721,11 +1745,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
             'status_message': 'completed_partially_soft_limit_wrapper', # Distinguish from async limit
             'interrupted_by_soft_time_limit': True, # This limit was in the sync part
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED # Check current status of self
+            'interrupted_by_revocation': bool(was_revoked)
         })
         raise
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1736,7 +1762,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message=str(e)
+                error_message=str(e),
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
@@ -1744,11 +1771,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False, # Assuming not a soft limit unless explicitly caught as such
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': bool(was_revoked)
         })
         raise Ignore()
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1759,7 +1788,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message=str(e)
+                error_message=str(e),
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
@@ -1767,7 +1797,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False,
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': bool(was_revoked)
             })
         raise Ignore()
     finally:

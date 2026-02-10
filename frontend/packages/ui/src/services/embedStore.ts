@@ -1154,6 +1154,55 @@ export class EmbedStore {
   }
 
   /**
+   * Cancel all "processing" embeds in memory cache that belong to a specific chat.
+   * Used when a full AI task is cancelled via the stop button.
+   * Returns the list of embed_ids that were cancelled so the UI can be updated.
+   * @param chatId - The chat_id to cancel embeds for
+   * @returns Array of embed_ids that were cancelled
+   */
+  cancelProcessingEmbeds(chatId: string): string[] {
+    const cancelledEmbedIds: string[] = [];
+
+    embedCache.forEach((entry, contentRef) => {
+      // Check if this embed is in "processing" status and belongs to the given chat
+      if (entry.status === "processing") {
+        // Check chat_id from the data field (for in-memory-only entries)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entryAny = entry as any;
+        const embedChatId =
+          (entry.data &&
+            typeof entry.data === "object" &&
+            (entry.data as Record<string, unknown>).chat_id) ||
+          entryAny.chat_id;
+
+        if (embedChatId === chatId) {
+          // Update status to 'cancelled' in memory cache
+          entry.status = "cancelled";
+          if (entry.data && typeof entry.data === "object") {
+            (entry.data as Record<string, unknown>).status = "cancelled";
+          }
+          entry.updatedAt = Date.now();
+
+          const embedId = entry.embed_id || contentRef.replace("embed:", "");
+          cancelledEmbedIds.push(embedId);
+
+          console.info(
+            `[EmbedStore] Cancelled processing embed ${embedId} for chat ${chatId}`,
+          );
+        }
+      }
+    });
+
+    if (cancelledEmbedIds.length > 0) {
+      console.info(
+        `[EmbedStore] Cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId}`,
+      );
+    }
+
+    return cancelledEmbedIds;
+  }
+
+  /**
    * Get raw embed entry from IndexedDB/cache WITHOUT decryption
    * This is used internally to check for parent_embed_id and embed_ids without triggering decryption
    * (which would call getEmbedKey and cause infinite recursion)
