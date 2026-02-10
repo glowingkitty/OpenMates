@@ -617,6 +617,122 @@ def test_execute_skill_travel_search_connections(api_client):
 
 
 @pytest.mark.integration
+def test_execute_skill_ask_deepseek_v3_2(api_client):
+    """
+    Test executing the 'ai/ask' skill targeting DeepSeek V3.2 specifically.
+    
+    This validates that the google_maas_client.py OpenAI-compatible API client
+    correctly routes requests to Google Vertex AI MaaS for DeepSeek V3.2.
+    
+    Uses the @ai-model: override syntax to force model selection.
+    """
+    payload = {
+        "messages": [
+            {"role": "user", "content": "What is the capital of France? @ai-model:deepseek-v3.2"}
+        ],
+        "stream": False
+    }
+    
+    print("\n[DEEPSEEK TEST] Sending request targeting DeepSeek V3.2 via @ai-model override...")
+    try:
+        # DeepSeek via Google MaaS can be slower due to the additional hop
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=60.0)
+        assert response.status_code == 200, f"DeepSeek V3.2 skill execution failed with status {response.status_code}: {response.text}"
+        
+        data = response.json()
+        
+        # Should NOT have an error response
+        assert "error" not in data, f"Got error response: {data.get('error')}"
+        
+        # Validate OpenAI-compatible response structure
+        assert "choices" in data, f"Response missing 'choices' field. Got keys: {list(data.keys())}"
+        assert len(data["choices"]) > 0, "Response should have at least one choice"
+        
+        choice = data["choices"][0]
+        assert "message" in choice, f"Choice missing 'message' field. Got: {choice}"
+        assert "content" in choice["message"], f"Message missing 'content'. Got: {choice['message']}"
+        
+        content = choice["message"]["content"]
+        assert content, "Response content should not be empty"
+        assert len(content) > 10, f"Response suspiciously short ({len(content)} chars): {content}"
+        
+        # Verify the answer is correct
+        assert "Paris" in content, f"Expected 'Paris' in response, got: {content[:200]}"
+        
+        # Verify model attribution in response metadata
+        assert "model" in data, "Response should include 'model' field"
+        model_name = data["model"].lower()
+        assert "deepseek" in model_name, f"Expected model name to contain 'deepseek', got: {data['model']}"
+        
+        # Verify the response has proper finish reason
+        assert choice.get("finish_reason") in ["stop", "end_turn", None], \
+            f"Unexpected finish_reason: {choice.get('finish_reason')}"
+        
+        print(f"[DEEPSEEK TEST] Model: {data.get('model')}")
+        print(f"[DEEPSEEK TEST] Response length: {len(content)} chars")
+        print(f"[DEEPSEEK TEST] Content preview: {content[:200]}")
+        
+        # Verify usage metadata if present
+        # Note: Google MaaS streaming may not always return prompt/completion token counts
+        # (they can be 0 in SSE mode), but our token estimator provides user_input_tokens
+        # and system_prompt_tokens independently.
+        if "usage" in data and data["usage"]:
+            usage = data["usage"]
+            total_tokens = (
+                usage.get("prompt_tokens", 0)
+                + usage.get("completion_tokens", 0)
+                + usage.get("user_input_tokens", 0)
+                + usage.get("system_prompt_tokens", 0)
+            )
+            assert total_tokens > 0, "Expected some token count (from provider or our estimator)"
+            print(f"[DEEPSEEK TEST] Tokens: prompt={usage.get('prompt_tokens')}, completion={usage.get('completion_tokens')}, user_input={usage.get('user_input_tokens')}, system_prompt={usage.get('system_prompt_tokens')}")
+        
+        print("[DEEPSEEK TEST] PASSED - DeepSeek V3.2 via Google MaaS is working correctly!")
+        
+    except httpx.TimeoutException:
+        print("\n[TIMEOUT] DeepSeek V3.2 request timed out after 60 seconds.")
+        pytest.fail("DeepSeek V3.2 request timed out after 60 seconds")
+
+
+@pytest.mark.integration
+def test_execute_skill_ask_deepseek_multi_turn(api_client):
+    """
+    Test multi-turn conversation with DeepSeek V3.2.
+    Sends a two-message conversation to verify context handling through the
+    google_maas_client.py OpenAI-compatible endpoint.
+    """
+    payload = {
+        "messages": [
+            {"role": "user", "content": "Remember this number: 42. @ai-model:deepseek-v3.2"},
+            {"role": "assistant", "content": "I'll remember the number 42."},
+            {"role": "user", "content": "What number did I ask you to remember?"}
+        ],
+        "stream": False
+    }
+    
+    print("\n[DEEPSEEK MULTI-TURN] Testing multi-turn conversation with DeepSeek V3.2...")
+    try:
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=60.0)
+        assert response.status_code == 200, f"Multi-turn request failed: {response.text}"
+        
+        data = response.json()
+        assert "error" not in data, f"Got error response: {data.get('error')}"
+        assert "choices" in data, f"Response missing 'choices'. Keys: {list(data.keys())}"
+        
+        content = data["choices"][0].get("message", {}).get("content", "")
+        assert content, "Response content should not be empty"
+        
+        # The model should recall the number 42
+        assert "42" in content, f"Expected model to recall '42', got: {content[:300]}"
+        
+        print(f"[DEEPSEEK MULTI-TURN] Response: {content[:200]}")
+        print("[DEEPSEEK MULTI-TURN] PASSED - Context maintained across turns!")
+        
+    except httpx.TimeoutException:
+        pytest.fail("Multi-turn DeepSeek request timed out after 60 seconds")
+
+
+@pytest.mark.integration
 def test_invalid_api_key():
     """Test that an invalid API key returns 401."""
     headers = {"Authorization": "Bearer sk-api-invalid-key"}
