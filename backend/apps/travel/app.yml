@@ -92,7 +92,7 @@ skills:
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     pricing:
       per_unit:
-        credits: 100
+        credits: 25
     providers:
       - Google
     exclude_fields_for_llm:
@@ -100,6 +100,7 @@ skills:
       - hash
       - carrier_code
       - segments
+      - booking_token
     suggestions_follow_up_requests:
       - Search for cheaper dates
       - Show only direct flights

@@ -315,9 +315,15 @@ class SearchConnectionsSkill(BaseSkill):
                 result_dict["carriers"] = list(carriers)
                 result_dict["carrier_codes"] = list(carrier_codes)
 
-                # Booking URL: use the provider-supplied URL (fetched via
-                # SerpAPI booking_token for the cheapest results). The provider
-                # converts POST-based Google redirect URLs to clickable GET URLs.
+                # Booking token: SerpAPI token for on-demand booking URL lookup.
+                # The frontend calls /v1/apps/travel/booking-link with this
+                # token when the user clicks the booking button, avoiding
+                # upfront SerpAPI credit spending on booking lookups.
+                if connection.booking_token:
+                    result_dict["booking_token"] = connection.booking_token
+
+                # Booking URL: populated if booking was already resolved
+                # (not used in the on-demand flow, kept for API compatibility)
                 if connection.booking_url:
                     result_dict["booking_url"] = connection.booking_url
                     result_dict["booking_provider"] = connection.booking_provider

@@ -17,6 +17,7 @@
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
   import { notificationStore } from '../../../stores/notificationStore';
+  import { getApiEndpoint } from '../../../config/api';
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap, TileLayer } from 'leaflet';
   
@@ -77,6 +78,7 @@
     last_ticketing_date?: string;
     booking_url?: string;
     booking_provider?: string;
+    booking_token?: string;
     google_flights_url?: string;
     origin?: string;
     destination?: string;
@@ -173,20 +175,90 @@
     return `${stops} stops`;
   }
   
-  // Booking URL from backend (direct airline link)
-  let bookingUrl = $derived(connection.booking_url || '');
+  // ---------------------------------------------------------------------------
+  // Three-state booking button
+  // State: 'idle' -> 'loading' -> 'loaded' (or 'error')
+  // - idle: booking_token exists but URL not yet fetched -> "Get booking link"
+  // - loading: REST request in progress -> spinner
+  // - loaded: URL resolved -> "Book on {provider}" (clickable)
+  // - error: lookup failed -> show Google Flights fallback
+  //
+  // If booking_url is already present (pre-resolved), skip to 'loaded' state.
+  // If no booking_token and no booking_url, show Google Flights fallback only.
+  // ---------------------------------------------------------------------------
   
-  // Booking provider name (airline name from backend, e.g., "Lufthansa")
-  let bookingProvider = $derived(connection.booking_provider || connection.carriers?.[0] || '');
+  type BookingState = 'idle' | 'loading' | 'loaded' | 'error';
   
-  // Google Flights fallback URL (for flights without a direct booking URL)
+  // Resolved booking URL and provider (from on-demand lookup or pre-existing)
+  let resolvedBookingUrl = $state(connection.booking_url || '');
+  let resolvedBookingProvider = $state(connection.booking_provider || '');
+  let bookingState = $state<BookingState>(connection.booking_url ? 'loaded' : 'idle');
+  
+  // Google Flights fallback URL (always available for flights with route data)
   let googleFlightsUrl = $derived(connection.google_flights_url || '');
   
-  // Handle booking button click — prefer direct airline, fall back to Google Flights
-  function handleBooking() {
-    if (bookingUrl) {
-      window.open(bookingUrl, '_blank', 'noopener,noreferrer');
-    } else if (googleFlightsUrl) {
+  // Primary carrier name (for display when provider not yet known)
+  let primaryCarrier = $derived(connection.carriers?.[0] || '');
+  
+  /**
+   * Fetch booking URL on-demand via the REST endpoint.
+   * Called when user clicks the "Get booking link" button.
+   */
+  async function handleLoadBookingLink() {
+    if (!connection.booking_token || bookingState === 'loading') return;
+    
+    bookingState = 'loading';
+    
+    try {
+      const response = await fetch(getApiEndpoint('/v1/apps/travel/booking-link'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Origin: window.location.origin,
+        },
+        body: JSON.stringify({ booking_token: connection.booking_token }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        console.error(`Booking link request failed: ${response.status}`);
+        bookingState = 'error';
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.booking_url) {
+        resolvedBookingUrl = data.booking_url;
+        resolvedBookingProvider = data.booking_provider || primaryCarrier;
+        bookingState = 'loaded';
+      } else {
+        // No booking link found — fall back to Google Flights
+        console.log('No booking link available, falling back to Google Flights');
+        bookingState = 'error';
+      }
+    } catch (err) {
+      console.error('Booking link lookup failed:', err);
+      bookingState = 'error';
+    }
+  }
+  
+  /**
+   * Open the resolved booking URL in a new tab.
+   * Called when user clicks the "Book on {provider}" button (loaded state).
+   */
+  function handleOpenBookingUrl() {
+    if (resolvedBookingUrl) {
+      window.open(resolvedBookingUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  /**
+   * Open Google Flights as a fallback.
+   */
+  function handleOpenGoogleFlights() {
+    if (googleFlightsUrl) {
       window.open(googleFlightsUrl, '_blank', 'noopener,noreferrer');
     }
   }
@@ -697,13 +769,36 @@
           </div>
         {/if}
         
-        <!-- Booking CTA button - links to airline website or Google Flights -->
-        {#if bookingUrl && bookingProvider}
-          <button class="cta-button" onclick={handleBooking}>
-            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', bookingProvider)}
+        <!-- Booking CTA: three-state button (idle -> loading -> loaded) -->
+        {#if bookingState === 'loaded' && resolvedBookingUrl}
+          <!-- State: loaded — direct booking link available -->
+          <button class="cta-button" onclick={handleOpenBookingUrl}>
+            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
           </button>
+          {#if googleFlightsUrl}
+            <button class="cta-button cta-google-flights cta-secondary" onclick={handleOpenGoogleFlights}>
+              {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
+            </button>
+          {/if}
+        {:else if bookingState === 'loading'}
+          <!-- State: loading — fetching booking link -->
+          <button class="cta-button cta-loading" disabled>
+            <span class="cta-spinner"></span>
+            {$text('embeds.loading_booking.text') || 'Loading booking link...'}
+          </button>
+        {:else if connection.booking_token && bookingState === 'idle'}
+          <!-- State: idle — booking token available, user can request link -->
+          <button class="cta-button cta-load-booking" onclick={handleLoadBookingLink}>
+            {$text('embeds.get_booking_link.text') || 'Get booking link'}
+          </button>
+          {#if googleFlightsUrl}
+            <button class="cta-button cta-google-flights cta-secondary" onclick={handleOpenGoogleFlights}>
+              {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
+            </button>
+          {/if}
         {:else if googleFlightsUrl}
-          <button class="cta-button cta-google-flights" onclick={handleBooking}>
+          <!-- Fallback: no booking token, or error — show Google Flights only -->
+          <button class="cta-button cta-google-flights" onclick={handleOpenGoogleFlights}>
             {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
           </button>
         {/if}
@@ -978,6 +1073,62 @@
   
   .cta-google-flights:active {
     background-color: var(--color-grey-90, #333);
+  }
+  
+  /* Secondary CTA (shown alongside primary — smaller, muted) */
+  .cta-secondary {
+    margin-top: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: auto;
+    opacity: 0.8;
+  }
+  
+  /* "Get booking link" button — outlined style to invite action */
+  .cta-load-booking {
+    background-color: transparent;
+    color: var(--color-button-primary);
+    border: 2px solid var(--color-button-primary);
+  }
+  
+  .cta-load-booking:hover {
+    background-color: var(--color-button-primary);
+    color: white;
+  }
+  
+  .cta-load-booking:active {
+    background-color: var(--color-button-primary-pressed);
+    color: white;
+  }
+  
+  /* Loading state button */
+  .cta-loading {
+    background-color: var(--color-grey-30, #e0e0e0);
+    color: var(--color-grey-70, #555);
+    cursor: wait;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .cta-loading:hover {
+    background-color: var(--color-grey-30, #e0e0e0);
+    transform: none;
+  }
+  
+  /* Spinner animation */
+  .cta-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-grey-50, #999);
+    border-top-color: var(--color-grey-80, #444);
+    border-radius: 50%;
+    animation: cta-spin 0.8s linear infinite;
+  }
+  
+  @keyframes cta-spin {
+    to { transform: rotate(360deg); }
   }
   
   /* ===========================================

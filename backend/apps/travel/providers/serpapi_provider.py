@@ -16,7 +16,6 @@ Key features:
 API docs: https://serpapi.com/google-flights-api
 """
 
-import asyncio
 import logging
 import os
 import re
@@ -52,9 +51,7 @@ _TRAVEL_CLASS_MAP: Dict[str, str] = {
     "first": "4",
 }
 
-# Number of cheapest results for which we auto-fetch booking URLs.
-# Each booking lookup costs 1 extra SerpAPI credit (~$0.025).
-MAX_BOOKING_LOOKUPS = 3
+
 
 # Map IATA airport codes to Google Flights gl (geolocation) country codes.
 # Used to set the gl parameter so SerpAPI returns results matching the
@@ -450,8 +447,9 @@ class SerpApiProvider(BaseTransportProvider):
         non_stop_only: bool,
         currency: str,
     ) -> List[ConnectionResult]:
-        """Search for one-way flights. Costs 1 SerpAPI credit + up to
-        MAX_BOOKING_LOOKUPS extra credits for booking URL lookups."""
+        """Search for one-way flights. Costs 1 SerpAPI credit.
+        Booking URLs are fetched on-demand via the /v1/apps/travel/booking-link
+        REST endpoint using the booking_token stored in each result."""
         # Derive gl from departure airport for locale-accurate results
         gl = _get_gl_from_iata(resolved_leg["origin"])
 
@@ -485,7 +483,8 @@ class SerpApiProvider(BaseTransportProvider):
             data.get("best_flights", []) + data.get("other_flights", [])
         )
 
-        # Convert to ConnectionResult objects
+        # Convert to ConnectionResult objects, passing booking_token from
+        # each flight group for on-demand booking URL lookup
         results = []
         for fg in flight_groups[:max_results]:
             connection = self._parse_flight_group(
@@ -493,12 +492,6 @@ class SerpApiProvider(BaseTransportProvider):
             )
             if connection:
                 results.append(connection)
-
-        # Fetch booking URLs for the cheapest results
-        if results:
-            await self._enrich_with_booking_urls(
-                api_key, results, flight_groups[:max_results], params,
-            )
 
         logger.info(f"SerpAPI one-way returned {len(results)} flight(s)")
         return results
@@ -519,12 +512,12 @@ class SerpApiProvider(BaseTransportProvider):
         currency: str,
     ) -> List[ConnectionResult]:
         """
-        Search for round-trip flights. Costs 1 SerpAPI credit + up to
-        MAX_BOOKING_LOOKUPS extra credits for booking URL lookups.
+        Search for round-trip flights. Costs 1 SerpAPI credit.
 
         Google Flights returns round-trip pricing in a single request.
         Each flight group already includes the full round-trip price.
         We search outbound flights and return results with round-trip prices.
+        Booking URLs are fetched on-demand via the booking_token.
         """
         outbound = resolved_legs[0]
         return_leg = resolved_legs[1]
@@ -571,12 +564,6 @@ class SerpApiProvider(BaseTransportProvider):
             if connection:
                 results.append(connection)
 
-        # Fetch booking URLs for the cheapest results
-        if results:
-            await self._enrich_with_booking_urls(
-                api_key, results, flight_groups[:max_results], params,
-            )
-
         logger.info(f"SerpAPI round-trip returned {len(results)} flight(s)")
         return results
 
@@ -596,11 +583,11 @@ class SerpApiProvider(BaseTransportProvider):
         currency: str,
     ) -> List[ConnectionResult]:
         """
-        Search for multi-city flights. Costs 1 SerpAPI credit for the
-        first leg search + up to MAX_BOOKING_LOOKUPS extra for booking URLs.
+        Search for multi-city flights. Costs 1 SerpAPI credit.
 
         Multi-city uses the multi_city_json parameter. The initial search
         returns pricing for the full itinerary on the first leg results.
+        Booking URLs are fetched on-demand via the booking_token.
         """
         import json
 
@@ -651,12 +638,6 @@ class SerpApiProvider(BaseTransportProvider):
             if connection:
                 results.append(connection)
 
-        # Fetch booking URLs for the cheapest results
-        if results:
-            await self._enrich_with_booking_urls(
-                api_key, results, flight_groups[:max_results], params,
-            )
-
         logger.info(f"SerpAPI multi-city returned {len(results)} flight(s)")
         return results
 
@@ -685,163 +666,6 @@ class SerpApiProvider(BaseTransportProvider):
         except Exception as e:
             logger.error(f"SerpAPI request error: {e}", exc_info=True)
             return None
-
-    # ------------------------------------------------------------------
-    # Booking URL enrichment
-    # ------------------------------------------------------------------
-
-    async def _enrich_with_booking_urls(
-        self,
-        api_key: str,
-        results: List[ConnectionResult],
-        flight_groups: List[dict],
-        base_params: Dict[str, Any],
-    ) -> None:
-        """
-        Fetch booking URLs for the cheapest N results (up to MAX_BOOKING_LOOKUPS).
-
-        For each result that has a booking_token in the original flight group,
-        we make a follow-up SerpAPI call to get booking options. Each call
-        costs 1 extra credit. We pick the best booking option (preferring
-        direct airline over OTA) and store the URL in the ConnectionResult.
-
-        The booking_request from SerpAPI uses POST, but we convert it to a
-        clickable GET URL by appending the post_data as query parameters.
-        """
-        if not results or not flight_groups:
-            return
-
-        # Sort results by price to enrich the cheapest ones
-        priced_indices = []
-        for i, result in enumerate(results):
-            try:
-                price = float(result.total_price) if result.total_price else float("inf")
-            except (ValueError, TypeError):
-                price = float("inf")
-            priced_indices.append((price, i))
-        priced_indices.sort()
-
-        # Select up to MAX_BOOKING_LOOKUPS cheapest results that have booking tokens
-        to_enrich: List[Tuple[int, str]] = []  # (result_index, booking_token)
-        for _price, idx in priced_indices:
-            if len(to_enrich) >= MAX_BOOKING_LOOKUPS:
-                break
-            if idx < len(flight_groups):
-                token = flight_groups[idx].get("booking_token")
-                if token:
-                    to_enrich.append((idx, token))
-
-        if not to_enrich:
-            logger.debug("No booking tokens available for enrichment")
-            return
-
-        logger.info(
-            f"Fetching booking URLs for {len(to_enrich)} cheapest result(s) "
-            f"(costs {len(to_enrich)} extra SerpAPI credit(s))"
-        )
-
-        # Fetch booking data concurrently for all selected results
-        async def _fetch_booking(result_idx: int, token: str) -> None:
-            """Fetch booking options for a single result and update it in-place."""
-            # Build params for the booking_token request — reuse the search
-            # params but add the booking_token
-            booking_params = {
-                k: v for k, v in base_params.items()
-                if k not in ("deep_search", "stops")
-            }
-            booking_params["booking_token"] = token
-
-            data = await self._serpapi_get(booking_params)
-            if not data or data.get("error"):
-                logger.warning(
-                    f"Booking lookup failed for result {result_idx}: "
-                    f"{data.get('error') if data else 'no response'}"
-                )
-                return
-
-            booking_options = data.get("booking_options", [])
-            if not booking_options:
-                logger.debug(f"No booking options for result {result_idx}")
-                return
-
-            # Pick the best booking option:
-            # 1. Prefer direct airline (is_airline=True) over OTA
-            # 2. Among same type, prefer cheapest
-            url, provider_name = self._pick_best_booking_option(booking_options)
-            if url:
-                results[result_idx].booking_url = url
-                results[result_idx].booking_provider = provider_name
-                logger.debug(
-                    f"Result {result_idx}: booking via {provider_name} -> {url[:80]}..."
-                )
-
-        # Run all booking lookups concurrently
-        tasks = [_fetch_booking(idx, token) for idx, token in to_enrich]
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-    @staticmethod
-    def _pick_best_booking_option(
-        booking_options: List[dict],
-    ) -> Tuple[Optional[str], Optional[str]]:
-        """
-        Pick the best booking option from SerpAPI's booking_options array.
-
-        Strategy:
-        1. Prefer direct airline bookings (ticket.airline == True)
-        2. Among airlines, pick the cheapest
-        3. If no airline option, pick the cheapest OTA
-
-        Returns:
-            Tuple of (clickable_url, provider_name) or (None, None).
-        """
-        airline_options: List[Tuple[float, str, str]] = []  # (price, url, name)
-        ota_options: List[Tuple[float, str, str]] = []
-
-        for opt in booking_options:
-            # Handle both "together" and "departing"/"returning" structures.
-            # For simplicity, prefer "together" (full itinerary) over split.
-            tickets = []
-            if opt.get("together"):
-                tickets.append(opt["together"])
-            elif opt.get("departing"):
-                tickets.append(opt["departing"])
-
-            for ticket in tickets:
-                booking_req = ticket.get("booking_request", {})
-                raw_url = booking_req.get("url", "")
-                post_data = booking_req.get("post_data", "")
-                if not raw_url:
-                    continue
-
-                # Convert POST-based Google redirect to a clickable GET URL
-                # by appending post_data as query parameters.
-                # SerpAPI docs: "It's possible to change the request method
-                # from POST to GET by concating the key value pairs in the
-                # post_data to the url"
-                clickable_url = _post_to_get_url(raw_url, post_data)
-
-                book_with = ticket.get("book_with", "Unknown")
-                is_airline = ticket.get("airline", False)
-
-                try:
-                    price = float(ticket.get("price", float("inf")))
-                except (ValueError, TypeError):
-                    price = float("inf")
-
-                if is_airline:
-                    airline_options.append((price, clickable_url, book_with))
-                else:
-                    ota_options.append((price, clickable_url, book_with))
-
-        # Prefer airline, then OTA, sorted by price
-        if airline_options:
-            airline_options.sort()
-            return airline_options[0][1], airline_options[0][2]
-        if ota_options:
-            ota_options.sort()
-            return ota_options[0][1], ota_options[0][2]
-
-        return None, None
 
     # ------------------------------------------------------------------
     # Response parsing
@@ -987,7 +811,10 @@ class SerpApiProvider(BaseTransportProvider):
             layovers=layover_results if layover_results else None,
         )
 
-        # Booking URL and provider are populated later by _enrich_with_booking_urls
+        # Store the booking_token from the flight group so the frontend
+        # can request the booking URL on-demand via /v1/apps/travel/booking-link.
+        # This avoids spending SerpAPI credits on booking lookups during search.
+        booking_token = flight_group.get("booking_token")
         booking_url = None
         booking_provider = None
 
@@ -1035,6 +862,7 @@ class SerpApiProvider(BaseTransportProvider):
             last_ticketing_date=None,
             booking_url=booking_url,
             booking_provider=booking_provider,
+            booking_token=booking_token,
             google_flights_url=google_flights_url,
             validating_airline_code=validating_code,
             legs=[leg],
@@ -1043,3 +871,138 @@ class SerpApiProvider(BaseTransportProvider):
             co2_typical_kg=round(co2_typical / 1000) if co2_typical else None,
             co2_difference_percent=co2_diff,
         )
+
+
+# ---------------------------------------------------------------------------
+# Standalone booking URL lookup (used by REST endpoint, not during search)
+# ---------------------------------------------------------------------------
+
+def _pick_best_booking_option(
+    booking_options: List[dict],
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Pick the best booking option from SerpAPI's booking_options array.
+
+    Strategy:
+    1. Prefer direct airline bookings (ticket.airline == True)
+    2. Among airlines, pick the cheapest
+    3. If no airline option, pick the cheapest OTA
+
+    Returns:
+        Tuple of (clickable_url, provider_name) or (None, None).
+    """
+    airline_options: List[Tuple[float, str, str]] = []  # (price, url, name)
+    ota_options: List[Tuple[float, str, str]] = []
+
+    for opt in booking_options:
+        # Handle both "together" and "departing"/"returning" structures.
+        # For simplicity, prefer "together" (full itinerary) over split.
+        tickets = []
+        if opt.get("together"):
+            tickets.append(opt["together"])
+        elif opt.get("departing"):
+            tickets.append(opt["departing"])
+
+        for ticket in tickets:
+            booking_req = ticket.get("booking_request", {})
+            raw_url = booking_req.get("url", "")
+            post_data = booking_req.get("post_data", "")
+            if not raw_url:
+                continue
+
+            # Convert POST-based Google redirect to a clickable GET URL
+            # by appending post_data as query parameters.
+            clickable_url = _post_to_get_url(raw_url, post_data)
+
+            book_with = ticket.get("book_with", "Unknown")
+            is_airline = ticket.get("airline", False)
+
+            try:
+                price = float(ticket.get("price", float("inf")))
+            except (ValueError, TypeError):
+                price = float("inf")
+
+            if is_airline:
+                airline_options.append((price, clickable_url, book_with))
+            else:
+                ota_options.append((price, clickable_url, book_with))
+
+    # Prefer airline, then OTA, sorted by price
+    if airline_options:
+        airline_options.sort()
+        return airline_options[0][1], airline_options[0][2]
+    if ota_options:
+        ota_options.sort()
+        return ota_options[0][1], ota_options[0][2]
+
+    return None, None
+
+
+async def lookup_booking_url(booking_token: str) -> Dict[str, Optional[str]]:
+    """
+    Look up a booking URL for a flight using its SerpAPI booking_token.
+
+    This is the on-demand booking lookup called by the REST endpoint
+    /v1/apps/travel/booking-link. It costs 1 SerpAPI credit per call.
+
+    The function makes a single SerpAPI request with the booking_token,
+    then picks the best booking option (preferring direct airline over OTA).
+
+    Args:
+        booking_token: The booking_token from a SerpAPI flight search result.
+
+    Returns:
+        Dict with 'booking_url' and 'booking_provider' keys.
+        Values are None if no booking link could be found.
+
+    Raises:
+        ValueError: If the SerpAPI key is not configured.
+    """
+    api_key = _get_serpapi_key()
+    if not api_key:
+        raise ValueError("SerpAPI key not available")
+
+    # The booking_token request only needs the engine, api_key, and
+    # booking_token parameters. Currency/gl/hl are optional but help
+    # return locale-appropriate booking options.
+    params: Dict[str, Any] = {
+        "engine": "google_flights",
+        "api_key": api_key,
+        "booking_token": booking_token,
+        "hl": "en",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(SERPAPI_BASE, params=params)
+
+        if response.status_code != 200:
+            logger.error(
+                f"SerpAPI booking lookup failed ({response.status_code}): "
+                f"{response.text[:500]}"
+            )
+            return {"booking_url": None, "booking_provider": None}
+
+        data = response.json()
+
+    except httpx.TimeoutException:
+        logger.error("SerpAPI booking lookup timed out (60s)")
+        return {"booking_url": None, "booking_provider": None}
+    except Exception as e:
+        logger.error(f"SerpAPI booking lookup error: {e}", exc_info=True)
+        return {"booking_url": None, "booking_provider": None}
+
+    if data.get("error"):
+        logger.error(f"SerpAPI booking lookup error: {data['error']}")
+        return {"booking_url": None, "booking_provider": None}
+
+    booking_options = data.get("booking_options", [])
+    if not booking_options:
+        logger.debug("No booking options returned by SerpAPI")
+        return {"booking_url": None, "booking_provider": None}
+
+    url, provider_name = _pick_best_booking_option(booking_options)
+    logger.info(
+        f"Booking lookup: {provider_name or 'none'} -> {url[:80] + '...' if url and len(url) > 80 else url}"
+    )
+    return {"booking_url": url, "booking_provider": provider_name}

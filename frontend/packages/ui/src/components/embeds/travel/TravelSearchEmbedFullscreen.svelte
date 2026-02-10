@@ -40,6 +40,7 @@
     last_ticketing_date?: string;
     booking_url?: string;
     booking_provider?: string;
+    booking_token?: string;
     google_flights_url?: string;
     origin?: string;
     destination?: string;
@@ -293,6 +294,7 @@
       last_ticketing_date: content.last_ticketing_date as string | undefined,
       booking_url: content.booking_url as string | undefined,
       booking_provider: content.booking_provider as string | undefined,
+      booking_token: content.booking_token as string | undefined,
       google_flights_url: content.google_flights_url as string | undefined,
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,

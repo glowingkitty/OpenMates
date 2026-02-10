@@ -2004,3 +2004,17 @@ price_calendar_note:
   verified_by_human:
     - en
     - de
+get_booking_link:
+  context: CTA button text for on-demand booking URL lookup (before loading)
+  en: Get booking link
+  de: Buchungslink laden
+  verified_by_human:
+    - en
+    - de
+loading_booking:
+  context: CTA button text while fetching booking URL from server
+  en: Loading booking link...
+  de: Buchungslink wird geladen...
+  verified_by_human:
+    - en
+    - de
