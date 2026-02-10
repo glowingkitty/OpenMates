@@ -5358,6 +5358,75 @@ report_issue_success_with_id:
   cs: "Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu! Vaše ID problému: {issue_id}"
   sv: "Problem rapporterat framgångsrikt. Tack för din feedback! Ditt problem-ID: {issue_id}"
   verified_by_human: []
+report_issue.issue_id_label:
+  context: Label shown above the issue ID in the success message after reporting an issue
+  en: "Your Issue ID:"
+  de: "Deine Problem-ID:"
+  zh: "您的问题 ID："
+  es: "Tu ID de problema:"
+  fr: "Votre ID de problème :"
+  pt: "Seu ID do problema:"
+  ru: "Ваш ID проблемы:"
+  ja: "問題ID："
+  ko: "문제 ID:"
+  it: "Il tuo ID problema:"
+  tr: "Sorun ID'niz:"
+  vi: "ID sự cố của bạn:"
+  id: "ID masalah Anda:"
+  pl: "Twój ID problemu:"
+  nl: "Uw probleem-ID:"
+  ar: "معرف المشكلة الخاص بك:"
+  hi: "आपकी समस्या ID:"
+  th: "ID ปัญหาของคุณ:"
+  cs: "Vaše ID problému:"
+  sv: "Ditt problem-ID:"
+  verified_by_human: []
+report_issue.copy_issue_id:
+  context: Button text to copy the issue ID to clipboard
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  verified_by_human: []
+report_issue.issue_id_copied:
+  context: Button text shown after the issue ID has been copied to clipboard
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: "¡Copiado!"
+  fr: "Copié !"
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी हो गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  verified_by_human: []
 report_issue_error:
   context: Error message when submitting issue report fails
   en: Failed to submit issue. Please try again later.

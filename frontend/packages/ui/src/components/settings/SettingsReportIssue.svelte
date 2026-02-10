@@ -27,6 +27,8 @@
     let isSubmitting = $state(false);
     let successMessage = $state('');
     let errorMessage = $state('');
+    let submittedIssueId = $state('');
+    let issueIdCopied = $state(false);
 
     // Device information (collected for debugging purposes)
     let deviceInfo = $state({
@@ -416,15 +418,11 @@
             }
             
             if (response.ok && data.success) {
-                // Build success message with issue ID if available
+                // Store issue ID separately so it can be displayed as a copyable element
                 const baseSuccessMessage = $text('settings.report_issue_success.text');
-                if (data.issue_id) {
-                    // Show success message with the issue ID for reference
-                    const issueIdMessage = $text('settings.report_issue_success_with_id.text').replace('{issue_id}', data.issue_id);
-                    successMessage = issueIdMessage;
-                } else {
-                    successMessage = data.message || baseSuccessMessage;
-                }
+                successMessage = data.message || baseSuccessMessage;
+                submittedIssueId = data.issue_id || '';
+                issueIdCopied = false;
                 
                 // Show notification
                 notificationStore.success(
@@ -665,6 +663,25 @@
         }
     }
     
+    /**
+     * Copy issue ID to clipboard for easy reference
+     */
+    async function handleCopyIssueId() {
+        if (!submittedIssueId) return;
+        
+        try {
+            await navigator.clipboard.writeText(submittedIssueId);
+            issueIdCopied = true;
+            
+            // Reset copied state after 3 seconds
+            setTimeout(() => {
+                issueIdCopied = false;
+            }, 3000);
+        } catch (error) {
+            console.error('[SettingsReportIssue] Failed to copy issue ID:', error);
+        }
+    }
+    
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
         // Check for pre-filled data from store
@@ -819,6 +836,26 @@
         {#if successMessage}
             <div class="message success-message" role="alert">
                 {successMessage}
+                {#if submittedIssueId}
+                    <div class="issue-id-container">
+                        <span class="issue-id-label">{$text('settings.report_issue.issue_id_label.text')}</span>
+                        <div class="issue-id-copy-row">
+                            <code class="issue-id-value">{submittedIssueId}</code>
+                            <button
+                                class="issue-id-copy-button"
+                                class:copied={issueIdCopied}
+                                onclick={handleCopyIssueId}
+                                aria-label={$text('settings.report_issue.copy_issue_id.text')}
+                            >
+                                {#if issueIdCopied}
+                                    {$text('settings.report_issue.issue_id_copied.text')}
+                                {:else}
+                                    {$text('settings.report_issue.copy_issue_id.text')}
+                                {/if}
+                            </button>
+                        </div>
+                    </div>
+                {/if}
             </div>
         {/if}
         
@@ -1019,6 +1056,66 @@
         background-color: var(--color-error-light, #ffebee);
         color: var(--color-error-dark, #c62828);
         border: 1px solid var(--color-error, #f44336);
+    }
+
+    /* Issue ID copyable element within success message */
+    .issue-id-container {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid var(--color-success, #4caf50);
+    }
+
+    .issue-id-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        opacity: 0.85;
+    }
+
+    .issue-id-copy-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .issue-id-value {
+        flex: 1;
+        padding: 8px 10px;
+        background-color: rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--color-success, #4caf50);
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 13px;
+        word-break: break-all;
+        user-select: all;
+        cursor: text;
+    }
+
+    .issue-id-copy-button {
+        flex-shrink: 0;
+        padding: 8px 14px;
+        background-color: var(--color-success, #4caf50);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .issue-id-copy-button:hover {
+        opacity: 0.9;
+    }
+
+    .issue-id-copy-button:active {
+        transform: scale(0.96);
+    }
+
+    .issue-id-copy-button.copied {
+        background-color: var(--color-success-dark, #2e7d32);
     }
 
     .device-info-notice {
