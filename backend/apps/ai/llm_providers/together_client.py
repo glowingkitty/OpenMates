@@ -467,9 +467,9 @@ async def _stream_together_response(
                             # Clear the buffer after yielding
                             tool_calls_buffer.clear()
                         
-                        # Update usage if present
-                        if "usage" in chunk:
-                            usage_chunk = chunk["usage"]
+                        # Update usage if present (value can be None in some chunks)
+                        usage_chunk = chunk.get("usage")
+                        if usage_chunk is not None and isinstance(usage_chunk, dict):
                             cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
                             cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
                             cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
