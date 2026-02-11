@@ -76,10 +76,10 @@
     );
 
     /**
-     * Get example entries from category metadata (defined in app.yml).
-     * These are shown to non-authenticated users to illustrate what this category stores.
+     * Get example translation keys from category metadata (defined in app.yml).
+     * These are resolved via $text() and shown to non-authenticated users to illustrate what this category stores.
      */
-    let examples = $derived(category?.examples ?? []);
+    let exampleTranslationKeys = $derived(category?.example_translation_keys ?? []);
 
     // Get schema from category for title/subtitle field detection
     let schema = $derived(category?.schema_definition);
@@ -377,15 +377,15 @@
                 {#if categoryDescription}
                     <p class="description-text">{categoryDescription}</p>
                 {/if}
-                {#if examples.length > 0}
+                {#if exampleTranslationKeys.length > 0}
                     <div class="examples-section">
                         <p class="examples-label">{$text('settings.app_settings_memories.examples_label.text')}</p>
                         <div class="examples-list">
-                            {#each examples as example}
+                            {#each exampleTranslationKeys as exampleKey}
                                 <div class="example-entry">
                                     <SettingsItem
                                         icon={getIconName(app?.icon_image)}
-                                        title={example}
+                                        title={$text(exampleKey)}
                                     />
                                 </div>
                             {/each}

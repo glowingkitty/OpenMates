@@ -11,10 +11,10 @@ settings_and_memories:
     description_translation_key: travel.trips.description.text
     type: list
     stage: production
-    examples:
-      - "Japan, March 2026"
-      - "Barcelona, Summer 2025"
-      - "Road trip through Scotland"
+    example_translation_keys:
+      - "travel.trips.example_1.text"
+      - "travel.trips.example_2.text"
+      - "travel.trips.example_3.text"
     schema:
       type: object
       properties:
@@ -42,10 +42,10 @@ settings_and_memories:
     description_translation_key: travel.preferred_airlines.description.text
     type: list
     stage: production
-    examples:
-      - "Lufthansa"
-      - "Swiss"
-      - "KLM"
+    example_translation_keys:
+      - "travel.preferred_airlines.example_1.text"
+      - "travel.preferred_airlines.example_2.text"
+      - "travel.preferred_airlines.example_3.text"
     schema:
       type: object
       properties:
@@ -61,10 +61,10 @@ settings_and_memories:
     description_translation_key: travel.preferred_transport_methods.description.text
     type: list
     stage: production
-    examples:
-      - "Train"
-      - "Plane"
-      - "Bike"
+    example_translation_keys:
+      - "travel.preferred_transport_methods.example_1.text"
+      - "travel.preferred_transport_methods.example_2.text"
+      - "travel.preferred_transport_methods.example_3.text"
     schema:
       type: object
       properties:
@@ -89,11 +89,11 @@ settings_and_memories:
     description_translation_key: travel.preferred_activities.description.text
     type: list
     stage: production
-    examples:
-      - "Visiting beaches"
-      - "Exploring museums"
-      - "Hiking"
-      - "Trying local food"
+    example_translation_keys:
+      - "travel.preferred_activities.example_1.text"
+      - "travel.preferred_activities.example_2.text"
+      - "travel.preferred_activities.example_3.text"
+      - "travel.preferred_activities.example_4.text"
     schema:
       type: object
       properties:

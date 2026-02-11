@@ -43,10 +43,10 @@ settings_and_memories:
     description_translation_key: docs.writing_style.description.text
     type: list
     stage: production
-    examples:
-      - "Formal Business"
-      - "Academic"
-      - "Casual Blog"
+    example_translation_keys:
+      - "docs.writing_style.example_1.text"
+      - "docs.writing_style.example_2.text"
+      - "docs.writing_style.example_3.text"
     schema:
       type: object
       properties:

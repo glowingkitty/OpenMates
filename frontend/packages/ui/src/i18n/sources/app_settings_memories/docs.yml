@@ -47,3 +47,75 @@ writing_style.description:
   cs: Vaše preferované styly psaní dokumentů.
   sv: Dina föredragna skribentstilar för dokument.
   verified_by_human: []
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+writing_style.example_1:
+  context: Example entry for writing styles (a formal style)
+  en: Formal Business
+  de: Formell geschäftlich
+  zh: 正式商务
+  es: Negocios formal
+  fr: Professionnel formel
+  pt: Negócios formal
+  ru: Формальный деловой
+  ja: フォーマルビジネス
+  ko: 공식 비즈니스
+  it: Business formale
+  tr: Resmi iş
+  vi: Kinh doanh trang trọng
+  id: Bisnis formal
+  pl: Formalny biznesowy
+  nl: Formeel zakelijk
+  ar: أعمال رسمية
+  hi: औपचारिक व्यवसाय
+  th: ธุรกิจเป็นทางการ
+  cs: Formální obchodní
+  sv: Formellt affärsspråk
+  verified_by_human: []
+writing_style.example_2:
+  context: Example entry for writing styles (an academic style)
+  en: Academic
+  de: Akademisch
+  zh: 学术
+  es: Académico
+  fr: Académique
+  pt: Acadêmico
+  ru: Академический
+  ja: 学術的
+  ko: 학술적
+  it: Accademico
+  tr: Akademik
+  vi: Học thuật
+  id: Akademis
+  pl: Akademicki
+  nl: Academisch
+  ar: أكاديمي
+  hi: शैक्षणिक
+  th: วิชาการ
+  cs: Akademický
+  sv: Akademiskt
+  verified_by_human: []
+writing_style.example_3:
+  context: Example entry for writing styles (a casual blog style)
+  en: Casual Blog
+  de: Lockerer Blog
+  zh: 随意博客
+  es: Blog informal
+  fr: Blog décontracté
+  pt: Blog casual
+  ru: Неформальный блог
+  ja: カジュアルブログ
+  ko: 캐주얼 블로그
+  it: Blog informale
+  tr: Günlük blog
+  vi: Blog thường ngày
+  id: Blog santai
+  pl: Blog nieformalny
+  nl: Informeel blog
+  ar: مدونة غير رسمية
+  hi: अनौपचारिक ब्लॉग
+  th: บล็อกทั่วไป
+  cs: Neformální blog
+  sv: Avslappnad blogg
+  verified_by_human: []

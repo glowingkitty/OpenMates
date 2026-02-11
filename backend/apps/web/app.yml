@@ -11,10 +11,10 @@ settings_and_memories:
     description_translation_key: web.bookmarks.description.text
     type: list
     stage: development
-    examples:
-      - "github.com"
-      - "developer.mozilla.org"
-      - "news.ycombinator.com"
+    example_translation_keys:
+      - "web.bookmarks.example_1.text"
+      - "web.bookmarks.example_2.text"
+      - "web.bookmarks.example_3.text"
     schema:
       type: object
       properties:
@@ -29,10 +29,10 @@ settings_and_memories:
     description_translation_key: web.favorite_websites.description.text
     type: list
     stage: development
-    examples:
-      - "reddit.com"
-      - "medium.com"
-      - "stackoverflow.com"
+    example_translation_keys:
+      - "web.favorite_websites.example_1.text"
+      - "web.favorite_websites.example_2.text"
+      - "web.favorite_websites.example_3.text"
     schema:
       type: object
       properties:
@@ -47,10 +47,10 @@ settings_and_memories:
     description_translation_key: web.read_later.description.text
     type: list
     stage: development
-    examples:
-      - "Interesting AI research paper"
-      - "Design patterns article"
-      - "Tech blog post"
+    example_translation_keys:
+      - "web.read_later.example_1.text"
+      - "web.read_later.example_2.text"
+      - "web.read_later.example_3.text"
     schema:
       type: object
       properties:

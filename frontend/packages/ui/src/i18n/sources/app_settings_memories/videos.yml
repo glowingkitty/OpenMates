@@ -99,3 +99,155 @@ subscribed_channels.description:
     - en
     - de
 
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+to_watch_list.example_1:
+  context: Example entry for to watch list (a type of video)
+  en: Tech conference keynote
+  de: Tech-Konferenz Keynote
+  zh: 科技大会主题演讲
+  es: Conferencia tecnológica
+  fr: Keynote de conférence tech
+  pt: Palestra de conferência tech
+  ru: Доклад на IT-конференции
+  ja: テックカンファレンス基調講演
+  ko: 기술 컨퍼런스 기조연설
+  it: Keynote conferenza tech
+  tr: Teknoloji konferansı sunumu
+  vi: Bài phát biểu hội nghị công nghệ
+  id: Keynote konferensi teknologi
+  pl: Wykład na konferencji tech
+  nl: Tech-conferentie keynote
+  ar: كلمة رئيسية في مؤتمر تقني
+  hi: टेक कॉन्फ्रेंस मुख्य भाषण
+  th: คำปราศรัยหลักงานเทคโนโลยี
+  cs: Hlavní přednáška tech konference
+  sv: Teknikkonferens keynote
+  verified_by_human:
+    - en
+    - de
+to_watch_list.example_2:
+  context: Example entry for to watch list (a type of tutorial)
+  en: Cooking tutorial
+  de: Koch-Tutorial
+  zh: 烹饪教程
+  es: Tutorial de cocina
+  fr: Tutoriel de cuisine
+  pt: Tutorial de culinária
+  ru: Кулинарный урок
+  ja: 料理チュートリアル
+  ko: 요리 튜토리얼
+  it: Tutorial di cucina
+  tr: Yemek yapma eğitimi
+  vi: Hướng dẫn nấu ăn
+  id: Tutorial memasak
+  pl: Samouczek gotowania
+  nl: Kookhandleiding
+  ar: درس طبخ
+  hi: खाना पकाने का ट्यूटोरियल
+  th: สอนทำอาหาร
+  cs: Kuchařský tutoriál
+  sv: Matlagningsguide
+  verified_by_human:
+    - en
+    - de
+to_watch_list.example_3:
+  context: Example entry for to watch list (a type of vlog)
+  en: Travel vlog
+  de: Reise-Vlog
+  zh: 旅行视频博客
+  es: Vlog de viajes
+  fr: Vlog de voyage
+  pt: Vlog de viagem
+  ru: Тревел-влог
+  ja: 旅行Vlog
+  ko: 여행 브이로그
+  it: Vlog di viaggio
+  tr: Seyahat vlogu
+  vi: Vlog du lịch
+  id: Vlog perjalanan
+  pl: Vlog podróżniczy
+  nl: Reisvlog
+  ar: مدونة فيديو سفر
+  hi: ट्रैवल व्लॉग
+  th: วิดีโอท่องเที่ยว
+  cs: Cestovatelský vlog
+  sv: Resevlogg
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_1:
+  context: Example entry for subscribed channels (a tech YouTube channel)
+  en: Fireship
+  de: Fireship
+  zh: Fireship
+  es: Fireship
+  fr: Fireship
+  pt: Fireship
+  ru: Fireship
+  ja: Fireship
+  ko: Fireship
+  it: Fireship
+  tr: Fireship
+  vi: Fireship
+  id: Fireship
+  pl: Fireship
+  nl: Fireship
+  ar: Fireship
+  hi: Fireship
+  th: Fireship
+  cs: Fireship
+  sv: Fireship
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_2:
+  context: Example entry for subscribed channels (a science YouTube channel)
+  en: Kurzgesagt
+  de: Kurzgesagt
+  zh: Kurzgesagt
+  es: Kurzgesagt
+  fr: Kurzgesagt
+  pt: Kurzgesagt
+  ru: Kurzgesagt
+  ja: Kurzgesagt
+  ko: Kurzgesagt
+  it: Kurzgesagt
+  tr: Kurzgesagt
+  vi: Kurzgesagt
+  id: Kurzgesagt
+  pl: Kurzgesagt
+  nl: Kurzgesagt
+  ar: Kurzgesagt
+  hi: Kurzgesagt
+  th: Kurzgesagt
+  cs: Kurzgesagt
+  sv: Kurzgesagt
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_3:
+  context: Example entry for subscribed channels (a science YouTube channel)
+  en: Veritasium
+  de: Veritasium
+  zh: Veritasium
+  es: Veritasium
+  fr: Veritasium
+  pt: Veritasium
+  ru: Veritasium
+  ja: Veritasium
+  ko: Veritasium
+  it: Veritasium
+  tr: Veritasium
+  vi: Veritasium
+  id: Veritasium
+  pl: Veritasium
+  nl: Veritasium
+  ar: Veritasium
+  hi: Veritasium
+  th: Veritasium
+  cs: Veritasium
+  sv: Veritasium
+  verified_by_human:
+    - en
+    - de
