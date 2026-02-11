@@ -1499,21 +1499,25 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
+		// CRITICAL: For non-authenticated users, NEVER use cached data from previous sessions
+		// The chatListCache may contain stale chats from a previous authenticated session
+		// if the component was destroyed (sidebar closed) when logout/session-expiry happened.
+		// Always clear and skip the cache for unauthenticated users to prevent data leakage.
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User not authenticated - clearing cache and loading shared chats only");
+			chatListCache.clear(); // Defensive: ensure no stale data from previous session
+			// Call updateChatListFromDB which handles shared chat loading for non-auth users
+			await updateChatListFromDB();
+			return;
+		}
+
 		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
 		// This cache persists across component instances (when sidebar closes/opens)
+		// Only used for authenticated users - unauthenticated users are handled above
 		const cached = chatListCache.getCache(false);
 		if (cached) {
 			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
 			allChatsFromDB = cached;
-			return;
-		}
-		
-		// CRITICAL: For non-authenticated users, load shared chats from IndexedDB
-		// For authenticated users, load all chats normally
-		if (!$authStore.isAuthenticated) {
-			console.debug("[Chats] User not authenticated - loading shared chats from IndexedDB");
-			// Call updateChatListFromDB which handles shared chat loading for non-auth users
-			await updateChatListFromDB();
 			return;
 		}
 		

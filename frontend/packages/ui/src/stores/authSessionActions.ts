@@ -30,6 +30,8 @@ import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageD
 import { isLoggingOut, forcedLogoutInProgress } from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
 import { text } from "../i18n/translations"; // Import text store for translations
+import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
+import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 
 // Import core auth state and related flags
 import {
@@ -471,6 +473,24 @@ export async function checkAuth(
         );
         window.dispatchEvent(new CustomEvent("userLoggingOut"));
 
+        // CRITICAL: Clear in-memory chat caches IMMEDIATELY on session expiry
+        // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
+        // is destroyed (sidebar closed on mobile) when session expires, its authStore subscriber
+        // won't fire to clear the cache. Clearing here ensures stale chats never appear.
+        chatListCache.clear();
+        chatDB.clearAllChatKeys();
+        console.debug(
+          "[AuthSessionActions] Cleared chatListCache and chatDB.chatKeys on session expiry",
+        );
+
+        // Clear shared chat keys in the background (async, non-blocking)
+        clearAllSharedChatKeys().catch((e) =>
+          console.warn(
+            "[AuthSessionActions] Failed to clear shared chat keys on session expiry:",
+            e,
+          ),
+        );
+
         // Show notification that user was logged out with hint about "Stay logged in"
         // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
         const $text = get(text);
@@ -619,6 +639,14 @@ export async function checkAuth(
         isLoggingOut.set(true);
         console.debug(
           "[AuthSessionActions] Set isLoggingOut to true for orphaned database cleanup",
+        );
+
+        // CRITICAL: Clear in-memory chat caches during orphaned database cleanup
+        chatListCache.clear();
+        chatDB.clearAllChatKeys();
+        clearAllSharedChatKeys().catch(() => {});
+        console.debug(
+          "[AuthSessionActions] Cleared in-memory chat caches during orphaned database cleanup",
         );
 
         // No notification needed - this is automatic cleanup
