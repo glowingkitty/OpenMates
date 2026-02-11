@@ -1147,7 +1147,7 @@ app_settings_memories.add_entry:
   cs: Přidat položku
   sv: Lägg till post
   verified_by_human: []
-app_store.plus_n_more:
+plus_n_more:
   context: Shows remaining count in scrollable app/skill/focus mode/settings lists (e.g. "+ 5 more")
   en: "+ {count} more"
   de: "+ {count} weitere"

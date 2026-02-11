@@ -1362,6 +1362,17 @@ export async function sendSetActiveChatImpl(
   serviceInstance: ChatSynchronizationService,
   chatId: string | null,
 ): Promise<void> {
+  // Skip all IndexedDB and WebSocket operations for unauthenticated users.
+  // Demo chats don't need last_opened tracking or server sync.
+  const { authStore } = await import("../stores/authState");
+  const isAuthenticated = get(authStore).isAuthenticated;
+  if (!isAuthenticated) {
+    console.debug(
+      `[ChatSyncService:Senders] User not authenticated, skipping set_active_chat for: ${chatId}`,
+    );
+    return;
+  }
+
   // CRITICAL: Update IndexedDB immediately when switching chats or opening new chat window
   // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server)
   // The server update happens via WebSocket, but IndexedDB update is immediate for better UX

@@ -16,6 +16,8 @@ import {
 } from "../demo_chats/communityDemoStore";
 import { EmbedNodeAttributes } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
+import { authStore } from "../stores/authState";
+import { get } from "svelte/store";
 
 // TOON decoder (will be imported when available)
 // Using official @toon-format/toon package
@@ -120,29 +122,41 @@ export async function resolveEmbed(
     // If not in any store, request from server via WebSocket (async, non-blocking)
     // This handles cases where embeds weren't in the sync payload
     // The embed will be stored when the server responds, and the UI will re-render
-    console.warn(
-      "[embedResolver] Embed not in EmbedStore or demo store, requesting from server (async):",
-      embed_id,
-    );
+    //
+    // IMPORTANT: Only request via WebSocket if user is authenticated.
+    // For unauthenticated users viewing demo chats, embeds will be available
+    // once the community demo store finishes loading from server.
+    const isAuthenticated = get(authStore).isAuthenticated;
+    if (!isAuthenticated) {
+      console.debug(
+        "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
+        embed_id,
+      );
+    } else {
+      console.warn(
+        "[embedResolver] Embed not in EmbedStore or demo store, requesting from server (async):",
+        embed_id,
+      );
 
-    try {
-      const { webSocketService } = await import("./websocketService");
+      try {
+        const { webSocketService } = await import("./websocketService");
 
-      // Request embed from server via WebSocket (non-blocking)
-      // Server will respond with send_embed_data event, which will store the embed
-      // The UI will automatically re-render when the embed is stored
-      webSocketService
-        .sendMessage("request_embed", {
-          embed_id: embed_id,
-        })
-        .catch((error) => {
-          console.error(
-            "[embedResolver] Error requesting embed from server:",
-            error,
-          );
-        });
-    } catch (error) {
-      console.error("[embedResolver] Error setting up embed request:", error);
+        // Request embed from server via WebSocket (non-blocking)
+        // Server will respond with send_embed_data event, which will store the embed
+        // The UI will automatically re-render when the embed is stored
+        webSocketService
+          .sendMessage("request_embed", {
+            embed_id: embed_id,
+          })
+          .catch((error) => {
+            console.error(
+              "[embedResolver] Error requesting embed from server:",
+              error,
+            );
+          });
+      } catch (error) {
+        console.error("[embedResolver] Error setting up embed request:", error);
+      }
     }
 
     // Return null for now - the embed will be available after server responds

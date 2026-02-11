@@ -119,6 +119,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsAddAddress from './settings/privacy/SettingsAddAddress.svelte';
     import SettingsAddBirthday from './settings/privacy/SettingsAddBirthday.svelte';
     import SettingsAddCustomEntry from './settings/privacy/SettingsAddCustomEntry.svelte';
+    import SettingsAutoDeletion from './settings/privacy/SettingsAutoDeletion.svelte';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -183,6 +184,10 @@ changes to the documentation (to keep the documentation up to date).
         'privacy/hide-personal-data/add-address': SettingsAddAddress,
         'privacy/hide-personal-data/add-birthday': SettingsAddBirthday,
         'privacy/hide-personal-data/add-custom': SettingsAddCustomEntry,
+        // Auto-deletion period editing — one component, three routes (category determined from path)
+        'privacy/auto-deletion/chats': SettingsAutoDeletion,
+        'privacy/auto-deletion/files': SettingsAutoDeletion,
+        'privacy/auto-deletion/usage_data': SettingsAutoDeletion,
         // 'user': SettingsUser,
         'usage': SettingsUsage,
         'chat': SettingsChat,

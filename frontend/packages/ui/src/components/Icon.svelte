@@ -330,6 +330,7 @@
     --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
     --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
     --icon-url-games: url('@openmates/ui/static/icons/games.svg');
+    --icon-url-gift: url('@openmates/ui/static/icons/gift.svg');
     --icon-url-github: url('@openmates/ui/static/icons/github.svg');
     --icon-url-good: url('@openmates/ui/static/icons/good.svg');
     --icon-url-google: url('@openmates/ui/static/icons/google.svg');
@@ -412,6 +413,7 @@
     --icon-url-take_photo: url('@openmates/ui/static/icons/take_photo.svg');
     --icon-url-task: url('@openmates/ui/static/icons/task.svg');
     --icon-url-team: url('@openmates/ui/static/icons/team.svg');
+    --icon-url-text: url('@openmates/ui/static/icons/text.svg');
     --icon-url-tfas: url('@openmates/ui/static/icons/tfas.svg');
     --icon-url-time: url('@openmates/ui/static/icons/time.svg');
     --icon-url-travel: url('@openmates/ui/static/icons/travel.svg');
