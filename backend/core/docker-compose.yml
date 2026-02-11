@@ -145,7 +145,7 @@ services:
   ##### Task Management (Celery)
   #########################################################################
   # Shared task worker for core API tasks (email, user_init, persistence)
-  # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-web-worker, etc.)
+  # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-images-worker, etc.)
   task-worker:
     container_name: task-worker
     build:
@@ -182,12 +182,6 @@ services:
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1"
-    deploy:
-      resources:
-        limits:
-          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
-        reservations:
-          memory: 2048M
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
@@ -844,76 +838,6 @@ services:
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1 \
              --autoreload"
-    deploy:
-      resources:
-        limits:
-          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
-        reservations:
-          memory: 2048M
-    volumes:
-      - ../../backend:/app/backend # Mounts host:backend to /app/backend
-      # Mount apps directory for hot-reloading during development
-      # This overrides the code copied during Docker build
-      - ../../backend/apps:/app/apps
-      - ./api/logs:/app/logs
-      - vault-setup-data:/vault-data
-      - ../../frontend/packages/ui/src/i18n/locales:/translations
-      # Mount entire i18n directory (includes sources YAML files and languages.json)
-      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
-      - ../../shared:/shared
-    networks:
-      - openmates
-    depends_on:
-      cache:
-        condition: service_healthy
-      vault-setup:
-        condition: service_started
-      cms-setup:
-        condition: service_completed_successfully
-
-  # Celery worker for Web app tasks (for future web app tasks)
-  app-web-worker:
-    container_name: app-web-worker
-    build:
-      context: ./api
-      dockerfile: Dockerfile.celery
-    restart: unless-stopped
-    user: root
-    env_file: ../../.env
-    environment:
-      PYTHONPATH: "/app"
-      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
-      CMS_URL: "http://cms:8055"
-      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
-      DRAGONFLY_URL: "cache:6379"
-      TRANSLATIONS_DIR: "/translations"
-      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
-      VAULT_URL: "http://vault:8200"
-      PROVIDER_CONFIG_DIR: "/app_config/providers"
-      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      CELERY_QUEUES: "app_web" # Used by celery_config to determine which services to initialize
-      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
-      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
-    command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-             chmod -R 777 /app/logs /app/backend/core/api/logs && \
-             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
-             --loglevel=info \
-             --queues=app_web \
-             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
-             --max-tasks-per-child=50 \
-             --max-memory-per-child=600000 \
-             --prefetch-multiplier=1 \
-             --autoreload"
-    deploy:
-      resources:
-        limits:
-          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
-        reservations:
-          memory: 2048M
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -972,12 +896,6 @@ services:
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1 \
              --autoreload"
-    deploy:
-      resources:
-        limits:
-          memory: 8192M # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
-        reservations:
-          memory: 2048M
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -1012,13 +930,15 @@ services:
       - cache-data:/data
     command:
       - "--maxmemory"
-      - "3000mb"
+      - "${CACHE_MAX_MEMORY:-3000mb}"
+      - "--proactor_threads"
+      - "${CACHE_THREADS:-8}"
       - "--requirepass"
-      - "${DRAGONFLY_PASSWORD}" # Use environment variable or default password
+      - "${DRAGONFLY_PASSWORD}"
     deploy:
       resources:
         limits:
-          memory: 3.2G
+          memory: ${CACHE_MEMORY_LIMIT:-3.2G}
     networks:
       - openmates
     healthcheck:
