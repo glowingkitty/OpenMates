@@ -3,7 +3,11 @@
   
   A wrapper component for rendering demo chat message content that handles
   special placeholders like [[example_chats_group]], [[app_store_group]],
-  [[skills_group]], [[focus_modes_group]], and [[settings_memories_group]].
+  [[skills_group]], [[focus_modes_group]], [[settings_memories_group]],
+  and their developer-specific variants ([[dev_app_store_group]], etc.).
+  
+  Also handles [[for_developers_embed]] to render an inline embed preview
+  of the for-developers intro chat at the end of the for-everyone chat.
   
   This component:
   1. Splits content at placeholder markers
@@ -18,6 +22,7 @@
   import SkillsGroup from './embeds/SkillsGroup.svelte';
   import FocusModesGroup from './embeds/FocusModesGroup.svelte';
   import SettingsMemoriesGroup from './embeds/SettingsMemoriesGroup.svelte';
+  import IntroChatEmbed from './embeds/IntroChatEmbed.svelte';
   
   /**
    * Props interface for DemoMessageContent
@@ -40,6 +45,13 @@
     selectable = false
   }: Props = $props();
   
+  /**
+   * Developer-focused app IDs. These apps are excluded from the "for everyone"
+   * intro chat groups and shown exclusively in the "for developers" intro chat.
+   * Currently only the code app, but designed to be easily extended.
+   */
+  const DEVELOPER_APP_IDS = ['code'];
+  
   // Placeholder constants
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
   const EXAMPLE_CHATS_PLACEHOLDER = '[[example_chats_group]]';
@@ -48,6 +60,13 @@
   const SKILLS_PLACEHOLDER = '[[skills_group]]';
   const FOCUS_MODES_PLACEHOLDER = '[[focus_modes_group]]';
   const SETTINGS_MEMORIES_PLACEHOLDER = '[[settings_memories_group]]';
+  // Developer-specific variants: show ONLY developer app content
+  const DEV_APP_STORE_PLACEHOLDER = '[[dev_app_store_group]]';
+  const DEV_SKILLS_PLACEHOLDER = '[[dev_skills_group]]';
+  const DEV_FOCUS_MODES_PLACEHOLDER = '[[dev_focus_modes_group]]';
+  const DEV_SETTINGS_MEMORIES_PLACEHOLDER = '[[dev_settings_memories_group]]';
+  // Embed for linking to the for-developers intro chat from for-everyone
+  const FOR_DEVELOPERS_EMBED_PLACEHOLDER = '[[for_developers_embed]]';
   
   // All supported placeholder tokens and their part types
   const PLACEHOLDERS = [
@@ -57,6 +76,11 @@
     SKILLS_PLACEHOLDER,
     FOCUS_MODES_PLACEHOLDER,
     SETTINGS_MEMORIES_PLACEHOLDER,
+    DEV_APP_STORE_PLACEHOLDER,
+    DEV_SKILLS_PLACEHOLDER,
+    DEV_FOCUS_MODES_PLACEHOLDER,
+    DEV_SETTINGS_MEMORIES_PLACEHOLDER,
+    FOR_DEVELOPERS_EMBED_PLACEHOLDER,
   ] as const;
   
   /** Map placeholder strings to their part type identifiers */
@@ -67,9 +91,14 @@
     [SKILLS_PLACEHOLDER]: 'skills_group',
     [FOCUS_MODES_PLACEHOLDER]: 'focus_modes_group',
     [SETTINGS_MEMORIES_PLACEHOLDER]: 'settings_memories_group',
+    [DEV_APP_STORE_PLACEHOLDER]: 'dev_app_store_group',
+    [DEV_SKILLS_PLACEHOLDER]: 'dev_skills_group',
+    [DEV_FOCUS_MODES_PLACEHOLDER]: 'dev_focus_modes_group',
+    [DEV_SETTINGS_MEMORIES_PLACEHOLDER]: 'dev_settings_memories_group',
+    [FOR_DEVELOPERS_EMBED_PLACEHOLDER]: 'for_developers_embed',
   };
   
-  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group';
+  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'for_developers_embed';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -124,13 +153,32 @@
       {:else if part.type === 'dev_example_chats_group'}
         <ExampleChatsGroup excludeChatId={chatId} demoChatCategory="for_developers" />
       {:else if part.type === 'app_store_group'}
-        <AppStoreGroup />
+        <!-- For-everyone: exclude developer-focused apps -->
+        <AppStoreGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'skills_group'}
-        <SkillsGroup />
+        <!-- For-everyone: exclude developer-focused app skills -->
+        <SkillsGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'focus_modes_group'}
-        <FocusModesGroup />
+        <!-- For-everyone: exclude developer-focused app focus modes -->
+        <FocusModesGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'settings_memories_group'}
-        <SettingsMemoriesGroup />
+        <!-- For-everyone: exclude developer-focused app settings & memories -->
+        <SettingsMemoriesGroup excludeAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'dev_app_store_group'}
+        <!-- For-developers: show ONLY developer-focused apps -->
+        <AppStoreGroup onlyAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'dev_skills_group'}
+        <!-- For-developers: show ONLY developer-focused app skills -->
+        <SkillsGroup onlyAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'dev_focus_modes_group'}
+        <!-- For-developers: show ONLY developer-focused app focus modes -->
+        <FocusModesGroup onlyAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'dev_settings_memories_group'}
+        <!-- For-developers: show ONLY developer-focused app settings & memories -->
+        <SettingsMemoriesGroup onlyAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'for_developers_embed'}
+        <!-- Embedded preview of the for-developers intro chat -->
+        <IntroChatEmbed introChatId="demo-for-developers" />
       {/if}
     {/each}
   </div>

@@ -16,10 +16,8 @@
   import { getModelDisplayName } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
-  import { isPublicChat } from '../demo_chats/convertToChat';
   import { chatDB } from '../services/db';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
-  import { generateShareKeyBlob } from '../services/shareEncryption';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   
@@ -64,7 +62,9 @@
     thinkingContent = undefined,
     isThinkingStreaming = false,
     piiMappings = undefined,
-    piiRevealed = false
+    piiRevealed = false,
+    // Message identification prop (for usage/cost lookup in message context menu)
+    messageId = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -87,6 +87,8 @@
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
     piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
     piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
+    // Message identification prop (for usage/cost lookup in message context menu)
+    messageId?: string; // Message ID for cost lookup
   } = $props();
   
   // State for thinking section expansion
@@ -137,6 +139,11 @@
     '[[skills_group]]',
     '[[focus_modes_group]]',
     '[[settings_memories_group]]',
+    '[[dev_app_store_group]]',
+    '[[dev_skills_group]]',
+    '[[dev_focus_modes_group]]',
+    '[[dev_settings_memories_group]]',
+    '[[for_developers_embed]]',
   ];
   let hasExampleChatsPlaceholder = $derived((() => {
     const originalContent = original_message?.content;
@@ -214,57 +221,18 @@
   });
 
   /**
-   * Handle reporting a bad answer
+   * Handle reporting a bad answer.
+   * Pre-fills the report issue form with context and enables the "share chat" toggle
+   * so the admin can access the full chat for investigation.
    */
-  async function handleReportBadAnswer() {
+  function handleReportBadAnswer() {
     if (!original_message) return;
 
-    const chatId = original_message.chat_id;
-    const messageId = original_message.message_id;
-
-    // Construct the share chat URL (not direct chat access)
-    let link = `${window.location.origin}/share/chat/${chatId}`;
-
-    // For non-public chats (real user chats), we MUST include the encryption key
-    // so the server admin can decrypt the entire chat to investigate the quality issue.
-    if (!isPublicChat(chatId)) {
-      try {
-        // Get the chat key and convert to base64 format expected by generateShareKeyBlob
-        const chatKey = chatDB.getChatKey(chatId);
-        if (chatKey) {
-          let chatKeyBase64: string;
-          if (chatKey instanceof Uint8Array) {
-            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
-          } else if (typeof chatKey === 'string') {
-            chatKeyBase64 = chatKey;
-          } else {
-            throw new Error('Unexpected chat key format');
-          }
-
-          // Generate a proper share key blob (no expiration, no password for reporting)
-          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
-
-          // Include message ID for highlighting/scrolling to the reported message
-          link += `#key=${encryptedBlob}&messageid=${messageId}`;
-          console.debug(`[ChatMessage] Generated encrypted share blob and included message ID in report link for real user chat ${chatId}`);
-        } else {
-          console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
-        }
-      } catch (error) {
-        console.error(`[ChatMessage] Error generating share key blob for chat ${chatId}:`, error);
-      }
-    } else {
-      // For public chats, still include message ID for highlighting
-      link += `#messageid=${messageId}`;
-      console.debug(`[ChatMessage] Included message ID in public chat report link for ${chatId}`);
-    }
-
-    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
     const title = $text('chat.report_bad_answer.title.text');
 
     reportIssueStore.set({
       title: title,
-      description: template
+      shareChat: true
     });
 
     settingsDeepLink.set('report_issue');
@@ -280,44 +248,14 @@
 
   /**
    * Opens the report issue settings page pre-filled with context about a failed embed/skill.
-   * Reuses the same share-link generation logic as handleReportBadAnswer
-   * but with a title focused on the skill processing error.
+   * Enables the "share chat" toggle so the admin can investigate.
    */
-  async function handleReportEmbedError() {
+  function handleReportEmbedError() {
     if (!original_message) return;
-
-    const chatId = original_message.chat_id;
-    const messageId = original_message.message_id;
-
-    // Construct share URL with encryption key (same logic as handleReportBadAnswer)
-    let link = `${window.location.origin}/share/chat/${chatId}`;
-    if (!isPublicChat(chatId)) {
-      try {
-        const chatKey = chatDB.getChatKey(chatId);
-        if (chatKey) {
-          let chatKeyBase64: string;
-          if (chatKey instanceof Uint8Array) {
-            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
-          } else if (typeof chatKey === 'string') {
-            chatKeyBase64 = chatKey;
-          } else {
-            throw new Error('Unexpected chat key format');
-          }
-          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
-          link += `#key=${encryptedBlob}&messageid=${messageId}`;
-        }
-      } catch (error) {
-        console.error(`[ChatMessage] Error generating share key blob for embed error report:`, error);
-      }
-    } else {
-      link += `#messageid=${messageId}`;
-    }
-
-    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
 
     reportIssueStore.set({
       title: 'App skill processing error',
-      description: template
+      shareChat: true
     });
 
     settingsDeepLink.set('report_issue');
@@ -1242,6 +1180,8 @@
           onClose={() => showMessageMenu = false}
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
+          {messageId}
+          {role}
         />
       {/if}
     </div>

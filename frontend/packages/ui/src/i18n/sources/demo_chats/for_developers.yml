@@ -45,9 +45,31 @@ message:
 
     - ✅ Auto linter checks for generated code (coming soon).
 
-    - 🎯 Focus modes to plan projects, improve security, etc.
+    [[dev_app_store_group]]
 
-    - 💾 Settings & memories so you don't need to mention project details all the time.
+
+    ### 🛠️ Developer skills
+
+
+    Skills specific to developer apps that allow your mates to interact with external developer services.
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Developer focus modes
+
+
+    Focus modes for developer tasks like planning projects, writing tests, improving security, and more.
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Developer settings & memories
+
+
+    Settings & memories for developer apps, so you don't need to mention project details, preferred tech stack, or frameworks all the time.
+
+    [[dev_settings_memories_group]]
 
 
     ## 🔌 REST API
@@ -117,9 +139,31 @@ message:
 
     - ✅ Automatische Linter-Prüfungen für generierten Code (demnächst).
 
-    - 🎯 Fokus-Modi zum Planen von Projekten, Verbessern der Sicherheit usw.
+    [[dev_app_store_group]]
 
-    - 💾 Einstellungen & Erinnerungen, damit du Projektdetails nicht jedes Mal erwähnen musst.
+
+    ### 🛠️ Entwickler-Fähigkeiten
+
+
+    Fähigkeiten speziell für Entwickler-Apps, die deinen Mates die Interaktion mit externen Entwicklerdiensten ermöglichen.
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Entwickler-Fokus-Modi
+
+
+    Fokus-Modi für Entwickleraufgaben wie Projektplanung, Tests schreiben, Sicherheit verbessern und mehr.
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Entwickler-Einstellungen & Erinnerungen
+
+
+    Einstellungen & Erinnerungen für Entwickler-Apps, damit du Projektdetails, bevorzugten Tech-Stack oder Frameworks nicht jedes Mal erwähnen musst.
+
+    [[dev_settings_memories_group]]
 
 
     ## 🔌 REST API
@@ -189,9 +233,31 @@ message:
 
     - ✅ Verificaciones automáticas de linter para código generado (próximamente).
 
-    - 🎯 Modos de enfoque para planificar proyectos, mejorar la seguridad, etc.
+    [[dev_app_store_group]]
 
-    - 💾 Ajustes y memorias para que no tengas que mencionar detalles del proyecto todo el tiempo.
+
+    ### 🛠️ Habilidades para desarrolladores
+
+
+    Habilidades específicas para apps de desarrollo que permiten a tus compañeros interactuar con servicios externos de desarrollo.
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Modos de enfoque para desarrolladores
+
+
+    Modos de enfoque para tareas de desarrollo como planificar proyectos, escribir tests, mejorar la seguridad y más.
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Ajustes y memorias para desarrolladores
+
+
+    Ajustes y memorias para apps de desarrollo, para que no tengas que mencionar detalles del proyecto, stack tecnológico preferido o frameworks todo el tiempo.
+
+    [[dev_settings_memories_group]]
 
 
     ## 🔌 REST API
@@ -261,9 +327,31 @@ message:
 
     - ✅ Vérifications automatiques du linter pour le code généré (bientôt disponible).
 
-    - 🎯 Modes de focus pour planifier des projets, améliorer la sécurité, etc.
+    [[dev_app_store_group]]
 
-    - 💾 Paramètres et mémoires pour ne pas avoir à mentionner les détails du projet à chaque fois.
+
+    ### 🛠️ Compétences développeur
+
+
+    Compétences spécifiques aux apps développeur qui permettent à vos coéquipiers d'interagir avec des services externes de développement.
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Modes de focus développeur
+
+
+    Modes de focus pour les tâches de développement comme planifier des projets, écrire des tests, améliorer la sécurité et plus encore.
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Paramètres et mémoires développeur
+
+
+    Paramètres et mémoires pour les apps développeur, pour ne pas avoir à mentionner les détails du projet, stack technique préféré ou frameworks à chaque fois.
+
+    [[dev_settings_memories_group]]
 
 
     ## 🔌 REST API
@@ -333,9 +421,31 @@ message:
 
     - ✅ Controlli automatici del linter per il codice generato (in arrivo).
 
-    - 🎯 Modalità di focus per pianificare progetti, migliorare la sicurezza, ecc.
+    [[dev_app_store_group]]
 
-    - 💾 Impostazioni e memorie così non devi menzionare i dettagli del progetto ogni volta.
+
+    ### 🛠️ Competenze sviluppatore
+
+
+    Competenze specifiche per le app sviluppatore che permettono ai tuoi compagni di interagire con servizi esterni di sviluppo.
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Modalità di focus sviluppatore
+
+
+    Modalità di focus per attività di sviluppo come pianificare progetti, scrivere test, migliorare la sicurezza e altro.
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Impostazioni e memorie sviluppatore
+
+
+    Impostazioni e memorie per le app sviluppatore, così non devi menzionare dettagli del progetto, stack tecnologico preferito o framework ogni volta.
+
+    [[dev_settings_memories_group]]
 
 
     ## 🔌 REST API

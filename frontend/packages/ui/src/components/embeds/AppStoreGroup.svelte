@@ -42,10 +42,22 @@
      * If not provided, apps are sorted alphabetically by name.
      */
     sortOrder?: string[];
+    /**
+     * Additional app IDs to exclude (beyond the always-excluded AI app).
+     * Used to filter out developer-focused apps from the for-everyone intro chat.
+     */
+    excludeAppIds?: string[];
+    /**
+     * If provided, ONLY show apps with these IDs (still excludes AI app).
+     * Used to show only developer-focused apps in the for-developers intro chat.
+     */
+    onlyAppIds?: string[];
   }
   
   let {
-    sortOrder
+    sortOrder,
+    excludeAppIds = [],
+    onlyAppIds
   }: Props = $props();
   
   /**
@@ -56,7 +68,15 @@
   let filteredApps = $derived((() => {
     const appsMap = getAvailableApps();
     const appsList = Object.values(appsMap)
-      .filter(app => app.id !== EXCLUDED_APP_ID);
+      .filter(app => {
+        // Always exclude the AI app
+        if (app.id === EXCLUDED_APP_ID) return false;
+        // If onlyAppIds is provided, only include those specific apps
+        if (onlyAppIds) return onlyAppIds.includes(app.id);
+        // Otherwise, exclude any additionally specified app IDs
+        if (excludeAppIds.length > 0 && excludeAppIds.includes(app.id)) return false;
+        return true;
+      });
     
     if (sortOrder && sortOrder.length > 0) {
       // Custom sort: apps in sortOrder come first (in that order), then remaining alphabetically
@@ -119,7 +139,7 @@
           class="more-badge"
           onclick={() => handleAppSelect('')}
           type="button"
-          aria-label={$text('app_store.plus_n_more.text', { values: { count: remainingCount } })}
+          aria-label={$text('settings.app_store.plus_n_more.text', { values: { count: remainingCount } })}
         >
           <span class="more-text">+ {remainingCount}</span>
         </button>

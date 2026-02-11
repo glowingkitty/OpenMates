@@ -54,10 +54,22 @@
      * If not provided, skills are sorted alphabetically by name translation key.
      */
     sortOrder?: string[];
+    /**
+     * Additional app IDs to exclude (beyond the always-excluded AI app).
+     * Used to filter out developer-focused app skills from the for-everyone intro chat.
+     */
+    excludeAppIds?: string[];
+    /**
+     * If provided, ONLY show skills from apps with these IDs (still excludes AI app).
+     * Used to show only developer-focused app skills in the for-developers intro chat.
+     */
+    onlyAppIds?: string[];
   }
   
   let {
-    sortOrder
+    sortOrder,
+    excludeAppIds = [],
+    onlyAppIds
   }: Props = $props();
   
   /**
@@ -69,8 +81,12 @@
     const skills: SkillWithApp[] = [];
     
     for (const app of Object.values(appsMap)) {
-      // Exclude AI app skills
+      // Always exclude AI app skills
       if (app.id === EXCLUDED_APP_ID) continue;
+      // If onlyAppIds is provided, only include those specific apps
+      if (onlyAppIds && !onlyAppIds.includes(app.id)) continue;
+      // Otherwise, exclude any additionally specified app IDs
+      if (!onlyAppIds && excludeAppIds.length > 0 && excludeAppIds.includes(app.id)) continue;
       
       for (const skill of app.skills) {
         skills.push({
@@ -169,7 +185,7 @@
           class="more-badge"
           onclick={handleMoreClick}
           type="button"
-          aria-label={$text('app_store.plus_n_more.text', { values: { count: remainingCount } })}
+          aria-label={$text('settings.app_store.plus_n_more.text', { values: { count: remainingCount } })}
         >
           <span class="more-text">+ {remainingCount}</span>
         </button>
