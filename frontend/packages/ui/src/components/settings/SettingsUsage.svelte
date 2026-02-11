@@ -27,6 +27,13 @@ Usage Settings - View usage statistics and export usage data
         credits?: number; // Optional since it might be missing for some entries
         input_tokens?: number;
         output_tokens?: number;
+        user_input_tokens?: number; // User query input tokens (only for AI Ask)
+        system_prompt_tokens?: number; // System prompt + history tokens (only for AI Ask)
+        credits_system_prompt?: number; // Credit cost for system prompt tokens
+        credits_history?: number; // Credit cost for chat history tokens
+        credits_response?: number; // Credit cost for response tokens
+        server_provider?: string; // Server provider display name (e.g., "AWS Bedrock")
+        server_region?: string; // Server region (e.g., "EU", "US")
         chat_id?: string | null; // Cleartext - for matching with IndexedDB
         message_id?: string | null; // Cleartext - for matching with IndexedDB
         api_key_hash?: string | null; // SHA-256 hash of the API key that created this usage entry
@@ -1376,6 +1383,7 @@ Usage Settings - View usage statistics and export usage data
                 </div>
                 
                 <div class="entry-detail-fields">
+                    <!-- Total credits with breakdown -->
                     {#if selEntry.credits}
                         <div class="entry-detail-row">
                             <span class="entry-detail-label">{$text('settings.usage.total_credits_label.text')}</span>
@@ -1385,10 +1393,66 @@ Usage Settings - View usage statistics and export usage data
                             </span>
                         </div>
                     {/if}
+                    <!-- Credit breakdown (system prompt / history / response) - only for AI Ask -->
+                    {#if selEntry.credits_system_prompt || selEntry.credits_history || selEntry.credits_response}
+                        <div class="entry-detail-row entry-detail-sub">
+                            <span class="entry-detail-label">{$text('settings.usage.credits_breakdown_label.text')}</span>
+                            <span class="entry-detail-value entry-detail-breakdown">
+                                {#if selEntry.credits_system_prompt}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_system_prompt_label.text')}: {formatCredits(selEntry.credits_system_prompt)}</span>
+                                {/if}
+                                {#if selEntry.credits_history}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_history_label.text')}: {formatCredits(selEntry.credits_history)}</span>
+                                {/if}
+                                {#if selEntry.credits_response}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_response_label.text')}: {formatCredits(selEntry.credits_response)}</span>
+                                {/if}
+                            </span>
+                        </div>
+                    {/if}
+                    <!-- Provider (derived from model_used string) -->
+                    {#if selEntry.model_used}
+                        {#each [selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[0] : null] as providerPrefix}
+                            {#if providerPrefix}
+                                <div class="entry-detail-row">
+                                    <span class="entry-detail-label">{$text('settings.usage.provider_label.text')}</span>
+                                    <span class="entry-detail-value">{providerPrefix.charAt(0).toUpperCase() + providerPrefix.slice(1)}</span>
+                                </div>
+                            {/if}
+                        {/each}
+                    {/if}
+                    <!-- Model name (after the slash) -->
                     {#if selEntry.model_used}
                         <div class="entry-detail-row">
                             <span class="entry-detail-label">{$text('settings.usage.model_label.text')}</span>
-                            <span class="entry-detail-value">{selEntry.model_used}</span>
+                            <span class="entry-detail-value">{selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[1] : selEntry.model_used}</span>
+                        </div>
+                    {/if}
+                    <!-- Server provider (e.g., "AWS Bedrock", "Anthropic API") -->
+                    {#if selEntry.server_provider}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.server_provider_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.server_provider}</span>
+                        </div>
+                    {/if}
+                    <!-- Server region (e.g., "EU", "US") -->
+                    {#if selEntry.server_region}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.server_region_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.server_region}</span>
+                        </div>
+                    {/if}
+                    <!-- Token breakdown - only for AI Ask entries -->
+                    {#if selEntry.system_prompt_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.user_input_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.input_tokens}
@@ -2829,5 +2893,26 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         gap: 4px;
+    }
+
+    /* Sub-row for credit breakdown (indented, smaller) */
+    .entry-detail-sub {
+        padding: 8px 0 14px 0;
+    }
+
+    .entry-detail-sub .entry-detail-label {
+        font-size: 13px;
+    }
+
+    .entry-detail-breakdown {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+    }
+
+    .breakdown-item {
+        font-size: 12px;
+        color: var(--color-grey-50);
+        font-weight: 400;
     }
 </style>

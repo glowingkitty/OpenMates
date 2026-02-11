@@ -88,6 +88,12 @@ class PreprocessingResult(BaseModel):
         description="Disclaimer type to inject: 'financial', 'medical', 'legal', or 'mental_health'. Set if category is sensitive AND no disclaimer was recently shown."
     )
 
+    # Server provider and region info (set after model selection in ask_skill_task.py)
+    # These are extracted from the provider YAML config's servers array and stored on the result
+    # so stream_consumer.py can include them in usage_details for billing persistence
+    server_provider_name: Optional[str] = Field(None, description="Display name of the server provider (e.g., 'AWS Bedrock', 'Cerebras'). Set after model selection in ask_skill_task.")
+    server_region: Optional[str] = Field(None, description="Server region (e.g., 'EU', 'US', 'APAC'). Set after model selection in ask_skill_task.")
+
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
 

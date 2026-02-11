@@ -1033,3 +1033,210 @@ entry_detail_title:
   cs: Podrobnosti použití
   sv: Användningsdetaljer
   verified_by_human: []
+provider_label:
+  context: Label for the AI provider (e.g., Google, Anthropic, OpenAI) in usage entry detail view
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Aanbieder
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  verified_by_human: []
+server_provider_label:
+  context: Label for the server provider name (e.g., AWS Bedrock, Google Vertex AI) in usage entry detail view
+  en: Server
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  verified_by_human: []
+server_region_label:
+  context: Label for the server region (e.g., EU, US) in usage entry detail view
+  en: Region
+  de: Region
+  zh: 区域
+  es: Región
+  fr: Région
+  pt: Região
+  ru: Регион
+  ja: リージョン
+  ko: 리전
+  it: Regione
+  tr: Bölge
+  vi: Vùng
+  id: Wilayah
+  pl: Region
+  nl: Regio
+  ar: المنطقة
+  hi: क्षेत्र
+  th: ภูมิภาค
+  cs: Region
+  sv: Region
+  verified_by_human: []
+user_input_tokens_label:
+  context: Label for user input tokens count in usage entry detail view
+  en: User input tokens
+  de: Benutzereingabe-Token
+  zh: 用户输入令牌
+  es: Tokens de entrada del usuario
+  fr: Tokens d'entrée utilisateur
+  pt: Tokens de entrada do usuário
+  ru: Токены пользовательского ввода
+  ja: ユーザー入力トークン
+  ko: 사용자 입력 토큰
+  it: Token di input utente
+  tr: Kullanıcı giriş token
+  vi: Token đầu vào người dùng
+  id: Token masukan pengguna
+  pl: Tokeny wejściowe użytkownika
+  nl: Gebruikersinvoertokens
+  ar: رموز إدخال المستخدم
+  hi: उपयोगकर्ता इनपुट टोकन
+  th: โทเค็นอินพุตผู้ใช้
+  cs: Vstupní tokeny uživatele
+  sv: Användarens inmatningstoken
+  verified_by_human: []
+system_prompt_tokens_label:
+  context: Label for system prompt tokens count in usage entry detail view
+  en: System prompt tokens
+  de: Systemprompt-Token
+  zh: 系统提示令牌
+  es: Tokens del prompt del sistema
+  fr: Tokens du prompt système
+  pt: Tokens do prompt do sistema
+  ru: Токены системного промпта
+  ja: システムプロンプトトークン
+  ko: 시스템 프롬프트 토큰
+  it: Token del prompt di sistema
+  tr: Sistem istem token
+  vi: Token lời nhắc hệ thống
+  id: Token prompt sistem
+  pl: Tokeny promptu systemowego
+  nl: Systeemprompt-tokens
+  ar: رموز موجه النظام
+  hi: सिस्टम प्रॉम्प्ट टोकन
+  th: โทเค็นพรอมต์ระบบ
+  cs: Tokeny systémového promptu
+  sv: Systempromptstoken
+  verified_by_human: []
+credits_breakdown_label:
+  context: Label for the credit cost breakdown section in usage entry detail view
+  en: Credit breakdown
+  de: Aufschlüsselung
+  zh: 积分明细
+  es: Desglose de créditos
+  fr: Détail des crédits
+  pt: Detalhamento de créditos
+  ru: Разбивка кредитов
+  ja: クレジット内訳
+  ko: 크레딧 내역
+  it: Dettaglio crediti
+  tr: Kredi dökümü
+  vi: Chi tiết tín dụng
+  id: Rincian kredit
+  pl: Rozbicie kredytów
+  nl: Creditverdeling
+  ar: تفصيل الرصيد
+  hi: क्रेडिट विवरण
+  th: รายละเอียดเครดิต
+  cs: Rozpis kreditů
+  sv: Kreditfördelning
+  verified_by_human: []
+credits_system_prompt_label:
+  context: Label for system prompt credit cost in the breakdown
+  en: System prompt
+  de: Systemprompt
+  zh: 系统提示
+  es: Prompt del sistema
+  fr: Prompt système
+  pt: Prompt do sistema
+  ru: Системный промпт
+  ja: システムプロンプト
+  ko: 시스템 프롬프트
+  it: Prompt di sistema
+  tr: Sistem istemi
+  vi: Lời nhắc hệ thống
+  id: Prompt sistem
+  pl: Prompt systemowy
+  nl: Systeemprompt
+  ar: موجه النظام
+  hi: सिस्टम प्रॉम्प्ट
+  th: พรอมต์ระบบ
+  cs: Systémový prompt
+  sv: Systemprompt
+  verified_by_human: []
+credits_history_label:
+  context: Label for chat history credit cost in the breakdown
+  en: Chat history
+  de: Chatverlauf
+  zh: 聊天记录
+  es: Historial de chat
+  fr: Historique de chat
+  pt: Histórico de chat
+  ru: История чата
+  ja: チャット履歴
+  ko: 채팅 기록
+  it: Cronologia chat
+  tr: Sohbet geçmişi
+  vi: Lịch sử trò chuyện
+  id: Riwayat obrolan
+  pl: Historia czatu
+  nl: Chatgeschiedenis
+  ar: سجل المحادثة
+  hi: चैट इतिहास
+  th: ประวัติแชท
+  cs: Historie chatu
+  sv: Chatthistorik
+  verified_by_human: []
+credits_response_label:
+  context: Label for response credit cost in the breakdown
+  en: Response
+  de: Antwort
+  zh: 回复
+  es: Respuesta
+  fr: Réponse
+  pt: Resposta
+  ru: Ответ
+  ja: レスポンス
+  ko: 응답
+  it: Risposta
+  tr: Yanıt
+  vi: Phản hồi
+  id: Respons
+  pl: Odpowiedź
+  nl: Antwoord
+  ar: الاستجابة
+  hi: प्रतिक्रिया
+  th: การตอบกลับ
+  cs: Odpověď
+  sv: Svar
+  verified_by_human: []

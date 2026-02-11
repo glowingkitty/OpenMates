@@ -4,9 +4,9 @@ usage:
     id:
       type: uuid
       primary: true
-      
+
     user_id_hash: # Changed from user_id
-      type: string  # Changed from uuid
+      type: string # Changed from uuid
       length: 255 # Assuming a reasonable length for a hash
       note: "[Indexed] Hashed identifier of the user this usage entry belongs to."
 
@@ -15,29 +15,29 @@ usage:
       type: string
       length: 255
       note: "[Indexed] App identifier in cleartext (e.g., 'ai', 'web', 'videos'). Not encrypted for performance and queryability."
-      
+
     skill_id:
       type: string
       length: 255
       note: "[Indexed] Skill identifier in cleartext (e.g., 'ask', 'search'). Not encrypted for performance and queryability."
-      
+
     type:
       type: string
       length: 512
       note: "Type of usage: skill_execution, api_call, etc."
-    
+
     # Source of the usage entry (for filtering)
     source:
       type: string
       length: 50
       note: "[Indexed] Source of usage: 'chat' (chat-based skill execution), 'api_key' (API key-based), 'direct' (direct API call)"
-      
+
     # Cleartext chat and message identifiers (for easy client-side matching with IndexedDB)
     chat_id:
       type: string
       length: 255
       note: "[Indexed, Nullable] Chat ID in cleartext (for chat-based usage). Null for API key or direct API calls. Allows client to match with IndexedDB."
-      
+
     message_id:
       type: string
       length: 255
@@ -48,7 +48,7 @@ usage:
       type: string
       length: 64
       note: "[Indexed, Nullable] SHA-256 hash of the API key that created this usage entry. Null for chat-based or direct API calls. Allows tracking which API key generated which costs."
-    
+
     device_hash:
       type: string
       length: 64
@@ -98,9 +98,19 @@ usage:
       type: string
       length: 512
       note: "Encrypted credit cost for response tokens."
-      
+
+    encrypted_server_provider:
+      type: string
+      length: 512
+      note: "Encrypted server provider display name (e.g., 'AWS Bedrock', 'Anthropic API', 'Google Vertex AI'). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+
+    encrypted_server_region:
+      type: string
+      length: 512
+      note: "Encrypted server region (e.g., 'EU', 'US', 'APAC'). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
+
     created_at:
-      type: integer 
+      type: integer
       note: "Unix timestamp (seconds) when this usage entry was first created. Application should provide this."
 
     updated_at:

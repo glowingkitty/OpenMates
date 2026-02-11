@@ -40,6 +40,8 @@ class UsageMethods:
         system_prompt_tokens: Optional[int] = None,
         api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
+        server_provider: Optional[str] = None,  # Server provider display name (e.g., "AWS Bedrock")
+        server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
     ) -> Optional[str]:
         """
         Creates a new usage entry in Directus.
@@ -67,6 +69,8 @@ class UsageMethods:
             system_prompt_tokens: Optional system prompt + history token count (only saved for AI Ask skill)
             api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
+            server_provider: Optional server provider display name (e.g., "AWS Bedrock", "Anthropic API"). Only for AI Ask skill.
+            server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
         """
         log_prefix = f"DirectusService ({self.collection}):"
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
@@ -154,6 +158,22 @@ class UsageMethods:
             encrypted_user_input_tokens = None
             encrypted_system_prompt_tokens = None
 
+            # Encrypt server provider and region (only for AI Ask skill, like tokens)
+            encrypted_server_provider = None
+            encrypted_server_region = None
+            if should_save_tokens:
+                if server_provider:
+                    res = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=server_provider
+                    )
+                    encrypted_server_provider = res[0] if res else None
+                
+                if server_region:
+                    res = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=server_region
+                    )
+                    encrypted_server_region = res[0] if res else None
+
             if should_save_tokens:
                 if actual_input_tokens is not None:
                     encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -227,6 +247,10 @@ class UsageMethods:
                 payload["encrypted_credits_costs_history"] = encrypted_credits_costs_history
             if encrypted_credits_costs_response:
                 payload["encrypted_credits_costs_response"] = encrypted_credits_costs_response
+            if encrypted_server_provider:
+                payload["encrypted_server_provider"] = encrypted_server_provider
+            if encrypted_server_region:
+                payload["encrypted_server_region"] = encrypted_server_region
 
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
@@ -850,6 +874,18 @@ class UsageMethods:
                         decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
                             encrypted_credits_response, user_vault_key_id
                         )
+
+                    encrypted_server_provider = entry.get("encrypted_server_provider")
+                    if encrypted_server_provider:
+                        decrypt_tasks["server_provider"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_server_provider, user_vault_key_id
+                        )
+
+                    encrypted_server_region = entry.get("encrypted_server_region")
+                    if encrypted_server_region:
+                        decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_server_region, user_vault_key_id
+                        )
                     
                     # Execute all decryptions in parallel for this entry
                     if decrypt_tasks:
@@ -1335,6 +1371,18 @@ class UsageMethods:
                     decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
                         encrypted_credits_response, user_vault_key_id
                     )
+
+                encrypted_server_provider = entry.get("encrypted_server_provider")
+                if encrypted_server_provider:
+                    decrypt_tasks["server_provider"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_server_provider, user_vault_key_id
+                    )
+
+                encrypted_server_region = entry.get("encrypted_server_region")
+                if encrypted_server_region:
+                    decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_server_region, user_vault_key_id
+                    )
                 
                 if decrypt_tasks:
                     results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
@@ -1361,6 +1409,7 @@ class UsageMethods:
                                 except ValueError:
                                     processed_entry[field_name] = 0
                             else:
+                                # String fields: model_used, server_provider, server_region
                                 processed_entry[field_name] = result
                 
                 if "credits" not in processed_entry:

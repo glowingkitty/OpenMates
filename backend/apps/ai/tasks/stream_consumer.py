@@ -623,7 +623,9 @@ async def _handle_normal_billing(
         "user_input_tokens": user_input_tokens,
         "system_prompt_tokens": system_prompt_tokens,
         "api_key_name": request_data.api_key_name,
-        "external_request": request_data.is_external
+        "external_request": request_data.is_external,
+        "server_provider": preprocessing_result.server_provider_name,
+        "server_region": preprocessing_result.server_region,
     }
 
     await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)

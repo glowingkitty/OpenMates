@@ -189,6 +189,8 @@ class UsageRecordPayload(BaseModel):
     cost_details: Optional[Dict[str, Any]] = None # Raw, unencrypted data
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
+    server_provider: Optional[str] = None  # Server provider display name (e.g., "AWS Bedrock")
+    server_region: Optional[str] = None  # Server region (e.g., "EU", "US")
 
 @router.post("/usage/record")
 async def record_usage_route(
@@ -268,6 +270,8 @@ async def record_usage_route(
             system_prompt_tokens=payload.cost_details.get("system_prompt_tokens") if payload.cost_details else None,
             api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
+            server_provider=payload.server_provider,
+            server_region=payload.server_region,
         )
         
         # 2. Write anonymous analytics entry (fire-and-forget, non-blocking)

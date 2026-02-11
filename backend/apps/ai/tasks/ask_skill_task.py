@@ -1055,6 +1055,11 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
                 provider_name = "Unknown"
             
+            # Persist server provider/region on preprocessing_result so stream_consumer.py
+            # can include them in usage_details for billing persistence to the usage collection
+            preprocessing_result.server_provider_name = provider_name
+            preprocessing_result.server_region = server_region
+            
             # Log the final provider name and server region that will be sent to client
             logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             

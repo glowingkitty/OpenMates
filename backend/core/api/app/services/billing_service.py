@@ -248,6 +248,8 @@ class BillingService:
                 system_prompt_tokens=usage_details.get("system_prompt_tokens") if usage_details else None,
                 api_key_hash=api_key_hash,  # API key hash for tracking which API key created this usage
                 device_hash=device_hash,  # Device hash for tracking which device created this usage
+                server_provider=usage_details.get("server_provider") if usage_details else None,
+                server_region=usage_details.get("server_region") if usage_details else None,
             )
 
         except HTTPException as e:
