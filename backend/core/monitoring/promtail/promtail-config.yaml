@@ -42,13 +42,13 @@ scrape_configs:
           event_type:
           status:
 
-      # 4. Conditional drop stage for production (using extracted JSON level)
+      # 4. Conditional drop stage for production
+      # Only drop DEBUG logs in production. INFO logs are essential for debugging
+      # production issues (skill execution, embed updates, sync operations, etc.)
+      # Loki's 7-day retention handles storage management.
       - match:
-          # Only apply this stage if server_env is 'production'
-          selector: '{server_env="production", level=~"(?i)info|debug"}' # Combine selector with level check
-          # Action is 'drop' if the condition is met
+          selector: '{server_env="production", level=~"(?i)debug"}'
           action: drop
-          # No separate pipeline_name or logfmt stage needed here
 
   # Compliance logs config (from file)
   - job_name: compliance-logs
@@ -83,15 +83,17 @@ scrape_configs:
         #     values: ["com.docker.compose.project=openmates-core"]
     relabel_configs:
       # Relabel container labels to Promtail labels
-      - source_labels: ['__meta_docker_container_name']
-        regex: '/(.*)'
-        target_label: 'container'
-      - source_labels: ['__meta_docker_container_log_stream']
-        target_label: 'logstream'
-      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
-        target_label: 'service'
-      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
-        target_label: 'compose_project'
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "logstream"
+      - source_labels:
+          ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "service"
+      - source_labels:
+          ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: "compose_project"
 
     pipeline_stages:
       # 1. Access environment variable
@@ -143,17 +145,16 @@ scrape_configs:
       # 7. Determine the actual log level (prefer JSON if available)
       - template:
           source: log_level # Create a new temporary field
-          template: '{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}INFO{{ end }}'
+          template: "{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}INFO{{ end }}"
 
       # 8. Set the final 'level' label
       - labels:
           level: log_level # Use the determined log_level
 
-      # 9. Conditional drop stage for production (using determined log_level)
+      # 9. Conditional drop stage for production
+      # Only drop DEBUG logs in production. INFO logs are essential for debugging
+      # production issues (skill execution, embed updates, sync operations, etc.)
+      # Loki's 7-day retention handles storage management.
       - match:
-          # Only apply this stage if server_env is 'production' AND log_level is INFO or DEBUG
-          # Note: We use the 'log_level' field created by the template stage above
-          selector: '{server_env="production", log_level=~"(?i)info|debug"}'
-          # Action is 'drop' if the condition is met
+          selector: '{server_env="production", log_level=~"(?i)debug"}'
           action: drop
-          # No separate pipeline_name or logfmt stage needed here
