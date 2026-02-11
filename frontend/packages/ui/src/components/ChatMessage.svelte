@@ -63,8 +63,9 @@
     isThinkingStreaming = false,
     piiMappings = undefined,
     piiRevealed = false,
-    // Message identification prop (for usage/cost lookup in message context menu)
-    messageId = undefined
+    // Message identification props (for usage/cost lookup in message context menu)
+    messageId = undefined,
+    userMessageId = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -87,8 +88,9 @@
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
     piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
     piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
-    // Message identification prop (for usage/cost lookup in message context menu)
+    // Message identification props (for usage/cost lookup in message context menu)
     messageId?: string; // Message ID for cost lookup
+    userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
   } = $props();
   
   // State for thinking section expansion
@@ -558,14 +560,20 @@
         // Video embed (YouTube, etc.)
         menuType = 'video';
         embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use' && appId === 'videos' && skillId === 'get_transcript') {
-        // Video transcript embed
-        menuType = 'video-transcript';
-        embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use' && appId === 'web' && skillId === 'search') {
-        // Web search skill embed
-        menuType = 'web';
-        embedType = 'default';
+      } else if (node.attrs.type === 'app-skill-use') {
+        // App skill embeds - determine menu type based on appId/skillId
+        if (appId === 'videos' && skillId === 'get_transcript') {
+          menuType = 'video-transcript';
+          embedType = 'video';
+        } else if (appId === 'web' && skillId === 'search') {
+          menuType = 'web';
+          embedType = 'default';
+        } else {
+          // All other app-skill-use embeds: use appId-skillId as menuType
+          // This enables context-menu actions based on the specific app/skill combination
+          menuType = 'default';
+          embedType = 'default';
+        }
       } else {
         menuType = 'default';
         embedType = 'default';
@@ -984,6 +992,224 @@
           break;
       }
     }
+    // Handle actions for app-skill-use embeds based on appId/skillId
+    // These handlers cover all app skills that support copy/download from the context menu
+    else if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use' && selectedAppId) {
+      const embedId = getEmbedIdFromNode(selectedNode);
+      if (!embedId) {
+        console.warn('[ChatMessage] No embed ID found for app-skill-use embed action');
+        showMenu = false;
+        selectedNode = null;
+        return;
+      }
+
+      try {
+        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+        const embedData = await resolveEmbed(embedId);
+        if (!embedData?.content) {
+          console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
+        const decodedContent = typeof embedData.content === 'string'
+          ? await decodeToonContent(embedData.content)
+          : embedData.content as Record<string, unknown>;
+        if (!decodedContent) {
+          console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
+
+        // --- Images: download original image with prompt-based filename and metadata ---
+        if (selectedAppId === 'images' && action === 'download') {
+          const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+          const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
+          const aesKey = decodedContent.aes_key as string | undefined;
+          const aesNonce = decodedContent.aes_nonce as string | undefined;
+          const imagePrompt = decodedContent.prompt as string | undefined;
+          const imageModel = decodedContent.model as string | undefined;
+
+          if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+            try {
+              const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
+              const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
+              const blob = await fetchAndDecryptImage(
+                s3BaseUrl,
+                files.original.s3_key,
+                aesKey,
+                aesNonce
+              );
+              const ext = files.original.format || 'png';
+              
+              // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
+              let downloadBlob: Blob = blob;
+              if (ext === 'png') {
+                const arrayBuffer = await blob.arrayBuffer();
+                const metadataBytes = embedPngMetadata(arrayBuffer, {
+                  prompt: imagePrompt,
+                  model: imageModel,
+                  software: 'OpenMates'
+                });
+                // Copy into a plain ArrayBuffer to satisfy BlobPart typing
+                const ab = new ArrayBuffer(metadataBytes.byteLength);
+                new Uint8Array(ab).set(metadataBytes);
+                downloadBlob = new Blob([ab], { type: 'image/png' });
+              }
+              
+              const filename = generateImageFilename(imagePrompt, ext);
+              
+              const url = URL.createObjectURL(downloadBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Image downloaded');
+            } catch (err) {
+              console.error('[ChatMessage] Error downloading image:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to download image');
+            }
+          } else {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.error('Original image not available');
+          }
+        }
+
+        // --- Docs: copy (plain text) or download (docx) ---
+        else if (selectedAppId === 'docs') {
+          const htmlContent = (decodedContent.html as string) || '';
+          const docTitle = (decodedContent.title as string) || '';
+          const docFilename = (decodedContent.filename as string) || docTitle || 'document';
+
+          if (action === 'copy') {
+            // Strip HTML to plain text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            if (plainText) {
+              await navigator.clipboard.writeText(plainText);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Document copied to clipboard');
+            }
+          } else if (action === 'download') {
+            try {
+              const { asBlob } = await import('html-docx-js-typescript');
+              const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docTitle}</title></head><body>${htmlContent}</body></html>`;
+              const blob = await asBlob(fullHtml) as Blob;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = docFilename.endsWith('.docx') ? docFilename : `${docFilename}.docx`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Document downloaded');
+            } catch (err) {
+              console.error('[ChatMessage] Error downloading document:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to download document');
+            }
+          }
+        }
+
+        // --- Sheets: copy (CSV or markdown) or download (CSV) ---
+        else if (selectedAppId === 'sheets') {
+          const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+          const sheetTitle = (decodedContent.title as string) || 'table';
+
+          if (action === 'copy') {
+            // Copy as CSV format for easy pasting into spreadsheet apps
+            if (tableContent) {
+              // Convert markdown table to CSV
+              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+              const csv = lines.map((line: string) =>
+                line.split('|')
+                  .map((cell: string) => cell.trim())
+                  .filter((cell: string) => cell !== '')
+                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                  .join(',')
+              ).join('\n');
+              await navigator.clipboard.writeText(csv);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Table copied as CSV');
+            }
+          } else if (action === 'download') {
+            if (tableContent) {
+              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+              const csv = lines.map((line: string) =>
+                line.split('|')
+                  .map((cell: string) => cell.trim())
+                  .filter((cell: string) => cell !== '')
+                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                  .join(',')
+              ).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Table downloaded as CSV');
+            }
+          }
+        }
+
+        // --- Web Read: copy article text ---
+        else if (selectedAppId === 'web' && selectedSkillId === 'read' && action === 'copy') {
+          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+          const textParts = results.map(r => {
+            let part = '';
+            if (r.title) part += `# ${r.title}\n\n`;
+            if (r.url) part += `Source: ${r.url}\n\n`;
+            if (r.markdown) part += r.markdown;
+            return part;
+          }).filter(Boolean);
+          if (textParts.length > 0) {
+            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Article copied to clipboard');
+          }
+        }
+
+        // --- News Read: copy article text ---
+        else if (selectedAppId === 'news' && selectedSkillId === 'read' && action === 'copy') {
+          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+          const textParts = results.map(r => {
+            let part = '';
+            if (r.title) part += `# ${r.title}\n\n`;
+            if (r.url) part += `Source: ${r.url}\n\n`;
+            if (r.markdown) part += r.markdown;
+            return part;
+          }).filter(Boolean);
+          if (textParts.length > 0) {
+            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Article copied to clipboard');
+          }
+        }
+      } catch (error) {
+        console.error('[ChatMessage] Error handling app-skill-use action:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to perform action');
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+      }
+
+      return;
+    }
     // Handle other actions for legacy embed types
     else {
       switch (action) {
@@ -1155,8 +1381,21 @@
 
       {#if showMenu}
         {@const isFocusMode = menuType === 'focusMode'}
-        {@const showCopyAction = !isFocusMode && (menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web')}
-        {@const showDownloadAction = !isFocusMode && (menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf')}
+        {@const showCopyAction = !isFocusMode && (
+          menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web' ||
+          /* App-skill-use embeds that support copy (matching fullscreen onCopy capability) */
+          (selectedAppId === 'docs') ||
+          (selectedAppId === 'sheets') ||
+          (selectedAppId === 'web' && selectedSkillId === 'read') ||
+          (selectedAppId === 'news' && selectedSkillId === 'read')
+        )}
+        {@const showDownloadAction = !isFocusMode && (
+          menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
+          /* App-skill-use embeds that support download (matching fullscreen onDownload capability) */
+          (selectedAppId === 'images') ||
+          (selectedAppId === 'docs') ||
+          (selectedAppId === 'sheets')
+        )}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -1173,6 +1412,7 @@
           showDownload={showDownloadAction}
           showDeactivate={isFocusMode}
           showDetails={isFocusMode}
+          messageId={messageId}
           onClose={() => {
             showMenu = false;
             selectedNode = null;
@@ -1195,6 +1435,7 @@
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
           {messageId}
+          {userMessageId}
           {role}
         />
       {/if}

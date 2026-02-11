@@ -16,6 +16,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
   import { modelsMetadata } from '../../../data/modelsMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   
@@ -194,7 +195,11 @@
   });
   
   /**
-   * Download the original PNG image
+   * Download the original PNG image with a prompt-based filename and
+   * embedded PNG tEXt metadata (prompt, model, software).
+   * The backend already injects XMP metadata before encryption; the tEXt
+   * chunks we add here provide an additional layer that is more widely
+   * visible in file managers (macOS Finder, Windows Explorer, etc.).
    */
   async function handleDownload() {
     if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return;
@@ -204,12 +209,32 @@
     
     try {
       const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce);
+      const ext = files.original.format || 'png';
+      
+      // Embed PNG tEXt metadata (prompt, model, software) into the image bytes.
+      // This makes the metadata visible in macOS Finder, Preview, and other viewers.
+      let downloadBlob: Blob = blob;
+      if (ext === 'png') {
+        const arrayBuffer = await blob.arrayBuffer();
+        const metadataBytes = embedPngMetadata(arrayBuffer, {
+          prompt,
+          model,
+          software: 'OpenMates'
+        });
+        // Copy into a plain ArrayBuffer to satisfy BlobPart typing
+        const ab = new ArrayBuffer(metadataBytes.byteLength);
+        new Uint8Array(ab).set(metadataBytes);
+        downloadBlob = new Blob([ab], { type: 'image/png' });
+      }
+      
+      // Generate a human-readable filename from the prompt
+      const filename = generateImageFilename(prompt, ext);
       
       // Create download link
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(downloadBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `generated-image-${Date.now()}.png`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
