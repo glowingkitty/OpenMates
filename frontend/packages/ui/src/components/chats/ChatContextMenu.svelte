@@ -334,7 +334,7 @@
                 {/if}
                 {#if chatTotalCredits !== null && chatTotalCredits > 0}
                     <div class="chat-credits">
-                        <div class="clickable-icon icon_billing"></div>
+                        <div class="clickable-icon icon_coins"></div>
                         {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
                     </div>
                 {/if}

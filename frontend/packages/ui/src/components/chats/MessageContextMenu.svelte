@@ -14,6 +14,7 @@
         onCopy?: () => void;
         onSelect?: () => void;
         messageId?: string;
+        userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
         role?: MessageRole;
     }
     let { 
@@ -24,6 +25,7 @@
         onCopy,
         onSelect,
         messageId = undefined,
+        userMessageId = undefined,
         role = undefined
     }: Props = $props();
 
@@ -41,9 +43,12 @@
     }
     
     // Fetch message credits when menu is shown (only for authenticated assistant messages)
+    // Usage records are stored with the user's message ID (the message that triggered the AI response),
+    // so we use userMessageId for the API lookup, falling back to messageId if not available
     $effect(() => {
-        if (show && messageId && role === 'assistant' && $authStore.isAuthenticated) {
-            const endpoint = `${getApiEndpoint(apiEndpoints.usage.messageCost)}?message_id=${encodeURIComponent(messageId)}`;
+        const lookupId = userMessageId || messageId;
+        if (show && lookupId && role === 'assistant' && $authStore.isAuthenticated) {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.messageCost)}?message_id=${encodeURIComponent(lookupId)}`;
             fetch(endpoint, { credentials: 'include' })
                 .then(res => res.ok ? res.json() : null)
                 .then(data => {
@@ -205,7 +210,7 @@
     >
         {#if messageCredits !== null && messageCredits > 0}
             <div class="message-credits">
-                <div class="clickable-icon icon_billing"></div>
+                <div class="clickable-icon icon_coins"></div>
                 {formatCredits(messageCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
             </div>
         {/if}

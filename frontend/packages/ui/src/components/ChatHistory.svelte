@@ -1083,6 +1083,7 @@
                         piiMappings={cumulativePIIMappingsArray}
                         {piiRevealed}
                         messageId={msg.id}
+                        userMessageId={msg.original_message?.user_message_id}
                     />
                 </div>
             {/each}

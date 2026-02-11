@@ -518,6 +518,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/billing.svg");
 }
 
+.clickable-icon.icon_coins {
+  -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
+  mask-image: url("@openmates/ui/static/icons/coins.svg");
+}
+
 .clickable-icon.icon_calendar {
   -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
   mask-image: url("@openmates/ui/static/icons/calendar.svg");

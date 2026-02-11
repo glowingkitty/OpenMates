@@ -2487,11 +2487,33 @@
     }
     
     .passkey-loading-text {
-        color: var(--color-grey-80);
         font-size: 16px;
         font-weight: 500;
         margin: 0;
         text-align: center;
+        /* Shimmer gradient animation matching BasicInfosBar processing state */
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 40%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 60%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: passkey-shimmer 1.5s infinite linear;
+    }
+
+    @keyframes passkey-shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     /* Navigation area styles moved to SignupNav.svelte to avoid duplication */

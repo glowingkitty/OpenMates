@@ -19,8 +19,9 @@
 
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import { authStore } from '../../stores/authStore';
+  import { apiEndpoints, getApiEndpoint } from '../../config/api';
 
   /**
    * Props interface for embed context menu
@@ -50,6 +51,8 @@
     showDeactivate?: boolean;
     /** Whether to show Details action (for focus mode embeds) */
     showDetails?: boolean;
+    /** Message ID for fetching credit cost (optional) */
+    messageId?: string;
     /** Callback when menu should close */
     onClose?: () => void;
     /** Callback when View action is triggered */
@@ -79,6 +82,7 @@
     showDownload = false,
     showDeactivate = false,
     showDetails = false,
+    messageId = undefined,
     onClose,
     onView,
     onShare,
@@ -87,6 +91,35 @@
     onDeactivate,
     onDetails
   }: Props = $props();
+  
+  // State for embed credits (fetched from usage API)
+  let embedCredits = $state<number | null>(null);
+  
+  // Format credits with dots as thousand separators (European style)
+  function formatCredits(credits: number): string {
+    return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+  
+  // Fetch embed credits when menu is shown (only for authenticated users with messageId)
+  $effect(() => {
+    if (show && messageId && $authStore.isAuthenticated) {
+      const endpoint = `${getApiEndpoint(apiEndpoints.usage.messageCost)}?message_id=${encodeURIComponent(messageId)}`;
+      fetch(endpoint, { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && typeof data.credits === 'number') {
+            embedCredits = data.credits;
+          } else {
+            embedCredits = null;
+          }
+        })
+        .catch(() => {
+          embedCredits = null;
+        });
+    } else {
+      embedCredits = null;
+    }
+  });
 
   let menuElement = $state<HTMLDivElement>();
   let adjustedX = $state(x);
@@ -298,6 +331,14 @@
     style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
     bind:this={menuElement}
   >
+    <!-- Credits display - shown when available (fetched from usage API) -->
+    {#if embedCredits !== null && embedCredits > 0}
+      <div class="embed-credits">
+        <div class="clickable-icon icon_coins"></div>
+        {formatCredits(embedCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
+      </div>
+    {/if}
+    
     <!-- View action - opens fullscreen -->
     {#if showView}
       <button
@@ -420,6 +461,25 @@
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
     border-bottom: 8px solid var(--color-grey-blue);
+  }
+
+  /* Embed credits displayed above the action buttons */
+  .embed-credits {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    margin-bottom: 4px;
+    color: var(--color-grey-50);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid var(--color-grey-30);
+  }
+  
+  .embed-credits .clickable-icon {
+    width: 14px;
+    height: 14px;
+    background: var(--color-grey-50);
   }
 
   .menu-item {
