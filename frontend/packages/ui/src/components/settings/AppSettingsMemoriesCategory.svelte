@@ -75,6 +75,12 @@
             : ''
     );
 
+    /**
+     * Get example entries from category metadata (defined in app.yml).
+     * These are shown to non-authenticated users to illustrate what this category stores.
+     */
+    let examples = $derived(category?.examples ?? []);
+
     // Get schema from category for title/subtitle field detection
     let schema = $derived(category?.schema_definition);
     
@@ -366,10 +372,25 @@
                 {/if}
             </div>
         {:else}
-            <!-- For non-authenticated users, only show the description -->
+            <!-- For non-authenticated users, show the description and example entries -->
             <div class="description-only">
                 {#if categoryDescription}
                     <p class="description-text">{categoryDescription}</p>
+                {/if}
+                {#if examples.length > 0}
+                    <div class="examples-section">
+                        <p class="examples-label">{$text('settings.app_settings_memories.examples_label.text')}</p>
+                        <div class="examples-list">
+                            {#each examples as example}
+                                <div class="example-entry">
+                                    <SettingsItem
+                                        icon={getIconName(app?.icon_image)}
+                                        title={example}
+                                    />
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
                 {/if}
             </div>
         {/if}
@@ -455,6 +476,26 @@
         color: var(--text-secondary, #666666);
         font-size: 1rem;
         line-height: 1.6;
+    }
+    
+    .examples-section {
+        margin-top: 1.5rem;
+    }
+    
+    .examples-label {
+        margin: 0 0 0.75rem 0;
+        color: var(--text-secondary, #666666);
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .examples-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        opacity: 0.6;
     }
 
 </style>

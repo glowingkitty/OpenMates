@@ -11,6 +11,10 @@ settings_and_memories:
     description_translation_key: images.preferred_styles.description.text
     type: list
     stage: development
+    examples:
+      - "Watercolor"
+      - "Minimalist"
+      - "Cyberpunk"
     schema:
       type: object
       properties:

@@ -11,6 +11,10 @@ settings_and_memories:
     description_translation_key: code.preferred_tech.description.text
     type: list
     stage: production
+    examples:
+      - "Python"
+      - "TypeScript"
+      - "Svelte"
     schema:
       type: object
       properties:
@@ -31,6 +35,10 @@ settings_and_memories:
     description_translation_key: code.projects.description.text
     type: list
     stage: production
+    examples:
+      - "Personal website"
+      - "Mobile app"
+      - "API backend"
     schema:
       type: object
       properties:
@@ -57,6 +65,10 @@ settings_and_memories:
     description_translation_key: code.want_to_learn.description.text
     type: list
     stage: production
+    examples:
+      - "Rust"
+      - "Machine Learning"
+      - "Kubernetes"
     schema:
       type: object
       properties:

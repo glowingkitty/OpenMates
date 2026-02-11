@@ -11,6 +11,10 @@ settings_and_memories:
     description_translation_key: web.bookmarks.description.text
     type: list
     stage: development
+    examples:
+      - "github.com"
+      - "developer.mozilla.org"
+      - "news.ycombinator.com"
     schema:
       type: object
       properties:
@@ -25,6 +29,10 @@ settings_and_memories:
     description_translation_key: web.favorite_websites.description.text
     type: list
     stage: development
+    examples:
+      - "reddit.com"
+      - "medium.com"
+      - "stackoverflow.com"
     schema:
       type: object
       properties:
@@ -39,6 +47,10 @@ settings_and_memories:
     description_translation_key: web.read_later.description.text
     type: list
     stage: development
+    examples:
+      - "Interesting AI research paper"
+      - "Design patterns article"
+      - "Tech blog post"
     schema:
       type: object
       properties:

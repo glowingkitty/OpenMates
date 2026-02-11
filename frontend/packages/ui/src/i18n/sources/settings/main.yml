@@ -3353,6 +3353,31 @@ app_embeds.loading:
   cs: Načítání vložených prvků...
   sv: Läser in inbäddningar...
   verified_by_human: []
+app_settings_memories.examples_label:
+  context: Label shown above example entries for non-authenticated users
+  en: "Examples:"
+  de: "Beispiele:"
+  zh: "示例："
+  es: "Ejemplos:"
+  fr: "Exemples :"
+  pt: "Exemplos:"
+  ru: "Примеры:"
+  ja: "例："
+  ko: "예시:"
+  it: "Esempi:"
+  tr: "Örnekler:"
+  vi: "Ví dụ:"
+  id: "Contoh:"
+  pl: "Przykłady:"
+  nl: "Voorbeelden:"
+  ar: "أمثلة:"
+  hi: "उदाहरण:"
+  th: "ตัวอย่าง:"
+  cs: "Příklady:"
+  sv: "Exempel:"
+  verified_by_human:
+    - en
+    - de
 app_settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.

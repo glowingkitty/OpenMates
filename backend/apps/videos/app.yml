@@ -10,6 +10,10 @@ settings_and_memories:
     description_translation_key: videos.to_watch_list.description.text
     type: list
     stage: development
+    examples:
+      - "Tech conference keynote"
+      - "Cooking tutorial"
+      - "Travel vlog"
     schema:
       type: object
       properties:
@@ -31,6 +35,10 @@ settings_and_memories:
     description_translation_key: videos.subscribed_channels.description.text
     type: list
     stage: planning
+    examples:
+      - "Fireship"
+      - "Kurzgesagt"
+      - "Veritasium"
     schema:
       type: object
       properties:

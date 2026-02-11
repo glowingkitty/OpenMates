@@ -10,6 +10,10 @@ settings_and_memories:
     description_translation_key: maps.favorite_places.description.text
     type: list
     stage: development
+    examples:
+      - "Home"
+      - "Office"
+      - "Favorite coffee shop"
     schema:
       type: object
       properties:

@@ -629,6 +629,12 @@ function parseAppYaml(appId, filePath) {
           type: (item.type || "single").trim(),
           // Include schema_definition if present (for dynamic form generation)
           schema_definition: item.schema || item.schema_definition || undefined,
+          // Include examples if present (shown to non-authenticated users to illustrate the category)
+          examples: Array.isArray(item.examples)
+            ? item.examples
+                .map((e) => (e || "").trim())
+                .filter((e) => e.length > 0)
+            : undefined,
         };
 
         // Auto-inject 'added_date' into every settings/memories schema.
@@ -896,9 +902,29 @@ function generateTypeScript(appsMetadata) {
                 return `                ${line}`;
               })
               .join("\n");
-            lines.push(indentedSchema);
+            // Add comma after schema if examples follow, otherwise no comma
+            if (memory.examples && memory.examples.length > 0) {
+              lines.push(indentedSchema + ",");
+            } else {
+              lines.push(indentedSchema);
+            }
           } else {
-            lines.push(`                type: ${JSON.stringify(memory.type)}`);
+            // Add comma after type if examples follow, otherwise no comma
+            if (memory.examples && memory.examples.length > 0) {
+              lines.push(
+                `                type: ${JSON.stringify(memory.type)},`,
+              );
+            } else {
+              lines.push(
+                `                type: ${JSON.stringify(memory.type)}`,
+              );
+            }
+          }
+          // Include examples if present (shown to non-authenticated users)
+          if (memory.examples && memory.examples.length > 0) {
+            lines.push(
+              `                examples: ${JSON.stringify(memory.examples)}`,
+            );
           }
           lines.push(`            },`);
         }

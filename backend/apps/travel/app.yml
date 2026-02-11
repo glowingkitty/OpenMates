@@ -11,6 +11,10 @@ settings_and_memories:
     description_translation_key: travel.trips.description.text
     type: list
     stage: production
+    examples:
+      - "Japan, March 2026"
+      - "Barcelona, Summer 2025"
+      - "Road trip through Scotland"
     schema:
       type: object
       properties:
@@ -38,6 +42,10 @@ settings_and_memories:
     description_translation_key: travel.preferred_airlines.description.text
     type: list
     stage: production
+    examples:
+      - "Lufthansa"
+      - "Swiss"
+      - "KLM"
     schema:
       type: object
       properties:
@@ -53,6 +61,10 @@ settings_and_memories:
     description_translation_key: travel.preferred_transport_methods.description.text
     type: list
     stage: production
+    examples:
+      - "Train"
+      - "Plane"
+      - "Bike"
     schema:
       type: object
       properties:
@@ -69,18 +81,25 @@ settings_and_memories:
           is_title: true
       required:
         - method
-  # Travel interests: Things the user enjoys doing while travelling
-  - id: interests
-    name_translation_key: travel.interests.text
-    description_translation_key: travel.interests.description.text
+  # Preferred Activities: Activities and experiences the user enjoys at travel destinations
+  # (e.g., visiting beaches, exploring museums, hiking, trying local cuisine)
+  # NOT for transport preferences or flight bookings — those are in preferred_transport_methods / preferred_airlines
+  - id: preferred_activities
+    name_translation_key: travel.preferred_activities.text
+    description_translation_key: travel.preferred_activities.description.text
     type: list
     stage: production
+    examples:
+      - "Visiting beaches"
+      - "Exploring museums"
+      - "Hiking"
+      - "Trying local food"
     schema:
       type: object
       properties:
         name:
           type: string
-          description: Travel interest (e.g., hiking, museums, local cuisine)
+          description: Activity or experience enjoyed at travel destinations (e.g., visiting beaches, exploring museums, hiking, trying local food)
           is_title: true
       required:
         - name

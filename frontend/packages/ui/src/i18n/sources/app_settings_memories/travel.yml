@@ -148,53 +148,53 @@ preferred_transport_methods.description:
   verified_by_human:
     - en
     - de
-interests:
-  context: Settings/memory name for interests
-  en: Interests
-  de: Interessen
-  zh: 兴趣
-  es: Intereses
-  fr: Intérêts
-  pt: Interesses
-  ru: Интересы
-  ja: 興味
-  ko: 관심사
-  it: Interessi
-  tr: İlgi alanları
-  vi: Sở thích
-  id: Minat
-  pl: Zainteresowania
-  nl: Belangen
-  ar: الاهتمامات
-  hi: रुचियां
-  th: ความสนใจ
-  cs: Zájmy
-  sv: Intressen
+preferred_activities:
+  context: Settings/memory name for preferred travel activities at destinations
+  en: Preferred Activities
+  de: Bevorzugte Aktivitäten
+  zh: 偏好活动
+  es: Actividades preferidas
+  fr: Activités préférées
+  pt: Atividades preferidas
+  ru: Предпочитаемые виды активности
+  ja: 好みのアクティビティ
+  ko: 선호 활동
+  it: Attività preferite
+  tr: Tercih edilen aktiviteler
+  vi: Hoạt động ưa thích
+  id: Aktivitas pilihan
+  pl: Preferowane aktywności
+  nl: Favoriete activiteiten
+  ar: الأنشطة المفضلة
+  hi: पसंदीदा गतिविधियां
+  th: กิจกรรมที่ชื่นชอบ
+  cs: Oblíbené aktivity
+  sv: Föredragna aktiviteter
   verified_by_human:
     - en
     - de
-interests.description:
-  context: Description for interests settings/memory
-  en: What you enjoy when traveling.
-  de: Was du beim Reisen genießt.
-  zh: 你旅行时喜欢什么。
-  es: Lo que disfrutas al viajar.
-  fr: Ce que vous aimez en voyageant.
-  pt: O que você gosta ao viajar.
-  ru: Что вам нравится во время путешествий.
-  ja: 旅行中に楽しむこと。
-  ko: 여행할 때 즐기는 것.
-  it: Cosa ti piace quando viaggi.
-  tr: Seyahat ederken nelerden hoşlanırsınız.
-  vi: Những gì bạn thích khi du lịch.
-  id: Apa yang Anda nikmati saat bepergian.
-  pl: Co lubisz podczas podróży.
-  nl: Wat je leuk vindt tijdens het reizen.
-  ar: ما تستمتع به عند السفر.
-  hi: यात्रा करते समय आप क्या पसंद करते हैं।
-  th: สิ่งที่คุณชอบเมื่อเดินทาง
-  cs: Co vás baví při cestování.
-  sv: Vad du tycker om när du reser.
+preferred_activities.description:
+  context: Description for preferred travel activities at destinations (beaches, museums, hiking, etc.)
+  en: Activities and experiences you enjoy at travel destinations, like visiting beaches, exploring museums, or hiking.
+  de: Aktivitäten und Erlebnisse, die du an Reisezielen genießt, wie Strände besuchen, Museen erkunden oder Wandern.
+  zh: 你在旅行目的地喜欢的活动和体验，如海滩、博物馆或徒步旅行。
+  es: Actividades y experiencias que disfrutas en los destinos de viaje, como visitar playas, explorar museos o hacer senderismo.
+  fr: Activités et expériences que vous appréciez dans vos destinations de voyage, comme visiter des plages, explorer des musées ou faire de la randonnée.
+  pt: Atividades e experiências que você gosta em destinos de viagem, como visitar praias, explorar museus ou fazer trilhas.
+  ru: Занятия и впечатления, которые вам нравятся в путешествиях, например пляжи, музеи или пешие прогулки.
+  ja: ビーチ、博物館、ハイキングなど、旅行先で楽しむアクティビティや体験。
+  ko: 해변, 박물관, 하이킹 등 여행지에서 즐기는 활동과 경험.
+  it: Attività ed esperienze che ami nelle destinazioni di viaggio, come visitare spiagge, esplorare musei o fare escursioni.
+  tr: Plajları ziyaret etmek, müzeleri keşfetmek veya yürüyüş yapmak gibi seyahat destinasyonlarında sevdiğiniz aktiviteler.
+  vi: Các hoạt động và trải nghiệm bạn thích tại các điểm du lịch, như đi biển, tham quan bảo tàng hoặc đi bộ đường dài.
+  id: Aktivitas dan pengalaman yang Anda nikmati di destinasi wisata, seperti mengunjungi pantai, menjelajahi museum, atau mendaki.
+  pl: Aktywności i doświadczenia, które lubisz w miejscach podróży, jak plaże, muzea czy piesze wędrówki.
+  nl: Activiteiten en ervaringen die je leuk vindt op reisbestemmingen, zoals stranden bezoeken, musea verkennen of wandelen.
+  ar: الأنشطة والتجارب التي تستمتع بها في وجهات السفر، مثل زيارة الشواطئ واستكشاف المتاحف أو المشي لمسافات طويلة.
+  hi: यात्रा स्थलों पर आपकी पसंदीदा गतिविधियां और अनुभव, जैसे समुद्र तट, संग्रहालय या पैदल यात्रा।
+  th: กิจกรรมและประสบการณ์ที่คุณชอบในจุดหมายการเดินทาง เช่น ชายหาด พิพิธภัณฑ์ หรือเดินป่า
+  cs: Aktivity a zážitky, které si užíváte v cestovních destinacích, jako pláže, muzea nebo turistika.
+  sv: Aktiviteter och upplevelser du gillar på resmål, som stränder, museer eller vandring.
   verified_by_human:
     - en
     - de
