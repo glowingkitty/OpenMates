@@ -181,14 +181,18 @@
    * Returns the parsed content or null if not a valid response.
    */
   function parseAppSettingsMemoriesResponse(content: unknown): AppSettingsMemoriesResponseContent | null {
-    if (typeof content !== 'string') return null;
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseResponse] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_response') {
         return parsed as AppSettingsMemoriesResponseContent;
       }
-    } catch {
-      // Not valid JSON, ignore
+      console.warn(`[ChatHistory][parseResponse] parsed JSON but type was '${parsed.type}', not 'app_settings_memories_response'`);
+    } catch (e) {
+      console.warn(`[ChatHistory][parseResponse] JSON.parse failed for content (length=${content.length}):`, content.substring(0, 200), e);
     }
     return null;
   }
@@ -198,7 +202,10 @@
    * Returns the parsed content or null if not a valid request.
    */
   function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
-    if (typeof content !== 'string') return null;
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseRequest] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_request') {
@@ -234,6 +241,20 @@
   let appSettingsMemoriesRequestMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesRequestContent>();
     
+    // Debug: count system messages to understand what we're working with
+    const systemMessages = messages.filter(m => m.role === 'system');
+    if (systemMessages.length > 0) {
+      console.log(`[ChatHistory][RequestMap] Processing ${messages.length} messages (${systemMessages.length} system). System msgs:`,
+        systemMessages.map(m => ({
+          id: m.id,
+          hasOriginal: !!m.original_message,
+          hasContent: !!m.original_message?.content,
+          contentType: typeof m.original_message?.content,
+          contentPreview: typeof m.original_message?.content === 'string' ? m.original_message.content.substring(0, 80) : undefined
+        }))
+      );
+    }
+    
     for (const msg of messages) {
       if (msg.role === 'system') {
         const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
@@ -241,6 +262,10 @@
           map.set(request.user_message_id, request);
         }
       }
+    }
+    
+    if (map.size > 0) {
+      console.log(`[ChatHistory][RequestMap] Found ${map.size} request(s):`, [...map.keys()]);
     }
     
     return map;
@@ -268,6 +293,7 @@
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
+          console.log(`[ChatHistory][ResponseMap] Found response:`, { user_message_id: response.user_message_id, action: response.action, msgId: msg.id });
           // Use user_message_id directly as the map key — same strategy as the request map.
           // Both request and response system messages store the same user_message_id
           // (the client-generated ID of the user message that triggered the request).
@@ -289,6 +315,10 @@
           }
         }
       }
+    }
+    
+    if (map.size > 0) {
+      console.log(`[ChatHistory][ResponseMap] Found ${map.size} response(s):`, [...map.keys()]);
     }
     
     return map;
@@ -394,7 +424,10 @@
     // Find the first unpaired request in this chat's messages
     for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        console.warn(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" has NO matching response. Response map keys:`, [...appSettingsMemoriesResponseMap.keys()]);
         return request;
+      } else {
+        console.log(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" is PAIRED with response.`);
       }
     }
     return null;
