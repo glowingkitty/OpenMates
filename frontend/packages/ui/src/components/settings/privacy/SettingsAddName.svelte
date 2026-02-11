@@ -4,8 +4,8 @@ Add Name - Form for adding a new name entry to hide in chat messages.
 Users provide:
 - Title: A label for this entry (e.g., "My first name")
 - Text to hide: The actual text to detect (e.g., "Max")
-- Replace with: The placeholder to use (e.g., "ME_FIRST_NAME")
 
+The replacement placeholder is auto-generated based on the title.
 All values are client-side encrypted before storage.
 
 Based on Figma design: settings/privacy/add_name (node 4669:43890)
@@ -23,16 +23,27 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 
     let title = $state('');
     let textToHide = $state('');
-    let replaceWith = $state('');
     let isSaving = $state(false);
     let errorMessage = $state('');
+
+    // ─── Auto-generated Placeholder ──────────────────────────────────────────
+
+    /**
+     * Generate a replacement placeholder from the title.
+     * E.g., "My first name" -> "MY_FIRST_NAME"
+     */
+    function generatePlaceholder(titleValue: string): string {
+        if (!titleValue.trim()) return '';
+        return titleValue.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+    }
+
+    let autoPlaceholder = $derived(generatePlaceholder(title));
 
     // ─── Validation ──────────────────────────────────────────────────────────
 
     let isValid = $derived(
         title.trim().length > 0 &&
-        textToHide.trim().length > 0 &&
-        replaceWith.trim().length > 0
+        textToHide.trim().length > 0
     );
 
     // ─── Save Handler ────────────────────────────────────────────────────────
@@ -44,11 +55,11 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         errorMessage = '';
 
         try {
-            personalDataStore.addEntry({
+            await personalDataStore.addEntry({
                 type: 'name',
                 title: title.trim(),
                 textToHide: textToHide.trim(),
-                replaceWith: replaceWith.trim(),
+                replaceWith: autoPlaceholder,
                 enabled: true,
             });
 
@@ -71,7 +82,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 <!-- Title field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.title.text')}
 />
 
@@ -87,7 +98,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 <!-- Text to hide field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.text_to_hide.text')}
 />
 
@@ -97,22 +108,6 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         class="form-input"
         placeholder={$text('settings.privacy.privacy.form.text_to_hide.placeholder_name.text')}
         bind:value={textToHide}
-    />
-</div>
-
-<!-- Replace with field -->
-<SettingsItem
-    type="heading"
-    icon="mate"
-    title={$text('settings.privacy.privacy.form.replace_with.text')}
-/>
-
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.replace_with.placeholder_name.text')}
-        bind:value={replaceWith}
     />
 </div>
 

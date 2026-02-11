@@ -118,10 +118,75 @@ privacy.auto_deletion.invoices.value:
   en: 10 years & older
   de: 10 Jahre & älter
   verified_by_human: []
+privacy.auto_deletion.select_period:
+  context: Heading for the period selection list on the auto-deletion editing page
+  en: Select deletion period
+  de: Löschzeitraum auswählen
+  verified_by_human: []
+privacy.auto_deletion.chats.description:
+  context: Description text on the chats auto-deletion editing page
+  en: Choose how long your chats should be kept before being automatically deleted. Older chats will be permanently removed.
+  de: Wähle, wie lange deine Chats aufbewahrt werden sollen, bevor sie automatisch gelöscht werden. Ältere Chats werden dauerhaft entfernt.
+  verified_by_human: []
+privacy.auto_deletion.files.description:
+  context: Description text on the files auto-deletion editing page
+  en: Choose how long your uploaded files should be kept on OpenMates before being automatically deleted.
+  de: Wähle, wie lange deine hochgeladenen Dateien auf OpenMates aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  verified_by_human: []
+privacy.auto_deletion.usage_data.description:
+  context: Description text on the usage data auto-deletion editing page
+  en: Choose how long your usage data (statistics, activity logs) should be kept before being automatically deleted.
+  de: Wähle, wie lange deine Nutzungsdaten (Statistiken, Aktivitätsprotokolle) aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  verified_by_human: []
+privacy.auto_deletion.period.30_days:
+  context: Auto-deletion period option - 30 days
+  en: 30 days & older
+  de: 30 Tage & älter
+  verified_by_human: []
+privacy.auto_deletion.period.60_days:
+  context: Auto-deletion period option - 60 days
+  en: 60 days & older
+  de: 60 Tage & älter
+  verified_by_human: []
+privacy.auto_deletion.period.90_days:
+  context: Auto-deletion period option - 90 days
+  en: 90 days & older
+  de: 90 Tage & älter
+  verified_by_human: []
+privacy.auto_deletion.period.6_months:
+  context: Auto-deletion period option - 6 months
+  en: 6 months & older
+  de: 6 Monate & älter
+  verified_by_human: []
+privacy.auto_deletion.period.1_year:
+  context: Auto-deletion period option - 1 year
+  en: 1 year & older
+  de: 1 Jahr & älter
+  verified_by_human: []
+privacy.auto_deletion.period.2_years:
+  context: Auto-deletion period option - 2 years
+  en: 2 years & older
+  de: 2 Jahre & älter
+  verified_by_human: []
+privacy.auto_deletion.period.5_years:
+  context: Auto-deletion period option - 5 years
+  en: 5 years & older
+  de: 5 Jahre & älter
+  verified_by_human: []
+privacy.auto_deletion.period.never:
+  context: Auto-deletion period option - never delete
+  en: Never delete
+  de: Nie löschen
+  verified_by_human: []
 privacy.auto_deletion.compliance_note:
   context: Note about legal compliance for auto deletion
   en: The compliance logs and invoices auto deletion time can not be reduced, because of legal compliance.
   de: Die automatische Löschzeit für Compliance-Protokolle und Rechnungen kann aufgrund gesetzlicher Vorschriften nicht reduziert werden.
+  verified_by_human: []
+privacy.contacts:
+  context: Section heading for consolidated contacts section (names, addresses, birthdays) in hide personal data
+  en: Contacts
+  de: Kontakte
   verified_by_human: []
 privacy.names:
   context: Section heading for names in hide personal data
@@ -292,6 +357,26 @@ privacy.form.text_to_hide.placeholder_custom:
   context: Placeholder for custom text to hide input
   en: "example: 'Acme Corp'"
   de: "Beispiel: 'Acme GmbH'"
+  verified_by_human: []
+privacy.form.first_line:
+  context: Form field label for the first address line to hide
+  en: First line to hide
+  de: Erste Zeile zum Verbergen
+  verified_by_human: []
+privacy.form.first_line.placeholder:
+  context: Placeholder for the first address line input
+  en: "example: 'Friedrichstr. 19'"
+  de: "Beispiel: 'Friedrichstr. 19'"
+  verified_by_human: []
+privacy.form.second_line:
+  context: Form field label for the second address line to hide
+  en: Second line to hide
+  de: Zweite Zeile zum Verbergen
+  verified_by_human: []
+privacy.form.second_line.placeholder:
+  context: Placeholder for the second address line input
+  en: "example: '10247 Berlin'"
+  de: "Beispiel: '10247 Berlin'"
   verified_by_human: []
 privacy.form.replace_with:
   context: Form field label for the replacement placeholder

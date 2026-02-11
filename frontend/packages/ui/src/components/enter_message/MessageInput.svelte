@@ -90,8 +90,11 @@
     import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
     
     // PII Detection
-    import { detectPII, type PIIMatch } from './services/piiDetectionService';
+    import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
+    // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
+    import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
+    import { get } from 'svelte/store';
 
     const dispatch = createEventDispatcher();
 
@@ -1490,8 +1493,51 @@
             return;
         }
         
-        // Detect PII, excluding any matches the user has clicked to keep
-        const matches = detectPII(text, piiExclusions);
+        // Read current privacy settings from the personalDataStore
+        const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+        
+        // If master toggle is off, skip all PII detection
+        if (!piiSettings.masterEnabled) {
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Build the set of disabled categories (categories where the toggle is OFF)
+        const disabledCategories = new Set<string>();
+        for (const [category, enabled] of Object.entries(piiSettings.categories)) {
+            if (!enabled) disabledCategories.add(category);
+        }
+        
+        // Get user-defined personal data entries that are enabled
+        const enabledEntries: PersonalDataEntry[] = get(personalDataStore.enabledEntries);
+        const personalDataForDetection: PersonalDataForDetection[] = enabledEntries.map(
+            (entry) => {
+                const result: PersonalDataForDetection = {
+                    id: entry.id,
+                    textToHide: entry.textToHide,
+                    replaceWith: entry.replaceWith,
+                };
+                // For address entries, include individual address lines as additional search texts
+                if (entry.type === 'address' && entry.addressLines) {
+                    const additionalTexts: string[] = [];
+                    if (entry.addressLines.street) additionalTexts.push(entry.addressLines.street);
+                    if (entry.addressLines.city) additionalTexts.push(entry.addressLines.city);
+                    result.additionalTexts = additionalTexts;
+                }
+                return result;
+            },
+        );
+        
+        // Build detection options with category filtering and personal data entries
+        const detectionOptions: PIIDetectionOptions = {
+            excludedIds: piiExclusions,
+            disabledCategories,
+            personalDataEntries: personalDataForDetection,
+        };
+        
+        // Detect PII with full store-aware options
+        const matches = detectPII(text, detectionOptions);
         detectedPII = matches;
         
         if (matches.length > 0) {

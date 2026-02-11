@@ -4,8 +4,8 @@ Add Birthday - Form for adding a birthday entry to hide in chat messages.
 Users provide:
 - Title: A label for this entry (e.g., "Me", "My partner")
 - Date: The birthday date to detect (e.g., "15.03.1990")
-- Replace with: The placeholder to use (e.g., "MY_BIRTHDAY")
 
+The replacement placeholder is auto-generated based on the title.
 All values are client-side encrypted before storage.
 -->
 
@@ -21,16 +21,28 @@ All values are client-side encrypted before storage.
 
     let title = $state('');
     let dateValue = $state('');
-    let replaceWith = $state('');
     let isSaving = $state(false);
     let errorMessage = $state('');
+
+    // ─── Auto-generated Placeholder ──────────────────────────────────────────
+
+    /**
+     * Generate a replacement placeholder from the title.
+     * E.g., "Me" -> "ME_BIRTHDAY"
+     */
+    function generatePlaceholder(titleValue: string): string {
+        if (!titleValue.trim()) return '';
+        const base = titleValue.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+        return `${base}_BIRTHDAY`;
+    }
+
+    let autoPlaceholder = $derived(generatePlaceholder(title));
 
     // ─── Validation ──────────────────────────────────────────────────────────
 
     let isValid = $derived(
         title.trim().length > 0 &&
-        dateValue.trim().length > 0 &&
-        replaceWith.trim().length > 0
+        dateValue.trim().length > 0
     );
 
     // ─── Save Handler ────────────────────────────────────────────────────────
@@ -42,11 +54,11 @@ All values are client-side encrypted before storage.
         errorMessage = '';
 
         try {
-            personalDataStore.addEntry({
+            await personalDataStore.addEntry({
                 type: 'birthday',
                 title: title.trim(),
                 textToHide: dateValue.trim(),
-                replaceWith: replaceWith.trim(),
+                replaceWith: autoPlaceholder,
                 enabled: true,
             });
 
@@ -69,7 +81,7 @@ All values are client-side encrypted before storage.
 <!-- Title field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.title.text')}
 />
 
@@ -85,7 +97,7 @@ All values are client-side encrypted before storage.
 <!-- Date field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.date.text')}
 />
 
@@ -95,22 +107,6 @@ All values are client-side encrypted before storage.
         class="form-input"
         placeholder={$text('settings.privacy.privacy.form.date.placeholder.text')}
         bind:value={dateValue}
-    />
-</div>
-
-<!-- Replace with field -->
-<SettingsItem
-    type="heading"
-    icon="mate"
-    title={$text('settings.privacy.privacy.form.replace_with.text')}
-/>
-
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.replace_with.placeholder_birthday.text')}
-        bind:value={replaceWith}
     />
 </div>
 

@@ -22,7 +22,14 @@ import {
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
   type PIIMappingForStorage,
+  type PIIDetectionOptions,
+  type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
+import {
+  personalDataStore,
+  type PersonalDataEntry,
+  type PIIDetectionSettings,
+} from "../../../stores/personalDataStore"; // Privacy settings store
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -316,29 +323,82 @@ export async function handleSend(
   // are not sent to the server in plain text.
   // Users can click on highlighted PII in the editor to exclude specific matches.
   // The PII mappings are stored encrypted with the message for later restoration.
+  //
+  // Respects personalDataStore settings:
+  // - If masterEnabled is false, skip ALL PII detection
+  // - Disabled categories are skipped (user can toggle individual PII types)
+  // - User-defined personal data entries (names, addresses, etc.) are also detected
   let piiMappingsForStorage: PIIMappingForStorage[] = [];
   try {
-    const piiMatches = detectPII(markdown, activePIIExclusions);
-    if (piiMatches.length > 0) {
-      console.debug(
-        "[handleSend] 🔒 Detected PII to anonymize:",
-        piiMatches.map((m) => ({
-          type: m.type,
-          placeholder: m.placeholder,
-          // Don't log the actual match value for security
-          matchLength: m.match.length,
-        })),
+    // Read current privacy settings from the store
+    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+
+    // Only run PII detection if the master toggle is enabled
+    if (piiSettings.masterEnabled) {
+      // Build the set of disabled categories (categories where the toggle is OFF)
+      const disabledCategories = new Set<string>();
+      for (const [category, enabled] of Object.entries(
+        piiSettings.categories,
+      )) {
+        if (!enabled) disabledCategories.add(category);
+      }
+
+      // Get user-defined personal data entries that are enabled
+      const enabledEntries: PersonalDataEntry[] = get(
+        personalDataStore.enabledEntries,
       );
+      const personalDataForDetection: PersonalDataForDetection[] =
+        enabledEntries.map((entry) => {
+          const result: PersonalDataForDetection = {
+            id: entry.id,
+            textToHide: entry.textToHide,
+            replaceWith: entry.replaceWith,
+          };
+          // For address entries, include individual address lines as additional search texts
+          if (entry.type === "address" && entry.addressLines) {
+            const additionalTexts: string[] = [];
+            if (entry.addressLines.street)
+              additionalTexts.push(entry.addressLines.street);
+            if (entry.addressLines.city)
+              additionalTexts.push(entry.addressLines.city);
+            result.additionalTexts = additionalTexts;
+          }
+          return result;
+        });
 
-      // Create PII mappings for storage - these will be encrypted with the message
-      // and used to restore original values when rendering messages
-      piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+      // Build detection options with category filtering and personal data entries
+      const detectionOptions: PIIDetectionOptions = {
+        excludedIds: activePIIExclusions,
+        disabledCategories,
+        personalDataEntries: personalDataForDetection,
+      };
 
-      markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+      const piiMatches = detectPII(markdown, detectionOptions);
+      if (piiMatches.length > 0) {
+        console.debug(
+          "[handleSend] Detected PII to anonymize:",
+          piiMatches.map((m) => ({
+            type: m.type,
+            placeholder: m.placeholder,
+            // Don't log the actual match value for security
+            matchLength: m.match.length,
+          })),
+        );
+
+        // Create PII mappings for storage - these will be encrypted with the message
+        // and used to restore original values when rendering messages
+        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+
+        markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+        console.debug(
+          "[handleSend] PII anonymization complete, replaced",
+          piiMatches.length,
+          "sensitive items. Mappings will be stored with message.",
+        );
+      }
+    } else {
       console.debug(
-        "[handleSend] 🔒 PII anonymization complete, replaced",
-        piiMatches.length,
-        "sensitive items. Mappings will be stored with message.",
+        "[handleSend] PII detection disabled by user (masterEnabled=false)",
       );
     }
   } catch (error) {

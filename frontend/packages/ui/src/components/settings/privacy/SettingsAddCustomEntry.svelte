@@ -4,8 +4,8 @@ Add Custom Entry - Form for adding a custom text entry to hide in chat messages.
 Users provide:
 - Title: A label for this entry (e.g., "My company name")
 - Text to hide: The actual text to detect (e.g., "Acme Corp")
-- Replace with: The placeholder to use (e.g., "MY_COMPANY")
 
+The replacement placeholder is auto-generated based on the title.
 All values are client-side encrypted before storage.
 -->
 
@@ -21,16 +21,27 @@ All values are client-side encrypted before storage.
 
     let title = $state('');
     let textToHide = $state('');
-    let replaceWith = $state('');
     let isSaving = $state(false);
     let errorMessage = $state('');
+
+    // ─── Auto-generated Placeholder ──────────────────────────────────────────
+
+    /**
+     * Generate a replacement placeholder from the title.
+     * E.g., "My company name" -> "MY_COMPANY_NAME"
+     */
+    function generatePlaceholder(titleValue: string): string {
+        if (!titleValue.trim()) return '';
+        return titleValue.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+    }
+
+    let autoPlaceholder = $derived(generatePlaceholder(title));
 
     // ─── Validation ──────────────────────────────────────────────────────────
 
     let isValid = $derived(
         title.trim().length > 0 &&
-        textToHide.trim().length > 0 &&
-        replaceWith.trim().length > 0
+        textToHide.trim().length > 0
     );
 
     // ─── Save Handler ────────────────────────────────────────────────────────
@@ -42,11 +53,11 @@ All values are client-side encrypted before storage.
         errorMessage = '';
 
         try {
-            personalDataStore.addEntry({
+            await personalDataStore.addEntry({
                 type: 'custom',
                 title: title.trim(),
                 textToHide: textToHide.trim(),
-                replaceWith: replaceWith.trim(),
+                replaceWith: autoPlaceholder,
                 enabled: true,
             });
 
@@ -69,7 +80,7 @@ All values are client-side encrypted before storage.
 <!-- Title field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.title.text')}
 />
 
@@ -85,7 +96,7 @@ All values are client-side encrypted before storage.
 <!-- Text to hide field -->
 <SettingsItem
     type="heading"
-    icon="mate"
+    icon="text"
     title={$text('settings.privacy.privacy.form.text_to_hide.text')}
 />
 
@@ -98,21 +109,13 @@ All values are client-side encrypted before storage.
     />
 </div>
 
-<!-- Replace with field -->
-<SettingsItem
-    type="heading"
-    icon="mate"
-    title={$text('settings.privacy.privacy.form.replace_with.text')}
-/>
-
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.replace_with.placeholder_custom.text')}
-        bind:value={replaceWith}
-    />
-</div>
+<!-- Auto-generated placeholder preview -->
+{#if autoPlaceholder}
+    <div class="placeholder-preview">
+        <span class="placeholder-label">{$text('settings.privacy.privacy.form.replace_with.text')}</span>
+        <span class="placeholder-value">[{autoPlaceholder}]</span>
+    </div>
+{/if}
 
 <!-- Error message -->
 {#if errorMessage}
@@ -159,6 +162,26 @@ All values are client-side encrypted before storage.
 
     .form-input:focus {
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .placeholder-preview {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px 16px;
+        font-size: 14px;
+    }
+
+    .placeholder-label {
+        color: var(--color-grey-60);
+    }
+
+    .placeholder-value {
+        color: var(--color-grey-80);
+        font-family: monospace;
+        background-color: var(--color-grey-15, #f0f0f0);
+        padding: 2px 8px;
+        border-radius: 4px;
     }
 
     .error-message {

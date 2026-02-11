@@ -600,79 +600,249 @@ const PII_PATTERNS: PIIPattern[] = [
  */
 const MIN_PII_TEXT_LENGTH = 6;
 
+// ─── PIIType → Category Mapping ─────────────────────────────────────────────
+//
+// Maps each PIIType (used by the regex detection engine) to its corresponding
+// category key in personalDataStore.settings.categories. This allows the
+// detection engine to skip patterns whose category the user has toggled off.
+//
+// Category keys match DEFAULT_PII_CATEGORIES in personalDataStore.ts.
+
+export const PII_TYPE_TO_CATEGORY: Record<PIIType, string> = {
+  EMAIL: "email_addresses",
+  PHONE: "phone_numbers",
+  CREDIT_CARD: "credit_card_numbers",
+  SSN: "social_security_numbers",
+  IBAN: "iban_bank_account",
+  TAX_ID: "tax_id_vat",
+  PASSPORT: "passport_numbers",
+  CRYPTO_WALLET: "crypto_wallets",
+  VEHICLE_PLATE: "vehicle_plate", // No toggle in settings — always enabled if master is on
+  // API keys & secrets → "api_keys" category
+  AWS_ACCESS_KEY: "api_keys",
+  AWS_SECRET_KEY: "api_keys",
+  OPENAI_KEY: "api_keys",
+  ANTHROPIC_KEY: "api_keys",
+  GITHUB_PAT: "api_keys",
+  STRIPE_KEY: "api_keys",
+  GOOGLE_API_KEY: "api_keys",
+  SLACK_TOKEN: "api_keys",
+  TWILIO_KEY: "api_keys",
+  SENDGRID_KEY: "api_keys",
+  AZURE_KEY: "api_keys",
+  HUGGINGFACE_KEY: "api_keys",
+  DATABRICKS_TOKEN: "api_keys",
+  FIREBASE_KEY: "api_keys",
+  // Developer patterns
+  GENERIC_SECRET: "generic_secrets",
+  PRIVATE_KEY: "private_keys",
+  JWT: "jwt_tokens",
+  IPV4: "ip_addresses",
+  IPV6: "ip_addresses",
+  HOME_FOLDER: "home_folder",
+  USER_AT_HOSTNAME: "user_at_hostname",
+  MAC_ADDRESS: "mac_addresses",
+};
+
+/**
+ * Special PIIType used for user-defined personal data entries from the store.
+ * These matches come from substring detection rather than regex patterns.
+ */
+export type PersonalDataPIIType = "PERSONAL_DATA";
+
+/**
+ * A personal data entry for custom PII matching (from personalDataStore).
+ * Passed into detectPII() so the detection engine can find user-defined entries
+ * alongside regex patterns.
+ */
+export interface PersonalDataForDetection {
+  /** Unique entry ID (from personalDataStore) */
+  id: string;
+  /** The text to find in user input (case-insensitive substring match) */
+  textToHide: string;
+  /** The placeholder to replace it with (e.g., "[MY_FIRST_NAME]") */
+  replaceWith: string;
+  /** Optional additional text lines to detect (for address entries) */
+  additionalTexts?: string[];
+}
+
+/**
+ * Options for controlling PII detection behavior based on user privacy settings.
+ */
+export interface PIIDetectionOptions {
+  /** Set of PII match IDs that user has excluded (clicked to restore) */
+  excludedIds?: Set<string>;
+  /** Set of disabled category keys (patterns in these categories will be skipped) */
+  disabledCategories?: Set<string>;
+  /** User-defined personal data entries to detect alongside regex patterns */
+  personalDataEntries?: PersonalDataForDetection[];
+}
+
 /**
  * Detect all PII in the given text
  *
  * @param text The text to scan for PII
- * @param excludedIds Set of match IDs that user has excluded (clicked to restore).
- *   IDs use the stable format "pii-TYPE-startIndex" so Set.has() works directly.
+ * @param excludedIdsOrOptions Either a Set of excluded match IDs (backward-compatible)
+ *   or a PIIDetectionOptions object with full control over detection behavior.
  * @returns Array of PII matches found in the text
  */
 export function detectPII(
   text: string,
-  excludedIds: Set<string> = new Set(),
+  excludedIdsOrOptions: Set<string> | PIIDetectionOptions = new Set(),
 ): PIIMatch[] {
+  // Support both legacy (Set<string>) and new (PIIDetectionOptions) call signatures
+  const options: PIIDetectionOptions =
+    excludedIdsOrOptions instanceof Set
+      ? { excludedIds: excludedIdsOrOptions }
+      : excludedIdsOrOptions;
+
+  const excludedIds = options.excludedIds ?? new Set<string>();
+  const disabledCategories = options.disabledCategories ?? new Set<string>();
+  const personalEntries = options.personalDataEntries ?? [];
   // Early exit for very short text — no PII pattern can match
-  if (!text || text.length < MIN_PII_TEXT_LENGTH) return [];
+  // (personal data entries may be short, so only skip if text itself is empty)
+  if (
+    !text ||
+    (text.length < MIN_PII_TEXT_LENGTH && personalEntries.length === 0)
+  )
+    return [];
 
   const matches: PIIMatch[] = [];
   const coveredRanges: Array<{ start: number; end: number }> = [];
 
   // Track how many of each type we've found (for placeholder numbering)
-  const typeCounts: Record<PIIType, number> = {} as Record<PIIType, number>;
+  const typeCounts: Record<string, number> = {};
 
   const hasExclusions = excludedIds.size > 0;
+  const hasDisabledCategories = disabledCategories.size > 0;
 
-  for (const pattern of PII_PATTERNS) {
-    // Reset regex lastIndex directly instead of creating a new RegExp object.
-    // The patterns are defined with the 'g' flag so resetting lastIndex is sufficient.
-    pattern.regex.lastIndex = 0;
-    let regexMatch;
-
-    while ((regexMatch = pattern.regex.exec(text)) !== null) {
-      const matchText = regexMatch[0];
-      const startIndex = regexMatch.index;
-      const endIndex = startIndex + matchText.length;
-
-      // Skip if this range overlaps with an already detected PII
-      const overlaps = coveredRanges.some(
-        (range) =>
-          (startIndex >= range.start && startIndex < range.end) ||
-          (endIndex > range.start && endIndex <= range.end) ||
-          (startIndex <= range.start && endIndex >= range.end),
-      );
-
-      if (overlaps) continue;
-
-      // Run additional validation if provided
-      if (pattern.validate && !pattern.validate(matchText)) {
-        continue;
+  // ── Phase 1: Regex-based PII pattern detection ──────────────────────────
+  if (text.length >= MIN_PII_TEXT_LENGTH) {
+    for (const pattern of PII_PATTERNS) {
+      // Skip patterns whose category has been disabled by the user
+      if (hasDisabledCategories) {
+        const category = PII_TYPE_TO_CATEGORY[pattern.type];
+        if (category && disabledCategories.has(category)) continue;
       }
 
-      // Generate stable match ID (deterministic: type + position)
-      const matchId = generateMatchId(pattern.type, startIndex);
+      // Reset regex lastIndex directly instead of creating a new RegExp object.
+      // The patterns are defined with the 'g' flag so resetting lastIndex is sufficient.
+      pattern.regex.lastIndex = 0;
+      let regexMatch;
 
-      // Skip if user has excluded this match.
-      // IDs are now stable ("pii-TYPE-startIndex") so a direct Set.has() works — O(1).
-      if (hasExclusions && excludedIds.has(matchId)) continue;
+      while ((regexMatch = pattern.regex.exec(text)) !== null) {
+        const matchText = regexMatch[0];
+        const startIndex = regexMatch.index;
+        const endIndex = startIndex + matchText.length;
 
-      // Increment type count for placeholder numbering
-      typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
+        // Skip if this range overlaps with an already detected PII
+        const overlaps = coveredRanges.some(
+          (range) =>
+            (startIndex >= range.start && startIndex < range.end) ||
+            (endIndex > range.start && endIndex <= range.end) ||
+            (startIndex <= range.start && endIndex >= range.end),
+        );
 
-      matches.push({
-        type: pattern.type,
-        match: matchText,
-        startIndex,
-        endIndex,
-        placeholder: pattern.getPlaceholder(
-          matchText,
-          typeCounts[pattern.type] - 1,
-        ),
-        id: matchId,
-      });
+        if (overlaps) continue;
 
-      // Mark this range as covered
-      coveredRanges.push({ start: startIndex, end: endIndex });
+        // Run additional validation if provided
+        if (pattern.validate && !pattern.validate(matchText)) {
+          continue;
+        }
+
+        // Generate stable match ID (deterministic: type + position)
+        const matchId = generateMatchId(pattern.type, startIndex);
+
+        // Skip if user has excluded this match.
+        // IDs are now stable ("pii-TYPE-startIndex") so a direct Set.has() works — O(1).
+        if (hasExclusions && excludedIds.has(matchId)) continue;
+
+        // Increment type count for placeholder numbering
+        typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
+
+        matches.push({
+          type: pattern.type,
+          match: matchText,
+          startIndex,
+          endIndex,
+          placeholder: pattern.getPlaceholder(
+            matchText,
+            typeCounts[pattern.type] - 1,
+          ),
+          id: matchId,
+        });
+
+        // Mark this range as covered
+        coveredRanges.push({ start: startIndex, end: endIndex });
+      }
+    }
+  }
+
+  // ── Phase 2: User-defined personal data entry detection ─────────────────
+  // Finds occurrences of user-defined text (names, addresses, birthdays, custom)
+  // as case-insensitive substrings. Each match uses the entry's replaceWith placeholder.
+  for (const entry of personalEntries) {
+    // Collect all texts to search for this entry (main + optional additional lines)
+    const textsToSearch: string[] = [];
+    if (entry.textToHide && entry.textToHide.trim().length > 0) {
+      textsToSearch.push(entry.textToHide);
+    }
+    if (entry.additionalTexts) {
+      for (const additional of entry.additionalTexts) {
+        if (additional && additional.trim().length > 0) {
+          textsToSearch.push(additional);
+        }
+      }
+    }
+
+    for (const searchText of textsToSearch) {
+      // Case-insensitive search through the input text
+      const lowerText = text.toLowerCase();
+      const lowerSearch = searchText.toLowerCase();
+      let searchFrom = 0;
+
+      while (searchFrom < lowerText.length) {
+        const idx = lowerText.indexOf(lowerSearch, searchFrom);
+        if (idx === -1) break;
+
+        const startIndex = idx;
+        const endIndex = idx + searchText.length;
+
+        // Skip if this range overlaps with an already detected PII (regex matches take priority)
+        const overlaps = coveredRanges.some(
+          (range) =>
+            (startIndex >= range.start && startIndex < range.end) ||
+            (endIndex > range.start && endIndex <= range.end) ||
+            (startIndex <= range.start && endIndex >= range.end),
+        );
+
+        if (!overlaps) {
+          // Use the actual text from the input (preserving original case)
+          const matchText = text.substring(startIndex, endIndex);
+          const matchId = `pii-PERSONAL_DATA-${entry.id}-${startIndex}`;
+
+          if (!hasExclusions || !excludedIds.has(matchId)) {
+            // Ensure the placeholder is wrapped in brackets
+            const placeholder = entry.replaceWith.startsWith("[")
+              ? entry.replaceWith
+              : `[${entry.replaceWith}]`;
+
+            matches.push({
+              type: "EMAIL" as PIIType, // Use EMAIL as a stand-in type for compatibility
+              match: matchText,
+              startIndex,
+              endIndex,
+              placeholder,
+              id: matchId,
+            });
+
+            coveredRanges.push({ start: startIndex, end: endIndex });
+          }
+        }
+
+        // Move past this occurrence to find the next one
+        searchFrom = idx + searchText.length;
+      }
     }
   }
 
