@@ -5257,13 +5257,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     <div class="message-input-container">
-                        <!-- Show loading message while initial sync is in progress -->
-                        {#if showWelcome && !$phasedSyncState.initialSyncCompleted}
-                            <div class="sync-loading-message" transition:fade={{ duration: 200 }}>
-                                Loading chats...
-                            </div>
-                        {/if}
-                        
                         <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
                         <!-- Only visible when sync is complete and there's a resume chat available -->
                         {#if showWelcome && $phasedSyncState.initialSyncCompleted && $phasedSyncState.resumeChatData}
@@ -5297,9 +5290,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
                         
                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
-                        <!-- Only show after initial sync is complete to avoid database race conditions -->
-                        <!-- Show whenever we're in welcome mode (no current chat) AND sync is complete -->
-                        {#if showWelcome && $phasedSyncState.initialSyncCompleted}
+                        <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
+                        <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
+                        {#if showWelcome}
                             <NewChatSuggestions
                                 messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
@@ -6238,17 +6231,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
-    .sync-loading-message {
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--color-grey-60);
-        padding: 8px 16px;
-        margin-bottom: 12px;
-        background-color: var(--color-grey-15);
-        border-radius: 8px;
-        font-style: italic;
-    }
-
     /* Resume Last Chat section - shown above NewChatSuggestions after login */
     .resume-last-chat-section {
         display: flex;
