@@ -4,6 +4,12 @@ Celery task for sending issue report emails to server owner/admin.
 
 This module handles sending issue reports submitted by users (including non-authenticated users)
 to the server owner/admin email address.
+
+Architecture:
+- The main task (send_issue_report_email) sends the email first, then uploads YAML to S3.
+- If S3 upload fails, a separate retry task (retry_issue_report_s3_upload) is dispatched
+  with exponential backoff. This decouples the user-facing email from the admin-tooling S3 upload.
+- The retry task has its own retry logic (up to 5 attempts with exponential backoff).
 """
 
 import logging
@@ -23,6 +29,9 @@ sensitive_filter = SensitiveDataFilter()
 logger.addFilter(sensitive_filter)
 event_logger = logging.getLogger("app.events")
 event_logger.addFilter(sensitive_filter)
+
+# Maximum number of S3 upload retry attempts
+S3_UPLOAD_MAX_RETRIES = 5
 
 
 @app.task(name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email', base=BaseServiceTask, bind=True)
@@ -45,6 +54,7 @@ def send_issue_report_email(
 
     Args:
         admin_email: The email address of the admin/server owner to notify
+        issue_id: Optional database ID for the issue record
         issue_title: The title of the reported issue
         issue_description: The description of the reported issue
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
@@ -90,6 +100,111 @@ def send_issue_report_email(
             exc_info=True
         )
         return False
+
+
+@app.task(
+    name='app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload',
+    base=BaseServiceTask,
+    bind=True,
+    max_retries=S3_UPLOAD_MAX_RETRIES,
+    default_retry_delay=30,  # Initial delay of 30 seconds
+)
+def retry_issue_report_s3_upload(
+    self: BaseServiceTask,
+    issue_id: str,
+    yaml_content: str,
+) -> bool:
+    """
+    Dedicated retry task for uploading issue report YAML to S3.
+
+    This task is dispatched by the main email task when the initial S3 upload fails.
+    It retries with exponential backoff (30s, 60s, 120s, 240s, 480s) up to 5 times.
+
+    Args:
+        issue_id: The database ID of the issue record to update with the S3 key
+        yaml_content: The YAML content to encrypt and upload
+
+    Returns:
+        bool: True if upload succeeded, False otherwise
+    """
+    attempt = self.request.retries + 1
+    logger.info(
+        f"[S3_RETRY] Attempting S3 upload for issue {issue_id} "
+        f"(attempt {attempt}/{S3_UPLOAD_MAX_RETRIES + 1}, "
+        f"task_id={self.request.id if hasattr(self.request, 'id') else 'unknown'})"
+    )
+    try:
+        result = asyncio.run(
+            _async_upload_issue_yaml_to_s3(self, issue_id, yaml_content)
+        )
+        if result:
+            logger.info(f"[S3_RETRY] Successfully uploaded issue report YAML to S3 for issue {issue_id} on attempt {attempt}")
+        else:
+            logger.error(f"[S3_RETRY] Upload returned False for issue {issue_id} on attempt {attempt}")
+        return result
+    except Exception as e:
+        # Calculate backoff: 30s * 2^retry_number (30s, 60s, 120s, 240s, 480s)
+        backoff = 30 * (2 ** self.request.retries)
+        logger.error(
+            f"[S3_RETRY] Failed S3 upload for issue {issue_id} on attempt {attempt}: {str(e)}. "
+            f"{'Retrying in ' + str(backoff) + 's...' if self.request.retries < S3_UPLOAD_MAX_RETRIES else 'No more retries - giving up.'}",
+            exc_info=True
+        )
+        if self.request.retries < S3_UPLOAD_MAX_RETRIES:
+            raise self.retry(exc=e, countdown=backoff)
+        return False
+
+
+async def _async_upload_issue_yaml_to_s3(
+    task: BaseServiceTask,
+    issue_id: str,
+    yaml_content: str,
+) -> bool:
+    """
+    Async implementation for uploading issue report YAML to S3.
+    Used by both the main task and the retry task.
+    """
+    try:
+        await task.initialize_services()
+
+        import uuid
+        from datetime import datetime, timezone
+
+        # Encrypt the YAML content
+        encrypted_yaml = await task.encryption_service.encrypt_issue_report_data(yaml_content)
+        encrypted_yaml_bytes = encrypted_yaml.encode('utf-8')
+
+        # Generate unique S3 object key
+        timestamp_str = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+        unique_id = uuid.uuid4().hex[:8]
+        s3_object_key = f"issue-reports/{timestamp_str}_{unique_id}.yaml.encrypted"
+
+        # Upload encrypted YAML to S3
+        await task.s3_service.upload_file(
+            bucket_key='issue_logs',
+            file_key=s3_object_key,
+            content=encrypted_yaml_bytes,
+            content_type='application/octet-stream'
+        )
+        logger.info(f"[S3_RETRY] Uploaded encrypted issue report YAML to S3: {s3_object_key}")
+
+        # Encrypt the S3 object key for database storage
+        encrypted_yaml_s3_key = await task.encryption_service.encrypt_issue_report_data(s3_object_key)
+
+        # Update the issue record in database with the S3 key
+        await task.directus_service.update_item(
+            "issues",
+            issue_id,
+            {"encrypted_issue_report_yaml_s3_key": encrypted_yaml_s3_key}
+        )
+        logger.info(f"[S3_RETRY] Updated issue {issue_id} with encrypted YAML S3 key")
+        return True
+
+    finally:
+        try:
+            await task.cleanup_services()
+        except Exception as cleanup_error:
+            logger.warning(f"[S3_RETRY] Error during cleanup: {str(cleanup_error)}", exc_info=True)
 
 
 async def _async_send_issue_report_email(
@@ -202,8 +317,10 @@ async def _async_send_issue_report_email(
 
         logger.info("Created consolidated YAML attachment (as .txt) for issue report with all logs and metadata")
         
-        # Encrypt and upload YAML file to S3 if issue_id is provided
-        encrypted_yaml_s3_key = None
+        # Encrypt and upload YAML file to S3 if issue_id is provided.
+        # If the upload fails, dispatch a dedicated retry task with exponential backoff
+        # so the email can still be sent immediately (user-facing) while S3 upload retries
+        # independently (admin tooling).
         if issue_id:
             try:
                 # Encrypt the YAML content
@@ -237,8 +354,37 @@ async def _async_send_issue_report_email(
                 )
                 logger.info(f"Updated issue {issue_id} with encrypted YAML S3 key")
             except Exception as e:
-                logger.error(f"Failed to upload issue report YAML to S3: {str(e)}", exc_info=True)
-                # Continue - email will still be sent even if S3 upload fails
+                logger.error(
+                    f"Failed to upload issue report YAML to S3 for issue {issue_id}: {str(e)}. "
+                    f"Dispatching retry task with exponential backoff.",
+                    exc_info=True
+                )
+                # Dispatch a dedicated retry task for S3 upload with exponential backoff.
+                # The email will still be sent below — this decouples user-facing email delivery
+                # from the admin-tooling S3 upload.
+                try:
+                    from backend.core.api.app.tasks.celery_config import app as celery_app
+                    celery_app.send_task(
+                        name='app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload',
+                        kwargs={
+                            "issue_id": issue_id,
+                            "yaml_content": yaml_content,
+                        },
+                        queue='email',
+                        countdown=30,  # First retry after 30 seconds
+                    )
+                    logger.info(f"Dispatched S3 upload retry task for issue {issue_id} (first retry in 30s)")
+                except Exception as dispatch_error:
+                    logger.error(
+                        f"CRITICAL: Failed to dispatch S3 retry task for issue {issue_id}: {str(dispatch_error)}. "
+                        f"The YAML report will NOT be available for this issue.",
+                        exc_info=True
+                    )
+        elif not issue_id:
+            logger.warning(
+                "No issue_id provided to email task - skipping S3 upload. "
+                "This means the Directus record creation likely failed in the API route."
+            )
 
         # Process contact email if provided
         contact_email_formatted = contact_email if contact_email else "Not provided"
