@@ -1073,6 +1073,10 @@ class BookingLinkRequest(BaseModel):
         description="Original SerpAPI search parameters needed for booking_token lookup. "
         "Keys: departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class."
     )
+    hashed_chat_id: Optional[str] = Field(
+        None,
+        description="SHA-256 hashed chat ID to link the usage entry to the chat where the booking was initiated."
+    )
 
 
 class BookingLinkResponse(BaseModel):
@@ -1148,6 +1152,10 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                     "external_request": False,
                     "units_processed": 1,
                 }
+                # Link the usage entry to the chat where the booking was initiated
+                # so it appears in the user's per-chat usage breakdown.
+                if request_body.hashed_chat_id:
+                    usage_details["chat_id"] = request_body.hashed_chat_id
                 await charge_credits_via_internal_api(
                     user_id=user_id,
                     user_id_hash=user_id_hash,

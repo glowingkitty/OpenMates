@@ -197,6 +197,18 @@
   // Primary carrier name (for display when provider not yet known)
   let primaryCarrier = $derived(connection.carriers?.[0] || '');
   
+  // Hashed chat ID for linking usage entries to the chat where the embed lives.
+  // Loaded from the embed store on mount so it's available for the booking link request.
+  let hashedChatId = $state<string | undefined>(undefined);
+  
+  $effect(() => {
+    if (embedId) {
+      embedStore.get(`embed:${embedId}`).then(embed => {
+        if (embed) hashedChatId = embed.hashed_chat_id || undefined;
+      });
+    }
+  });
+  
   /**
    * Fetch booking URL on-demand via the REST endpoint.
    * Called when user clicks the "Get booking link" button.
@@ -217,6 +229,7 @@
         body: JSON.stringify({
           booking_token: connection.booking_token,
           booking_context: connection.booking_context || null,
+          hashed_chat_id: hashedChatId || null,
         }),
         credentials: 'include',
       });
