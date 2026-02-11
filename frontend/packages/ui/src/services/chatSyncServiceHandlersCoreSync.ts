@@ -701,7 +701,14 @@ export function handleCacheStatusResponseImpl(
       "[ChatSyncService:CoreSync] Cache primed but flag already set - sync may have already been attempted",
     );
   } else {
-    console.warn("[ChatSyncService:CoreSync] Cache not primed yet, waiting...");
+    // Cache is not primed — the backend has auto-dispatched a cache warming task.
+    // Schedule a retry to poll for completion. The cache_primed push event should also
+    // arrive when warming completes, but polling provides a reliable fallback in case
+    // the push event is missed (e.g., brief WebSocket reconnection window).
+    console.warn(
+      "[ChatSyncService:CoreSync] Cache not primed yet. Backend is re-warming. Scheduling status retry...",
+    );
+    serviceInstance.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
   }
 }
 

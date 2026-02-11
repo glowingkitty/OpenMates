@@ -717,9 +717,15 @@ async def _handle_phase2_sync(
                     client_messages_v = client_versions.get("messages_v", 0)
                     client_title_v = client_versions.get("title_v", 0)
                     
+                    # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
+                    # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
+                    chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
+                    server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
+                    server_title_v = cached_server_versions.title_v
+                    
                     # Check if client is up-to-date
-                    if (client_messages_v >= cached_server_versions.messages_v and 
-                        client_title_v >= cached_server_versions.title_v):
+                    if (client_messages_v >= server_messages_v and 
+                        client_title_v >= server_title_v):
                         # CRITICAL FIX: Even if versions match, send metadata-only update
                         # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
                         # if they're missing locally (e.g., old chats created before these fields existed)
@@ -744,7 +750,7 @@ async def _handle_phase2_sync(
                         else:
                             logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
                                        f"(client: m={client_messages_v}, t={client_title_v}; "
-                                       f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
+                                       f"server: m={server_messages_v}, t={server_title_v})")
                             chats_skipped += 1
                         continue
             
@@ -772,13 +778,13 @@ async def _handle_phase2_sync(
                 client_versions = client_chat_versions.get(chat_id, {})
                 
                 # Get server versions from cache first, fallback to chat metadata if cache is empty
+                # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
                 server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
                 if not server_versions:
-                    # Cache miss - use versions from chat metadata that was just fetched
-                    chat_details = chat_wrapper.get("chat_details", {})
-                    server_messages_v = chat_details.get("messages_v", 0)
+                    server_messages_v = chat_details_messages_v
                 else:
-                    server_messages_v = server_versions.messages_v
+                    server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
                 
                 if client_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
@@ -791,17 +797,33 @@ async def _handle_phase2_sync(
                         try:
                             server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
                             chat_wrapper["server_message_count"] = server_message_count
-                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                       f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                            
+                            # CRITICAL FIX: Version mismatch detection (same as Phase 1)
+                            # If Directus has more messages than messages_v indicates,
+                            # the version is stale — force full message fetch
+                            if server_message_count is not None and server_message_count > server_messages_v:
+                                logger.warning(
+                                    f"[PHASE2_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
+                                    f"messages_v={server_messages_v}, actual_count={server_message_count}. "
+                                    f"Forcing full message fetch to ensure consistency."
+                                )
+                                # Don't skip - fall through to message fetch below
+                            else:
+                                logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                           f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                                # Ensure messages is None to indicate client should use local data
+                                if "messages" not in chat_wrapper:
+                                    chat_wrapper["messages"] = None
+                                continue
                         except Exception as count_err:
                             logger.warning(f"Phase 2: Failed to get message count for {chat_id}: {count_err}")
                             # Continue without count - client will have to trust version
                             logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
                                        f"(client: m={client_messages_v}, server: m={server_messages_v})")
-                        # Ensure messages is None to indicate client should use local data
-                        if "messages" not in chat_wrapper:
-                            chat_wrapper["messages"] = None
-                        continue
+                            # Ensure messages is None to indicate client should use local data
+                            if "messages" not in chat_wrapper:
+                                chat_wrapper["messages"] = None
+                            continue
                 
                 # Messages are needed - try sync cache first
                 try:
@@ -1097,9 +1119,15 @@ async def _handle_phase3_sync(
                         client_messages_v = client_versions.get("messages_v", 0)
                         client_title_v = client_versions.get("title_v", 0)
                         
+                        # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
+                        # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
+                        chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
+                        server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
+                        server_title_v = cached_server_versions.title_v
+                        
                         # Check if client is up-to-date
-                        if (client_messages_v >= cached_server_versions.messages_v and 
-                            client_title_v >= cached_server_versions.title_v):
+                        if (client_messages_v >= server_messages_v and 
+                            client_title_v >= server_title_v):
                             # CRITICAL FIX: Even if versions match, send metadata-only update
                             # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
                             # if they're missing locally (e.g., old chats created before these fields existed)
@@ -1124,7 +1152,7 @@ async def _handle_phase3_sync(
                             else:
                                 logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
                                            f"(client: m={client_messages_v}, t={client_title_v}; "
-                                           f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
+                                           f"server: m={server_messages_v}, t={server_title_v})")
                                 chats_skipped += 1
                             continue
                 
@@ -1152,13 +1180,13 @@ async def _handle_phase3_sync(
                     client_versions = client_chat_versions.get(chat_id, {})
                     
                     # Get server versions from cache first, fallback to chat metadata if cache is empty
+                    # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
                     server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                    chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
                     if not server_versions:
-                        # Cache miss - use versions from chat metadata that was just fetched
-                        chat_details = chat_wrapper.get("chat_details", {})
-                        server_messages_v = chat_details.get("messages_v", 0)
+                        server_messages_v = chat_details_messages_v
                     else:
-                        server_messages_v = server_versions.messages_v
+                        server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
                     
                     if client_versions:
                         client_messages_v = client_versions.get("messages_v", 0)
@@ -1171,17 +1199,33 @@ async def _handle_phase3_sync(
                             try:
                                 server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
                                 chat_wrapper["server_message_count"] = server_message_count
-                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                           f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                                
+                                # CRITICAL FIX: Version mismatch detection (same as Phase 1)
+                                # If Directus has more messages than messages_v indicates,
+                                # the version is stale — force full message fetch
+                                if server_message_count is not None and server_message_count > server_messages_v:
+                                    logger.warning(
+                                        f"[PHASE3_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
+                                        f"messages_v={server_messages_v}, actual_count={server_message_count}. "
+                                        f"Forcing full message fetch to ensure consistency."
+                                    )
+                                    # Don't skip - fall through to message fetch below
+                                else:
+                                    logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                               f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
+                                    # Ensure messages is None to indicate client should use local data
+                                    if "messages" not in chat_wrapper:
+                                        chat_wrapper["messages"] = None
+                                    continue
                             except Exception as count_err:
                                 logger.warning(f"Phase 3: Failed to get message count for {chat_id}: {count_err}")
                                 # Continue without count - client will have to trust version
                                 logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
                                            f"(client: m={client_messages_v}, server: m={server_messages_v})")
-                            # Ensure messages is None to indicate client should use local data
-                            if "messages" not in chat_wrapper:
-                                chat_wrapper["messages"] = None
-                            continue
+                                # Ensure messages is None to indicate client should use local data
+                                if "messages" not in chat_wrapper:
+                                    chat_wrapper["messages"] = None
+                                continue
                     
                     # Messages are needed - try sync cache first
                     try:
@@ -1453,6 +1497,10 @@ async def handle_sync_status_request(
     """
     Handles sync status requests from the client.
     Returns the current sync status and progress.
+    
+    IMPORTANT: If cache is not primed (e.g. TTL expired after device was offline for hours),
+    this handler auto-dispatches a cache warming task so the client doesn't get stuck waiting
+    forever. The client will receive a cache_primed push event when warming completes.
     """
     try:
         logger.info(f"Handling sync status request for user {user_id}")
@@ -1465,6 +1513,16 @@ async def handle_sync_status_request(
         chat_count = len(chat_ids) if chat_ids else 0
         
         logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
+        
+        # AUTO-REWARM: If cache is not primed (e.g. primed_flag TTL expired after device was
+        # offline for >6 hours), dispatch a new cache warming task. Without this, the client
+        # would be stuck forever at "Loading chats..." because:
+        # 1. The client only calls /lookup during initial login (not on WebSocket reconnect)
+        # 2. /lookup is what normally triggers cache warming
+        # 3. The cache_primed push event from the original warming task is long gone
+        # This ensures that reconnecting devices always get their cache re-warmed.
+        if not cache_primed:
+            await _trigger_cache_rewarming_if_needed(cache_service, user_id)
         
         # Send sync status to client
         await manager.send_personal_message(
@@ -1492,3 +1550,57 @@ async def handle_sync_status_request(
             )
         except Exception as send_err:
             logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+
+
+async def _trigger_cache_rewarming_if_needed(
+    cache_service: CacheService,
+    user_id: str
+) -> None:
+    """
+    Dispatches a cache warming Celery task if one isn't already in progress.
+    Uses a deduplication flag (5 min TTL) to prevent flooding.
+    
+    This is the same pattern used by /lookup and login endpoints, but triggered
+    from the WebSocket sync status handler for reconnecting devices whose
+    cache primed flag has expired.
+    """
+    try:
+        warming_flag = f"cache_warming_in_progress:{user_id}"
+        is_warming = await cache_service.get(warming_flag)
+        
+        if is_warming:
+            logger.info(
+                f"[SYNC_REWARM] Cache warming already in progress for user {user_id[:8]}... "
+                f"(flag exists). Skipping duplicate dispatch."
+            )
+            return
+        
+        # Set deduplication flag (5 min TTL, same as /lookup)
+        await cache_service.set(warming_flag, "warming", ttl=300)
+        
+        # Dispatch the Celery task
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        
+        if celery_app.conf.task_always_eager is False:
+            logger.info(
+                f"[SYNC_REWARM] Cache not primed for user {user_id[:8]}... "
+                f"Dispatching warm_user_cache task (triggered by sync status request on reconnect)."
+            )
+            celery_app.send_task(
+                name='app.tasks.user_cache_tasks.warm_user_cache',
+                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': None},
+                queue='user_init'
+            )
+        else:
+            # Eager mode (tests) - set primed flag directly
+            logger.info(
+                f"[SYNC_REWARM] Celery is in eager mode. Setting primed flag directly for user {user_id[:8]}..."
+            )
+            await cache_service.set_user_cache_primed_flag(user_id)
+            
+    except Exception as e:
+        # Non-blocking: don't let re-warming failure prevent the sync status response
+        logger.error(
+            f"[SYNC_REWARM] Failed to dispatch cache re-warming for user {user_id[:8]}...: {e}",
+            exc_info=True
+        )

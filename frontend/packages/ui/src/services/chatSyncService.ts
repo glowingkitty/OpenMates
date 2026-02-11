@@ -71,6 +71,14 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
   private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
+  // CACHE STATUS RETRY: When server responds with primed=false, the backend triggers
+  // cache re-warming. We poll periodically until primed=true or max retries reached.
+  // This handles reconnection after long disconnects where the primed_flag TTL expired.
+  private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
+  private cacheStatusRetryCount = 0;
+  private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
+  private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
+
   // DATA INCONSISTENCY RE-SYNC: Batches chat IDs from chatDataInconsistency events
   // and triggers a single requestChatContentBatch after a short debounce.
   // This ensures immediate re-sync instead of waiting for the next full sync cycle.
@@ -167,6 +175,9 @@ export class ChatSynchronizationService extends EventTarget {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
         }
+
+        // Clear cache status retry polling to prevent stale retries after reconnect
+        this.clearCacheStatusRetry();
 
         // CRITICAL: Reset phased sync state on disconnect so that when the device
         // reconnects (especially after a long sleep/offline period), a fresh sync
@@ -591,6 +602,10 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public set cachePrimed_FOR_HANDLERS_ONLY(value: boolean) {
     this.cachePrimed = value;
+    // When cache becomes primed, clear any pending retry polling
+    if (value) {
+      this.clearCacheStatusRetry();
+    }
   }
   public get initialSyncAttempted_FOR_HANDLERS_ONLY(): boolean {
     return this.initialSyncAttempted;
@@ -606,6 +621,64 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public get webSocketConnected_FOR_SENDERS_ONLY(): boolean {
     return this.webSocketConnected;
+  }
+
+  // --- Cache Status Retry ---
+
+  /**
+   * Schedule a retry of the cache status request.
+   * Called by the cache_status_response handler when primed=false.
+   * The backend triggers cache re-warming when it detects primed=false, so we just
+   * need to poll until the warming completes and primed becomes true.
+   */
+  public scheduleCacheStatusRetry_FOR_HANDLERS_ONLY(): void {
+    // Don't retry if already primed or max retries reached
+    if (this.cachePrimed) {
+      this.clearCacheStatusRetry();
+      return;
+    }
+
+    if (this.cacheStatusRetryCount >= this.CACHE_STATUS_MAX_RETRIES) {
+      console.warn(
+        `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}). ` +
+          `Cache never became primed. Dispatching synthetic sync complete to unblock UI.`,
+      );
+      this.clearCacheStatusRetry();
+      // Unblock the UI rather than leaving it stuck on "Loading chats..." forever.
+      // The user can manually refresh if needed.
+      this.dispatchSyncTimeoutComplete("timeout");
+      return;
+    }
+
+    // Don't schedule if one is already pending
+    if (this.cacheStatusRetryTimer) return;
+
+    this.cacheStatusRetryCount++;
+    console.info(
+      `[ChatSyncService] Scheduling cache status retry ${this.cacheStatusRetryCount}/${this.CACHE_STATUS_MAX_RETRIES} ` +
+        `in ${this.CACHE_STATUS_RETRY_INTERVAL_MS}ms`,
+    );
+
+    this.cacheStatusRetryTimer = setTimeout(() => {
+      this.cacheStatusRetryTimer = null;
+      if (this.cachePrimed || !this.webSocketConnected) {
+        // Already primed or disconnected — no need to retry
+        return;
+      }
+      this.requestCacheStatus();
+    }, this.CACHE_STATUS_RETRY_INTERVAL_MS);
+  }
+
+  /**
+   * Clear any pending cache status retry timer and reset the counter.
+   * Called on disconnect, on successful priming, and when max retries reached.
+   */
+  private clearCacheStatusRetry(): void {
+    if (this.cacheStatusRetryTimer) {
+      clearTimeout(this.cacheStatusRetryTimer);
+      this.cacheStatusRetryTimer = null;
+    }
+    this.cacheStatusRetryCount = 0;
   }
 
   // --- Syncing Message IDs Tracking ---
