@@ -210,6 +210,32 @@
   });
   
   /**
+   * Build a Google Flights search URL from the connection data.
+   * Used as a fallback when the direct booking link is unavailable.
+   *
+   * Format: https://www.google.com/travel/flights?q=Flights+from+BER+to+BKK+on+2026-03-05
+   */
+  function buildGoogleFlightsUrl(): string {
+    const origin = connection.booking_context?.departure_id || connection.origin || '';
+    const dest = connection.booking_context?.arrival_id || connection.destination || '';
+    const date = connection.booking_context?.outbound_date || connection.departure?.split('T')[0] || '';
+    
+    const parts = ['Flights'];
+    if (origin) parts.push(`from ${origin}`);
+    if (dest) parts.push(`to ${dest}`);
+    if (date) parts.push(`on ${date}`);
+    
+    return `https://www.google.com/travel/flights?q=${encodeURIComponent(parts.join(' '))}`;
+  }
+  
+  /**
+   * Open Google Flights in a new tab as a fallback.
+   */
+  function handleOpenGoogleFlights() {
+    window.open(buildGoogleFlightsUrl(), '_blank', 'noopener,noreferrer');
+  }
+  
+  /**
    * Fetch booking URL on-demand via the REST endpoint.
    * Called when user clicks the "Get booking link" button.
    */
@@ -236,6 +262,9 @@
       if (!response.ok) {
         console.error(`Booking link request failed: ${response.status}`);
         bookingState = 'error';
+        notificationStore.error(
+          $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+        );
         return;
       }
       
@@ -249,13 +278,19 @@
         // Persist the resolved booking URL into the embed so it survives close/reopen
         persistBookingUrlInEmbed(data.booking_url, data.booking_provider || primaryCarrier);
       } else {
-        // No booking link found
+        // No booking link found — show Google Flights fallback
         console.log('No booking link available from SerpAPI');
         bookingState = 'error';
+        notificationStore.error(
+          $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+        );
       }
     } catch (err) {
       console.error('Booking link lookup failed:', err);
       bookingState = 'error';
+      notificationStore.error(
+        $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+      );
     }
   }
   
@@ -967,6 +1002,11 @@
           <div class="cta-button cta-loading">
             <span class="cta-spinner"></span>
           </div>
+        {:else if bookingState === 'error'}
+          <!-- State: error — fallback to Google Flights search -->
+          <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
+            {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
+          </button>
         {:else if connection.booking_token && bookingState === 'idle'}
           <!-- State: idle — regular primary button to fetch the booking link -->
           <button class="cta-button" onclick={handleLoadBookingLink}>
@@ -1239,6 +1279,19 @@
     background-color: var(--color-button-primary-pressed);
     scale: 0.98;
     filter: none;
+  }
+  
+  /* Error/fallback state — secondary style to indicate it's a fallback action */
+  .cta-fallback {
+    background-color: var(--color-grey-70, #555);
+  }
+  
+  .cta-fallback:hover {
+    background-color: var(--color-grey-80, #444);
+  }
+  
+  .cta-fallback:active {
+    background-color: var(--color-grey-90, #333);
   }
   
   /* Loading state — same dimensions, just shows a spinner */

@@ -2064,3 +2064,10 @@ loading_booking:
   verified_by_human:
     - en
     - de
+booking_link_failed:
+  context: Error notification shown when booking link lookup fails
+  en: Could not load booking link. Try searching on Google Flights instead.
+  de: Buchungslink konnte nicht geladen werden. Versuche stattdessen eine Suche auf Google Flights.
+  verified_by_human:
+    - en
+    - de

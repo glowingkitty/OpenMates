@@ -472,6 +472,12 @@ async def _charge_skill_credits(
             except Exception as e:
                 logger.warning(f"{log_prefix} Error fetching provider pricing for '{provider_id}': {e}. Falling back to minimum charge.")
         
+        # Skip charging if the skill returned no results (e.g. API key failure,
+        # provider outage). Users should not be billed for failed requests.
+        if not results:
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' returned 0 results, skipping billing.")
+            return
+        
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
         units_processed = None

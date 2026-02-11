@@ -13,7 +13,10 @@ The skill follows the standard BaseSkill request/response pattern with the
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 from pydantic import BaseModel, Field
 
@@ -62,16 +65,22 @@ class SearchConnectionsResponse(BaseModel):
 # Provider registry
 # ---------------------------------------------------------------------------
 
-def _create_providers() -> List[BaseTransportProvider]:
+def _create_providers(
+    secrets_manager: Optional["SecretsManager"] = None,
+) -> List[BaseTransportProvider]:
     """
     Instantiate all available transport providers.
 
     SerpApiProvider handles flights via Google Flights (comprehensive coverage,
     real-time pricing, booking links). TransitousProvider is a stub for future
     train/bus support.
+
+    Args:
+        secrets_manager: Optional SecretsManager for providers that need
+            to load API keys from Vault.
     """
     return [
-        SerpApiProvider(),
+        SerpApiProvider(secrets_manager=secrets_manager),
         TransitousProvider(),
     ]
 
@@ -156,8 +165,8 @@ class SearchConnectionsSkill(BaseSkill):
         if not validated_requests:
             return SearchConnectionsResponse(results=[], error="No valid requests to process")
 
-        # 3. Create providers (SerpApiProvider loads its own API key from env)
-        all_providers = _create_providers()
+        # 3. Create providers (SerpApiProvider loads its API key from Vault)
+        all_providers = _create_providers(secrets_manager=secrets_manager)
 
         # 4. Process requests in parallel
         all_results = await self._process_requests_in_parallel(
