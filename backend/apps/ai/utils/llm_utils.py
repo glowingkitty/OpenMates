@@ -744,7 +744,14 @@ async def call_preprocessing_llm(
         if dynamic_context:
             for key, value in dynamic_context.items():
                 placeholder = f"{{{key}}}"
-                value_str = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+                if isinstance(value, list):
+                    # Use newline separation for skill/focus lists that include descriptive hints,
+                    # comma separation for simple identifier-only lists (categories, etc.)
+                    has_hints = any(": " in str(item) for item in value)
+                    separator = "\n" if has_hints else ", "
+                    value_str = separator.join(map(str, value))
+                else:
+                    value_str = str(value)
                 tool_desc = tool_desc.replace(placeholder, value_str)
                 
         current_tool_definition["function"]["description"] = tool_desc

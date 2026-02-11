@@ -60,6 +60,8 @@ skills:
   - id: get_transcript
     name_translation_key: videos.get_transcript.text
     description_translation_key: videos.get_transcript.description.text
+    preprocessor_hint: >
+      Get the transcript/content of a specific YouTube video URL.
     stage: production
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
@@ -102,6 +104,8 @@ skills:
   - id: search
     name_translation_key: videos.search.text
     description_translation_key: videos.search.description.text
+    preprocessor_hint: >
+      Search for videos, documentaries, tutorials, clips on the web.
     stage: production
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill

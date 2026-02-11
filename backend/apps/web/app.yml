@@ -82,6 +82,9 @@ skills:
   - id: search
     name_translation_key: web.search.text
     description_translation_key: web.search.description.text
+    preprocessor_hint: >
+      General web search for current information, prices, weather, facts, stocks, sports scores, etc.
+      Use as a fallback when no specialized skill applies.
     stage: production
     class_path: |
       backend.apps.web.skills.search_skill.SearchSkill
@@ -223,6 +226,8 @@ skills:
   - id: read
     name_translation_key: web.read.text
     description_translation_key: web.read.description.text
+    preprocessor_hint: >
+      Read and extract content from a specific URL or webpage the user provided.
     stage: production
     class_path: |
       backend.apps.web.skills.read_skill.ReadSkill

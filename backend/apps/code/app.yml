@@ -156,6 +156,9 @@ skills:
   - id: get_docs
     name_translation_key: code.get_docs.text
     description_translation_key: code.get_docs.description.text
+    preprocessor_hint: >
+      Get latest documentation for programming libraries, frameworks, APIs, SDKs.
+      Use for ANY programming-related query about a specific library or framework.
     stage: production
     class_path: |
       backend.apps.code.skills.get_docs_skill.GetDocsSkill

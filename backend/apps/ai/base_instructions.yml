@@ -62,36 +62,10 @@ preprocess_request_tool:
           - **Never load data just because it's available** - maintain privacy through minimization.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
       10. **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
-          - Available skills (format: `app_id-skill_id`): {AVAILABLE_APP_SKILLS}
-          - Include skills that might help fulfill the request. When in doubt, include them.
-          
-          **Include `code-get_docs` for ANY programming-related query:**
-          - Questions about APIs, SDKs, libraries, frameworks, or programming languages
-          - "How does [X] work?", "[X] documentation", "code examples for [X]"
-          - Keywords: API, SDK, library, framework, docs, implement, integrate, code
-          - Examples: "How does the Miro API work?", "Stripe SDK", "React hooks", "Python asyncio"
-          
-          **Include `news-search` for news/current events:**
-          - News articles, current events, announcements, headlines
-          - Keywords: news, latest, recent, breaking, headlines, announcements
-          
-          **Include `videos-search` for video content:**
-          - Videos, documentaries, tutorials, clips
-          - Keywords: video, watch, tutorial, documentary, YouTube
-          
-          **Include `maps-search` for locations/places:**
-          - Places, businesses, restaurants, directions
-          - Keywords: near, nearby, directions, restaurant, location
-          
-          **Travel skill selection (`travel-search_connections` vs `travel-price_calendar`):**
-          - `travel-price_calendar`: Use when the user wants a **price overview across multiple dates** or an entire month. This returns the cheapest cached flight price for every day of a month on a route — ideal for finding the cheapest travel dates at a glance. Only costs 1 credit.
-            - Keywords: prices for [month], cheapest dates, price overview, price calendar, price trends, when is cheapest, flexible dates, compare prices across dates
-            - Examples: "show flight prices for March", "when is the cheapest time to fly to Tokyo?", "flight prices from Berlin to Bangkok for March", "price overview for flights in June"
-          - `travel-search_connections`: Use when the user wants **specific flight connections for a particular date** (detailed results with airlines, times, stops, durations). Costs 25 credits.
-            - Keywords: flights on [specific date], book, connections, flight options, specific departure
-            - Examples: "find flights on March 15th", "search flights from Munich to London tomorrow", "show me connections for next Friday"
-          - **IMPORTANT**: When the user asks about prices for a whole month or flexible dates without specifying an exact date, ALWAYS prefer `travel-price_calendar` over `travel-search_connections`. It's cheaper (1 vs 25 credits) and provides a complete month overview.
-          - When in doubt, include BOTH travel skills and let the main LLM decide.
+          - Available skills with descriptions:
+            {AVAILABLE_APP_SKILLS}
+          - Read each skill's description to understand when it applies. Include skills that might help fulfill the request. When in doubt, include them.
+          - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
           
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -103,12 +77,11 @@ preprocess_request_tool:
           - Short queries (under 30 characters) starting with "and", "what about", "how about", "same for", or asking about a different location/entity/time for the same topic almost always need the same skill
           
           **URL-Based Skill Selection:**
-          - `videos-get_transcript` for YouTube URLs when user asks about video content
-          - `web-read` for web URLs when user asks about webpage content
+          - Select transcript/read skills for YouTube or web URLs when the user asks about content
           - Don't select skills just because a URL is present - only when understanding content is needed
           
           - If no specific skills are relevant, return an empty list: [].
-          - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
+          - **Important**: Only select skills from the provided list above. Use only the `app_id-skill_id` part (before the colon) in your response. Do not invent skill names.
       11. **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
           - Available focus modes (format: `app_id-focus_id`): {AVAILABLE_FOCUS_MODES}
           - Include focus modes when the user's request would benefit from specialized behavior (e.g., in-depth research, code writing, fact checking).
@@ -169,7 +142,7 @@ preprocess_request_tool:
             type: "string"
         relevant_app_skills:
           type: "array"
-          description: "List of relevant app skill identifiers (format: 'app_id-skill_id') that might be useful for fulfilling the request. Selected from the dynamically provided {AVAILABLE_APP_SKILLS} list. Empty list if none relevant."
+          description: "List of relevant app skill identifiers (format: 'app_id-skill_id', e.g. 'web-search', 'travel-price_calendar') that might be useful for fulfilling the request. Use only the identifier part before the colon from the available skills list. Empty list if none relevant."
           items:
             type: "string"
         relevant_focus_modes:
@@ -384,14 +357,9 @@ base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
   **Tool Priority (use in this order):**
-  1. Specialized tools first: `code-get_docs` for code/APIs, `news-search` for news, `videos-search` for videos, `maps-search` for locations, `travel-price_calendar` for flight price overviews, `travel-search_connections` for specific flight searches, etc.
+  1. Specialized tools first (use tool descriptions to pick the right one for the task)
   2. `web-read` if user provides a specific URL
   3. `web-search` only as last resort when no specialized tool applies
-
-  **Travel Tool Selection:**
-  - Use `travel-price_calendar` when the user wants to see prices across a whole month or find the cheapest dates — it returns daily price data for an entire month on a route (1 credit).
-  - Use `travel-search_connections` when the user wants specific flight connections for a particular date with full details like airlines, times, stops (25 credits).
-  - For queries like "show prices for March" or "cheapest flights this month", ALWAYS prefer `travel-price_calendar` — it's designed exactly for this use case and is 25x cheaper.
 
   **Web Search Limitation:** Make only ONE search per request. Multiple searches allowed ONLY when user explicitly asks (e.g., "compare X and Y", "search for several things") or a research focus mode is active.
 

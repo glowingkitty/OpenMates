@@ -34,6 +34,8 @@ skills:
   - id: generate
     name_translation_key: images.generate.text
     description_translation_key: images.generate.description.text
+    preprocessor_hint: >
+      Generate high-quality images from text prompts and/or reference images.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
@@ -68,6 +70,8 @@ skills:
   - id: generate_draft
     name_translation_key: images.generate_draft.text
     description_translation_key: images.generate_draft.description.text
+    preprocessor_hint: >
+      Quickly generate a draft/preview image from a text prompt.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill

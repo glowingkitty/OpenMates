@@ -107,6 +107,9 @@ skills:
   - id: search_connections
     name_translation_key: travel.search.text
     description_translation_key: travel.search.description.text
+    preprocessor_hint: >
+      Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
+      Use when user specifies an exact travel date. Costs 25 credits per search.
     stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     pricing:
@@ -227,6 +230,10 @@ skills:
   - id: price_calendar
     name_translation_key: travel.price_calendar.text
     description_translation_key: travel.price_calendar.description.text
+    preprocessor_hint: >
+      Monthly flight price overview: cheapest price per day across an entire month on a route.
+      Use for flexible dates, "prices for March", "cheapest time to fly", monthly price comparisons.
+      Prefer over search_connections for date-flexible queries (1 credit vs 25).
     stage: production
     class_path: backend.apps.travel.skills.price_calendar.PriceCalendarSkill
     pricing:

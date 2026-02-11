@@ -3,13 +3,15 @@ description_translation_key: news.description.text
 icon_image: |
   news.svg
 category: personal
-last_updated: '2025-11-26'
+last_updated: "2025-11-26"
 settings_and_memories: []
 instructions: []
 skills:
   - id: search
     name_translation_key: news.search.text
     description_translation_key: news.search.description.text
+    preprocessor_hint: >
+      Search for news articles, current events, headlines, announcements.
     stage: production
     class_path: |
       backend.apps.news.skills.search_skill.SearchSkill
@@ -55,7 +57,85 @@ skills:
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
-                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
+                enum:
+                  [
+                    "AR",
+                    "AU",
+                    "AT",
+                    "BE",
+                    "BR",
+                    "CA",
+                    "CL",
+                    "DK",
+                    "FI",
+                    "FR",
+                    "DE",
+                    "GR",
+                    "HK",
+                    "IN",
+                    "ID",
+                    "IT",
+                    "JP",
+                    "KR",
+                    "MY",
+                    "MX",
+                    "NL",
+                    "NZ",
+                    "NO",
+                    "CN",
+                    "PL",
+                    "PT",
+                    "PH",
+                    "RU",
+                    "SA",
+                    "ZA",
+                    "ES",
+                    "SE",
+                    "CH",
+                    "TW",
+                    "TR",
+                    "GB",
+                    "US",
+                    "ALL",
+                    "ar",
+                    "au",
+                    "at",
+                    "be",
+                    "br",
+                    "ca",
+                    "cl",
+                    "dk",
+                    "fi",
+                    "fr",
+                    "de",
+                    "gr",
+                    "hk",
+                    "in",
+                    "id",
+                    "it",
+                    "jp",
+                    "kr",
+                    "my",
+                    "mx",
+                    "nl",
+                    "nz",
+                    "no",
+                    "cn",
+                    "pl",
+                    "pt",
+                    "ph",
+                    "ru",
+                    "sa",
+                    "za",
+                    "es",
+                    "se",
+                    "ch",
+                    "tw",
+                    "tr",
+                    "gb",
+                    "us",
+                    "all",
+                  ]
                 default: "us"
               search_lang:
                 type: string
@@ -87,4 +167,3 @@ focuses:
       - discusses the article and topic with the user
     systemprompt: |
       You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.
-

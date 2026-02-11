@@ -611,7 +611,11 @@ async def handle_preprocessing(
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
     # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
     # with valid stages (filtered during server startup). All skills in these apps are valid.
+    # Two lists are maintained:
+    #   - available_skills_list: enriched with preprocessor_hints for the LLM prompt (e.g., "travel-price_calendar: Monthly flight price overview...")
+    #   - available_skill_ids: bare identifiers for validation of LLM responses (e.g., "travel-price_calendar")
     available_skills_list: List[str] = []
+    available_skill_ids: List[str] = []
 
     if discovered_apps_metadata:
         for app_id, app_metadata in discovered_apps_metadata.items():
@@ -626,7 +630,12 @@ async def handle_preprocessing(
                     # with valid stages (filtered during server startup via should_include_app_by_stage)
                     # Use hyphen format for skill identifiers (consistent with tool names)
                     skill_identifier = f"{app_id}-{skill.id}"
-                    available_skills_list.append(skill_identifier)
+                    available_skill_ids.append(skill_identifier)
+                    # Include preprocessor_hint if available so the LLM can make informed skill selection decisions
+                    if skill.preprocessor_hint:
+                        available_skills_list.append(f"{skill_identifier}: {skill.preprocessor_hint.strip()}")
+                    else:
+                        available_skills_list.append(skill_identifier)
     
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
@@ -1419,7 +1428,7 @@ async def handle_preprocessing(
         # Maps hallucinated skill names to valid skill identifiers
         skill_resolver_map: Dict[str, str] = {}
         
-        for valid_skill in available_skills_list:
+        for valid_skill in available_skill_ids:
             # Add exact match
             skill_resolver_map[valid_skill] = valid_skill
             
@@ -1447,7 +1456,7 @@ async def handle_preprocessing(
         invalid_skills = []
         
         for skill in relevant_app_skills_val:
-            if skill in available_skills_list:
+            if skill in available_skill_ids:
                 # Exact match - no correction needed
                 validated_relevant_skills.append(skill)
             elif skill in skill_resolver_map:
@@ -1470,7 +1479,7 @@ async def handle_preprocessing(
         if invalid_skills:
             logger.warning(
                 f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
-                f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
+                f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
                 f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
             )
         if validated_relevant_skills:

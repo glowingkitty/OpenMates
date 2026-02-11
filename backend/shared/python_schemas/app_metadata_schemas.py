@@ -34,6 +34,10 @@ class AppSkillDefinition(BaseModel):
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original")
     exclude_fields_for_llm: Optional[List[str]] = Field(default=None, description="List of field paths to exclude from LLM inference. Full data is kept in chat history for UI rendering.")
+    # Brief LLM-facing hint for the preprocessor describing when to select this skill.
+    # Included alongside the skill identifier in the preprocessing prompt so the LLM can
+    # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
+    preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""

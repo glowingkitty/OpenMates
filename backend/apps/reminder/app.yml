@@ -24,6 +24,8 @@ skills:
   - id: set-reminder
     name_translation_key: reminder.set_reminder.text
     description_translation_key: reminder.set_reminder.description.text
+    preprocessor_hint: >
+      Create a one-time or recurring reminder for the user.
     stage: production
     providers:
       - OpenMates
@@ -129,6 +131,8 @@ skills:
   - id: list-reminders
     name_translation_key: reminder.list_reminders.text
     description_translation_key: reminder.list_reminders.description.text
+    preprocessor_hint: >
+      Show the user's existing scheduled reminders.
     stage: production
     providers:
       - OpenMates
@@ -147,6 +151,8 @@ skills:
   - id: cancel-reminder
     name_translation_key: reminder.cancel_reminder.text
     description_translation_key: reminder.cancel_reminder.description.text
+    preprocessor_hint: >
+      Cancel or delete an existing reminder.
     stage: production
     providers:
       - OpenMates
