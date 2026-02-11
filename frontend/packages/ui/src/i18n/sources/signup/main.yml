@@ -23,25 +23,25 @@ sign_up:
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.3 alpha
-  de: v0.3 alpha
-  zh: v0.3 测试版
-  es: v0.3 alfa
-  fr: v0.3 alpha
-  pt: v0.3 alfa
-  ru: v0.3 альфа
-  ja: v0.3 アルファ
-  ko: v0.3 알파
-  it: v0.3 alpha
-  tr: v0.3 alfa
-  vi: v0.3 alpha
-  id: v0.3 alpha
-  pl: v0.3 alpha
-  nl: v0.3 alpha
-  ar: v0.3 ألفا
-  hi: v0.3 अल्फा
-  th: v0.3 อัลฟา
-  cs: v0.3 alpha
+  en: v0.4 alpha
+  de: v0.4 alpha
+  zh: v0.4 测试版
+  es: v0.4 alfa
+  fr: v0.4 alpha
+  pt: v0.4 alfa
+  ru: v0.4 альфа
+  ja: v0.4 アルファ
+  ko: v0.4 알파
+  it: v0.4 alpha
+  tr: v0.4 alfa
+  vi: v0.4 alpha
+  id: v0.4 alpha
+  pl: v0.4 alpha
+  nl: v0.4 alpha
+  ar: v0.4 ألفا
+  hi: v0.4 अल्फा
+  th: v0.4 อัลฟา
+  cs: v0.4 alpha
   sv: ""
   verified_by_human: []
 domain_not_allowed:
