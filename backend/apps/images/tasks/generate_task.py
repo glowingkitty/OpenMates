@@ -495,6 +495,85 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
     except Exception as e:
         logger.error(f"{log_prefix} Image generation task failed: {e}", exc_info=True)
+        
+        # Update the embed status to "error" so the frontend gets notified
+        # and the user sees a failure message instead of a perpetual loading state.
+        # We need embed_id, user_id, chat_id, message_id from the arguments (extracted in step 2-3).
+        try:
+            _embed_id = arguments.get("embed_id")
+            _user_id = arguments.get("user_id")
+            _chat_id = arguments.get("chat_id")
+            _message_id = arguments.get("message_id")
+            
+            if _embed_id and _user_id and _chat_id and _message_id:
+                from toon_format import encode as toon_encode
+                from backend.core.api.app.services.embed_service import EmbedService
+                
+                _hashed_user_id = _hash_value(_user_id)
+                
+                # Build a concise, user-facing error message
+                error_str = str(e)
+                if "500 INTERNAL" in error_str or "ServerError" in error_str:
+                    user_error_message = "The image generation provider is temporarily unavailable. Please try again."
+                elif "overloaded" in error_str.lower() or "429" in error_str or "rate" in error_str.lower():
+                    user_error_message = "The image generation service is currently overloaded. Please try again in a moment."
+                elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                    user_error_message = "Image generation timed out. Please try again."
+                else:
+                    user_error_message = "Image generation failed. Please try again."
+                
+                error_content = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "type": "image",
+                    "status": "error",
+                    "error": user_error_message,
+                    "prompt": arguments.get("prompt", ""),
+                    "model": arguments.get("full_model_reference", "unknown"),
+                }
+                
+                content_toon = toon_encode(error_content)
+                now_ts = int(datetime.now(timezone.utc).timestamp())
+                
+                # Ensure services are initialized (they may already be from the try block)
+                try:
+                    await task.initialize_services()
+                except Exception:
+                    pass  # Services may already be initialized
+                
+                embed_service = EmbedService(
+                    cache_service=task._cache_service,  # type: ignore[arg-type]
+                    directus_service=task._directus_service,  # type: ignore[arg-type]
+                    encryption_service=task._encryption_service  # type: ignore[arg-type]
+                )
+                
+                await embed_service.send_embed_data_to_client(
+                    embed_id=_embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=content_toon,
+                    chat_id=str(_chat_id),
+                    message_id=str(_message_id),
+                    user_id=_user_id,
+                    user_id_hash=_hashed_user_id,
+                    status="error",
+                    encryption_mode="client",
+                    created_at=now_ts,
+                    updated_at=now_ts,
+                    log_prefix=f"{log_prefix} [ERROR_EMBED]",
+                    check_cache_status=False
+                )
+                
+                logger.info(f"{log_prefix} Sent error embed status for embed {_embed_id}: {user_error_message}")
+            else:
+                logger.warning(
+                    f"{log_prefix} Cannot send error embed status - missing required arguments: "
+                    f"embed_id={bool(_embed_id)}, user_id={bool(_user_id)}, "
+                    f"chat_id={bool(_chat_id)}, message_id={bool(_message_id)}"
+                )
+        except Exception as embed_error:
+            # Error notification is best-effort - don't mask the original exception
+            logger.error(f"{log_prefix} Failed to send error embed status: {embed_error}", exc_info=True)
+        
         # Re-raising allows Celery to mark the task as FAILED
         raise
     finally:
