@@ -20,9 +20,11 @@
 -->
 
 <script lang="ts">
+  import { tick } from 'svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import { getAvailableApps } from '../../services/appSkillsService';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { settingsMenuVisible } from '../Settings.svelte';
   import { text } from '@repo/ui';
   import type { AppMetadata, SkillMetadata } from '../../types/apps';
   
@@ -143,26 +145,43 @@
   
   /**
    * Handle skill card click - open the App Store to the skill's detail page.
-   * Uses settingsDeepLink store + panelState.openSettings() to navigate.
+   * Uses the mobile-aware deep link sequencing pattern:
+   * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
+   * 2. panelState.openSettings() - track panel state
+   * 3. await tick() + delay - wait for DOM propagation on mobile
+   * 4. settingsDeepLink.set(path) - navigate after menu is visible
    */
   async function handleSkillSelect(appId: string, skillId: string) {
     console.debug('[SkillsGroup] Skill selected:', appId, skillId);
     
-    // Set the deep link to the skill's detail page
-    settingsDeepLink.set(`app_store/${appId}/skill/${skillId}`);
+    // CRITICAL: Set settingsMenuVisible to true FIRST
+    settingsMenuVisible.set(true);
     
-    // Open the settings panel (which will pick up the deep link)
     const { panelState } = await import('../../stores/panelStateStore');
     panelState.openSettings();
+    
+    // Wait for store update to propagate and DOM to update
+    await tick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Set deep link LAST so the Settings menu is already open to receive it
+    settingsDeepLink.set(`app_store/${appId}/skill/${skillId}`);
   }
   
   /**
-   * Handle "+N more" badge click - open the App Store overview
+   * Handle "+N more" badge click - open the App Store overview.
+   * Uses the same mobile-aware deep link sequencing pattern.
    */
   async function handleMoreClick() {
-    settingsDeepLink.set('app_store');
+    settingsMenuVisible.set(true);
+    
     const { panelState } = await import('../../stores/panelStateStore');
     panelState.openSettings();
+    
+    await tick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    settingsDeepLink.set('app_store');
   }
 </script>
 
