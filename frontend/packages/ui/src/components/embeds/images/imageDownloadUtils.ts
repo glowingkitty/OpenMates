@@ -85,6 +85,8 @@ const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
 /**
  * Metadata fields to embed in the PNG tEXt chunks.
+ * These should match the XMP metadata injected by the backend
+ * (see backend/core/api/app/utils/image_processing.py _generate_ai_xmp).
  */
 export interface PngAiMetadata {
   /** The generation prompt */
@@ -93,6 +95,8 @@ export interface PngAiMetadata {
   model?: string;
   /** Software that created the image */
   software?: string;
+  /** ISO timestamp of when the image was generated */
+  generatedAt?: string;
 }
 
 /**
@@ -124,26 +128,30 @@ export function embedPngMetadata(
     return data;
   }
 
-  // Build tEXt chunks to inject
+  // Build tEXt chunks to inject.
+  // These mirror the XMP metadata injected by the backend (image_processing.py)
+  // so that file managers show consistent info regardless of download method.
   const chunks: Uint8Array[] = [];
 
-  // "Description" - widely shown by file managers (macOS Finder, Windows, GNOME)
+  // "Description" - matches XMP dc:description format (multi-line with model, timestamp, prompt).
+  // macOS Finder shows this in the "More Info" section.
+  const descParts: string[] = [];
+  descParts.push("AI-generated on OpenMates");
+  if (metadata.model) {
+    descParts.push(`Model: ${metadata.model}`);
+  }
+  if (metadata.generatedAt) {
+    descParts.push(`Generated at: ${metadata.generatedAt}`);
+  }
   if (metadata.prompt) {
-    chunks.push(createTextChunk("Description", metadata.prompt));
+    descParts.push(`Prompt: ${metadata.prompt}`);
+  }
+  if (descParts.length > 0) {
+    chunks.push(createTextChunk("Description", descParts.join("\n")));
   }
 
-  // "Comment" - structured AI generation info
-  const commentParts: string[] = [];
-  commentParts.push("AI-generated image on OpenMates");
-  if (metadata.model) {
-    commentParts.push(`Model: ${metadata.model}`);
-  }
-  if (metadata.prompt) {
-    commentParts.push(`Prompt: ${metadata.prompt}`);
-  }
-  if (commentParts.length > 0) {
-    chunks.push(createTextChunk("Comment", commentParts.join("\n")));
-  }
+  // "Comment" - same structured AI generation info (some viewers read Comment instead of Description)
+  chunks.push(createTextChunk("Comment", descParts.join("\n")));
 
   // "Software" - creation tool
   chunks.push(createTextChunk("Software", metadata.software || "OpenMates"));
@@ -151,7 +159,7 @@ export function embedPngMetadata(
   // "Source" - origin
   chunks.push(createTextChunk("Source", "OpenMates AI"));
 
-  // "Title" - short title for the image
+  // "Title" - prompt text (matches XMP dc:title)
   if (metadata.prompt) {
     // Truncate title to 200 chars for reasonableness
     const title =

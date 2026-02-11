@@ -5647,6 +5647,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onClose={handleCloseEmbedFullscreen}
                             embedId={embedFullscreenData.embedId}
                             skillId={skillId === 'generate_draft' ? 'generate_draft' : 'generate'}
+                            generatedAt={imgContent.generated_at ? String(imgContent.generated_at) : undefined}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}

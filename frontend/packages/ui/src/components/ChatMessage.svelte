@@ -1030,6 +1030,7 @@
           const aesNonce = decodedContent.aes_nonce as string | undefined;
           const imagePrompt = decodedContent.prompt as string | undefined;
           const imageModel = decodedContent.model as string | undefined;
+          const imageGeneratedAt = decodedContent.generated_at as string | undefined;
 
           if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
             try {
@@ -1050,7 +1051,8 @@
                 const metadataBytes = embedPngMetadata(arrayBuffer, {
                   prompt: imagePrompt,
                   model: imageModel,
-                  software: 'OpenMates'
+                  software: 'OpenMates',
+                  generatedAt: imageGeneratedAt
                 });
                 // Copy into a plain ArrayBuffer to satisfy BlobPart typing
                 const ab = new ArrayBuffer(metadataBytes.byteLength);

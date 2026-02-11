@@ -64,6 +64,8 @@
     onShowChat?: () => void;
     /** Skill identifier ('generate' or 'generate_draft') - determines display title */
     skillId?: 'generate' | 'generate_draft';
+    /** ISO timestamp of when the image was generated (for download metadata) */
+    generatedAt?: string;
   }
   
   let {
@@ -85,7 +87,8 @@
     onNavigateNext,
     showChatButton = false,
     onShowChat,
-    skillId: skillIdProp = 'generate'
+    skillId: skillIdProp = 'generate',
+    generatedAt
   }: Props = $props();
   
   // Image state
@@ -219,7 +222,8 @@
         const metadataBytes = embedPngMetadata(arrayBuffer, {
           prompt,
           model,
-          software: 'OpenMates'
+          software: 'OpenMates',
+          generatedAt
         });
         // Copy into a plain ArrayBuffer to satisfy BlobPart typing
         const ab = new ArrayBuffer(metadataBytes.byteLength);
