@@ -823,6 +823,13 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       serializableGroupedItems,
     );
 
+    // CRITICAL: Propagate app_id and skill_id to the group-level attrs.
+    // The scattered grouping algorithm (groupScatteredAppSkillEmbeds) checks
+    // attrs.app_id && attrs.skill_id on group nodes to merge them with
+    // additional scattered individual embeds. Without these at the group level,
+    // existing groups won't be detected for merging.
+    // Also propagate query and provider for rendering purposes.
+    const firstEmbed = validEmbeds[0];
     const result = {
       id: groupId,
       type: "app-skill-use-group",
@@ -830,6 +837,10 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       contentRef: null,
       groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length,
+      app_id: firstEmbed.app_id,
+      skill_id: firstEmbed.skill_id,
+      query: firstEmbed.query,
+      provider: firstEmbed.provider,
     } as EmbedNodeAttributes;
 
     console.log("[AppSkillUseGroupHandler] Created group:", result);

@@ -246,6 +246,71 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-image": attributes.image };
         },
       },
+      // App skill metadata attributes
+      // CRITICAL: These must be registered as TipTap attributes so they survive setContent()
+      // during streaming. Without these, app_id/skill_id get stripped by TipTap, preventing
+      // the grouping pipeline from correctly grouping app-skill-use embeds.
+      app_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-app-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.app_id) {
+            return {};
+          }
+          return { "data-app-id": attributes.app_id };
+        },
+      },
+      skill_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-skill-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.skill_id) {
+            return {};
+          }
+          return { "data-skill-id": attributes.skill_id };
+        },
+      },
+      query: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-query"),
+        renderHTML: (attributes) => {
+          if (!attributes.query) {
+            return {};
+          }
+          return { "data-query": attributes.query };
+        },
+      },
+      provider: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-provider"),
+        renderHTML: (attributes) => {
+          if (!attributes.provider) {
+            return {};
+          }
+          return { "data-provider": attributes.provider };
+        },
+      },
+      // Focus mode metadata
+      focus_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-focus-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.focus_id) {
+            return {};
+          }
+          return { "data-focus-id": attributes.focus_id };
+        },
+      },
+      focus_mode_name: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-focus-mode-name"),
+        renderHTML: (attributes) => {
+          if (!attributes.focus_mode_name) {
+            return {};
+          }
+          return { "data-focus-mode-name": attributes.focus_mode_name };
+        },
+      },
       // Website group attributes
       groupedItems: {
         default: null,
@@ -467,6 +532,23 @@ export const Embed = Node.create<EmbedOptions>({
           if (updatedNode.type.name !== "embed") return false;
 
           const newAttrs = updatedNode.attrs as EmbedNodeAttributes;
+
+          // CRITICAL FIX: When the embed TYPE changes (e.g., app-skill-use -> app-skill-use-group),
+          // the DOM structure is fundamentally different:
+          // - Individual app-skill-use: container = wrapper (Svelte component path, no intermediate div)
+          // - Group app-skill-use-group: uses embed-group-container div inside wrapper
+          // Returning false forces TipTap to destroy this NodeView and create a new one
+          // with the correct DOM structure for the new type.
+          if (newAttrs.type !== currentAttrs.type) {
+            console.debug(
+              "[Embed] Type changed from",
+              currentAttrs.type,
+              "to",
+              newAttrs.type,
+              "- forcing NodeView recreation",
+            );
+            return false;
+          }
 
           // CRITICAL FIX: For group embeds, detect when groupedItems has changed
           // and re-render the entire group to show new items during streaming.
