@@ -3118,6 +3118,9 @@ async def handle_main_processing(
             except json.JSONDecodeError as e:
                 logger.error(f"{log_prefix} Invalid JSON in tool arguments for '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid JSON in function arguments.", "details": str(e)})
+                # Set ignore_fields_for_inference to None since JSON parsing failed
+                # This variable is used later when adding to message history
+                ignore_fields_for_inference = None
                 # Track error in tool calls info
                 try:
                     app_id, skill_id = tool_name.split('-', 1)
@@ -3176,6 +3179,9 @@ async def handle_main_processing(
                 # Invalid tool name format
                 logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid tool name format.", "details": str(e)})
+                # Set ignore_fields_for_inference to None since invalid tool name format
+                # This variable is used later when adding to message history
+                ignore_fields_for_inference = None
                 # Track error in tool calls info
                 try:
                     tool_call_info = {
