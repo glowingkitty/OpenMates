@@ -1664,6 +1664,93 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     let showWelcome = $state(true);
 
+    // ─── Resume Last Chat ───────────────────────────────────────────────
+    // Local state for the "Continue where you left off" card on the new chat screen.
+    // Populated by an $effect that queries IndexedDB whenever the welcome screen is shown.
+    // This is self-sufficient and does NOT depend on Phase 1 timing or phasedSyncState.
+    let resumeChatData = $state<Chat | null>(null);
+    let resumeChatTitle = $state<string | null>(null);
+    // Track whether the user explicitly dismissed the resume prompt in this session
+    let resumeDismissed = $state(false);
+
+    // When the welcome screen appears for an authenticated user, find the most recent chat
+    // from IndexedDB and offer to resume it. Retries a few times to handle sync delays.
+    $effect(() => {
+        // Track reactive dependencies
+        const isWelcome = showWelcome;
+        const isAuth = $authStore.isAuthenticated;
+
+        if (!isWelcome || !isAuth || resumeDismissed) {
+            // Not on welcome screen, not logged in, or user dismissed → clear
+            if (!isWelcome) {
+                resumeChatData = null;
+                resumeChatTitle = null;
+            }
+            return;
+        }
+
+        // Already have data → nothing to do
+        if (resumeChatData) return;
+
+        let cancelled = false;
+        const maxAttempts = 6;
+        const delayMs = 500; // retry every 500ms for up to 3s
+
+        const tryLoadResumeChat = async (attempt: number) => {
+            if (cancelled || resumeDismissed) return;
+            try {
+                await chatDB.init();
+                const allChats = await chatDB.getAllChats();
+                if (cancelled || resumeDismissed) return;
+
+                // Find the most recent chat that has messages (sorted by last_edited_overall_timestamp desc)
+                const mostRecent = allChats.find(c => c.last_edited_overall_timestamp > 0);
+                if (!mostRecent) {
+                    // No chats yet – if sync is still in progress, retry
+                    if (attempt < maxAttempts) {
+                        setTimeout(() => tryLoadResumeChat(attempt + 1), delayMs);
+                    }
+                    return;
+                }
+
+                // Decrypt the title for display
+                let decryptedTitle: string | null = null;
+                if (mostRecent.encrypted_title) {
+                    try {
+                        const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                        let chatKey = chatDB.getChatKey(mostRecent.chat_id);
+                        if (!chatKey && mostRecent.encrypted_chat_key) {
+                            chatKey = await decryptChatKeyWithMasterKey(mostRecent.encrypted_chat_key);
+                            if (chatKey) {
+                                chatDB.setChatKey(mostRecent.chat_id, chatKey);
+                            }
+                        }
+                        if (chatKey) {
+                            decryptedTitle = await decryptWithChatKey(mostRecent.encrypted_title, chatKey);
+                        }
+                    } catch {
+                        // Title decryption failed – fall through to default
+                    }
+                }
+
+                if (cancelled || resumeDismissed) return;
+                const displayTitle = mostRecent.title || decryptedTitle || 'Untitled Chat';
+                resumeChatData = mostRecent;
+                resumeChatTitle = displayTitle;
+                console.info(`[ActiveChat] Resume chat loaded from IndexedDB: "${displayTitle}" (${mostRecent.chat_id})`);
+            } catch (error) {
+                console.warn('[ActiveChat] Error loading resume chat from IndexedDB:', error);
+                if (attempt < maxAttempts) {
+                    setTimeout(() => tryLoadResumeChat(attempt + 1), delayMs);
+                }
+            }
+        };
+
+        tryLoadResumeChat(1);
+
+        return () => { cancelled = true; };
+    });
+
     // Add state variable for scaling animation on the container using $state
     let activeScaling = $state(false);
 
@@ -3034,34 +3121,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Handler for resuming the last chat from the "Resume last chat?" UI.
-     * Loads the chat stored in phasedSyncState.resumeChatData and clears the resume state.
+     * Loads the chat stored in local resumeChatData and clears the resume state.
      */
     async function handleResumeLastChat() {
-        const resumeChat = $phasedSyncState.resumeChatData;
-        if (!resumeChat) {
+        if (!resumeChatData) {
             console.warn('[ActiveChat] No resume chat data available');
             return;
         }
 
-        console.info(`[ActiveChat] Resuming last chat: ${resumeChat.chat_id}`);
+        const chatToResume = resumeChatData;
+        console.info(`[ActiveChat] Resuming last chat: ${chatToResume.chat_id}`);
 
-        // Clear the resume state first
-        phasedSyncState.clearResumeChatData();
+        // Clear resume state
+        resumeChatData = null;
+        resumeChatTitle = null;
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
         phasedSyncState.markInitialChatLoaded();
 
         // Update the active chat store
-        activeChatStore.setActiveChat(resumeChat.chat_id);
+        activeChatStore.setActiveChat(chatToResume.chat_id);
 
         // Load the chat
-        await loadChat(resumeChat);
+        await loadChat(chatToResume);
 
         // Dispatch event to notify Chats.svelte to update selection
         const globalSelectEvent = new CustomEvent('globalChatSelected', {
             bubbles: true,
             composed: true,
-            detail: { chatId: resumeChat.chat_id }
+            detail: { chatId: chatToResume.chat_id }
         });
         window.dispatchEvent(globalSelectEvent);
 
@@ -3075,10 +3163,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleDismissResumeChat() {
         console.info('[ActiveChat] User chose to start a new chat instead of resuming');
         
-        // Clear the resume state
-        phasedSyncState.clearResumeChatData();
+        // Clear local resume state and mark as dismissed for this session
+        resumeChatData = null;
+        resumeChatTitle = null;
+        resumeDismissed = true;
 
-        // Mark that user made an explicit choice
+        // Mark that user made an explicit choice (prevents Phase 1 from overriding)
         phasedSyncState.markUserMadeExplicitChoice();
 
         // Focus the message input if on desktop
@@ -5199,7 +5289,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Update the welcome content to use transition and showWelcome -->
                     <!-- ONLY show welcome message when there's no resume chat to display -->
                     <!-- If user has a previous chat to resume, skip the "Hey {username}" greeting -->
-                    {#if showWelcome && !$phasedSyncState.resumeChatData}
+                    {#if showWelcome && !resumeChatData}
                         <div
                             class="center-content"
                             transition:fade={{ duration: 300 }}
@@ -5258,8 +5348,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                     <div class="message-input-container">
                         <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
-                        <!-- Only visible when sync is complete and there's a resume chat available -->
-                        {#if showWelcome && $phasedSyncState.initialSyncCompleted && $phasedSyncState.resumeChatData}
+                        <!-- Driven by local $effect that queries IndexedDB directly (no Phase 1 timing dependency) -->
+                        {#if showWelcome && resumeChatData}
                             <div class="resume-last-chat-section" transition:fade={{ duration: 300 }}>
                                 <div class="resume-last-chat-header">
                                     <span class="resume-title">{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</span>
@@ -5273,7 +5363,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         <div class="icon icon_chat"></div>
                                     </div>
                                     <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{$phasedSyncState.resumeChatTitle || 'Untitled Chat'}</span>
+                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                     </div>
                                     <div class="resume-chat-arrow">
                                         <div class="icon icon_chevron_right"></div>

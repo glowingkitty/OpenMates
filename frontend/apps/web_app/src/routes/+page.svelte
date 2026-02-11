@@ -541,18 +541,17 @@
 			}
 
 			// DON'T directly load the last opened chat here.
-			// Instead, let the "Resume last chat?" UI handle it.
-			// Chats.svelte's Phase 1 handler (handlePhase1LastChatReadyEvent) will
-			// populate phasedSyncState.resumeChatData, and ActiveChat.svelte will
-			// show the resume prompt on the new chat welcome screen.
-			// This gives the user the choice to resume or start fresh.
+			// Instead, show the new chat welcome screen and let ActiveChat.svelte's
+			// $effect query IndexedDB for the most recent chat to show the
+			// "Continue where you left off" resume card. This avoids timing issues
+			// with Phase 1 sync and gives the user the choice to resume or start fresh.
 			console.debug(
 				'[+page.svelte] Last opened chat found, deferring to "Resume last chat?" UI:',
 				lastOpenedChatId
 			);
 			// Keep the new chat welcome screen visible (don't set active chat)
 			activeChatStore.clearActiveChat();
-			return; // Let Chats.svelte Phase 1 handler show the resume UI
+			return; // ActiveChat $effect will find and display the resume card
 		}
 
 		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
