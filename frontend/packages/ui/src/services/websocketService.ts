@@ -176,9 +176,12 @@ class WebSocketService extends EventTarget {
         console.info(
           "[WebSocketService] Network online event detected - attempting immediate reconnection",
         );
-        // Reset reconnect attempts to allow immediate reconnection
+        // Reconnect immediately when network is restored.
+        // Covers two scenarios:
+        // 1. reconnectAttempts > 0: We were already trying to reconnect (normal disconnect flow)
+        // 2. reconnectAttempts === 0 but WS is dead: Connection silently died during device sleep/hibernate
+        //    without onclose firing, so reconnectAttempts was never incremented
         if (
-          this.reconnectAttempts > 0 &&
           get(authStore).isAuthenticated &&
           !this.isConnected() &&
           !this.connectionPromise
@@ -193,6 +196,56 @@ class WebSocketService extends EventTarget {
               err,
             );
           });
+        }
+      });
+
+      // Listen for page visibility changes to detect device wake / tab resume.
+      // When a device sleeps or the user switches tabs for a long time, the WebSocket
+      // connection may silently die. The browser won't fire 'online' (network didn't change)
+      // and the ping/pong mechanism may not fire (timers are throttled in background tabs).
+      // This handler runs an immediate liveness check when the user returns to the page.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        if (!get(authStore).isAuthenticated) return;
+
+        console.debug(
+          "[WebSocketService] Page became visible - checking connection liveness",
+        );
+
+        if (!this.isConnected() && !this.connectionPromise) {
+          // WebSocket is dead (either ws is null or readyState is not OPEN).
+          // This commonly happens after device sleep where onclose may not have fired.
+          console.info(
+            "[WebSocketService] Connection is dead after tab/device resume - reconnecting immediately",
+          );
+          this.reconnectAttempts = 0;
+          this.connect().catch((err) => {
+            console.warn(
+              "[WebSocketService] Reconnection after visibility change failed:",
+              err,
+            );
+          });
+        } else if (this.isConnected()) {
+          // WebSocket appears connected but may be stale (server may have already
+          // cleaned up our connection during the sleep period).
+          // Send an immediate ping to verify liveness. If the pong doesn't come
+          // back, the existing pong timeout logic will close and reconnect.
+          console.debug(
+            "[WebSocketService] Connection appears alive after resume - sending liveness ping",
+          );
+          try {
+            this.sendMessage("ping", {}).catch(() => {
+              // If sending fails, the connection is dead - onclose will handle reconnection
+              console.warn(
+                "[WebSocketService] Liveness ping failed to send - connection likely dead",
+              );
+            });
+          } catch {
+            // Sync error from sendMessage, connection is dead
+            console.warn(
+              "[WebSocketService] Liveness ping threw - connection likely dead",
+            );
+          }
         }
       });
     }

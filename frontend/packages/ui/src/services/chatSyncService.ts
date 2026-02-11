@@ -5,6 +5,7 @@ import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
+import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import type {
   OfflineChange,
   Message,
@@ -166,6 +167,13 @@ export class ChatSynchronizationService extends EventTarget {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
         }
+
+        // CRITICAL: Reset phased sync state on disconnect so that when the device
+        // reconnects (especially after a long sleep/offline period), a fresh sync
+        // cycle runs properly. Without this reset, stale flags like initialSyncCompleted,
+        // initialChatLoaded, and userMadeExplicitChoice could persist across reconnections
+        // and prevent Phase 1 auto-selection or skip the sync entirely.
+        phasedSyncState.reset();
 
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
