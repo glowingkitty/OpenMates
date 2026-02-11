@@ -4898,6 +4898,52 @@ report_issue.description_too_short:
   cs: Popis problému musí mít alespoň 10 znaků
   sv: Problembeskrivningen måste vara minst 10 tecken lång
   verified_by_human: []
+report_issue.share_chat_label:
+  context: Label for the toggle that enables sharing the current chat or embed with the issue report
+  en: Share current chat with this report
+  de: Aktuellen Chat mit diesem Bericht teilen
+  zh: 将当前聊天分享到此报告
+  es: Compartir chat actual con este informe
+  fr: Partager le chat actuel avec ce rapport
+  pt: Compartilhar chat atual com este relatorio
+  ru: Поделиться текущим чатом в этом отчете
+  ja: 現在のチャットをこのレポートに共有
+  ko: 현재 채팅을 이 보고서와 공유
+  it: Condividi la chat corrente con questo report
+  tr: Mevcut sohbeti bu raporla paylas
+  vi: Chia se cuoc tro chuyen hien tai voi bao cao nay
+  id: Bagikan chat saat ini dengan laporan ini
+  pl: Udostepnij biezacy czat z tym zgloszeniem
+  nl: Deel huidige chat met dit rapport
+  ar: مشاركة الدردشة الحالية مع هذا التقرير
+  hi: वर्तमान चैट को इस रिपोर्ट के साथ साझा करें
+  th: แชร์แชทปัจจุบันกับรายงานนี้
+  cs: Sdilet aktualni chat s timto hlasenim
+  sv: Dela aktuell chatt med denna rapport
+  verified_by_human: []
+report_issue.share_chat_hint:
+  context: Hint text explaining what sharing the chat does when the toggle is enabled
+  en: This allows the admin to view the chat to help debug the issue.
+  de: Dadurch kann der Administrator den Chat einsehen, um das Problem zu beheben.
+  zh: 这允许管理员查看聊天以帮助调试问题。
+  es: Esto permite al administrador ver el chat para ayudar a depurar el problema.
+  fr: Cela permet a l'administrateur de voir le chat pour aider a deboguer le probleme.
+  pt: Isso permite que o administrador veja o chat para ajudar a depurar o problema.
+  ru: Это позволяет администратору просматривать чат для помощи в отладке проблемы.
+  ja: これにより、管理者がチャットを確認して問題のデバッグに役立てることができます。
+  ko: 이를 통해 관리자가 채팅을 보고 문제를 디버그하는 데 도움을 줄 수 있습니다.
+  it: Questo permette all'amministratore di visualizzare la chat per aiutare a risolvere il problema.
+  tr: Bu, yoneticinin sorunu ayiklamaya yardimci olmak icin sohbeti goruntulemesine olanak tanir.
+  vi: Dieu nay cho phep quan tri vien xem cuoc tro chuyen de giup go loi van de.
+  id: Ini memungkinkan admin untuk melihat chat untuk membantu debug masalah.
+  pl: Umozliwia to administratorowi podglad czatu w celu pomocy w debugowaniu problemu.
+  nl: Hiermee kan de beheerder de chat bekijken om het probleem te helpen debuggen.
+  ar: يتيح هذا للمسؤول عرض الدردشة للمساعدة في تصحيح المشكلة.
+  hi: यह व्यवस्थापक को समस्या को डीबग करने में मदद करने के लिए चैट देखने की अनुमति देता है।
+  th: สิ่งนี้ช่วยให้ผู้ดูแลระบบดูแชทเพื่อช่วยแก้ไขปัญหา
+  cs: To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu.
+  sv: Detta gor att administratoren kan se chatten for att hjalpa med felsoning.
+  verified_by_human: []
 report_issue.url_label:
   context: Label for shared chat or embed URL input field
   en: Shared chat or embed URL

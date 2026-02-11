@@ -2004,6 +2004,7 @@ class IssueReportRequest(BaseModel):
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
+    last_messages_html: Optional[str] = Field(None, max_length=200000, description="Rendered HTML of the last user message and assistant response for debugging rendering issues")
 
 
 class IssueReportResponse(BaseModel):
@@ -2161,6 +2162,14 @@ async def report_issue(
         if issue_data.indexeddb_report and issue_data.indexeddb_report.strip():
             indexeddb_report_str = issue_data.indexeddb_report.strip()
             logger.info(f"IndexedDB report provided with issue report: {len(indexeddb_report_str)} characters")
+        
+        # Process last messages HTML if provided
+        # This contains the rendered HTML of the last user message and assistant response
+        # to help debug rendering issues and see exactly what the user saw
+        last_messages_html_str = None
+        if issue_data.last_messages_html and issue_data.last_messages_html.strip():
+            last_messages_html_str = issue_data.last_messages_html.strip()
+            logger.info(f"Last messages HTML provided with issue report: {len(last_messages_html_str)} characters")
 
         # Encrypt sensitive fields for database storage (server-side encryption)
         encryption_service: EncryptionService = request.app.state.encryption_service
@@ -2268,7 +2277,8 @@ async def report_issue(
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
                 "console_logs": console_logs_str,
-                "indexeddb_report": indexeddb_report_str
+                "indexeddb_report": indexeddb_report_str,
+                "last_messages_html": last_messages_html_str
             },
             queue='email'
         )

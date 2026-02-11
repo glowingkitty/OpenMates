@@ -5,7 +5,7 @@
     The form includes:
     - Issue title (required)
     - Issue description (optional)
-    - Chat or embed URL (optional)
+    - Toggle to share chat/embed with the report (optional)
     - Reminder about Signal group for discussion/screenshots
 -->
 <script lang="ts">
@@ -13,6 +13,7 @@
     import { getApiEndpoint } from '../../config/api';
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
+    import Toggle from '../Toggle.svelte';
     import { onMount } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -22,6 +23,7 @@
     // Form state
     let issueTitle = $state('');
     let issueDescription = $state('');
+    let shareChatEnabled = $state(false);
     let chatOrEmbedUrl = $state('');
     let contactEmail = $state('');
     let isSubmitting = $state(false);
@@ -29,6 +31,12 @@
     let errorMessage = $state('');
     let submittedIssueId = $state('');
     let issueIdCopied = $state(false);
+    
+    /**
+     * Whether the current context has an active chat or embed that can be shared.
+     * When false, the share toggle is hidden since there's nothing to share.
+     */
+    let hasActiveChatOrEmbed = $state(false);
 
     // Device information (collected for debugging purposes)
     let deviceInfo = $state({
@@ -41,17 +49,14 @@
     // Input references for warnings
     let titleInput = $state<HTMLInputElement>();
     let descriptionInput = $state<HTMLTextAreaElement>();
-    let urlInput = $state<HTMLInputElement>();
     let emailInput = $state<HTMLInputElement>();
     
     // Validation state
     let titleError = $state('');
     let descriptionError = $state('');
-    let urlError = $state('');
     let emailError = $state('');
     let showTitleWarning = $state(false);
     let showDescriptionWarning = $state(false);
-    let showUrlWarning = $state(false);
     let showEmailWarning = $state(false);
     
     /**
@@ -68,39 +73,6 @@
         // Basic email validation regex
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(trimmedEmail);
-    }
-    
-    /**
-     * Validate URL format - must be a shared chat or embed URL
-     * Valid formats:
-     * - /share/chat/{chatId}#key={blob}
-     * - /share/embed/{embedId}#key={blob}
-     * - /#chat-id={chatId} (for public chats)
-     */
-    function validateUrl(url: string): boolean {
-        if (!url || !url.trim()) {
-            // URL is optional, so empty is valid
-            return true;
-        }
-        
-        const trimmedUrl = url.trim();
-        
-        // Check if it's a public chat link format
-        if (trimmedUrl.includes('#chat-id=')) {
-            return true;
-        }
-        
-        // Check if it's a shared chat or embed URL with key parameter
-        // Must contain '/share/chat/' or '/share/embed' AND 'key=' in the URL
-        const hasShareChat = trimmedUrl.includes('/share/chat/');
-        const hasShareEmbed = trimmedUrl.includes('/share/embed');
-        const hasKey = trimmedUrl.includes('key=');
-        
-        if ((hasShareChat || hasShareEmbed) && hasKey) {
-            return true;
-        }
-        
-        return false;
     }
     
     /**
@@ -139,21 +111,6 @@
             showDescriptionWarning = false;
         }
         
-        // Validate URL if provided
-        if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
-            if (!validateUrl(chatOrEmbedUrl)) {
-                urlError = $text('settings.report_issue.url_invalid.text');
-                showUrlWarning = true;
-                isValid = false;
-            } else {
-                urlError = '';
-                showUrlWarning = false;
-            }
-        } else {
-            urlError = '';
-            showUrlWarning = false;
-        }
-        
         // Validate email if provided (optional field)
         if (contactEmail && contactEmail.trim()) {
             if (!validateEmail(contactEmail)) {
@@ -173,11 +130,14 @@
     }
     
     /**
-     * Auto-generate share URL for current chat or embed when opened from ActiveChat
+     * Auto-generate share URL for current chat or embed.
+     * The URL is pre-generated so it's ready to include when the user enables the share toggle.
+     * Also sets hasActiveChatOrEmbed to control toggle visibility.
      */
     async function autoGenerateShareUrl() {
-        // Check if URL is already filled (user may have manually entered it)
+        // Check if URL is already filled (e.g. from deep link or store)
         if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
+            hasActiveChatOrEmbed = true;
             return;
         }
         
@@ -185,13 +145,14 @@
             // Check for active embed first
             const activeEmbedId = $activeEmbedStore;
             if (activeEmbedId) {
+                hasActiveChatOrEmbed = true;
                 console.debug('[SettingsReportIssue] Auto-generating share URL for embed:', activeEmbedId);
                 try {
                     const { generateEmbedShareKeyBlob } = await import('../../services/embedShareEncryption');
                     const encryptedBlob = await generateEmbedShareKeyBlob(activeEmbedId, 0, undefined);
                     const baseUrl = window.location.origin;
                     chatOrEmbedUrl = `${baseUrl}/share/embed/${activeEmbedId}#key=${encryptedBlob}`;
-                    console.debug('[SettingsReportIssue] Auto-generated embed share URL:', chatOrEmbedUrl);
+                    console.debug('[SettingsReportIssue] Auto-generated embed share URL');
                     return;
                 } catch (error) {
                     console.warn('[SettingsReportIssue] Failed to generate embed share URL:', error);
@@ -202,13 +163,14 @@
             // Check for active chat
             const activeChatId = $activeChatStore;
             if (activeChatId) {
+                hasActiveChatOrEmbed = true;
                 console.debug('[SettingsReportIssue] Auto-generating share URL for chat:', activeChatId);
                 
                 // For public chats, use simple format
                 if (isPublicChat(activeChatId)) {
                     const baseUrl = window.location.origin;
                     chatOrEmbedUrl = `${baseUrl}/#chat-id=${activeChatId}`;
-                    console.debug('[SettingsReportIssue] Auto-generated public chat share URL:', chatOrEmbedUrl);
+                    console.debug('[SettingsReportIssue] Auto-generated public chat share URL');
                     return;
                 }
                 
@@ -233,7 +195,7 @@
                         
                         const baseUrl = window.location.origin;
                         chatOrEmbedUrl = `${baseUrl}/share/chat/${activeChatId}#key=${encryptedBlob}`;
-                        console.debug('[SettingsReportIssue] Auto-generated chat share URL:', chatOrEmbedUrl);
+                        console.debug('[SettingsReportIssue] Auto-generated chat share URL');
                     }
                 } catch (error) {
                     console.warn('[SettingsReportIssue] Failed to generate chat share URL:', error);
@@ -312,6 +274,70 @@
     }
 
     /**
+     * Collect the rendered HTML of the last user message and assistant response
+     * from the DOM. This helps debugging by showing exactly what the user saw.
+     * 
+     * Returns a string containing both messages' HTML, or null if no messages are found.
+     * The HTML is extracted from the ProseMirror read-only editor instances in the DOM.
+     */
+    function collectLastMessagesHtml(): string | null {
+        try {
+            // Find all message wrappers in the chat history container
+            const allMessages = document.querySelectorAll('[data-message-id]');
+            if (!allMessages || allMessages.length === 0) {
+                console.debug('[SettingsReportIssue] No messages found in DOM for HTML collection');
+                return null;
+            }
+            
+            const parts: string[] = [];
+            
+            // Find the last user message and last assistant message
+            // Iterate backwards to find the most recent ones
+            let lastUserEl: Element | null = null;
+            let lastAssistantEl: Element | null = null;
+            
+            for (let i = allMessages.length - 1; i >= 0; i--) {
+                const wrapper = allMessages[i];
+                if (!lastAssistantEl && wrapper.classList.contains('assistant')) {
+                    lastAssistantEl = wrapper;
+                }
+                if (!lastUserEl && wrapper.classList.contains('user')) {
+                    lastUserEl = wrapper;
+                }
+                // Stop once we found both
+                if (lastUserEl && lastAssistantEl) break;
+            }
+            
+            // Extract rendered HTML from the ProseMirror editor content
+            if (lastUserEl) {
+                const proseMirror = lastUserEl.querySelector('.read-only-message .ProseMirror, .chat-message-text .ProseMirror');
+                if (proseMirror) {
+                    parts.push(`<div data-role="user">\n${proseMirror.innerHTML}\n</div>`);
+                }
+            }
+            
+            if (lastAssistantEl) {
+                const proseMirror = lastAssistantEl.querySelector('.read-only-message .ProseMirror, .chat-message-text .ProseMirror');
+                if (proseMirror) {
+                    parts.push(`<div data-role="assistant">\n${proseMirror.innerHTML}\n</div>`);
+                }
+            }
+            
+            if (parts.length === 0) {
+                console.debug('[SettingsReportIssue] Could not extract HTML from message DOM elements');
+                return null;
+            }
+            
+            const result = parts.join('\n');
+            console.debug(`[SettingsReportIssue] Collected last messages HTML: ${result.length} chars`);
+            return result;
+        } catch (error) {
+            console.warn('[SettingsReportIssue] Failed to collect last messages HTML:', error);
+            return null;
+        }
+    }
+
+    /**
      * Handle form submission
      */
     async function handleSubmit() {
@@ -326,8 +352,6 @@
                 titleInput.focus();
             } else if (descriptionError && descriptionInput) {
                 descriptionInput.focus();
-            } else if (urlError && urlInput) {
-                urlInput.focus();
             } else if (emailError && emailInput) {
                 emailInput.focus();
             }
@@ -338,13 +362,13 @@
         
         try {
             // SECURITY: Sanitize inputs before sending to backend
-            // The backend will also sanitize, but this provides defense-in-depth
             const sanitizedTitle = sanitizeTextInput(issueTitle);
             // Description is optional - send null if empty, otherwise sanitize
             const sanitizedDescription = issueDescription.trim()
                 ? sanitizeTextInput(issueDescription)
                 : null;
-            const sanitizedUrl = chatOrEmbedUrl.trim() || null;
+            // Only include the share URL if the toggle is enabled and a URL was generated
+            const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
             // Email is optional - send null if empty, otherwise sanitize (email doesn't need HTML sanitization, but trim it)
             const sanitizedEmail = contactEmail.trim() || null;
 
@@ -358,6 +382,10 @@
             // This contains only metadata (timestamps, versions, encrypted content lengths)
             // and NO plaintext content - safe to include for debugging
             const indexedDbReport = await collectChatInspectionReport();
+            
+            // Collect rendered HTML of the last user message and assistant response
+            // This helps debugging rendering issues and seeing exactly what the user saw
+            const lastMessagesHtml = collectLastMessagesHtml();
 
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
@@ -373,7 +401,8 @@
                     contact_email: sanitizedEmail,
                     device_info: currentDeviceInfo,
                     console_logs: consoleLogs,
-                    indexeddb_report: indexedDbReport
+                    indexeddb_report: indexedDbReport,
+                    last_messages_html: lastMessagesHtml
                 }),
                 credentials: 'include'
             });
@@ -433,15 +462,14 @@
                 // Reset form
                 issueTitle = '';
                 issueDescription = '';
+                shareChatEnabled = false;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
                 titleError = '';
                 descriptionError = '';
-                urlError = '';
                 emailError = '';
                 showTitleWarning = false;
                 showDescriptionWarning = false;
-                showUrlWarning = false;
                 showEmailWarning = false;
             } else {
                 // Handle FastAPI validation errors (422 status)
@@ -469,13 +497,6 @@
                             hasFieldErrors = true;
                             if (descriptionInput) {
                                 descriptionInput.focus();
-                            }
-                        } else if (fieldName === 'chat_or_embed_url') {
-                            urlError = fieldErrorMessage;
-                            showUrlWarning = true;
-                            hasFieldErrors = true;
-                            if (urlInput) {
-                                urlInput.focus();
                             }
                         } else if (fieldName === 'contact_email') {
                             emailError = fieldErrorMessage;
@@ -544,28 +565,9 @@
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
         (!issueDescription.trim() || issueDescription.trim().length >= 10) &&
-        (!chatOrEmbedUrl.trim() || validateUrl(chatOrEmbedUrl)) &&
         (!contactEmail.trim() || validateEmail(contactEmail)) &&
         !isSubmitting
     );
-    
-    /**
-     * Validate URL on input change
-     */
-    function handleUrlInput() {
-        if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
-            if (!validateUrl(chatOrEmbedUrl)) {
-                urlError = $text('settings.report_issue.url_invalid.text');
-                showUrlWarning = true;
-            } else {
-                urlError = '';
-                showUrlWarning = false;
-            }
-        } else {
-            urlError = '';
-            showUrlWarning = false;
-        }
-    }
     
     /**
      * Validate description on input change
@@ -623,7 +625,8 @@
             indexeddb_report: indexedDbReport,
             active_chat_id: $activeChatStore || null,
             active_embed_id: $activeEmbedStore || null,
-            chat_or_embed_url: chatOrEmbedUrl || null,
+            share_chat_enabled: shareChatEnabled,
+            chat_or_embed_url: (shareChatEnabled && chatOrEmbedUrl) ? chatOrEmbedUrl : null,
             timestamp: new Date().toISOString(),
             url: window.location.href
         };
@@ -688,7 +691,10 @@
         if ($reportIssueStore) {
             if ($reportIssueStore.title) issueTitle = $reportIssueStore.title;
             if ($reportIssueStore.description) issueDescription = $reportIssueStore.description;
+            // If a URL was passed directly (e.g. from deep link), pre-fill it
             if ($reportIssueStore.url) chatOrEmbedUrl = $reportIssueStore.url;
+            // If the store requests sharing the chat, enable the toggle
+            if ($reportIssueStore.shareChat) shareChatEnabled = true;
             
             // Clear store after consuming
             reportIssueStore.set(null);
@@ -755,28 +761,21 @@
             </div>
         </div>
         
-        <!-- Shared Chat or Embed URL Input (Optional) -->
-        <div class="input-group">
-            <label for="chat-embed-url">{$text('settings.report_issue.url_label.text')}</label>
-            <div class="input-wrapper">
-                <input
-                    id="chat-embed-url"
-                    bind:this={urlInput}
-                    type="url"
-                    placeholder={$text('settings.report_issue.url_placeholder.text')}
-                    bind:value={chatOrEmbedUrl}
-                    oninput={handleUrlInput}
-                    disabled={isSubmitting}
-                    class:error={!!urlError}
-                    aria-label={$text('settings.report_issue.url_label.text')}
-                />
-                {#if showUrlWarning && urlError}
-                    <InputWarning
-                        message={urlError}
+        <!-- Share Chat Toggle (only shown when there's an active chat or embed) -->
+        {#if hasActiveChatOrEmbed}
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="share-chat-toggle">{$text('settings.report_issue.share_chat_label.text')}</label>
+                    <Toggle
+                        id="share-chat-toggle"
+                        bind:checked={shareChatEnabled}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.share_chat_label.text')}
                     />
-                {/if}
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.share_chat_hint.text')}</p>
             </div>
-        </div>
+        {/if}
         
         <!-- Contact Email Input (Optional) -->
         <div class="input-group">
@@ -935,6 +934,27 @@
         color: var(--color-font-secondary, #666);
         margin: 4px 0 0 0;
         line-height: 1.4;
+    }
+    
+    .toggle-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+    }
+    
+    .toggle-row label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-font-primary);
+        flex: 1;
     }
     
     .input-wrapper {

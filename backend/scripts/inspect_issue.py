@@ -711,6 +711,17 @@ def format_detail_output(
             else:
                 lines.append(f"    {truncate_string(str(indexeddb), 300)}")
 
+        # Last messages HTML section (rendered HTML of last user message + assistant response)
+        last_messages_html = report.get('last_messages_html')
+        if last_messages_html:
+            lines.append("")
+            lines.append("  LAST MESSAGES HTML (rendered user message + assistant response):")
+            lines.append("  " + "-" * 60)
+            html_text = str(last_messages_html)
+            # Show full HTML content since it's useful for debugging rendering
+            for html_line in html_text.split('\n'):
+                lines.append(f"    {html_line}")
+
     # Footer
     lines.append("")
     lines.append("=" * 100)
