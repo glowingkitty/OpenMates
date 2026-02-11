@@ -70,12 +70,40 @@
   }
 
   /**
-   * Check if a similar entry already exists in the user's settings/memories
-   * Compares by app_id, item_type, and case-insensitive title match
+   * Resolve the title field name for a given app category using is_title schema metadata.
+   * Falls back to common field names if no is_title flag is found.
    */
-  async function alreadyExists(
+  function getTitleFieldName(appId: string, itemType: string): string | null {
+    const app = appsMetadata?.apps?.[appId];
+    if (!app) return null;
+
+    const category = app.settings_and_memories?.find(
+      (sm) => sm.id === itemType
+    );
+    if (!category?.schema_definition?.properties) return null;
+
+    // First: look for explicit is_title flag in schema
+    for (const [fieldName, prop] of Object.entries(category.schema_definition.properties)) {
+      if (prop.is_title) return fieldName;
+    }
+
+    // Fallback: look for common title field names
+    const commonTitleFields = ["name", "title", "label"];
+    for (const field of commonTitleFields) {
+      if (category.schema_definition.properties[field]) return field;
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if a similar entry already exists in the user's settings/memories.
+   * Compares by app_id, item_type, and case-insensitive title match using
+   * the schema's is_title field to determine which field to compare.
+   */
+  function alreadyExists(
     suggestion: SuggestedSettingsMemoryEntry
-  ): Promise<boolean> {
+  ): boolean {
     // Get entries for the app, then filter by item_type (category)
     const appEntries = appSettingsMemoriesStore.getEntriesByApp(suggestion.app_id);
     if (!appEntries) return false;
@@ -86,21 +114,31 @@
 
     const suggestedTitleLower = suggestion.suggested_title.toLowerCase();
 
+    // Resolve the title field from schema metadata (uses is_title flag)
+    const titleField = getTitleFieldName(suggestion.app_id, suggestion.item_type);
+
     for (const entry of categoryEntries) {
-      // Get the title field from the entry's item_value
-      // The title field is marked with is_title: true in the schema
       const entryValue = entry.item_value as Record<string, unknown>;
       if (!entryValue) continue;
 
-      // Check common title field names
-      const titleFields = ["name", "title", "label", "destination", "language"];
-      for (const field of titleFields) {
-        const value = entryValue[field];
+      if (titleField) {
+        // Use the schema-defined title field
+        const value = entryValue[titleField];
         if (
           typeof value === "string" &&
           value.toLowerCase() === suggestedTitleLower
         ) {
           return true;
+        }
+      } else {
+        // No schema title field found - check all string values as fallback
+        for (const value of Object.values(entryValue)) {
+          if (
+            typeof value === "string" &&
+            value.toLowerCase() === suggestedTitleLower
+          ) {
+            return true;
+          }
         }
       }
     }
@@ -111,12 +149,27 @@
   /**
    * Filter suggestions to only show those that are:
    * 1. Not already rejected
-   * 2. Don't already exist in user's data
+   * 2. Don't already exist in user's data (case-insensitive title match)
+   *
+   * Subscribes to the appSettingsMemoriesStore so filtering re-runs
+   * when entries are loaded, added, or deleted.
    */
   let filteredSuggestions = $state<SuggestedSettingsMemoryEntry[]>([]);
 
-  // Filter suggestions reactively
+  // Subscribe to store changes to get reactive updates when entries change.
+  // This ensures filtering re-runs when entries are loaded, added, or deleted.
+  let storeVersion = $state(0);
   $effect(() => {
+    const unsubscribeStore = appSettingsMemoriesStore.subscribe(() => {
+      storeVersion++;
+    });
+    return () => unsubscribeStore();
+  });
+
+  // Filter suggestions reactively (re-runs when suggestions, rejectedHashes, or store entries change)
+  $effect(() => {
+    // Track reactive dependencies: suggestions prop, rejectedHashes prop, and store version
+    void storeVersion;
     filterSuggestions();
   });
 
@@ -127,8 +180,13 @@
       const rejected = await isRejected(suggestion);
       if (rejected) continue;
 
-      const exists = await alreadyExists(suggestion);
-      if (exists) continue;
+      const exists = alreadyExists(suggestion);
+      if (exists) {
+        console.debug(
+          `[SettingsMemoriesSuggestions] Filtered out "${suggestion.suggested_title}" - already exists in ${suggestion.app_id}/${suggestion.item_type}`
+        );
+        continue;
+      }
 
       filtered.push(suggestion);
     }
