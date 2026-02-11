@@ -268,87 +268,105 @@
 
 {#if filteredSuggestions.length > 0}
   <div class="suggestions-block" transition:fade={{ duration: 200 }}>
+    <!-- Header text with lock icon -->
     <div class="suggestions-header">
-      <Icon name="lock" size="16px" />
+      <Icon name="lock" size="18px" />
       <span>{$text("chat.settings_memories_suggestions.header.text")}</span>
     </div>
 
-    <div class="suggestions-scroll-container">
-      <div
-        class="suggestions-track"
-        class:single={filteredSuggestions.length === 1}
-      >
-        {#each filteredSuggestions as suggestion (getSuggestionId(suggestion))}
-          {@const isProcessing = processingIds.has(getSuggestionId(suggestion))}
-          <div class="suggestion-card" class:processing={isProcessing}>
-            <div class="card-content">
-              <div class="app-icon-wrapper">
-                <Icon name={suggestion.app_id} type="app" size="40px" />
+    <!-- Outer container panel wrapping all cards -->
+    <div class="suggestions-panel">
+      <div class="suggestions-scroll-container">
+        <div
+          class="suggestions-track"
+          class:single={filteredSuggestions.length === 1}
+        >
+          {#each filteredSuggestions as suggestion (getSuggestionId(suggestion))}
+            {@const isProcessing = processingIds.has(getSuggestionId(suggestion))}
+            <div class="suggestion-card" class:processing={isProcessing}>
+              <!-- Top section: app icon + heart icon + category/title text -->
+              <div class="card-top">
+                <div class="card-icons">
+                  <div class="app-icon-circle">
+                    <Icon name={suggestion.app_id} type="app" size="61px" />
+                  </div>
+                  <div class="settings-memories-icon">
+                    <Icon name="heart" size="26px" />
+                  </div>
+                </div>
+                <div class="suggestion-info">
+                  <span class="category-name">{getCategoryName(suggestion.app_id, suggestion.item_type)}</span>
+                  <span class="suggestion-title">{suggestion.suggested_title}</span>
+                </div>
               </div>
-              <div class="suggestion-info">
-                <span class="category-name"
-                  >{getCategoryName(suggestion.app_id, suggestion.item_type)}</span
+              <!-- Bottom section: reject and add action buttons -->
+              <div class="card-bottom">
+                <button
+                  class="action-btn reject-btn"
+                  onclick={() => handleReject(suggestion)}
+                  disabled={isProcessing}
+                  aria-label={$text("chat.settings_memories_suggestions.reject.text")}
                 >
-                <span class="suggestion-title">{suggestion.suggested_title}</span>
+                  <Icon name="close" size="17px" />
+                  <span>{$text("chat.settings_memories_suggestions.reject.text")}</span>
+                </button>
+                <button
+                  class="action-btn add-btn"
+                  onclick={() => handleAdd(suggestion)}
+                  disabled={isProcessing}
+                  aria-label={$text("chat.settings_memories_suggestions.add.text")}
+                >
+                  <Icon name="create" size="17px" />
+                  <span>{$text("chat.settings_memories_suggestions.add.text")}</span>
+                </button>
               </div>
             </div>
-            <div class="card-actions">
-              <button
-                class="action-btn reject-btn"
-                onclick={() => handleReject(suggestion)}
-                disabled={isProcessing}
-                aria-label={$text("chat.settings_memories_suggestions.reject.text")}
-              >
-                <Icon name="x" size="16px" />
-                <span>{$text("chat.settings_memories_suggestions.reject.text")}</span>
-              </button>
-              <button
-                class="action-btn add-btn"
-                onclick={() => handleAdd(suggestion)}
-                disabled={isProcessing}
-                aria-label={$text("chat.settings_memories_suggestions.add.text")}
-              >
-                <Icon name="plus" size="16px" />
-                <span>{$text("chat.settings_memories_suggestions.add.text")}</span>
-              </button>
-            </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
     </div>
 
+    <!-- Privacy notice with lock icon -->
     <div class="privacy-notice">
-      <Icon name="shield" size="14px" />
+      <Icon name="lock" size="20px" />
       <span>{$text("chat.settings_memories_suggestions.privacy_notice.text")}</span>
     </div>
   </div>
 {/if}
 
 <style>
+  /* ===== Suggestions block container ===== */
   .suggestions-block {
     margin: 16px 0;
     padding: 0 12px;
   }
 
+  /* ===== Header: lock icon + question text ===== */
   .suggestions-header {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     color: var(--color-grey-60);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 700;
     margin-bottom: 12px;
-    padding-left: 4px;
   }
 
+  /* ===== Outer panel wrapping cards (rounded container with shadow) ===== */
+  .suggestions-panel {
+    background: var(--color-grey-0);
+    border-radius: 23px;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+  }
+
+  /* ===== Horizontal scroll container for cards ===== */
   .suggestions-scroll-container {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--color-grey-30) transparent;
-    margin: 0 -12px;
-    padding: 0 12px;
-    /* Smooth scroll on touch devices */
     -webkit-overflow-scrolling: touch;
   }
 
@@ -365,33 +383,23 @@
     border-radius: 3px;
   }
 
+  /* ===== Cards track (flex row) ===== */
   .suggestions-track {
     display: flex;
-    gap: 12px;
-    padding: 4px 0;
-    /* For multiple cards, start from left */
+    gap: 16px;
+    padding: 16px;
     justify-content: flex-start;
   }
 
-  /* When single card, center it */
   .suggestions-track.single {
     justify-content: center;
   }
 
+  /* ===== Individual suggestion card ===== */
   .suggestion-card {
     flex: 0 0 auto;
-    min-width: 280px;
-    max-width: 320px;
-    background: var(--color-grey-0);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  }
-
-  .suggestion-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    width: 300px;
+    transition: opacity 0.2s ease;
   }
 
   .suggestion-card.processing {
@@ -399,88 +407,123 @@
     pointer-events: none;
   }
 
-  .card-content {
+  /* ===== Card top section: icon area + text ===== */
+  .card-top {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 12px;
+    background: var(--color-grey-10);
+    border-radius: 30px;
+    padding: 0;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    height: 61px;
+    position: relative;
   }
 
-  .app-icon-wrapper {
+  /* ===== Icon area within top section ===== */
+  .card-icons {
+    display: flex;
+    align-items: center;
+    gap: 0;
     flex-shrink: 0;
-    width: 48px;
-    height: 48px;
+    position: relative;
+  }
+
+  /* App icon circle (61px, uses the app's own gradient via Icon component) */
+  .app-icon-circle {
+    flex-shrink: 0;
+    width: 61px;
+    height: 61px;
+    border-radius: 50%;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
   }
 
+  /* Override Icon component border-radius to be circular within app-icon-circle */
+  .app-icon-circle :global(.icon) {
+    border-radius: 50% !important;
+  }
+
+  /* Settings/memories heart icon (pink/magenta gradient) */
+  .settings-memories-icon {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+
+  /* Apply the SettingsMemories pink gradient to the heart icon */
+  .settings-memories-icon :global(.icon) {
+    background: linear-gradient(180deg, #DD03B5 0%, #CB00A5 100%) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    border: none !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+  }
+
+  /* ===== Suggestion text (category name + title) ===== */
   .suggestion-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     min-width: 0;
+    flex: 1;
   }
 
   .category-name {
-    font-size: 12px;
+    font-size: 16px;
+    font-weight: 700;
     color: var(--color-grey-50);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
   }
 
   .suggestion-title {
     font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-90);
+    font-weight: 700;
+    color: var(--color-grey-50);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.25;
   }
 
-  .card-actions {
-    display: flex;
-    gap: 8px;
-    border-top: 1px solid var(--color-grey-20);
-    padding-top: 12px;
-  }
-
-  .action-btn {
-    flex: 1;
+  /* ===== Card bottom section: action buttons on gray bar ===== */
+  .card-bottom {
     display: flex;
     align-items: center;
-    justify-content: center;
+    background: var(--color-grey-25);
+    border-radius: 0 0 33px 33px;
+    padding: 14px 20px;
+    margin-top: 0;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  }
+
+  /* ===== Action buttons (text-only, no background fill) ===== */
+  .action-btn {
+    display: flex;
+    align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    background: none;
     border: none;
     outline: none;
-  }
-
-  .reject-btn {
-    background: var(--color-grey-10);
-    color: var(--color-grey-60);
-  }
-
-  .reject-btn:hover:not(:disabled) {
-    background: var(--color-grey-20);
-    color: var(--color-grey-80);
-  }
-
-  .add-btn {
-    background: var(--color-primary);
-    color: white;
-  }
-
-  .add-btn:hover:not(:disabled) {
-    background: var(--color-primary-dark);
+    padding: 4px 8px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    line-height: 1.25;
   }
 
   .action-btn:disabled {
@@ -488,31 +531,66 @@
     cursor: not-allowed;
   }
 
+  /* Reject button: grey text, positioned on the left */
+  .reject-btn {
+    color: var(--color-grey-50);
+    margin-right: auto;
+  }
+
+  .reject-btn:hover:not(:disabled) {
+    color: var(--color-grey-70);
+  }
+
+  /* Add button: blue gradient text, positioned on the right */
+  .add-btn {
+    color: var(--color-primary-start);
+    margin-left: auto;
+  }
+
+  .add-btn:hover:not(:disabled) {
+    opacity: 0.8;
+  }
+
+  /* ===== Privacy notice footer ===== */
   .privacy-notice {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 16px;
     padding: 8px;
-    color: var(--color-grey-50);
-    font-size: 12px;
+    color: var(--color-grey-60);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
   }
 
-  /* Responsive adjustments */
+  /* ===== Responsive adjustments ===== */
   @media (max-width: 600px) {
     .suggestion-card {
-      min-width: 260px;
-      max-width: 280px;
+      width: 260px;
     }
 
-    .suggestions-header {
-      font-size: 13px;
+    .card-top {
+      height: 52px;
+    }
+
+    .app-icon-circle {
+      width: 52px;
+      height: 52px;
+    }
+
+    .category-name,
+    .suggestion-title {
+      font-size: 14px;
     }
 
     .action-btn {
-      padding: 6px 10px;
-      font-size: 13px;
+      font-size: 15px;
+    }
+
+    .suggestions-header {
+      font-size: 14px;
     }
   }
 </style>
