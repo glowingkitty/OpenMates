@@ -8,7 +8,9 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- maximum-scale=1 prevents iOS Safari from auto-zooming when focusing inputs with font-size < 16px.
+			 Without this, iOS zooms in on input focus and stays zoomed after keyboard dismiss. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 		<meta name="theme-color" content="#171717" />
 
 		<!--

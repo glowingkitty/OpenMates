@@ -741,6 +741,7 @@
     animation-delay: 200ms;
     transition: opacity 200ms ease;
     opacity: 1;
+    position: relative;
   }
 
   /* Fade-out when transitioning from default to user suggestions */
@@ -790,6 +791,25 @@
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
     min-height: 60px;
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Gradient fade background that extends above the suggestions to overlay
+     background content (e.g., report issue button, chat content).
+     Matches the same pattern used in FollowUpSuggestions for consistency. */
+  .suggestions-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    bottom: -10px;
+    left: -9999px;
+    right: -9999px;
+    /* Gradient stays solid longer with a smoother, more gradual fade at the top
+       This ensures smooth transition while maintaining readability */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    z-index: -1;
+    pointer-events: none;
   }
 
   .carousel-nav {
