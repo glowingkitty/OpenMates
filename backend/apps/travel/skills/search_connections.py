@@ -212,6 +212,7 @@ class SearchConnectionsSkill(BaseSkill):
         max_results = req.get("max_results", 5)
         non_stop_only = req.get("non_stop_only", False)
         currency = req.get("currency", "EUR")
+        sort_by = req.get("sort_by", "price_asc")
 
         # Validate legs
         if not legs or not isinstance(legs, list):
@@ -346,8 +347,110 @@ class SearchConnectionsSkill(BaseSkill):
 
             results.append(result_dict)
 
+        # Sort results according to the requested sort_by parameter
+        self._sort_results(results, sort_by)
+
         error_str = "; ".join(errors) if errors else None
         return (request_id, results, error_str)
+
+    # ------------------------------------------------------------------
+    # Sorting helpers
+    # ------------------------------------------------------------------
+
+    # Valid sort_by values and their defaults
+    VALID_SORT_OPTIONS = {
+        "price_asc", "price_desc",
+        "duration_asc", "duration_desc",
+        "departure_asc", "departure_desc",
+        "stops_asc", "stops_desc",
+    }
+
+    def _sort_results(self, results: List[Dict[str, Any]], sort_by: str) -> None:
+        """
+        Sort connection result dicts in-place according to the sort_by parameter.
+
+        Supported values:
+          - price_asc / price_desc     → by total_price (numeric)
+          - duration_asc / duration_desc → by first-leg duration string (e.g., '2h 30m')
+          - departure_asc / departure_desc → by first-leg departure ISO timestamp
+          - stops_asc / stops_desc     → by number of stops on first leg
+
+        Results missing the sort field are always placed at the end regardless of
+        ascending/descending direction.
+        """
+        if sort_by not in self.VALID_SORT_OPTIONS:
+            logger.warning(f"Unknown sort_by value '{sort_by}', falling back to 'price_asc'")
+            sort_by = "price_asc"
+
+        field, direction = sort_by.rsplit("_", 1)
+        reverse = direction == "desc"
+
+        if field == "price":
+            results.sort(key=lambda r: self._sort_key_price(r), reverse=reverse)
+        elif field == "duration":
+            results.sort(key=lambda r: self._sort_key_duration(r), reverse=reverse)
+        elif field == "departure":
+            results.sort(key=lambda r: self._sort_key_departure(r), reverse=reverse)
+        elif field == "stops":
+            results.sort(key=lambda r: self._sort_key_stops(r), reverse=reverse)
+
+    @staticmethod
+    def _sort_key_price(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, price). Missing prices sort last."""
+        price_str = result.get("total_price")
+        if price_str is not None:
+            try:
+                return (0, float(price_str))
+            except (ValueError, TypeError):
+                pass
+        return (1, float("inf"))
+
+    @staticmethod
+    def _sort_key_duration(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, duration_minutes). Missing durations sort last."""
+        duration_str = result.get("duration")
+        if duration_str:
+            minutes = SearchConnectionsSkill._parse_duration_minutes(duration_str)
+            if minutes is not None:
+                return (0, minutes)
+        return (1, float("inf"))
+
+    @staticmethod
+    def _sort_key_departure(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, departure_iso). Missing departures sort last."""
+        dep = result.get("departure")
+        if dep and isinstance(dep, str):
+            return (0, dep)
+        return (1, "")
+
+    @staticmethod
+    def _sort_key_stops(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, stops). Missing stops sort last."""
+        stops = result.get("stops")
+        if stops is not None and isinstance(stops, (int, float)):
+            return (0, int(stops))
+        return (1, float("inf"))
+
+    @staticmethod
+    def _parse_duration_minutes(duration_str: str) -> Optional[int]:
+        """
+        Parse a human-readable duration string like '2h 30m' or '14h 5m' into
+        total minutes. Returns None if the string cannot be parsed.
+        """
+        import re
+        total = 0
+        found = False
+        # Match hours
+        h_match = re.search(r"(\d+)\s*h", duration_str)
+        if h_match:
+            total += int(h_match.group(1)) * 60
+            found = True
+        # Match minutes
+        m_match = re.search(r"(\d+)\s*m", duration_str)
+        if m_match:
+            total += int(m_match.group(1))
+            found = True
+        return total if found else None
 
     @staticmethod
     def _generate_connection_hash(connection: Any) -> str:

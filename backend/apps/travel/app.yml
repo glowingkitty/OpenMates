@@ -182,6 +182,25 @@ skills:
                 type: string
                 description: Preferred currency for prices (ISO 4217 code).
                 default: EUR
+              sort_by:
+                type: string
+                description: >
+                  How to sort the results. Options: "price_asc" (cheapest first,
+                  default), "price_desc" (most expensive first), "duration_asc"
+                  (shortest first), "duration_desc" (longest first),
+                  "departure_asc" (earliest departure first), "departure_desc"
+                  (latest departure first), "stops_asc" (fewest stops first),
+                  "stops_desc" (most stops first).
+                enum:
+                  - price_asc
+                  - price_desc
+                  - duration_asc
+                  - duration_desc
+                  - departure_asc
+                  - departure_desc
+                  - stops_asc
+                  - stops_desc
+                default: price_asc
             required:
               - legs
       required:
