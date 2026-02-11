@@ -23,7 +23,7 @@ pyotp==2.9.0
 user-agents==2.2.0
 staticmap==0.5.7
 Pillow==11.1.0
-cryptography==44.0.2
+cryptography==46.0.5
 google-genai==1.58.0
 tiktoken==0.9.0
 anthropic==0.57.1
