@@ -472,6 +472,12 @@ async def _charge_skill_credits(
             except Exception as e:
                 logger.warning(f"{log_prefix} Error fetching provider pricing for '{provider_id}': {e}. Falling back to minimum charge.")
         
+        # Skip charging if the skill returned no results (e.g. API key failure,
+        # provider outage). Users should not be billed for failed requests.
+        if not results:
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' returned 0 results, skipping billing.")
+            return
+        
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
         units_processed = None
@@ -2097,10 +2103,22 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 
                 try:
+                    # ARGUMENT NORMALIZATION:
+                    # LLMs sometimes send flat arguments (e.g., {"prompt": "..."}) instead of the
+                    # required {"requests": [...]} array format for skills that expect it.
+                    # Detect this mismatch using the skill's tool_schema and normalize the arguments.
+                    # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
+                    skill_arguments = _normalize_skill_arguments(
+                        arguments=parsed_args,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        task_id=task_id
+                    )
+
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
                     # so the Celery task can update the existing placeholder instead of creating new embeds.
                     # This enables the in-place "processing" -> "finished" transition.
-                    skill_arguments = parsed_args
                     if placeholder_embed_data:
                         # Extract placeholder embed_ids to pass to the skill
                         _placeholder_ids = []
@@ -2114,7 +2132,8 @@ async def handle_main_processing(
                         
                         if _placeholder_ids:
                             # Inject as metadata field (underscore prefix = stripped before Pydantic validation)
-                            skill_arguments = parsed_args.copy()
+                            # Copy from skill_arguments (not parsed_args) to preserve normalization
+                            skill_arguments = skill_arguments.copy()
                             skill_arguments["_placeholder_embed_ids"] = _placeholder_ids
                     
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
@@ -3105,6 +3124,9 @@ async def handle_main_processing(
             except json.JSONDecodeError as e:
                 logger.error(f"{log_prefix} Invalid JSON in tool arguments for '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid JSON in function arguments.", "details": str(e)})
+                # Set ignore_fields_for_inference to None since JSON parsing failed
+                # This variable is used later when adding to message history
+                ignore_fields_for_inference = None
                 # Track error in tool calls info
                 try:
                     app_id, skill_id = tool_name.split('-', 1)
@@ -3163,6 +3185,9 @@ async def handle_main_processing(
                 # Invalid tool name format
                 logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid tool name format.", "details": str(e)})
+                # Set ignore_fields_for_inference to None since invalid tool name format
+                # This variable is used later when adding to message history
+                ignore_fields_for_inference = None
                 # Track error in tool calls info
                 try:
                     tool_call_info = {
@@ -3328,6 +3353,93 @@ async def handle_main_processing(
         logger.debug(f"{log_prefix} Yielding tool calls info for {len(tool_calls_info)} tool call(s)")
 
     logger.info(f"{log_prefix} Main processing stream finished.")
+
+
+def _normalize_skill_arguments(
+    arguments: Dict[str, Any],
+    app_id: str,
+    skill_id: str,
+    discovered_apps_metadata: Dict[str, Any],
+    task_id: str
+) -> Dict[str, Any]:
+    """
+    Normalizes LLM-generated skill arguments to match the expected schema format.
+    
+    LLMs sometimes send flat arguments (e.g., {"prompt": "a cat", "aspect_ratio": "1:1"})
+    instead of the required wrapped format (e.g., {"requests": [{"prompt": "a cat", "aspect_ratio": "1:1"}]}).
+    This function detects the mismatch using the skill's tool_schema and wraps the arguments
+    into the correct format.
+    
+    This handles the case where:
+    - The tool_schema declares "requests" as a required top-level property of type "array"
+    - The LLM sends flat arguments without a "requests" key
+    - The flat arguments match the items schema of the "requests" array
+    
+    Args:
+        arguments: The parsed tool call arguments from the LLM
+        app_id: The app ID
+        skill_id: The skill ID
+        discovered_apps_metadata: The full app metadata (contains tool_schema)
+        task_id: Task ID for logging
+        
+    Returns:
+        Normalized arguments dict. Returns the original arguments unchanged if no
+        normalization is needed or if the schema can't be determined.
+    """
+    log_prefix = f"[Task ID: {task_id}]"
+    
+    # If arguments already contain "requests", no normalization needed
+    if "requests" in arguments:
+        return arguments
+    
+    # Look up the skill's tool_schema to determine expected format
+    app_metadata = discovered_apps_metadata.get(app_id)
+    if not app_metadata or not app_metadata.skills:
+        return arguments
+    
+    skill_def = None
+    for skill in app_metadata.skills:
+        if skill.id == skill_id:
+            skill_def = skill
+            break
+    
+    if not skill_def or not skill_def.tool_schema:
+        return arguments
+    
+    schema = skill_def.tool_schema
+    schema_properties = schema.get("properties", {})
+    schema_required = schema.get("required", [])
+    
+    # Check if the schema requires a "requests" property of type "array"
+    if "requests" not in schema_properties:
+        return arguments
+    
+    requests_schema = schema_properties["requests"]
+    if requests_schema.get("type") != "array":
+        return arguments
+    
+    if "requests" not in schema_required:
+        return arguments
+    
+    # The schema requires a "requests" array but the LLM sent flat arguments.
+    # Extract non-metadata keys (keys that don't start with "_") as the request object.
+    flat_request = {k: v for k, v in arguments.items() if not k.startswith("_")}
+    
+    if not flat_request:
+        # No non-metadata keys to wrap — return as-is and let validation catch it
+        return arguments
+    
+    # Preserve metadata keys (underscore-prefixed) at the top level
+    normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
+    normalized["requests"] = [flat_request]
+    
+    logger.info(
+        f"{log_prefix} [NORMALIZE] Wrapped flat arguments into 'requests' array for "
+        f"'{app_id}.{skill_id}'. Original keys: {list(flat_request.keys())}. "
+        f"LLM sent flat args instead of {{\"requests\": [...]}} format."
+    )
+    
+    return normalized
 
 
 def _validate_tool_arguments_against_schema(

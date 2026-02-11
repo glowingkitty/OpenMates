@@ -475,6 +475,33 @@ class BaseApp:
                     }
                     
                     clean_request_body.update(supported_skill_kwargs)
+
+                    # Auto-normalize: If the skill expects a 'requests' list parameter but the LLM
+                    # sent flat args (e.g. {"prompt": "..."} instead of {"requests": [{"prompt": "..."}]}),
+                    # wrap the flat args into a single-item requests array.
+                    # This handles a common LLM mistake where it sends individual request fields directly
+                    # instead of wrapping them in the required 'requests' array format.
+                    if 'requests' not in clean_request_body and 'requests' in execute_params:
+                        requests_param = execute_params['requests']
+                        if (requests_param.default is inspect.Parameter.empty
+                                and 'List' in str(requests_param.annotation)):
+                            # Collect non-metadata fields that likely belong to a single request item
+                            request_item_fields = {
+                                k: v for k, v in clean_request_body.items()
+                                if not k.startswith('_') and k not in (
+                                    'user_id', 'external_request', 'chat_id', 'message_id', 'placeholder_embed_ids'
+                                )
+                            }
+                            if request_item_fields:
+                                logger.warning(
+                                    f"Auto-normalizing flat args to 'requests' array for skill '{skill_definition.id}'. "
+                                    f"LLM sent: {list(request_item_fields.keys())}. "
+                                    f"Wrapping into: requests=[{{...}}]"
+                                )
+                                # Remove the item fields from clean_request_body and wrap them
+                                for k in request_item_fields:
+                                    clean_request_body.pop(k, None)
+                                clean_request_body['requests'] = [request_item_fields]
                     
                     # Validate that all required parameters are present before calling execute()
                     # This catches cases where the LLM hallucinated wrong parameter names

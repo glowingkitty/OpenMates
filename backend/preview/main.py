@@ -167,6 +167,10 @@ async def cors_middleware(request: Request, call_next):
                     "Access-Control-Allow-Credentials": "true",
                     "Access-Control-Expose-Headers": "X-Cache, X-Processed, X-Original-Size, X-Processed-Size",
                     "Access-Control-Max-Age": "86400",  # Cache preflight for 24 hours
+                    # Vary: Origin tells caches that the response varies based on the Origin header.
+                    # Without this, a CDN/proxy could cache a response with one origin's ACAO header
+                    # and serve it to requests from a different origin, causing CORS failures.
+                    "Vary": "Origin",
                 }
             )
         else:
@@ -185,6 +189,12 @@ async def cors_middleware(request: Request, call_next):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Expose-Headers"] = "X-Cache, X-Processed, X-Original-Size, X-Processed-Size"
+    
+    # Always set Vary: Origin so intermediate caches (CDN, Caddy, browser) know
+    # that the response varies based on the requesting origin. This prevents a response
+    # cached for one origin (e.g., dev.openmates.org) from being served to another
+    # origin (e.g., openmates.org) with the wrong Access-Control-Allow-Origin header.
+    response.headers["Vary"] = "Origin"
     
     return response
 

@@ -385,16 +385,20 @@ export class EmbedStore {
     type: EmbedType,
     plaintextContent?: string,
     preExtractedMetadata?: { app_id?: string; skill_id?: string },
+    options?: { skipMetadataExtraction?: boolean },
   ): Promise<void> {
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
 
     // Extract app_id and skill_id from plaintext content if provided, otherwise try to decrypt
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
+    // During bulk sync (Phase 3, CoreSync), skip decryption-based extraction since embed keys
+    // are typically not available yet - metadata will be extracted later when embeds are accessed
     let appMetadata: { app_id?: string; skill_id?: string } = {};
 
     if (
-      normalizedType === "app-skill-use" ||
-      normalizedType === "app_skill_use"
+      (normalizedType === "app-skill-use" ||
+        normalizedType === "app_skill_use") &&
+      !options?.skipMetadataExtraction
     ) {
       try {
         // If metadata was already extracted upstream, trust it
@@ -1343,21 +1347,7 @@ export class EmbedStore {
       }
     }
 
-    // Debug: Log all cache keys to help diagnose cache misses
-    console.debug(
-      "[EmbedStore] Cache miss for:",
-      normalizedEmbedId,
-      "cacheKey:",
-      cacheKey,
-      "hashedChatId:",
-      hashedChatId,
-    );
-    console.debug(
-      "[EmbedStore] Current cache keys:",
-      Array.from(embedKeyCache.keys()).filter((k) =>
-        k.startsWith(normalizedEmbedId + ":"),
-      ),
-    );
+    // Cache miss - proceed to IndexedDB lookup
 
     // Child embed support: child embeds inherit the parent's embed_key.
     // In shared chats, only the parent's wrapped key exists in embed_keys, so for child embeds
@@ -1496,8 +1486,8 @@ export class EmbedStore {
             return embedKey;
           }
         }
-        console.warn(
-          "[EmbedStore] ❌ All chat key fallback attempts failed for:",
+        console.debug(
+          "[EmbedStore] All chat key fallback attempts failed for:",
           embedId,
         );
       }
@@ -1505,7 +1495,9 @@ export class EmbedStore {
       // No direct key found - this should not happen for child embeds (they're handled at the start)
       // This path is only for parent embeds that couldn't unwrap their keys
 
-      console.warn(
+      // Missing keys are expected during as-is sync (Phase 3) when embed keys
+      // haven't been synced yet - use debug level to avoid log spam
+      console.debug(
         "[EmbedStore] Could not unwrap embed key (no valid key wrapper found and no parent key available):",
         embedId,
       );
@@ -1573,42 +1565,12 @@ export class EmbedStore {
         request.onerror = () => reject(request.error);
       });
 
-      // Debug: Log what we found
+      // Log result - missing keys during as-is sync is expected, so use debug level
       if (result.length === 0) {
-        console.warn(
+        console.debug(
           "[EmbedStore] No embed key entries found for hashedEmbedId:",
           hashedEmbedId.substring(0, 16) + "...",
         );
-        // Debug: List all stored keys to see what's there
-        try {
-          const allKeys = await new Promise<EmbedKeyEntry[]>(
-            (resolve, reject) => {
-              const allRequest = store.getAll();
-              allRequest.onsuccess = () => resolve(allRequest.result || []);
-              allRequest.onerror = () => reject(allRequest.error);
-            },
-          );
-          console.debug(
-            "[EmbedStore] Total embed_keys in IndexedDB:",
-            allKeys.length,
-          );
-          if (allKeys.length > 0) {
-            // Show the hashed_embed_ids we have
-            const uniqueIds = Array.from(
-              new Set(
-                allKeys.map(
-                  (k) => k.hashed_embed_id?.substring(0, 16) || "null",
-                ),
-              ),
-            );
-            console.debug(
-              "[EmbedStore] Available hashed_embed_ids (first 16 chars):",
-              uniqueIds.slice(0, 10),
-            );
-          }
-        } catch (listError) {
-          console.debug("[EmbedStore] Could not list all keys:", listError);
-        }
       } else {
         console.debug(
           "[EmbedStore] Found",

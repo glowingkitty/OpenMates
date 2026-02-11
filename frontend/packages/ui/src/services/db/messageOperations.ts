@@ -604,6 +604,30 @@ export async function saveMessage(
           `[ChatDatabase] External transaction is no longer active for message ${message.message_id}, creating new transaction:`,
           error,
         );
+        // Re-check priority before retrying with a new transaction to prevent
+        // stale status overwrites (same fix as in the catch block below)
+        try {
+          const recheckTx = await dbInstance.getTransaction(
+            MESSAGES_STORE_NAME,
+            "readonly",
+          );
+          const currentInDb = await getMessage(
+            dbInstance,
+            message.message_id,
+            recheckTx,
+          );
+          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+            console.info(
+              `[ChatDatabase] ✅ STALE WRITE PREVENTED on external tx retry - message ${message.message_id} already has status (${currentInDb.status}), skipping write of status (${message.status})`,
+            );
+            return;
+          }
+        } catch (recheckError) {
+          console.debug(
+            `[ChatDatabase] Could not re-check message priority before external tx retry:`,
+            recheckError,
+          );
+        }
         const newTransaction = await dbInstance.getTransaction(
           MESSAGES_STORE_NAME,
           "readwrite",
@@ -626,6 +650,35 @@ export async function saveMessage(
           `[ChatDatabase] Transaction is no longer active for message ${message.message_id}, creating new transaction:`,
           error,
         );
+        // CRITICAL FIX: Before retrying, re-check if a higher-priority status
+        // has been written to IDB by a concurrent save (e.g., 'synced' was
+        // written while this 'processing' write was delayed by transaction expiry).
+        // Without this check, the retry can overwrite a newer status with a stale one,
+        // causing the "Processing..." indicator to flicker.
+        try {
+          const recheckTx = await dbInstance.getTransaction(
+            MESSAGES_STORE_NAME,
+            "readonly",
+          );
+          const currentInDb = await getMessage(
+            dbInstance,
+            message.message_id,
+            recheckTx,
+          );
+          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+            console.info(
+              `[ChatDatabase] ✅ STALE WRITE PREVENTED on retry - message ${message.message_id} already has equal/higher priority status in IDB (${currentInDb.status}), skipping write of status (${message.status})`,
+            );
+            return;
+          }
+        } catch (recheckError) {
+          // If the re-check fails, proceed with the write (better to write than lose data)
+          console.debug(
+            `[ChatDatabase] Could not re-check message priority before retry:`,
+            recheckError,
+          );
+        }
+
         const newTransaction = await dbInstance.getTransaction(
           MESSAGES_STORE_NAME,
           "readwrite",

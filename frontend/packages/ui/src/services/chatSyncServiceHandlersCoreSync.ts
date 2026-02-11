@@ -543,7 +543,9 @@ export async function handlePhase1LastChatImpl(
           const contentRef = `embed:${embed.embed_id}`;
 
           // Store the embed with its already-encrypted content (no re-encryption)
-          // putEncrypted will decrypt content to extract app_id/skill_id for indexing
+          // Skip metadata extraction during bulk sync - embed keys may not be
+          // available yet, and attempting decryption per embed is expensive.
+          // Metadata will be extracted later when embeds are accessed.
           await embedStore.putEncrypted(
             contentRef,
             {
@@ -568,6 +570,9 @@ export async function handlePhase1LastChatImpl(
             (embed.encrypted_type
               ? "app-skill-use"
               : embed.embed_type || "app-skill-use") as EmbedType,
+            undefined, // plaintextContent
+            undefined, // preExtractedMetadata
+            { skipMetadataExtraction: true },
           );
         }
 

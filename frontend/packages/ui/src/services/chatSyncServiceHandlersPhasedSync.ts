@@ -752,6 +752,10 @@ async function storeEmbedsBatch(
         const contentRef = `embed:${embed.embed_id}`;
 
         // Store the embed with its already-encrypted content (no re-encryption)
+        // Skip metadata extraction during bulk sync - embed keys are typically
+        // not available yet, and attempting decryption for each embed causes
+        // unnecessary IndexedDB lookups and log noise. Metadata will be
+        // extracted later when embeds are accessed individually.
         await embedStore.putEncrypted(
           contentRef,
           {
@@ -776,6 +780,9 @@ async function storeEmbedsBatch(
           (embed.encrypted_type
             ? "app-skill-use"
             : embed.embed_type || "app-skill-use") as EmbedType,
+          undefined, // plaintextContent
+          undefined, // preExtractedMetadata
+          { skipMetadataExtraction: true },
         );
 
         storedCount++;

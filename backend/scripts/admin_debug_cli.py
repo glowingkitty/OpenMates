@@ -34,17 +34,18 @@ Examples:
     docker exec api python /app/backend/scripts/admin_debug_cli.py chat <chat_id>
 
 Vault Secret Path:
-    The admin API key should be stored in Vault at:
-    kv/data/admin/debug_cli with key "api_key"
+    The admin API key is stored in Vault at:
+    kv/data/providers/admin with key "debug_cli__api_key"
+    (following the SECRET__{PROVIDER}__{KEY} convention)
     
     To set this up, add to your environment:
     SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx
+    Then restart vault-setup to import: docker compose ... restart vault-setup
 """
 
 import argparse
 import asyncio
 import json
-import os
 import sys
 from typing import Optional
 
@@ -60,16 +61,21 @@ DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
 
 
 async def get_api_key_from_vault() -> str:
-    """Get the admin API key from Vault."""
+    """Get the admin API key from Vault.
+    
+    The SECRET__ADMIN__DEBUG_CLI__API_KEY env var is imported by vault-setup
+    into kv/data/providers/admin with key "debug_cli__api_key" (following the
+    SECRET__{PROVIDER}__{KEY} convention).
+    """
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     
     try:
-        api_key = await secrets_manager.get_secret("kv/data/admin/debug_cli", "api_key")
+        api_key = await secrets_manager.get_secret("kv/data/providers/admin", "debug_cli__api_key")
         if not api_key:
-            print("Error: Admin API key not found in Vault at kv/data/admin/debug_cli", file=sys.stderr)
+            print("Error: Admin API key not found in Vault at kv/data/providers/admin (key: debug_cli__api_key)", file=sys.stderr)
             print("", file=sys.stderr)
             print("To set up the admin API key:", file=sys.stderr)
             print("1. Generate an API key for an admin user in the OpenMates app", file=sys.stderr)
@@ -248,7 +254,7 @@ async def cmd_user(args, api_key: str):
         # Show lookup hashes (important for debugging login issues)
         lookup_hashes = user.get('lookup_hashes') or []
         if lookup_hashes:
-            print(f"Lookup Hashes:")
+            print("Lookup Hashes:")
             for i, h in enumerate(lookup_hashes[:5]):
                 display_hash = f"{h[:30]}..." if len(str(h)) > 30 else h
                 print(f"  [{i}]: {display_hash}")
@@ -261,18 +267,18 @@ async def cmd_user(args, api_key: str):
         print(f"Created: {user.get('date_created')}")
         print(f"Last Access: {user.get('last_access')}")
         
-        print(f"\n=== Item Counts ===")
+        print("\n=== Item Counts ===")
         for k, v in data.get("item_counts", {}).items():
             print(f"  {k}: {v}")
         
-        print(f"\n=== Cache Status ===")
+        print("\n=== Cache Status ===")
         cache = data.get("cache", {})
         print(f"  Primed: {cache.get('primed')}")
         print(f"  Chat IDs Versions: {cache.get('chat_ids_versions_count')}")
         print(f"  Total Keys: {cache.get('total_keys_found')}")
         
         if data.get("recent_chats"):
-            print(f"\n=== Recent Chats ===")
+            print("\n=== Recent Chats ===")
             for chat in data["recent_chats"]:
                 print(f"  {chat.get('id')} - updated: {chat.get('updated_at')}")
 
@@ -305,7 +311,7 @@ async def cmd_chat(args, api_key: str):
         
         cache = data.get("cache", {})
         if cache:
-            print(f"\n=== Cache Status ===")
+            print("\n=== Cache Status ===")
             print(f"  Discovered User ID: {cache.get('discovered_user_id')}")
             print(f"  Keys Found: {cache.get('total_keys_found')}")
             if cache.get('chat_versions'):

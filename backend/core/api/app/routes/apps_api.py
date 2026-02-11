@@ -1138,10 +1138,17 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 f"booking URL (token: {request_body.booking_token[:20]}...)"
             )
 
-            result = await lookup_booking_url(
-                request_body.booking_token,
-                booking_context=request_body.booking_context,
-            )
+            # Create SecretsManager to load the SerpAPI key from Vault
+            sm = SecretsManager()
+            await sm.initialize()
+            try:
+                result = await lookup_booking_url(
+                    request_body.booking_token,
+                    booking_context=request_body.booking_context,
+                    secrets_manager=sm,
+                )
+            finally:
+                await sm.aclose()
 
             # Only charge credits if we successfully got a booking URL
             credits_charged = 0

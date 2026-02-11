@@ -23,6 +23,7 @@ This document consolidates all coding standards, guidelines, and instructions fo
 15. [Frontend Development Workflow](#frontend-development-workflow)
 16. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
 17. [Branch and Server Mapping](#branch-and-server-mapping)
+18. [Admin Debug CLI (Production Debugging)](#admin-debug-cli-production-debugging)
 
 ---
 
@@ -1012,7 +1013,51 @@ git log main --oneline -10
 
 ---
 
+## Creating Pull Requests
+
+### Branch Comparison (CRITICAL)
+
+When comparing branches (e.g., for a PR from `dev` to `main`), **ALWAYS use remote refs** (`origin/main`, `origin/dev`) — never local branch refs (`main`, `dev`). Local refs can be stale and produce wildly incorrect commit counts.
+
+```bash
+# ✅ CORRECT - uses remote refs (matches what GitHub sees)
+git rev-list --left-right --count origin/main...origin/dev
+git log origin/main..origin/dev --oneline
+
+# ❌ WRONG - local refs may be stale, inflating commit count
+git log main..dev --oneline
+```
+
+**Always run `git fetch origin` before comparing branches** to ensure remote refs are up to date.
+
+### PR Workflow
+
+1. Run `git fetch origin` to update remote refs
+2. Use `git rev-list --left-right --count origin/main...origin/dev` to verify commit count
+3. Use `git log origin/main..origin/dev` (with `origin/` prefix) for full commit history
+4. Categorize commits and create a comprehensive PR summary
+5. Create the PR via `gh pr create --base main --head dev`
+
+---
+
 ## Package and Dependency Management
 
 - **Verify Versions**: ALWAYS check for the latest stable version of a package before installing
 - **No Hallucinations**: NEVER assume or hallucinate version numbers. Verify using terminal tools or web search.
+
+---
+
+## Admin Debug CLI (Production Debugging)
+
+CLI wrapper (`backend/scripts/admin_debug_cli.py`) for the [Admin Debug API](#admin-debug-api-remote-debugging). **Use this to debug production** from the dev server via `docker exec api`.
+
+**Setup:** Add `SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx` to `.env`, restart vault-setup, then confirm the new device in Settings > Developers > Devices on production.
+
+**Commands:** `logs`, `issues`, `issue <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`. Add `--dev` for dev server, `--json` for raw output.
+
+```bash
+# Examples
+docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR" --since 30
+docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
+docker exec api python /app/backend/scripts/admin_debug_cli.py issues
+```

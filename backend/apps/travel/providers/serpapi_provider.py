@@ -19,7 +19,7 @@ API docs: https://serpapi.com/google-flights-api
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import httpx
 
 from airports import airport_data as _airport_db
@@ -31,6 +31,9 @@ from backend.apps.travel.providers.base_provider import (
     LegResult,
     SegmentResult,
 )
+
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -235,20 +238,66 @@ _CITY_IATA_FALLBACK: Dict[str, str] = {
 # Credential loading
 # ---------------------------------------------------------------------------
 
-def _get_serpapi_key() -> Optional[str]:
+# Vault path for the SerpAPI key (follows the standard provider path convention)
+SERPAPI_VAULT_PATH = "kv/data/providers/serpapi"
+SERPAPI_VAULT_KEY = "api_key"
+
+# Module-level cache so we only fetch from Vault once per process
+_serpapi_api_key_cache: Optional[str] = None
+
+
+async def _get_serpapi_key_async(
+    secrets_manager: Optional["SecretsManager"] = None,
+) -> Optional[str]:
     """
-    Retrieve the SerpAPI key from environment variables.
+    Retrieve the SerpAPI key, preferring Vault (via SecretsManager) over env vars.
+
+    Falls back to the SECRET__SERPAPI__API_KEY environment variable only if
+    SecretsManager is not provided or Vault lookup fails. Caches the result
+    in-process so subsequent calls are instant.
 
     Returns:
         The API key string if found, None otherwise.
     """
-    key = os.getenv("SECRET__SERPAPI__API_KEY")
-    if key and key.strip():
-        logger.debug("Successfully retrieved SerpAPI key from environment variables")
-        return key.strip()
+    global _serpapi_api_key_cache
+
+    # Return cached key if available
+    if _serpapi_api_key_cache:
+        return _serpapi_api_key_cache
+
+    # 1. Try Vault via SecretsManager (preferred path)
+    if secrets_manager:
+        try:
+            key = await secrets_manager.get_secret(
+                secret_path=SERPAPI_VAULT_PATH,
+                secret_key=SERPAPI_VAULT_KEY,
+            )
+            if key and key.strip():
+                _serpapi_api_key_cache = key.strip()
+                logger.info("Successfully retrieved SerpAPI key from Vault")
+                return _serpapi_api_key_cache
+            else:
+                logger.warning(
+                    f"SerpAPI key not found in Vault at path '{SERPAPI_VAULT_PATH}' "
+                    f"with key '{SERPAPI_VAULT_KEY}'. Falling back to env var."
+                )
+        except Exception as e:
+            logger.warning(
+                f"Failed to retrieve SerpAPI key from Vault: {e}. "
+                "Falling back to env var."
+            )
+
+    # 2. Fallback to environment variable
+    env_key = os.getenv("SECRET__SERPAPI__API_KEY")
+    if env_key and env_key.strip() and env_key.strip() != "IMPORTED_TO_VAULT":
+        _serpapi_api_key_cache = env_key.strip()
+        logger.debug("Retrieved SerpAPI key from environment variable")
+        return _serpapi_api_key_cache
 
     logger.error(
-        "SerpAPI key not found. Set SECRET__SERPAPI__API_KEY in .env. "
+        "SerpAPI key not found in Vault or environment variables. "
+        "Ensure the key is stored in Vault at 'kv/data/providers/serpapi' "
+        "with key 'api_key', or set SECRET__SERPAPI__API_KEY in .env. "
         "Get a key from: https://serpapi.com/manage-api-key"
     )
     return None
@@ -359,7 +408,14 @@ class SerpApiProvider(BaseTransportProvider):
     - Round-trip: Search outbound (type=1) -> no departure_token needed for
       basic results. Each search returns full round-trip pricing.
     - Multi-city: Search with multi_city_json (type=3), 1 API credit per leg
+
+    Args:
+        secrets_manager: Optional SecretsManager instance for loading the
+            SerpAPI key from Vault. If not provided, falls back to env vars.
     """
+
+    def __init__(self, secrets_manager: Optional["SecretsManager"] = None) -> None:
+        self._secrets_manager = secrets_manager
 
     def supports_transport_method(self, method: str) -> bool:
         return method == "airplane"
@@ -387,7 +443,7 @@ class SerpApiProvider(BaseTransportProvider):
         if not legs:
             return []
 
-        api_key = _get_serpapi_key()
+        api_key = await _get_serpapi_key_async(self._secrets_manager)
         if not api_key:
             raise ValueError("SerpAPI key not available")
 
@@ -973,6 +1029,7 @@ def _pick_best_booking_option(
 async def lookup_booking_url(
     booking_token: str,
     booking_context: Optional[Dict[str, str]] = None,
+    secrets_manager: Optional["SecretsManager"] = None,
 ) -> Dict[str, Optional[str]]:
     """
     Look up a booking URL for a flight using its SerpAPI booking_token.
@@ -991,6 +1048,8 @@ async def lookup_booking_url(
             for the booking lookup. Keys: departure_id, arrival_id,
             outbound_date, return_date (optional), type, currency, gl,
             adults, travel_class.
+        secrets_manager: Optional SecretsManager for loading the SerpAPI key
+            from Vault. Falls back to env vars if not provided.
 
     Returns:
         Dict with 'booking_url' and 'booking_provider' keys.
@@ -999,7 +1058,7 @@ async def lookup_booking_url(
     Raises:
         ValueError: If the SerpAPI key is not configured.
     """
-    api_key = _get_serpapi_key()
+    api_key = await _get_serpapi_key_async(secrets_manager)
     if not api_key:
         raise ValueError("SerpAPI key not available")
 
