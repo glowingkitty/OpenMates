@@ -71,6 +71,7 @@
    * This triggers navigation to the demo chat.
    */
   function handleFullscreen() {
+    console.log('[ChatEmbedPreview] handleFullscreen called, chatId:', chatId, 'hasOnClick:', !!onClick);
     if (onClick) {
       onClick(chatId);
     }

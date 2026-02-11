@@ -20,6 +20,7 @@
   import ChatEmbedPreview from './ChatEmbedPreview.svelte';
   import { getIntroChatById } from '../../demo_chats';
   import { translateDemoChat } from '../../demo_chats/translateDemoChat';
+  import { convertDemoChatToChat } from '../../demo_chats/convertToChat';
   import { activeChatStore } from '../../stores/activeChatStore';
   
   /**
@@ -59,17 +60,47 @@
   /**
    * Handle click on the embed card - navigate to the intro chat.
    * Uses activeChatStore to update the sidebar highlight and URL hash,
-   * then dispatches a custom event so +page.svelte loads the chat.
+   * then dispatches a demoChatSelected window event so +page.svelte loads the chat.
+   * 
+   * CRITICAL: We must dispatch a window event instead of relying on hash navigation,
+   * because activeChatStore.setActiveChat() marks the hash change as programmatic
+   * and the hashchange handler in +page.svelte intentionally ignores programmatic
+   * hash updates (to prevent infinite loops). This matches the pattern used by
+   * ExampleChatsGroup for community demo chats.
    */
   function handleChatClick(_chatId: string) {
-    console.debug('[IntroChatEmbed] Chat clicked:', introChatId);
+    console.log('[IntroChatEmbed] === CLICK HANDLER START ===');
+    console.log('[IntroChatEmbed] introChatId:', introChatId, '_chatId:', _chatId);
+    
+    // Get the intro chat data and convert it to a Chat object for loading
+    const introChat = getIntroChatById(introChatId);
+    if (!introChat) {
+      console.warn('[IntroChatEmbed] Intro chat not found for navigation:', introChatId);
+      return;
+    }
+    console.log('[IntroChatEmbed] Found intro chat:', introChat.chat_id, 'title:', introChat.title);
+    
+    // Translate and convert to Chat format (same as handleChatDeepLink does for public chats)
+    const translated = translateDemoChat(introChat);
+    const chat = convertDemoChatToChat(translated);
+    console.log('[IntroChatEmbed] Converted chat object:', { chat_id: chat.chat_id, title: chat.title, category: chat.category });
     
     // Update sidebar highlight via activeChatStore (also updates URL hash)
     activeChatStore.setActiveChat(introChatId);
+    console.log('[IntroChatEmbed] Called activeChatStore.setActiveChat()');
     
-    // Also update the URL hash directly for intro chats
-    // (intro chats are loaded via hash navigation, not the community demo store)
-    window.location.hash = `chat-id=${introChatId}`;
+    // Dispatch demoChatSelected event to trigger chat loading in +page.svelte
+    // This is the same pattern used by ExampleChatsGroup - needed because
+    // activeChatStore.setActiveChat() triggers a programmatic hash update
+    // that the hashchange handler intentionally ignores (to prevent loops)
+    const event = new CustomEvent('demoChatSelected', {
+      detail: { chat },
+      bubbles: true,
+      composed: true
+    });
+    console.log('[IntroChatEmbed] Dispatching demoChatSelected event with chat:', chat.chat_id);
+    window.dispatchEvent(event);
+    console.log('[IntroChatEmbed] === CLICK HANDLER END ===');
   }
 </script>
 

@@ -1903,31 +1903,53 @@
 	 * embed cards use window events because they're nested deep in the component tree.
 	 */
 	async function handleDemoChatSelected(event: Event) {
+		console.log('[+page.svelte] === handleDemoChatSelected START ===');
 		const customEvent = event as CustomEvent;
 		const selectedChat: Chat = customEvent.detail?.chat;
-		if (!selectedChat?.chat_id) return;
+		if (!selectedChat?.chat_id) {
+			console.warn('[+page.svelte] demoChatSelected event missing chat data:', customEvent.detail);
+			return;
+		}
 
-		console.debug('[+page.svelte] Received demoChatSelected event:', selectedChat.chat_id);
+		console.log(
+			'[+page.svelte] Received demoChatSelected event:',
+			selectedChat.chat_id,
+			'title:',
+			selectedChat.title
+		);
+		console.log('[+page.svelte] activeChat ref available:', !!activeChat);
 
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
 			if (activeChat) {
-				console.debug('[+page.svelte] activeChat ready, loading demo chat:', selectedChat.chat_id);
-				activeChat.loadChat(selectedChat);
-				console.debug(
-					'[+page.svelte] ✅ Successfully called loadChat for demo chat:',
-					selectedChat.chat_id
-				);
+				console.log('[+page.svelte] activeChat ready, loading demo chat:', selectedChat.chat_id);
+				try {
+					await activeChat.loadChat(selectedChat);
+					console.log(
+						'[+page.svelte] Successfully called loadChat for demo chat:',
+						selectedChat.chat_id
+					);
+				} catch (error) {
+					console.error(
+						'[+page.svelte] ERROR in loadChat for demo chat:',
+						selectedChat.chat_id,
+						error
+					);
+				}
 				return;
 			} else if (retries > 0) {
+				console.log('[+page.svelte] activeChat not ready, retrying...', retries, 'retries left');
 				const delay = retries > 10 ? 50 : 100;
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				return loadChatWithRetry(retries - 1);
 			} else {
-				console.error('[+page.svelte] ⚠️ activeChat not available for demo chat load');
+				console.error(
+					'[+page.svelte] activeChat not available for demo chat load after all retries'
+				);
 			}
 		};
 
 		await loadChatWithRetry();
+		console.log('[+page.svelte] === handleDemoChatSelected END ===');
 	}
 
 	// Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)
