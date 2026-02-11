@@ -240,3 +240,7 @@ scripts/encrypt_domain_security.py
 playwright-artifacts*
 backend/scripts/debug_output*
 frontend/apps/web_app/test-results*
+
+# Personal/local data
+personaldata/
+rankings.json
