@@ -235,10 +235,16 @@
         const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
         if (request) {
           map.set(request.user_message_id, request);
+          console.debug(
+            `[ChatHistory:RequestMap] Found request: user_message_id=${request.user_message_id}, request_id=${request.request_id}`
+          );
         }
       }
     }
     
+    if (map.size > 0) {
+      console.debug(`[ChatHistory:RequestMap] Total requests found: ${map.size}`);
+    }
     return map;
   });
 
@@ -267,17 +273,34 @@
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.role === 'system') {
-        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        // Debug: log the raw content type and value for system messages
+        const rawContent = msg.original_message?.content;
+        console.debug(
+          `[ChatHistory:ResponseMap] System message ${msg.id}: content type=${typeof rawContent}, ` +
+          `content preview=${typeof rawContent === 'string' ? rawContent.substring(0, 80) : String(rawContent)}`
+        );
+        
+        const response = parseAppSettingsMemoriesResponse(rawContent);
         if (response) {
           // Try to use user_message_id if it matches a known user message
           if (response.user_message_id && userMessageIds.has(response.user_message_id)) {
             map.set(response.user_message_id, response);
+            console.debug(
+              `[ChatHistory:ResponseMap] Found response: user_message_id=${response.user_message_id}, action=${response.action} (matched user message)`
+            );
           } else {
+            console.warn(
+              `[ChatHistory:ResponseMap] Response user_message_id=${response.user_message_id} NOT in userMessageIds. ` +
+              `Known user IDs: [${[...userMessageIds].join(', ')}]. Using fallback.`
+            );
             // FALLBACK: user_message_id doesn't match any user message (common in demo/shared chats)
             // Find the most recent user message before this system message
             for (let j = i - 1; j >= 0; j--) {
               if (messages[j].role === 'user') {
                 map.set(messages[j].id, response);
+                console.debug(
+                  `[ChatHistory:ResponseMap] Fallback: mapped response to user message ${messages[j].id}`
+                );
                 break;
               }
             }
@@ -286,6 +309,9 @@
       }
     }
     
+    if (map.size > 0) {
+      console.debug(`[ChatHistory:ResponseMap] Total responses found: ${map.size}, keys: [${[...map.keys()].join(', ')}]`);
+    }
     return map;
   });
 
@@ -389,7 +415,16 @@
     // Find the first unpaired request in this chat's messages
     for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        console.warn(
+          `[ChatHistory:UnpairedDetection] ⚠️ UNPAIRED request found: user_message_id=${userMessageId}, request_id=${request.request_id}. ` +
+          `ResponseMap keys: [${[...appSettingsMemoriesResponseMap.keys()].join(', ')}]. ` +
+          `Total messages: ${messages.length}, system messages: ${messages.filter(m => m.role === 'system').length}`
+        );
         return request;
+      } else {
+        console.debug(
+          `[ChatHistory:UnpairedDetection] Request ${request.request_id} is PAIRED with response for user_message_id=${userMessageId}`
+        );
       }
     }
     return null;
@@ -1077,6 +1112,7 @@
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                         piiMappings={cumulativePIIMappingsArray}
                         {piiRevealed}
+                        messageId={msg.id}
                     />
                 </div>
             {/each}
