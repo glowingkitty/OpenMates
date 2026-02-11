@@ -39,6 +39,11 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.loki_log_collector import loki_log_collector
+from backend.core.api.app.utils.api_key_auth import (
+    ApiKeyNotFoundError,
+    DeviceNotApprovedError,
+    get_api_key_auth_service,
+)
 from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
@@ -123,7 +128,6 @@ async def require_admin_api_key(
     
     try:
         # Authenticate using API key auth service
-        from backend.core.api.app.utils.api_key_auth import get_api_key_auth_service
         api_key_auth_service = get_api_key_auth_service(request)
         user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
         
@@ -155,6 +159,12 @@ async def require_admin_api_key(
         
     except HTTPException:
         raise
+    except DeviceNotApprovedError as e:
+        logger.warning(f"Admin API key device not approved: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ApiKeyNotFoundError as e:
+        logger.warning(f"Admin API key not found: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         logger.error(f"Admin API key authentication error: {e}", exc_info=True)
         raise HTTPException(status_code=401, detail="API key authentication failed")
