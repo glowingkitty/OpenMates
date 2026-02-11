@@ -23,7 +23,7 @@
     // Form state
     let issueTitle = $state('');
     let issueDescription = $state('');
-    let shareChatEnabled = $state(false);
+    let shareChatEnabled = $state(true);
     let chatOrEmbedUrl = $state('');
     let contactEmail = $state('');
     let isSubmitting = $state(false);
@@ -462,7 +462,7 @@
                 // Reset form
                 issueTitle = '';
                 issueDescription = '';
-                shareChatEnabled = false;
+                shareChatEnabled = true;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
                 titleError = '';
