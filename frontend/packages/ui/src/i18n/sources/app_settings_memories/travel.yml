@@ -148,53 +148,381 @@ preferred_transport_methods.description:
   verified_by_human:
     - en
     - de
-interests:
-  context: Settings/memory name for interests
-  en: Interests
-  de: Interessen
-  zh: 兴趣
-  es: Intereses
-  fr: Intérêts
-  pt: Interesses
-  ru: Интересы
-  ja: 興味
-  ko: 관심사
-  it: Interessi
-  tr: İlgi alanları
-  vi: Sở thích
-  id: Minat
-  pl: Zainteresowania
-  nl: Belangen
-  ar: الاهتمامات
-  hi: रुचियां
-  th: ความสนใจ
-  cs: Zájmy
-  sv: Intressen
+preferred_activities:
+  context: Settings/memory name for preferred travel activities at destinations
+  en: Preferred Activities
+  de: Bevorzugte Aktivitäten
+  zh: 偏好活动
+  es: Actividades preferidas
+  fr: Activités préférées
+  pt: Atividades preferidas
+  ru: Предпочитаемые виды активности
+  ja: 好みのアクティビティ
+  ko: 선호 활동
+  it: Attività preferite
+  tr: Tercih edilen aktiviteler
+  vi: Hoạt động ưa thích
+  id: Aktivitas pilihan
+  pl: Preferowane aktywności
+  nl: Favoriete activiteiten
+  ar: الأنشطة المفضلة
+  hi: पसंदीदा गतिविधियां
+  th: กิจกรรมที่ชื่นชอบ
+  cs: Oblíbené aktivity
+  sv: Föredragna aktiviteter
   verified_by_human:
     - en
     - de
-interests.description:
-  context: Description for interests settings/memory
-  en: What you enjoy when traveling.
-  de: Was du beim Reisen genießt.
-  zh: 你旅行时喜欢什么。
-  es: Lo que disfrutas al viajar.
-  fr: Ce que vous aimez en voyageant.
-  pt: O que você gosta ao viajar.
-  ru: Что вам нравится во время путешествий.
-  ja: 旅行中に楽しむこと。
-  ko: 여행할 때 즐기는 것.
-  it: Cosa ti piace quando viaggi.
-  tr: Seyahat ederken nelerden hoşlanırsınız.
-  vi: Những gì bạn thích khi du lịch.
-  id: Apa yang Anda nikmati saat bepergian.
-  pl: Co lubisz podczas podróży.
-  nl: Wat je leuk vindt tijdens het reizen.
-  ar: ما تستمتع به عند السفر.
-  hi: यात्रा करते समय आप क्या पसंद करते हैं।
-  th: สิ่งที่คุณชอบเมื่อเดินทาง
-  cs: Co vás baví při cestování.
-  sv: Vad du tycker om när du reser.
+preferred_activities.description:
+  context: Description for preferred travel activities at destinations (beaches, museums, hiking, etc.)
+  en: Activities and experiences you enjoy at travel destinations, like visiting beaches, exploring museums, or hiking.
+  de: Aktivitäten und Erlebnisse, die du an Reisezielen genießt, wie Strände besuchen, Museen erkunden oder Wandern.
+  zh: 你在旅行目的地喜欢的活动和体验，如海滩、博物馆或徒步旅行。
+  es: Actividades y experiencias que disfrutas en los destinos de viaje, como visitar playas, explorar museos o hacer senderismo.
+  fr: Activités et expériences que vous appréciez dans vos destinations de voyage, comme visiter des plages, explorer des musées ou faire de la randonnée.
+  pt: Atividades e experiências que você gosta em destinos de viagem, como visitar praias, explorar museus ou fazer trilhas.
+  ru: Занятия и впечатления, которые вам нравятся в путешествиях, например пляжи, музеи или пешие прогулки.
+  ja: ビーチ、博物館、ハイキングなど、旅行先で楽しむアクティビティや体験。
+  ko: 해변, 박물관, 하이킹 등 여행지에서 즐기는 활동과 경험.
+  it: Attività ed esperienze che ami nelle destinazioni di viaggio, come visitare spiagge, esplorare musei o fare escursioni.
+  tr: Plajları ziyaret etmek, müzeleri keşfetmek veya yürüyüş yapmak gibi seyahat destinasyonlarında sevdiğiniz aktiviteler.
+  vi: Các hoạt động và trải nghiệm bạn thích tại các điểm du lịch, như đi biển, tham quan bảo tàng hoặc đi bộ đường dài.
+  id: Aktivitas dan pengalaman yang Anda nikmati di destinasi wisata, seperti mengunjungi pantai, menjelajahi museum, atau mendaki.
+  pl: Aktywności i doświadczenia, które lubisz w miejscach podróży, jak plaże, muzea czy piesze wędrówki.
+  nl: Activiteiten en ervaringen die je leuk vindt op reisbestemmingen, zoals stranden bezoeken, musea verkennen of wandelen.
+  ar: الأنشطة والتجارب التي تستمتع بها في وجهات السفر، مثل زيارة الشواطئ واستكشاف المتاحف أو المشي لمسافات طويلة.
+  hi: यात्रा स्थलों पर आपकी पसंदीदा गतिविधियां और अनुभव, जैसे समुद्र तट, संग्रहालय या पैदल यात्रा।
+  th: กิจกรรมและประสบการณ์ที่คุณชอบในจุดหมายการเดินทาง เช่น ชายหาด พิพิธภัณฑ์ หรือเดินป่า
+  cs: Aktivity a zážitky, které si užíváte v cestovních destinacích, jako pláže, muzea nebo turistika.
+  sv: Aktiviteter och upplevelser du gillar på resmål, som stränder, museer eller vandring.
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+trips.example_1:
+  context: Example entry for trips (a country trip with date)
+  en: Japan, March 2026
+  de: Japan, März 2026
+  zh: 日本，2026年3月
+  es: Japón, marzo 2026
+  fr: Japon, mars 2026
+  pt: Japão, março de 2026
+  ru: Япония, март 2026
+  ja: 日本、2026年3月
+  ko: 일본, 2026년 3월
+  it: Giappone, marzo 2026
+  tr: Japonya, Mart 2026
+  vi: Nhật Bản, tháng 3 năm 2026
+  id: Jepang, Maret 2026
+  pl: Japonia, marzec 2026
+  nl: Japan, maart 2026
+  ar: اليابان، مارس 2026
+  hi: जापान, मार्च 2026
+  th: ญี่ปุ่น มีนาคม 2026
+  cs: Japonsko, březen 2026
+  sv: Japan, mars 2026
+  verified_by_human:
+    - en
+    - de
+trips.example_2:
+  context: Example entry for trips (a city trip with season)
+  en: Barcelona, Summer 2025
+  de: Barcelona, Sommer 2025
+  zh: 巴塞罗那，2025年夏天
+  es: Barcelona, verano 2025
+  fr: Barcelone, été 2025
+  pt: Barcelona, verão de 2025
+  ru: Барселона, лето 2025
+  ja: バルセロナ、2025年夏
+  ko: 바르셀로나, 2025년 여름
+  it: Barcellona, estate 2025
+  tr: Barselona, Yaz 2025
+  vi: Barcelona, Hè 2025
+  id: Barcelona, Musim Panas 2025
+  pl: Barcelona, lato 2025
+  nl: Barcelona, zomer 2025
+  ar: برشلونة، صيف 2025
+  hi: बार्सिलोना, गर्मी 2025
+  th: บาร์เซโลนา ฤดูร้อน 2025
+  cs: Barcelona, léto 2025
+  sv: Barcelona, sommar 2025
+  verified_by_human:
+    - en
+    - de
+trips.example_3:
+  context: Example entry for trips (a road trip)
+  en: Road trip through Scotland
+  de: Roadtrip durch Schottland
+  zh: 苏格兰自驾游
+  es: Viaje por carretera por Escocia
+  fr: Road trip en Écosse
+  pt: Viagem de carro pela Escócia
+  ru: Автопутешествие по Шотландии
+  ja: スコットランドのロードトリップ
+  ko: 스코틀랜드 로드 트립
+  it: Viaggio in auto per la Scozia
+  tr: İskoçya'da yol gezisi
+  vi: Chuyến đi đường xuyên Scotland
+  id: Perjalanan darat melalui Skotlandia
+  pl: Podróż samochodem po Szkocji
+  nl: Roadtrip door Schotland
+  ar: رحلة برية عبر اسكتلندا
+  hi: स्कॉटलैंड की सड़क यात्रा
+  th: ขับรถเที่ยวสกอตแลนด์
+  cs: Výlet autem po Skotsku
+  sv: Bilresa genom Skottland
+  verified_by_human:
+    - en
+    - de
+preferred_airlines.example_1:
+  context: Example entry for preferred airlines (a European airline)
+  en: Lufthansa
+  de: Lufthansa
+  zh: 汉莎航空
+  es: Lufthansa
+  fr: Lufthansa
+  pt: Lufthansa
+  ru: Lufthansa
+  ja: ルフトハンザ
+  ko: 루프트한자
+  it: Lufthansa
+  tr: Lufthansa
+  vi: Lufthansa
+  id: Lufthansa
+  pl: Lufthansa
+  nl: Lufthansa
+  ar: لوفتهانزا
+  hi: लुफ्थांसा
+  th: ลุฟท์ฮันซ่า
+  cs: Lufthansa
+  sv: Lufthansa
+  verified_by_human:
+    - en
+    - de
+preferred_airlines.example_2:
+  context: Example entry for preferred airlines (a Swiss airline)
+  en: Swiss
+  de: Swiss
+  zh: 瑞士航空
+  es: Swiss
+  fr: Swiss
+  pt: Swiss
+  ru: Swiss
+  ja: スイス航空
+  ko: 스위스 항공
+  it: Swiss
+  tr: Swiss
+  vi: Swiss
+  id: Swiss
+  pl: Swiss
+  nl: Swiss
+  ar: سويس
+  hi: स्विस
+  th: สวิส
+  cs: Swiss
+  sv: Swiss
+  verified_by_human:
+    - en
+    - de
+preferred_airlines.example_3:
+  context: Example entry for preferred airlines (a Dutch airline)
+  en: KLM
+  de: KLM
+  zh: 荷兰皇家航空
+  es: KLM
+  fr: KLM
+  pt: KLM
+  ru: KLM
+  ja: KLM
+  ko: KLM
+  it: KLM
+  tr: KLM
+  vi: KLM
+  id: KLM
+  pl: KLM
+  nl: KLM
+  ar: KLM
+  hi: KLM
+  th: KLM
+  cs: KLM
+  sv: KLM
+  verified_by_human:
+    - en
+    - de
+preferred_transport_methods.example_1:
+  context: Example entry for preferred transport methods
+  en: Train
+  de: Zug
+  zh: 火车
+  es: Tren
+  fr: Train
+  pt: Trem
+  ru: Поезд
+  ja: 電車
+  ko: 기차
+  it: Treno
+  tr: Tren
+  vi: Tàu hỏa
+  id: Kereta api
+  pl: Pociąg
+  nl: Trein
+  ar: قطار
+  hi: ट्रेन
+  th: รถไฟ
+  cs: Vlak
+  sv: Tåg
+  verified_by_human:
+    - en
+    - de
+preferred_transport_methods.example_2:
+  context: Example entry for preferred transport methods
+  en: Plane
+  de: Flugzeug
+  zh: 飞机
+  es: Avión
+  fr: Avion
+  pt: Avião
+  ru: Самолёт
+  ja: 飛行機
+  ko: 비행기
+  it: Aereo
+  tr: Uçak
+  vi: Máy bay
+  id: Pesawat
+  pl: Samolot
+  nl: Vliegtuig
+  ar: طائرة
+  hi: हवाई जहाज
+  th: เครื่องบิน
+  cs: Letadlo
+  sv: Flyg
+  verified_by_human:
+    - en
+    - de
+preferred_transport_methods.example_3:
+  context: Example entry for preferred transport methods
+  en: Bike
+  de: Fahrrad
+  zh: 自行车
+  es: Bicicleta
+  fr: Vélo
+  pt: Bicicleta
+  ru: Велосипед
+  ja: 自転車
+  ko: 자전거
+  it: Bicicletta
+  tr: Bisiklet
+  vi: Xe đạp
+  id: Sepeda
+  pl: Rower
+  nl: Fiets
+  ar: دراجة
+  hi: साइकिल
+  th: จักรยาน
+  cs: Kolo
+  sv: Cykel
+  verified_by_human:
+    - en
+    - de
+preferred_activities.example_1:
+  context: Example entry for preferred travel activities
+  en: Visiting beaches
+  de: Strände besuchen
+  zh: 去海滩
+  es: Visitar playas
+  fr: Visiter des plages
+  pt: Visitar praias
+  ru: Посещение пляжей
+  ja: ビーチを訪れる
+  ko: 해변 방문
+  it: Visitare spiagge
+  tr: Plajları ziyaret etmek
+  vi: Đi biển
+  id: Mengunjungi pantai
+  pl: Odwiedzanie plaż
+  nl: Stranden bezoeken
+  ar: زيارة الشواطئ
+  hi: समुद्र तट पर जाना
+  th: ไปชายหาด
+  cs: Návštěva pláží
+  sv: Besöka stränder
+  verified_by_human:
+    - en
+    - de
+preferred_activities.example_2:
+  context: Example entry for preferred travel activities
+  en: Exploring museums
+  de: Museen erkunden
+  zh: 参观博物馆
+  es: Explorar museos
+  fr: Explorer des musées
+  pt: Explorar museus
+  ru: Посещение музеев
+  ja: 博物館を巡る
+  ko: 박물관 탐방
+  it: Esplorare musei
+  tr: Müzeleri keşfetmek
+  vi: Tham quan bảo tàng
+  id: Menjelajahi museum
+  pl: Zwiedzanie muzeów
+  nl: Musea verkennen
+  ar: استكشاف المتاحف
+  hi: संग्रहालय देखना
+  th: สำรวจพิพิธภัณฑ์
+  cs: Návštěva muzeí
+  sv: Utforska museer
+  verified_by_human:
+    - en
+    - de
+preferred_activities.example_3:
+  context: Example entry for preferred travel activities
+  en: Hiking
+  de: Wandern
+  zh: 徒步旅行
+  es: Senderismo
+  fr: Randonnée
+  pt: Trilhas
+  ru: Пешие прогулки
+  ja: ハイキング
+  ko: 하이킹
+  it: Escursionismo
+  tr: Yürüyüş
+  vi: Đi bộ đường dài
+  id: Mendaki
+  pl: Piesze wędrówki
+  nl: Wandelen
+  ar: المشي لمسافات طويلة
+  hi: पैदल यात्रा
+  th: เดินป่า
+  cs: Turistika
+  sv: Vandring
+  verified_by_human:
+    - en
+    - de
+preferred_activities.example_4:
+  context: Example entry for preferred travel activities
+  en: Trying local food
+  de: Lokale Küche probieren
+  zh: 品尝当地美食
+  es: Probar comida local
+  fr: Goûter la cuisine locale
+  pt: Experimentar comida local
+  ru: Пробовать местную кухню
+  ja: 地元の料理を楽しむ
+  ko: 현지 음식 맛보기
+  it: Provare il cibo locale
+  tr: Yerel yemekleri denemek
+  vi: Thử ẩm thực địa phương
+  id: Mencoba makanan lokal
+  pl: Próbowanie lokalnych potraw
+  nl: Lokaal eten proberen
+  ar: تجربة الطعام المحلي
+  hi: स्थानीय भोजन आज़माना
+  th: ลองอาหารท้องถิ่น
+  cs: Ochutnat místní kuchyni
+  sv: Prova lokal mat
   verified_by_human:
     - en
     - de

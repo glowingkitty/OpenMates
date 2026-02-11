@@ -74,6 +74,7 @@ export const apiEndpoints = {
     passkey_list: "/v1/auth/passkeys", // List all user passkeys
     passkey_rename: "/v1/auth/passkeys/rename", // Rename a passkey
     passkey_delete: "/v1/auth/passkeys/delete", // Delete a passkey
+    passkey_verify_device: "/v1/auth/passkey/verify/device", // Verify passkey for new device verification
 
     // Legacy signup endpoints
     signup: "/v1/auth/signup", // Sign up with username, email, password
@@ -158,6 +159,9 @@ export const apiEndpoints = {
     metadata: "/v1/apps/metadata", // Get metadata for all discovered apps
     mostUsed: "/v1/apps/most-used", // Get most used apps in last 30 days (public endpoint)
   },
+  admin: {
+    generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
+  },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)
   },
@@ -165,6 +169,8 @@ export const apiEndpoints = {
     getUsage: "/v1/settings/usage", // Get user usage data (legacy)
     getSummaries: "/v1/settings/usage/summaries", // Get usage summaries (fast)
     getDetails: "/v1/settings/usage/details", // Get usage details (lazy loading)
+    chatTotal: "/v1/settings/usage/chat-total", // Get total credits for a specific chat
+    messageCost: "/v1/settings/usage/message-cost", // Get credits for a specific message
     export: "/v1/settings/usage/export", // Export usage data as CSV
   },
   creators: {

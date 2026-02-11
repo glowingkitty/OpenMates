@@ -1,0 +1,7 @@
+# robots.txt for OpenMates
+# https://openmates.org
+
+User-agent: *
+Allow: /
+
+Sitemap: https://openmates.org/sitemap.xml

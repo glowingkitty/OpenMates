@@ -56,6 +56,16 @@ notifications.not_supported:
   en: Push notifications are not supported on this browser or device.
   de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
 
+notifications.pwa_install_title:
+  context: Title shown on iOS Safari when push requires PWA installation
+  en: Add to Home Screen to Enable Notifications
+  de: Zum Home-Bildschirm hinzufügen, um Benachrichtigungen zu aktivieren
+
+notifications.pwa_install_desc:
+  context: Description explaining why PWA installation is needed for push notifications
+  en: "Push notifications require the app to be installed on your device. Follow these steps:"
+  de: "Push-Benachrichtigungen erfordern, dass die App auf Ihrem Gerät installiert ist. Folgen Sie diesen Schritten:"
+
 notifications.denied_info:
   context: Info text when permission is denied
   en: To enable notifications, please allow them in your browser settings and refresh the page.
@@ -95,3 +105,59 @@ notifications.software_updates_desc:
   context: Description for software update notifications
   en: When new versions are available
   de: Wenn neue Versionen verfügbar sind
+
+# Email notifications section
+notifications.email_section:
+  context: Section title for email notifications
+  en: Email Notifications
+  de: E-Mail-Benachrichtigungen
+
+notifications.email_enable:
+  context: Email notifications toggle title
+  en: Email Notifications
+  de: E-Mail-Benachrichtigungen
+
+notifications.email_enable_desc:
+  context: Description for email notifications toggle
+  en: Receive emails when you're offline
+  de: E-Mails erhalten, wenn Sie offline sind
+
+notifications.email_address:
+  context: Email address input label
+  en: Notification Email
+  de: Benachrichtigungs-E-Mail
+
+notifications.email_address_placeholder:
+  context: Email address input placeholder
+  en: Enter email address
+  de: E-Mail-Adresse eingeben
+
+notifications.email_address_desc:
+  context: Description for notification email field
+  en: Where to send notifications (can differ from login email)
+  de: Wohin Benachrichtigungen gesendet werden (kann von der Login-E-Mail abweichen)
+
+notifications.email_ai_responses:
+  context: AI responses notification toggle
+  en: AI Responses
+  de: KI-Antworten
+
+notifications.email_ai_responses_desc:
+  context: Description for AI responses email notifications
+  en: When an assistant completes a response while you're away
+  de: Wenn ein Assistent eine Antwort abschließt, während Sie abwesend sind
+
+notifications.email_how_it_works:
+  context: Info banner explaining how email notifications work
+  en: Email notifications are only sent when you're not actively using OpenMates on any device.
+  de: E-Mail-Benachrichtigungen werden nur gesendet, wenn Sie OpenMates auf keinem Gerät aktiv nutzen.
+
+notifications.email_invalid:
+  context: Error message for invalid email
+  en: Please enter a valid email address
+  de: Bitte geben Sie eine gültige E-Mail-Adresse ein
+
+notifications.email_saving:
+  context: Status text while saving email settings
+  en: Saving...
+  de: Wird gespeichert...

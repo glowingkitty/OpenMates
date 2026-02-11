@@ -5,6 +5,7 @@
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
+    import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -49,6 +50,14 @@
     // State for decrypted chat summary
     let chatSummary = $state<string | null>(null);
     
+    // State for chat total credits
+    let chatTotalCredits = $state<number | null>(null);
+    
+    // Format credits with dots as thousand separators (European style)
+    function formatCredits(credits: number): string {
+        return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    
     // Load decrypted summary when menu is shown
     $effect(() => {
         if (show && chat) {
@@ -63,6 +72,28 @@
             }
         } else {
             chatSummary = null;
+        }
+    });
+    
+    // Fetch chat total credits when menu is shown (only for authenticated users)
+    $effect(() => {
+        if (show && chat && $authStore.isAuthenticated && !isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id)) {
+            const chatId = chat.chat_id;
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.chatTotal)}?chat_id=${encodeURIComponent(chatId)}`;
+            fetch(endpoint, { credentials: 'include' })
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data && typeof data.total_credits === 'number') {
+                        chatTotalCredits = data.total_credits;
+                    } else {
+                        chatTotalCredits = null;
+                    }
+                })
+                .catch(() => {
+                    chatTotalCredits = null;
+                });
+        } else {
+            chatTotalCredits = null;
         }
     });
 
@@ -125,9 +156,9 @@
     $effect(() => {
         if (show) {
             // First, calculate with estimated dimensions to prevent visual jump
-            // Increased estimates to account for potential chat summary section
+            // Increased estimates to account for potential chat summary and credits sections
             const estimatedWidth = 200;
-            const estimatedHeight = chatSummary ? 200 : 120;
+            const estimatedHeight = (chatSummary || chatTotalCredits) ? 220 : 120;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -294,9 +325,19 @@
         bind:this={menuElement}
     >
         <!-- Chat summary section (shown above buttons if available) -->
-        {#if chatSummary}
-            <div class="chat-summary">
-                {chatSummary}
+        {#if chatSummary || chatTotalCredits !== null}
+            <div class="chat-info-section">
+                {#if chatSummary}
+                    <div class="chat-summary">
+                        {chatSummary}
+                    </div>
+                {/if}
+                {#if chatTotalCredits !== null && chatTotalCredits > 0}
+                    <div class="chat-credits">
+                        <div class="clickable-icon icon_coins"></div>
+                        {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
+                    </div>
+                {/if}
             </div>
         {/if}
         
@@ -496,14 +537,18 @@
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
     }
     
+    /* Info section containing summary and/or credits */
+    .chat-info-section {
+        border-bottom: 1px solid var(--color-grey-30);
+        margin-bottom: 4px;
+    }
+    
     /* Chat summary displayed above the action buttons */
     .chat-summary {
-        padding: 12px 16px;
-        margin-bottom: 4px;
+        padding: 12px 16px 8px;
         color: var(--color-grey-70);
         font-size: 13px;
         line-height: 1.4;
-        border-bottom: 1px solid var(--color-grey-30);
         word-wrap: break-word;
         overflow-wrap: break-word;
         /* Limit to 4 lines with ellipsis for very long summaries */
@@ -512,6 +557,23 @@
         line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+    
+    /* Chat credits displayed below summary */
+    .chat-credits {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 16px 10px;
+        color: var(--color-grey-50);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+    
+    .chat-credits .clickable-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-grey-50);
     }
 
     /* Position menu above clicked point (default) */

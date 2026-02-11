@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict, Any
 from fastapi import WebSocket
@@ -63,6 +64,22 @@ async def handle_store_embed(
             payload["created_at"] = payload.pop("createdAt")
         if "updatedAt" in payload and "updated_at" not in payload:
             payload["updated_at"] = payload.pop("updatedAt")
+
+        # Merge server-side S3 file keys if cached (set by image generation tasks).
+        # Since embed content is client-encrypted, S3 file keys are stored as server-accessible
+        # metadata to enable S3 cleanup when the embed or its parent chat is deleted.
+        try:
+            client = await cache_service.client
+            if client:
+                s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
+                s3_keys_json = await client.get(s3_keys_cache_key)
+                if s3_keys_json:
+                    payload["s3_file_keys"] = json.loads(s3_keys_json)
+                    # Clean up the cache key after merging
+                    await client.delete(s3_keys_cache_key)
+                    logger.info(f"Merged cached s3_file_keys into embed {embed_id} payload")
+        except Exception as e:
+            logger.warning(f"Failed to check/merge cached s3_file_keys for embed {embed_id}: {e}")
 
         # Check if embed already exists
         existing_embed = await directus_service.embed.get_embed_by_id(embed_id)

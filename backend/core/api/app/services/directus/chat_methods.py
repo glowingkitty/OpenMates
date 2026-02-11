@@ -92,6 +92,7 @@ MESSAGE_ALL_FIELDS = (
     "encrypted_thinking_signature," # Added encrypted thinking signature (assistant only)
     "has_thinking," # Added thinking metadata flag
     "thinking_token_count," # Added thinking token count
+    "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
@@ -329,13 +330,16 @@ class ChatMethods:
             else:
                 # Check if this is a duplicate key error (race condition - chat was created by another task)
                 # This happens when two tasks check "chat exists?" -> both get False -> both try to create
+                # Directus may return the error in different formats depending on the DB driver:
+                #   - Directus-wrapped: "RECORD_NOT_UNIQUE" in the error text
+                #   - Raw PostgreSQL: "duplicate key value violates unique constraint" in the error text
                 is_duplicate = False
                 if isinstance(result_data, dict):
                     error_text = result_data.get('text', '')
-                    if 'RECORD_NOT_UNIQUE' in error_text:
+                    if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
                         is_duplicate = True
                         logger.warning(
-                            f"⚠️ Chat {chat_id_val} creation returned RECORD_NOT_UNIQUE - "
+                            f"⚠️ Chat {chat_id_val} creation returned duplicate key error - "
                             f"chat was already created by another concurrent task (race condition). "
                             f"This is expected and safe to proceed with message creation."
                         )
@@ -481,6 +485,7 @@ class ChatMethods:
                 "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
                 "has_thinking": message_data.get("has_thinking"),
                 "thinking_token_count": message_data.get("thinking_token_count"),
+                "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }

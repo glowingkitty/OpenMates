@@ -468,6 +468,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			detail.type === 'title_updated' ||
 			detail.type === 'draft' ||
 			detail.type === 'draft_deleted' ||
+			detail.type === 'post_processing_metadata' ||
 			detail.messagesUpdated === true;
 		if (shouldInvalidateMetadata) {
 			chatMetadataCache.invalidateChat(detail.chat_id);
@@ -546,25 +547,63 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* Per sync.md: Phase 1 handler saves data to IndexedDB BEFORE dispatching this event,
 		* so the chat should be available immediately.
 		* 
-		* CRITICAL FIX: Only auto-select the Phase 1 chat if the user is not already in a different chat.
-		* This prevents Phase 1 from overriding a new chat the user just created.
+		* NEW BEHAVIOR: Instead of auto-selecting the Phase 1 chat, we store it in the
+		* resume state. The UI shows "Resume last chat?" above new chat suggestions,
+		* and the user can click to resume or start fresh.
 		*/
-	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
+	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => {
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
 		
-		// CRITICAL: Check if we should auto-select this chat
-		// Don't auto-select if user is already in a different chat (e.g., a new chat they just created)
+		// CRITICAL: Check if we should show the resume UI for this chat
+		// Don't show if user is already in a different chat (e.g., a new chat they just created)
 		if (!phasedSyncState.shouldAutoSelectPhase1Chat(targetChatId)) {
-			console.info(`[Chats] Skipping Phase 1 auto-select - user is in a different chat`);
+			console.info(`[Chats] Skipping Phase 1 resume UI - user is in a different chat`);
 			// Still update the list to show the synced chat in the sidebar
 			await updateChatListFromDB();
 			return;
 		}
 		
-		// Queue the chat for selection and update the list
-		// The Phase 1 handler has already saved data to IndexedDB
-		_chatIdToSelectAfterUpdate = targetChatId;
+		// NEW: Instead of auto-selecting, store the chat in resume state for the "Resume last chat?" UI
+		// Get the chat from IndexedDB (Phase 1 handler already saved it)
+		try {
+			const chat = await chatDB.getChat(targetChatId);
+			if (chat) {
+				// Decrypt the title for display
+				let decryptedTitle: string | null = null;
+				if (chat.encrypted_title) {
+					try {
+						const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
+						// First decrypt the chat key if we have it encrypted
+						let chatKey = chatDB.getChatKey(targetChatId);
+						if (!chatKey && chat.encrypted_chat_key) {
+							chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+							if (chatKey) {
+								chatDB.setChatKey(targetChatId, chatKey);
+							}
+						}
+						if (chatKey) {
+							decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+						}
+					} catch (decryptError) {
+						console.warn('[Chats] Failed to decrypt Phase 1 chat title:', decryptError);
+					}
+				}
+				
+				// Use cleartext title for demo chats, decrypted title otherwise
+				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+				
+				// Store in resume state for the UI
+				phasedSyncState.setResumeChatData(chat, displayTitle);
+				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId})`);
+			} else {
+				console.warn(`[Chats] Phase 1 chat ${targetChatId} not found in IndexedDB after sync`);
+			}
+		} catch (error) {
+			console.error('[Chats] Error loading Phase 1 chat for resume state:', error);
+		}
+		
+		// Update the chat list to show the synced chat in the sidebar
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 	};
@@ -1363,6 +1402,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					const category = chatData.category || '';
 					const icon = chatData.icon || '';
 					const followUpSuggestions = chatData.follow_up_suggestions || [];
+					const demoChatCategory = chatData.demo_chat_category || demoChatMeta.demo_chat_category || 'for_everyone';
 
 					// ARCHITECTURE: Community demo messages are already decrypted server-side
 					// The API returns cleartext content directly (not encrypted)
@@ -1405,6 +1445,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
 						icon: icon || null,
 						category: category || null,
+						demo_chat_category: demoChatCategory || null,  // Target audience: for_everyone or for_developers
 						messages_v: parsedMessages.length,
 						title_v: 0,
 						draft_v: 0,
@@ -1458,21 +1499,25 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
+		// CRITICAL: For non-authenticated users, NEVER use cached data from previous sessions
+		// The chatListCache may contain stale chats from a previous authenticated session
+		// if the component was destroyed (sidebar closed) when logout/session-expiry happened.
+		// Always clear and skip the cache for unauthenticated users to prevent data leakage.
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User not authenticated - clearing cache and loading shared chats only");
+			chatListCache.clear(); // Defensive: ensure no stale data from previous session
+			// Call updateChatListFromDB which handles shared chat loading for non-auth users
+			await updateChatListFromDB();
+			return;
+		}
+
 		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
 		// This cache persists across component instances (when sidebar closes/opens)
+		// Only used for authenticated users - unauthenticated users are handled above
 		const cached = chatListCache.getCache(false);
 		if (cached) {
 			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
 			allChatsFromDB = cached;
-			return;
-		}
-		
-		// CRITICAL: For non-authenticated users, load shared chats from IndexedDB
-		// For authenticated users, load all chats normally
-		if (!$authStore.isAuthenticated) {
-			console.debug("[Chats] User not authenticated - loading shared chats from IndexedDB");
-			// Call updateChatListFromDB which handles shared chat loading for non-auth users
-			await updateChatListFromDB();
 			return;
 		}
 		

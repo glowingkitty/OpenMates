@@ -829,6 +829,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
     "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
+    "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
@@ -990,7 +991,7 @@ app.conf.beat_schedule = {
         'task': 'leaderboard.update_daily',
         'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM UTC
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
-        'kwargs': {'category': 'text'},  # Default to overall text category
+        # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
     # E2E Test Automation - hourly test runs for development environment
     'e2e-tests-dev-hourly': {
@@ -1015,6 +1016,13 @@ app.conf.beat_schedule = {
     'process-due-reminders': {
         'task': 'reminder.process_due_reminders',
         'schedule': timedelta(seconds=60),  # Every 60 seconds
+        'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
+    # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)
+    # Redis handles TTL-based expiry (60 days); this task provides audit visibility
+    'audit-pending-deliveries': {
+        'task': 'reminder.audit_pending_deliveries',
+        'schedule': crontab(hour='*/6', minute=15),  # Every 6 hours at :15
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
 }

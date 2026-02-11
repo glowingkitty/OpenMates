@@ -148,3 +148,231 @@ read_later.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+bookmarks.example_1:
+  context: Example entry for bookmarks (a developer website)
+  en: github.com
+  de: github.com
+  zh: github.com
+  es: github.com
+  fr: github.com
+  pt: github.com
+  ru: github.com
+  ja: github.com
+  ko: github.com
+  it: github.com
+  tr: github.com
+  vi: github.com
+  id: github.com
+  pl: github.com
+  nl: github.com
+  ar: github.com
+  hi: github.com
+  th: github.com
+  cs: github.com
+  sv: github.com
+  verified_by_human:
+    - en
+    - de
+bookmarks.example_2:
+  context: Example entry for bookmarks (a developer docs website)
+  en: developer.mozilla.org
+  de: developer.mozilla.org
+  zh: developer.mozilla.org
+  es: developer.mozilla.org
+  fr: developer.mozilla.org
+  pt: developer.mozilla.org
+  ru: developer.mozilla.org
+  ja: developer.mozilla.org
+  ko: developer.mozilla.org
+  it: developer.mozilla.org
+  tr: developer.mozilla.org
+  vi: developer.mozilla.org
+  id: developer.mozilla.org
+  pl: developer.mozilla.org
+  nl: developer.mozilla.org
+  ar: developer.mozilla.org
+  hi: developer.mozilla.org
+  th: developer.mozilla.org
+  cs: developer.mozilla.org
+  sv: developer.mozilla.org
+  verified_by_human:
+    - en
+    - de
+bookmarks.example_3:
+  context: Example entry for bookmarks (a tech news website)
+  en: news.ycombinator.com
+  de: news.ycombinator.com
+  zh: news.ycombinator.com
+  es: news.ycombinator.com
+  fr: news.ycombinator.com
+  pt: news.ycombinator.com
+  ru: news.ycombinator.com
+  ja: news.ycombinator.com
+  ko: news.ycombinator.com
+  it: news.ycombinator.com
+  tr: news.ycombinator.com
+  vi: news.ycombinator.com
+  id: news.ycombinator.com
+  pl: news.ycombinator.com
+  nl: news.ycombinator.com
+  ar: news.ycombinator.com
+  hi: news.ycombinator.com
+  th: news.ycombinator.com
+  cs: news.ycombinator.com
+  sv: news.ycombinator.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_1:
+  context: Example entry for favorite websites
+  en: reddit.com
+  de: reddit.com
+  zh: reddit.com
+  es: reddit.com
+  fr: reddit.com
+  pt: reddit.com
+  ru: reddit.com
+  ja: reddit.com
+  ko: reddit.com
+  it: reddit.com
+  tr: reddit.com
+  vi: reddit.com
+  id: reddit.com
+  pl: reddit.com
+  nl: reddit.com
+  ar: reddit.com
+  hi: reddit.com
+  th: reddit.com
+  cs: reddit.com
+  sv: reddit.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_2:
+  context: Example entry for favorite websites
+  en: medium.com
+  de: medium.com
+  zh: medium.com
+  es: medium.com
+  fr: medium.com
+  pt: medium.com
+  ru: medium.com
+  ja: medium.com
+  ko: medium.com
+  it: medium.com
+  tr: medium.com
+  vi: medium.com
+  id: medium.com
+  pl: medium.com
+  nl: medium.com
+  ar: medium.com
+  hi: medium.com
+  th: medium.com
+  cs: medium.com
+  sv: medium.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_3:
+  context: Example entry for favorite websites
+  en: stackoverflow.com
+  de: stackoverflow.com
+  zh: stackoverflow.com
+  es: stackoverflow.com
+  fr: stackoverflow.com
+  pt: stackoverflow.com
+  ru: stackoverflow.com
+  ja: stackoverflow.com
+  ko: stackoverflow.com
+  it: stackoverflow.com
+  tr: stackoverflow.com
+  vi: stackoverflow.com
+  id: stackoverflow.com
+  pl: stackoverflow.com
+  nl: stackoverflow.com
+  ar: stackoverflow.com
+  hi: stackoverflow.com
+  th: stackoverflow.com
+  cs: stackoverflow.com
+  sv: stackoverflow.com
+  verified_by_human:
+    - en
+    - de
+read_later.example_1:
+  context: Example entry for read later (a type of article)
+  en: Interesting AI research paper
+  de: Interessantes KI-Forschungspapier
+  zh: 有趣的AI研究论文
+  es: Artículo interesante sobre investigación en IA
+  fr: Article de recherche IA intéressant
+  pt: Artigo interessante de pesquisa em IA
+  ru: Интересная статья об исследовании ИИ
+  ja: 興味深いAI研究論文
+  ko: 흥미로운 AI 연구 논문
+  it: Articolo di ricerca AI interessante
+  tr: İlginç yapay zeka araştırma makalesi
+  vi: Bài nghiên cứu AI thú vị
+  id: Makalah penelitian AI yang menarik
+  pl: Ciekawy artykuł o badaniach AI
+  nl: Interessant AI-onderzoeksartikel
+  ar: ورقة بحثية مثيرة عن الذكاء الاصطناعي
+  hi: दिलचस्प AI शोध पत्र
+  th: บทความวิจัย AI ที่น่าสนใจ
+  cs: Zajímavý výzkumný článek o AI
+  sv: Intressant AI-forskningsartikel
+  verified_by_human:
+    - en
+    - de
+read_later.example_2:
+  context: Example entry for read later (a type of article)
+  en: Design patterns article
+  de: Artikel über Design-Patterns
+  zh: 设计模式文章
+  es: Artículo sobre patrones de diseño
+  fr: Article sur les design patterns
+  pt: Artigo sobre padrões de design
+  ru: Статья о паттернах проектирования
+  ja: デザインパターンの記事
+  ko: 디자인 패턴 기사
+  it: Articolo sui design pattern
+  tr: Tasarım kalıpları makalesi
+  vi: Bài viết về mẫu thiết kế
+  id: Artikel pola desain
+  pl: Artykuł o wzorcach projektowych
+  nl: Artikel over design patterns
+  ar: مقال عن أنماط التصميم
+  hi: डिज़ाइन पैटर्न लेख
+  th: บทความเกี่ยวกับรูปแบบการออกแบบ
+  cs: Článek o návrhových vzorech
+  sv: Artikel om designmönster
+  verified_by_human:
+    - en
+    - de
+read_later.example_3:
+  context: Example entry for read later (a type of blog post)
+  en: Tech blog post
+  de: Tech-Blogbeitrag
+  zh: 技术博客文章
+  es: Publicación de blog de tecnología
+  fr: Article de blog tech
+  pt: Post de blog de tecnologia
+  ru: Пост в техноблоге
+  ja: テックブログ記事
+  ko: 기술 블로그 게시물
+  it: Post del blog tech
+  tr: Teknoloji blog yazısı
+  vi: Bài viết blog công nghệ
+  id: Postingan blog teknologi
+  pl: Wpis na blogu technologicznym
+  nl: Techblogbericht
+  ar: مقال مدونة تقنية
+  hi: टेक ब्लॉग पोस्ट
+  th: บทความบล็อกเทคโนโลยี
+  cs: Příspěvek na tech blogu
+  sv: Teknikblogg-inlägg
+  verified_by_human:
+    - en
+    - de

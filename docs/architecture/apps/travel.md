@@ -3,19 +3,23 @@
 ## Settings and Memories
 
 ### Trips
+
 Users can store their trip information including destination, start date, end date, and notes. The system automatically filters trips based on the start_date to identify upcoming trips for recommendations and reminders.
 
 **Schema**:
+
 - `destination` (string): City or country
 - `start_date` (date, YYYY-MM-DD): Trip start date
 - `end_date` (date, YYYY-MM-DD): Trip end date
 - `notes` (string): Additional notes about the trip
 
 ### Preferred Airline
+
 Users can specify their preferred airline for flight bookings and recommendations.
 
-### Interests
-Users can list their travel interests (e.g., hiking, museums, good city planning examples) to get personalized travel recommendations.
+### Preferred Activities
+
+Users can list their preferred travel activities and experiences at destinations (e.g., visiting beaches, exploring museums, hiking, trying local food) to get personalized travel recommendations. This is distinct from transport preferences and flight bookings.
 
 ## Providers
 

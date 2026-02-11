@@ -3,35 +3,42 @@ description_translation_key: videos.description.text
 icon_image: |
   videos.svg
 category: personal
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list.text
     description_translation_key: videos.to_watch_list.description.text
     type: list
     stage: development
+    example_translation_keys:
+      - "videos.to_watch_list.example_1.text"
+      - "videos.to_watch_list.example_2.text"
+      - "videos.to_watch_list.example_3.text"
     schema:
       type: object
       properties:
-        title:
+        name:
           type: string
-          description: Video title
-        channel:
-          type: string
-          description: Channel name
+          description: Video name or title (user-defined, can be auto-generated later)
+          is_title: true
         url:
           type: string
           description: Video URL
-        added_date:
-          type: integer
-          description: Unix timestamp when added
+        channel:
+          type: string
+          description: Channel name (can be auto-filled later)
       required:
+        - name
         - url
   - id: subscribed_channels
     name_translation_key: videos.subscribed_channels.text
     description_translation_key: videos.subscribed_channels.description.text
     type: list
     stage: planning
+    example_translation_keys:
+      - "videos.subscribed_channels.example_1.text"
+      - "videos.subscribed_channels.example_2.text"
+      - "videos.subscribed_channels.example_3.text"
     schema:
       type: object
       properties:
@@ -53,6 +60,8 @@ skills:
   - id: get_transcript
     name_translation_key: videos.get_transcript.text
     description_translation_key: videos.get_transcript.description.text
+    preprocessor_hint: >
+      Get the transcript/content of a specific YouTube video URL.
     stage: production
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
@@ -95,6 +104,8 @@ skills:
   - id: search
     name_translation_key: videos.search.text
     description_translation_key: videos.search.description.text
+    preprocessor_hint: >
+      Search for videos, documentaries, tutorials, clips on the web.
     stage: production
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill
@@ -140,7 +151,85 @@ skills:
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
-                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
+                enum:
+                  [
+                    "AR",
+                    "AU",
+                    "AT",
+                    "BE",
+                    "BR",
+                    "CA",
+                    "CL",
+                    "DK",
+                    "FI",
+                    "FR",
+                    "DE",
+                    "GR",
+                    "HK",
+                    "IN",
+                    "ID",
+                    "IT",
+                    "JP",
+                    "KR",
+                    "MY",
+                    "MX",
+                    "NL",
+                    "NZ",
+                    "NO",
+                    "CN",
+                    "PL",
+                    "PT",
+                    "PH",
+                    "RU",
+                    "SA",
+                    "ZA",
+                    "ES",
+                    "SE",
+                    "CH",
+                    "TW",
+                    "TR",
+                    "GB",
+                    "US",
+                    "ALL",
+                    "ar",
+                    "au",
+                    "at",
+                    "be",
+                    "br",
+                    "ca",
+                    "cl",
+                    "dk",
+                    "fi",
+                    "fr",
+                    "de",
+                    "gr",
+                    "hk",
+                    "in",
+                    "id",
+                    "it",
+                    "jp",
+                    "kr",
+                    "my",
+                    "mx",
+                    "nl",
+                    "nz",
+                    "no",
+                    "cn",
+                    "pl",
+                    "pt",
+                    "ph",
+                    "ru",
+                    "sa",
+                    "za",
+                    "es",
+                    "se",
+                    "ch",
+                    "tw",
+                    "tr",
+                    "gb",
+                    "us",
+                    "all",
+                  ]
                 default: "us"
               search_lang:
                 type: string

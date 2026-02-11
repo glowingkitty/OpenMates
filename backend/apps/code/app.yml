@@ -3,7 +3,7 @@ description_translation_key: code.description.text
 icon_image: |
   coding.svg
 category: work
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   # Preferred technologies: Languages, frameworks, tools the user prefers
   - id: preferred_tech
@@ -11,6 +11,10 @@ settings_and_memories:
     description_translation_key: code.preferred_tech.description.text
     type: list
     stage: production
+    example_translation_keys:
+      - "code.preferred_tech.example_1.text"
+      - "code.preferred_tech.example_2.text"
+      - "code.preferred_tech.example_3.text"
     schema:
       type: object
       properties:
@@ -23,18 +27,18 @@ settings_and_memories:
           description: Your proficiency level
           enum: ["beginner", "intermediate", "advanced", "expert"]
           is_subtitle: true
-        added_date:
-          type: integer
-          description: Unix timestamp when added
-          auto_generated: true
       required:
-      - name
+        - name
   # Projects: All projects with status to indicate current state
   - id: projects
     name_translation_key: code.projects.text
     description_translation_key: code.projects.description.text
     type: list
     stage: production
+    example_translation_keys:
+      - "code.projects.example_1.text"
+      - "code.projects.example_2.text"
+      - "code.projects.example_3.text"
     schema:
       type: object
       properties:
@@ -47,18 +51,24 @@ settings_and_memories:
           description: Project status
           enum: ["active", "planned", "completed"]
           is_subtitle: true
-        added_date:
-          type: integer
-          description: Unix timestamp when added
-          auto_generated: true
+        description:
+          type: string
+          description: Brief description of the project
+        git_repo_url:
+          type: string
+          description: Git repository URL (e.g., https://github.com/user/repo)
       required:
-      - name
+        - name
   # Technologies to learn: Things the user wants to learn
   - id: want_to_learn
     name_translation_key: code.want_to_learn.text
     description_translation_key: code.want_to_learn.description.text
     type: list
     stage: production
+    example_translation_keys:
+      - "code.want_to_learn.example_1.text"
+      - "code.want_to_learn.example_2.text"
+      - "code.want_to_learn.example_3.text"
     schema:
       type: object
       properties:
@@ -66,12 +76,8 @@ settings_and_memories:
           type: string
           description: Technology or skill you want to learn
           is_title: true
-        added_date:
-          type: integer
-          description: Unix timestamp when added
-          auto_generated: true
       required:
-      - name
+        - name
 
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
@@ -83,7 +89,7 @@ settings_and_memories:
 #- Treat AI as pair programming partner requiring frequent check-ins rather than autonomous contractor
 
 #**Chat specific files**
-#- todo.md -> to manage all 
+#- todo.md -> to manage all
 
 #**Project awareness files:**
 #- Keep existing `todo.md`, `architecture.md`, and project structure
@@ -129,7 +135,7 @@ settings_and_memories:
 # What actually happens
 
 # ## Environment
-# - OS: 
+# - OS:
 # - Browser/Version:
 # - Project Version:
 
@@ -150,6 +156,9 @@ skills:
   - id: get_docs
     name_translation_key: code.get_docs.text
     description_translation_key: code.get_docs.description.text
+    preprocessor_hint: >
+      Get latest documentation for programming libraries, frameworks, APIs, SDKs.
+      Use for ANY programming-related query about a specific library or framework.
     stage: production
     class_path: |
       backend.apps.code.skills.get_docs_skill.GetDocsSkill

@@ -75,6 +75,12 @@
             : ''
     );
 
+    /**
+     * Get example translation keys from category metadata (defined in app.yml).
+     * These are resolved via $text() and shown to non-authenticated users to illustrate what this category stores.
+     */
+    let exampleTranslationKeys = $derived(category?.example_translation_keys ?? []);
+
     // Get schema from category for title/subtitle field detection
     let schema = $derived(category?.schema_definition);
     
@@ -366,12 +372,24 @@
                 {/if}
             </div>
         {:else}
-            <!-- For non-authenticated users, only show the description -->
-            <div class="description-only">
-                {#if categoryDescription}
-                    <p class="description-text">{categoryDescription}</p>
-                {/if}
-            </div>
+            <!-- For non-authenticated users, show example entries (description already shown in header above) -->
+            {#if exampleTranslationKeys.length > 0}
+                <div class="examples-only">
+                    <div class="examples-section">
+                        <p class="examples-label">{$text('settings.app_settings_memories.examples_label.text')}</p>
+                        <div class="examples-list">
+                            {#each exampleTranslationKeys as exampleKey}
+                                <div class="example-entry">
+                                    <SettingsItem
+                                        icon={getIconName(app?.icon_image)}
+                                        title={$text(exampleKey)}
+                                    />
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                </div>
+            {/if}
         {/if}
     {/if}
 </div>
@@ -445,16 +463,29 @@
         background: var(--button-hover-background, #e0e0e0);
     }
     
-    .description-only {
+    .examples-only {
         padding: 2rem;
         margin-top: 1rem;
     }
     
-    .description-text {
-        margin: 0;
+    .examples-section {
+        margin-top: 1.5rem;
+    }
+    
+    .examples-label {
+        margin: 0 0 0.75rem 0;
         color: var(--text-secondary, #666666);
-        font-size: 1rem;
-        line-height: 1.6;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .examples-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        opacity: 0.6;
     }
 
 </style>

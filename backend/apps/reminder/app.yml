@@ -24,7 +24,11 @@ skills:
   - id: set-reminder
     name_translation_key: reminder.set_reminder.text
     description_translation_key: reminder.set_reminder.description.text
-    stage: development
+    preprocessor_hint: >
+      Create a one-time or recurring reminder for the user.
+    stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.set_reminder_skill.SetReminderSkill
     tool_schema:
       type: object
@@ -127,7 +131,11 @@ skills:
   - id: list-reminders
     name_translation_key: reminder.list_reminders.text
     description_translation_key: reminder.list_reminders.description.text
-    stage: development
+    preprocessor_hint: >
+      Show the user's existing scheduled reminders.
+    stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.list_reminders_skill.ListRemindersSkill
     tool_schema:
       type: object
@@ -143,7 +151,11 @@ skills:
   - id: cancel-reminder
     name_translation_key: reminder.cancel_reminder.text
     description_translation_key: reminder.cancel_reminder.description.text
-    stage: development
+    preprocessor_hint: >
+      Cancel or delete an existing reminder.
+    stage: production
+    providers:
+      - OpenMates
     class_path: backend.apps.reminder.skills.cancel_reminder_skill.CancelReminderSkill
     tool_schema:
       type: object

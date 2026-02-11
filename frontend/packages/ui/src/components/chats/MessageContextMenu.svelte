@@ -1,6 +1,9 @@
 <script lang="ts">
     import { onMount, tick } from 'svelte';
     import { text } from '@repo/ui';
+    import { authStore } from '../../stores/authStore';
+    import { apiEndpoints, getApiEndpoint } from '../../config/api';
+    import type { MessageRole } from '../../types/chat';
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -10,6 +13,9 @@
         onClose?: () => void;
         onCopy?: () => void;
         onSelect?: () => void;
+        messageId?: string;
+        userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
+        role?: MessageRole;
     }
     let { 
         x = 0,
@@ -17,13 +23,48 @@
         show = false,
         onClose,
         onCopy,
-        onSelect
+        onSelect,
+        messageId = undefined,
+        userMessageId = undefined,
+        role = undefined
     }: Props = $props();
 
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
     let showBelow = $state(false);
+    
+    // State for message credits (only for assistant messages)
+    let messageCredits = $state<number | null>(null);
+    
+    // Format credits with dots as thousand separators (European style)
+    function formatCredits(credits: number): string {
+        return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    
+    // Fetch message credits when menu is shown (only for authenticated assistant messages)
+    // Usage records are stored with the user's message ID (the message that triggered the AI response),
+    // so we use userMessageId for the API lookup, falling back to messageId if not available
+    $effect(() => {
+        const lookupId = userMessageId || messageId;
+        if (show && lookupId && role === 'assistant' && $authStore.isAuthenticated) {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.messageCost)}?message_id=${encodeURIComponent(lookupId)}`;
+            fetch(endpoint, { credentials: 'include' })
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data && typeof data.credits === 'number') {
+                        messageCredits = data.credits;
+                    } else {
+                        messageCredits = null;
+                    }
+                })
+                .catch(() => {
+                    messageCredits = null;
+                });
+        } else {
+            messageCredits = null;
+        }
+    });
 
     // Calculate initial position using estimated dimensions to prevent visual jump
     function calculatePosition(menuWidth: number, menuHeight: number) {
@@ -80,7 +121,7 @@
     $effect(() => {
         if (show) {
             const estimatedWidth = 150;
-            const estimatedHeight = 100;
+            const estimatedHeight = (role === 'assistant' && messageId) ? 130 : 100;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -167,6 +208,13 @@
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
+        {#if messageCredits !== null && messageCredits > 0}
+            <div class="message-credits">
+                <div class="clickable-icon icon_coins"></div>
+                {formatCredits(messageCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
+            </div>
+        {/if}
+        
         <button
             class="menu-item copy"
             onclick={(event) => handleAction('copy', event)}
@@ -200,6 +248,25 @@
         pointer-events: none;
         transition: opacity 0.2s ease-in-out;
         min-width: 140px;
+    }
+    
+    /* Message credits displayed above the action buttons */
+    .message-credits {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        margin-bottom: 4px;
+        color: var(--color-grey-50);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    
+    .message-credits .clickable-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-grey-50);
     }
 
     /* Position menu above clicked point (default) */

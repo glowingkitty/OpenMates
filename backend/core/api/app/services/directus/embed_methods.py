@@ -564,9 +564,10 @@ class EmbedMethods:
             logger.error(f"Error creating embed_key: {e}", exc_info=True)
             return None
 
-    async def delete_all_embeds_for_chat(self, hashed_chat_id: str) -> bool:
+    async def delete_all_embeds_for_chat(self, hashed_chat_id: str, s3_service=None) -> bool:
         """
         Deletes ALL embeds for a specific chat from Directus.
+        Also deletes associated S3 files (e.g., generated images) if s3_service is provided.
         
         This is called when a chat is deleted to clean up orphaned embeds.
         Only deletes embeds that:
@@ -575,6 +576,7 @@ class EmbedMethods:
         
         Args:
             hashed_chat_id: SHA256 hash of the chat_id to delete embeds for
+            s3_service: Optional S3UploadService instance for deleting associated S3 files
             
         Returns:
             True if successful, False otherwise
@@ -583,11 +585,12 @@ class EmbedMethods:
         try:
             # Query for all embeds belonging to this chat that are not shared
             # Only delete embeds that are private (is_private=true) or not shared (is_shared=false)
+            # Include s3_file_keys to enable S3 cleanup
             params = {
                 'filter[hashed_chat_id][_eq]': hashed_chat_id,
                 'filter[_or][0][is_private][_eq]': True,  # is_private is true
                 'filter[_or][1][is_shared][_eq]': False,  # is_shared is false
-                'fields': 'id,embed_id',
+                'fields': 'id,embed_id,s3_file_keys',
                 'limit': -1  # Get all
             }
             
@@ -606,6 +609,10 @@ class EmbedMethods:
                 logger.info("No embed IDs found to delete.")
                 return True
             
+            # Delete associated S3 files before deleting the embed records
+            if s3_service:
+                await self._delete_s3_files_for_embeds(response, s3_service)
+            
             # Use bulk delete for efficiency
             success = await self.directus_service.bulk_delete_items(collection='embeds', item_ids=embed_ids)
             
@@ -618,4 +625,46 @@ class EmbedMethods:
         except Exception as e:
             logger.error(f"Error deleting all embeds for hashed_chat_id: {hashed_chat_id[:16]}...: {e}", exc_info=True)
             return False
+
+    async def _delete_s3_files_for_embeds(self, embeds: list, s3_service) -> None:
+        """
+        Delete S3 files associated with embeds (e.g., generated images).
+        
+        Reads the s3_file_keys field from each embed record and deletes the corresponding
+        S3 objects. Failures are logged but do not prevent embed deletion.
+        
+        Args:
+            embeds: List of embed dicts (must include 's3_file_keys' field)
+            s3_service: S3UploadService instance
+        """
+        total_deleted = 0
+        total_failed = 0
+        
+        for embed in embeds:
+            s3_file_keys = embed.get('s3_file_keys')
+            if not s3_file_keys or not isinstance(s3_file_keys, list):
+                continue
+            
+            embed_id = embed.get('embed_id', 'unknown')
+            
+            for file_entry in s3_file_keys:
+                if not isinstance(file_entry, dict):
+                    continue
+                    
+                bucket_key = file_entry.get('bucket')
+                file_key = file_entry.get('key')
+                
+                if not bucket_key or not file_key:
+                    continue
+                
+                try:
+                    await s3_service.delete_file(bucket_key=bucket_key, file_key=file_key)
+                    total_deleted += 1
+                    logger.debug(f"Deleted S3 file for embed {embed_id}: {bucket_key}/{file_key}")
+                except Exception as e:
+                    total_failed += 1
+                    logger.warning(f"Failed to delete S3 file for embed {embed_id}: {bucket_key}/{file_key}: {e}")
+        
+        if total_deleted > 0 or total_failed > 0:
+            logger.info(f"S3 cleanup for embed deletion: {total_deleted} files deleted, {total_failed} failures")
 

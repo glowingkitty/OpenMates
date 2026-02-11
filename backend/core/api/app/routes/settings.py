@@ -1479,6 +1479,90 @@ async def get_usage_details(
         raise HTTPException(status_code=500, detail="Failed to fetch usage details")
 
 
+# --- Endpoint for getting total credits for a specific chat ---
+@router.get("/usage/chat-total", include_in_schema=False)
+@limiter.limit("60/minute")
+async def get_chat_total_credits(
+    request: Request,
+    chat_id: str,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """
+    Get the total credits used for a specific chat across all months.
+    Fast endpoint - uses cleartext total_credits from summary tables (no decryption needed).
+    """
+    try:
+        if not chat_id or not chat_id.strip():
+            raise HTTPException(status_code=400, detail="chat_id is required")
+        
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        total_credits = await directus_service.usage.get_chat_total_credits(
+            user_id_hash=user_id_hash,
+            chat_id=chat_id
+        )
+        
+        return {
+            "chat_id": chat_id,
+            "total_credits": total_credits
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching chat total credits for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch chat total credits")
+
+
+# --- Endpoint for getting credits for a specific message ---
+@router.get("/usage/message-cost", include_in_schema=False)
+@limiter.limit("60/minute")
+async def get_message_cost(
+    request: Request,
+    message_id: str,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Get the credits charged for a specific message.
+    Queries the usage collection by message_id and decrypts the credits field.
+    """
+    try:
+        if not message_id or not message_id.strip():
+            raise HTTPException(status_code=400, detail="message_id is required")
+        
+        # Get user's vault_key_id for decryption
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+        
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        credits = await directus_service.usage.get_message_credits(
+            user_id_hash=user_id_hash,
+            message_id=message_id,
+            user_vault_key_id=user_vault_key_id
+        )
+        
+        return {
+            "message_id": message_id,
+            "credits": credits
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching message cost for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch message cost")
+
+
 # --- Endpoint for exporting usage data as CSV ---
 @router.get("/usage/export", include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")  # Lower limit for export to prevent abuse
@@ -1920,12 +2004,14 @@ class IssueReportRequest(BaseModel):
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
+    last_messages_html: Optional[str] = Field(None, max_length=200000, description="Rendered HTML of the last user message and assistant response for debugging rendering issues")
 
 
 class IssueReportResponse(BaseModel):
     """Response model for issue reporting endpoint"""
     success: bool
     message: str
+    issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
 
 
 @router.post(
@@ -2076,6 +2162,14 @@ async def report_issue(
         if issue_data.indexeddb_report and issue_data.indexeddb_report.strip():
             indexeddb_report_str = issue_data.indexeddb_report.strip()
             logger.info(f"IndexedDB report provided with issue report: {len(indexeddb_report_str)} characters")
+        
+        # Process last messages HTML if provided
+        # This contains the rendered HTML of the last user message and assistant response
+        # to help debug rendering issues and see exactly what the user saw
+        last_messages_html_str = None
+        if issue_data.last_messages_html and issue_data.last_messages_html.strip():
+            last_messages_html_str = issue_data.last_messages_html.strip()
+            logger.info(f"Last messages HTML provided with issue report: {len(last_messages_html_str)} characters")
 
         # Encrypt sensitive fields for database storage (server-side encryption)
         encryption_service: EncryptionService = request.app.state.encryption_service
@@ -2157,8 +2251,14 @@ async def report_issue(
             
             logger.info(f"Issue report saved to database with ID: {issue_id}")
         except Exception as e:
-            logger.error(f"Failed to save issue report to database: {str(e)}", exc_info=True)
-            # Continue - email will still be sent even if database save fails
+            logger.error(
+                f"Failed to save issue report to database: {str(e)}. "
+                f"Email will still be sent but YAML report will NOT be uploaded to S3 "
+                f"(issue_id will be None in the email task).",
+                exc_info=True
+            )
+            # Continue - email will still be sent even if database save fails,
+            # but S3 upload will be skipped since issue_id is None
             issue_id = None
         
         # Dispatch the email task with sanitized data
@@ -2177,7 +2277,8 @@ async def report_issue(
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
                 "console_logs": console_logs_str,
-                "indexeddb_report": indexeddb_report_str
+                "indexeddb_report": indexeddb_report_str,
+                "last_messages_html": last_messages_html_str
             },
             queue='email'
         )
@@ -2190,7 +2291,8 @@ async def report_issue(
         
         return IssueReportResponse(
             success=True,
-            message="Issue report submitted successfully. Thank you for your feedback!"
+            message="Issue report submitted successfully. Thank you for your feedback!",
+            issue_id=issue_id  # Return issue ID so frontend can display it for admin lookup
         )
         
     except Exception as e:

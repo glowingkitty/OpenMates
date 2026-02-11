@@ -362,7 +362,7 @@ async def _trigger_continuation(
     if not cached_messages_str_list:
         logger.error(f"Failed to retrieve cached messages for chat {chat_id} - cannot continue processing")
         # Delete the pending context to avoid stale data
-        await cache_service.delete_pending_app_settings_memories_request(chat_id)
+        await cache_service.delete_pending_app_settings_memories_request(chat_id, user_id=user_id)
         return
     
     # Get user's vault key for decryption
@@ -378,7 +378,7 @@ async def _trigger_continuation(
     
     if not user_vault_key_id:
         logger.error(f"Cannot decrypt messages without vault_key_id for user {user_id}")
-        await cache_service.delete_pending_app_settings_memories_request(chat_id)
+        await cache_service.delete_pending_app_settings_memories_request(chat_id, user_id=user_id)
         return
     
     # Convert cached messages to the format expected by AskSkillRequest
@@ -426,13 +426,13 @@ async def _trigger_continuation(
     
     if not message_history:
         logger.error(f"No user/assistant messages found in cached chat {chat_id} - cannot continue processing")
-        await cache_service.delete_pending_app_settings_memories_request(chat_id)
+        await cache_service.delete_pending_app_settings_memories_request(chat_id, user_id=user_id)
         return
     
     logger.info(f"Retrieved and decrypted {len(message_history)} messages from AI cache for chat {chat_id}")
     
-    # Delete the pending context (we're about to process it)
-    await cache_service.delete_pending_app_settings_memories_request(chat_id)
+    # Delete the pending context (we're about to process it) and clean up per-user index
+    await cache_service.delete_pending_app_settings_memories_request(chat_id, user_id=user_id)
     
     # Trigger a new ask_skill Celery task
     try:

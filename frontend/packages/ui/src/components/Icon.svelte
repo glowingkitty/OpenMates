@@ -291,6 +291,7 @@
     --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
     --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
     --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-bfl: url('@openmates/ui/static/icons/blackforestlabs.svg');
     --icon-url-brave: url('@openmates/ui/static/icons/brave.svg');
     --icon-url-business: url('@openmates/ui/static/icons/business.svg');
     --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
@@ -329,6 +330,7 @@
     --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
     --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
     --icon-url-games: url('@openmates/ui/static/icons/games.svg');
+    --icon-url-gift: url('@openmates/ui/static/icons/gift.svg');
     --icon-url-github: url('@openmates/ui/static/icons/github.svg');
     --icon-url-good: url('@openmates/ui/static/icons/good.svg');
     --icon-url-google: url('@openmates/ui/static/icons/google.svg');
@@ -367,6 +369,7 @@
     --icon-url-offline: url('@openmates/ui/static/icons/offline.svg');
     --icon-url-open: url('@openmates/ui/static/icons/open.svg');
     --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
+    --icon-url-openmates: url('@openmates/ui/static/icons/openmates.svg');
     --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
     --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
     --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');
@@ -410,6 +413,7 @@
     --icon-url-take_photo: url('@openmates/ui/static/icons/take_photo.svg');
     --icon-url-task: url('@openmates/ui/static/icons/task.svg');
     --icon-url-team: url('@openmates/ui/static/icons/team.svg');
+    --icon-url-text: url('@openmates/ui/static/icons/text.svg');
     --icon-url-tfas: url('@openmates/ui/static/icons/tfas.svg');
     --icon-url-time: url('@openmates/ui/static/icons/time.svg');
     --icon-url-travel: url('@openmates/ui/static/icons/travel.svg');

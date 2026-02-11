@@ -66,13 +66,15 @@ async def _cleanup_processing_embeds_on_task_failure(
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    use_cancelled_status: bool = False
 ) -> int:
     """
     Clean up processing embeds when a task fails unexpectedly.
     
     This function finds all embeds in "processing" status that were created by this task
-    and marks them as "error" so the frontend can display the failure state properly.
+    and marks them as "error" (or "cancelled" if task was revoked by user) so the frontend
+    can display the failure state properly.
     
     CRITICAL: This prevents embeds from being stuck in "processing" forever when:
     - Postprocessing LLM fails
@@ -90,6 +92,7 @@ async def _cleanup_processing_embeds_on_task_failure(
         cache_service: Optional CacheService instance
         directus_service: Optional DirectusService instance
         encryption_service: Optional EncryptionService instance
+        use_cancelled_status: If True, mark embeds as "cancelled" instead of "error" (for user-initiated cancellation)
         
     Returns:
         Number of embeds that were cleaned up
@@ -162,27 +165,42 @@ async def _cleanup_processing_embeds_on_task_failure(
                     app_id = embed_data.get("app_id", "unknown")
                     skill_id = embed_data.get("skill_id", "unknown")
                     
+                    target_status = "cancelled" if use_cancelled_status else "error"
                     logger.info(
-                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as error"
+                        f"{log_prefix} Found processing embed {embed_id} (app={app_id}, skill={skill_id}) - marking as {target_status}"
                     )
                     
-                    # Update embed to error status
+                    # Update embed to error or cancelled status
                     try:
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=embed_id,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message=f"Task failed: {error_message}",
-                            chat_id=chat_id,
-                            message_id=message_id,
-                            user_id=user_id,
-                            user_id_hash=user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
-                        )
+                        if use_cancelled_status:
+                            await embed_service.update_embed_status_to_cancelled(
+                                embed_id=embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                user_id=user_id,
+                                user_id_hash=user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                        else:
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message=f"Task failed: {error_message}",
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                user_id=user_id,
+                                user_id_hash=user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
                         cleaned_count += 1
-                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as error")
+                        logger.info(f"{log_prefix} Successfully marked embed {embed_id} as {target_status}")
                     except Exception as update_error:
                         logger.error(f"{log_prefix} Failed to update embed {embed_id} to error: {update_error}")
                         
@@ -211,14 +229,15 @@ async def _cleanup_on_task_failure(
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    use_cancelled_status: bool = False
 ) -> None:
     """
     Comprehensive cleanup when a task fails unexpectedly.
     
     This function performs two critical cleanup operations:
     1. Clears the active_ai_task marker so the typing indicator stops
-    2. Marks processing embeds as error so they don't get stuck
+    2. Marks processing embeds as error (or cancelled) so they don't get stuck
     
     CRITICAL: This ensures that when a task fails for any reason (timeout, exception,
     revocation, CMS errors, etc.), the user can immediately send new messages
@@ -235,6 +254,7 @@ async def _cleanup_on_task_failure(
         cache_service: Optional CacheService instance
         directus_service: Optional DirectusService instance
         encryption_service: Optional EncryptionService instance
+        use_cancelled_status: If True, mark embeds as "cancelled" instead of "error"
     """
     log_prefix = f"[Task ID: {task_id}, ChatID: {chat_id}] TASK_CLEANUP"
     
@@ -264,7 +284,8 @@ async def _cleanup_on_task_failure(
             error_message=error_message,
             cache_service=cache_service,
             directus_service=directus_service,
-            encryption_service=encryption_service
+            encryption_service=encryption_service,
+            use_cancelled_status=use_cancelled_status
         )
         if cleaned_count > 0:
             logger.info(f"{log_prefix} Cleaned up {cleaned_count} processing embed(s)")
@@ -1385,6 +1406,11 @@ async def _async_process_ai_skill_ask_task(
         chat_summary = preprocessing_result.chat_summary if preprocessing_result and not preprocessing_failed else None
         chat_tags = preprocessing_result.chat_tags if preprocessing_result and not preprocessing_failed else []
 
+        # Extract available app IDs from discovered_apps_metadata for post-processing validation
+        # NOTE: This must be defined before the preprocessing_failed branch, because
+        # the debug caching code below references it regardless of which branch is taken.
+        available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
+
         # CRITICAL: chat_summary is required for post-processing
         # If missing, log detailed information to understand why the preprocessing LLM didn't return it
         if preprocessing_failed or not chat_summary:
@@ -1421,8 +1447,6 @@ async def _async_process_ai_skill_ask_task(
             # Skip post-processing but log the error for debugging
             postprocessing_result = None
         else:
-            # Extract available app IDs from discovered_apps_metadata for post-processing validation
-            available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
             if not available_app_ids:
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
@@ -1432,6 +1456,16 @@ async def _async_process_ai_skill_ask_task(
             ) if discovered_apps_metadata else []
             logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
 
+            # Build full message history for post-processing (same format as preprocessing)
+            # This allows post-processing to generate summaries from the full chat history
+            # instead of relying on a condensed 20-word summary from preprocessing
+            postprocessing_message_history = []
+            if request_data.message_history:
+                postprocessing_message_history = [
+                    msg.model_dump() if hasattr(msg, 'model_dump') else msg
+                    for msg in request_data.message_history
+                ]
+
             # Phase 1: Post-processing with category selection
             postprocessing_result = await handle_postprocessing(
                 task_id=task_id,
@@ -1439,6 +1473,7 @@ async def _async_process_ai_skill_ask_task(
                 assistant_response=aggregated_final_response,
                 chat_summary=chat_summary,
                 chat_tags=chat_tags,
+                message_history=postprocessing_message_history,
                 base_instructions=base_instructions,
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
@@ -1481,9 +1516,13 @@ async def _async_process_ai_skill_ask_task(
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
-            # Note: chat_summary and chat_tags come from preprocessing (full history context)
-            # Use the extracted variables (chat_summary, chat_tags) which are safe to use here
-            # since we only reach this point if postprocessing_result was successfully created
+            # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
+            # chat_tags: from preprocessing (full history context)
+            final_chat_summary = postprocessing_result.chat_summary or chat_summary
+            if postprocessing_result.chat_summary:
+                logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
+            else:
+                logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
             # Convert suggested_settings_memories to serializable format
             suggested_settings_memories_serialized = [
                 entry.model_dump() for entry in postprocessing_result.suggested_settings_memories
@@ -1498,8 +1537,8 @@ async def _async_process_ai_skill_ask_task(
                 "user_id_hash": request_data.user_id_hash,
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
-                "chat_summary": chat_summary,  # From preprocessing (full history) - use extracted variable
-                "chat_tags": chat_tags,  # From preprocessing (full history) - use extracted variable
+                "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
+                "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
                 # Phase 2: Suggested settings/memories entries (sent as plaintext, client encrypts)
@@ -1525,9 +1564,10 @@ async def _async_process_ai_skill_ask_task(
                     # FULL assistant response that was generated
                     "assistant_response": aggregated_final_response,
                     "assistant_response_length": len(aggregated_final_response) if aggregated_final_response else 0,
-                    # FULL chat summary from preprocessing
-                    "chat_summary": chat_summary,
-                    "chat_summary_length": len(chat_summary) if chat_summary else 0,
+                    # Chat summary: prefer post-processing (includes latest exchange), fall back to preprocessing
+                    "chat_summary": final_chat_summary if postprocessing_result else chat_summary,
+                    "chat_summary_length": len(final_chat_summary) if (postprocessing_result and final_chat_summary) else (len(chat_summary) if chat_summary else 0),
+                    "chat_summary_source": "post-processing" if (postprocessing_result and postprocessing_result.chat_summary) else "preprocessing",
                     # Chat tags from preprocessing
                     "chat_tags": chat_tags,
                     # Available apps for recommendations
@@ -1686,6 +1726,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1696,7 +1738,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message="Task exceeded soft time limit"
+                error_message="Task exceeded soft time limit",
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
@@ -1705,11 +1748,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
             'status_message': 'completed_partially_soft_limit_wrapper', # Distinguish from async limit
             'interrupted_by_soft_time_limit': True, # This limit was in the sync part
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED # Check current status of self
+            'interrupted_by_revocation': bool(was_revoked)
         })
         raise
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1720,7 +1765,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message=str(e)
+                error_message=str(e),
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
@@ -1728,11 +1774,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False, # Assuming not a soft limit unless explicitly caught as such
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': bool(was_revoked)
         })
         raise Ignore()
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
+        # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
+        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -1743,7 +1791,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
-                error_message=str(e)
+                error_message=str(e),
+                use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
@@ -1751,7 +1800,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False,
-            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': bool(was_revoked)
             })
         raise Ignore()
     finally:

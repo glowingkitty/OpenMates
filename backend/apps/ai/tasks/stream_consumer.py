@@ -96,6 +96,7 @@ def _create_redis_payload(
     system_prompt_tokens: Optional[int] = None,
     total_credits: Optional[int] = None,
     category: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -117,6 +118,11 @@ def _create_redis_payload(
     
     if category:
         payload["category"] = category
+    
+    # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
+    # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
+    if rejection_reason:
+        payload["rejection_reason"] = rejection_reason
     
     if prompt_tokens is not None:
         payload["prompt_tokens"] = prompt_tokens
@@ -289,13 +295,28 @@ async def _update_chat_metadata(
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
     """
-    # 1. Fetch current metadata to get current messages_v
-    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-    current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
-    new_messages_v = current_messages_v + 1
+    # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
+    # This prevents race conditions where system messages and AI responses compete for version numbers.
+    # Previously this used a Directus read-modify-write which was non-atomic and could collide
+    # with the cache-based HINCRBY used by system_message_handler.
+    new_messages_v = None
+    if cache_service:
+        new_messages_v = await cache_service.increment_chat_component_version(
+            request_data.user_id, request_data.chat_id, "messages_v"
+        )
+    
+    if new_messages_v is None:
+        # Fallback: if cache is unavailable, read from Directus (non-atomic, but better than nothing)
+        logger.warning(
+            f"{log_prefix} [MESSAGES_V_TRACKING] Cache unavailable for atomic increment, "
+            f"falling back to Directus read-modify-write for chat {request_data.chat_id}"
+        )
+        chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+        current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
+        new_messages_v = current_messages_v + 1
 
     fields_to_update = {
-        "messages_v": new_messages_v,  # Increment messages_v in Directus directly!
+        "messages_v": new_messages_v,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category,
@@ -305,7 +326,7 @@ async def _update_chat_metadata(
     logger.info(
         f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
         f"chat_id={request_data.chat_id}, "
-        f"updating messages_v in Directus: {current_messages_v} -> {new_messages_v}, "
+        f"updating messages_v in Directus to {new_messages_v} (via cache atomic increment), "
         f"source=stream_consumer._update_chat_metadata"
     )
     
@@ -727,7 +748,8 @@ async def _generate_fake_stream_for_simple_message(
     cache_service: Optional[CacheService],
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-    user_vault_key_id: Optional[str] = None
+    user_vault_key_id: Optional[str] = None,
+    rejection_reason: Optional[str] = None
 ) -> tuple[str, bool, bool]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
@@ -744,7 +766,8 @@ async def _generate_fake_stream_for_simple_message(
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name)
+    # Include rejection_reason so frontend can distinguish system messages from AI responses
+    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name, rejection_reason=rejection_reason)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(message_text)}"
@@ -782,7 +805,8 @@ async def _generate_fake_stream_for_simple_message(
         task_id, request_data, message_text, 2, is_final=True, model_name=model_name,
         prompt_tokens=billing_info.get("prompt_tokens", 0),
         completion_tokens=billing_info.get("completion_tokens", 0),
-        total_credits=billing_info.get("total_credits", 0)
+        total_credits=billing_info.get("total_credits", 0),
+        rejection_reason=rejection_reason
     )
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
@@ -919,9 +943,9 @@ async def _consume_main_processing_stream(
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
         logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
         
-        # Get predefined response from translations
+        # Get predefined response from translations in the user's detected language
         translation_service = TranslationService()
-        language = "en"  # Default to English, could be made dynamic based on user preferences
+        language = preprocessing_result.output_language or "en"
         
         if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
             predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
@@ -944,6 +968,8 @@ async def _consume_main_processing_stream(
         )
     
     # Handle insufficient credits with a predefined message (no billing)
+    # rejection_reason is passed through to the Redis payload so the frontend can render this
+    # as a system notice (smaller text) instead of an assistant bubble
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
         logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
         message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
@@ -955,7 +981,8 @@ async def _consume_main_processing_stream(
             cache_service=cache_service,
             directus_service=directus_service,
             encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id
+            user_vault_key_id=user_vault_key_id,
+            rejection_reason="insufficient_credits"
         )
 
     # Handle LLM preprocessing failures (e.g., API errors, service unavailable)
@@ -1035,6 +1062,13 @@ async def _consume_main_processing_stream(
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
+    
+    # Document block tracking: document_html fences produce document embeds (type="document")
+    # instead of code embeds (type="code"). This flag is set when the language is "document_html"
+    # and controls which embed service methods are called during streaming and finalization.
+    in_document_block = False
+    # Title extracted from <!-- title: "..." --> comment in document HTML content
+    current_document_title: Optional[str] = None
 
     # Track if we're awaiting app settings/memories permission from user
     # When this is True, we should NOT send an error message for empty stream
@@ -1369,47 +1403,100 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                # Create code embed placeholder
-                                embed_data = await embed_service.create_code_embed_placeholder(
-                                    language=current_code_language,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    filename=current_code_filename,
-                                    log_prefix=log_prefix
-                                )
+                                # Check if this is a document_html block
+                                is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
                                 
-                                if embed_data:
-                                    current_code_embed_id = embed_data["embed_id"]
+                                if is_document_html:
+                                    # Extract title from <!-- title: "..." --> comment
+                                    import re
+                                    doc_title = None
+                                    title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', code_content)
+                                    if title_match:
+                                        doc_title = title_match.group(1)
                                     
-                                    # Update with full content and finalize
-                                    await embed_service.update_code_embed_content(
-                                        embed_id=current_code_embed_id,
-                                        code_content=code_content,
+                                    # Create document embed placeholder and finalize immediately
+                                    embed_data = await embed_service.create_document_embed_placeholder(
                                         chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
-                                        status="finished",
+                                        task_id=task_id,
+                                        title=doc_title,
                                         log_prefix=log_prefix
                                     )
                                     
-                                    # Replace code block with embed reference in chunk
-                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                    chunk = embed_reference_code
-                                    logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with full HTML content and finalize
+                                        await embed_service.update_document_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            html_content=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            title=doc_title,
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace document block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized document embed {current_code_embed_id} for complete document_html block (title: {doc_title or 'none'})")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        in_document_block = False
+                                        current_document_title = None
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                else:
+                                    # Create code embed placeholder
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
                                     
-                                    # Reset state
-                                    in_code_block = False
-                                    current_code_language = ""
-                                    current_code_filename = None
-                                    current_code_content = ""
-                                    current_code_embed_id = None
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with full content and finalize
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace code block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
                             except Exception as e:
-                                logger.error(f"{log_prefix} Error creating code embed for complete block: {e}", exc_info=True)
+                                logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
                     else:
                         # Opening fence but no closing fence in this chunk - start code block tracking
@@ -1460,46 +1547,93 @@ async def _consume_main_processing_stream(
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
                         
-                        # Create code embed placeholder (only for non-suspicious languages)
+                        # Create embed placeholder (only for non-suspicious languages)
+                        # Document_html blocks get document embeds; all others get code embeds
+                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        if is_document_html:
+                            in_document_block = True
+                            current_document_title = None
+                            # Try to extract title from initial content
+                            if current_code_content:
+                                import re
+                                title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                if title_match:
+                                    current_document_title = title_match.group(1)
+                        
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                embed_data = await embed_service.create_code_embed_placeholder(
-                                    language=current_code_language,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    filename=current_code_filename,
-                                    log_prefix=log_prefix
-                                )
-                                
-                                if embed_data:
-                                    current_code_embed_id = embed_data["embed_id"]
+                                if is_document_html:
+                                    # Create document embed placeholder
+                                    embed_data = await embed_service.create_document_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
                                     
-                                    # If there's content after the opening fence, update embed immediately
-                                    if current_code_content:
-                                        await embed_service.update_code_embed_content(
-                                            embed_id=current_code_embed_id,
-                                            code_content=current_code_content,
-                                            chat_id=request_data.chat_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            status="processing",
-                                            log_prefix=log_prefix
-                                        )
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content after the opening fence, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_document_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                html_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=current_document_title,
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Replace opening fence with embed reference
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'})")
+                                else:
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
                                     
-                                    # Replace opening fence with embed reference
-                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                    chunk = embed_reference_code
-                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content after the opening fence, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Replace opening fence with embed reference
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
                             except Exception as e:
-                                logger.error(f"{log_prefix} Error creating code embed placeholder: {e}", exc_info=True)
+                                logger.error(f"{log_prefix} Error creating embed placeholder: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
                 
                 # Handle code block content accumulation and closing
@@ -1538,46 +1672,110 @@ async def _consume_main_processing_stream(
                             current_code_content = chunk
                             logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code: {repr(first_line[:50])}")
                         
+                        # HARDENING: Check for suspicious languages that indicate fake tool calls
+                        # This mirrors the check in the direct-language path (Path B) above.
+                        # Without this, a bare ``` followed by "toon" in the next chunk would
+                        # create an embed placeholder before the closing-fence filter catches it,
+                        # leaving an orphaned embed reference in the message.
+                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        if is_suspicious_language:
+                            logger.warning(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
+                                f"resolved after bare fence is suspicious (fake tool call). "
+                                f"Will accumulate content and filter at closing fence."
+                            )
+                            # Don't create an embed - just track content and wait for closing fence
+                            chunk = ""
+                            continue
+
                         # Now create the embed placeholder with the extracted (or empty) language
+                        # Check if this is a document_html block (language resolved after bare fence)
+                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        if is_document_html:
+                            in_document_block = True
+                            current_document_title = None
+                            # Try to extract title from initial content
+                            if current_code_content:
+                                import re
+                                title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                if title_match:
+                                    current_document_title = title_match.group(1)
+                        
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                embed_data = await embed_service.create_code_embed_placeholder(
-                                    language=current_code_language,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    filename=current_code_filename,
-                                    log_prefix=log_prefix
-                                )
-                                
-                                if embed_data:
-                                    current_code_embed_id = embed_data["embed_id"]
+                                if is_document_html:
+                                    embed_data = await embed_service.create_document_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
                                     
-                                    # If there's content, update embed immediately
-                                    if current_code_content:
-                                        await embed_service.update_code_embed_content(
-                                            embed_id=current_code_embed_id,
-                                            code_content=current_code_content,
-                                            chat_id=request_data.chat_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            status="processing",
-                                            log_prefix=log_prefix
-                                        )
-                                    
-                                    # Emit the embed reference now
-                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                    chunk = embed_reference_code
-                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_document_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                html_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=current_document_title,
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Emit the embed reference now
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'}) after waiting for language")
+                                    else:
+                                        chunk = ""  # Failed to create document embed
                                 else:
-                                    chunk = ""  # Failed to create embed
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Emit the embed reference now
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
+                                    else:
+                                        chunk = ""  # Failed to create embed
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
                                 chunk = ""
@@ -1630,6 +1828,33 @@ async def _consume_main_processing_stream(
                                 f"Silently filtering (user won't see it)."
                             )
                             
+                            # SAFETY: If an embed was already created for this code block
+                            # (e.g. JSON lang detected as fake only at closing fence),
+                            # mark it as an error so the frontend doesn't show a broken placeholder.
+                            if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content="",
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="error",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Marked orphaned embed "
+                                        f"{current_code_embed_id} as error."
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Failed to clean up "
+                                        f"orphaned embed {current_code_embed_id}: {e}"
+                                    )
+                            
                             # Set the flag so we know we filtered fake tool calls
                             # This is used at the end to show a fallback if response is empty
                             fake_tool_calls_filtered = True
@@ -1644,29 +1869,54 @@ async def _consume_main_processing_stream(
                             # Set chunk to empty and skip to next iteration
                             chunk = ""
                             continue
-                        # Finalize code embed (only for real code blocks, not fake tool calls)
+                        # Finalize embed (only for real code/document blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                await embed_service.update_code_embed_content(
-                                    embed_id=current_code_embed_id,
-                                    code_content=current_code_content,
-                                    chat_id=request_data.chat_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    status="finished",
-                                    log_prefix=log_prefix
-                                )
-                                
-                                logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                                if in_document_block:
+                                    # Finalize document embed with accumulated HTML content
+                                    # Try to extract title if not already found
+                                    if not current_document_title:
+                                        import re
+                                        title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                        if title_match:
+                                            current_document_title = title_match.group(1)
+                                    
+                                    await embed_service.update_document_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        html_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars (title: {current_document_title or 'none'})")
+                                else:
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
                             except Exception as e:
-                                logger.error(f"{log_prefix} Error finalizing code embed: {e}", exc_info=True)
+                                logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
                         
-                            # Reset state (only for real code blocks - fake tool calls already reset above)
+                            # Reset state (only for real code/document blocks - fake tool calls already reset above)
                             in_code_block = False
+                            in_document_block = False
+                            current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
                             current_code_content = ""
@@ -1675,8 +1925,15 @@ async def _consume_main_processing_stream(
                             # Don't include closing fence in response (already replaced with embed reference)
                             chunk = ""  # Empty chunk - embed reference was already sent
                     else:
-                        # Accumulate code content
+                        # Accumulate content (code or document HTML)
                         current_code_content += chunk
+                        
+                        # For document blocks, try to extract title from streaming content
+                        if in_document_block and not current_document_title:
+                            import re
+                            title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                            if title_match:
+                                current_document_title = title_match.group(1)
                         
                         # Update embed on every newline (per-line streaming for better UX)
                         # This provides smooth line-by-line updates instead of arbitrary chunk-based updates
@@ -1685,23 +1942,36 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                await embed_service.update_code_embed_content(
-                                    embed_id=current_code_embed_id,
-                                    code_content=current_code_content,
-                                    chat_id=request_data.chat_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    status="processing",
-                                    log_prefix=log_prefix
-                                )
-                                
-                                logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
+                                if in_document_block:
+                                    await embed_service.update_document_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        html_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated document embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars)")
+                                else:
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
                             except Exception as e:
-                                logger.error(f"{log_prefix} Error updating code embed: {e}", exc_info=True)
+                                logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
                         
-                        # Don't include code content in response (embed reference was already sent)
-                        chunk = ""  # Empty chunk - code content goes to embed, not message
+                        # Don't include content in response (embed reference was already sent)
+                        chunk = ""  # Empty chunk - content goes to embed, not message
                 
                 # Only add non-empty chunks to final response
                 if chunk:
@@ -1766,27 +2036,41 @@ async def _consume_main_processing_stream(
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
     
-    # Finalize any open code block if stream was interrupted
+    # Finalize any open code/document block if stream was interrupted
     if in_code_block and current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
         try:
             from backend.core.api.app.services.embed_service import EmbedService
             embed_service = EmbedService(cache_service, directus_service, encryption_service)
             
-            # Finalize with partial content (interrupted)
-            await embed_service.update_code_embed_content(
-                embed_id=current_code_embed_id,
-                code_content=current_code_content,
-                chat_id=request_data.chat_id,
-                user_id=request_data.user_id,
-                user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=user_vault_key_id,
-                status="finished",  # Mark as finished even if interrupted
-                log_prefix=log_prefix
-            )
-            
-            logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+            if in_document_block:
+                # Finalize document embed with partial HTML content (interrupted)
+                await embed_service.update_document_embed_content(
+                    embed_id=current_code_embed_id,
+                    html_content=current_code_content,
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",  # Mark as finished even if interrupted
+                    title=current_document_title,
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted document embed {current_code_embed_id} with {len(current_code_content)} chars")
+            else:
+                # Finalize code embed with partial content (interrupted)
+                await embed_service.update_code_embed_content(
+                    embed_id=current_code_embed_id,
+                    code_content=current_code_content,
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",  # Mark as finished even if interrupted
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
         except Exception as e:
-            logger.error(f"{log_prefix} Error finalizing interrupted code embed: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Error finalizing interrupted embed: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
 
@@ -1814,9 +2098,8 @@ async def _consume_main_processing_stream(
             )
             try:
                 translation_service = TranslationService()
-                # Get user's language preference from preprocessing result (fallback to English)
-                # TODO: Add language detection to preprocessor and pass it here
-                language = "en"
+                # Get user's language from preprocessing result (detected from user's request)
+                language = preprocessing_result.output_language or "en"
                 
                 # Get the translated fallback message
                 fallback_message = translation_service.get_nested_translation(
@@ -2005,11 +2288,9 @@ async def _consume_main_processing_stream(
     if preprocessing_result.requires_advice_disclaimer and not was_revoked_during_stream and not was_soft_limited_during_stream:
         disclaimer_type = preprocessing_result.requires_advice_disclaimer
         
-        # Get user's language preference (default to English)
-        # User preferences may contain language setting from frontend
-        user_language = "en"
-        if request_data.user_preferences:
-            user_language = request_data.user_preferences.get("language", "en")
+        # Get user's language from preprocessing result (detected from user's request)
+        # The preprocessing LLM detects the language of the user's core instruction
+        user_language = preprocessing_result.output_language or "en"
         
         # Load translated disclaimer from translation service
         try:
@@ -2234,5 +2515,9 @@ async def _consume_main_processing_stream(
     if billing_error:
         logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
         raise billing_error
+    
+    # NOTE: Email notifications for offline users are handled in websockets.py
+    # when the final marker is received. The WebSocket handler has access to
+    # ConnectionManager.is_user_active() for accurate offline detection.
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

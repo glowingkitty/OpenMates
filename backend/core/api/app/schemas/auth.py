@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Dict, Any, Union, List
+from typing import Optional, Dict, Any, List
 from backend.core.api.app.schemas.user import UserResponse
 
 class InviteCodeRequest(BaseModel):
@@ -290,4 +290,23 @@ class PasskeyDeleteRequest(BaseModel):
 class PasskeyDeleteResponse(BaseModel):
     """Response for deleting a passkey"""
     success: bool = Field(..., description="Whether the deletion was successful")
+    message: str = Field(..., description="Response message")
+
+# Passkey Device Verification Schemas (for session re-auth on new device)
+class PasskeyDeviceVerifyRequest(BaseModel):
+    """Request to verify passkey for device verification during session re-auth.
+    
+    When a passkey user accesses the session endpoint from a new device/location,
+    they must re-authenticate via passkey to prove identity and prevent account takeover.
+    This is the passkey equivalent of the OTP 2FA device verification flow.
+    """
+    credential_id: str = Field(..., description="Base64-encoded credential ID")
+    assertion_response: Dict[str, Any] = Field(..., description="WebAuthn assertion response")
+    client_data_json: str = Field(..., description="Base64-encoded client data JSON")
+    authenticator_data: str = Field(..., description="Base64-encoded authenticator data")
+    session_id: Optional[str] = Field(None, description="Browser session ID for device fingerprint")
+
+class PasskeyDeviceVerifyResponse(BaseModel):
+    """Response for passkey device verification"""
+    success: bool = Field(..., description="Whether the device verification was successful")
     message: str = Field(..., description="Response message")

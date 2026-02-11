@@ -3,7 +3,7 @@ description_translation_key: web.description.text
 icon_image: |
   web.svg
 category: work
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   # Bookmarks: Simple URL storage, just need the URL
   - id: bookmarks
@@ -11,42 +11,46 @@ settings_and_memories:
     description_translation_key: web.bookmarks.description.text
     type: list
     stage: development
+    example_translation_keys:
+      - "web.bookmarks.example_1.text"
+      - "web.bookmarks.example_2.text"
+      - "web.bookmarks.example_3.text"
     schema:
       type: object
       properties:
         url:
           type: string
           description: Website URL to bookmark
-        added_date:
-          type: integer
-          description: Unix timestamp when bookmarked
-          auto_generated: true  # Auto-populated by client, not shown in form
       required:
-      - url
+        - url
   # Favorite websites: Just URL, can be expanded later
   - id: favorite_websites
     name_translation_key: web.favorite_websites.text
     description_translation_key: web.favorite_websites.description.text
     type: list
     stage: development
+    example_translation_keys:
+      - "web.favorite_websites.example_1.text"
+      - "web.favorite_websites.example_2.text"
+      - "web.favorite_websites.example_3.text"
     schema:
       type: object
       properties:
         url:
           type: string
           description: Website URL to save as favorite
-        added_date:
-          type: integer
-          description: Unix timestamp when added to favorites
-          auto_generated: true  # Auto-populated by client, not shown in form
       required:
-      - url
+        - url
   # Read later: URL + optional notes
   - id: read_later
     name_translation_key: web.read_later.text
     description_translation_key: web.read_later.description.text
     type: list
     stage: development
+    example_translation_keys:
+      - "web.read_later.example_1.text"
+      - "web.read_later.example_2.text"
+      - "web.read_later.example_3.text"
     schema:
       type: object
       properties:
@@ -56,32 +60,31 @@ settings_and_memories:
         notes:
           type: string
           description: Optional notes about why this was saved
-        added_date:
-          type: integer
-          description: Unix timestamp when saved for later
-          auto_generated: true  # Auto-populated by client, not shown in form
       required:
-      - url
+        - url
 instructions:
   # This instruction is ALWAYS loaded when web app is available (no category filter)
   # It provides guidance on using web-search and web-read skills
   - instruction: |
       **Web Skills**
-      
+
       - **web-search**: Search for current info. Use ONE search query per request (multiple only if user explicitly asks to compare/search multiple things).
       - **web-read**: Read content from URLs the user provides. Prefer this over searching when a URL is given.
-      
+
       **Important:** Prefer specialized tools (`code-get_docs`, `news-search`, `videos-search`, `maps-search`) over web-search when they match the query type.
-  
+
   # This instruction is only loaded when the conversation category is software_development
   - instruction: |
       For API/library documentation, prefer `code-get_docs` over web search.
     categories:
-    - software_development
+      - software_development
 skills:
   - id: search
     name_translation_key: web.search.text
     description_translation_key: web.search.description.text
+    preprocessor_hint: >
+      General web search for current information, prices, weather, facts, stocks, sports scores, etc.
+      Use as a fallback when no specialized skill applies.
     stage: production
     class_path: |
       backend.apps.web.skills.search_skill.SearchSkill
@@ -127,7 +130,85 @@ skills:
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
-                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
+                enum:
+                  [
+                    "AR",
+                    "AU",
+                    "AT",
+                    "BE",
+                    "BR",
+                    "CA",
+                    "CL",
+                    "DK",
+                    "FI",
+                    "FR",
+                    "DE",
+                    "GR",
+                    "HK",
+                    "IN",
+                    "ID",
+                    "IT",
+                    "JP",
+                    "KR",
+                    "MY",
+                    "MX",
+                    "NL",
+                    "NZ",
+                    "NO",
+                    "CN",
+                    "PL",
+                    "PT",
+                    "PH",
+                    "RU",
+                    "SA",
+                    "ZA",
+                    "ES",
+                    "SE",
+                    "CH",
+                    "TW",
+                    "TR",
+                    "GB",
+                    "US",
+                    "ALL",
+                    "ar",
+                    "au",
+                    "at",
+                    "be",
+                    "br",
+                    "ca",
+                    "cl",
+                    "dk",
+                    "fi",
+                    "fr",
+                    "de",
+                    "gr",
+                    "hk",
+                    "in",
+                    "id",
+                    "it",
+                    "jp",
+                    "kr",
+                    "my",
+                    "mx",
+                    "nl",
+                    "nz",
+                    "no",
+                    "cn",
+                    "pl",
+                    "pt",
+                    "ph",
+                    "ru",
+                    "sa",
+                    "za",
+                    "es",
+                    "se",
+                    "ch",
+                    "tw",
+                    "tr",
+                    "gb",
+                    "us",
+                    "all",
+                  ]
                 default: "us"
               search_lang:
                 type: string
@@ -145,6 +226,8 @@ skills:
   - id: read
     name_translation_key: web.read.text
     description_translation_key: web.read.description.text
+    preprocessor_hint: >
+      Read and extract content from a specific URL or webpage the user provided.
     stage: production
     class_path: |
       backend.apps.web.skills.read_skill.ReadSkill
@@ -159,14 +242,14 @@ skills:
     # These fields are removed before adding to message history for LLM processing
     # but remain in the full response stored in chat history for proper UI rendering
     # Note: HTML and summary are completely removed from output.
-    # Metadata object is removed - specific fields (language, favicon, og_image, og_sitename) 
+    # Metadata object is removed - specific fields (language, favicon, og_image, og_sitename)
     # are moved to root level of each result for easier access.
     exclude_fields_for_llm:
       - "type"
       - "hash"
-      - "favicon"  # Favicon URL not needed for LLM inference
-      - "og_image"  # OG image URL not needed for LLM inference
-      - "og_sitename"  # OG site name not needed for LLM inference
+      - "favicon" # Favicon URL not needed for LLM inference
+      - "og_image" # OG image URL not needed for LLM inference
+      - "og_sitename" # OG site name not needed for LLM inference
     tool_schema:
       type: object
       properties:

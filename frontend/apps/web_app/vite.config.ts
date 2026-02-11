@@ -12,6 +12,10 @@ export default defineConfig({
 			srcDir: './src',
 			mode: 'production',
 			strategies: 'generateSW',
+			// Output manifest.json (not default manifest.webmanifest) to match
+			// the <link rel="manifest"> in app.html and maintain compatibility
+			// with existing installed PWAs on user devices
+			manifestFilename: 'manifest.json',
 			scope: '/',
 			base: '/',
 			selfDestroying: false,
@@ -40,10 +44,10 @@ export default defineConfig({
 					}
 				]
 			},
-		workbox: {
-			// Precache app shell assets only - docs are cached at runtime when visited
-			// This keeps initial download small while still enabling offline access for visited pages
-			globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+			workbox: {
+				// Precache app shell assets only - docs are cached at runtime when visited
+				// This keeps initial download small while still enabling offline access for visited pages
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				// Increase limit to 8MB to accommodate large chunks for offline-first functionality
 				// The largest chunk is ~7.2MB (translations, TipTap editor, ProseMirror, UI library)
 				// This enables true offline capability at the cost of a larger initial download
@@ -62,7 +66,7 @@ export default defineConfig({
 				// Note: SvelteKit already handles versioning for JS/CSS assets via build hashes
 				runtimeCaching: [
 					{
-						urlPattern: /^https:\/\/api\.openmates\.org\/.*/i,
+						urlPattern: /^https:\/\/api\.(dev\.)?openmates\.org\/.*/i,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
@@ -72,9 +76,32 @@ export default defineConfig({
 							},
 							networkTimeoutSeconds: 10
 						}
+					},
+					// Serve the app shell for navigation requests with NetworkFirst strategy.
+					// This replaces the previous `navigateFallback: 'index.html'` which caused
+					// "non-precached-url" crashes when a new deployment changed file hashes but
+					// the old service worker was still active (skipWaiting: false). The old SW
+					// would try to serve index.html from its precache, but cleanupOutdatedCaches
+					// had already removed the old revision, causing an unrecoverable error.
+					//
+					// NetworkFirst ensures:
+					// 1. Online: always fetches the latest HTML from the server (correct behavior)
+					// 2. Offline: falls back to the last cached version of the page
+					// 3. No crashes: if the cache is empty, the request simply fails gracefully
+					//    instead of throwing a non-precached-url error
+					{
+						urlPattern: ({ request }) => request.mode === 'navigate',
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'navigation-cache',
+							expiration: {
+								maxEntries: 10,
+								maxAgeSeconds: 24 * 60 * 60 // 24 hours
+							},
+							networkTimeoutSeconds: 5
+						}
 					}
-				],
-				navigateFallback: null // Let SvelteKit handle routing
+				]
 			},
 			devOptions: {
 				enabled: true,
@@ -86,7 +113,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			// Add new alias for UI package
-			'@openmates/ui': path.resolve(__dirname, '../../packages/ui'),
+			'@openmates/ui': path.resolve(__dirname, '../../packages/ui')
 		}
 	},
 	server: {
@@ -118,9 +145,14 @@ export default defineConfig({
 						return 'editor';
 					}
 					// Translation files (~1.5MB total) - loaded per-language as needed
-					if (id.includes('/chunks/de.js') || id.includes('/chunks/en.js') || 
-					    id.includes('/chunks/es.js') || id.includes('/chunks/fr.js') || 
-					    id.includes('/chunks/ja.js') || id.includes('/chunks/zh.js')) {
+					if (
+						id.includes('/chunks/de.js') ||
+						id.includes('/chunks/en.js') ||
+						id.includes('/chunks/es.js') ||
+						id.includes('/chunks/fr.js') ||
+						id.includes('/chunks/ja.js') ||
+						id.includes('/chunks/zh.js')
+					) {
 						return 'translations';
 					}
 					// IndexedDB and crypto libraries - core functionality
@@ -168,8 +200,10 @@ export default defineConfig({
 				// Suppress "dynamic import will not move module into another chunk" warnings
 				// This is expected behavior for modules like cryptoService, db, websocketService, etc.
 				// that are imported both dynamically and statically for offline-first functionality
-				if (warning.code === 'UNUSED_EXTERNAL_IMPORT' ||
-				    (warning.message && warning.message.includes('dynamic import will not move module'))) {
+				if (
+					warning.code === 'UNUSED_EXTERNAL_IMPORT' ||
+					(warning.message && warning.message.includes('dynamic import will not move module'))
+				) {
 					return;
 				}
 				// Suppress externalized module warnings for qrcode-svg (uses 'fs' which is browser-incompatible)

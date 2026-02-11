@@ -311,6 +311,11 @@
     --color-app-3dmodels-end: #FBAB59;
     --color-app-3dmodels: linear-gradient(135deg, var(--color-app-3dmodels-start) 9.04%, var(--color-app-3dmodels-end) 90.06%);
 
+    /* Chat (demo/example chats) - uses primary blue gradient for consistent branding */
+    --color-app-chat-start: var(--color-primary-start);
+    --color-app-chat-end: var(--color-primary-end);
+    --color-app-chat: linear-gradient(135deg, var(--color-app-chat-start) 9.04%, var(--color-app-chat-end) 90.06%);
+
     /* Default theme (light) */
     --color-grey-0: #ffffff;
     --color-grey-10: #f9f9f9;

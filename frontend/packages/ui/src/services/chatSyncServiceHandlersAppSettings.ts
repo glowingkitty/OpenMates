@@ -95,7 +95,7 @@ export function removePendingPermissionRequest(requestId: string): void {
  * Generate a human-readable display name from an item_type
  * Converts "preferred_technologies" -> "Preferred technologies"
  */
-function formatDisplayName(itemType: string): string {
+export function formatDisplayName(itemType: string): string {
   return itemType
     .split("_")
     .map((word, index) =>
@@ -107,7 +107,7 @@ function formatDisplayName(itemType: string): string {
 /**
  * Get CSS gradient for an app ID from theme variables
  */
-function getAppGradient(appId: string): string {
+export function getAppGradient(appId: string): string {
   const gradientMap: Record<string, string> = {
     code: "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
     travel: "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)",
@@ -258,17 +258,20 @@ export async function handleRequestAppSettingsMemoriesImpl(
       );
     }
 
-    // Update user message status from 'processing' to 'synced' since we're waiting for input
-    // This prevents the "Processing..." indicator from showing
+    // Update user message status from 'processing' to 'waiting_for_user' since we're waiting for input
+    // This shows "Waiting for you..." in the sidebar and typing indicator instead of "Processing..."
     if (payload.message_id) {
       try {
         const userMessage = await chatDB.getMessage(payload.message_id);
         if (userMessage && userMessage.status === "processing") {
           // Update the message status and save it back
-          const updatedMessage = { ...userMessage, status: "synced" as const };
+          const updatedMessage = {
+            ...userMessage,
+            status: "waiting_for_user" as const,
+          };
           await chatDB.saveMessage(updatedMessage);
           console.info(
-            `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'synced'`,
+            `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'waiting_for_user'`,
           );
 
           // Dispatch event to update UI immediately
@@ -277,7 +280,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
               new CustomEvent("messageStatusUpdated", {
                 detail: {
                   messageId: payload.message_id,
-                  status: "synced",
+                  status: "waiting_for_user",
                   chatId: chat_id,
                 },
               }),
@@ -292,7 +295,39 @@ export async function handleRequestAppSettingsMemoriesImpl(
       }
     }
 
-    // Store the pending request
+    // Persist the request as a system message in chat history.
+    // This ensures the request survives logout/login and cross-device sync.
+    // ChatHistory.svelte will detect "unpaired" requests (no matching response)
+    // and re-show the permission dialog automatically.
+    if (payload.message_id) {
+      try {
+        await saveAppSettingsMemoriesRequestMessage(
+          serviceInstance,
+          chat_id,
+          payload.message_id,
+          request_id,
+          validKeys,
+          categories.map((cat) => ({
+            appId: cat.appId,
+            itemType: cat.itemType,
+            entryCount: cat.entryCount,
+          })),
+        );
+        console.info(
+          `[ChatSyncService:AppSettings] Persisted request ${request_id} as system message for message ${payload.message_id}`,
+        );
+      } catch (saveError) {
+        console.error(
+          "[ChatSyncService:AppSettings] Error saving request system message:",
+          saveError,
+        );
+        // Continue - dialog can still show from in-memory state even if persistence fails
+      }
+    }
+
+    // Store the pending request in-memory for immediate dialog display
+    // NOTE: This in-memory Map will be removed in a follow-up task once ChatHistory.svelte
+    // drives the dialog from the persisted system message instead
     const pendingRequest: PendingPermissionRequest = {
       requestId: request_id,
       chatId: chat_id,
@@ -336,13 +371,34 @@ export async function handleRequestAppSettingsMemoriesImpl(
  * 2. Send decrypted data to server via WebSocket
  * 3. Server caches data for AI processing
  * 4. Create a system message with response metadata (synced to server for cross-device display)
+ *
+ * The request data is retrieved from the permission store (which may have been populated
+ * from the in-memory Map for fresh requests, or from a recovered system message after
+ * session recovery). The in-memory Map is checked as a fallback.
  */
 export async function handlePermissionDialogConfirm(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
   selectedKeys: string[],
 ): Promise<void> {
-  const pendingRequest = pendingPermissionRequests.get(requestId);
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    // Request was recovered from system message - build from the store
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
   if (!pendingRequest) {
     console.error(
       `[ChatSyncService:AppSettings] No pending request found for ID: ${requestId}`,
@@ -489,12 +545,31 @@ export async function handlePermissionDialogConfirm(
  * the AI continuation task to process the request WITHOUT the app settings/memories.
  * The server's app_settings_memories_confirmed_handler detects is_rejection=true
  * when the array is empty and continues processing accordingly.
+ *
+ * The request data is retrieved from the in-memory Map (fresh request) or from
+ * the permission store (recovered request from system message).
  */
 export async function handlePermissionDialogExclude(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
 ): Promise<void> {
-  const pendingRequest = pendingPermissionRequests.get(requestId);
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
 
   console.info(
     `[ChatSyncService:AppSettings] User rejected app settings/memories for request ${requestId}`,
@@ -544,6 +619,107 @@ export async function handlePermissionDialogExclude(
   }
 
   removePendingPermissionRequest(requestId);
+}
+
+/**
+ * Locally dismiss the permission dialog without sending a WebSocket rejection to the server.
+ *
+ * This is used when the user sends a follow-up message while a permission dialog is pending.
+ * Instead of sending an explicit rejection (which would trigger a server-side continuation task
+ * and produce a SEPARATE AI response), we only:
+ * 1. Create a "rejected" system message in the local chat history (for UI display)
+ * 2. Clear the permission dialog UI
+ * 3. Remove the pending request from the in-memory Map
+ *
+ * The server's main_processor.py already handles auto-rejecting the pending context when it
+ * receives the new message (deletes from Redis + sends dismiss event). By not sending the
+ * WebSocket rejection, we avoid triggering _trigger_continuation which would create a duplicate
+ * AI response alongside the response from the new message.
+ *
+ * The request data is retrieved from the in-memory Map (fresh request) or from
+ * the permission store (recovered request from system message).
+ */
+export async function handlePermissionDialogLocalDismiss(
+  serviceInstance: ChatSynchronizationService,
+  requestId: string,
+): Promise<void> {
+  // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
+  let pendingRequest = pendingPermissionRequests.get(requestId);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === requestId
+    ) {
+      pendingRequest = storeState.currentRequest;
+      console.info(
+        `[ChatSyncService:AppSettings] Using permission store for recovered request ${requestId}`,
+      );
+    }
+  }
+
+  console.info(
+    `[ChatSyncService:AppSettings] Locally dismissing permission dialog for request ${requestId} ` +
+      `(user sent follow-up message - server will auto-reject pending context)`,
+  );
+
+  // Create system message with "rejected" metadata (synced to server for cross-device display)
+  // This ensures the "Rejected App settings & memories request." badge shows under the original user message
+  if (pendingRequest?.messageId && pendingRequest?.chatId) {
+    try {
+      await saveAppSettingsMemoriesResponseMessage(
+        serviceInstance,
+        pendingRequest.chatId,
+        pendingRequest.messageId,
+        "rejected",
+      );
+      console.info(
+        `[ChatSyncService:AppSettings] Created system message for locally dismissed request on message ${pendingRequest.messageId}`,
+      );
+    } catch (saveError) {
+      console.error(
+        "[ChatSyncService:AppSettings] Error saving locally dismissed response message:",
+        saveError,
+      );
+    }
+  }
+
+  // Remove from pending requests (no WebSocket send - server handles its own cleanup)
+  removePendingPermissionRequest(requestId);
+
+  // Clear the dialog UI
+  const { appSettingsMemoriesPermissionStore } =
+    await import("../stores/appSettingsMemoriesPermissionStore");
+  appSettingsMemoriesPermissionStore.clear();
+}
+
+/**
+ * Category metadata for app settings/memories request.
+ * Simplified structure - display name and icon are loaded client-side based on appId and itemType.
+ */
+export interface AppSettingsMemoriesRequestCategory {
+  appId: string; // e.g., "code"
+  itemType: string; // e.g., "preferred_technologies" (without app prefix)
+  entryCount: number; // Number of entries in this category
+}
+
+/**
+ * Content structure for app settings/memories REQUEST system message.
+ * This is JSON-stringified and stored in the message content field.
+ *
+ * Persisting the request as a system message means it survives logout/login,
+ * cross-device sync, and browser refreshes. ChatHistory.svelte can then detect
+ * "unpaired" requests (no matching response system message) to re-show the dialog.
+ */
+export interface AppSettingsMemoriesRequestContent {
+  type: "app_settings_memories_request";
+  user_message_id: string; // The user message that triggered this request
+  request_id: string; // Server-assigned request ID (for WebSocket confirm/reject)
+  requested_keys: string[]; // Array of "app_id-item_type" format (e.g., "code-preferred_technologies")
+  categories: AppSettingsMemoriesRequestCategory[]; // Parsed category metadata for dialog display
 }
 
 /**
@@ -680,6 +856,137 @@ async function saveAppSettingsMemoriesResponseMessage(
   } catch (sendError) {
     console.error(
       `[ChatSyncService:AppSettings] Error sending system message to server:`,
+      sendError,
+    );
+    // Message is still saved locally, will be synced later
+  }
+}
+
+/**
+ * Create and save a system message for app settings/memories REQUEST.
+ * This message is stored in IndexedDB and synced to the server for cross-device persistence.
+ *
+ * By persisting the request as a system message, it survives logout/login and
+ * cross-device sync. ChatHistory.svelte detects "unpaired" requests (no matching
+ * response system message with the same user_message_id) to re-show the permission dialog.
+ *
+ * IMPORTANT: System messages are encrypted client-side with the chat key (zero-knowledge architecture)
+ * just like regular messages. The server stores the encrypted content directly in Directus.
+ *
+ * @param serviceInstance - The ChatSynchronizationService instance
+ * @param chatId - The chat ID
+ * @param userMessageId - The user message ID that triggered the request
+ * @param requestId - The server-assigned request ID (for WebSocket confirm/reject)
+ * @param requestedKeys - Array of "app_id-item_type" format keys
+ * @param categories - Parsed category metadata for dialog display
+ */
+async function saveAppSettingsMemoriesRequestMessage(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  userMessageId: string,
+  requestId: string,
+  requestedKeys: string[],
+  categories: AppSettingsMemoriesRequestCategory[],
+): Promise<void> {
+  // Import required utilities
+  const { generateUUID } = await import("../message_parsing/utils");
+  const { webSocketService } = await import("./websocketService");
+  const { encryptWithChatKey } = await import("./cryptoService");
+
+  // Generate unique message ID (format: last 10 chars of chat_id + uuid)
+  const chatIdSuffix = chatId.slice(-10);
+  const messageId = `${chatIdSuffix}-${generateUUID()}`;
+
+  // Create system message content with request metadata
+  // Categories are stored with minimal metadata (appId, itemType, entryCount)
+  // Display name and icon gradient are loaded client-side based on appId and itemType
+  const requestContent: AppSettingsMemoriesRequestContent = {
+    type: "app_settings_memories_request",
+    user_message_id: userMessageId,
+    request_id: requestId,
+    requested_keys: requestedKeys,
+    categories: categories.map((cat) => ({
+      appId: cat.appId,
+      itemType: cat.itemType,
+      entryCount: cat.entryCount,
+    })),
+  };
+
+  const contentString = JSON.stringify(requestContent);
+
+  // Get chat key for encryption (zero-knowledge architecture)
+  const chatKey = chatDB.getChatKey(chatId);
+  if (!chatKey) {
+    console.error(
+      `[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt request system message`,
+    );
+    throw new Error(`No chat key found for chat ${chatId}`);
+  }
+
+  // Encrypt content with chat key (same as regular messages)
+  const encryptedContent = await encryptWithChatKey(contentString, chatKey);
+  if (!encryptedContent) {
+    console.error(
+      `[ChatSyncService:AppSettings] Failed to encrypt request system message content`,
+    );
+    throw new Error("Failed to encrypt request system message content");
+  }
+
+  // Create the system message
+  const now = Math.floor(Date.now() / 1000);
+  const systemMessage = {
+    message_id: messageId,
+    chat_id: chatId,
+    role: "system" as const,
+    content: contentString,
+    created_at: now,
+    status: "sending" as const,
+    encrypted_content: encryptedContent, // Pre-encrypted with chat key
+  };
+
+  // Save to IndexedDB (already has encrypted_content, won't re-encrypt)
+  await chatDB.saveMessage(systemMessage);
+  console.debug(
+    `[ChatSyncService:AppSettings] Saved request system message ${messageId} to IndexedDB`,
+  );
+
+  // Send ENCRYPTED content to server for persistence and cross-device sync
+  // Server stores this directly in Directus without re-encryption (zero-knowledge)
+  const payload = {
+    chat_id: chatId,
+    message: {
+      message_id: messageId,
+      role: "system",
+      encrypted_content: encryptedContent, // Send encrypted, not plaintext!
+      created_at: now,
+    },
+  };
+
+  try {
+    await webSocketService.sendMessage("chat_system_message_added", payload);
+
+    // Update message status to synced
+    const syncedMessage = { ...systemMessage, status: "synced" as const };
+    await chatDB.saveMessage(syncedMessage);
+
+    console.debug(
+      `[ChatSyncService:AppSettings] Sent request system message ${messageId} to server`,
+    );
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chatId,
+          type: "system_message_added",
+          newMessage: syncedMessage,
+        },
+      }),
+    );
+  } catch (sendError) {
+    console.error(
+      `[ChatSyncService:AppSettings] Error sending request system message to server:`,
       sendError,
     );
     // Message is still saved locally, will be synced later
@@ -953,8 +1260,45 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
     return;
   }
 
-  // Get the pending request before removing it
-  const pendingRequest = pendingPermissionRequests.get(request_id);
+  // Get the pending request before removing it - try in-memory Map then permission store
+  let pendingRequest = pendingPermissionRequests.get(request_id);
+  if (!pendingRequest) {
+    const { appSettingsMemoriesPermissionStore } =
+      await import("../stores/appSettingsMemoriesPermissionStore");
+    const { get: getStoreValue } = await import("svelte/store");
+    const storeState = getStoreValue(appSettingsMemoriesPermissionStore);
+    if (
+      storeState.currentRequest &&
+      storeState.currentRequest.requestId === request_id
+    ) {
+      pendingRequest = storeState.currentRequest;
+    }
+  }
+
+  // If the pending request was already removed locally (e.g., by handlePermissionDialogLocalDismiss
+  // when user sent a follow-up message on THIS device), skip creating a duplicate system message
+  // and notification. The local dismiss already handled everything.
+  if (!pendingRequest) {
+    console.info(
+      `[ChatSyncService:AppSettings] Request ${request_id} already handled locally for chat ${chat_id} ` +
+        `(reason: ${reason}) - skipping duplicate dismiss`,
+    );
+
+    // Still dispatch the dismiss event to clear any lingering dialog UI (defensive)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("dismissAppSettingsMemoriesPermissionDialog", {
+          detail: {
+            requestId: request_id,
+            chatId: chat_id,
+            reason: reason,
+            messageId: message_id,
+          },
+        }),
+      );
+    }
+    return;
+  }
 
   console.info(
     `[ChatSyncService:AppSettings] Auto-rejecting request ${request_id} for chat ${chat_id} ` +
@@ -963,7 +1307,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
 
   // Create system message to show "rejected" state in chat UI
   // This is identical to what happens when user clicks "Reject All"
-  if (pendingRequest?.messageId && pendingRequest?.chatId) {
+  if (pendingRequest.messageId && pendingRequest.chatId) {
     try {
       await saveAppSettingsMemoriesResponseMessage(
         serviceInstance,
@@ -1004,6 +1348,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
   }
 
   // Show a brief notification to user explaining what happened
+  // This only shows for server-initiated dismisses (e.g., from another device)
   notificationStore.addNotification(
     "info",
     "Previous data request was cancelled because you sent a new message",
@@ -1184,6 +1529,423 @@ export async function handleSystemMessageConfirmedImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService:AppSettings] Error handling system_message_confirmed:",
+      error,
+    );
+  }
+}
+
+/**
+ * Payload structure for pending_ai_response WebSocket message.
+ *
+ * Sent by the backend pending delivery system when the user reconnects
+ * after an AI response completed while they were offline. Contains
+ * PLAINTEXT content that the client must encrypt with the chat key
+ * before persisting (zero-knowledge architecture).
+ */
+interface PendingAIResponsePayload {
+  type: "ai_response";
+  chat_id: string;
+  message_id: string; // AI task ID / message ID (for deduplication)
+  content: string; // PLAINTEXT AI response content (full_content_so_far)
+  user_id: string; // User's UUID
+  fired_at: number; // Unix timestamp when the AI response was generated
+  model_name?: string; // AI model name used for the response (for encryption and display)
+  category?: string; // Mate category of the response (for encryption and display)
+}
+
+/**
+ * Handles the pending_ai_response WebSocket event when an AI response that completed
+ * while the user was offline is delivered on reconnect.
+ *
+ * ARCHITECTURE (Zero-Knowledge Pending Delivery):
+ * The backend queued the AI response plaintext in the pending delivery cache (60-day TTL).
+ * On reconnect, the WebSocket endpoint sends it as a pending_ai_response event.
+ * This handler is responsible for:
+ * 1. Deduplicating by message_id (response may already have arrived via normal flow)
+ * 2. Looking up the chat and chat key
+ * 3. Creating an assistant message in IndexedDB
+ * 4. Encrypting and sending back to server via sendCompletedAIResponse
+ * 5. Dispatching UI events so the chat shows the response
+ */
+export async function handlePendingAIResponseImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: PendingAIResponsePayload,
+): Promise<void> {
+  console.info("[ChatSyncService:PendingAI] Received 'pending_ai_response':", {
+    chat_id: payload.chat_id,
+    message_id: payload.message_id,
+    content_length: payload.content?.length || 0,
+    fired_at: payload.fired_at,
+  });
+
+  const { chat_id, message_id, content } = payload;
+
+  if (!chat_id || !message_id || !content) {
+    console.warn(
+      "[ChatSyncService:PendingAI] Invalid pending_ai_response payload:",
+      payload,
+    );
+    return;
+  }
+
+  try {
+    // Deduplicate: if this message already exists locally (e.g., the response
+    // was already delivered via normal streaming or background completion), skip it.
+    const existingMessage = await chatDB.getMessage(message_id);
+    if (existingMessage) {
+      console.debug(
+        `[ChatSyncService:PendingAI] Message ${message_id} already exists locally, skipping duplicate`,
+      );
+      return;
+    }
+
+    // Look up the chat - it must exist locally for us to encrypt with its key
+    const chat = await chatDB.getChat(chat_id);
+    if (!chat) {
+      console.warn(
+        `[ChatSyncService:PendingAI] Chat ${chat_id} not found locally for pending AI response. ` +
+          `Message will be picked up on next full sync.`,
+      );
+      return;
+    }
+
+    // Get the chat key for encryption
+    const chatKey = chatDB.getChatKey(chat_id);
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:PendingAI] No chat key available for chat ${chat_id}, cannot encrypt pending AI response`,
+      );
+      return;
+    }
+
+    // Skip error responses - they shouldn't be persisted
+    if (
+      content.includes("[ERROR") ||
+      content === "chat.an_error_occured.text"
+    ) {
+      console.debug(
+        `[ChatSyncService:PendingAI] Skipping error response for message ${message_id}`,
+      );
+      return;
+    }
+
+    // Create the assistant message
+    // Store as markdown string (same as handleAIBackgroundResponseCompletedImpl)
+    // Include model_name and category so they get encrypted by chatDB.saveMessage
+    // and sent back to server via sendCompletedAIResponse for proper display
+    const now = Math.floor(Date.now() / 1000);
+    const aiMessage = {
+      message_id: message_id,
+      chat_id: chat_id,
+      role: "assistant" as const,
+      content: content, // Store as markdown string
+      status: "synced" as const,
+      created_at: payload.fired_at || now,
+      encrypted_content: "", // Will be set by encryption in chatDB.saveMessage
+      // Include model_name and category if available from the pending delivery payload.
+      // These are needed for proper mate icon display and model badge rendering.
+      // When encrypted by chatDB.saveMessage, they become encrypted_model_name and encrypted_category.
+      model_name: payload.model_name || undefined,
+      category: payload.category || undefined,
+    };
+
+    // Save to IndexedDB (chatDB handles encryption with chat key)
+    await chatDB.saveMessage(aiMessage);
+    console.info(
+      `[ChatSyncService:PendingAI] Saved pending AI response ${message_id} to IndexedDB for chat ${chat_id}`,
+    );
+
+    // Update chat metadata with new messages_v
+    const newMessagesV = (chat.messages_v || 0) + 1;
+    const newLastEdited = Math.floor(Date.now() / 1000);
+    const updatedChat = {
+      ...chat,
+      messages_v: newMessagesV,
+      last_edited_overall_timestamp: newLastEdited,
+    };
+    await chatDB.updateChat(updatedChat as import("../types/chat").Chat);
+    console.info(
+      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}`,
+    );
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chat_id,
+          chat: updatedChat,
+          newMessage: aiMessage,
+          type: "pending_ai_response",
+          messagesUpdated: true,
+        },
+      }),
+    );
+
+    // Send encrypted AI response back to server for Directus storage (zero-knowledge)
+    try {
+      console.debug(
+        "[ChatSyncService:PendingAI] Sending encrypted pending AI response to server:",
+        {
+          messageId: aiMessage.message_id,
+          chatId: aiMessage.chat_id,
+          contentLength: aiMessage.content?.length || 0,
+        },
+      );
+      await serviceInstance.sendCompletedAIResponse(
+        aiMessage as import("../types/chat").Message,
+      );
+      console.info(
+        `[ChatSyncService:PendingAI] Sent encrypted AI response ${message_id} to server for Directus storage`,
+      );
+    } catch (sendError) {
+      console.error(
+        "[ChatSyncService:PendingAI] Error sending encrypted AI response to server:",
+        sendError,
+      );
+      // Message is saved locally, will be synced on next sendCompletedAIResponse attempt
+    }
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:PendingAI] Error handling pending_ai_response:",
+      error,
+    );
+  }
+}
+
+/**
+ * Payload structure for reminder_fired WebSocket message.
+ *
+ * Sent by the backend Celery task when a scheduled reminder becomes due.
+ * Contains PLAINTEXT content that the client must encrypt with the chat key
+ * before persisting (zero-knowledge architecture).
+ */
+interface ReminderFiredPayload {
+  reminder_id: string;
+  chat_id: string;
+  message_id: string;
+  target_type: "new_chat" | "existing_chat";
+  is_repeating: boolean;
+  content: string; // PLAINTEXT reminder content
+  chat_title?: string; // For new_chat target
+  user_id: string; // User's UUID (used for WebSocket routing)
+}
+
+/**
+ * Handles the reminder_fired WebSocket event when a scheduled reminder fires.
+ *
+ * ARCHITECTURE (Zero-Knowledge Reminder Delivery):
+ * The backend Celery task sends the PLAINTEXT reminder content via WebSocket.
+ * This handler is responsible for:
+ * 1. Encrypting the content with the chat key (zero-knowledge)
+ * 2. Creating a system message in IndexedDB
+ * 3. Sending the encrypted message back to the server via chat_system_message_added
+ * 4. Dispatching events so the UI shows the system message
+ * 5. Dispatching a reminderFiredInChat event to trigger an AI follow-up response
+ *
+ * This ensures the server never stores messages encrypted with the wrong key
+ * (vault key vs chat key mismatch that causes "Content decryption failed").
+ */
+export async function handleReminderFiredImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: ReminderFiredPayload,
+): Promise<void> {
+  console.info("[ChatSyncService:Reminder] Received 'reminder_fired':", {
+    reminder_id: payload.reminder_id,
+    chat_id: payload.chat_id,
+    target_type: payload.target_type,
+    is_repeating: payload.is_repeating,
+  });
+
+  const { chat_id, message_id, content, target_type, chat_title } = payload;
+
+  if (!chat_id || !message_id || !content) {
+    console.warn(
+      "[ChatSyncService:Reminder] Invalid reminder_fired payload:",
+      payload,
+    );
+    return;
+  }
+
+  try {
+    // Deduplicate: if this message already exists locally (e.g., the user received it
+    // via real-time WebSocket AND again via pending delivery on reconnect), skip it.
+    const existingMessage = await chatDB.getMessage(message_id);
+    if (existingMessage) {
+      console.debug(
+        `[ChatSyncService:Reminder] Message ${message_id} already exists locally, skipping duplicate`,
+      );
+      return;
+    }
+    const { encryptWithChatKey } = await import("./cryptoService");
+    const { webSocketService } = await import("./websocketService");
+
+    // For existing_chat: chat must exist locally with a chat key
+    // For new_chat: we need to create the chat locally first
+    let chatKey: Uint8Array | null = null;
+
+    if (target_type === "existing_chat") {
+      // Chat should already exist locally
+      const chat = await chatDB.getChat(chat_id);
+      if (!chat) {
+        console.warn(
+          `[ChatSyncService:Reminder] Chat ${chat_id} not found locally for existing_chat reminder. ` +
+            `Message will be picked up on next sync.`,
+        );
+        return;
+      }
+      chatKey = chatDB.getChatKey(chat_id);
+    } else {
+      // new_chat: Create the chat locally first
+      // Generate a new chat key for this chat
+      const { generateChatKey } = await import("./cryptoService");
+      chatKey = generateChatKey();
+
+      if (!chatKey) {
+        console.error(
+          "[ChatSyncService:Reminder] Failed to generate chat key for new reminder chat",
+        );
+        return;
+      }
+
+      // Store the chat key
+      chatDB.setChatKey(chat_id, chatKey);
+
+      const now = Math.floor(Date.now() / 1000);
+
+      // Encrypt the title with the new chat key
+      const titleText = chat_title || "Reminder";
+      const encryptedTitle = await encryptWithChatKey(titleText, chatKey);
+
+      const newChat = {
+        chat_id: chat_id,
+        title: titleText, // Plaintext for local display
+        encrypted_title: encryptedTitle,
+        created_at: now,
+        updated_at: now,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: now,
+        unread_count: 1,
+      };
+
+      await chatDB.updateChat(newChat as import("../types/chat").Chat);
+      console.info(
+        `[ChatSyncService:Reminder] Created new local chat ${chat_id} for reminder`,
+      );
+    }
+
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:Reminder] No chat key available for chat ${chat_id}, cannot encrypt reminder`,
+      );
+      return;
+    }
+
+    // Encrypt the reminder content with the chat key (zero-knowledge)
+    const encryptedContent = await encryptWithChatKey(content, chatKey);
+    if (!encryptedContent) {
+      console.error(
+        "[ChatSyncService:Reminder] Failed to encrypt reminder content",
+      );
+      return;
+    }
+
+    // Create the system message
+    const now = Math.floor(Date.now() / 1000);
+    const systemMessage = {
+      message_id: message_id,
+      chat_id: chat_id,
+      role: "system" as const,
+      content: content, // Plaintext for local display
+      created_at: now,
+      status: "sending" as const,
+      encrypted_content: encryptedContent,
+    };
+
+    // Save to IndexedDB
+    await chatDB.saveMessage(systemMessage);
+    console.debug(
+      `[ChatSyncService:Reminder] Saved reminder system message ${message_id} to IndexedDB`,
+    );
+
+    // Send encrypted content to server for persistence via existing system message flow
+    const serverPayload = {
+      chat_id: chat_id,
+      message: {
+        message_id: message_id,
+        role: "system",
+        encrypted_content: encryptedContent,
+        created_at: now,
+      },
+    };
+
+    try {
+      await webSocketService.sendMessage(
+        "chat_system_message_added",
+        serverPayload,
+      );
+
+      // Update status to synced
+      const syncedMessage = { ...systemMessage, status: "synced" as const };
+      await chatDB.saveMessage(syncedMessage);
+      console.debug(
+        `[ChatSyncService:Reminder] Sent reminder system message ${message_id} to server for persistence`,
+      );
+    } catch (sendError) {
+      console.error(
+        "[ChatSyncService:Reminder] Error sending reminder message to server:",
+        sendError,
+      );
+      // Message is saved locally, will be synced later
+    }
+
+    // Dispatch chatUpdated event to trigger UI refresh
+    // This makes the system message appear in the chat immediately
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: chat_id,
+          type: "reminder_system_message_added",
+          newMessage: systemMessage,
+          messagesUpdated: true,
+        },
+      }),
+    );
+
+    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up
+    // The AI should acknowledge the reminder and help the user with the task
+    serviceInstance.dispatchEvent(
+      new CustomEvent("reminderFiredInChat", {
+        detail: {
+          chat_id: chat_id,
+          message_id: message_id,
+          content: content,
+          target_type: target_type,
+        },
+      }),
+    );
+
+    // Show in-app notification for the reminder
+    // This ensures the user sees a toast notification even if they're in a different chat
+    const notificationTitle = chat_title || "Reminder";
+    // Extract the prompt from the reminder message content (strip the markdown formatting)
+    const promptMatch = content.match(/\*\*Reminder\*\*\n\n([\s\S]*?)\n\n---/);
+    const notificationPreview = promptMatch
+      ? promptMatch[1].substring(0, 100)
+      : "Your reminder has triggered";
+    notificationStore.chatMessage(
+      chat_id,
+      notificationTitle,
+      notificationPreview,
+      undefined,
+    );
+
+    console.info(
+      `[ChatSyncService:Reminder] Processed reminder for chat ${chat_id} (${target_type})`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Reminder] Error handling reminder_fired:",
       error,
     );
   }

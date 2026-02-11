@@ -3,7 +3,7 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
+    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
@@ -14,6 +14,7 @@
     import Signup from './signup/Signup.svelte';
     import SignupNav from './signup/SignupNav.svelte';
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
+    import VerifyDevicePasskey from './VerifyDevicePasskey.svelte'; // Import VerifyDevicePasskey component
     import { userProfile } from '../stores/userProfile';
     // Import new login method components
     import EmailLookup from './EmailLookup.svelte';
@@ -124,7 +125,9 @@
     let isInAccountRecoveryMode = $state(false);
 
     // Derive device verification view state using $derived (Svelte 5 runes mode)
+    // Shows either 2FA or passkey verification depending on deviceVerificationType
     let showVerifyDeviceView = $derived($needsDeviceVerification);
+    let verifyDeviceType = $derived($deviceVerificationType);
 
     /**
      * Clear pending draft from sessionStorage for privacy reasons
@@ -320,11 +323,12 @@
         tfaAppName = null;
         tfaEnabled = true; // Default to true for security (prevents user enumeration)
         
-        // Clear 2FA and device verification views
+        // Clear 2FA, passkey, and device verification views
         showTfaView = false;
         tfaErrorMessage = null;
         verifyDeviceErrorMessage = null;
         needsDeviceVerification.set(false);
+        deviceVerificationType.set(null);
         
         // Clear general login errors and warnings
         loginFailedWarning = false;
@@ -1788,9 +1792,10 @@
         tfaErrorMessage = null;
         verifyDeviceErrorMessage = null;
         
-        // Hide 2FA and device verification views
+        // Hide 2FA, passkey, and device verification views
         showTfaView = false;
         needsDeviceVerification.set(false);
+        deviceVerificationType.set(null);
         
         // Stop the timer
         stopInactivityTimer();
@@ -1838,10 +1843,11 @@
     // --- End Inactivity Timer Functions ---
 
 
-    // Handler to switch back from 2FA or Device Verify view to standard login
+    // Handler to switch back from 2FA, passkey, or Device Verify view to standard login
     function handleSwitchBackToLogin() {
         showTfaView = false;
         needsDeviceVerification.set(false); // Explicitly turn off device verification flag
+        deviceVerificationType.set(null); // Reset verification type
         email = ''; // Clear email
         password = ''; // Clear password
         tfaErrorMessage = null; // Clear 2FA errors
@@ -2148,19 +2154,33 @@
 
                         <div class="form-container">
                             {#if showVerifyDeviceView}
-                                <!-- Show Device Verification Component -->
+                                <!-- Show Device Verification Component (2FA OTP or Passkey) -->
                                 <div in:fade={{ duration: 200 }}>
-                                    <VerifyDevice2FA
-                                        bind:isLoading
-                                        bind:errorMessage={verifyDeviceErrorMessage}
-                                        on:deviceVerified={async () => {
-                                            console.debug("Device verified event received, re-checking auth...");
-                                            verifyDeviceErrorMessage = null; // Clear error on success signal
-                                            await checkAuth(); // Use imported checkAuth function
-                                        }}
-                                        on:switchToLogin={handleSwitchBackToLogin}
-                                        on:tfaActivity={checkActivityAndManageTimer}
-                                    />
+                                    {#if verifyDeviceType === 'passkey'}
+                                        <VerifyDevicePasskey
+                                            bind:isLoading
+                                            bind:errorMessage={verifyDeviceErrorMessage}
+                                            on:deviceVerified={async () => {
+                                                console.debug("Passkey device verified event received, re-checking auth...");
+                                                verifyDeviceErrorMessage = null;
+                                                await checkAuth();
+                                            }}
+                                            on:switchToLogin={handleSwitchBackToLogin}
+                                            on:passkeyActivity={checkActivityAndManageTimer}
+                                        />
+                                    {:else}
+                                        <VerifyDevice2FA
+                                            bind:isLoading
+                                            bind:errorMessage={verifyDeviceErrorMessage}
+                                            on:deviceVerified={async () => {
+                                                console.debug("Device verified event received, re-checking auth...");
+                                                verifyDeviceErrorMessage = null;
+                                                await checkAuth();
+                                            }}
+                                            on:switchToLogin={handleSwitchBackToLogin}
+                                            on:tfaActivity={checkActivityAndManageTimer}
+                                        />
+                                    {/if}
                                 </div>
                             {:else if isRateLimited}
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
@@ -2467,11 +2487,33 @@
     }
     
     .passkey-loading-text {
-        color: var(--color-grey-80);
         font-size: 16px;
         font-weight: 500;
         margin: 0;
         text-align: center;
+        /* Shimmer gradient animation matching BasicInfosBar processing state */
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 40%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 60%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: passkey-shimmer 1.5s infinite linear;
+    }
+
+    @keyframes passkey-shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     /* Navigation area styles moved to SignupNav.svelte to avoid duplication */

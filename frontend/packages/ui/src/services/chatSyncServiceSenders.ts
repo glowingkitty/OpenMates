@@ -220,6 +220,13 @@ export async function sendNewMessageImpl(
       "[ChatSyncService:Senders] WebSocket not connected. Message saved locally with 'waiting_for_internet' status.",
     );
 
+    // Show notification to inform user that message couldn't be sent
+    notificationStore.warning(
+      "Connection lost. Your message will be sent when you're back online.",
+      5000, // Auto-dismiss after 5 seconds
+      true, // Dismissible
+    );
+
     // Update message status to 'waiting_for_internet' if it's currently 'sending'
     // This ensures the UI shows the correct status when offline
     if (message.status === "sending") {
@@ -892,6 +899,7 @@ export async function sendNewMessageImpl(
           encrypted_sender_name: msg.encrypted_sender_name,
           encrypted_category: msg.encrypted_category,
           encrypted_model_name: msg.encrypted_model_name,
+          encrypted_pii_mappings: msg.encrypted_pii_mappings,
           created_at: msg.created_at,
           sender_name: msg.sender_name,
         }) as Message,
@@ -1305,6 +1313,8 @@ export async function sendCompletedAIResponseImpl(
         encrypted_thinking_content: encryptedFields.encrypted_thinking_content,
         encrypted_thinking_signature:
           encryptedFields.encrypted_thinking_signature,
+        // PII mappings (encrypted) - typically only on user messages, included for completeness
+        encrypted_pii_mappings: encryptedFields.encrypted_pii_mappings,
         // Non-encrypted metadata for UI/cost tracking (safe to store as plain integers/booleans)
         has_thinking: aiMessage.has_thinking,
         thinking_token_count: aiMessage.thinking_token_count,
@@ -1352,6 +1362,17 @@ export async function sendSetActiveChatImpl(
   serviceInstance: ChatSynchronizationService,
   chatId: string | null,
 ): Promise<void> {
+  // Skip all IndexedDB and WebSocket operations for unauthenticated users.
+  // Demo chats don't need last_opened tracking or server sync.
+  const { authStore } = await import("../stores/authState");
+  const isAuthenticated = get(authStore).isAuthenticated;
+  if (!isAuthenticated) {
+    console.debug(
+      `[ChatSyncService:Senders] User not authenticated, skipping set_active_chat for: ${chatId}`,
+    );
+    return;
+  }
+
   // CRITICAL: Update IndexedDB immediately when switching chats or opening new chat window
   // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server)
   // The server update happens via WebSocket, but IndexedDB update is immediate for better UX
@@ -1888,6 +1909,27 @@ export async function sendEncryptedStoragePackage(
       ? await encryptWithChatKey(plaintext_category, chatKey)
       : null;
 
+    // Encrypt PII mappings if the user message has any (for cross-device sync).
+    // PII mappings map placeholders like [EMAIL_1] back to original values.
+    let encryptedPIIMappings: string | null = null;
+    if (user_message.pii_mappings && user_message.pii_mappings.length > 0) {
+      try {
+        const piiMappingsJson = JSON.stringify(user_message.pii_mappings);
+        encryptedPIIMappings = await encryptWithChatKey(
+          piiMappingsJson,
+          chatKey,
+        );
+        console.debug(
+          `[ChatSyncService:Senders] Encrypted PII mappings for message ${user_message.message_id}: ${user_message.pii_mappings.length} mappings`,
+        );
+      } catch (piiEncryptError) {
+        console.error(
+          `[ChatSyncService:Senders] Failed to encrypt PII mappings for message ${user_message.message_id}:`,
+          piiEncryptError,
+        );
+      }
+    }
+
     // Create encrypted metadata payload for new handler
     // CRITICAL: Only include metadata fields if they're actually set (not null)
     // For follow-up messages, metadata fields should be undefined/null and NOT included
@@ -1897,6 +1939,7 @@ export async function sendEncryptedStoragePackage(
       encrypted_content: string;
       encrypted_sender_name?: string;
       encrypted_category?: string;
+      encrypted_pii_mappings?: string;
       encrypted_title?: string;
       encrypted_chat_category?: string;
       encrypted_icon?: string;
@@ -1944,6 +1987,10 @@ export async function sendEncryptedStoragePackage(
     }
     if (encryptedCategory) {
       metadataPayload.encrypted_chat_category = encryptedCategory;
+    }
+    // Include encrypted PII mappings on the user message (for cross-device PII restoration)
+    if (encryptedPIIMappings) {
+      metadataPayload.encrypted_pii_mappings = encryptedPIIMappings;
     }
 
     console.info("[ChatSyncService:Senders] Sending encrypted chat metadata:", {

@@ -202,6 +202,46 @@ class SetReminderSkill(BaseSkill):
                     error="Unable to create reminder at this time. Please try again later."
                 )
 
+            current_time = int(time.time())
+
+            # DEDUPLICATION GUARD: Prevent the AI model from creating duplicate reminders
+            # when it calls the set-reminder tool multiple times in the same response.
+            # Check if a reminder with the same prompt was created by this user in
+            # the last 60 seconds - if so, return the existing reminder as success.
+            try:
+                existing_reminders = await cache_service.get_user_reminders(user_id, status_filter="pending")
+                if existing_reminders:
+                    for existing in existing_reminders:
+                        # Check if created within last 60 seconds
+                        time_diff = current_time - existing.get("created_at", 0)
+                        if 0 <= time_diff <= 60:
+                            # Compare prompts (both are encrypted, so compare the
+                            # source chat_id + trigger_type + timezone as a proxy)
+                            if (existing.get("created_in_chat_id") == chat_id
+                                    and existing.get("trigger_type") == trigger_type
+                                    and existing.get("timezone") == timezone):
+                                logger.warning(
+                                    f"DEDUP: Skipping duplicate set-reminder call for user {user_id} "
+                                    f"in chat {chat_id} - reminder {existing.get('reminder_id')} "
+                                    f"was created {time_diff}s ago with same parameters"
+                                )
+                                # Return success with existing reminder details
+                                existing_trigger_formatted = format_reminder_time(
+                                    existing.get("trigger_at", 0), timezone
+                                )
+                                return SetReminderResponse(
+                                    success=True,
+                                    reminder_id=existing.get("reminder_id"),
+                                    trigger_at=existing_trigger_formatted,
+                                    target_type=existing.get("target_type", target_type),
+                                    is_repeating=existing.get("repeat_config") is not None,
+                                    prompt=prompt,
+                                    message=f"Reminder already set for {existing_trigger_formatted}.",
+                                )
+            except Exception as dedup_err:
+                # Dedup check is best-effort, don't fail the skill
+                logger.debug(f"Dedup check error (non-fatal): {dedup_err}")
+
             # Validate timezone
             if not validate_timezone(timezone):
                 return SetReminderResponse(
@@ -253,7 +293,6 @@ class SetReminderSkill(BaseSkill):
                 )
 
             # Validate trigger is in the future
-            current_time = int(time.time())
             if trigger_at <= current_time:
                 return SetReminderResponse(
                     success=False,

@@ -23,9 +23,9 @@ models:
       - text
     output_types:
       - text
-    default_server: "google" # Google Vertex AI as primary (MaaS)
+    default_server: "google_maas" # Google Vertex AI MaaS uses OpenAI-compatible API (not Gemini)
     servers:
-      - id: "google"
+      - id: "google_maas"
         name: "Google Vertex AI (MaaS)"
         model_id: "deepseek-ai/deepseek-v3.2-maas" # Google Vertex AI MaaS model identifier (publisher/model-id format)
         region: "EU" # Server region for UI display

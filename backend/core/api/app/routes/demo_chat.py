@@ -88,11 +88,12 @@ async def get_demo_chats(
             # The frontend will use this for display/routing
             display_id = f"demo-{idx + 1}"
             
-            # Get category and icon (stored as cleartext)
+            # Get category, icon, and demo_chat_category (stored as cleartext)
             # NOTE: These are stored on the demo_chats table itself (NOT translated)
             # Using different variable names to avoid shadowing the 'category' query parameter
             demo_category = demo.get("category")
             demo_icon = demo.get("icon")
+            demo_chat_category = demo.get("demo_chat_category", "for_everyone")
             
             # Get translation by UUID
             translation = await directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
@@ -112,6 +113,7 @@ async def get_demo_chats(
                     "summary": summary,
                     "category": demo_category,  # From demo_chats table (not translated)
                     "icon": demo_icon,  # From demo_chats table (not translated)
+                    "demo_chat_category": demo_chat_category,  # Target audience: for_everyone or for_developers
                     "content_hash": content_hash,
                     "created_at": demo.get("created_at"),
                     "status": demo.get("status")
@@ -232,11 +234,12 @@ async def get_demo_chat(
             except Exception as e:
                 logger.warning(f"Failed to parse follow-up suggestions: {e}")
         
-        # Get category and icon from demo_chat (stored as cleartext)
+        # Get category, icon, and demo_chat_category from demo_chat (stored as cleartext)
         # NOTE: Category and icon are stored on the demo_chats table itself (NOT translated)
         # They remain in the original language from when the demo was created
         category = demo_chat.get("category")
         icon = demo_chat.get("icon")
+        demo_chat_category = demo_chat.get("demo_chat_category", "for_everyone")
 
         # 4. Get messages and embeds by UUID
         messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_uuid, lang)
@@ -301,6 +304,7 @@ async def get_demo_chat(
             "summary": summary,
             "category": category,
             "icon": icon,
+            "demo_chat_category": demo_chat_category,  # Target audience: for_everyone or for_developers
             "content_hash": demo_chat.get("content_hash", ""),
             "follow_up_suggestions": follow_up_suggestions,
             "chat_data": {

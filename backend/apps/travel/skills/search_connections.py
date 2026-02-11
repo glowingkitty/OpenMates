@@ -1,0 +1,472 @@
+"""
+Search Connections skill for the travel app.
+
+Searches for transport connections (flights, and in the future trains/buses/boats)
+between locations. Uses a provider abstraction layer where each transport method
+is handled by a dedicated provider (SerpApiProvider for flights via Google Flights,
+TransitousProvider for trains/buses).
+
+The skill follows the standard BaseSkill request/response pattern with the
+'requests' array convention used by all OpenMates skills.
+"""
+
+import hashlib
+import json
+import logging
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+from backend.apps.base_skill import BaseSkill
+from backend.apps.travel.providers.base_provider import BaseTransportProvider
+from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
+from backend.apps.travel.providers.transitous_provider import TransitousProvider
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Pydantic request/response models
+# ---------------------------------------------------------------------------
+
+class SearchConnectionsRequest(BaseModel):
+    """Incoming request payload for the search_connections skill."""
+
+    requests: List[Dict[str, Any]] = Field(
+        description="Array of connection search request objects, each with 'legs', "
+        "'transport_methods', 'passengers', 'travel_class', etc."
+    )
+
+
+class SearchConnectionsResponse(BaseModel):
+    """
+    Response payload for the search_connections skill.
+
+    Follows the standard OpenMates skill response structure with grouped results,
+    provider info, suggestions, and optional error.
+    """
+
+    results: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of result groups, each with 'id' and 'results' array",
+    )
+    provider: str = Field(default="Google")
+    suggestions_follow_up_requests: Optional[List[str]] = None
+    error: Optional[str] = None
+    ignore_fields_for_inference: Optional[List[str]] = Field(
+        default_factory=lambda: ["type", "hash", "carrier_code", "segments"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Provider registry
+# ---------------------------------------------------------------------------
+
+def _create_providers() -> List[BaseTransportProvider]:
+    """
+    Instantiate all available transport providers.
+
+    SerpApiProvider handles flights via Google Flights (comprehensive coverage,
+    real-time pricing, booking links). TransitousProvider is a stub for future
+    train/bus support.
+    """
+    return [
+        SerpApiProvider(),
+        TransitousProvider(),
+    ]
+
+
+def _get_providers_for_methods(
+    all_providers: List[BaseTransportProvider],
+    transport_methods: List[str],
+) -> List[BaseTransportProvider]:
+    """Return providers that support at least one of the requested transport methods."""
+    matched: List[BaseTransportProvider] = []
+    for provider in all_providers:
+        for method in transport_methods:
+            if provider.supports_transport_method(method):
+                matched.append(provider)
+                break
+    return matched
+
+
+# ---------------------------------------------------------------------------
+# SearchConnectionsSkill
+# ---------------------------------------------------------------------------
+
+class SearchConnectionsSkill(BaseSkill):
+    """
+    Skill that searches for transport connections between locations.
+
+    Accepts a 'requests' array where each request contains:
+    - legs: ordered list of trip legs (origin, destination, date)
+    - transport_methods: list of transport types to search (default: ["airplane"])
+    - passengers: number of adult passengers (default: 1)
+    - travel_class: cabin/travel class (default: "economy")
+    - max_results: max connection options per transport method (default: 5)
+    - non_stop_only: if true, only return direct connections (default: false)
+    - currency: preferred currency for prices (default: "EUR")
+
+    Returns connection results grouped by request ID, where each result
+    represents one bookable connection option with legs, segments, prices, etc.
+    """
+
+    # Suggestions displayed after successful execution
+    FOLLOW_UP_SUGGESTIONS = [
+        "Search for cheaper dates",
+        "Show only direct flights",
+        "Search for trains instead",
+    ]
+
+    async def execute(
+        self,
+        requests: List[Dict[str, Any]],
+        secrets_manager: Any = None,
+        **kwargs: Any,
+    ) -> SearchConnectionsResponse:
+        """
+        Execute the search connections skill.
+
+        1. Obtains SecretsManager for API credential access
+        2. Validates the requests array (requires 'legs' field)
+        3. Processes each request via _process_single_request
+        4. Groups results by request ID
+        5. Returns SearchConnectionsResponse
+        """
+        # 1. Get or create SecretsManager
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="SearchConnectionsSkill",
+            error_response_factory=lambda msg: SearchConnectionsResponse(results=[], error=msg),
+            logger=logger,
+        )
+        if error_response:
+            return error_response
+
+        # 2. Validate requests array (require 'legs' field per request)
+        validated_requests, validation_error = self._validate_requests_array(
+            requests=requests,
+            required_field="legs",
+            field_display_name="legs",
+            empty_error_message="No connection search requests provided",
+            logger=logger,
+        )
+        if validation_error:
+            return SearchConnectionsResponse(results=[], error=validation_error)
+        if not validated_requests:
+            return SearchConnectionsResponse(results=[], error="No valid requests to process")
+
+        # 3. Create providers (SerpApiProvider loads its own API key from env)
+        all_providers = _create_providers()
+
+        # 4. Process requests in parallel
+        all_results = await self._process_requests_in_parallel(
+            requests=validated_requests,
+            process_single_request_func=self._process_single_request,
+            skill_name="SearchConnectionsSkill",
+            logger=logger,
+            all_providers=all_providers,
+        )
+
+        # 5. Group results by request ID
+        grouped_results, errors = self._group_results_by_request_id(
+            results=all_results,
+            requests=validated_requests,
+            logger=logger,
+        )
+
+        # 6. Build and return response
+        return self._build_response_with_errors(
+            response_class=SearchConnectionsResponse,
+            grouped_results=grouped_results,
+            errors=errors,
+            provider="Google",
+            suggestions=self.FOLLOW_UP_SUGGESTIONS,
+            logger=logger,
+        )
+
+    async def _process_single_request(
+        self,
+        req: Dict[str, Any],
+        request_id: Any,
+        **kwargs: Any,
+    ) -> tuple:
+        """
+        Process a single connection search request.
+
+        Args:
+            req: The request dict (named 'req' to match BaseSkill._process_requests_in_parallel)
+            request_id: The request ID
+            **kwargs: Additional keyword arguments (e.g., all_providers)
+
+        Returns:
+            Tuple of (request_id, results_list, error_string_or_none)
+        """
+        all_providers: List[BaseTransportProvider] = kwargs.get("all_providers", [])
+
+        # Extract parameters with defaults
+        legs = req.get("legs", [])
+        transport_methods = req.get("transport_methods", ["airplane"])
+        passengers = req.get("passengers", 1)
+        travel_class = req.get("travel_class", "economy")
+        max_results = req.get("max_results", 5)
+        non_stop_only = req.get("non_stop_only", False)
+        currency = req.get("currency", "EUR")
+        sort_by = req.get("sort_by", "price_asc")
+
+        # Validate legs
+        if not legs or not isinstance(legs, list):
+            return (request_id, [], "No legs provided in request")
+
+        for i, leg in enumerate(legs):
+            if not leg.get("origin"):
+                return (request_id, [], f"Leg {i}: missing 'origin'")
+            if not leg.get("destination"):
+                return (request_id, [], f"Leg {i}: missing 'destination'")
+            if not leg.get("date"):
+                return (request_id, [], f"Leg {i}: missing 'date'")
+
+        # Validate transport methods
+        valid_methods = {"airplane", "train", "bus", "boat"}
+        transport_methods = [m for m in transport_methods if m in valid_methods]
+        if not transport_methods:
+            transport_methods = ["airplane"]
+
+        # Find matching providers
+        matched_providers = _get_providers_for_methods(all_providers, transport_methods)
+        if not matched_providers:
+            return (request_id, [], f"No providers available for transport methods: {transport_methods}")
+
+        # Search across all matched providers and merge results
+        all_connections = []
+        errors = []
+
+        for provider in matched_providers:
+            try:
+                connections = await provider.search_connections(
+                    legs=legs,
+                    passengers=passengers,
+                    travel_class=travel_class,
+                    max_results=max_results,
+                    non_stop_only=non_stop_only,
+                    currency=currency,
+                )
+                all_connections.extend(connections)
+            except Exception as e:
+                provider_name = type(provider).__name__
+                error_msg = f"{provider_name} search failed: {e}"
+                logger.error(error_msg, exc_info=True)
+                errors.append(error_msg)
+
+        if not all_connections and errors:
+            return (request_id, [], "; ".join(errors))
+
+        # If we got results from at least one provider, don't propagate
+        # errors from other providers (partial success is still success).
+        # Only report errors when ALL providers failed (handled above).
+        if all_connections and errors:
+            for err in errors:
+                logger.info(f"Ignoring provider error (other providers succeeded): {err}")
+            errors = []
+
+        # Convert ConnectionResult objects to dicts for the response
+        results = []
+        for connection in all_connections:
+            # Determine trip type from legs
+            num_legs = len(connection.legs)
+            if num_legs == 1:
+                trip_type = "one_way"
+            elif num_legs == 2:
+                trip_type = "round_trip"
+            else:
+                trip_type = "multi_city"
+
+            # Build a flat result dict suitable for embed rendering
+            result_dict: Dict[str, Any] = {
+                "type": "connection",
+                "transport_method": connection.transport_method,
+                "trip_type": trip_type,
+                "total_price": connection.total_price,
+                "currency": connection.currency,
+                "bookable_seats": connection.bookable_seats,
+                "last_ticketing_date": connection.last_ticketing_date,
+                "legs": [leg.model_dump() for leg in connection.legs],
+                "hash": self._generate_connection_hash(connection),
+            }
+
+            # Add compact summary fields for easy LLM consumption
+            if connection.legs:
+                first_leg = connection.legs[0]
+                last_leg = connection.legs[-1]
+                result_dict["origin"] = first_leg.origin
+                result_dict["destination"] = last_leg.destination if trip_type != "round_trip" else first_leg.destination
+                result_dict["departure"] = first_leg.departure
+                result_dict["arrival"] = first_leg.arrival
+                result_dict["duration"] = first_leg.duration
+                result_dict["stops"] = first_leg.stops
+
+                # Carrier summary (unique carriers across all segments)
+                carriers = set()
+                carrier_codes = set()
+                for leg in connection.legs:
+                    for seg in leg.segments:
+                        carriers.add(seg.carrier)
+                        if seg.carrier_code:
+                            carrier_codes.add(seg.carrier_code)
+                result_dict["carriers"] = list(carriers)
+                result_dict["carrier_codes"] = list(carrier_codes)
+
+                # Booking token: SerpAPI token for on-demand booking URL lookup.
+                # The frontend calls /v1/apps/travel/booking-link with this
+                # token when the user clicks the booking button, avoiding
+                # upfront SerpAPI credit spending on booking lookups.
+                if connection.booking_token:
+                    result_dict["booking_token"] = connection.booking_token
+
+                # Booking context: original SerpAPI search parameters needed
+                # for the booking_token lookup. Stored alongside each result
+                # so the frontend can send them back to the booking-link endpoint.
+                if connection.booking_context:
+                    result_dict["booking_context"] = connection.booking_context
+
+                # Booking URL: populated if booking was already resolved
+                # (not used in the on-demand flow, kept for API compatibility)
+                if connection.booking_url:
+                    result_dict["booking_url"] = connection.booking_url
+                    result_dict["booking_provider"] = connection.booking_provider
+
+            # Rich metadata from Google Flights (CO2, airline logo)
+            if connection.airline_logo:
+                result_dict["airline_logo"] = connection.airline_logo
+            if connection.co2_kg is not None:
+                result_dict["co2_kg"] = connection.co2_kg
+            if connection.co2_typical_kg is not None:
+                result_dict["co2_typical_kg"] = connection.co2_typical_kg
+            if connection.co2_difference_percent is not None:
+                result_dict["co2_difference_percent"] = connection.co2_difference_percent
+
+            results.append(result_dict)
+
+        # Sort results according to the requested sort_by parameter
+        self._sort_results(results, sort_by)
+
+        error_str = "; ".join(errors) if errors else None
+        return (request_id, results, error_str)
+
+    # ------------------------------------------------------------------
+    # Sorting helpers
+    # ------------------------------------------------------------------
+
+    # Valid sort_by values and their defaults
+    VALID_SORT_OPTIONS = {
+        "price_asc", "price_desc",
+        "duration_asc", "duration_desc",
+        "departure_asc", "departure_desc",
+        "stops_asc", "stops_desc",
+    }
+
+    def _sort_results(self, results: List[Dict[str, Any]], sort_by: str) -> None:
+        """
+        Sort connection result dicts in-place according to the sort_by parameter.
+
+        Supported values:
+          - price_asc / price_desc     → by total_price (numeric)
+          - duration_asc / duration_desc → by first-leg duration string (e.g., '2h 30m')
+          - departure_asc / departure_desc → by first-leg departure ISO timestamp
+          - stops_asc / stops_desc     → by number of stops on first leg
+
+        Results missing the sort field are always placed at the end regardless of
+        ascending/descending direction.
+        """
+        if sort_by not in self.VALID_SORT_OPTIONS:
+            logger.warning(f"Unknown sort_by value '{sort_by}', falling back to 'price_asc'")
+            sort_by = "price_asc"
+
+        field, direction = sort_by.rsplit("_", 1)
+        reverse = direction == "desc"
+
+        if field == "price":
+            results.sort(key=lambda r: self._sort_key_price(r), reverse=reverse)
+        elif field == "duration":
+            results.sort(key=lambda r: self._sort_key_duration(r), reverse=reverse)
+        elif field == "departure":
+            results.sort(key=lambda r: self._sort_key_departure(r), reverse=reverse)
+        elif field == "stops":
+            results.sort(key=lambda r: self._sort_key_stops(r), reverse=reverse)
+
+    @staticmethod
+    def _sort_key_price(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, price). Missing prices sort last."""
+        price_str = result.get("total_price")
+        if price_str is not None:
+            try:
+                return (0, float(price_str))
+            except (ValueError, TypeError):
+                pass
+        return (1, float("inf"))
+
+    @staticmethod
+    def _sort_key_duration(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, duration_minutes). Missing durations sort last."""
+        duration_str = result.get("duration")
+        if duration_str:
+            minutes = SearchConnectionsSkill._parse_duration_minutes(duration_str)
+            if minutes is not None:
+                return (0, minutes)
+        return (1, float("inf"))
+
+    @staticmethod
+    def _sort_key_departure(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, departure_iso). Missing departures sort last."""
+        dep = result.get("departure")
+        if dep and isinstance(dep, str):
+            return (0, dep)
+        return (1, "")
+
+    @staticmethod
+    def _sort_key_stops(result: Dict[str, Any]) -> tuple:
+        """Sort key: (has_value, stops). Missing stops sort last."""
+        stops = result.get("stops")
+        if stops is not None and isinstance(stops, (int, float)):
+            return (0, int(stops))
+        return (1, float("inf"))
+
+    @staticmethod
+    def _parse_duration_minutes(duration_str: str) -> Optional[int]:
+        """
+        Parse a human-readable duration string like '2h 30m' or '14h 5m' into
+        total minutes. Returns None if the string cannot be parsed.
+        """
+        import re
+        total = 0
+        found = False
+        # Match hours
+        h_match = re.search(r"(\d+)\s*h", duration_str)
+        if h_match:
+            total += int(h_match.group(1)) * 60
+            found = True
+        # Match minutes
+        m_match = re.search(r"(\d+)\s*m", duration_str)
+        if m_match:
+            total += int(m_match.group(1))
+            found = True
+        return total if found else None
+
+    @staticmethod
+    def _generate_connection_hash(connection: Any) -> str:
+        """Generate a unique hash for a connection based on its key attributes."""
+        hash_input = json.dumps({
+            "transport": connection.transport_method,
+            "price": connection.total_price,
+            "currency": connection.currency,
+            "legs": [
+                {
+                    "origin": leg.origin,
+                    "dest": leg.destination,
+                    "dep": leg.departure,
+                    "arr": leg.arrival,
+                }
+                for leg in connection.legs
+            ],
+        }, sort_keys=True)
+        return hashlib.sha256(hash_input.encode()).hexdigest()[:16]

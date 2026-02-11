@@ -1,61 +1,73 @@
-import { getCurrentLanguage } from '../i18n/setup';
-import { LANGUAGE_CODES } from '../i18n/languages';
+import { getCurrentLanguage } from "../i18n/setup";
+import { LANGUAGE_CODES } from "../i18n/languages";
 
 // Define interfaces for type safety
 export interface MetaTagConfig {
-    title: string;
-    description: string;
-    image: string;
-    imageWidth: number;
-    imageHeight: number;
-    url: string;
-    type: string;
-    keywords: string[];
-    author: string;
-    locale: string;
-    siteName: string;
-    logo: string;
-    logoWidth: number;
-    logoHeight: number;
+  title: string;
+  description: string;
+  image: string;
+  imageWidth: number;
+  imageHeight: number;
+  url: string;
+  type: string;
+  keywords: string[];
+  author: string;
+  locale: string;
+  siteName: string;
+  logo: string;
+  logoWidth: number;
+  logoHeight: number;
 }
 
 interface PageMetaTags {
-    [key: string]: MetaTagConfig;
+  [key: string]: MetaTagConfig;
 }
 
-// Default meta values
+// Default meta values - hardcoded fallbacks ensure SEO tags always have content
+// These are overwritten by loadMetaTags() once translations are loaded
 export let defaultMeta: MetaTagConfig = {
-    title: '',
-    description: '',
-    image: "/images/og-image.jpg",
-    imageWidth: 1200,
-    imageHeight: 630,
-    url: "https://openmates.org",
-    type: "website",
-    keywords: [],
-    author: "OpenMates Team",
-    locale: "en_US",
-    siteName: "OpenMates™",
-    logo: "/images/logo.png",
-    logoWidth: 436,
-    logoHeight: 92,
+  title: "OpenMates",
+  description:
+    "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
+  image: "/images/og-image.jpg",
+  imageWidth: 1200,
+  imageHeight: 630,
+  url: "https://openmates.org",
+  type: "website",
+  keywords: [
+    "AI",
+    "artificial intelligence",
+    "team mates",
+    "digital",
+    "virtual assistant",
+    "automation",
+    "productivity",
+    "privacy",
+    "safety",
+  ],
+  author: "OpenMates Team",
+  locale: "en_US",
+  siteName: "OpenMates™",
+  logo: "/images/logo.png",
+  logoWidth: 436,
+  logoHeight: 92,
 };
 
 // Page-specific meta tags
 export let pageMeta: PageMetaTags = {
-    // Add a default fallback structure
-    for_all_of_us: { ...defaultMeta },
-    for_developers: { ...defaultMeta },
-    docs: { ...defaultMeta },
-    docsApi: { ...defaultMeta },
-    docsDesignGuidelines: { ...defaultMeta },
-    docsDesignSystem: { ...defaultMeta },
-    docsRoadmap: { ...defaultMeta },
-    docsUserGuide: { ...defaultMeta },
-    legalImprint: { ...defaultMeta },
-    legalPrivacy: { ...defaultMeta },
-    legalTerms: { ...defaultMeta },
-    webapp: { ...defaultMeta },
+  // Add a default fallback structure
+  for_all_of_us: { ...defaultMeta },
+  for_developers: { ...defaultMeta },
+  docs: { ...defaultMeta },
+  docsApi: { ...defaultMeta },
+  docsDesignGuidelines: { ...defaultMeta },
+  docsDesignSystem: { ...defaultMeta },
+  docsRoadmap: { ...defaultMeta },
+  docsUserGuide: { ...defaultMeta },
+  legalImprint: { ...defaultMeta },
+  legalPrivacy: { ...defaultMeta },
+  legalTerms: { ...defaultMeta },
+  webapp: { ...defaultMeta },
 };
 
 /**
@@ -68,46 +80,52 @@ export let pageMeta: PageMetaTags = {
  * in the `prepare` step. This ensures the JSON files exist before the build process tries
  * to import them.
  */
-const allLocaleFiles = import.meta.glob('../i18n/locales/*.json');
+const allLocaleFiles = import.meta.glob("../i18n/locales/*.json");
 
 /**
  * Create a filtered locale import map from LANGUAGE_CODES
  * This ensures we only use languages that are in languages.json AND have locale files
  */
 function createLocaleImportMap(): Record<string, () => Promise<any>> {
-    const map: Record<string, () => Promise<any>> = {};
+  const map: Record<string, () => Promise<any>> = {};
 
-    // Check if LANGUAGE_CODES is available
-    if (!LANGUAGE_CODES || LANGUAGE_CODES.length === 0) {
-        console.error('CRITICAL: LANGUAGE_CODES is empty or undefined! Using English only.');
-        // Try to find English as fallback
-        const enPath = '../i18n/locales/en.json';
-        if (allLocaleFiles[enPath]) {
-            map['en'] = allLocaleFiles[enPath] as () => Promise<any>;
-        }
-        return map;
+  // Check if LANGUAGE_CODES is available
+  if (!LANGUAGE_CODES || LANGUAGE_CODES.length === 0) {
+    console.error(
+      "CRITICAL: LANGUAGE_CODES is empty or undefined! Using English only.",
+    );
+    // Try to find English as fallback
+    const enPath = "../i18n/locales/en.json";
+    if (allLocaleFiles[enPath]) {
+      map["en"] = allLocaleFiles[enPath] as () => Promise<any>;
     }
-
-    // Build import map only for languages defined in languages.json
-    for (const langCode of LANGUAGE_CODES) {
-        const localePath = `../i18n/locales/${langCode}.json`;
-        if (allLocaleFiles[localePath]) {
-            map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
-        } else {
-            console.warn(`Language ${langCode} is in languages.json but locale file ${localePath} does not exist`);
-        }
-    }
-
-    // Final safety check: Ensure we always have at least 'en'
-    if (!map['en']) {
-        console.error('CRITICAL: English locale import function not found! Adding fallback.');
-        const enPath = '../i18n/locales/en.json';
-        if (allLocaleFiles[enPath]) {
-            map['en'] = allLocaleFiles[enPath] as () => Promise<any>;
-        }
-    }
-
     return map;
+  }
+
+  // Build import map only for languages defined in languages.json
+  for (const langCode of LANGUAGE_CODES) {
+    const localePath = `../i18n/locales/${langCode}.json`;
+    if (allLocaleFiles[localePath]) {
+      map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
+    } else {
+      console.warn(
+        `Language ${langCode} is in languages.json but locale file ${localePath} does not exist`,
+      );
+    }
+  }
+
+  // Final safety check: Ensure we always have at least 'en'
+  if (!map["en"]) {
+    console.error(
+      "CRITICAL: English locale import function not found! Adding fallback.",
+    );
+    const enPath = "../i18n/locales/en.json";
+    if (allLocaleFiles[enPath]) {
+      map["en"] = allLocaleFiles[enPath] as () => Promise<any>;
+    }
+  }
+
+  return map;
 }
 
 const localeImportMap = createLocaleImportMap();
@@ -116,171 +134,219 @@ const localeImportMap = createLocaleImportMap();
  * Function to load metatags dynamically based on the current language
  */
 export async function loadMetaTags(): Promise<void> {
-    try {
-        const currentLanguage = getCurrentLanguage();
-        let metaData;
-        
-        // Try to load the current language's metadata using the static import map
-        // This allows Vite to statically analyze all imports at build time
-        const importFn = localeImportMap[currentLanguage];
-        
-        if (!importFn) {
-            console.warn(`Locale import function not found for language ${currentLanguage}, falling back to English`);
-        }
-        
-        try {
-            const loader = importFn || localeImportMap['en'];
-            if (!loader) {
-                throw new Error('English locale loader not found in import map');
-            }
-            const module = await loader();
-            metaData = module.default || module;
-        } catch (e) {
-            console.warn(`Metadata for language ${currentLanguage} not found, falling back to English`, e);
-            // Fallback to English if current language metadata is not available
-            const enLoader = localeImportMap['en'];
-            if (!enLoader) {
-                throw new Error('English locale loader not found in import map');
-            }
-            const enModule = await enLoader();
-            metaData = enModule.default || enModule;
-        }
-        
-        // Check if metadata exists in the language file
-        if (!metaData.metadata || !metaData.metadata.default) {
-            console.warn(`Metadata structure missing in language ${currentLanguage}, falling back to English`);
-            // Fallback to English metadata
-            const enModule = await localeImportMap['en']();
-            const enJsonData = enModule.default || enModule;
-            
-            // If English also doesn't have the metadata structure, use hardcoded defaults
-            if (!enJsonData.metadata || !enJsonData.metadata.default) {
-                throw new Error('Metadata structure missing in English language file');
-            }
-            metaData = enJsonData;
-        }
+  try {
+    const currentLanguage = getCurrentLanguage();
+    let metaData;
 
-        // Update defaultMeta
-        defaultMeta = {
-            title: metaData.metadata.default.title?.text || "OpenMates",
-            description: metaData.metadata.default.description?.text || "",
-            image: "/images/og-image.jpg",
-            imageWidth: 1200,
-            imageHeight: 630,
-            url: "https://openmates.org",
-            type: "website",
-            keywords: (metaData.metadata.default.keywords?.text || "").split(', ').filter(Boolean),
-            author: "OpenMates Team",
-            locale: `${currentLanguage}_${currentLanguage.toUpperCase()}`,
-            siteName: "OpenMates™",
-            logo: "/images/logo.png",
-            logoWidth: 436,
-            logoHeight: 92,
-        };
+    // Try to load the current language's metadata using the static import map
+    // This allows Vite to statically analyze all imports at build time
+    const importFn = localeImportMap[currentLanguage];
 
-        // Safe function to get nested properties with fallback
-        const getMetaProperty = (path: string[], fallback: string = ""): string => {
-            let obj = metaData.metadata;
-            for (const key of path) {
-                if (!obj || typeof obj !== 'object') return fallback;
-                obj = obj[key];
-            }
-            return obj?.text || fallback;
-        };
-
-        // Update pageMeta with safe property access
-        pageMeta = {
-            for_all_of_us: {
-                ...defaultMeta,
-                title: getMetaProperty(['for_all_of_us', 'title'], defaultMeta.title),
-            },
-            for_developers: {
-                ...defaultMeta,
-                title: getMetaProperty(['for_developers', 'title'], defaultMeta.title),
-                description: getMetaProperty(['for_developers', 'description'], defaultMeta.description),
-            },
-            docs: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs', 'description'], defaultMeta.description),
-                type: "article"
-            },
-            docsApi: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs_api', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs_api', 'description'], defaultMeta.description),
-            },
-            docsDesignGuidelines: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs_design_guidelines', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs_design_guidelines', 'description'], defaultMeta.description),
-            },
-            docsDesignSystem: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs_design_system', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs_design_system', 'description'], defaultMeta.description),
-            },
-            docsRoadmap: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs_roadmap', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs_roadmap', 'description'], defaultMeta.description),
-            },
-            docsUserGuide: {
-                ...defaultMeta,
-                title: getMetaProperty(['docs_user_guide', 'title'], defaultMeta.title),
-                description: getMetaProperty(['docs_user_guide', 'description'], defaultMeta.description),
-            },
-            legalImprint: {
-                ...defaultMeta,
-                title: getMetaProperty(['legal_imprint', 'title'], defaultMeta.title),
-                description: getMetaProperty(['legal_imprint', 'description'], defaultMeta.description),
-            },
-            legalPrivacy: {
-                ...defaultMeta,
-                title: getMetaProperty(['legal_privacy', 'title'], defaultMeta.title),
-                description: getMetaProperty(['legal_privacy', 'description'], defaultMeta.description),
-            },
-            legalTerms: {
-                ...defaultMeta,
-                title: getMetaProperty(['legal_terms', 'title'], defaultMeta.title),
-                description: getMetaProperty(['legal_terms', 'description'], defaultMeta.description),
-            },
-            webapp: {
-                ...defaultMeta,
-                title: getMetaProperty(['webapp', 'title'], defaultMeta.title),
-                description: getMetaProperty(['webapp', 'description'], defaultMeta.description),
-                type: "website"
-            },
-        };
-    } catch (error) {
-        console.error('Failed to load meta tags:', error);
-        // Keep using default values if loading fails
+    if (!importFn) {
+      console.warn(
+        `Locale import function not found for language ${currentLanguage}, falling back to English`,
+      );
     }
+
+    try {
+      const loader = importFn || localeImportMap["en"];
+      if (!loader) {
+        throw new Error("English locale loader not found in import map");
+      }
+      const module = await loader();
+      metaData = module.default || module;
+    } catch (e) {
+      console.warn(
+        `Metadata for language ${currentLanguage} not found, falling back to English`,
+        e,
+      );
+      // Fallback to English if current language metadata is not available
+      const enLoader = localeImportMap["en"];
+      if (!enLoader) {
+        throw new Error("English locale loader not found in import map");
+      }
+      const enModule = await enLoader();
+      metaData = enModule.default || enModule;
+    }
+
+    // Check if metadata exists in the language file
+    if (!metaData.metadata || !metaData.metadata.default) {
+      console.warn(
+        `Metadata structure missing in language ${currentLanguage}, falling back to English`,
+      );
+      // Fallback to English metadata
+      const enModule = await localeImportMap["en"]();
+      const enJsonData = enModule.default || enModule;
+
+      // If English also doesn't have the metadata structure, use hardcoded defaults
+      if (!enJsonData.metadata || !enJsonData.metadata.default) {
+        throw new Error("Metadata structure missing in English language file");
+      }
+      metaData = enJsonData;
+    }
+
+    // Update defaultMeta
+    defaultMeta = {
+      title: metaData.metadata.default.title?.text || "OpenMates",
+      description: metaData.metadata.default.description?.text || "",
+      image: "/images/og-image.jpg",
+      imageWidth: 1200,
+      imageHeight: 630,
+      url: "https://openmates.org",
+      type: "website",
+      keywords: (metaData.metadata.default.keywords?.text || "")
+        .split(", ")
+        .filter(Boolean),
+      author: "OpenMates Team",
+      locale: `${currentLanguage}_${currentLanguage.toUpperCase()}`,
+      siteName: "OpenMates™",
+      logo: "/images/logo.png",
+      logoWidth: 436,
+      logoHeight: 92,
+    };
+
+    // Safe function to get nested properties with fallback
+    const getMetaProperty = (path: string[], fallback: string = ""): string => {
+      let obj = metaData.metadata;
+      for (const key of path) {
+        if (!obj || typeof obj !== "object") return fallback;
+        obj = obj[key];
+      }
+      return obj?.text || fallback;
+    };
+
+    // Update pageMeta with safe property access
+    pageMeta = {
+      for_all_of_us: {
+        ...defaultMeta,
+        title: getMetaProperty(["for_all_of_us", "title"], defaultMeta.title),
+      },
+      for_developers: {
+        ...defaultMeta,
+        title: getMetaProperty(["for_developers", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["for_developers", "description"],
+          defaultMeta.description,
+        ),
+      },
+      docs: {
+        ...defaultMeta,
+        title: getMetaProperty(["docs", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["docs", "description"],
+          defaultMeta.description,
+        ),
+        type: "article",
+      },
+      docsApi: {
+        ...defaultMeta,
+        title: getMetaProperty(["docs_api", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["docs_api", "description"],
+          defaultMeta.description,
+        ),
+      },
+      docsDesignGuidelines: {
+        ...defaultMeta,
+        title: getMetaProperty(
+          ["docs_design_guidelines", "title"],
+          defaultMeta.title,
+        ),
+        description: getMetaProperty(
+          ["docs_design_guidelines", "description"],
+          defaultMeta.description,
+        ),
+      },
+      docsDesignSystem: {
+        ...defaultMeta,
+        title: getMetaProperty(
+          ["docs_design_system", "title"],
+          defaultMeta.title,
+        ),
+        description: getMetaProperty(
+          ["docs_design_system", "description"],
+          defaultMeta.description,
+        ),
+      },
+      docsRoadmap: {
+        ...defaultMeta,
+        title: getMetaProperty(["docs_roadmap", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["docs_roadmap", "description"],
+          defaultMeta.description,
+        ),
+      },
+      docsUserGuide: {
+        ...defaultMeta,
+        title: getMetaProperty(["docs_user_guide", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["docs_user_guide", "description"],
+          defaultMeta.description,
+        ),
+      },
+      legalImprint: {
+        ...defaultMeta,
+        title: getMetaProperty(["legal_imprint", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["legal_imprint", "description"],
+          defaultMeta.description,
+        ),
+      },
+      legalPrivacy: {
+        ...defaultMeta,
+        title: getMetaProperty(["legal_privacy", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["legal_privacy", "description"],
+          defaultMeta.description,
+        ),
+      },
+      legalTerms: {
+        ...defaultMeta,
+        title: getMetaProperty(["legal_terms", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["legal_terms", "description"],
+          defaultMeta.description,
+        ),
+      },
+      webapp: {
+        ...defaultMeta,
+        title: getMetaProperty(["webapp", "title"], defaultMeta.title),
+        description: getMetaProperty(
+          ["webapp", "description"],
+          defaultMeta.description,
+        ),
+        type: "website",
+      },
+    };
+  } catch (error) {
+    console.error("Failed to load meta tags:", error);
+    // Keep using default values if loading fails
+  }
 }
 
 // Load meta tags dynamically
 loadMetaTags();
 
 // Helper function to get meta tags for a specific page
-export function getMetaTags(page: string = 'home'): MetaTagConfig {
-    // Ensure we always return a valid meta config even if pageMeta[page] is undefined
-    return pageMeta[page] || defaultMeta;
+export function getMetaTags(page: string = "home"): MetaTagConfig {
+  // Ensure we always return a valid meta config even if pageMeta[page] is undefined
+  return pageMeta[page] || defaultMeta;
 }
 
 // Helper function to generate dynamic meta tags (e.g., for blog posts or docs)
 export function generateMetaTags(
-    title: string,
-    description: string,
-    slug: string,
-    type: string = 'article',
-    keywords?: string[]
+  title: string,
+  description: string,
+  slug: string,
+  type: string = "article",
+  keywords?: string[],
 ): MetaTagConfig {
-    return {
-        ...defaultMeta,
-        title: `${title} | ${defaultMeta.siteName}`,
-        description,
-        url: `${defaultMeta.url}/${slug}`,
-        type,
-        keywords: keywords || defaultMeta.keywords
-    };
+  return {
+    ...defaultMeta,
+    title: `${title} | ${defaultMeta.siteName}`,
+    description,
+    url: `${defaultMeta.url}/${slug}`,
+    type,
+    keywords: keywords || defaultMeta.keywords,
+  };
 }

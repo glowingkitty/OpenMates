@@ -90,6 +90,12 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Keep encrypted payment method ID encrypted
             "encrypted_payment_method_id": user_data.get("encrypted_payment_method_id"),
             
+            # Email notification fields (encrypted_notification_email is vault-encrypted,
+            # must be decrypted at point of use with the user's vault key)
+            "email_notifications_enabled": user_data.get("email_notifications_enabled", False),
+            "email_notification_preferences": user_data.get("email_notification_preferences", {}),
+            "encrypted_notification_email": user_data.get("encrypted_notification_email"),
+            
             # Low balance auto top-up fields (cleartext configuration fields)
             "auto_topup_low_balance_enabled": user_data.get("auto_topup_low_balance_enabled", False),
             "auto_topup_low_balance_threshold": user_data.get("auto_topup_low_balance_threshold"),

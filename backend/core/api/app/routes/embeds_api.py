@@ -15,6 +15,7 @@ import base64
 import os
 import io
 import json
+import re
 import hashlib
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -62,6 +63,47 @@ def get_s3_service(request: Request) -> S3UploadService:
 def _hash_value(value: str) -> str:
     """Create SHA256 hash of a value for privacy protection."""
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def _generate_filename_from_prompt(prompt: str | None, extension: str = "png") -> str:
+    """
+    Generate a clean, human-readable filename from an image generation prompt.
+
+    Rules:
+    - Lowercase, words separated by underscores
+    - Only alphanumeric characters and underscores
+    - Truncated to ~60 characters at a word boundary
+    - Prefixed with "openmates_" for brand recognition
+    - Falls back to "openmates_generated_image" if prompt is empty
+
+    Args:
+        prompt: The image generation prompt text
+        extension: File extension without dot (e.g. "png", "webp")
+
+    Returns:
+        A sanitized filename string like "openmates_a_cat_sitting_on_a_windowsill.png"
+    """
+    if not prompt or not prompt.strip():
+        return f"openmates_generated_image.{extension}"
+
+    # Normalize: lowercase, replace non-alphanumeric with spaces, collapse whitespace
+    slug = re.sub(r'[^a-z0-9\s]', ' ', prompt.lower())
+    slug = re.sub(r'\s+', ' ', slug).strip()
+
+    # Truncate to ~60 chars at a word boundary
+    if len(slug) > 60:
+        slug = slug[:60]
+        last_space = slug.rfind(' ')
+        if last_space > 20:
+            slug = slug[:last_space]
+
+    # Replace spaces with underscores, remove trailing underscores
+    slug = slug.replace(' ', '_').rstrip('_')
+
+    if not slug:
+        return f"openmates_generated_image.{extension}"
+
+    return f"openmates_{slug}.{extension}"
 
 
 @router.get("/{embed_id}/file")
@@ -233,16 +275,21 @@ async def download_embed_file(
         
         # 12. Determine content type and filename
         content_type = "image/png" if file_format == "png" else "image/webp"
-        filename = f"{embed_id[:8]}_{format}.{file_format}"
+        
+        # Generate a human-readable filename from the prompt (if available in embed content)
+        embed_prompt = embed_content.get("prompt")
+        filename = _generate_filename_from_prompt(embed_prompt, file_format)
         
         logger.info(f"{log_prefix} Successfully decrypted {len(decrypted_content)} bytes, serving as {content_type}")
         
         # 13. Stream response to client
+        # Use "attachment" disposition so browsers trigger a download with the proper filename.
+        # Quote the filename per RFC 6266 for safety with special characters.
         return StreamingResponse(
             io.BytesIO(decrypted_content),
             media_type=content_type,
             headers={
-                "Content-Disposition": f"inline; filename={filename}",
+                "Content-Disposition": f'attachment; filename="{filename}"',
                 "Cache-Control": "private, max-age=3600"  # Cache for 1 hour
             }
         )

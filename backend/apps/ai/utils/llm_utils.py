@@ -406,6 +406,97 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
         return []
 
 
+def truncate_message_history_to_token_budget(
+    message_history: List[Dict[str, Any]],
+    max_tokens: int,
+    avg_chars_per_token: float = 4.0,
+) -> List[Dict[str, Any]]:
+    """
+    Truncates message history to fit within a token budget, keeping the most recent messages.
+    
+    Uses a fast character-based token estimation (chars / avg_chars_per_token) to avoid
+    expensive tiktoken encoding on every message. The estimate is conservative - 
+    4 chars/token is the standard average for English text across GPT/Mistral tokenizers.
+    
+    The function iterates backwards from the most recent message (end of list) and
+    accumulates messages until the token budget would be exceeded. This ensures:
+    - The latest user message is always included
+    - Recent context is preserved for accurate summarization
+    - Older messages are dropped first when history exceeds the budget
+    
+    Args:
+        message_history: List of message dicts (internal format with 'role', 'content', etc.)
+        max_tokens: Maximum token budget for the returned history
+        avg_chars_per_token: Average characters per token for estimation (default 4.0)
+        
+    Returns:
+        Truncated list of messages (most recent) fitting within the token budget.
+        Returns the original list if it already fits.
+    """
+    if not message_history:
+        return message_history
+    
+    # Estimate total tokens using character count
+    total_estimated_tokens = 0
+    for msg in message_history:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            total_estimated_tokens += len(content) / avg_chars_per_token
+        elif isinstance(content, list):
+            # Multimodal content (list of content parts)
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text", "")
+                    if text:
+                        total_estimated_tokens += len(text) / avg_chars_per_token
+        # Add overhead per message (role, metadata, formatting ~4 tokens)
+        total_estimated_tokens += 4
+    
+    # If already within budget, return as-is
+    if total_estimated_tokens <= max_tokens:
+        logger.debug(
+            f"Message history ({len(message_history)} messages, ~{int(total_estimated_tokens)} tokens) "
+            f"fits within {max_tokens} token budget. No truncation needed."
+        )
+        return message_history
+    
+    # Iterate backwards (most recent first) and accumulate until budget is exceeded
+    accumulated_tokens = 0
+    cutoff_index = len(message_history)  # Start from end
+    
+    for i in range(len(message_history) - 1, -1, -1):
+        msg = message_history[i]
+        content = msg.get("content", "")
+        msg_tokens = 4  # Base overhead per message
+        
+        if isinstance(content, str):
+            msg_tokens += len(content) / avg_chars_per_token
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text", "")
+                    if text:
+                        msg_tokens += len(text) / avg_chars_per_token
+        
+        if accumulated_tokens + msg_tokens > max_tokens:
+            cutoff_index = i + 1  # This message doesn't fit, start from next one
+            break
+        
+        accumulated_tokens += msg_tokens
+        cutoff_index = i
+    
+    truncated = message_history[cutoff_index:]
+    dropped_count = len(message_history) - len(truncated)
+    
+    logger.info(
+        f"Truncated message history from {len(message_history)} to {len(truncated)} messages "
+        f"(dropped {dropped_count} oldest messages). "
+        f"Estimated tokens: ~{int(accumulated_tokens)}/{max_tokens} budget."
+    )
+    
+    return truncated
+
+
 def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Transforms message history from internal format to LLM API format.
@@ -653,7 +744,14 @@ async def call_preprocessing_llm(
         if dynamic_context:
             for key, value in dynamic_context.items():
                 placeholder = f"{{{key}}}"
-                value_str = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+                if isinstance(value, list):
+                    # Use newline separation for skill/focus lists that include descriptive hints,
+                    # comma separation for simple identifier-only lists (categories, etc.)
+                    has_hints = any(": " in str(item) for item in value)
+                    separator = "\n" if has_hints else ", "
+                    value_str = separator.join(map(str, value))
+                else:
+                    value_str = str(value)
                 tool_desc = tool_desc.replace(placeholder, value_str)
                 
         current_tool_definition["function"]["description"] = tool_desc
@@ -662,6 +760,43 @@ async def call_preprocessing_llm(
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
     transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
+
+    # CRITICAL: Strip tool_calls from assistant messages and remove tool-role messages entirely.
+    # The preprocessing LLM must only see plain user/assistant text conversation.
+    # If previous assistant messages contained tool_calls (e.g., images-generate, web-search),
+    # the preprocessing LLM may mimic those tool calls instead of calling the expected
+    # 'analyze_request_properties' tool. This was observed in production where the LLM
+    # called 'images-generate' instead of the preprocessing tool because the message history
+    # contained a previous images-generate tool call.
+    filtered_messages_for_llm = []
+    tool_messages_stripped = 0
+    tool_calls_stripped = 0
+    for msg in transformed_messages_for_llm:
+        if msg.get("role") == "tool":
+            # Skip tool result messages entirely - preprocessing doesn't need them
+            tool_messages_stripped += 1
+            continue
+        if msg.get("role") == "assistant" and "tool_calls" in msg:
+            # Strip tool_calls from assistant messages, keep only the text content
+            tool_calls_stripped += 1
+            cleaned_msg = {"role": "assistant"}
+            if msg.get("content"):
+                cleaned_msg["content"] = msg["content"]
+            else:
+                # If assistant message had only tool_calls and no text content, skip it
+                # to avoid sending an empty assistant message
+                continue
+            filtered_messages_for_llm.append(cleaned_msg)
+            continue
+        filtered_messages_for_llm.append(msg)
+    
+    if tool_messages_stripped > 0 or tool_calls_stripped > 0:
+        logger.info(
+            f"[{task_id}] LLM Utils: Stripped {tool_messages_stripped} tool-role message(s) and "
+            f"{tool_calls_stripped} tool_calls from assistant message(s) for preprocessing. "
+            f"Messages: {len(transformed_messages_for_llm)} -> {len(filtered_messages_for_llm)}"
+        )
+    transformed_messages_for_llm = filtered_messages_for_llm
 
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})

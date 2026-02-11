@@ -9,9 +9,12 @@ import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
-let toonDecode: ((toonString: string) => unknown) | null = null;
+let toonDecode:
+  | ((toonString: string, options?: { strict?: boolean }) => unknown)
+  | null = null;
 async function decodeToonContentSafe(
   toonContent: string | null | undefined,
 ): Promise<unknown> {
@@ -33,11 +36,17 @@ async function decodeToonContentSafe(
   }
   if (toonDecode) {
     try {
-      return toonDecode(toonContent);
+      // Use non-strict mode to be lenient with content that may have edge-case formatting
+      // (e.g., large pasted text with unusual indentation or special characters)
+      return toonDecode(toonContent, { strict: false });
     } catch (err) {
       console.debug(
         "[ChatSyncService:AI] TOON decode failed, JSON fallback:",
-        err,
+        err instanceof Error ? err.message : String(err),
+        {
+          contentLength: toonContent.length,
+          contentPreview: toonContent.substring(0, 200),
+        },
       );
     }
   }
@@ -297,6 +306,11 @@ export function handleAIMessageUpdateImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AIMessageUpdatePayload,
 ): void {
+  // Receiving an AI streaming chunk is proof the WebSocket connection is alive.
+  // Notify the WebSocket service so it doesn't fire a pong timeout mid-stream
+  // (the server may delay its pong response while busy pushing chunks).
+  webSocketService.notifyDataActivity();
+
   // 🔍 STREAMING DEBUG: Log chunk reception with detailed info
   const contentLength = payload.full_content_so_far?.length || 0;
   const contentPreview =
@@ -551,14 +565,15 @@ export async function handleAIBackgroundResponseCompletedImpl(
       return;
     }
 
-    // Get the category from typing store if available
-    // If not in typing store (chat was switched), try to get from chat metadata
+    // Get the category and model_name from the payload first (most reliable source),
+    // then fall back to typing store if not available (e.g., for older payloads)
     const { get } = await import("svelte/store");
     const typingStatus = get(aiTypingStore);
     let category =
-      typingStatus?.chatId === payload.chat_id
+      payload.category ||
+      (typingStatus?.chatId === payload.chat_id
         ? typingStatus.category
-        : undefined;
+        : undefined);
     const modelName =
       payload.model_name ||
       (typingStatus?.chatId === payload.chat_id
@@ -612,15 +627,17 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // Create the completed AI message
     // CRITICAL: Store AI response as markdown string, not Tiptap JSON
     // Tiptap JSON is only for UI rendering, never stored in database
+    // For rejection messages (e.g., insufficient credits), use role 'system' and status 'waiting_for_user'
+    const isRejection = !!payload.rejection_reason;
     const aiMessage: Message = {
       message_id: payload.message_id,
       chat_id: payload.chat_id,
       user_message_id: payload.user_message_id,
-      role: "assistant",
+      role: isRejection ? "system" : "assistant",
       category: category || undefined,
       model_name: modelName || undefined,
       content: payload.full_content, // Store as markdown string, not Tiptap JSON
-      status: "synced",
+      status: isRejection ? "waiting_for_user" : "synced",
       created_at: Math.floor(Date.now() / 1000),
       // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
       // Do NOT set encrypted_* fields here as they should only exist after encryption
@@ -1348,10 +1365,10 @@ export async function handleAIMessageReadyImpl(
   }
 }
 
-export function handleAITaskCancelRequestedImpl(
+export async function handleAITaskCancelRequestedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AITaskCancelRequestedPayload,
-): void {
+): Promise<void> {
   console.info(
     "[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:",
     payload,
@@ -1370,6 +1387,39 @@ export function handleAITaskCancelRequestedImpl(
       }
     },
   );
+  // Cancel all processing embeds for affected chats and dispatch UI updates
+  // This is done BEFORE dispatching aiTaskEnded so the embed UI updates immediately
+  for (const chatId of chatIdsToClear) {
+    try {
+      const { embedStore } = await import("./embedStore");
+      const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(chatId);
+
+      // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview updates
+      for (const embedId of cancelledEmbedIds) {
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedId,
+              chat_id: chatId,
+              status: "cancelled",
+            },
+          }),
+        );
+      }
+
+      if (cancelledEmbedIds.length > 0) {
+        console.info(
+          `[ChatSyncService:AI] Cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId} due to task cancellation`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[ChatSyncService:AI] Failed to cancel processing embeds for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+
   chatIdsToClear.forEach((chatId) => {
     serviceInstance.activeAITasks.delete(chatId);
     // Clear typing status for this cancelled task
@@ -1648,6 +1698,19 @@ export async function handlePostProcessingCompletedImpl(
       chatMetadataCache.invalidateChat(payload.chat_id);
       console.debug(
         `[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`,
+      );
+
+      // CRITICAL: Dispatch chatUpdated so Chats.svelte updates its in-memory chat list.
+      // Without this, the chat object held by the sidebar still has encrypted_chat_summary=null
+      // and the context menu won't show the summary until a full page reload.
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: payload.chat_id,
+            type: "post_processing_metadata",
+            chat,
+          },
+        }),
       );
     }
 
@@ -1931,6 +1994,29 @@ export async function handleEmbedUpdateImpl(
   console.info(
     `[ChatSyncService:AI] Received 'embed_update' for embed ${payload.embed_id}`,
   );
+
+  // CRITICAL FIX: If this embed was already fully processed by handleSendEmbedDataImpl
+  // (which handles encryption, key storage, and Directus persistence), skip the embed_update
+  // entirely. The embed_update is redundant in this case and can cause race conditions
+  // (e.g., trying to access embed keys before IndexedDB storage completes).
+  if (isEmbedAlreadyProcessed(payload.embed_id)) {
+    console.debug(
+      `[ChatSyncService:AI] embed_update: Skipping ${payload.embed_id} - already fully processed by send_embed_data handler`,
+    );
+    // Still dispatch a lightweight UI refresh event (status may have changed)
+    serviceInstance.dispatchEvent(
+      new CustomEvent("embedUpdated", {
+        detail: {
+          embed_id: payload.embed_id,
+          chat_id: payload.chat_id,
+          message_id: payload.message_id,
+          status: payload.status,
+          child_embed_ids: payload.child_embed_ids,
+        },
+      }),
+    );
+    return;
+  }
 
   try {
     // Load the existing embed from cache (may be in-memory only from processing stage)
@@ -2540,7 +2626,7 @@ export async function handleSendEmbedDataImpl(
       );
     } else {
       // ============================================================
-      // FINALIZED STATUS (completed/error/etc): Full encryption and persistence
+      // FINALIZED STATUS (completed/error/cancelled/etc): Full encryption and persistence
       // ============================================================
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)

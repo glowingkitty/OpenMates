@@ -6,7 +6,7 @@
 # of metadata provided by individual app services.
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, validator, root_validator, Field
+from pydantic import BaseModel, validator, root_validator, model_validator, Field
 
 class IconColorGradient(BaseModel):
     """Defines the start and end colors for an icon gradient."""
@@ -44,6 +44,23 @@ class AppMemoryFieldDefinition(BaseModel):
     description: str
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
+
+    @model_validator(mode='after')
+    def inject_added_date(self):
+        """
+        Automatically injects 'added_date' into every settings/memories schema.
+        See shared/python_schemas/app_metadata_schemas.py for full documentation.
+        """
+        if self.schema_definition is not None:
+            properties = self.schema_definition.get("properties", {})
+            if "added_date" not in properties:
+                properties["added_date"] = {
+                    "type": "integer",
+                    "description": "Unix timestamp when added",
+                    "auto_generated": True
+                }
+                self.schema_definition["properties"] = properties
+        return self
 
 class AppYAML(BaseModel):
     """

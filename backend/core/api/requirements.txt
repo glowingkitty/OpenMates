@@ -23,7 +23,7 @@ pyotp==2.9.0
 user-agents==2.2.0
 staticmap==0.5.7
 Pillow==11.1.0
-cryptography==44.0.2
+cryptography==46.0.5
 google-genai==1.58.0
 tiktoken==0.9.0
 anthropic==0.57.1
@@ -39,5 +39,6 @@ youtube-transcript-api==1.2.3
 google-api-python-client==2.187.0
 webauthn==2.7.0
 # Note: cbor2 is included as a dependency of webauthn, so we don't need to list it explicitly
+airports-py==3.0.0
 
 # TODO separate requirements file for each app and for core services, to only include what is needed

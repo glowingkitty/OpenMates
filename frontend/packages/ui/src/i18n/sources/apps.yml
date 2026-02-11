@@ -918,6 +918,52 @@ code.description:
   cs: Pište, testujte, vylepšujte a spouštějte kód.
   sv: Skriv, testa, förbättra och kör kod.
   verified_by_human: [en, de]
+docs:
+  context: App name for the Docs app
+  en: Docs
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  verified_by_human: []
+docs.description:
+  context: Description for the Docs app
+  en: Create documents, reports, articles & more.
+  de: Erstelle Dokumente, Berichte, Artikel und mehr.
+  zh: 创建文档、报告、文章等。
+  es: Crea documentos, informes, artículos y más.
+  fr: Créez des documents, rapports, articles et plus.
+  pt: Crie documentos, relatórios, artigos e mais.
+  ru: Создавайте документы, отчёты, статьи и другое.
+  ja: ドキュメント、レポート、記事などを作成。
+  ko: 문서, 보고서, 기사 등을 작성하세요.
+  it: Crea documenti, report, articoli e altro.
+  tr: Belgeler, raporlar, makaleler ve daha fazlasını oluşturun.
+  vi: Tạo tài liệu, báo cáo, bài viết và hơn thế nữa.
+  id: Buat dokumen, laporan, artikel, dan lainnya.
+  pl: Twórz dokumenty, raporty, artykuły i więcej.
+  nl: Maak documenten, rapporten, artikelen en meer.
+  ar: أنشئ مستندات وتقارير ومقالات والمزيد.
+  hi: दस्तावेज़, रिपोर्ट, लेख और बहुत कुछ बनाएँ।
+  th: สร้างเอกสาร รายงาน บทความ และอื่นๆ
+  cs: Vytvářejte dokumenty, zprávy, články a další.
+  sv: Skapa dokument, rapporter, artiklar och mer.
+  verified_by_human: []
 books:
   context: App name for the Books app
   en: Books

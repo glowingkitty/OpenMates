@@ -69,6 +69,7 @@ ALLOWED_LOG_SERVICES = [
     "app-news",
     "app-maps",
     "app-code",
+    "app-travel",
     "app-images",
     # App workers
     "app-ai-worker",

@@ -13,12 +13,16 @@
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
   import { truncateTiptapContent } from '../utils/messageTruncation';
+  import { restorePIIInText } from './enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../types/chat';
+  import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
-    AppSettingsMemoriesResponseContent
+    AppSettingsMemoriesResponseContent,
+    AppSettingsMemoriesRequestContent
   } from '../services/chatSyncServiceHandlersAppSettings';
   import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
@@ -28,9 +32,12 @@
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import SettingsMemoriesSuggestions from './SettingsMemoriesSuggestions.svelte';
   import { 
+    appSettingsMemoriesPermissionStore,
     isPermissionDialogVisible,
     currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
+  import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -55,27 +62,78 @@
     original_message?: GlobalMessage; // Store original message for full content loading
     appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
     _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
+    _embedErrors?: Set<string>; // Embed IDs that errored (tracked by ActiveChat for error banners)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
+    pii_mappings?: PIIMapping[]; // PII mappings for restoration (from user message)
   }
 
   // Add optional embed/app-card metadata without widening the core message type.
   type MessageWithEmbedMetadata = GlobalMessage & {
     appCards?: AppCardData[];
     _embedUpdateTimestamp?: number;
+    _embedErrors?: Set<string>;
   };
 
+  /**
+   * Build a cumulative PII mappings lookup from all user messages in the chat.
+   * This allows assistant messages to restore PII from any preceding user message.
+   * 
+   * The approach: Aggregate all PII mappings from user messages, keyed by placeholder.
+   * Later messages with the same placeholder override earlier ones (unlikely but handled).
+   */
+  function buildCumulativePIIMappings(allMessages: GlobalMessage[]): Map<string, PIIMapping> {
+    const cumulativeMappings = new Map<string, PIIMapping>();
+    
+    for (const msg of allMessages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        for (const mapping of msg.pii_mappings) {
+          cumulativeMappings.set(mapping.placeholder, mapping);
+        }
+      }
+    }
+    
+    return cumulativeMappings;
+  }
+
+  /**
+   * Restore PII placeholders in markdown content using the provided mappings.
+   * Returns the markdown with placeholders replaced by highlighted original values.
+   */
+  function restorePIIInMarkdown(
+    markdown: string, 
+    mappings: Map<string, PIIMapping>
+  ): string {
+    if (mappings.size === 0) return markdown;
+    
+    // Convert Map to array for the restorePIIInText function
+    const mappingsArray = Array.from(mappings.values());
+    return restorePIIInText(markdown, mappingsArray);
+  }
+
   // Helper function to map incoming message structure to InternalMessage
-  function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
+  // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
+  function G_mapToInternalMessage(
+    incomingMessage: GlobalMessage,
+    piiMappings?: Map<string, PIIMapping>
+  ): InternalMessage {
     // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
     // We need to convert it to Tiptap JSON for display purposes
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
+      let contentToProcess = incomingMessage.content;
+      
+      // PII RESTORATION: Restore PII placeholders with original values before parsing
+      // This applies to both user and assistant messages when mappings are available
+      if (piiMappings && piiMappings.size > 0) {
+        contentToProcess = restorePIIInMarkdown(contentToProcess, piiMappings);
+      }
+      
       // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
       // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
       // This ensures users see "processing" state during streaming instead of waiting for embed data
       const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(incomingMessage.content, parseMode, { unifiedParsingEnabled: true });
+      const tiptapJson = parse_message(contentToProcess, parseMode, { unifiedParsingEnabled: true });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
@@ -109,7 +167,9 @@
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
       original_message: incomingMessage, // Store original for full content loading
       appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
-      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp // Force re-render when embed data arrives
+      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp, // Force re-render when embed data arrives
+      _embedErrors: (incomingMessage as MessageWithEmbedMetadata)._embedErrors, // Propagate embed error tracking from ActiveChat
+      pii_mappings: incomingMessage.pii_mappings // Preserve PII mappings
     };
   }
  
@@ -134,6 +194,23 @@
   }
 
   /**
+   * Parse system message content to check if it's an app_settings_memories_request.
+   * Returns the parsed content or null if not a valid request.
+   */
+  function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
+    if (typeof content !== 'string') return null;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_request') {
+        return parsed as AppSettingsMemoriesRequestContent;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+    return null;
+  }
+
+  /**
    * Helper to read thinking entries from the map with a stable signature.
    * This keeps template logic concise and avoids unsupported {@const} placement.
    */
@@ -143,41 +220,69 @@
   }
 
   /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories REQUEST.
+   * System messages with type 'app_settings_memories_request' contain the request metadata
+   * (requested_keys, categories) and should be displayed as part of the user's message, not separately.
+   * 
+   * Used together with appSettingsMemoriesResponseMap to detect "unpaired" requests
+   * (a request without a matching response) which indicates a pending permission dialog.
+   * 
+   * IMPORTANT: Both this map and the response map use user_message_id from the system message
+   * content as the key. This ensures symmetric lookup — a request and its response always
+   * map to the same key, preventing false "unpaired" detection.
+   */
+  let appSettingsMemoriesRequestMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesRequestContent>();
+    
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        if (request) {
+          map.set(request.user_message_id, request);
+        }
+      }
+    }
+    
+    return map;
+  });
+
+  /**
    * Derived state: Create a lookup map of user_message_id → app settings/memories response.
    * System messages with type 'app_settings_memories_response' contain the user's decision
    * (included/rejected) and should be displayed as part of the user's message, not separately.
    * 
-   * FALLBACK LOGIC: For demo/shared chats, the user_message_id in the system message content
-   * may reference the original chat's message ID (which no longer exists). In this case, we
-   * fall back to position-based association: find the most recent user message before this
-   * system message in the array.
+   * IMPORTANT: Uses user_message_id from the system message content directly as the key,
+   * matching the same strategy as the request map. Both request and response system messages
+   * store the same user_message_id (the client-generated ID of the triggering user message),
+   * so using it directly ensures they always pair correctly.
+   * 
+   * FALLBACK: If user_message_id is missing from the response content (should not happen
+   * in normal flow), falls back to position-based association with the nearest preceding
+   * user message.
    */
   let appSettingsMemoriesResponseMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesResponseContent>();
     
-    // First, collect all user message IDs for lookup
-    const userMessageIds = new Set<string>();
-    for (const msg of messages) {
-      if (msg.role === 'user') {
-        userMessageIds.add(msg.id);
-      }
-    }
-    
-    // Now process system messages
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
-          // Try to use user_message_id if it matches a known user message
-          if (response.user_message_id && userMessageIds.has(response.user_message_id)) {
+          // Use user_message_id directly as the map key — same strategy as the request map.
+          // Both request and response system messages store the same user_message_id
+          // (the client-generated ID of the user message that triggered the request).
+          if (response.user_message_id) {
             map.set(response.user_message_id, response);
           } else {
-            // FALLBACK: user_message_id doesn't match any user message (common in demo/shared chats)
-            // Find the most recent user message before this system message
+            // FALLBACK: user_message_id is missing (should not happen in normal flow).
+            // Fall back to position-based association with the nearest preceding user message.
             for (let j = i - 1; j >= 0; j--) {
               if (messages[j].role === 'user') {
                 map.set(messages[j].id, response);
+                console.warn(
+                  `[ChatHistory] Response system message missing user_message_id, ` +
+                  `fell back to position-based mapping with user message ${messages[j].id}`
+                );
                 break;
               }
             }
@@ -190,8 +295,24 @@
   });
 
   /**
-   * Derived state: Filter out system messages that are app_settings_memories_response.
-   * These are displayed as part of the user's message, not as separate chat bubbles.
+   * Derived state: Cumulative PII mappings from all user messages.
+   * Passed to every ChatMessage so ReadOnlyMessage can apply decorations
+   * to highlight restored PII values in both user and assistant messages.
+   */
+  let cumulativePIIMappingsArray = $derived.by(() => {
+    const allMappings: PIIMapping[] = [];
+    for (const msg of messages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        allMappings.push(...msg.pii_mappings);
+      }
+    }
+    return allMappings;
+  });
+
+  /**
+   * Derived state: Filter out system messages for app_settings_memories request and response.
+   * Request system messages drive the permission dialog (not rendered as chat bubbles).
+   * Response system messages are displayed as part of the user's message (included/rejected badge).
    */
   let displayMessages = $derived.by(() => {
     return messages.filter(msg => {
@@ -199,6 +320,11 @@
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
         if (response?.type === 'app_settings_memories_response') {
+          return false;
+        }
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        // Filter out app_settings_memories_request system messages
+        if (request?.type === 'app_settings_memories_request') {
           return false;
         }
       }
@@ -235,6 +361,15 @@
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+
+  // PII visibility: derive whether PII is revealed for the current chat.
+  // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
+  let piiRevealedMap = $state<Map<string, boolean>>(new Map());
+  // Subscribe to the store to keep piiRevealedMap in sync
+  const unsubPiiVisibility = piiVisibilityStore.subscribe(map => {
+      piiRevealedMap = map;
+  });
+  let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
@@ -245,6 +380,65 @@
     currentChatId && 
     $currentPermissionRequest.chatId === currentChatId
   );
+
+  /**
+   * Derived state: Detect unpaired app settings/memories requests.
+   * An "unpaired" request is a request system message that has no matching response system message
+   * (both reference the same user_message_id). This indicates the user hasn't responded yet.
+   *
+   * When an unpaired request is detected for the current chat, the permission dialog is shown
+   * automatically. This handles the case where the user logs out/in or refreshes while a
+   * permission dialog was pending - the dialog re-appears from the persisted system message.
+   */
+  let unpairedRequest = $derived.by(() => {
+    // Find the first unpaired request in this chat's messages
+    for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
+      if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        return request;
+      }
+    }
+    return null;
+  });
+
+  /**
+   * Effect: When an unpaired request is detected and no dialog is currently visible,
+   * rebuild the full PendingPermissionRequest and show the dialog via the store.
+   * This handles session recovery (logout/login, refresh, cross-device sync).
+   */
+  $effect(() => {
+    if (!unpairedRequest || !currentChatId) return;
+    
+    // Don't show if a dialog is already visible (either for this request or another)
+    if ($isPermissionDialogVisible) return;
+
+    // Rebuild full categories with display info from the persisted minimal metadata
+    const fullCategories: AppSettingsMemoriesCategory[] = unpairedRequest.categories.map(cat => ({
+      key: `${cat.appId}-${cat.itemType}`,
+      appId: cat.appId,
+      itemType: cat.itemType,
+      displayName: formatDisplayName(cat.itemType),
+      entryCount: cat.entryCount,
+      iconGradient: getAppGradient(cat.appId),
+      selected: true, // Default all to selected when recovering
+    }));
+
+    // Rebuild the PendingPermissionRequest for the store
+    const recoveredRequest: PendingPermissionRequest = {
+      requestId: unpairedRequest.request_id,
+      chatId: currentChatId,
+      messageId: unpairedRequest.user_message_id,
+      categories: fullCategories,
+      yamlContent: '', // YAML content not stored in system message (not needed for dialog)
+      createdAt: Date.now(),
+    };
+
+    console.info(
+      `[ChatHistory] Recovered unpaired permission request ${unpairedRequest.request_id} ` +
+      `for chat ${currentChatId} - showing dialog`
+    );
+
+    appSettingsMemoriesPermissionStore.showDialog(recoveredRequest);
+  });
 
   // Determine if we should show settings/memories suggestions
   // Only show after the last assistant message when:
@@ -270,6 +464,24 @@
   let shouldScrollToNewUserMessage = false;
   let isScrolling = false;
 
+  // Detect if any message is currently streaming
+  let isCurrentlyStreaming = $derived(
+    messages.some(m => m.status === 'streaming')
+  );
+  // Track previous streaming state to detect transitions
+  let wasStreaming = $state(false);
+
+  // Whether the streaming spacer should be active.
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport. Without it, there wouldn't
+  // be enough scrollable content to hold that scroll position.
+  // The spacer is activated when the user sends a message and stays active until streaming ends.
+  let isSpacerActive = $state(false);
+
+  // The computed spacer height — fills remaining viewport below the AI response.
+  // As the AI response grows, the spacer shrinks. Once the response fills the viewport, spacer = 0.
+  let spacerHeight = $state(0);
+
   /**
    * Exposed function to add a new message to the chat.
    * This is called from the ActiveChat component when a new message is sent.
@@ -278,7 +490,16 @@
    */
   export function addMessage(incomingMessage: GlobalMessage) {
     console.debug('Adding message to chat history (raw):', incomingMessage);
-    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage);
+    
+    // Build cumulative PII mappings from existing messages + the new message
+    // This allows assistant messages to restore PII from any preceding user message
+    const allOriginalMessages = [
+      ...messages.map(m => m.original_message).filter((m): m is GlobalMessage => m !== undefined),
+      incomingMessage
+    ];
+    const piiMappings = buildCumulativePIIMappings(allOriginalMessages);
+    
+    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage, piiMappings);
     console.debug('Adding message to chat history (processed):', messageForHistory);
     
     // Track if this is a new user message for scrolling behavior
@@ -299,6 +520,8 @@
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
+    isSpacerActive = false;
+    spacerHeight = 0;
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -315,6 +538,8 @@
       messages = []; // Clear messages after fade out completes
       lastUserMessageId = null;
       shouldScrollToNewUserMessage = false;
+      isSpacerActive = false;
+      spacerHeight = 0;
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -347,10 +572,13 @@
 
     const previousMessagesLength = messages.length;
     
+    // Build cumulative PII mappings from all user messages in the incoming array
+    // This allows assistant messages to restore PII from any preceding user message
+    const piiMappings = buildCumulativePIIMappings(newMessagesArray);
     
     const newInternalMessages = newMessagesArray.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
-        const newInternalMessage = G_mapToInternalMessage(newMessage);
+        const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
 
         // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
         // Streaming messages need to re-render on every chunk update
@@ -449,6 +677,10 @@
             });
 
             shouldScrollToNewUserMessage = false;
+            // Activate the spacer: ensures there's enough scrollable height below the
+            // user message so this scroll position remains valid as the AI response streams in.
+            // The spacer fills the viewport below the user message and shrinks as the response grows.
+            isSpacerActive = true;
 
             setTimeout(() => {
               isScrolling = false;
@@ -460,6 +692,62 @@
         }, 350);
       });
     }
+  });
+
+  // --- Streaming lifecycle: deactivate spacer when streaming ends ---
+  $effect(() => {
+    if (isCurrentlyStreaming && !wasStreaming) {
+      // Streaming just started
+      wasStreaming = true;
+    } else if (!isCurrentlyStreaming && wasStreaming) {
+      // Streaming ended — deactivate spacer and reset
+      wasStreaming = false;
+      isSpacerActive = false;
+      spacerHeight = 0;
+    }
+  });
+
+  // --- Spacer height computation ---
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport.
+  //
+  // How it works:
+  // 1. User sends a message → scroll positions user message near top → isSpacerActive = true
+  // 2. AI response starts streaming below the user message
+  // 3. The spacer fills the remaining viewport height below the AI response,
+  //    preventing the scroll position from jumping as content grows downward
+  // 4. As the AI response grows taller, the spacer shrinks toward 0
+  // 5. Once streaming ends, the spacer is removed
+  //
+  // CRITICAL: We do NOT auto-scroll during streaming. The scroll position stays fixed
+  // and the user reads the AI response naturally as it extends downward. This avoids
+  // interrupting the user's reading flow.
+  $effect(() => {
+    if (!container || !isSpacerActive) {
+      if (!isSpacerActive) spacerHeight = 0;
+      return;
+    }
+    // Re-run whenever messages change (on each streaming chunk)
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    messages;
+
+    tick().then(() => {
+      if (!container || !isSpacerActive) return;
+      
+      // Find the last message element (the streaming AI response)
+      const messageWrappers = container.querySelectorAll('[data-message-id]');
+      if (messageWrappers.length === 0) return;
+      const lastMessageEl = messageWrappers[messageWrappers.length - 1] as HTMLElement;
+      
+      // The spacer fills the gap between the bottom of the last message and
+      // the bottom of the viewport. As the AI response grows, the spacer shrinks.
+      const viewportHeight = container.clientHeight;
+      const lastMessageHeight = lastMessageEl.offsetHeight;
+      
+      // 80px accounts for the user message offset at top + padding
+      const neededSpacer = Math.max(0, viewportHeight - lastMessageHeight - 80);
+      spacerHeight = neededSpacer;
+    });
   });
 
   // Handle scrolling to highlighted message from deep link
@@ -532,7 +820,7 @@
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
-    
+
     // Performance optimization: Use requestAnimationFrame for immediate UI updates
     // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
     if (scrollFrame) return; // Skip if frame already scheduled
@@ -746,6 +1034,8 @@
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    // Unsubscribe from PII visibility store
+    unsubPiiVisibility();
   });
 </script>
 
@@ -767,7 +1057,7 @@
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
             {#each displayMessages as msg (msg.id)}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
+                <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
@@ -786,12 +1076,24 @@
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
+                        hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
+                        piiMappings={cumulativePIIMappingsArray}
+                        {piiRevealed}
+                        messageId={msg.id}
+                        userMessageId={msg.original_message?.user_message_id}
                     />
                 </div>
             {/each}
+            
+            <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
+                 Creates the ChatGPT-like effect where the user message sits near the top
+                 with empty space below that gradually fills as the AI response streams in. -->
+            {#if spacerHeight > 0}
+                <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
+            {/if}
             
             <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
             <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
@@ -884,6 +1186,15 @@
     margin-top: 5px;
   }
 
+  /* Bottom spacer that fills remaining viewport space during AI streaming.
+     Creates visual space below user message that fills as the response streams in. */
+  .streaming-spacer {
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Smooth transition as spacer shrinks while AI response grows */
+    transition: height 0.15s ease-out;
+  }
+
   .message-wrapper {
     margin: 5px 0;
     width: 100%;
@@ -897,6 +1208,10 @@
 
   .message-wrapper.assistant { /* Assistant messages aligned to the left */
     justify-content: flex-start;
+  }
+
+  .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
+    justify-content: center;
   }
 
   .message-wrapper :global(.chat-message) {

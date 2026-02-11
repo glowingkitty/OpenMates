@@ -13,7 +13,7 @@
     - Never shows if user has already granted/denied permission
 -->
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { slide } from 'svelte/transition';
     import { text } from '@repo/ui';
     import {
@@ -22,6 +22,8 @@
         requiresPWAInstall
     } from '../stores/pushNotificationStore';
     import { pushNotificationService } from '../services/pushNotificationService';
+    import { authStore } from '../stores/authStore';
+    import { updateProfile } from '../stores/userProfile';
     
     // Note: icons.css is loaded globally via index.ts and +layout.svelte
     // No need to import it here - global icon classes (clickable-icon, icon_*) are available
@@ -31,6 +33,18 @@
     // Local state
     let isRequesting = $state(false);
     let showIOSInstructions = $state(false);
+    
+    // Mark the banner as shown once it renders, so it won't reappear in future sessions.
+    // This persists to localStorage via the store AND syncs to server for cross-device persistence.
+    onMount(() => {
+        pushNotificationStore.markBannerShown();
+        
+        // Sync to server if user is authenticated (persists across devices)
+        if ($authStore.isAuthenticated) {
+            updateProfile({ push_notification_banner_shown: true });
+            console.debug('[PushNotificationBanner] Synced banner_shown to server');
+        }
+    });
     
     /**
      * Handle "Enable Notifications" button click
@@ -72,23 +86,20 @@
         dispatch('dismissed');
     }
     
-    /**
-     * Handle closing iOS instructions
-     */
-    function handleCloseIOSInstructions(): void {
-        showIOSInstructions = false;
-    }
+
 </script>
 
-{#if $shouldShowPushBanner}
+    {#if $shouldShowPushBanner}
     <div 
         class="push-notification-banner"
         transition:slide={{ duration: 300 }}
         role="alert"
         aria-live="polite"
     >
-        {#if showIOSInstructions}
+        {#if $requiresPWAInstall || showIOSInstructions}
             <!-- iOS PWA Installation Instructions -->
+            <!-- Shown directly when iOS Safari detects PWA install is needed,
+                 or after user clicks Enable on a device that requires PWA first -->
             <div class="ios-instructions">
                 <div class="ios-instructions-header">
                     <span class="clickable-icon icon_announcement banner-icon"></span>
@@ -97,7 +108,7 @@
                     </span>
                     <button
                         class="ios-close-btn"
-                        onclick={handleCloseIOSInstructions}
+                        onclick={handleNotYet}
                         aria-label="Close"
                     >
                         <span class="clickable-icon icon_close"></span>

@@ -398,6 +398,13 @@ class EmailTemplateService:
                 elif template == "account-created":
                     subject_key = "email.account_created.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "reminder-notification":
+                    subject_key = "email.reminder_notification.subject.text"
+                    if "reminder_excerpt" in context:
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        subject = subject_template.format(reminder_excerpt=context["reminder_excerpt"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

@@ -24,11 +24,14 @@ import { deleteSessionId } from "../utils/sessionId";
 import { phasedSyncState } from "./phasedSyncStateStore";
 import { aiTypingStore } from "./aiTypingStore";
 import { webSocketService } from "../services/websocketService";
+import { chatListCache } from "../services/chatListCache";
+import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 
 // Import core auth state and related flags
 import {
   authStore,
   needsDeviceVerification,
+  deviceVerificationType,
   authInitialState,
 } from "./authState";
 // Import auth types
@@ -410,8 +413,28 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     currentSignupStep.set("basics");
     isResettingTFA.set(false);
     needsDeviceVerification.set(false);
+    deviceVerificationType.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
+
+    // CRITICAL: Clear in-memory chat caches IMMEDIATELY during synchronous logout
+    // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
+    // is destroyed (e.g., sidebar closed on mobile) when logout happens, its authStore subscriber
+    // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
+    chatListCache.clear();
+    chatDB.clearAllChatKeys();
+    console.debug(
+      "[AuthStore] Cleared chatListCache and chatDB.chatKeys during logout",
+    );
+
+    // Clear shared chat keys in the background (async, non-blocking)
+    clearAllSharedChatKeys().catch((e) =>
+      console.warn(
+        "[AuthStore] Failed to clear shared chat keys during logout:",
+        e,
+      ),
+    );
+
     authStore.set({
       ...authInitialState,
       isInitialized: true,
@@ -567,6 +590,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       // Clear all sensitive cryptographic data even during error handling
       cryptoService.clearKeyFromStorage();
       cryptoService.clearAllEmailData();
+      // CRITICAL: Clear in-memory chat caches even during error recovery
+      chatListCache.clear();
+      chatDB.clearAllChatKeys();
+      clearAllSharedChatKeys().catch(() => {});
       // CRITICAL: Clear session_id from sessionStorage for security
       // This ensures session_id is removed even if logout fails
       deleteSessionId();

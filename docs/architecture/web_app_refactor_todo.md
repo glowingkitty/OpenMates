@@ -686,7 +686,7 @@ This document tracks the refactoring of the web app to combine the informative w
 ### 5.1 Domain Routing
 - [ ] Update DNS/hosting configuration
   - [ ] Make `openmates.org` serve the web app
-  - [ ] Remove redirect from `openmates.org` to `app.openmates.org`
+  - [x] Remove redirect from `openmates.org` to `app.openmates.org` (DONE - app.openmates.org retired)
   - [ ] Set up proper SSL certificates
   - [ ] Configure HTTP → HTTPS redirect
 - [ ] Update all internal links
@@ -695,7 +695,7 @@ This document tracks the refactoring of the web app to combine the informative w
   - [ ] Update OAuth redirect URLs
   - [ ] Update email templates with new URLs
 - [ ] Set up redirect rules on old domain
-  - [ ] Redirect `app.openmates.org` → `openmates.org` (301 permanent)
+  - [x] Redirect `app.openmates.org` → `openmates.org` (301 permanent) (DONE - app.openmates.org retired)
   - [ ] Preserve query parameters and hash fragments
   - [ ] Maintain for at least 6 months
 

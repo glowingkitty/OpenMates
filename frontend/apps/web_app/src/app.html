@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" translate="no">
 	<head>
 		<meta charset="utf-8" />
@@ -6,8 +6,105 @@
 		<!-- Our app provides its own translations, so browser translate is not needed -->
 		<meta name="google" content="notranslate" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#171717" />
+
+		<!--
+			Static SEO meta tags: These are always present in the HTML for search engine crawlers.
+			Since this is a client-side SPA (ssr=false, adapter-static), crawlers cannot execute
+			JavaScript to render Svelte components. These hardcoded tags ensure proper indexing.
+			When Svelte mounts, <svelte:head> tags in components will override these dynamically.
+		-->
+		<title>OpenMates</title>
+		<meta
+			name="description"
+			content="Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+		/>
+		<meta
+			name="keywords"
+			content="AI, artificial intelligence, team mates, digital, virtual assistant, automation, productivity, privacy, safety"
+		/>
+		<meta name="author" content="OpenMates Team" />
+		<meta name="robots" content="index, follow" />
+		<link rel="canonical" href="https://openmates.org" />
+
+		<!-- Open Graph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://openmates.org" />
+		<meta property="og:title" content="OpenMates" />
+		<meta
+			property="og:description"
+			content="Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+		/>
+		<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:site_name" content="OpenMates" />
+		<meta property="og:locale" content="en_US" />
+
+		<!-- Twitter -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:url" content="https://openmates.org" />
+		<meta name="twitter:title" content="OpenMates" />
+		<meta
+			name="twitter:description"
+			content="Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+		/>
+		<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
+
+		<!-- hreflang tags for multi-language SEO -->
+		<link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
+		<link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
+		<link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
+		<link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
+		<link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
+		<link rel="alternate" hreflang="pt" href="https://openmates.org/?lang=pt" />
+		<link rel="alternate" hreflang="ru" href="https://openmates.org/?lang=ru" />
+		<link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
+		<link rel="alternate" hreflang="ko" href="https://openmates.org/?lang=ko" />
+		<link rel="alternate" hreflang="it" href="https://openmates.org/?lang=it" />
+		<link rel="alternate" hreflang="tr" href="https://openmates.org/?lang=tr" />
+		<link rel="alternate" hreflang="vi" href="https://openmates.org/?lang=vi" />
+		<link rel="alternate" hreflang="id" href="https://openmates.org/?lang=id" />
+		<link rel="alternate" hreflang="pl" href="https://openmates.org/?lang=pl" />
+		<link rel="alternate" hreflang="nl" href="https://openmates.org/?lang=nl" />
+		<link rel="alternate" hreflang="ar" href="https://openmates.org/?lang=ar" />
+		<link rel="alternate" hreflang="hi" href="https://openmates.org/?lang=hi" />
+		<link rel="alternate" hreflang="th" href="https://openmates.org/?lang=th" />
+		<link rel="alternate" hreflang="cs" href="https://openmates.org/?lang=cs" />
+		<link rel="alternate" hreflang="sv" href="https://openmates.org/?lang=sv" />
+		<link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
+
+		<!-- JSON-LD structured data for rich snippets -->
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "OpenMates",
+				"description": "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
+				"url": "https://openmates.org",
+				"applicationCategory": "Productivity",
+				"operatingSystem": "Web",
+				"author": {
+					"@type": "Organization",
+					"name": "OpenMates Team",
+					"url": "https://openmates.org"
+				},
+				"publisher": {
+					"@type": "Organization",
+					"name": "OpenMates",
+					"url": "https://openmates.org"
+				},
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				}
+			}
+		</script>
+
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->
 		<!-- These ensure Safari always checks for new versions of the app -->
 		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -19,61 +116,129 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<!--
+			SEO-friendly content for crawlers that don't execute JavaScript.
+			This content is visually hidden when JS runs (the app renders in the body div),
+			but visible to crawlers, providing proper page content for indexing instead of
+			the noscript "JavaScript is needed" message which was previously the only
+			text content crawlers could find.
+		-->
+		<div
+			id="seo-fallback"
+			style="
+				position: absolute;
+				left: -9999px;
+				top: -9999px;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+			"
+		>
+			<h1>OpenMates - Your Personalized Digital Team Mates</h1>
+			<p>
+				Your personalized digital team mates can answer complex questions, fulfil your tasks and use
+				apps that can transform your everyday life and work. Built with a focus on privacy and
+				safety.
+			</p>
+			<h2>Features</h2>
+			<ul>
+				<li>AI-powered digital team mates for complex questions</li>
+				<li>Task automation and productivity tools</li>
+				<li>Built-in apps for everyday life and work</li>
+				<li>End-to-end encryption for privacy and safety</li>
+				<li>Available in 20+ languages</li>
+			</ul>
+			<p><a href="https://openmates.org">Get started with OpenMates</a></p>
+		</div>
 		<noscript>
-			<div style="
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background-color: #f8f9fa;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-				text-align: center;
-				padding: 20px;
-				z-index: 9999;
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-			">
-				<div style="
-					max-width: 500px;
-					padding: 40px;
-					background: white;
-					border-radius: 16px;
-					box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-				">
-					<div style="
-						width: 64px;
-						height: 64px;
-						background-color: #FF553B;
-						border-radius: 50%;
-						display: flex;
-						align-items: center;
-						justify-content: center;
-						margin: 0 auto 24px;
-					">
-						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+			<style>
+				#seo-fallback {
+					position: static !important;
+					left: auto !important;
+					top: auto !important;
+					width: auto !important;
+					height: auto !important;
+					overflow: visible !important;
+				}
+			</style>
+			<div
+				style="
+					position: fixed;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					background-color: #f8f9fa;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					text-align: center;
+					padding: 20px;
+					z-index: 9999;
+					font-family:
+						-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+				"
+			>
+				<div
+					style="
+						max-width: 500px;
+						padding: 40px;
+						background: white;
+						border-radius: 16px;
+						box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+					"
+				>
+					<div
+						style="
+							width: 64px;
+							height: 64px;
+							background-color: #ff553b;
+							border-radius: 50%;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+							margin: 0 auto 24px;
+						"
+					>
+						<svg
+							width="32"
+							height="32"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="white"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+							></path>
 							<line x1="12" y1="9" x2="12" y2="13"></line>
 							<line x1="12" y1="17" x2="12.01" y2="17"></line>
 						</svg>
 					</div>
-					<h1 style="font-size: 24px; margin-bottom: 16px; color: #000;">JavaScript is needed</h1>
-					<p style="font-size: 16px; line-height: 1.5; color: #6B6B6B; margin-bottom: 24px;">
-						Our web app relies on JavaScript to provide a secure and interactive experience.
-						Please enable JavaScript in your browser settings or disable any blocking extensions to continue.
+					<h1 style="font-size: 24px; margin-bottom: 16px; color: #000">JavaScript is needed</h1>
+					<p style="font-size: 16px; line-height: 1.5; color: #6b6b6b; margin-bottom: 24px">
+						Our web app relies on JavaScript to provide a secure and interactive experience. Please
+						enable JavaScript in your browser settings or disable any blocking extensions to
+						continue.
 					</p>
-					<a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer" style="
-						display: inline-block;
-						padding: 12px 24px;
-						background-color: #FF553B;
-						color: white;
-						text-decoration: none;
-						border-radius: 8px;
-						font-weight: 600;
-						transition: transform 0.2s ease;
-					">
+					<a
+						href="https://www.enable-javascript.com/"
+						target="_blank"
+						rel="noopener noreferrer"
+						style="
+							display: inline-block;
+							padding: 12px 24px;
+							background-color: #ff553b;
+							color: white;
+							text-decoration: none;
+							border-radius: 8px;
+							font-weight: 600;
+							transition: transform 0.2s ease;
+						"
+					>
 						How to enable JavaScript
 					</a>
 				</div>

@@ -4,6 +4,8 @@ import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
+import { aiTypingStore } from "../stores/aiTypingStore";
+import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import type {
   OfflineChange,
   Message,
@@ -69,6 +71,21 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
   private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
+  // CACHE STATUS RETRY: When server responds with primed=false, the backend triggers
+  // cache re-warming. We poll periodically until primed=true or max retries reached.
+  // This handles reconnection after long disconnects where the primed_flag TTL expired.
+  private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
+  private cacheStatusRetryCount = 0;
+  private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
+  private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
+
+  // DATA INCONSISTENCY RE-SYNC: Batches chat IDs from chatDataInconsistency events
+  // and triggers a single requestChatContentBatch after a short debounce.
+  // This ensures immediate re-sync instead of waiting for the next full sync cycle.
+  private inconsistentChatIds: Set<string> = new Set();
+  private inconsistencyDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly INCONSISTENCY_DEBOUNCE_MS = 500; // Batch inconsistencies detected within 500ms
+
   constructor() {
     super();
     this.registerWebSocketHandlers();
@@ -93,6 +110,34 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Dispatch event for components that need to know when WebSocket is ready
         this.dispatchEvent(new CustomEvent("webSocketConnected"));
+
+        // STREAM INTERRUPTION RECOVERY: If we had active AI streams when the
+        // WebSocket disconnected, the final chunk was likely lost. Clear typing
+        // indicators and notify ActiveChat so it can finalize interrupted messages.
+        // The subsequent phased sync will deliver the persisted version of the message.
+        if (this.activeAITasks.size > 0) {
+          console.warn(
+            `[ChatSyncService] Reconnected with ${this.activeAITasks.size} active AI task(s) - clearing interrupted streams`,
+          );
+          for (const [chatId, taskInfo] of Array.from(
+            this.activeAITasks.entries(),
+          )) {
+            console.info(
+              `[ChatSyncService] Clearing interrupted AI stream for chat ${chatId} (task: ${taskInfo.taskId})`,
+            );
+            aiTypingStore.clearTypingForChat(chatId);
+            this.dispatchEvent(
+              new CustomEvent("aiStreamInterrupted", {
+                detail: {
+                  chatId,
+                  taskId: taskInfo.taskId,
+                  userMessageId: taskInfo.userMessageId,
+                },
+              }),
+            );
+          }
+          this.activeAITasks.clear();
+        }
 
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
@@ -130,6 +175,16 @@ export class ChatSynchronizationService extends EventTarget {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
         }
+
+        // Clear cache status retry polling to prevent stale retries after reconnect
+        this.clearCacheStatusRetry();
+
+        // CRITICAL: Reset phased sync state on disconnect so that when the device
+        // reconnects (especially after a long sleep/offline period), a fresh sync
+        // cycle runs properly. Without this reset, stale flags like initialSyncCompleted,
+        // initialChatLoaded, and userMadeExplicitChoice could persist across reconnections
+        // and prevent Phase 1 auto-selection or skip the sync entirely.
+        phasedSyncState.reset();
 
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
@@ -355,6 +410,17 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("new_system_message", (payload) =>
         module.handleNewSystemMessageImpl(this, payload),
       );
+      // Handle reminder fired events from server (scheduled reminder became due)
+      // The server sends plaintext content; this handler encrypts with chat key and persists
+      webSocketService.on("reminder_fired", (payload) =>
+        module.handleReminderFiredImpl(this, payload),
+      );
+      // Handle pending AI response events (AI completed while user was offline)
+      // Delivered from the pending delivery queue on WebSocket reconnect
+      // Contains plaintext AI response; handler encrypts with chat key and persists
+      webSocketService.on("pending_ai_response", (payload) =>
+        module.handlePendingAIResponseImpl(this, payload),
+      );
     });
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
@@ -479,6 +545,49 @@ export class ChatSynchronizationService extends EventTarget {
           err,
         );
       });
+
+    // DATA INCONSISTENCY RE-SYNC LISTENER
+    // When Phase 2/3 detects that local message count < server message count,
+    // a chatDataInconsistency event is dispatched. Without this listener, the
+    // fix only takes effect on the next full page reload (messages_v is reset
+    // to 0 in IndexedDB, but no immediate re-fetch is triggered).
+    // This listener batches affected chat IDs and triggers an immediate
+    // requestChatContentBatch via WebSocket to fetch the missing messages.
+    this.addEventListener("chatDataInconsistency", ((event: CustomEvent) => {
+      const { chatId } = event.detail as {
+        chatId: string;
+        localCount: number;
+        serverCount: number;
+        phase: string;
+      };
+      console.info(
+        `[ChatSyncService] Queuing immediate re-sync for inconsistent chat ${chatId} (from ${event.detail.phase})`,
+      );
+      this.inconsistentChatIds.add(chatId);
+
+      // Debounce: Phase 2/3 may detect multiple inconsistencies in quick succession
+      // as they iterate through chats. Batch them into a single WebSocket request.
+      if (this.inconsistencyDebounceTimer) {
+        clearTimeout(this.inconsistencyDebounceTimer);
+      }
+      this.inconsistencyDebounceTimer = setTimeout(() => {
+        const chatIds = Array.from(this.inconsistentChatIds);
+        this.inconsistentChatIds.clear();
+        this.inconsistencyDebounceTimer = null;
+
+        if (chatIds.length > 0) {
+          console.info(
+            `[ChatSyncService] Triggering immediate re-sync for ${chatIds.length} inconsistent chat(s): ${chatIds.join(", ")}`,
+          );
+          this.requestChatContentBatch(chatIds).catch((error) => {
+            console.error(
+              "[ChatSyncService] Failed to request re-sync for inconsistent chats:",
+              error,
+            );
+          });
+        }
+      }, this.INCONSISTENCY_DEBOUNCE_MS);
+    }) as EventListener);
   }
 
   // --- Getters/Setters for handlers ---
@@ -493,6 +602,10 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public set cachePrimed_FOR_HANDLERS_ONLY(value: boolean) {
     this.cachePrimed = value;
+    // When cache becomes primed, clear any pending retry polling
+    if (value) {
+      this.clearCacheStatusRetry();
+    }
   }
   public get initialSyncAttempted_FOR_HANDLERS_ONLY(): boolean {
     return this.initialSyncAttempted;
@@ -508,6 +621,64 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public get webSocketConnected_FOR_SENDERS_ONLY(): boolean {
     return this.webSocketConnected;
+  }
+
+  // --- Cache Status Retry ---
+
+  /**
+   * Schedule a retry of the cache status request.
+   * Called by the cache_status_response handler when primed=false.
+   * The backend triggers cache re-warming when it detects primed=false, so we just
+   * need to poll until the warming completes and primed becomes true.
+   */
+  public scheduleCacheStatusRetry_FOR_HANDLERS_ONLY(): void {
+    // Don't retry if already primed or max retries reached
+    if (this.cachePrimed) {
+      this.clearCacheStatusRetry();
+      return;
+    }
+
+    if (this.cacheStatusRetryCount >= this.CACHE_STATUS_MAX_RETRIES) {
+      console.warn(
+        `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}). ` +
+          `Cache never became primed. Dispatching synthetic sync complete to unblock UI.`,
+      );
+      this.clearCacheStatusRetry();
+      // Unblock the UI rather than leaving it stuck on "Loading chats..." forever.
+      // The user can manually refresh if needed.
+      this.dispatchSyncTimeoutComplete("timeout");
+      return;
+    }
+
+    // Don't schedule if one is already pending
+    if (this.cacheStatusRetryTimer) return;
+
+    this.cacheStatusRetryCount++;
+    console.info(
+      `[ChatSyncService] Scheduling cache status retry ${this.cacheStatusRetryCount}/${this.CACHE_STATUS_MAX_RETRIES} ` +
+        `in ${this.CACHE_STATUS_RETRY_INTERVAL_MS}ms`,
+    );
+
+    this.cacheStatusRetryTimer = setTimeout(() => {
+      this.cacheStatusRetryTimer = null;
+      if (this.cachePrimed || !this.webSocketConnected) {
+        // Already primed or disconnected — no need to retry
+        return;
+      }
+      this.requestCacheStatus();
+    }, this.CACHE_STATUS_RETRY_INTERVAL_MS);
+  }
+
+  /**
+   * Clear any pending cache status retry timer and reset the counter.
+   * Called on disconnect, on successful priming, and when max retries reached.
+   */
+  private clearCacheStatusRetry(): void {
+    if (this.cacheStatusRetryTimer) {
+      clearTimeout(this.cacheStatusRetryTimer);
+      this.cacheStatusRetryTimer = null;
+    }
+    this.cacheStatusRetryCount = 0;
   }
 
   // --- Syncing Message IDs Tracking ---

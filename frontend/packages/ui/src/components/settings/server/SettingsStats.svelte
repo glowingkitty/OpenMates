@@ -49,6 +49,7 @@
     let dailyHistory = $state<StatsRecord[]>([]);
     let monthlyHistory = $state<StatsRecord[]>([]);
     let currentStats = $state<Partial<StatsRecord>>({});
+    let newsletterSubscribersCount = $state(0);
     
     // Active chart metric for daily view
     let activeMetric = $state<'messages' | 'credits_used' | 'users' | 'income'>('messages');
@@ -90,6 +91,7 @@
 
             const data = await response.json();
             currentStats = data.current || {};
+            newsletterSubscribersCount = data.newsletter_subscribers_count || 0;
             
             // Filter out invalid dates (before 2020) from history
             const minYear = 2020;
@@ -487,6 +489,10 @@
                 <span class="metric-label">{$text('settings.server_stats.total_liability.text')}</span>
                 <span class="metric-value">{formatLiabilityInEur(currentStats.liability_total || 0)}</span>
             </div>
+            <div class="metric-card">
+                <span class="metric-label">{$text('settings.server_stats.newsletter_subscribers.text')}</span>
+                <span class="metric-value">{formatNumber(newsletterSubscribersCount)}</span>
+            </div>
         </div>
 
         <!-- Today's Activity Summary -->
@@ -770,7 +776,7 @@
 
     .metrics-row {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
         margin-bottom: 1.5rem;
     }

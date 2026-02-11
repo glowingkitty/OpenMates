@@ -33,7 +33,7 @@
     "update:translations": "node scripts/update-yaml-files.js",
     "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
     "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
-    "build": "echo 'Build complete - translations and metadata generated in prebuild'"
+    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
@@ -64,6 +64,8 @@
     "dompurify": "^3.3.0",
     "highlight.js": "^11.11.1",
     "highlightjs-svelte": "^1.0.6",
+    "html-docx-js-typescript": "0.1.5",
+    "jspdf": "^4.1.0",
     "jszip": "^3.10.1",
     "katex": "^0.16.22",
     "leaflet": "^1.9.4",

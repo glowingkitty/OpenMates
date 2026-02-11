@@ -34,6 +34,10 @@ class AppSkillDefinition(BaseModel):
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original")
     exclude_fields_for_llm: Optional[List[str]] = Field(default=None, description="List of field paths to exclude from LLM inference. Full data is kept in chat history for UI rendering.")
+    # Brief LLM-facing hint for the preprocessor describing when to select this skill.
+    # Included alongside the skill identifier in the preprocessing prompt so the LLM can
+    # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
+    preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""
@@ -52,6 +56,29 @@ class AppMemoryFieldDefinition(BaseModel):
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
     stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+
+    @model_validator(mode='after')
+    def inject_added_date(self):
+        """
+        Automatically injects 'added_date' into every settings/memories schema.
+        
+        added_date is a universal field that records when a user created an entry.
+        It's auto_generated (hidden from UI forms, auto-populated by the client)
+        and converted to human-readable format before being included in LLM prompts.
+        
+        This removes the need to define added_date in every app.yml file,
+        preventing misconfiguration (e.g., forgetting auto_generated: true).
+        """
+        if self.schema_definition is not None:
+            properties = self.schema_definition.get("properties", {})
+            if "added_date" not in properties:
+                properties["added_date"] = {
+                    "type": "integer",
+                    "description": "Unix timestamp when added",
+                    "auto_generated": True
+                }
+                self.schema_definition["properties"] = properties
+        return self
 
 
 class AppInstructionDefinition(BaseModel):

@@ -22,6 +22,7 @@
         checked = false,
         disabled = false,
         onClick = undefined,
+        onModifyClick = undefined,
         hasNestedItems = false,
         iconType = 'default',
         category = undefined,
@@ -44,6 +45,7 @@
         checked?: boolean;
         disabled?: boolean;
         onClick?: (() => void) | undefined;
+        onModifyClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
         iconType?: 'default' | 'app' | 'category';
         category?: string | undefined;
@@ -88,8 +90,10 @@
         // Prevent event bubbling to avoid closing parent menus
         event.stopPropagation();
         
-        // Handle modify button click
-        console.log('Modify button clicked');
+        // Call the onModifyClick handler if provided
+        if (onModifyClick) {
+            onModifyClick();
+        }
     }
 
     function handleKeydown(event: KeyboardEvent, handler: () => void) {
@@ -243,9 +247,17 @@
                 </div>
             {/if}
             
-            <!-- Modify button if enabled -->
-            {#if hasModifyButton || type === 'subsubmenu'}
-                <ModifyButton />
+            <!-- Modify button if explicitly enabled -->
+            {#if hasModifyButton}
+                <div
+                    onclick={handleModifyClick}
+                    onkeydown={(e) => handleKeydown(e, () => handleModifyClick(e))}
+                    role="button"
+                    tabindex="0"
+                    class="modify-button-container"
+                >
+                    <ModifyButton />
+                </div>
             {/if}
         </div>
     </div>
@@ -371,9 +383,17 @@
                 </div>
             {/if}
             
-            <!-- Modify button if enabled -->
-            {#if hasModifyButton || type === 'subsubmenu'}
-                <ModifyButton />
+            <!-- Modify button if explicitly enabled -->
+            {#if hasModifyButton}
+                <div
+                    onclick={handleModifyClick}
+                    onkeydown={(e) => handleKeydown(e, () => handleModifyClick(e))}
+                    role="button"
+                    tabindex="0"
+                    class="modify-button-container"
+                >
+                    <ModifyButton />
+                </div>
             {/if}
         </div>
     </div>
@@ -581,6 +601,12 @@
     .toggle-container:focus {
         outline: 2px solid var(--color-primary);
         outline-offset: 2px;
+    }
+
+    .modify-button-container {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
     }
 
     /* Responsive adjustments */

@@ -287,3 +287,20 @@ class BaseServiceTask(Task):
                 self._directus_service = None
             except Exception as e:
                 logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")
+        
+        # Close CacheService's Redis client
+        # CRITICAL: The async Redis client is bound to a specific event loop.
+        # If not closed before asyncio.run() finishes, subsequent tasks will fail with
+        # "Event loop is closed" errors because the cached client references a closed loop.
+        if self._cache_service is not None and hasattr(self._cache_service, 'close'):
+            try:
+                await self._cache_service.close()
+                logger.debug(f"CacheService Redis client closed for task {self.request.id}")
+                # Reset the reference so future tasks create a fresh client bound to their event loop
+                self._cache_service = None
+            except Exception as e:
+                logger.warning(f"Error closing CacheService in task {self.request.id}: {e}")
+        
+        # Also reset encryption service since it may hold a reference to the cache service
+        if self._encryption_service is not None:
+            self._encryption_service = None

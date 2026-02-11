@@ -232,6 +232,11 @@ directus_users:
       note: "User's notification preferences: { newMessages: boolean, serverEvents: boolean, softwareUpdates: boolean }"
       default: '{"newMessages": true, "serverEvents": true, "softwareUpdates": false}'
 
+    push_notification_banner_shown:
+      type: boolean
+      default: false
+      note: "Whether the push notification permission banner has been shown to this user. Once true, the banner won't appear again."
+
     # Payment tier system fields
     payment_tier:
       type: integer
@@ -275,3 +280,20 @@ directus_users:
       length: 256
       nullable: true
       note: "ISO timestamp of when the user consented to the withdrawal waiver (agreed to immediate execution of digital services, acknowledging that withdrawal right expires once credits are used). Required for EU/German consumer law compliance."
+
+    # Email notification fields
+    email_notifications_enabled:
+      type: boolean
+      default: false
+      note: "Whether the user has enabled email notifications for AI responses when offline"
+
+    encrypted_notification_email:
+      type: string
+      length: 512
+      nullable: true
+      note: "Server-encrypted email address for notifications (encrypted with user's vault key). Separate from login email to allow different notification addresses."
+
+    email_notification_preferences:
+      type: json
+      note: "User's email notification preferences: { aiResponses: boolean }. Controls which events trigger email notifications."
+      default: '{"aiResponses": true}'

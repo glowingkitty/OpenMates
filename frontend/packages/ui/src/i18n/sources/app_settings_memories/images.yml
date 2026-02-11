@@ -48,3 +48,81 @@ preferred_styles.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+preferred_styles.example_1:
+  context: Example entry for preferred image styles (an art style)
+  en: Watercolor
+  de: Aquarell
+  zh: 水彩
+  es: Acuarela
+  fr: Aquarelle
+  pt: Aquarela
+  ru: Акварель
+  ja: 水彩画
+  ko: 수채화
+  it: Acquerello
+  tr: Suluboya
+  vi: Màu nước
+  id: Cat air
+  pl: Akwarela
+  nl: Aquarel
+  ar: ألوان مائية
+  hi: जलरंग
+  th: สีน้ำ
+  cs: Akvarel
+  sv: Akvarell
+  verified_by_human:
+    - en
+    - de
+preferred_styles.example_2:
+  context: Example entry for preferred image styles (a design style)
+  en: Minimalist
+  de: Minimalistisch
+  zh: 极简
+  es: Minimalista
+  fr: Minimaliste
+  pt: Minimalista
+  ru: Минимализм
+  ja: ミニマリスト
+  ko: 미니멀리스트
+  it: Minimalista
+  tr: Minimalist
+  vi: Tối giản
+  id: Minimalis
+  pl: Minimalistyczny
+  nl: Minimalistisch
+  ar: بسيط
+  hi: न्यूनतावादी
+  th: มินิมอล
+  cs: Minimalistický
+  sv: Minimalistisk
+  verified_by_human:
+    - en
+    - de
+preferred_styles.example_3:
+  context: Example entry for preferred image styles (a visual aesthetic)
+  en: Cyberpunk
+  de: Cyberpunk
+  zh: 赛博朋克
+  es: Cyberpunk
+  fr: Cyberpunk
+  pt: Cyberpunk
+  ru: Киберпанк
+  ja: サイバーパンク
+  ko: 사이버펑크
+  it: Cyberpunk
+  tr: Cyberpunk
+  vi: Cyberpunk
+  id: Cyberpunk
+  pl: Cyberpunk
+  nl: Cyberpunk
+  ar: سايبربانك
+  hi: साइबरपंक
+  th: ไซเบอร์พังค์
+  cs: Cyberpunk
+  sv: Cyberpunk
+  verified_by_human:
+    - en
+    - de

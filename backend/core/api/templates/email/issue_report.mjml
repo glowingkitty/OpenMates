@@ -24,6 +24,12 @@
           <mj-text font-size="30px" padding-bottom="30px">
             <mark>{{ t.email.issue_report.header.text }}</mark>
           </mj-text>
+          {% if issue_id %}
+          <mj-text font-size="14px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report.issue_id_label.text }}:</strong><br/>
+            <code style="font-family: monospace; {% if darkmode %}background-color: #3a3a4a; color: #e6e6e6;{% else %}background-color: #f5f5f5; color: #333333;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 14px; letter-spacing: 0.3px;">{{ issue_id }}</code>
+          </mj-text>
+          {% endif %}
           <mj-text font-size="16px" padding-bottom="20px">
             <strong>{{ t.email.issue_report.title_label.text }}:</strong><br/>
             {{ issue_title }}

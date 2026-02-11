@@ -28,6 +28,7 @@
     import { userDB } from '../../../services/userDB';
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
+    // PII detection service is dynamically imported where needed (restorePIIInText in community share)
     
     // Define interface for embed context to avoid 'any'
     interface EmbedContext {
@@ -55,6 +56,8 @@
     import VideoEmbedPreview from '../../embeds/videos/VideoEmbedPreview.svelte';
     import CodeEmbedPreview from '../../embeds/code/CodeEmbedPreview.svelte';
     import ReminderEmbedPreview from '../../embeds/reminder/ReminderEmbedPreview.svelte';
+    import TravelSearchEmbedPreview from '../../embeds/travel/TravelSearchEmbedPreview.svelte';
+    import TravelPriceCalendarEmbedPreview from '../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -94,6 +97,13 @@
 
     // Share with Community state - only for chats, not embeds
     let shareWithCommunity = $state(false);
+
+    // Include sensitive data state - when false (default), PII is stripped from shared content.
+    // Users must explicitly opt-in to include their personal information in shared chats.
+    let includeSensitiveData = $state(false);
+
+    // Whether the current chat has any PII mappings (used to conditionally show the sensitive data toggle)
+    let chatHasPII = $state(false);
 
     // Generated share link state
     let generatedLink = $state('');
@@ -274,6 +284,33 @@
                         filename: decodedContent.filename || embedContext?.filename,
                         lineCount: decodedContent.lineCount || embedContext?.lineCount || 0,
                         status,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'travel' && (skillId === 'search_connections' || skillId === 'search-connections')) {
+                // Travel search connections embed
+                return {
+                    component: TravelSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Google',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'travel' && (skillId === 'price_calendar' || skillId === 'price-calendar')) {
+                // Travel price calendar embed
+                return {
+                    component: TravelPriceCalendarEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        status: status,
+                        results: decodedContent.results || [],
                         isMobile: false,
                         onFullscreen: () => {}
                     }
@@ -525,8 +562,9 @@
                 if ($authStore.isAuthenticated) {
                     await markEmbedAsShared(embedContext.embed_id);
                     
-                    // Update server to mark embed as shared (set is_private=false, is_shared=true)
-                    await updateEmbedShareMetadata(embedContext.embed_id, true);
+                    // Queue server update to mark embed as shared (set is_private=false, is_shared=true)
+                    // Uses retry queue for reliability - if the request fails, it will be retried
+                    await shareMetadataQueue.queueEmbedShareUpdate(embedContext.embed_id, true);
                 }
                 
                 console.debug('[SettingsShare] Encrypted embed share link generated:', generatedLink);
@@ -777,6 +815,32 @@
             }, 150);
         }
     });
+
+    // Check whether the current chat contains PII mappings
+    // This determines if we show the "Include sensitive data" toggle
+    $effect(() => {
+        const chatId = currentChatId;
+        if (!chatId || isEmbedSharing) {
+            chatHasPII = false;
+            return;
+        }
+        // Async check - load messages and see if any have pii_mappings
+        (async () => {
+            try {
+                const { chatDB } = await import('../../../services/db');
+                const { getMessagesForChat } = await import('../../../services/db/messageOperations');
+                const messages = await getMessagesForChat(chatDB as any, chatId);
+                if (messages && messages.length > 0) {
+                    chatHasPII = messages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
+                } else {
+                    chatHasPII = false;
+                }
+            } catch (error) {
+                console.error('[SettingsShare] Error checking chat PII:', error);
+                chatHasPII = false;
+            }
+        })();
+    });
     
     // Also check on mount in case the chatId is already set
     // Only initialize if we don't already have a shared chat (to maintain stability)
@@ -906,48 +970,6 @@
     }
     
     /**
-     * Update embed share metadata on server
-     * Sets is_private and is_shared on the server
-     */
-    async function updateEmbedShareMetadata(embedId: string, isShared: boolean) {
-        if (!embedId || !$authStore.isAuthenticated) return;
-        
-        try {
-            const { getApiEndpoint } = await import('../../../config/api');
-            
-            const response = await fetch(getApiEndpoint('/v1/share/embed/metadata'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({
-                    embed_id: embedId,
-                    is_shared: isShared  // Mark embed as shared on server (sets is_private=false, is_shared=true)
-                }),
-                credentials: 'include' // Include cookies for authentication
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                console.warn('[SettingsShare] Failed to update embed share metadata:', errorData);
-                return;
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                console.debug('[SettingsShare] Successfully updated embed share metadata:', embedId);
-            } else {
-                console.warn('[SettingsShare] Embed share metadata update returned success=false:', data);
-            }
-        } catch (error) {
-            console.error('[SettingsShare] Error updating embed share metadata:', error);
-            // Don't block link generation if metadata update fails
-        }
-    }
-    
-    /**
      * Queue OG metadata update to server
      * This updates the server with title and summary for social media previews
      * If offline, the request is queued and retried when connection is restored
@@ -1048,16 +1070,37 @@
                     const { computeSHA256 } = await import('../../../message_parsing/utils');
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
+                    // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {
-                        decryptedMessages = messages.map(msg => ({
-                            role: msg.role,
-                            content: msg.content || '', // TipTap JSON string
-                            category: msg.category, // Include category (already decrypted by getMessagesForChat)
-                            model_name: msg.model_name, // Include model name for assistant messages
-                            created_at: msg.created_at
-                        }));
-                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing`);
+                        // Build cumulative PII mappings from user messages for restoration
+                        const allPIIMappings: import('../../../types/chat').PIIMapping[] = [];
+                        for (const msg of messages) {
+                            if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+                                allPIIMappings.push(...msg.pii_mappings);
+                            }
+                        }
+
+                        // Import restorePIIInText for when user opts to include sensitive data
+                        const { restorePIIInText } = await import('../../../components/enter_message/services/piiDetectionService');
+
+                        decryptedMessages = messages.map(msg => {
+                            let content = msg.content || '';
+                            // Content from DB has PLACEHOLDERS. When includeSensitiveData is ON,
+                            // restore originals so the shared content shows actual personal data.
+                            // When OFF (default), content keeps placeholders — no action needed.
+                            if (includeSensitiveData && allPIIMappings.length > 0 && typeof content === 'string') {
+                                content = restorePIIInText(content, allPIIMappings);
+                            }
+                            return {
+                                role: msg.role,
+                                content, // Content with placeholders (default) or originals (if includeSensitiveData)
+                                category: msg.category,
+                                model_name: msg.model_name,
+                                created_at: msg.created_at
+                            };
+                        });
+                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing (includeSensitiveData: ${includeSensitiveData})`);
                     }
                     
                     // Get all embeds for this chat
@@ -1572,6 +1615,33 @@
                 {/if}
             {/if}
 
+            <!-- Include Sensitive Data Toggle (only shown when chat has PII) -->
+            {#if chatHasPII && !isEmbedSharing}
+                <div class="option-row">
+                    <div class="option-label">
+                        <div class="icon settings_size {includeSensitiveData ? 'icon_visible' : 'icon_hidden'}"></div>
+                        <span>{$text('settings.share.include_sensitive_data.text', { default: 'Include sensitive data' })}</span>
+                    </div>
+                    <Toggle
+                        bind:checked={includeSensitiveData}
+                        name="include-sensitive-data"
+                        ariaLabel="Toggle include sensitive data"
+                    />
+                </div>
+
+                <!-- Sensitive Data Warning (shown when toggle is ON) -->
+                {#if includeSensitiveData}
+                    <div class="community-info warning" transition:slide={{ duration: 200, easing: cubicOut }}>
+                        <div class="info-icon">&#9888;&#65039;</div>
+                        <p>
+                            {$text('settings.share.include_sensitive_data_warning.text', { 
+                                default: 'Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients.' 
+                            })}
+                        </p>
+                    </div>
+                {/if}
+            {/if}
+
             <!-- Password Protection Toggle -->
             <div class="option-row" class:disabled={isPasswordDisabled}>
                 <div class="option-label">
@@ -2044,6 +2114,11 @@
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
+    }
+
+    .community-info.warning {
+        background-color: rgba(250, 204, 21, 0.1);
+        border-color: rgba(250, 204, 21, 0.3);
     }
     
     /* Back to configuration button */

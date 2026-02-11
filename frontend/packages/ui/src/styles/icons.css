@@ -518,6 +518,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/billing.svg");
 }
 
+.clickable-icon.icon_coins {
+  -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
+  mask-image: url("@openmates/ui/static/icons/coins.svg");
+}
+
 .clickable-icon.icon_calendar {
   -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
   mask-image: url("@openmates/ui/static/icons/calendar.svg");
@@ -752,10 +757,24 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.travel {
+  background: var(--color-app-travel);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/travel.svg");
+  }
+}
+
 .icon_rounded.book {
   background: var(--color-app-books);
   &::after {
     background-image: url("@openmates/ui/static/icons/book.svg");
+  }
+}
+
+.icon_rounded.docs {
+  background: var(--color-app-docs);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/docs.svg");
   }
 }
 
@@ -789,6 +808,22 @@ div.clickable-icon {
   background: var(--color-grey-50, #8e8e93);
   &::after {
     background-image: url("@openmates/ui/static/icons/visible.svg");
+  }
+}
+
+.icon_rounded.images {
+  /* Image app embed preview icon - matches the Images app store card icon */
+  background: var(--color-app-images);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/image.svg");
+  }
+}
+
+.icon_rounded.chat {
+  /* Chat embed preview icon - uses primary blue gradient matching --color-app-chat */
+  background: var(--color-app-chat);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/chat.svg");
   }
 }
 

@@ -22,7 +22,7 @@ login:
   sv: Logga in
   verified_by_human: []
 to_chat_to_your:
-  context: '''Login to chat to your digital team mates'
+  context: "'Login to chat to your digital team mates"
   en: To chat to your
   de: Zum chatten mit deinen
   zh: 与您的
@@ -45,7 +45,7 @@ to_chat_to_your:
   sv: För att chatta med dina
   verified_by_human: []
 digital_team_mates:
-  context: '''Login to chat to your digital team mates'
+  context: "'Login to chat to your digital team mates"
   en: digital team mates
   de: digitalen Kollegen
   zh: 数字团队伙伴聊天
@@ -138,209 +138,255 @@ demo:
   verified_by_human: []
 session_expired:
   context: Message shown when the session has expired
-  en: 'Your session expired.
+  en: "Your session expired.
 
     You have been logged out.
 
-    '
-  de: 'Deine Sitzung ist abgelaufen.
+    "
+  de: "Deine Sitzung ist abgelaufen.
 
     Du wurdest ausgeloggt.
 
-    '
-  zh: '您的会话已过期。
+    "
+  zh: "您的会话已过期。
 
     您已被注销。
 
-    '
-  es: 'Tu sesión ha expirado.
+    "
+  es: "Tu sesión ha expirado.
 
     Has sido desconectado.
 
-    '
-  fr: 'Votre session a expiré.
+    "
+  fr: "Votre session a expiré.
 
     Vous avez été déconnecté.
 
-    '
-  pt: 'Sua sessão expirou.
+    "
+  pt: "Sua sessão expirou.
 
     Você foi desconectado.
 
-    '
-  ru: 'Ваша сессия истекла.
+    "
+  ru: "Ваша сессия истекла.
 
     Вы были выйдены из системы.
 
-    '
-  ja: 'あなたのセッションは期限切れです。
+    "
+  ja: "あなたのセッションは期限切れです。
 
     ログアウトしました。
 
-    '
-  ko: '세션이 만료되었습니다.
+    "
+  ko: "세션이 만료되었습니다.
 
     로그아웃되었습니다.
 
-    '
-  it: 'La tua sessione è scaduta.
+    "
+  it: "La tua sessione è scaduta.
 
     Sei stato disconnesso.
 
-    '
-  tr: 'Oturumunuzun süresi doldu.
+    "
+  tr: "Oturumunuzun süresi doldu.
 
     Oturumunuz kapatıldı.
 
-    '
-  vi: 'Phiên của bạn đã hết hạn.
+    "
+  vi: "Phiên của bạn đã hết hạn.
 
     Bạn đã bị đăng xuất.
 
-    '
-  id: 'Sesi Anda telah berakhir.
+    "
+  id: "Sesi Anda telah berakhir.
 
     Anda telah keluar.
 
-    '
-  pl: 'Twoja sesja wygasła.
+    "
+  pl: "Twoja sesja wygasła.
 
     Zostałeś wylogowany.
 
-    '
-  nl: 'Uw sessie is verlopen.
+    "
+  nl: "Uw sessie is verlopen.
 
     U bent uitgelogd.
 
-    '
-  ar: 'انتهت جلستك.
+    "
+  ar: "انتهت جلستك.
 
     تم تسجيل خروجك.
 
-    '
-  hi: 'आपका सत्र समाप्त हो गया है।
+    "
+  hi: "आपका सत्र समाप्त हो गया है।
 
     आपको लॉग आउट कर दिया गया है।
 
-    '
-  th: 'เซสชันของคุณหมดอายุแล้ว
+    "
+  th: "เซสชันของคุณหมดอายุแล้ว
 
     คุณถูกออกจากระบบแล้ว
 
-    '
-  cs: 'Vaše relace vypršela.
+    "
+  cs: "Vaše relace vypršela.
 
     Byli jste odhlášeni.
 
-    '
-  sv: 'Din session har gått ut.
+    "
+  sv: "Din session har gått ut.
 
     Du har loggats ut.
 
-    '
+    "
+  verified_by_human: []
+auto_logout_notification.title:
+  context: Title for the auto-logout notification when user is logged out due to page reload without 'stay logged in' enabled
+  en: You have been logged out
+  de: Du wurdest ausgeloggt
+  zh: 您已被注销
+  es: Has sido desconectado
+  fr: Vous avez été déconnecté
+  pt: Você foi desconectado
+  ru: Вы были выйдены из системы
+  ja: ログアウトしました
+  ko: 로그아웃되었습니다
+  it: Sei stato disconnesso
+  tr: Oturumunuz kapatıldı
+  vi: Bạn đã bị đăng xuất
+  id: Anda telah keluar
+  pl: Zostałeś wylogowany
+  nl: U bent uitgelogd
+  ar: تم تسجيل خروجك
+  hi: आपको लॉग आउट कर दिया गया है
+  th: คุณถูกออกจากระบบแล้ว
+  cs: Byli jste odhlášeni
+  sv: Du har loggats ut
+  verified_by_human: []
+auto_logout_notification.message:
+  context: Primary message explaining why auto-logout happened and what to do
+  en: Enable "Stay logged in" during login to prevent this.
+  de: Aktiviere "Angemeldet bleiben" beim Login, um dies zu verhindern.
+  zh: 登录时启用"保持登录状态"可防止此情况。
+  es: Activa "Mantener sesión iniciada" durante el inicio de sesión para evitar esto.
+  fr: Activez "Rester connecté" lors de la connexion pour éviter cela.
+  pt: Ative "Manter conectado" durante o login para evitar isso.
+  ru: Включите "Оставаться в системе" при входе, чтобы предотвратить это.
+  ja: これを防ぐには、ログイン時に「ログインしたままにする」を有効にしてください。
+  ko: 이를 방지하려면 로그인 시 "로그인 상태 유지"를 활성화하세요.
+  it: Attiva "Resta connesso" durante il login per evitare questo.
+  tr: Bunu önlemek için giriş sırasında "Oturum açık kalsın" seçeneğini etkinleştirin.
+  vi: Bật "Giữ đăng nhập" khi đăng nhập để tránh điều này.
+  id: Aktifkan "Tetap masuk" saat login untuk mencegah hal ini.
+  pl: Włącz "Pozostań zalogowany" podczas logowania, aby temu zapobiec.
+  nl: Schakel "Ingelogd blijven" in tijdens het inloggen om dit te voorkomen.
+  ar: قم بتفعيل "البقاء متصلاً" أثناء تسجيل الدخول لمنع ذلك.
+  hi: इसे रोकने के लिए लॉगिन के दौरान "लॉग इन रहें" सक्षम करें।
+  th: เปิดใช้งาน "เข้าสู่ระบบค้างไว้" ขณะเข้าสู่ระบบเพื่อป้องกันปัญหานี้
+  cs: Aktivujte "Zůstat přihlášen" při přihlašování, abyste tomu zabránili.
+  sv: Aktivera "Förbli inloggad" vid inloggning för att förhindra detta.
   verified_by_human: []
 stay_logged_in:
   context: Checkbox text for staying logged in
-  en: 'Stay logged in on this device
+  en: "Stay logged in on this device
 
     (do not use on shared computers)
 
-    '
-  de: 'Auf diesem Gerät angemeldet bleiben
+    "
+  de: "Auf diesem Gerät angemeldet bleiben
 
     (nicht auf gemeinsam genutzten Computern verwenden)
 
-    '
-  zh: '在此设备上保持登录状态
+    "
+  zh: "在此设备上保持登录状态
 
     (不要在共享计算机上使用)
 
-    '
-  es: 'Mantenerse conectado en este dispositivo
+    "
+  es: "Mantenerse conectado en este dispositivo
 
     (no usar en computadoras compartidas)
 
-    '
-  fr: 'Rester connecté sur cet appareil
+    "
+  fr: "Rester connecté sur cet appareil
 
     (ne pas utiliser sur des ordinateurs partagés)
 
-    '
-  pt: 'Permanecer conectado neste dispositivo
+    "
+  pt: "Permanecer conectado neste dispositivo
 
     (não usar em computadores compartilhados)
 
-    '
-  ru: 'Оставаться в системе на этом устройстве
+    "
+  ru: "Оставаться в системе на этом устройстве
 
     (не использовать на общих компьютерах)
 
-    '
-  ja: 'このデバイスにログインしたままにする
+    "
+  ja: "このデバイスにログインしたままにする
 
     (共有コンピューターでは使用しないでください)
 
-    '
-  ko: '이 기기에서 로그인 상태 유지
+    "
+  ko: "이 기기에서 로그인 상태 유지
 
     (공유 컴퓨터에서는 사용하지 마세요)
 
-    '
-  it: 'Resta connesso su questo dispositivo
+    "
+  it: "Resta connesso su questo dispositivo
 
     (non usare su computer condivisi)
 
-    '
-  tr: 'Bu cihazda oturum açık kalsın
+    "
+  tr: "Bu cihazda oturum açık kalsın
 
     (paylaşılan bilgisayarlarda kullanmayın)
 
-    '
-  vi: 'Giữ đăng nhập trên thiết bị này
+    "
+  vi: "Giữ đăng nhập trên thiết bị này
 
     (không sử dụng trên máy tính dùng chung)
 
-    '
-  id: 'Tetap masuk di perangkat ini
+    "
+  id: "Tetap masuk di perangkat ini
 
     (jangan gunakan di komputer bersama)
 
-    '
-  pl: 'Pozostań zalogowany na tym urządzeniu
+    "
+  pl: "Pozostań zalogowany na tym urządzeniu
 
     (nie używaj na współdzielonych komputerach)
 
-    '
-  nl: 'Ingelogd blijven op dit apparaat
+    "
+  nl: "Ingelogd blijven op dit apparaat
 
     (niet gebruiken op gedeelde computers)
 
-    '
-  ar: 'البقاء متصلاً على هذا الجهاز
+    "
+  ar: "البقاء متصلاً على هذا الجهاز
 
     (لا تستخدم على أجهزة الكمبيوتر المشتركة)
 
-    '
-  hi: 'इस डिवाइस पर लॉग इन रहें
+    "
+  hi: "इस डिवाइस पर लॉग इन रहें
 
     (साझा कंप्यूटर पर उपयोग न करें)
 
-    '
-  th: 'เข้าสู่ระบบค้างไว้บนอุปกรณ์นี้
+    "
+  th: "เข้าสู่ระบบค้างไว้บนอุปกรณ์นี้
 
     (อย่าใช้ในคอมพิวเตอร์ที่ใช้ร่วมกัน)
 
-    '
-  cs: 'Zůstat přihlášen na tomto zařízení
+    "
+  cs: "Zůstat přihlášen na tomto zařízení
 
     (nepoužívejte na sdílených počítačích)
 
-    '
-  sv: 'Förbli inloggad på denna enhet
+    "
+  sv: "Förbli inloggad på denna enhet
 
     (använd inte på delade datorer)
 
-    '
+    "
   verified_by_human: []
 email_placeholder:
   context: Placeholder text for email input field
@@ -421,15 +467,15 @@ check_your_2fa_app:
   pt: Verifique {tfa_app}
   ru: Проверьте {tfa_app}
   ja: 2FAアプリを確認してください
-  ko: '{tfa_app} 확인'
+  ko: "{tfa_app} 확인"
   it: Controlla {tfa_app}
-  tr: '{tfa_app} uygulamanızı kontrol edin'
+  tr: "{tfa_app} uygulamanızı kontrol edin"
   vi: Kiểm tra {tfa_app}
   id: Periksa {tfa_app}
   pl: Sprawdź {tfa_app}
   nl: Controleer {tfa_app}
   ar: تحقق من {tfa_app}
-  hi: '{tfa_app} जांचें'
+  hi: "{tfa_app} जांचें"
   th: ตรวจสอบ {tfa_app}
   cs: Zkontrolujte {tfa_app}
   sv: Kontrollera {tfa_app}
@@ -456,6 +502,75 @@ your_tfa_app:
   th: แอป 2FA ของคุณ
   cs: vaše aplikace 2FA
   sv: din 2FA-app
+  verified_by_human: []
+verify_device_passkey_prompt:
+  context: Text shown when user needs to verify their identity with a passkey on a new device
+  en: Verify your identity with your passkey to continue on this device.
+  de: Bestaetige deine Identitaet mit deinem Passkey, um auf diesem Geraet fortzufahren.
+  zh: 使用您的通行密钥验证身份以在此设备上继续。
+  es: Verifica tu identidad con tu clave de acceso para continuar en este dispositivo.
+  fr: Verifiez votre identite avec votre cle d'acces pour continuer sur cet appareil.
+  pt: Verifique sua identidade com sua chave de acesso para continuar neste dispositivo.
+  ru: Подтвердите свою личность с помощью ключа доступа, чтобы продолжить на этом устройстве.
+  ja: このデバイスで続行するには、パスキーで本人確認を行ってください。
+  ko: 이 기기에서 계속하려면 패스키로 본인 확인을 하세요.
+  it: Verifica la tua identita con la tua passkey per continuare su questo dispositivo.
+  tr: Bu cihazda devam etmek icin geçiş anahtarınızla kimliğinizi doğrulayın.
+  vi: Xac minh danh tinh cua ban bang passkey de tiep tuc tren thiet bi nay.
+  id: Verifikasi identitas Anda dengan passkey untuk melanjutkan di perangkat ini.
+  pl: Zweryfikuj swoja tozsamosc za pomoca klucza dostepu, aby kontynuowac na tym urzadzeniu.
+  nl: Verifieer uw identiteit met uw passkey om door te gaan op dit apparaat.
+  ar: تحقق من هويتك باستخدام مفتاح المرور للمتابعة على هذا الجهاز.
+  hi: इस डिवाइस पर जारी रखने के लिए अपनी पासकी से अपनी पहचान सत्यापित करें।
+  th: ยืนยันตัวตนด้วยพาสคีย์ของคุณเพื่อดำเนินการต่อบนอุปกรณ์นี้
+  cs: Overite svou identitu pomoci pristupoveho klice pro pokracovani na tomto zarizeni.
+  sv: Verifiera din identitet med din nyckelbricka for att fortsatta pa den har enheten.
+  verified_by_human: []
+verify_device_passkey_button:
+  context: Button text to start passkey verification on new device
+  en: Verify with passkey
+  de: Mit Passkey bestätigen
+  zh: 使用通行密钥验证
+  es: Verificar con clave de acceso
+  fr: Vérifier avec clé d'accès
+  pt: Verificar com chave de acesso
+  ru: Подтвердить с помощью ключа доступа
+  ja: パスキーで確認
+  ko: 패스키로 확인
+  it: Verifica con passkey
+  tr: Geçiş anahtarıyla doğrula
+  vi: Xác minh bằng passkey
+  id: Verifikasi dengan passkey
+  pl: Zweryfikuj kluczem dostępu
+  nl: Verifiëren met passkey
+  ar: التحقق بمفتاح المرور
+  hi: पासकी से सत्यापित करें
+  th: ยืนยันด้วยพาสคีย์
+  cs: Ověřit přístupovým klíčem
+  sv: Verifiera med nyckelbricka
+  verified_by_human: []
+verify_device_passkey_error:
+  context: Error message when passkey device verification fails
+  en: Passkey verification failed. Please try again.
+  de: Passkey-Verifizierung fehlgeschlagen. Bitte versuche es erneut.
+  zh: 通行密钥验证失败。请重试。
+  es: La verificación de clave de acceso falló. Por favor, inténtalo de nuevo.
+  fr: La vérification de la clé d'accès a échoué. Veuillez réessayer.
+  pt: A verificação da chave de acesso falhou. Por favor, tente novamente.
+  ru: Проверка ключа доступа не удалась. Пожалуйста, попробуйте снова.
+  ja: パスキーの確認に失敗しました。もう一度お試しください。
+  ko: 패스키 확인에 실패했습니다. 다시 시도해 주세요.
+  it: Verifica passkey non riuscita. Per favore riprova.
+  tr: Geçiş anahtarı doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác minh passkey thất bại. Vui lòng thử lại.
+  id: Verifikasi passkey gagal. Silakan coba lagi.
+  pl: Weryfikacja kluczem dostępu nie powiodła się. Spróbuj ponownie.
+  nl: Passkey-verificatie mislukt. Probeer het opnieuw.
+  ar: فشل التحقق من مفتاح المرور. يرجى المحاولة مرة أخرى.
+  hi: पासकी सत्यापन विफल रहा। कृपया पुनः प्रयास करें।
+  th: การยืนยันพาสคีย์ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Ověření přístupovým klíčem se nezdařilo. Zkuste to prosím znovu.
+  sv: Verifiering med nyckelbricka misslyckades. Försök igen.
   verified_by_human: []
 2fa_code_placeholder:
   context: Placeholder text for 2FA code input field
@@ -639,7 +754,7 @@ login_with_passkey:
   hi: पासकी के साथ लॉगिन करें
   th: เข้าสู่ระบบด้วยคีย์ผ่าน
   cs: Přihlásit se pomocí přístupového klíče
-  sv: ''
+  sv: ""
   verified_by_human: []
 or:
   context: Divider text between passkey and email login options
@@ -735,106 +850,106 @@ back_to_email:
   verified_by_human: []
 cant_connect_to_server:
   context: Error message shown when server connection times out
-  en: 'Can''t connect to server.
+  en: "Can't connect to server.
 
     Please check your internet connection.
 
-    '
-  de: 'Verbindung zum Server nicht möglich.
+    "
+  de: "Verbindung zum Server nicht möglich.
 
     Bitte überprüfen Sie Ihre Internetverbindung.
 
-    '
-  zh: '无法连接到服务器。
+    "
+  zh: "无法连接到服务器。
 
     请检查您的互联网连接。
 
-    '
-  es: 'No se puede conectar al servidor.
+    "
+  es: "No se puede conectar al servidor.
 
     Por favor, verifica tu conexión a Internet.
 
-    '
-  fr: 'Impossible de se connecter au serveur.
+    "
+  fr: "Impossible de se connecter au serveur.
 
     Veuillez vérifier votre connexion Internet.
 
-    '
-  pt: 'Não é possível conectar ao servidor.
+    "
+  pt: "Não é possível conectar ao servidor.
 
     Por favor, verifique sua conexão com a Internet.
 
-    '
-  ru: 'Не удается подключиться к серверу.
+    "
+  ru: "Не удается подключиться к серверу.
 
     Пожалуйста, проверьте ваше интернет-соединение.
 
-    '
-  ja: 'サーバーに接続できません。
+    "
+  ja: "サーバーに接続できません。
 
     インターネット接続を確認してください。
 
-    '
-  ko: '서버에 연결할 수 없습니다.
+    "
+  ko: "서버에 연결할 수 없습니다.
 
     인터넷 연결을 확인해주세요.
 
-    '
-  it: 'Impossibile connettersi al server.
+    "
+  it: "Impossibile connettersi al server.
 
     Controlla la tua connessione Internet.
 
-    '
-  tr: 'Sunucuya bağlanılamıyor.
+    "
+  tr: "Sunucuya bağlanılamıyor.
 
     Lütfen internet bağlantınızı kontrol edin.
 
-    '
-  vi: 'Không thể kết nối đến máy chủ.
+    "
+  vi: "Không thể kết nối đến máy chủ.
 
     Vui lòng kiểm tra kết nối internet của bạn.
 
-    '
-  id: 'Tidak dapat terhubung ke server.
+    "
+  id: "Tidak dapat terhubung ke server.
 
     Silakan periksa koneksi internet Anda.
 
-    '
-  pl: 'Nie można połączyć się z serwerem.
+    "
+  pl: "Nie można połączyć się z serwerem.
 
     Sprawdź połączenie internetowe.
 
-    '
-  nl: 'Kan geen verbinding maken met de server.
+    "
+  nl: "Kan geen verbinding maken met de server.
 
     Controleer uw internetverbinding.
 
-    '
-  ar: 'لا يمكن الاتصال بالخادم.
+    "
+  ar: "لا يمكن الاتصال بالخادم.
 
     يرجى التحقق من اتصالك بالإنترنت.
 
-    '
-  hi: 'सर्वर से कनेक्ट नहीं हो सकता।
+    "
+  hi: "सर्वर से कनेक्ट नहीं हो सकता।
 
     कृपया अपने इंटरनेट कनेक्शन की जांच करें।
 
-    '
-  th: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
+    "
+  th: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
 
     กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตของคุณ
 
-    '
-  cs: 'Nelze se připojit k serveru.
+    "
+  cs: "Nelze se připojit k serveru.
 
     Zkontrolujte prosím vaše internetové připojení.
 
-    '
-  sv: 'Kan inte ansluta till servern.
+    "
+  sv: "Kan inte ansluta till servern.
 
     Kontrollera din internetanslutning.
 
-    '
+    "
   verified_by_human: []
 retry:
   context: Button text for retrying server connection
@@ -930,106 +1045,106 @@ logging_in_with_security_key:
   verified_by_human: []
 use_for_emergencies_only:
   context: Message explaining that the recovery key should only be used in emergencies
-  en: 'Use for emergencies only,
+  en: "Use for emergencies only,
 
     if you lost access to your login credentials.
 
-    '
-  de: 'Nur für Notfälle verwenden,
+    "
+  de: "Nur für Notfälle verwenden,
 
     wenn Sie den Zugang zu Ihren Anmeldedaten verloren haben.
 
-    '
-  zh: '仅在紧急情况下使用，
+    "
+  zh: "仅在紧急情况下使用，
 
     如果您丢失了登录凭据的访问权限。
 
-    '
-  es: 'Usar solo para emergencias,
+    "
+  es: "Usar solo para emergencias,
 
     si perdiste el acceso a tus credenciales de inicio de sesión.
 
-    '
-  fr: 'Utiliser uniquement en cas d''urgence,
+    "
+  fr: "Utiliser uniquement en cas d'urgence,
 
-    si vous avez perdu l''accès à vos identifiants de connexion.
+    si vous avez perdu l'accès à vos identifiants de connexion.
 
-    '
-  pt: 'Use apenas em emergências,
+    "
+  pt: "Use apenas em emergências,
 
     se você perdeu o acesso às suas credenciais de login.
 
-    '
-  ru: 'Использовать только в экстренных случаях,
+    "
+  ru: "Использовать только в экстренных случаях,
 
     если вы потеряли доступ к своим учетным данным.
 
-    '
-  ja: '緊急時のみ使用してください。
+    "
+  ja: "緊急時のみ使用してください。
 
     ログイン認証情報へのアクセスを失った場合。
 
-    '
-  ko: '긴급 상황에서만 사용하세요.
+    "
+  ko: "긴급 상황에서만 사용하세요.
 
     로그인 자격 증명에 대한 액세스를 잃은 경우.
 
-    '
-  it: 'Usare solo per emergenze,
+    "
+  it: "Usare solo per emergenze,
 
-    se hai perso l''accesso alle tue credenziali di accesso.
+    se hai perso l'accesso alle tue credenziali di accesso.
 
-    '
-  tr: 'Yalnızca acil durumlarda kullanın,
+    "
+  tr: "Yalnızca acil durumlarda kullanın,
 
     giriş bilgilerinize erişimi kaybettiyseniz.
 
-    '
-  vi: 'Chỉ sử dụng trong trường hợp khẩn cấp,
+    "
+  vi: "Chỉ sử dụng trong trường hợp khẩn cấp,
 
     nếu bạn mất quyền truy cập vào thông tin đăng nhập.
 
-    '
-  id: 'Gunakan hanya untuk keadaan darurat,
+    "
+  id: "Gunakan hanya untuk keadaan darurat,
 
     jika Anda kehilangan akses ke kredensial login Anda.
 
-    '
-  pl: 'Używać tylko w nagłych wypadkach,
+    "
+  pl: "Używać tylko w nagłych wypadkach,
 
     jeśli utraciłeś dostęp do swoich danych logowania.
 
-    '
-  nl: 'Alleen gebruiken in noodgevallen,
+    "
+  nl: "Alleen gebruiken in noodgevallen,
 
     als u de toegang tot uw inloggegegevens bent kwijtgeraakt.
 
-    '
-  ar: 'استخدم فقط في حالات الطوارئ،
+    "
+  ar: "استخدم فقط في حالات الطوارئ،
 
     إذا فقدت الوصول إلى بيانات تسجيل الدخول الخاصة بك.
 
-    '
-  hi: 'केवल आपात स्थितियों के लिए उपयोग करें,
+    "
+  hi: "केवल आपात स्थितियों के लिए उपयोग करें,
 
     यदि आपने अपने लॉगिन क्रेडेंशियल तक पहुंच खो दी है।
 
-    '
-  th: 'ใช้เฉพาะในกรณีฉุกเฉินเท่านั้น
+    "
+  th: "ใช้เฉพาะในกรณีฉุกเฉินเท่านั้น
 
     หากคุณสูญเสียการเข้าถึงข้อมูลประจำตัวการเข้าสู่ระบบของคุณ
 
-    '
-  cs: 'Použít pouze v nouzových případech,
+    "
+  cs: "Použít pouze v nouzových případech,
 
     pokud jste ztratili přístup ke svým přihlašovacím údajům.
 
-    '
-  sv: 'Använd endast i nödsituationer,
+    "
+  sv: "Använd endast i nödsituationer,
 
     om du har förlorat tillgången till dina inloggningsuppgifter.
 
-    '
+    "
   verified_by_human: []
 login_button:
   context: Button text for logging in

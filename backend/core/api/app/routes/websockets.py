@@ -2,6 +2,8 @@ import logging
 import hashlib
 import json
 import asyncio # Added asyncio
+import time
+import uuid
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
@@ -22,6 +24,7 @@ from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draf
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
+from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -33,6 +36,7 @@ from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_e
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler import handle_reject_settings_memory_suggestion # Handler for rejecting settings/memory suggestions
+from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,201 @@ router = APIRouter(
 )
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
+
+
+# =============================================================================
+# EMAIL NOTIFICATION FOR OFFLINE USERS
+# =============================================================================
+
+async def _check_user_offline_and_send_email(
+    app: FastAPI,
+    manager: ConnectionManager,
+    user_id: str,
+    chat_id: str,
+    response_preview: str,
+    task_id: Optional[str] = None,
+    max_attempts: int = 3,
+    delay_seconds: int = 5,
+    model_name: Optional[str] = None,
+    category: Optional[str] = None,
+) -> None:
+    """
+    Check if user is offline with retries, then send email notification if still offline.
+    
+    This function runs as a background task after an AI response completes.
+    It makes multiple attempts to detect if the user reconnects before sending an email.
+    If the user is confirmed offline, the AI response is also queued in the pending
+    delivery queue (up to 60 days) so they receive it on reconnect.
+    
+    Args:
+        app: FastAPI app instance (for accessing services)
+        manager: ConnectionManager instance for checking active connections
+        user_id: The user's UUID
+        chat_id: The chat ID where the AI response was delivered
+        response_preview: Preview of the AI response for the email
+        task_id: The AI task ID (message_id) for deduplication
+        max_attempts: Number of connection check attempts (default 3)
+        delay_seconds: Delay between attempts in seconds (default 5)
+    """
+    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
+    
+    # Skip if response is an error message
+    if response_preview and isinstance(response_preview, str):
+        if "[ERROR" in response_preview or response_preview == "chat.an_error_occured.text":
+            logger.debug(f"{log_prefix} Skipping email - response contains error")
+            return
+    
+    # Retry loop: check if user reconnects
+    for attempt in range(1, max_attempts + 1):
+        if manager.is_user_active(user_id):
+            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping email")
+            return
+        
+        if attempt < max_attempts:
+            logger.debug(f"{log_prefix} User still offline (attempt {attempt}/{max_attempts}), waiting {delay_seconds}s...")
+            await asyncio.sleep(delay_seconds)
+    
+    # User is still offline after all attempts.
+    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
+    # 2. Send email notification if enabled
+    logger.info(f"{log_prefix} User offline after {max_attempts} attempts, queuing for pending delivery + email check...")
+
+    # Store the AI response in the pending delivery queue for reconnect delivery.
+    # The client will receive this via WebSocket on reconnect, encrypt with the
+    # chat key, and persist it properly (zero-knowledge architecture).
+    try:
+        if hasattr(app.state, 'cache_service'):
+            cache_service: CacheService = app.state.cache_service
+            delivery_payload = {
+                    "type": "ai_response",  # Distinguishes from "reminder" system messages
+                    "chat_id": chat_id,
+                    "message_id": task_id or str(uuid.uuid4()),
+                    "content": response_preview,  # Full AI response plaintext
+                    "user_id": user_id,
+                    "fired_at": int(time.time()),
+                }
+            # Include model_name and category so the client can encrypt them
+            # for proper display (mate icon, model badge) after offline delivery
+            if model_name:
+                delivery_payload["model_name"] = model_name
+            if category:
+                delivery_payload["category"] = category
+            await cache_service.add_pending_reminder_delivery(
+                user_id=user_id,
+                delivery_payload=delivery_payload
+            )
+            logger.info(f"{log_prefix} Queued AI response for pending delivery")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to queue AI response for pending delivery: {e}")
+
+    try:
+        await _send_offline_email_notification(
+            app=app,
+            user_id=user_id,
+            chat_id=chat_id,
+            response_preview=response_preview
+        )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to send email notification: {e}", exc_info=True)
+
+
+async def _send_offline_email_notification(
+    app: FastAPI,
+    user_id: str,
+    chat_id: str,
+    response_preview: str
+) -> None:
+    """
+    Check user's email notification settings and dispatch the email task.
+    
+    Args:
+        app: FastAPI app instance
+        user_id: The user's UUID
+        chat_id: The chat ID
+        response_preview: Preview of the AI response
+    """
+    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
+    
+    if not hasattr(app.state, 'cache_service'):
+        logger.warning(f"{log_prefix} Cache service not available, cannot check user settings")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    
+    # Fetch user data from cache
+    cached_user = await cache_service.get_user_by_id(user_id)
+    if not cached_user:
+        logger.debug(f"{log_prefix} User not in cache, skipping email")
+        return
+    
+    # Check if email notifications are enabled
+    email_enabled = cached_user.get("email_notifications_enabled", False)
+    if not email_enabled:
+        logger.debug(f"{log_prefix} Email notifications disabled for user")
+        return
+    
+    # Decrypt the notification email from cache (stored as vault-encrypted ciphertext)
+    encrypted_notification_email = cached_user.get("encrypted_notification_email")
+    if not encrypted_notification_email:
+        logger.debug(f"{log_prefix} No notification email configured")
+        return
+    
+    # Need encryption service to decrypt vault-encrypted email
+    if not hasattr(app.state, 'encryption_service'):
+        logger.warning(f"{log_prefix} Encryption service not available, cannot decrypt notification email")
+        return
+    
+    encryption_service: EncryptionService = app.state.encryption_service
+    vault_key_id = cached_user.get("vault_key_id")
+    if not vault_key_id:
+        logger.warning(f"{log_prefix} No vault_key_id in cached user data, cannot decrypt notification email")
+        return
+    
+    try:
+        notification_email = await encryption_service.decrypt_with_user_key(
+            encrypted_notification_email, vault_key_id
+        )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to decrypt notification email: {e}", exc_info=True)
+        return
+    
+    if not notification_email:
+        logger.warning(f"{log_prefix} Notification email decryption returned empty result")
+        return
+    
+    # Check if AI responses preference is enabled
+    email_prefs = cached_user.get("email_notification_preferences", {})
+    if not isinstance(email_prefs, dict):
+        email_prefs = {}
+    if not email_prefs.get("aiResponses", True):
+        logger.debug(f"{log_prefix} AI response notifications disabled in preferences")
+        return
+    
+    # Get user's language and darkmode preferences
+    language = cached_user.get("language", "en") or "en"
+    darkmode = cached_user.get("darkmode", False)
+    
+    # Queue the email task (no delay since we already did the retry checks)
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        
+        celery_app.send_task(
+            name='app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification',
+            args=[
+                notification_email,           # recipient_email
+                response_preview[:500] if response_preview else "",  # response_preview (truncated)
+                chat_id,                      # chat_id
+                None,                         # chat_title (not fetched for speed)
+                language,                     # language
+                darkmode,                     # darkmode
+                None,                         # user_id (not needed - we already verified offline)
+                None                          # task_queued_timestamp (not needed)
+            ],
+            queue="email"
+        )
+        logger.info(f"{log_prefix} Queued email notification task to {notification_email}")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to queue email task: {e}", exc_info=True)
 
 # --- Redis Pub/Sub Listener for Cache Events ---
 # This function will be imported and started by main.py
@@ -283,8 +482,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "task_id": redis_payload.get("task_id"),
                                     "full_content": full_content,
                                     "model_name": redis_payload.get("model_name"),
+                                    "category": redis_payload.get("category"),
                                     "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
-                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False)
+                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
+                                    "rejection_reason": redis_payload.get("rejection_reason")
                                 }
                                 await manager.send_personal_message(
                                     message={"type": "ai_background_response_completed", "payload": background_completion_payload},
@@ -304,6 +505,34 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                      device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
+                    
+                    # =====================================================================
+                    # EMAIL NOTIFICATION CHECK (after final marker processing)
+                    # If the user has NO active WebSocket connections, attempt to reach them
+                    # with retries before sending an email notification.
+                    # =====================================================================
+                    is_final_marker = redis_payload.get("is_final_chunk", False)
+                    was_interrupted = redis_payload.get("interrupted_by_revocation", False)
+                    
+                    if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
+                        # Check if user has ANY active connections
+                        if not manager.is_user_active(user_id_uuid):
+                            # User appears offline - spawn background task to retry and send email
+                            # Also queues the AI response for pending delivery on reconnect (60-day TTL)
+                            asyncio.create_task(
+                                _check_user_offline_and_send_email(
+                                    app=app,
+                                    manager=manager,
+                                    user_id=user_id_uuid,
+                                    chat_id=chat_id_from_payload,
+                                    response_preview=redis_payload.get("full_content_so_far", ""),
+                                    task_id=redis_payload.get("task_id"),
+                                    max_attempts=3,
+                                    delay_seconds=5,
+                                    model_name=redis_payload.get("model_name"),
+                                    category=redis_payload.get("category"),
+                                )
+                            )
                 else:
                     logger.warning(f"AI Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
             
@@ -840,6 +1069,90 @@ async def listen_for_user_updates(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def _deliver_pending_reminders(
+    cache_service: CacheService,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+):
+    """
+    Deliver any pending notifications that fired while the user was offline.
+    
+    Called as a background task immediately after a WebSocket connection is established.
+    Retrieves queued delivery payloads from cache and sends them to the client.
+    
+    Supports two delivery types:
+    - type="reminder": System message from a fired reminder -> sent as "reminder_fired" event
+    - type="ai_response": AI response that completed while offline -> sent as "pending_ai_response" event
+    
+    Both types contain PLAINTEXT content. The client encrypts with the chat key before
+    persisting (zero-knowledge architecture). The client deduplicates by message_id
+    to prevent double-processing.
+    
+    Uses a small delay to allow the client to finish its initialization/sync setup
+    before receiving events.
+    """
+    try:
+        # Brief delay to let the client finish WebSocket setup and initial sync
+        await asyncio.sleep(2)
+
+        pending = await cache_service.get_and_clear_pending_reminder_deliveries(user_id)
+        if not pending:
+            return
+
+        # Separate by delivery type for logging
+        reminder_count = sum(1 for d in pending if d.get("type") != "ai_response")
+        ai_response_count = sum(1 for d in pending if d.get("type") == "ai_response")
+        logger.info(
+            f"[PENDING_DELIVERY] Delivering {len(pending)} pending item(s) "
+            f"({reminder_count} reminders, {ai_response_count} AI responses) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        for delivery in pending:
+            try:
+                delivery_type = delivery.get("type", "reminder")
+                
+                if delivery_type == "ai_response":
+                    # AI response that completed while user was offline
+                    # Client will encrypt with chat key and persist via ai_response_completed flow
+                    event_name = "pending_ai_response"
+                    log_id = delivery.get("message_id", "unknown")
+                else:
+                    # Fired reminder system message
+                    # Client will encrypt with chat key and persist via chat_system_message_added flow
+                    event_name = "reminder_fired"
+                    log_id = delivery.get("reminder_id", "unknown")
+
+                await manager.send_personal_message(
+                    message={
+                        "type": event_name,
+                        "payload": delivery
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                logger.debug(
+                    f"[PENDING_DELIVERY] Delivered '{event_name}' "
+                    f"(id={log_id}) to user {user_id[:8]}..."
+                )
+            except Exception as e:
+                logger.error(
+                    f"[PENDING_DELIVERY] Failed to deliver pending item "
+                    f"(type={delivery.get('type')}): {e}"
+                )
+                # Re-queue the failed delivery so it can be retried on next connect
+                try:
+                    await cache_service.add_pending_reminder_delivery(user_id, delivery)
+                except Exception:
+                    logger.error(
+                        "[PENDING_DELIVERY] Failed to re-queue item after delivery failure"
+                    )
+
+    except Exception as e:
+        logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -861,6 +1174,19 @@ async def websocket_endpoint(
 
     logger.debug("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
+
+    # Deliver any pending reminder notifications that fired while the user was offline.
+    # This runs as a background task so it doesn't block the WebSocket message loop.
+    asyncio.create_task(
+        _deliver_pending_reminders(cache_service, manager, user_id, device_fingerprint_hash)
+    )
+    
+    # NOTE: Pending app settings/memories permission requests are no longer re-delivered
+    # via WebSocket on reconnect. Instead, the request is persisted as a system message
+    # in the chat history (encrypted, zero-knowledge). ChatHistory.svelte detects "unpaired"
+    # requests (no matching response system message) and re-shows the permission dialog
+    # automatically. This is more reliable than the previous Redis-based approach because
+    # it works across all devices via the normal message sync infrastructure.
 
     try:
         while True:
@@ -1102,6 +1428,17 @@ async def websocket_endpoint(
                     payload=payload,
                     cache_service=cache_service
                 )
+            elif message_type == "chat_focus_mode_deactivate":
+                # Handle request to deactivate a focus mode for a chat
+                # Triggered when user rejects during countdown or clicks "Deactivate"
+                await handle_focus_mode_deactivate(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service
+                )
             elif message_type == "ai_response_completed":
                 # Handle completed AI response sent by client for encrypted Directus storage
                 await handle_ai_response_completed(
@@ -1305,6 +1642,20 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "email_notification_settings":
+                # Handle email notification settings update
+                logger.debug(f"Handling email_notification_settings with payload: {payload}")
+                await handle_email_notification_settings(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )

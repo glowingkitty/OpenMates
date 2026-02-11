@@ -48,3 +48,81 @@ favorite_places.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+favorite_places.example_1:
+  context: Example entry for favorite places (home location)
+  en: Home
+  de: Zuhause
+  zh: 家
+  es: Casa
+  fr: Maison
+  pt: Casa
+  ru: Дом
+  ja: 自宅
+  ko: 집
+  it: Casa
+  tr: Ev
+  vi: Nhà
+  id: Rumah
+  pl: Dom
+  nl: Thuis
+  ar: المنزل
+  hi: घर
+  th: บ้าน
+  cs: Domov
+  sv: Hem
+  verified_by_human:
+    - en
+    - de
+favorite_places.example_2:
+  context: Example entry for favorite places (work location)
+  en: Office
+  de: Büro
+  zh: 办公室
+  es: Oficina
+  fr: Bureau
+  pt: Escritório
+  ru: Офис
+  ja: オフィス
+  ko: 사무실
+  it: Ufficio
+  tr: Ofis
+  vi: Văn phòng
+  id: Kantor
+  pl: Biuro
+  nl: Kantoor
+  ar: المكتب
+  hi: कार्यालय
+  th: ออฟฟิศ
+  cs: Kancelář
+  sv: Kontor
+  verified_by_human:
+    - en
+    - de
+favorite_places.example_3:
+  context: Example entry for favorite places (a casual spot)
+  en: Favorite coffee shop
+  de: Lieblingscafé
+  zh: 最爱的咖啡店
+  es: Cafetería favorita
+  fr: Café préféré
+  pt: Cafeteria favorita
+  ru: Любимая кофейня
+  ja: お気に入りのカフェ
+  ko: 단골 카페
+  it: Bar preferito
+  tr: Favori kahve dükkanı
+  vi: Quán cà phê yêu thích
+  id: Kedai kopi favorit
+  pl: Ulubiona kawiarnia
+  nl: Favoriete koffiebar
+  ar: المقهى المفضل
+  hi: पसंदीदा कॉफी शॉप
+  th: ร้านกาแฟโปรด
+  cs: Oblíbená kavárna
+  sv: Favoritkafé
+  verified_by_human:
+    - en
+    - de

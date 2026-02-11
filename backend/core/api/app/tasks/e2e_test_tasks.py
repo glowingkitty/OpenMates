@@ -41,7 +41,7 @@ E2E_TEST_CONFIG = {
         "enabled": os.getenv("E2E_TEST_DEV_ENABLED", "true").lower() == "true",
     },
     "production": {
-        "base_url": os.getenv("E2E_TEST_PROD_BASE_URL", "https://app.openmates.org"),
+        "base_url": os.getenv("E2E_TEST_PROD_BASE_URL", "https://openmates.org"),
         "enabled": os.getenv("E2E_TEST_PROD_ENABLED", "false").lower() == "true",
     }
 }

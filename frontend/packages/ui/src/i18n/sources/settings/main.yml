@@ -5,21 +5,21 @@ open_settings_menu:
   zh: 打开设置菜单
   es: Abrir menú de configuración
   fr: Ouvrir le menu des paramètres
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 設定メニューを開く
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 close_settings_menu:
   context: Button text for closing settings menu
@@ -28,21 +28,21 @@ close_settings_menu:
   zh: 关闭设置菜单
   es: Cerrar menú de configuración
   fr: Fermer le menu des paramètres
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 設定メニューを閉じる
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 search:
   context: Search settings input placeholder
@@ -51,21 +51,21 @@ search:
   zh: 搜索
   es: Buscar
   fr: Rechercher
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 検索
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 add_credits:
   context: Button text for adding credits
@@ -74,44 +74,44 @@ add_credits:
   zh: 添加额度
   es: Añadir créditos
   fr: Ajouter des crédits
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: クレジットを追加
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credits:
   context: Link text in settings menu to add credits
   en: Credits
-  de: '{credits_amount} Credits'
-  zh: '{credits_amount} 信用'
-  es: '{credits_amount} Créditos'
-  fr: '{credits_amount} Crédits'
-  pt: ''
-  ru: ''
-  ja: '{credits_amount} クレジット'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: "{credits_amount} Credits"
+  zh: "{credits_amount} 信用"
+  es: "{credits_amount} Créditos"
+  fr: "{credits_amount} Crédits"
+  pt: ""
+  ru: ""
+  ja: "{credits_amount} クレジット"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 settings:
   context: Header text in settings menu
@@ -120,90 +120,90 @@ settings:
   zh: 设置
   es: Ajustes
   fr: Paramètres
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 設定
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 enabled:
   context: Status indicating a feature is enabled
   en: Enabled
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 disabled:
   context: Status indicating a feature is disabled
   en: Disabled
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 active:
   context: Status indicating a service is active
   en: Active
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 team:
   context: Team toggle and menu item
@@ -212,21 +212,21 @@ team:
   zh: 团队
   es: Equipo
   fr: Équipe
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: チーム
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito:
   context: Incognito mode toggle
@@ -235,136 +235,136 @@ incognito:
   zh: 隐身模式
   es: Incógnito
   fr: Incognito
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: シークレット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_description:
   context: Description of what incognito mode does
-  en: 'Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged.'
-  de: 'Der Inkognito-Modus gilt nur für neue Chats, die Sie erstellen. Neue Chats, die erstellt werden, während der Inkognito-Modus aktiv ist, werden nicht zwischen Geräten synchronisiert, nicht auf dem Server gespeichert und nicht zwischengespeichert. Diese Chats existieren nur in Ihrer aktuellen Browsersitzung. Bestehende Chats bleiben unverändert.'
-  zh: '隐身模式仅适用于您创建的新聊天。在隐身模式激活时创建的新聊天不会跨设备同步，不会存储在服务器上，也不会被缓存。这些聊天仅存在于您当前的浏览器会话中。现有聊天保持不变。'
-  es: 'El modo incógnito se aplica solo a los nuevos chats que cree. Los nuevos chats creados mientras el modo incógnito está activo no se sincronizan entre dispositivos, no se almacenan en el servidor y no se almacenan en caché. Estos chats solo existen en su sesión actual del navegador. Los chats existentes permanecen sin cambios.'
+  en: "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."
+  de: "Der Inkognito-Modus gilt nur für neue Chats, die Sie erstellen. Neue Chats, die erstellt werden, während der Inkognito-Modus aktiv ist, werden nicht zwischen Geräten synchronisiert, nicht auf dem Server gespeichert und nicht zwischengespeichert. Diese Chats existieren nur in Ihrer aktuellen Browsersitzung. Bestehende Chats bleiben unverändert."
+  zh: "隐身模式仅适用于您创建的新聊天。在隐身模式激活时创建的新聊天不会跨设备同步，不会存储在服务器上，也不会被缓存。这些聊天仅存在于您当前的浏览器会话中。现有聊天保持不变。"
+  es: "El modo incógnito se aplica solo a los nuevos chats que cree. Los nuevos chats creados mientras el modo incógnito está activo no se sincronizan entre dispositivos, no se almacenan en el servidor y no se almacenan en caché. Estos chats solo existen en su sesión actual del navegador. Los chats existentes permanecen sin cambios."
   fr: "Le mode incognito s'applique uniquement aux nouveaux chats que vous créez. Les nouveaux chats créés lorsque le mode incognito est actif ne sont pas synchronisés entre les appareils, ne sont pas stockés sur le serveur et ne sont pas mis en cache. Ces chats n'existent que dans votre session de navigateur actuelle. Les chats existants restent inchangés."
-  pt: ''
-  ru: ''
-  ja: 'シークレットモードは、作成する新しいチャットにのみ適用されます。シークレットモードがアクティブな間に作成された新しいチャットは、デバイス間で同期されず、サーバーに保存されず、キャッシュされません。これらのチャットは、現在のブラウザセッションにのみ存在します。既存のチャットは変更されません。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: "シークレットモードは、作成する新しいチャットにのみ適用されます。シークレットモードがアクティブな間に作成された新しいチャットは、デバイス間で同期されず、サーバーに保存されず、キャッシュされません。これらのチャットは、現在のブラウザセッションにのみ存在します。既存のチャットは変更されません。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_feature_device_specific:
   context: Feature explaining device-specific nature
-  en: 'Device-specific: Only applies to this browser tab'
-  de: 'Gerätespezifisch: Gilt nur für diesen Browser-Tab'
+  en: "Device-specific: Only applies to this browser tab"
+  de: "Gerätespezifisch: Gilt nur für diesen Browser-Tab"
   zh: 设备特定：仅适用于此浏览器标签页
-  es: 'Específico del dispositivo: Solo se aplica a esta pestaña del navegador'
+  es: "Específico del dispositivo: Solo se aplica a esta pestaña del navegador"
   fr: "Spécifique à l'appareil : Ne s'applique qu'à cet onglet du navigateur"
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: デバイス固有：このブラウザタブにのみ適用されます
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_feature_not_stored:
   context: Feature explaining chats are not stored
-  en: 'Not stored: Chats are not saved to the server'
-  de: 'Nicht gespeichert: Chats werden nicht auf dem Server gespeichert'
+  en: "Not stored: Chats are not saved to the server"
+  de: "Nicht gespeichert: Chats werden nicht auf dem Server gespeichert"
   zh: 不存储：聊天不会保存到服务器
-  es: 'No almacenado: Los chats no se guardan en el servidor'
-  fr: 'Non stocké : Les chats ne sont pas enregistrés sur le serveur'
-  pt: ''
-  ru: ''
+  es: "No almacenado: Los chats no se guardan en el servidor"
+  fr: "Non stocké : Les chats ne sont pas enregistrés sur le serveur"
+  pt: ""
+  ru: ""
   ja: 保存されない：チャットはサーバーに保存されません
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_feature_session_only:
   context: Feature explaining chats are session-only
-  en: 'Session-only: Chats disappear when you close the tab'
-  de: 'Nur Sitzung: Chats verschwinden, wenn Sie den Tab schließen'
+  en: "Session-only: Chats disappear when you close the tab"
+  de: "Nur Sitzung: Chats verschwinden, wenn Sie den Tab schließen"
   zh: 仅会话：关闭标签页时聊天会消失
-  es: 'Solo sesión: Los chats desaparecen cuando cierra la pestaña'
+  es: "Solo sesión: Los chats desaparecen cuando cierra la pestaña"
   fr: "Session uniquement : Les chats disparaissent lorsque vous fermez l'onglet"
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: セッションのみ：タブを閉じるとチャットが消えます
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_feature_no_recovery:
   context: Feature warning about no recovery
-  en: 'No recovery: Deleted incognito chats cannot be recovered'
-  de: 'Keine Wiederherstellung: Gelöschte Inkognito-Chats können nicht wiederhergestellt werden'
-  zh: '无法恢复：已删除的隐身聊天无法恢复'
-  es: 'Sin recuperación: Los chats incógnitos eliminados no se pueden recuperar'
+  en: "No recovery: Deleted incognito chats cannot be recovered"
+  de: "Keine Wiederherstellung: Gelöschte Inkognito-Chats können nicht wiederhergestellt werden"
+  zh: "无法恢复：已删除的隐身聊天无法恢复"
+  es: "Sin recuperación: Los chats incógnitos eliminados no se pueden recuperar"
   fr: "Aucune récupération : Les chats incognito supprimés ne peuvent pas être récupérés"
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 回復不可：削除されたシークレットチャットは回復できません
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_warning_title:
   context: Title for the warning section about third-party providers
@@ -373,67 +373,67 @@ incognito_explainer_warning_title:
   zh: 重要隐私提示
   es: Aviso importante de privacidad
   fr: Avis important sur la confidentialité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 重要なプライバシー通知
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_warning_providers:
   context: Warning that chats are still sent to third-party AI providers
-  en: 'Even in incognito mode, your chats are still sent to the selected third-party AI providers to process your requests. While these providers cannot directly see which user sent the request, your messages are still processed by their systems.'
-  de: 'Auch im Inkognito-Modus werden Ihre Chats weiterhin an die ausgewählten Drittanbieter-KI-Anbieter gesendet, um Ihre Anfragen zu verarbeiten. Obwohl diese Anbieter nicht direkt sehen können, welcher Benutzer die Anfrage gesendet hat, werden Ihre Nachrichten dennoch von ihren Systemen verarbeitet.'
-  zh: '即使在隐身模式下，您的聊天仍会发送给选定的第三方AI提供商以处理您的请求。虽然这些提供商无法直接看到是哪个用户发送的请求，但您的消息仍会由他们的系统处理。'
-  es: 'Incluso en modo incógnito, sus chats se envían a los proveedores de IA de terceros seleccionados para procesar sus solicitudes. Aunque estos proveedores no pueden ver directamente qué usuario envió la solicitud, sus mensajes siguen siendo procesados por sus sistemas.'
+  en: "Even in incognito mode, your chats are still sent to the selected third-party AI providers to process your requests. While these providers cannot directly see which user sent the request, your messages are still processed by their systems."
+  de: "Auch im Inkognito-Modus werden Ihre Chats weiterhin an die ausgewählten Drittanbieter-KI-Anbieter gesendet, um Ihre Anfragen zu verarbeiten. Obwohl diese Anbieter nicht direkt sehen können, welcher Benutzer die Anfrage gesendet hat, werden Ihre Nachrichten dennoch von ihren Systemen verarbeitet."
+  zh: "即使在隐身模式下，您的聊天仍会发送给选定的第三方AI提供商以处理您的请求。虽然这些提供商无法直接看到是哪个用户发送的请求，但您的消息仍会由他们的系统处理。"
+  es: "Incluso en modo incógnito, sus chats se envían a los proveedores de IA de terceros seleccionados para procesar sus solicitudes. Aunque estos proveedores no pueden ver directamente qué usuario envió la solicitud, sus mensajes siguen siendo procesados por sus sistemas."
   fr: "Même en mode incognito, vos chats sont toujours envoyés aux fournisseurs d'IA tiers sélectionnés pour traiter vos demandes. Bien que ces fournisseurs ne puissent pas voir directement quel utilisateur a envoyé la demande, vos messages sont toujours traités par leurs systèmes."
-  pt: ''
-  ru: ''
-  ja: 'シークレットモードでも、チャットは選択したサードパーティのAIプロバイダーに送信され、リクエストを処理します。これらのプロバイダーはどのユーザーがリクエストを送信したかを直接確認することはできませんが、メッセージは引き続きこれらのシステムによって処理されます。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: "シークレットモードでも、チャットは選択したサードパーティのAIプロバイダーに送信され、リクエストを処理します。これらのプロバイダーはどのユーザーがリクエストを送信したかを直接確認することはできませんが、メッセージは引き続きこれらのシステムによって処理されます。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_warning_personal_info:
   context: Warning to not include personal information in incognito chats
-  en: 'It is strongly recommended to not include any personal information, sensitive data, or confidential details in incognito chats.'
-  de: 'Es wird dringend empfohlen, keine persönlichen Informationen, sensiblen Daten oder vertraulichen Details in Inkognito-Chats einzufügen.'
-  zh: '强烈建议不要在隐身聊天中包含任何个人信息、敏感数据或机密详情。'
-  es: 'Se recomienda encarecidamente no incluir información personal, datos sensibles o detalles confidenciales en los chats incógnitos.'
+  en: "It is strongly recommended to not include any personal information, sensitive data, or confidential details in incognito chats."
+  de: "Es wird dringend empfohlen, keine persönlichen Informationen, sensiblen Daten oder vertraulichen Details in Inkognito-Chats einzufügen."
+  zh: "强烈建议不要在隐身聊天中包含任何个人信息、敏感数据或机密详情。"
+  es: "Se recomienda encarecidamente no incluir información personal, datos sensibles o detalles confidenciales en los chats incógnitos."
   fr: "Il est fortement recommandé de ne pas inclure d'informations personnelles, de données sensibles ou de détails confidentiels dans les chats incognito."
-  pt: ''
-  ru: ''
-  ja: 'シークレットチャットには、個人情報、機密データ、または機密の詳細を含めないことを強くお勧めします。'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: "シークレットチャットには、個人情報、機密データ、または機密の詳細を含めないことを強くお勧めします。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_mode_applies_to_new_chats_only:
   context: Banner message shown for non-incognito chats when incognito mode is active
@@ -442,21 +442,21 @@ incognito_mode_applies_to_new_chats_only:
   zh: 隐身模式仅适用于新聊天。不适用于此聊天。
   es: El modo incógnito se aplica solo a chats nuevos. No a este chat.
   fr: Le mode incognito s'applique uniquement aux nouveaux chats. Pas à ce chat.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: シークレットモードは新しいチャットにのみ適用されます。このチャットには適用されません。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 incognito_explainer_understood:
   context: Button text to close the explainer
@@ -465,21 +465,21 @@ incognito_explainer_understood:
   zh: 知道了
   es: Entendido
   fr: Compris
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 了解しました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 guest:
   context: Guest mode toggle
@@ -488,21 +488,21 @@ guest:
   zh: 访客
   es: Invitado
   fr: Invité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ゲスト
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 offline:
   context: Offline mode toggle
@@ -511,21 +511,21 @@ offline:
   zh: 离线
   es: Desconectado
   fr: Hors ligne
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: オフライン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 user:
   context: User settings menu item
@@ -534,21 +534,21 @@ user:
   zh: 用户
   es: Usuario
   fr: Utilisateur
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ユーザー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 usage:
   context: Usage statistics menu item
@@ -557,21 +557,21 @@ usage:
   zh: 使用情况
   es: Uso
   fr: Utilisation
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 使用状況
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 apps:
   context: Apps settings menu item
@@ -580,21 +580,21 @@ apps:
   zh: 应用
   es: Aplicaciones
   fr: Applis
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アプリ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mates:
   context: Mates settings menu item
@@ -603,21 +603,21 @@ mates:
   zh: 伙伴
   es: Compañeros
   fr: Collègues
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: チームメイト
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 shared:
   context: Shared chats settings menu item
@@ -626,21 +626,21 @@ shared:
   zh: 共享
   es: Compartido
   fr: Partagé
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 共有
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 share:
   context: Share chat submenu title
@@ -672,21 +672,21 @@ messengers:
   zh: 通讯工具
   es: Mensajeros
   fr: Messageries
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: メッセンジャー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 developers:
   context: Developers settings menu item
@@ -695,21 +695,21 @@ developers:
   zh: 开发者
   es: Desarrolladores
   fr: Développeurs
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 開発者
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 # Developer settings translations
@@ -1230,7 +1230,7 @@ developers_devices_name_placeholder:
   pt: "Digite o nome do dispositivo (ex: Laptop do trabalho, Servidor doméstico)"
   ru: "Введите имя устройства (например: Рабочий ноутбук, Домашний сервер)"
   ja: "デバイス名を入力（例：仕事用ノートPC、ホームサーバー）"
-  ko: '장치 이름 입력 (예: 작업용 노트북, 홈 서버)'
+  ko: "장치 이름 입력 (예: 작업용 노트북, 홈 서버)"
   it: "Inserisci il nome del dispositivo (es: Laptop di lavoro, Server domestico)"
   tr: "Cihaz adını girin (örn: İş Laptopu, Ev Sunucusu)"
   vi: "Nhập tên thiết bị (vd: Laptop công việc, Máy chủ gia đình)"
@@ -1275,21 +1275,21 @@ dark_mode:
   zh: 深色模式
   es: Modo oscuro
   fr: Mode sombre
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ダークモード
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 tooltips:
   context: Tooltips toggle
@@ -1298,21 +1298,21 @@ tooltips:
   zh: 工具提示
   es: Información sobre herramientas
   fr: Infobulles
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ツールチップ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 keyboard_shortcuts:
   context: Keyboard shortcuts settings menu item
@@ -1321,21 +1321,21 @@ keyboard_shortcuts:
   zh: 键盘快捷键
   es: Atajos de teclado
   fr: Raccourcis clavier
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: キーボードショートカット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 logout:
   context: Logout menu item
@@ -1344,21 +1344,21 @@ logout:
   zh: 退出登录
   es: Cerrar sesión
   fr: Se déconnecter
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ログアウト
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 docs:
   context: Documentation section header
@@ -1367,21 +1367,21 @@ docs:
   zh: 文档
   es: Documentación
   fr: Docs
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 user_guide:
   context: User guide documentation link
@@ -1390,21 +1390,21 @@ user_guide:
   zh: 用户指南
   es: Guía del usuario
   fr: Guide de l'utilisateur
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ユーザーガイド
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 api_docs:
   context: API documentation link
@@ -1413,21 +1413,21 @@ api_docs:
   zh: API 文档
   es: Documentación de la API
   fr: Documentation de l'API
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: APIドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 contact:
   context: Contact section header
@@ -1436,21 +1436,21 @@ contact:
   zh: 联系方式
   es: Contacto
   fr: Contact
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: お問い合わせ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 discord:
   context: Discord contact link
@@ -1459,182 +1459,182 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: Discord
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 signal:
   context: Signal contact link
   en: Signal
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 github:
   context: GitHub contact link
   en: GitHub
-  de: ''
-  zh: ''
+  de: ""
+  zh: ""
   es: GitHub
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 instagram:
   context: Instagram contact link
   en: Instagram
-  de: ''
-  zh: ''
+  de: ""
+  zh: ""
   es: Instagram
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
   en: Mastodon
-  de: ''
-  zh: ''
+  de: ""
+  zh: ""
   es: Mastodon
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 pixelfed:
   context: Pixelfed contact link
   en: Pixelfed
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 element:
   context: Element contact link
   en: Element X
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 meetup:
   context: Meetup contact link
   en: Meetup
-  de: ''
-  zh: ''
+  de: ""
+  zh: ""
   es: Meetup
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 email:
   context: Email contact link
@@ -1643,21 +1643,21 @@ email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: メール
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 legal:
   context: Legal section header
@@ -1666,21 +1666,21 @@ legal:
   zh: 法律声明
   es: Legal
   fr: Juridique
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 法的情報
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 imprint:
   context: Imprint legal link
@@ -1689,21 +1689,21 @@ imprint:
   zh: 版本说明
   es: Aviso legal
   fr: Mentions légales
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 発行者情報
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 privacy:
   context: Privacy policy link
@@ -1712,21 +1712,21 @@ privacy:
   zh: 隐私政策
   es: Privacidad
   fr: Confidentialité
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: プライバシー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
@@ -1735,44 +1735,44 @@ terms_and_conditions:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales d'utilisation
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 利用規約
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credits_amount:
   context: User credits amount
-  en: '{credits_amount} credits'
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  en: "{credits_amount} credits"
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 modify:
   context: Button text for modifying settings
@@ -1781,21 +1781,21 @@ modify:
   zh: 修改
   es: Modificar
   fr: Modifier
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 変更
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 save:
   context: Button text for saving settings
@@ -1804,44 +1804,44 @@ save:
   zh: 保存
   es: Guardar
   fr: Enregistrer
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 保存
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 back:
   context: Button text for going back
   en: Back
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 server:
   context: Server settings menu item
@@ -1850,21 +1850,21 @@ server:
   zh: 服务器
   es: Servidor
   fr: Serveur
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: サーバー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 server.community_suggestions:
   context: Community suggestions menu item
@@ -1892,6 +1892,420 @@ server.stats:
   th: สถิติ
   cs: Statistiky
   sv: Statistik
+server.gift_cards:
+  context: Admin gift card generator menu item in server settings
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de Regalo
+  fr: Cartes Cadeaux
+  pt: Cartões Presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Buoni Regalo
+  tr: Hediye Kartları
+  vi: Thẻ Quà Tặng
+  id: Kartu Hadiah
+  pl: Karty Podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  verified_by_human: []
+server.gift_cards.title:
+  context: Title shown at top of admin gift card generator page
+  en: Generate Gift Cards
+  de: Geschenkkarten generieren
+  zh: 生成礼品卡
+  es: Generar tarjetas de regalo
+  fr: Générer des cartes cadeaux
+  pt: Gerar cartões presente
+  ru: Создать подарочные карты
+  ja: ギフトカードを生成
+  ko: 기프트 카드 생성
+  it: Genera buoni regalo
+  tr: Hediye kartları oluştur
+  vi: Tạo thẻ quà tặng
+  id: Buat kartu hadiah
+  pl: Generuj karty podarunkowe
+  nl: Cadeaukaarten genereren
+  ar: إنشاء بطاقات الهدايا
+  hi: उपहार कार्ड बनाएं
+  th: สร้างบัตรของขวัญ
+  cs: Vygenerovat dárkové karty
+  sv: Generera presentkort
+  verified_by_human: []
+server.gift_cards.subtitle:
+  context: Subtitle description for admin gift card generator
+  en: Generate gift card codes for users
+  de: Geschenkkarten-Codes für Benutzer generieren
+  zh: 为用户生成礼品卡代码
+  es: Generar códigos de tarjetas de regalo para usuarios
+  fr: Générer des codes de cartes cadeaux pour les utilisateurs
+  pt: Gerar códigos de cartões presente para utilizadores
+  ru: Генерировать коды подарочных карт для пользователей
+  ja: ユーザー向けギフトカードコードを生成
+  ko: 사용자를 위한 기프트 카드 코드 생성
+  it: Genera codici buoni regalo per gli utenti
+  tr: Kullanıcılar için hediye kartı kodları oluşturun
+  vi: Tạo mã thẻ quà tặng cho người dùng
+  id: Buat kode kartu hadiah untuk pengguna
+  pl: Generuj kody kart podarunkowych dla użytkowników
+  nl: Cadeaukaartcodes genereren voor gebruikers
+  ar: إنشاء رموز بطاقات الهدايا للمستخدمين
+  hi: उपयोगकर्ताओं के लिए उपहार कार्ड कोड बनाएं
+  th: สร้างรหัสบัตรของขวัญสำหรับผู้ใช้
+  cs: Generovat kódy dárkových karet pro uživatele
+  sv: Generera presentkortskoder för användare
+  verified_by_human: []
+server.gift_cards.credits_value:
+  context: Label for credit value input field in gift card generator
+  en: Credits Value
+  de: Guthabenwert
+  zh: 积分价值
+  es: Valor de créditos
+  fr: Valeur des crédits
+  pt: Valor dos créditos
+  ru: Количество кредитов
+  ja: クレジット値
+  ko: 크레딧 값
+  it: Valore crediti
+  tr: Kredi değeri
+  vi: Giá trị tín dụng
+  id: Nilai kredit
+  pl: Wartość kredytów
+  nl: Tegoed waarde
+  ar: قيمة الرصيد
+  hi: क्रेडिट मूल्य
+  th: มูลค่าเครดิต
+  cs: Hodnota kreditů
+  sv: Kreditvärde
+  verified_by_human: []
+server.gift_cards.quantity:
+  context: Label for quantity input field in gift card generator
+  en: Quantity
+  de: Anzahl
+  zh: 数量
+  es: Cantidad
+  fr: Quantité
+  pt: Quantidade
+  ru: Количество
+  ja: 数量
+  ko: 수량
+  it: Quantità
+  tr: Miktar
+  vi: Số lượng
+  id: Jumlah
+  pl: Ilość
+  nl: Aantal
+  ar: الكمية
+  hi: मात्रा
+  th: จำนวน
+  cs: Množství
+  sv: Antal
+  verified_by_human: []
+server.gift_cards.prefix:
+  context: Label for custom prefix input field in gift card generator
+  en: Custom Prefix
+  de: Benutzerdefiniertes Präfix
+  zh: 自定义前缀
+  es: Prefijo personalizado
+  fr: Préfixe personnalisé
+  pt: Prefixo personalizado
+  ru: Пользовательский префикс
+  ja: カスタムプレフィックス
+  ko: 사용자 정의 접두사
+  it: Prefisso personalizzato
+  tr: Özel ön ek
+  vi: Tiền tố tùy chỉnh
+  id: Awalan kustom
+  pl: Własny prefiks
+  nl: Aangepast voorvoegsel
+  ar: بادئة مخصصة
+  hi: कस्टम उपसर्ग
+  th: คำนำหน้าที่กำหนดเอง
+  cs: Vlastní prefix
+  sv: Anpassat prefix
+  verified_by_human: []
+server.gift_cards.prefix_placeholder:
+  context: Placeholder text for prefix input field
+  en: e.g. XMAS
+  de: z.B. XMAS
+  zh: 例如 XMAS
+  es: ej. XMAS
+  fr: ex. XMAS
+  pt: ex. XMAS
+  ru: напр. XMAS
+  ja: 例 XMAS
+  ko: 예 XMAS
+  it: es. XMAS
+  tr: örn. XMAS
+  vi: vd XMAS
+  id: cth XMAS
+  pl: np. XMAS
+  nl: bijv. XMAS
+  ar: مثل XMAS
+  hi: उदा. XMAS
+  th: เช่น XMAS
+  cs: např. XMAS
+  sv: t.ex. XMAS
+  verified_by_human: []
+server.gift_cards.prefix_preview:
+  context: Label shown before the code format preview when a prefix is entered
+  en: Preview
+  de: Vorschau
+  zh: 预览
+  es: Vista previa
+  fr: Aperçu
+  pt: Pré-visualização
+  ru: Предпросмотр
+  ja: プレビュー
+  ko: 미리보기
+  it: Anteprima
+  tr: Önizleme
+  vi: Xem trước
+  id: Pratinjau
+  pl: Podgląd
+  nl: Voorbeeld
+  ar: معاينة
+  hi: पूर्वावलोकन
+  th: ตัวอย่าง
+  cs: Náhled
+  sv: Förhandsvisning
+  verified_by_human: []
+server.gift_cards.optional:
+  context: Label indicating a field is optional
+  en: optional
+  de: optional
+  zh: 可选
+  es: opcional
+  fr: optionnel
+  pt: opcional
+  ru: необязательно
+  ja: オプション
+  ko: 선택사항
+  it: opzionale
+  tr: isteğe bağlı
+  vi: tùy chọn
+  id: opsional
+  pl: opcjonalnie
+  nl: optioneel
+  ar: اختياري
+  hi: वैकल्पिक
+  th: ไม่บังคับ
+  cs: volitelné
+  sv: valfritt
+  verified_by_human: []
+server.gift_cards.notes:
+  context: Label for admin notes input field in gift card generator
+  en: Notes
+  de: Notizen
+  zh: 备注
+  es: Notas
+  fr: Notes
+  pt: Notas
+  ru: Заметки
+  ja: メモ
+  ko: 메모
+  it: Note
+  tr: Notlar
+  vi: Ghi chú
+  id: Catatan
+  pl: Notatki
+  nl: Notities
+  ar: ملاحظات
+  hi: नोट्स
+  th: หมายเหตุ
+  cs: Poznámky
+  sv: Anteckningar
+  verified_by_human: []
+server.gift_cards.notes_placeholder:
+  context: Placeholder text for notes input field
+  en: Optional admin notes
+  de: Optionale Admin-Notizen
+  zh: 可选管理员备注
+  es: Notas de administrador opcionales
+  fr: Notes d'administrateur optionnelles
+  pt: Notas de administrador opcionais
+  ru: Необязательные заметки администратора
+  ja: 管理者メモ（任意）
+  ko: 관리자 메모 (선택사항)
+  it: Note amministratore opzionali
+  tr: İsteğe bağlı yönetici notları
+  vi: Ghi chú quản trị viên (tùy chọn)
+  id: Catatan admin opsional
+  pl: Opcjonalne notatki administratora
+  nl: Optionele beheernotities
+  ar: ملاحظات المسؤول الاختيارية
+  hi: वैकल्पिक व्यवस्थापक नोट्स
+  th: หมายเหตุผู้ดูแลระบบ (ไม่บังคับ)
+  cs: Volitelné poznámky správce
+  sv: Valfria administratörsanteckningar
+  verified_by_human: []
+server.gift_cards.generate:
+  context: Generate button text in gift card generator
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Сгенерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Vygenerovat
+  sv: Generera
+  verified_by_human: []
+server.gift_cards.generating:
+  context: Button text shown while gift cards are being generated
+  en: Generating...
+  de: Wird generiert...
+  zh: 正在生成...
+  es: Generando...
+  fr: Génération en cours...
+  pt: A gerar...
+  ru: Генерация...
+  ja: 生成中...
+  ko: 생성 중...
+  it: Generazione in corso...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Generowanie...
+  nl: Genereren...
+  ar: جارٍ الإنشاء...
+  hi: बना रहा है...
+  th: กำลังสร้าง...
+  cs: Generování...
+  sv: Genererar...
+  verified_by_human: []
+server.gift_cards.generated_codes:
+  context: Heading shown above the list of generated gift card codes
+  en: Generated Codes
+  de: Generierte Codes
+  zh: 已生成的代码
+  es: Códigos generados
+  fr: Codes générés
+  pt: Códigos gerados
+  ru: Сгенерированные коды
+  ja: 生成されたコード
+  ko: 생성된 코드
+  it: Codici generati
+  tr: Oluşturulan kodlar
+  vi: Mã đã tạo
+  id: Kode yang dibuat
+  pl: Wygenerowane kody
+  nl: Gegenereerde codes
+  ar: الرموز المُنشأة
+  hi: बनाए गए कोड
+  th: รหัสที่สร้างแล้ว
+  cs: Vygenerované kódy
+  sv: Genererade koder
+  verified_by_human: []
+server.gift_cards.copy_code:
+  context: Tooltip for copy button on individual gift card code
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  verified_by_human: []
+server.gift_cards.copy_all:
+  context: Button text to copy all generated gift card codes to clipboard
+  en: Copy All Codes
+  de: Alle Codes kopieren
+  zh: 复制所有代码
+  es: Copiar todos los códigos
+  fr: Copier tous les codes
+  pt: Copiar todos os códigos
+  ru: Скопировать все коды
+  ja: すべてのコードをコピー
+  ko: 모든 코드 복사
+  it: Copia tutti i codici
+  tr: Tüm kodları kopyala
+  vi: Sao chép tất cả mã
+  id: Salin semua kode
+  pl: Kopiuj wszystkie kody
+  nl: Alle codes kopiëren
+  ar: نسخ جميع الرموز
+  hi: सभी कोड कॉपी करें
+  th: คัดลอกรหัสทั้งหมด
+  cs: Kopírovat všechny kódy
+  sv: Kopiera alla koder
+  verified_by_human: []
+server.gift_cards.copied:
+  context: Feedback message shown after codes are copied to clipboard
+  en: Copied to clipboard
+  de: In Zwischenablage kopiert
+  zh: 已复制到剪贴板
+  es: Copiado al portapapeles
+  fr: Copié dans le presse-papiers
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào bộ nhớ tạm
+  id: Disalin ke papan klip
+  pl: Skopiowano do schowka
+  nl: Gekopieerd naar klembord
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: Kopierat till urklipp
+  verified_by_human: []
+server.gift_cards.invalid_prefix:
+  context: Error message shown when prefix contains invalid characters
+  en: Prefix must be 1-4 characters (A-Z, 2-9, excluding O, I, 0, 1)
+  de: Präfix muss 1-4 Zeichen sein (A-Z, 2-9, ohne O, I, 0, 1)
+  zh: 前缀必须是1-4个字符（A-Z, 2-9，不含O, I, 0, 1）
+  es: El prefijo debe tener 1-4 caracteres (A-Z, 2-9, excluyendo O, I, 0, 1)
+  fr: Le préfixe doit contenir 1-4 caractères (A-Z, 2-9, excluant O, I, 0, 1)
+  pt: O prefixo deve ter 1-4 caracteres (A-Z, 2-9, excluindo O, I, 0, 1)
+  ru: Префикс должен содержать 1-4 символа (A-Z, 2-9, кроме O, I, 0, 1)
+  ja: プレフィックスは1-4文字（A-Z, 2-9、O, I, 0, 1を除く）
+  ko: 접두사는 1-4자여야 합니다 (A-Z, 2-9, O, I, 0, 1 제외)
+  it: Il prefisso deve avere 1-4 caratteri (A-Z, 2-9, esclusi O, I, 0, 1)
+  tr: Ön ek 1-4 karakter olmalıdır (A-Z, 2-9, O, I, 0, 1 hariç)
+  vi: Tiền tố phải có 1-4 ký tự (A-Z, 2-9, trừ O, I, 0, 1)
+  id: Awalan harus 1-4 karakter (A-Z, 2-9, kecuali O, I, 0, 1)
+  pl: Prefiks musi mieć 1-4 znaki (A-Z, 2-9, bez O, I, 0, 1)
+  nl: Voorvoegsel moet 1-4 tekens zijn (A-Z, 2-9, exclusief O, I, 0, 1)
+  ar: يجب أن تكون البادئة 1-4 أحرف (A-Z, 2-9, باستثناء O, I, 0, 1)
+  hi: उपसर्ग 1-4 वर्ण होना चाहिए (A-Z, 2-9, O, I, 0, 1 को छोड़कर)
+  th: คำนำหน้าต้องมี 1-4 ตัวอักษร (A-Z, 2-9 ยกเว้น O, I, 0, 1)
+  cs: Prefix musí mít 1-4 znaky (A-Z, 2-9, kromě O, I, 0, 1)
+  sv: Prefix måste vara 1-4 tecken (A-Z, 2-9, exklusive O, I, 0, 1)
+  verified_by_human: []
 server_stats.title:
   en: Server Statistics
   de: Server-Statistiken
@@ -2102,6 +2516,27 @@ server_stats.total_liability_sub:
   th: เครดิตคงค้าง
   cs: Nevyplacené kredity
   sv: Utestående krediter
+server_stats.newsletter_subscribers:
+  en: Newsletter Subscribers
+  de: Newsletter-Abonnenten
+  zh: 新闻订阅者
+  es: Suscriptores del boletín
+  fr: Abonnés à la newsletter
+  pt: Assinantes da newsletter
+  ru: Подписчики рассылки
+  ja: ニュースレター購読者
+  ko: 뉴스레터 구독자
+  it: Iscritti alla newsletter
+  tr: Bülten Aboneleri
+  vi: Người đăng ký bản tin
+  id: Pelanggan Buletin
+  pl: Subskrybenci newslettera
+  nl: Nieuwsbriefabonnees
+  ar: المشتركون في النشرة الإخبارية
+  hi: न्यूज़लेटर सदस्य
+  th: ผู้สมัครรับจดหมายข่าว
+  cs: Odběratelé newsletteru
+  sv: Nyhetsbrevsprenumeranter
 server_stats.latest_activity:
   en: Latest Day Activity ({date})
   de: Letzte Tagesaktivität ({date})
@@ -2466,21 +2901,21 @@ software_updates:
   zh: 软件更新
   es: Actualizaciones de software
   fr: Mises à jour logicielles
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ソフトウェアアップデート
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 checking_for_updates:
   context: Message shown while checking for software updates
@@ -2489,21 +2924,21 @@ checking_for_updates:
   zh: 正在检查更新...
   es: Buscando actualizaciones...
   fr: Recherche de mises à jour...
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アップデートを確認中...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 new_update_available:
   context: Message shown when new software update is available
@@ -2512,21 +2947,21 @@ new_update_available:
   zh: 有新的更新可用
   es: Nueva actualización disponible
   fr: Nouvelle mise à jour disponible
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: 新しいアップデートが利用可能
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 install:
   context: Button text for installing software updates
@@ -2535,80 +2970,80 @@ install:
   zh: 安装
   es: Instalar
   fr: Installer
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: インストール
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 server_will_be_restarted:
   context: Message shown under the install button to inform the user that the server will be restarted
-  en: 'The server will be restarted and
+  en: "The server will be restarted and
 
     therefore briefly offline once
 
     the update has been installed.
 
-    '
-  de: 'Der Server wird neu gestartet und
+    "
+  de: "Der Server wird neu gestartet und
 
     daher kurz offline sein, sobald
 
     das Update installiert wurde.
 
-    '
-  zh: '服务器将在
+    "
+  zh: "服务器将在
 
     更新安装完成后
 
     重启并短暂离线。
 
-    '
-  es: 'El servidor se reiniciará y
+    "
+  es: "El servidor se reiniciará y
 
     por lo tanto estará brevemente fuera de línea una vez
 
     que se haya instalado la actualización.
 
-    '
-  fr: 'Le serveur sera redémarré et
+    "
+  fr: "Le serveur sera redémarré et
 
     donc brièvement hors ligne une fois
 
     la mise à jour installée.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'アップデートがインストールされると、
+    "
+  pt: ""
+  ru: ""
+  ja: "アップデートがインストールされると、
 
     サーバーが再起動され、
 
     一時的にオフラインになります。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 installing_update:
   context: Message shown while installing software update
@@ -2617,21 +3052,21 @@ installing_update:
   zh: 正在安装更新...
   es: Instalando actualización...
   fr: Installation de la mise à jour...
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アップデートをインストール中...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 restarting_server:
   context: Message shown while restarting server after software update
@@ -2640,68 +3075,68 @@ restarting_server:
   zh: 正在重启服务器...
   es: Reiniciando servidor...
   fr: Redémarrage du serveur...
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: サーバーを再起動中...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 update_failed:
   context: Error message shown when software update fails
-  en: 'Update failed.
+  en: "Update failed.
 
     Check the server logs.
 
-    '
-  de: 'Update fehlgeschlagen.
+    "
+  de: "Update fehlgeschlagen.
 
     Überprüfe die Server-Logs.
 
-    '
-  zh: '更新失败。
+    "
+  zh: "更新失败。
 
     请检查服务器日志。
 
-    '
-  es: 'Actualización fallida.
+    "
+  es: "Actualización fallida.
 
     Revisa los registros del servidor.
 
-    '
-  fr: 'Mise à jour échouée.
+    "
+  fr: "Mise à jour échouée.
 
     Vérifiez les journaux du serveur.
 
-    '
-  pt: ''
-  ru: ''
-  ja: 'アップデートに失敗しました。
+    "
+  pt: ""
+  ru: ""
+  ja: "アップデートに失敗しました。
 
     サーバーログを確認してください。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 update_successful:
   context: Success message shown when software update is successful
@@ -2710,21 +3145,21 @@ update_successful:
   zh: 更新成功
   es: Actualización exitosa
   fr: Mise à jour réussie
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アップデート成功
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 installed:
   context: Message shown above the currently installed software version
@@ -2733,121 +3168,121 @@ installed:
   zh: 已安装
   es: Instalado
   fr: Installé
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: インストール済み
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 profile_image_not_allowed:
   context: Error message shown when profile image contains nudity or violence or gore
-  en: 'No nudity, violence or gore
+  en: "No nudity, violence or gore
 
     in profile images.
 
-    '
-  de: 'Keine Nacktheit, Gewalt oder Blut
+    "
+  de: "Keine Nacktheit, Gewalt oder Blut
 
     in Profilbildern.
 
-    '
-  zh: '在个人资料图片中
+    "
+  zh: "在个人资料图片中
 
     不允许裸露、暴力或血腥。
 
-    '
-  es: 'No se permiten desnudos, violencia o sangre
+    "
+  es: "No se permiten desnudos, violencia o sangre
 
     en las imágenes de perfil.
 
-    '
-  fr: 'Pas de nudité, de violence ou de sang
+    "
+  fr: "Pas de nudité, de violence ou de sang
 
     dans les images de profil.
 
-    '
-  pt: ''
-  ru: ''
+    "
+  pt: ""
+  ru: ""
   ja: プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 last_warning_image_not_allowed:
   context: Last warning error message shown when profile image contains nudity or violence or gore
-  en: 'Last warning:
+  en: "Last warning:
 
     No nudity, violence or gore in profile images.
 
     One more violation and your account will be deleted.
 
-    '
-  de: 'Letzte Warnung:
+    "
+  de: "Letzte Warnung:
 
     Keine Nacktheit, Gewalt oder Blut in Profilbildern.
 
     Noch eine Verletzung und dein Konto wird gelöscht.
 
-    '
-  zh: '最后警告：
+    "
+  zh: "最后警告：
 
     个人资料图片中不允许裸露、暴力或血腥。
 
     再次违规，您的帐户将被删除。
 
-    '
-  es: 'Última advertencia:
+    "
+  es: "Última advertencia:
 
     No se permiten desnudos, violencia o sangre en las imágenes
 
-    '
-  fr: 'Dernier avertissement :
+    "
+  fr: "Dernier avertissement :
 
     Pas de nudité, de violence ou de sang dans les images de profil.
 
     Une violation supplémentaire et votre compte sera supprimé.
 
-    '
-  pt: ''
-  ru: ''
-  ja: '最後の警告：
+    "
+  pt: ""
+  ru: ""
+  ja: "最後の警告：
 
     プロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。
 
     もう1回違反するとアカウントが削除されます。
 
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+    "
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 your_account_got_deleted:
   context: Message shown when account got deleted due to violation of guidelines or when user manually deletes account
@@ -2856,21 +3291,21 @@ your_account_got_deleted:
   zh: 您的帐户已被删除。
   es: Tu cuenta fue eliminada.
   fr: Votre compte a été supprimé.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: アカウントが削除されました。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 app_embeds.no_embeds:
   context: Message when no embeds are found for an app
@@ -2918,6 +3353,31 @@ app_embeds.loading:
   cs: Načítání vložených prvků...
   sv: Läser in inbäddningar...
   verified_by_human: []
+app_settings_memories.examples_label:
+  context: Label shown above example entries for non-authenticated users
+  en: "Examples:"
+  de: "Beispiele:"
+  zh: "示例："
+  es: "Ejemplos:"
+  fr: "Exemples :"
+  pt: "Exemplos:"
+  ru: "Примеры:"
+  ja: "例："
+  ko: "예시:"
+  it: "Esempi:"
+  tr: "Örnekler:"
+  vi: "Ví dụ:"
+  id: "Contoh:"
+  pl: "Przykłady:"
+  nl: "Voorbeelden:"
+  ar: "أمثلة:"
+  hi: "उदाहरण:"
+  th: "ตัวอย่าง:"
+  cs: "Příklady:"
+  sv: "Exempel:"
+  verified_by_human:
+    - en
+    - de
 app_settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.
@@ -4463,6 +4923,52 @@ report_issue.description_too_short:
   cs: Popis problému musí mít alespoň 10 znaků
   sv: Problembeskrivningen måste vara minst 10 tecken lång
   verified_by_human: []
+report_issue.share_chat_label:
+  context: Label for the toggle that enables sharing the current chat or embed with the issue report
+  en: Share current chat with this report
+  de: Aktuellen Chat mit diesem Bericht teilen
+  zh: 将当前聊天分享到此报告
+  es: Compartir chat actual con este informe
+  fr: Partager le chat actuel avec ce rapport
+  pt: Compartilhar chat atual com este relatorio
+  ru: Поделиться текущим чатом в этом отчете
+  ja: 現在のチャットをこのレポートに共有
+  ko: 현재 채팅을 이 보고서와 공유
+  it: Condividi la chat corrente con questo report
+  tr: Mevcut sohbeti bu raporla paylas
+  vi: Chia se cuoc tro chuyen hien tai voi bao cao nay
+  id: Bagikan chat saat ini dengan laporan ini
+  pl: Udostepnij biezacy czat z tym zgloszeniem
+  nl: Deel huidige chat met dit rapport
+  ar: مشاركة الدردشة الحالية مع هذا التقرير
+  hi: वर्तमान चैट को इस रिपोर्ट के साथ साझा करें
+  th: แชร์แชทปัจจุบันกับรายงานนี้
+  cs: Sdilet aktualni chat s timto hlasenim
+  sv: Dela aktuell chatt med denna rapport
+  verified_by_human: []
+report_issue.share_chat_hint:
+  context: Hint text explaining what sharing the chat does when the toggle is enabled
+  en: This allows the admin to view the chat to help debug the issue.
+  de: Dadurch kann der Administrator den Chat einsehen, um das Problem zu beheben.
+  zh: 这允许管理员查看聊天以帮助调试问题。
+  es: Esto permite al administrador ver el chat para ayudar a depurar el problema.
+  fr: Cela permet a l'administrateur de voir le chat pour aider a deboguer le probleme.
+  pt: Isso permite que o administrador veja o chat para ajudar a depurar o problema.
+  ru: Это позволяет администратору просматривать чат для помощи в отладке проблемы.
+  ja: これにより、管理者がチャットを確認して問題のデバッグに役立てることができます。
+  ko: 이를 통해 관리자가 채팅을 보고 문제를 디버그하는 데 도움을 줄 수 있습니다.
+  it: Questo permette all'amministratore di visualizzare la chat per aiutare a risolvere il problema.
+  tr: Bu, yoneticinin sorunu ayiklamaya yardimci olmak icin sohbeti goruntulemesine olanak tanir.
+  vi: Dieu nay cho phep quan tri vien xem cuoc tro chuyen de giup go loi van de.
+  id: Ini memungkinkan admin untuk melihat chat untuk membantu debug masalah.
+  pl: Umozliwia to administratorowi podglad czatu w celu pomocy w debugowaniu problemu.
+  nl: Hiermee kan de beheerder de chat bekijken om het probleem te helpen debuggen.
+  ar: يتيح هذا للمسؤول عرض الدردشة للمساعدة في تصحيح المشكلة.
+  hi: यह व्यवस्थापक को समस्या को डीबग करने में मदद करने के लिए चैट देखने की अनुमति देता है।
+  th: สิ่งนี้ช่วยให้ผู้ดูแลระบบดูแชทเพื่อช่วยแก้ไขปัญหา
+  cs: To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu.
+  sv: Detta gor att administratoren kan se chatten for att hjalpa med felsoning.
+  verified_by_human: []
 report_issue.url_label:
   context: Label for shared chat or embed URL input field
   en: Shared chat or embed URL
@@ -4489,7 +4995,7 @@ report_issue.url_label:
 report_issue.url_placeholder:
   context: Placeholder text for shared chat or embed URL input field
   en: https://openmates.org/share/chat/123#key=...
-  de: https://openmates.org/share/chat/123#key=... 
+  de: https://openmates.org/share/chat/123#key=...
   zh: https://openmates.org/share/chat/123#key=...
   es: https://openmates.org/share/chat/123#key=...
   fr: https://openmates.org/share/chat/123#key=...
@@ -4649,26 +5155,26 @@ report_issue.device_info.heading:
   verified_by_human: []
 report_issue.device_info.description:
   context: Description for the device information notice shown under the report issue submit button
-  en: 'To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:'
-  de: 'Um bei der Behebung Ihres Problems zu helfen, werden die folgenden technischen Informationen über Ihr Gerät in Ihren Bericht aufgenommen und per E-Mail an unseren Serveradministrator gesendet:'
-  zh: '为了帮助调试您的问题，以下关于您设备的技术信息将包含在您的报告中并通过电子邮件发送给我们的服务器管理员：'
-  es: 'Para ayudar a depurar tu problema, la siguiente información técnica sobre tu dispositivo se incluirá en tu reporte y se enviará por correo electrónico a nuestro administrador del servidor:'
-  fr: 'Pour aider à déboguer votre problème, les informations techniques suivantes sur votre appareil seront incluses dans votre rapport et envoyées par e-mail à notre administrateur serveur :'
-  pt: 'Para ajudar a depurar seu problema, as seguintes informações técnicas sobre seu dispositivo serão incluídas em seu relatório e enviadas por e-mail ao nosso administrador do servidor:'
-  ru: 'Чтобы помочь с отладкой вашей проблемы, следующая техническая информация о вашем устройстве будет включена в ваш отчет и отправлена по электронной почте нашему администратору сервера:'
-  ja: 'お客様の問題のデバッグをサポートするため、お客様のデバイスに関する以下の技術情報がレポートに含まれ、サーバー管理者にメールで送信されます：'
-  ko: '귀하의 문제를 디버깅하는 데 도움이 되도록, 귀하의 기기에 대한 다음 기술 정보가 보고서에 포함되어 서버 관리자에게 이메일로 전송됩니다:'
-  it: 'Per aiutare a risolvere il tuo problema, le seguenti informazioni tecniche sul tuo dispositivo saranno incluse nel tuo report e inviate via email al nostro amministratore del server:'
-  tr: 'Sorununuzu çözmeye yardımcı olmak için, cihazınızla ilgili aşağıdaki teknik bilgiler raporunuza dahil edilecek ve e-posta yoluyla sunucu yöneticimize gönderilecektir:'
-  vi: 'Để giúp gỡ lỗi vấn đề của bạn, các thông tin kỹ thuật sau về thiết bị của bạn sẽ được bao gồm trong báo cáo và gửi qua email tới quản trị viên máy chủ của chúng tôi:'
-  id: 'Untuk membantu men-debug masalah Anda, informasi teknis berikut tentang perangkat Anda akan disertakan dalam laporan Anda dan dikirim melalui email kepada admin server kami:'
-  pl: 'Aby pomóc w debugowaniu Twojego problemu, następujące informacje techniczne o Twoim urządzeniu zostaną uwzględnione w Twoim raporcie i wysłane e-mailem do naszego administratora serwera:'
-  nl: 'Om te helpen bij het debuggen van uw probleem, zal de volgende technische informatie over uw apparaat worden opgenomen in uw rapport en per e-mail worden verzonden naar onze serverbeheerder:'
-  ar: 'للمساعدة في حل مشكلتك، ستُدرج المعلومات التقنية التالية حول جهازك في تقريرك وسيتم إرسالها عبر البريد الإلكتروني إلى مدير الخادم لدينا:'
-  hi: 'आपकी समस्या को ठीक करने में मदद करने के लिए, आपके डिवाइस के बारे में निम्नलिखित तकनीकी जानकारी आपकी रिपोर्ट में शामिल की जाएगी और हमारे सर्वर एडमिन को ईमेल के माध्यम से भेजी जाएगी:'
-  th: 'เพื่อช่วยในการแก้ไขปัญหาของคุณ ข้อมูลทางเทคนิคต่อไปนี้เกี่ยวกับอุปกรณ์ของคุณจะถูกรวมไว้ในรายงานของคุณและส่งทางอีเมลไปยังผู้ดูแลเซิร์ฟเวอร์ของเรา:'
-  cs: 'Pro pomoc při ladění vašeho problému budou následující technické informace o vašem zařízení zahrnuty do vaší zprávy a odeslány e-mailem našemu správci serveru:'
-  sv: 'För att hjälpa till med debugging av ditt problem kommer följande tekniska information om din enhet att inkluderas i din rapport och skickas via e-post till vår serveradministratör:'
+  en: "To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:"
+  de: "Um bei der Behebung Ihres Problems zu helfen, werden die folgenden technischen Informationen über Ihr Gerät in Ihren Bericht aufgenommen und per E-Mail an unseren Serveradministrator gesendet:"
+  zh: "为了帮助调试您的问题，以下关于您设备的技术信息将包含在您的报告中并通过电子邮件发送给我们的服务器管理员："
+  es: "Para ayudar a depurar tu problema, la siguiente información técnica sobre tu dispositivo se incluirá en tu reporte y se enviará por correo electrónico a nuestro administrador del servidor:"
+  fr: "Pour aider à déboguer votre problème, les informations techniques suivantes sur votre appareil seront incluses dans votre rapport et envoyées par e-mail à notre administrateur serveur :"
+  pt: "Para ajudar a depurar seu problema, as seguintes informações técnicas sobre seu dispositivo serão incluídas em seu relatório e enviadas por e-mail ao nosso administrador do servidor:"
+  ru: "Чтобы помочь с отладкой вашей проблемы, следующая техническая информация о вашем устройстве будет включена в ваш отчет и отправлена по электронной почте нашему администратору сервера:"
+  ja: "お客様の問題のデバッグをサポートするため、お客様のデバイスに関する以下の技術情報がレポートに含まれ、サーバー管理者にメールで送信されます："
+  ko: "귀하의 문제를 디버깅하는 데 도움이 되도록, 귀하의 기기에 대한 다음 기술 정보가 보고서에 포함되어 서버 관리자에게 이메일로 전송됩니다:"
+  it: "Per aiutare a risolvere il tuo problema, le seguenti informazioni tecniche sul tuo dispositivo saranno incluse nel tuo report e inviate via email al nostro amministratore del server:"
+  tr: "Sorununuzu çözmeye yardımcı olmak için, cihazınızla ilgili aşağıdaki teknik bilgiler raporunuza dahil edilecek ve e-posta yoluyla sunucu yöneticimize gönderilecektir:"
+  vi: "Để giúp gỡ lỗi vấn đề của bạn, các thông tin kỹ thuật sau về thiết bị của bạn sẽ được bao gồm trong báo cáo và gửi qua email tới quản trị viên máy chủ của chúng tôi:"
+  id: "Untuk membantu men-debug masalah Anda, informasi teknis berikut tentang perangkat Anda akan disertakan dalam laporan Anda dan dikirim melalui email kepada admin server kami:"
+  pl: "Aby pomóc w debugowaniu Twojego problemu, następujące informacje techniczne o Twoim urządzeniu zostaną uwzględnione w Twoim raporcie i wysłane e-mailem do naszego administratora serwera:"
+  nl: "Om te helpen bij het debuggen van uw probleem, zal de volgende technische informatie over uw apparaat worden opgenomen in uw rapport en per e-mail worden verzonden naar onze serverbeheerder:"
+  ar: "للمساعدة في حل مشكلتك، ستُدرج المعلومات التقنية التالية حول جهازك في تقريرك وسيتم إرسالها عبر البريد الإلكتروني إلى مدير الخادم لدينا:"
+  hi: "आपकी समस्या को ठीक करने में मदद करने के लिए, आपके डिवाइस के बारे में निम्नलिखित तकनीकी जानकारी आपकी रिपोर्ट में शामिल की जाएगी और हमारे सर्वर एडमिन को ईमेल के माध्यम से भेजी जाएगी:"
+  th: "เพื่อช่วยในการแก้ไขปัญหาของคุณ ข้อมูลทางเทคนิคต่อไปนี้เกี่ยวกับอุปกรณ์ของคุณจะถูกรวมไว้ในรายงานของคุณและส่งทางอีเมลไปยังผู้ดูแลเซิร์ฟเวอร์ของเรา:"
+  cs: "Pro pomoc při ladění vašeho problému budou následující technické informace o vašem zařízení zahrnuty do vaší zprávy a odeslány e-mailem našemu správci serveru:"
+  sv: "För att hjälpa till med debugging av ditt problem kommer följande tekniska information om din enhet att inkluderas i din rapport och skickas via e-post till vår serveradministratör:"
   verified_by_human: []
 report_issue.device_info.browser_os_label:
   context: Label for the user agent entry in the device information notice
@@ -4787,26 +5293,26 @@ report_issue.device_info.privacy_body:
   verified_by_human: []
 report_issue.signal_reminder:
   context: Reminder text about Signal group for discussions or screenshots
-  en: 'Tip: For discussions or to share screenshots, consider joining our'
-  de: 'Tipp: Für Diskussionen oder zum Teilen von Screenshots, erwäge, unserer'
-  zh: '提示：要进行讨论或分享截图，请考虑加入我们的'
-  es: 'Consejo: Para discusiones o para compartir capturas de pantalla, considera unirte a nuestro'
-  fr: 'Astuce : Pour les discussions ou pour partager des captures d''écran, envisagez de rejoindre notre'
-  pt: 'Dica: Para discussões ou para compartilhar capturas de tela, considere ingressar em nosso'
-  ru: 'Совет: Для обсуждений или обмена скриншотами рассмотрите возможность присоединения к нашей'
-  ja: 'ヒント: ディスカッションやスクリーンショットの共有には、'
-  ko: '팁: 토론이나 스크린샷 공유를 위해'
-  it: 'Suggerimento: Per discussioni o per condividere screenshot, considera di unirti al nostro'
-  tr: 'İpucu: Tartışmalar veya ekran görüntüleri paylaşmak için'
-  vi: 'Mẹo: Để thảo luận hoặc chia sẻ ảnh chụp màn hình, hãy cân nhắc tham gia nhóm Signal của chúng tôi. Bạn có thể tìm thấy liên kết trong phần Hỗ trợ.'
-  id: 'Tip: Untuk diskusi atau berbagi tangkapan layar, pertimbangkan untuk bergabung dengan grup Signal kami. Anda dapat menemukan tautan di bagian Dukungan.'
-  pl: 'Wskazówka: Aby prowadzić dyskusje lub udostępniać zrzuty ekranu, rozważ dołączenie do naszej grupy Signal. Link znajdziesz w sekcji Wsparcie.'
-  nl: 'Tip: Voor discussies of om screenshots te delen, overweeg om lid te worden van onze Signal-groep. Je kunt de link vinden in de sectie Ondersteuning.'
-  ar: 'نصيحة: للمناقشات أو لمشاركة لقطات الشاشة، فكر في الانضمام إلى مجموعة Signal الخاصة بنا. يمكنك العثور على الرابط في قسم الدعم.'
-  hi: 'सुझाव: चर्चा या स्क्रीनशॉट साझा करने के लिए, हमारे Signal समूह में शामिल होने पर विचार करें। आप समर्थन अनुभाग में लिंक पा सकते हैं।'
-  th: 'เคล็ดลับ: สำหรับการสนทนาหรือแชร์ภาพหน้าจอ พิจารณาเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน'
-  cs: 'Tip: Pro diskuse nebo sdílení snímků obrazovky zvažte připojení k naší skupině Signal. Odkaz najdete v sekci Podpora.'
-  sv: 'Tips: För diskussioner eller att dela skärmdumpar, överväg att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd.'
+  en: "Tip: For discussions or to share screenshots, consider joining our"
+  de: "Tipp: Für Diskussionen oder zum Teilen von Screenshots, erwäge, unserer"
+  zh: "提示：要进行讨论或分享截图，请考虑加入我们的"
+  es: "Consejo: Para discusiones o para compartir capturas de pantalla, considera unirte a nuestro"
+  fr: "Astuce : Pour les discussions ou pour partager des captures d'écran, envisagez de rejoindre notre"
+  pt: "Dica: Para discussões ou para compartilhar capturas de tela, considere ingressar em nosso"
+  ru: "Совет: Для обсуждений или обмена скриншотами рассмотрите возможность присоединения к нашей"
+  ja: "ヒント: ディスカッションやスクリーンショットの共有には、"
+  ko: "팁: 토론이나 스크린샷 공유를 위해"
+  it: "Suggerimento: Per discussioni o per condividere screenshot, considera di unirti al nostro"
+  tr: "İpucu: Tartışmalar veya ekran görüntüleri paylaşmak için"
+  vi: "Mẹo: Để thảo luận hoặc chia sẻ ảnh chụp màn hình, hãy cân nhắc tham gia nhóm Signal của chúng tôi. Bạn có thể tìm thấy liên kết trong phần Hỗ trợ."
+  id: "Tip: Untuk diskusi atau berbagi tangkapan layar, pertimbangkan untuk bergabung dengan grup Signal kami. Anda dapat menemukan tautan di bagian Dukungan."
+  pl: "Wskazówka: Aby prowadzić dyskusje lub udostępniać zrzuty ekranu, rozważ dołączenie do naszej grupy Signal. Link znajdziesz w sekcji Wsparcie."
+  nl: "Tip: Voor discussies of om screenshots te delen, overweeg om lid te worden van onze Signal-groep. Je kunt de link vinden in de sectie Ondersteuning."
+  ar: "نصيحة: للمناقشات أو لمشاركة لقطات الشاشة، فكر في الانضمام إلى مجموعة Signal الخاصة بنا. يمكنك العثور على الرابط في قسم الدعم."
+  hi: "सुझाव: चर्चा या स्क्रीनशॉट साझा करने के लिए, हमारे Signal समूह में शामिल होने पर विचार करें। आप समर्थन अनुभाग में लिंक पा सकते हैं।"
+  th: "เคล็ดลับ: สำหรับการสนทนาหรือแชร์ภาพหน้าจอ พิจารณาเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน"
+  cs: "Tip: Pro diskuse nebo sdílení snímků obrazovky zvažte připojení k naší skupině Signal. Odkaz najdete v sekci Podpora."
+  sv: "Tips: För diskussioner eller att dela skärmdumpar, överväg att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd."
   verified_by_human: []
 report_issue.signal_link:
   context: Link text for Signal group
@@ -4900,6 +5406,98 @@ report_issue_success:
   cs: Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu!
   sv: Problem rapporterat framgångsrikt. Tack för din feedback!
   verified_by_human: []
+report_issue_success_with_id:
+  context: Success message after submitting issue report, includes the issue ID for reference. {issue_id} is replaced with the actual UUID.
+  en: "Issue reported successfully. Thank you for your feedback! Your issue ID: {issue_id}"
+  de: "Problem erfolgreich gemeldet. Vielen Dank für dein Feedback! Deine Problem-ID: {issue_id}"
+  zh: "问题已成功报告。感谢您的反馈！您的问题 ID：{issue_id}"
+  es: "Problema reportado con éxito. ¡Gracias por tus comentarios! Tu ID de problema: {issue_id}"
+  fr: "Problème signalé avec succès. Merci pour vos commentaires ! Votre ID de problème : {issue_id}"
+  pt: "Problema reportado com sucesso. Obrigado pelo seu feedback! Seu ID do problema: {issue_id}"
+  ru: "Проблема успешно отправлена. Спасибо за ваш отзыв! Ваш ID проблемы: {issue_id}"
+  ja: "問題が正常に報告されました。フィードバックありがとうございます！問題ID：{issue_id}"
+  ko: "문제가 성공적으로 신고되었습니다. 피드백을 주셔서 감사합니다! 문제 ID: {issue_id}"
+  it: "Problema segnalato con successo. Grazie per il tuo feedback! Il tuo ID problema: {issue_id}"
+  tr: "Sorun başarıyla bildirildi. Geri bildiriminiz için teşekkürler! Sorun ID'niz: {issue_id}"
+  vi: "Đã báo cáo sự cố thành công. Cảm ơn phản hồi của bạn! ID sự cố của bạn: {issue_id}"
+  id: "Masalah berhasil dilaporkan. Terima kasih atas masukan Anda! ID masalah Anda: {issue_id}"
+  pl: "Problem został pomyślnie zgłoszony. Dziękujemy za opinię! Twój ID problemu: {issue_id}"
+  nl: "Probleem succesvol gemeld. Bedankt voor uw feedback! Uw probleem-ID: {issue_id}"
+  ar: "تم الإبلاغ عن المشكلة بنجاح. شكرًا لملاحظاتك! معرف المشكلة الخاص بك: {issue_id}"
+  hi: "समस्या सफलतापूर्वक रिपोर्ट की गई। आपकी प्रतिक्रिया के लिए धन्यवाद! आपकी समस्या ID: {issue_id}"
+  th: "รายงานปัญหาสำเร็จแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ! ID ปัญหาของคุณ: {issue_id}"
+  cs: "Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu! Vaše ID problému: {issue_id}"
+  sv: "Problem rapporterat framgångsrikt. Tack för din feedback! Ditt problem-ID: {issue_id}"
+  verified_by_human: []
+report_issue.issue_id_label:
+  context: Label shown above the issue ID in the success message after reporting an issue
+  en: "Your Issue ID:"
+  de: "Deine Problem-ID:"
+  zh: "您的问题 ID："
+  es: "Tu ID de problema:"
+  fr: "Votre ID de problème :"
+  pt: "Seu ID do problema:"
+  ru: "Ваш ID проблемы:"
+  ja: "問題ID："
+  ko: "문제 ID:"
+  it: "Il tuo ID problema:"
+  tr: "Sorun ID'niz:"
+  vi: "ID sự cố của bạn:"
+  id: "ID masalah Anda:"
+  pl: "Twój ID problemu:"
+  nl: "Uw probleem-ID:"
+  ar: "معرف المشكلة الخاص بك:"
+  hi: "आपकी समस्या ID:"
+  th: "ID ปัญหาของคุณ:"
+  cs: "Vaše ID problému:"
+  sv: "Ditt problem-ID:"
+  verified_by_human: []
+report_issue.copy_issue_id:
+  context: Button text to copy the issue ID to clipboard
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  verified_by_human: []
+report_issue.issue_id_copied:
+  context: Button text shown after the issue ID has been copied to clipboard
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: "¡Copiado!"
+  fr: "Copié !"
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी हो गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  verified_by_human: []
 report_issue_error:
   context: Error message when submitting issue report fails
   en: Failed to submit issue. Please try again later.
@@ -4922,4 +5520,142 @@ report_issue_error:
   th: ส่งปัญหาล้มเหลว กรุณาลองอีกครั้งในภายหลัง
   cs: Odeslání problému se nezdařilo. Zkuste to prosím později znovu.
   sv: Det gick inte att skicka problemet. Försök igen senare.
+  verified_by_human: []
+report_issue.copy_debug_info_button:
+  context: Button text to copy client-side debug info to clipboard
+  en: Copy Debug Info to Clipboard
+  de: Debug-Info in Zwischenablage kopieren
+  zh: 复制调试信息到剪贴板
+  es: Copiar información de depuración al portapapeles
+  fr: Copier les infos de débogage dans le presse-papiers
+  pt: Copiar informações de depuração para a área de transferência
+  ru: Скопировать отладочную информацию в буфер обмена
+  ja: デバッグ情報をクリップボードにコピー
+  ko: 디버그 정보를 클립보드에 복사
+  it: Copia informazioni di debug negli appunti
+  tr: Hata ayıklama bilgilerini panoya kopyala
+  vi: Sao chép thông tin gỡ lỗi vào clipboard
+  id: Salin info debug ke clipboard
+  pl: Skopiuj informacje debugowania do schowka
+  nl: Kopieer debug-info naar klembord
+  ar: نسخ معلومات التصحيح إلى الحافظة
+  hi: डीबग जानकारी क्लिपबोर्ड पर कॉपी करें
+  th: คัดลอกข้อมูลดีบักไปยังคลิปบอร์ด
+  cs: Zkopírovat ladicí informace do schránky
+  sv: Kopiera felsökningsinfo till urklipp
+  verified_by_human: []
+report_issue.copy_debug_info_copying:
+  context: Button text while copying debug info
+  en: Copying...
+  de: Kopiere...
+  zh: 复制中...
+  es: Copiando...
+  fr: Copie en cours...
+  pt: Copiando...
+  ru: Копирование...
+  ja: コピー中...
+  ko: 복사 중...
+  it: Copia in corso...
+  tr: Kopyalanıyor...
+  vi: Đang sao chép...
+  id: Menyalin...
+  pl: Kopiowanie...
+  nl: Kopiëren...
+  ar: جاري النسخ...
+  hi: कॉपी हो रहा है...
+  th: กำลังคัดลอก...
+  cs: Kopírování...
+  sv: Kopierar...
+  verified_by_human: []
+report_issue.copy_debug_info_copied:
+  context: Button text after successfully copying debug info
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: Copiado!
+  fr: Copié !
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Tersalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी हो गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  verified_by_human: []
+report_issue.copy_debug_info_success:
+  context: Notification message after successfully copying debug info
+  en: Debug info copied to clipboard
+  de: Debug-Info in Zwischenablage kopiert
+  zh: 调试信息已复制到剪贴板
+  es: Información de depuración copiada al portapapeles
+  fr: Infos de débogage copiées dans le presse-papiers
+  pt: Informações de depuração copiadas para a área de transferência
+  ru: Отладочная информация скопирована в буфер обмена
+  ja: デバッグ情報がクリップボードにコピーされました
+  ko: 디버그 정보가 클립보드에 복사되었습니다
+  it: Informazioni di debug copiate negli appunti
+  tr: Hata ayıklama bilgileri panoya kopyalandı
+  vi: Đã sao chép thông tin gỡ lỗi vào clipboard
+  id: Info debug disalin ke clipboard
+  pl: Informacje debugowania skopiowane do schowka
+  nl: Debug-info gekopieerd naar klembord
+  ar: تم نسخ معلومات التصحيح إلى الحافظة
+  hi: डीबग जानकारी क्लिपबोर्ड पर कॉपी की गई
+  th: คัดลอกข้อมูลดีบักไปยังคลิปบอร์ดแล้ว
+  cs: Ladicí informace zkopírovány do schránky
+  sv: Felsökningsinfo kopierad till urklipp
+  verified_by_human: []
+report_issue.copy_debug_info_error:
+  context: Error message when copying debug info fails
+  en: Failed to copy debug info. Please try again.
+  de: Fehler beim Kopieren der Debug-Info. Bitte erneut versuchen.
+  zh: 复制调试信息失败。请重试。
+  es: Error al copiar información de depuración. Inténtalo de nuevo.
+  fr: Échec de la copie des infos de débogage. Veuillez réessayer.
+  pt: Falha ao copiar informações de depuração. Tente novamente.
+  ru: Не удалось скопировать отладочную информацию. Попробуйте снова.
+  ja: デバッグ情報のコピーに失敗しました。もう一度お試しください。
+  ko: 디버그 정보 복사에 실패했습니다. 다시 시도해 주세요.
+  it: Copia delle informazioni di debug fallita. Riprova.
+  tr: Hata ayıklama bilgileri kopyalanamadı. Lütfen tekrar deneyin.
+  vi: Sao chép thông tin gỡ lỗi thất bại. Vui lòng thử lại.
+  id: Gagal menyalin info debug. Silakan coba lagi.
+  pl: Nie udało się skopiować informacji debugowania. Spróbuj ponownie.
+  nl: Kopiëren van debug-info mislukt. Probeer opnieuw.
+  ar: فشل في نسخ معلومات التصحيح. يرجى المحاولة مرة أخرى.
+  hi: डीबग जानकारी कॉपी करने में विफल। कृपया पुनः प्रयास करें।
+  th: คัดลอกข้อมูลดีบักล้มเหลว กรุณาลองอีกครั้ง
+  cs: Kopírování ladicích informací se nezdařilo. Zkuste to znovu.
+  sv: Det gick inte att kopiera felsökningsinfo. Försök igen.
+  verified_by_human: []
+report_issue.copy_debug_info_hint:
+  context: Hint text below the copy debug info button explaining its purpose
+  en: Copies device info, console logs, and IndexedDB data to clipboard for local debugging
+  de: Kopiert Geräteinformationen, Konsolenprotokolle und IndexedDB-Daten zur lokalen Fehlersuche in die Zwischenablage
+  zh: 将设备信息、控制台日志和 IndexedDB 数据复制到剪贴板以供本地调试
+  es: Copia información del dispositivo, registros de consola y datos de IndexedDB al portapapeles para depuración local
+  fr: Copie les infos appareil, logs console et données IndexedDB dans le presse-papiers pour débogage local
+  pt: Copia informações do dispositivo, logs do console e dados IndexedDB para a área de transferência para depuração local
+  ru: Копирует информацию об устройстве, логи консоли и данные IndexedDB в буфер обмена для локальной отладки
+  ja: ローカルデバッグ用にデバイス情報、コンソールログ、IndexedDBデータをクリップボードにコピーします
+  ko: 로컬 디버깅을 위해 기기 정보, 콘솔 로그 및 IndexedDB 데이터를 클립보드에 복사합니다
+  it: Copia informazioni dispositivo, log console e dati IndexedDB negli appunti per debug locale
+  tr: Yerel hata ayıklama için cihaz bilgilerini, konsol günlüklerini ve IndexedDB verilerini panoya kopyalar
+  vi: Sao chép thông tin thiết bị, nhật ký console và dữ liệu IndexedDB vào clipboard để gỡ lỗi cục bộ
+  id: Menyalin info perangkat, log konsol, dan data IndexedDB ke clipboard untuk debugging lokal
+  pl: Kopiuje informacje o urządzeniu, logi konsoli i dane IndexedDB do schowka do lokalnego debugowania
+  nl: Kopieert apparaatinfo, consolelogboeken en IndexedDB-gegevens naar klembord voor lokale foutopsporing
+  ar: ينسخ معلومات الجهاز وسجلات وحدة التحكم وبيانات IndexedDB إلى الحافظة لتصحيح الأخطاء محليًا
+  hi: स्थानीय डिबगिंग के लिए डिवाइस जानकारी, कंसोल लॉग और IndexedDB डेटा को क्लिपबोर्ड पर कॉपी करता है
+  th: คัดลอกข้อมูลอุปกรณ์ ล็อกคอนโซล และข้อมูล IndexedDB ไปยังคลิปบอร์ดสำหรับการดีบักในเครื่อง
+  cs: Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění
+  sv: Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning
   verified_by_human: []

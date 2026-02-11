@@ -57,7 +57,9 @@ from backend.core.api.app.schemas.auth import (
     PasskeyRenameRequest,
     PasskeyRenameResponse,
     PasskeyDeleteRequest,
-    PasskeyDeleteResponse
+    PasskeyDeleteResponse,
+    PasskeyDeviceVerifyRequest,
+    PasskeyDeviceVerifyResponse
 )
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -76,6 +78,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
+from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
 # Import Celery app instance for cache warming tasks
@@ -2183,6 +2186,285 @@ async def passkey_assertion_verify(
             user_email_salt=None,
             auth_session=None
         )
+
+# Passkey Device Verification Endpoint
+# This is the passkey equivalent of POST /v1/auth/2fa/verify/device
+# Triggered when a passkey user accesses the session endpoint from a new device/location
+@router.post("/passkey/verify/device", response_model=PasskeyDeviceVerifyResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("5/minute")
+async def verify_device_passkey(
+    request: Request,
+    verify_request: PasskeyDeviceVerifyRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Verify a passkey assertion when prompted due to an unrecognized device accessing
+    an existing valid session. If successful, marks the current device as known.
+    
+    This is the passkey equivalent of the OTP 2FA device verification flow
+    (POST /v1/auth/2fa/verify/device). It ensures passkey users also re-authenticate
+    when accessing from a new device, preventing account takeover via stolen session cookies.
+    
+    Flow:
+    1. Client calls POST /v1/auth/session and receives re_auth_required="passkey"
+    2. Client initiates passkey assertion via POST /v1/auth/passkey/assertion/initiate
+    3. Client completes passkey assertion (biometrics/PIN) and sends result here
+    4. Server verifies the signature and marks the device as known
+    5. Client can now call POST /v1/auth/session again to get a valid session
+    """
+    logger.info("Processing POST /passkey/verify/device")
+    
+    try:
+        # Step 1: Verify the user has a valid session (same as OTP device verification)
+        is_auth, user_data, _, auth_status = await verify_authenticated_user(
+            request, cache_service, directus_service, require_known_device=False
+        )
+        
+        if not is_auth or not user_data:
+            logger.warning("Attempt to verify device passkey without valid session token.")
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Authentication required"
+            )
+        
+        user_id = user_data.get("user_id")
+        if not user_id:
+            logger.error("User ID missing from cached data during passkey device verification.")
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Internal server error"
+            )
+        
+        # Step 2: Look up the passkey by credential_id
+        credential_id = verify_request.credential_id
+        logger.info(f"Looking up passkey for device verification: {credential_id[:20]}...")
+        
+        passkey = await directus_service.get_passkey_by_credential_id(credential_id)
+        if not passkey:
+            logger.warning(f"Passkey not found for device verification: {credential_id[:20]}...")
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Invalid passkey. Please try again."
+            )
+        
+        # Step 3: Verify the passkey belongs to the authenticated user
+        passkey_user_id = passkey.get("user_id")
+        if passkey_user_id != user_id:
+            logger.error(f"Passkey user_id mismatch during device verification: passkey belongs to {passkey_user_id[:6]}... but session is for {user_id[:6]}...")
+            compliance_service.log_auth_event(
+                event_type="passkey_device_verification_user_mismatch",
+                user_id=user_id,
+                ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+                status="error",
+                details={
+                    "credential_id": credential_id[:8] + "...",
+                    "reason": "User ID mismatch between passkey and session"
+                }
+            )
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Passkey verification failed."
+            )
+        
+        # Step 4: Verify the WebAuthn signature
+        stored_sign_count = passkey.get("sign_count", 0)
+        public_key_cose_b64 = passkey.get("public_key_cose")
+        
+        if not public_key_cose_b64:
+            logger.error("Public key (COSE) not found for passkey during device verification")
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Invalid passkey configuration."
+            )
+        
+        # Parse clientDataJSON and verify challenge
+        try:
+            client_data_json_bytes = _decode_base64_from_frontend(verify_request.client_data_json)
+            client_data = json.loads(client_data_json_bytes.decode('utf-8'))
+            
+            # Verify type is "webauthn.get" (for assertions)
+            if client_data.get("type") != "webauthn.get":
+                logger.error(f"Invalid clientDataJSON type for device verification: {client_data.get('type')}")
+                return PasskeyDeviceVerifyResponse(
+                    success=False,
+                    message="Invalid passkey authentication type."
+                )
+            
+            # Verify challenge matches cached challenge
+            challenge = client_data.get("challenge", "")
+            challenge_cache_key = f"passkey_assertion_challenge:{challenge}"
+            cached_challenge = await cache_service.get(challenge_cache_key)
+            
+            if not cached_challenge:
+                logger.warning(f"Challenge not found in cache during device verification for user {user_id[:6]}...")
+                return PasskeyDeviceVerifyResponse(
+                    success=False,
+                    message="Passkey verification failed. Challenge expired or invalid."
+                )
+            
+            expected_challenge = base64url_to_bytes(challenge)
+        except Exception as e:
+            logger.error(f"Error parsing clientDataJSON during device verification: {e}", exc_info=True)
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Invalid passkey data. Please try again."
+            )
+        
+        # Verify authentication response using py_webauthn
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
+        rp_id = get_rp_id_from_request(request)
+        public_key_cose_bytes = base64.urlsafe_b64decode(public_key_cose_b64 + '==')
+        
+        assertion_response = verify_request.assertion_response
+        signature_b64 = assertion_response.get("signature")
+        authenticator_data_b64 = verify_request.authenticator_data
+        client_data_json_b64 = verify_request.client_data_json
+        
+        if not signature_b64 or not authenticator_data_b64 or not client_data_json_b64:
+            logger.error(f"Missing assertion data during device verification for user {user_id[:6]}...")
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Invalid passkey data. Missing required fields."
+            )
+        
+        try:
+            # Build credential dict for py_webauthn
+            credential_dict = {
+                "id": credential_id,
+                "rawId": credential_id,
+                "response": {
+                    "authenticatorData": authenticator_data_b64,
+                    "clientDataJSON": client_data_json_b64,
+                    "signature": signature_b64,
+                    "userHandle": assertion_response.get("userHandle"),
+                },
+                "type": "public-key",
+                "clientExtensionResults": assertion_response.get("clientExtensionResults", {}),
+            }
+            
+            # Verify authentication response
+            authentication_verification = verify_authentication_response(
+                credential=credential_dict,
+                expected_challenge=expected_challenge,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+                credential_public_key=public_key_cose_bytes,
+                credential_current_sign_count=stored_sign_count,
+                require_user_verification=True,
+            )
+            
+            new_sign_count = authentication_verification.new_sign_count
+            logger.info(f"Passkey device verification signature valid for user {user_id[:6]}..., new sign_count: {new_sign_count}")
+            
+        except Exception as e:
+            logger.error(f"Passkey signature verification failed during device verification for user {user_id[:6]}...: {e}", exc_info=True)
+            client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+            compliance_service.log_auth_event(
+                event_type="passkey_device_verification",
+                user_id=user_id,
+                ip_address=client_ip,
+                status="failed",
+                details={
+                    "credential_id": credential_id[:8] + "...",
+                    "reason": "Signature verification failed"
+                }
+            )
+            return PasskeyDeviceVerifyResponse(
+                success=False,
+                message="Passkey verification failed. Invalid signature."
+            )
+        
+        # Step 5: Signature verified - update passkey sign_count
+        passkey_id = passkey.get("id")
+        await directus_service.update_passkey_sign_count(passkey_id, new_sign_count)
+        
+        # Step 6: Generate device fingerprint and add to known devices
+        session_id = verify_request.session_id
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(
+            request, user_id, session_id
+        )
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
+        
+        update_success, update_msg = await directus_service.add_user_device_hash(user_id, device_hash)
+        if update_success:
+            logger.info(f"Added device hash {device_hash[:8]}... for user {user_id[:6]}... after passkey device verification.")
+        else:
+            logger.error(f"Failed to add device hash for user {user_id[:6]}...: {update_msg}")
+            # Continue - user has successfully verified
+        
+        # Step 7: Log compliance event
+        compliance_service.log_auth_event_safe(
+            event_type="login_new_device",
+            user_id=user_id,
+            device_fingerprint=device_hash,
+            location=device_location_str,
+            status="success",
+            details={"verification_method": "passkey"}
+        )
+        
+        # Step 8: Send 'New device logged in' email notification
+        try:
+            logger.info(f"Attempting to send new device notification for user {user_id[:6]}... (passkey verification)")
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+            
+            if not profile_success or not user_profile:
+                logger.error(f"Failed to fetch profile for user {user_id[:6]}... to send new device email: {profile_message}")
+            else:
+                encrypted_email_address = user_profile.get("encrypted_email_address")
+                vault_key_id = user_profile.get("vault_key_id")
+                decrypted_email = None
+                
+                if encrypted_email_address and vault_key_id:
+                    try:
+                        decrypted_email = await encryption_service.decrypt_with_user_key(
+                            encrypted_email_address, vault_key_id
+                        )
+                    except Exception as decrypt_exc:
+                        logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                
+                if decrypted_email:
+                    user_agent_string = request.headers.get("User-Agent", "unknown")
+                    user_language = user_profile.get("language", "en")
+                    user_darkmode = user_profile.get("darkmode", False)
+                    is_localhost = "Local" in device_location_str
+                    
+                    logger.info(f"Dispatching new device email task for user {user_id[:6]}... via passkey device verification.")
+                    app.send_task(
+                        name='app.tasks.email_tasks.new_device_email_task.send_new_device_email',
+                        kwargs={
+                            'email_address': decrypted_email,
+                            'user_agent_string': user_agent_string,
+                            'ip_address': client_ip,
+                            'latitude': latitude,
+                            'longitude': longitude,
+                            'location_name': device_location_str,
+                            'is_localhost': is_localhost,
+                            'language': user_language,
+                            'darkmode': user_darkmode
+                        },
+                        queue='email'
+                    )
+        except Exception as email_task_exc:
+            logger.error(f"Failed to dispatch new device email task during passkey device verification for user {user_id[:6]}...: {email_task_exc}", exc_info=True)
+            # Don't fail the request if email sending fails
+        
+        logger.info(f"Passkey device verification successful for user {user_id[:6]}...")
+        return PasskeyDeviceVerifyResponse(
+            success=True,
+            message="Device verified successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Error in verify_device_passkey: {str(e)}", exc_info=True)
+        return PasskeyDeviceVerifyResponse(
+            success=False,
+            message="An error occurred. Please try again."
+        )
+
 
 # Passkey Management Endpoints
 @router.get("/passkeys", response_model=PasskeyListResponse, dependencies=[Depends(verify_allowed_origin)])

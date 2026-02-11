@@ -78,16 +78,19 @@
 	# Combined matcher for valid OPTIONS preflight for general webapp paths
 	# Note: OPTIONS handling is done by FastAPI's CORSMiddleware, not Caddy
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
+	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
+	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/*
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
 		method OPTIONS
 	}
 
 	# Combined matcher for actual webapp requests (non-OPTIONS) from the correct origin
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
 	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
+	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include)
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/*
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
 		not method OPTIONS
 	}
 

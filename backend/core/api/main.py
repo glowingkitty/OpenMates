@@ -207,9 +207,11 @@ def filter_app_components_by_stage(app_metadata_json: Dict[str, Any], server_env
     has_valid_skill = len(filtered_metadata.get("skills", [])) > 0
     has_valid_focus = len(filtered_metadata.get("focuses", [])) > 0
     has_valid_memory = len(filtered_metadata.get("settings_and_memories", [])) > 0
+    has_instructions = len(filtered_metadata.get("instructions", [])) > 0
     
-    # Return filtered metadata if app has at least one valid component, otherwise None
-    if has_valid_skill or has_valid_focus or has_valid_memory:
+    # Return filtered metadata if app has at least one valid component or instructions, otherwise None
+    # Apps with only instructions (e.g., docs) are valid - they inject behavior into the AI system prompt
+    if has_valid_skill or has_valid_focus or has_valid_memory or has_instructions:
         return filtered_metadata
     else:
         return None
@@ -473,6 +475,17 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Restored {restored_reminders} pending reminders from disk backup")
         except Exception as e:
             logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
+    
+    # --- Restore pending deliveries from disk backup ---
+    # This recovers queued reminder/AI response deliveries that were persisted during shutdown.
+    # These are messages waiting to be delivered to users on their next WebSocket reconnect.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_deliveries = await app.state.cache_service.restore_pending_deliveries_from_disk()
+            if restored_deliveries > 0:
+                logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
     
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
@@ -806,6 +819,9 @@ async def lifespan(app: FastAPI):
                                     category = demo.get("category")
                                     icon = demo.get("icon")
 
+                                    # Get demo_chat_category (target audience: for_everyone or for_developers)
+                                    demo_chat_category = demo.get("demo_chat_category", "for_everyone")
+
                                     # Add to list with cleartext data
                                     public_demo_chats.append({
                                         "demo_id": display_id,
@@ -814,6 +830,7 @@ async def lifespan(app: FastAPI):
                                         "summary": summary,
                                         "category": category,
                                         "icon": icon,
+                                        "demo_chat_category": demo_chat_category,
                                         "content_hash": demo.get("content_hash", ""),
                                         "created_at": demo.get("created_at"),
                                         "status": demo.get("status")
@@ -856,6 +873,7 @@ async def lifespan(app: FastAPI):
                                         "summary": summary,
                                         "category": category,
                                         "icon": icon,
+                                        "demo_chat_category": demo_chat_category,
                                         "content_hash": demo.get("content_hash", ""),
                                         "follow_up_suggestions": follow_up_suggestions,
                                         "chat_data": {
@@ -970,6 +988,17 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
         except Exception as e:
             logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
+    
+    # --- Persist pending deliveries to disk before shutdown ---
+    # This ensures queued reminder/AI response deliveries survive restarts.
+    # Users who reconnect after restart will still receive their pending messages.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_deliveries = await app.state.cache_service.dump_pending_deliveries_to_disk()
+            if dumped_deliveries > 0:
+                logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):

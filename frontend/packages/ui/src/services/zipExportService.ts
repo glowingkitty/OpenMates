@@ -9,7 +9,11 @@
 
 import JSZip from "jszip";
 import type { Chat, Message } from "../types/chat";
-import { convertChatToYaml, generateChatFilename } from "./chatExportService";
+import {
+  convertChatToYaml,
+  generateChatFilename,
+  type PIIExportOptions,
+} from "./chatExportService";
 import {
   extractEmbedReferences,
   loadEmbeds,
@@ -17,11 +21,17 @@ import {
 } from "./embedResolver";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
+import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 
 /**
  * Converts a single message to markdown format
+ * @param message - The message to convert
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
-async function convertMessageToMarkdown(message: Message): Promise<string> {
+async function convertMessageToMarkdown(
+  message: Message,
+  piiOptions?: PIIExportOptions,
+): Promise<string> {
   try {
     // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
     const timestampMs =
@@ -38,6 +48,17 @@ async function convertMessageToMarkdown(message: Message): Promise<string> {
       content = tipTapToCanonicalMarkdown(message.content);
     }
 
+    // Apply PII handling: message content from DB has PLACEHOLDERS.
+    // When PII is revealed (piiHidden=false), restore originals for export.
+    // When hidden, content keeps placeholders as-is.
+    if (
+      piiOptions &&
+      !piiOptions.piiHidden &&
+      piiOptions.piiMappings.length > 0
+    ) {
+      content = restorePIIInText(content, piiOptions.piiMappings);
+    }
+
     return `## ${role} - ${timestamp}\n\n${content}\n\n`;
   } catch (error) {
     console.error(
@@ -50,10 +71,14 @@ async function convertMessageToMarkdown(message: Message): Promise<string> {
 
 /**
  * Converts chat messages to markdown format
+ * @param chat - The chat to convert
+ * @param messages - Array of messages
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
 async function convertChatToMarkdown(
   chat: Chat,
   messages: Message[],
+  piiOptions?: PIIExportOptions,
 ): Promise<string> {
   try {
     let markdown = "";
@@ -71,9 +96,12 @@ async function convertChatToMarkdown(
     markdown += `*Created: ${createdDate}*\n\n`;
     markdown += "---\n\n";
 
-    // Add all messages
+    // Add all messages, respecting PII visibility
     for (const message of messages) {
-      const messageMarkdown = await convertMessageToMarkdown(message);
+      const messageMarkdown = await convertMessageToMarkdown(
+        message,
+        piiOptions,
+      );
       markdown += messageMarkdown;
     }
 
@@ -391,7 +419,7 @@ async function loadVideoTranscriptEmbedsRecursively(
                   urlObj.pathname.split("/").pop() ||
                   "video";
                 filename = `${videoId}_transcript.md`;
-              } catch (e) {
+              } catch {
                 filename = `${embed.embed_id}_transcript.md`;
               }
             } else {
@@ -547,10 +575,14 @@ function getFileExtensionForLanguage(language: string): string {
 
 /**
  * Downloads a single chat as a zip with yml, markdown, and code files
+ * @param chat - The chat to download
+ * @param messages - Array of messages in the chat
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
 export async function downloadChatAsZip(
   chat: Chat,
   messages: Message[],
+  piiOptions?: PIIExportOptions,
 ): Promise<void> {
   try {
     console.debug(
@@ -564,12 +596,21 @@ export async function downloadChatAsZip(
     const filename = await generateChatFilename(chat, "");
     const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
 
-    // Add YAML file
-    const yamlContent = await convertChatToYaml(chat, messages, false);
+    // Add YAML file, respecting PII visibility
+    const yamlContent = await convertChatToYaml(
+      chat,
+      messages,
+      false,
+      piiOptions,
+    );
     zip.file(`${filenameWithoutExt}.yml`, yamlContent);
 
-    // Add Markdown file
-    const markdownContent = await convertChatToMarkdown(chat, messages);
+    // Add Markdown file, respecting PII visibility
+    const markdownContent = await convertChatToMarkdown(
+      chat,
+      messages,
+      piiOptions,
+    );
     zip.file(`${filenameWithoutExt}.md`, markdownContent);
 
     // Add code embeds as separate files

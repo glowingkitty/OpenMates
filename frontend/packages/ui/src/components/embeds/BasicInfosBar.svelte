@@ -47,6 +47,8 @@
     showSkillIcon?: boolean;
     /** Custom status text (overrides default status text) */
     customStatusText?: string;
+    /** Optional snippet rendered before the title text (e.g., a small category circle for chat embeds) */
+    titleIcon?: import('svelte').Snippet;
   }
   
   let {
@@ -62,7 +64,8 @@
     faviconUrl,
     faviconIsCircular = false,
     showSkillIcon = true,
-    customStatusText
+    customStatusText,
+    titleIcon
   }: Props = $props();
   
   // Status text from translations or custom text
@@ -152,7 +155,9 @@
     <!-- Status text with optional favicon next to title -->
     <div class="status-text" class:single-line={!showStatus}>
       <span class="status-label">
-        {#if faviconUrl}
+        {#if titleIcon}
+          {@render titleIcon()}
+        {:else if faviconUrl}
           <img 
             src={faviconUrl} 
             alt="" 
@@ -273,6 +278,16 @@
   .basic-infos-bar .skill-icon[data-skill-icon="reminder"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
     mask-image: url('@openmates/ui/static/icons/reminder.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="image"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
+    mask-image: url('@openmates/ui/static/icons/image.svg');
+  }
+  
+  .basic-infos-bar .skill-icon[data-skill-icon="ai"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
   }
   
   /* Status text container */

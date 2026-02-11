@@ -119,6 +119,7 @@ export interface MemoryFieldMetadata {
     properties?: Record<string, SchemaPropertyDefinition>;
     required?: string[];
   }; // Optional JSON schema for form field generation
+  example_translation_keys?: string[]; // Translation keys for example entries shown to non-authenticated users (resolved via $text())
 }
 
 /**

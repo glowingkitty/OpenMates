@@ -29,12 +29,16 @@ import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // I
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
 import { isLoggingOut, forcedLogoutInProgress } from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
+import { text } from "../i18n/translations"; // Import text store for translations
+import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
+import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 
 // Import core auth state and related flags
 import {
   authStore,
   isCheckingAuth,
   needsDeviceVerification,
+  deviceVerificationType,
 } from "./authState";
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
@@ -64,6 +68,7 @@ export async function checkAuth(
 
   isCheckingAuth.set(true);
   needsDeviceVerification.set(false); // Reset verification need
+  deviceVerificationType.set(null); // Reset verification type
 
   try {
     // Import getSessionId to include session_id in the request
@@ -109,12 +114,16 @@ export async function checkAuth(
       throw fetchError; // Re-throw to be caught by outer catch block
     }
 
-    // Handle Device Verification Required
-    if (!data.success && data.re_auth_required === "2fa") {
+    // Handle Device Verification Required (2FA OTP or passkey)
+    if (
+      !data.success &&
+      (data.re_auth_required === "2fa" || data.re_auth_required === "passkey")
+    ) {
       console.warn(
-        "Session check indicates device 2FA verification is required.",
+        `Session check indicates device ${data.re_auth_required} verification is required.`,
       );
       needsDeviceVerification.set(true);
+      deviceVerificationType.set(data.re_auth_required);
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -197,10 +206,14 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
-        // Show notification that user was logged out
-        notificationStore.warning(
-          "You have been logged out. Please log in again.",
-          5000,
+        // Show notification that user was logged out with hint about "Stay logged in"
+        // This is triggered when user logged in without "Stay logged in" and page was reloaded
+        const $text = get(text);
+        notificationStore.autoLogout(
+          $text("login.auto_logout_notification.message.text"),
+          undefined, // No secondary message needed
+          7000, // Show for 7 seconds so user can read the hint
+          $text("login.auto_logout_notification.title.text"),
         );
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
@@ -270,6 +283,7 @@ export async function checkAuth(
       }
 
       needsDeviceVerification.set(false);
+      deviceVerificationType.set(null);
 
       // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
       // This ensures hash-based signup state works even if set after checkAuth() starts
@@ -459,10 +473,32 @@ export async function checkAuth(
         );
         window.dispatchEvent(new CustomEvent("userLoggingOut"));
 
-        // Show notification that user was logged out
-        notificationStore.warning(
-          "You have been logged out. Please log in again.",
-          5000,
+        // CRITICAL: Clear in-memory chat caches IMMEDIATELY on session expiry
+        // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
+        // is destroyed (sidebar closed on mobile) when session expires, its authStore subscriber
+        // won't fire to clear the cache. Clearing here ensures stale chats never appear.
+        chatListCache.clear();
+        chatDB.clearAllChatKeys();
+        console.debug(
+          "[AuthSessionActions] Cleared chatListCache and chatDB.chatKeys on session expiry",
+        );
+
+        // Clear shared chat keys in the background (async, non-blocking)
+        clearAllSharedChatKeys().catch((e) =>
+          console.warn(
+            "[AuthSessionActions] Failed to clear shared chat keys on session expiry:",
+            e,
+          ),
+        );
+
+        // Show notification that user was logged out with hint about "Stay logged in"
+        // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
+        const $text = get(text);
+        notificationStore.autoLogout(
+          $text("login.auto_logout_notification.message.text"),
+          undefined, // No secondary message needed
+          7000, // Show for 7 seconds so user can read the hint
+          $text("login.auto_logout_notification.title.text"),
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo
@@ -605,6 +641,14 @@ export async function checkAuth(
           "[AuthSessionActions] Set isLoggingOut to true for orphaned database cleanup",
         );
 
+        // CRITICAL: Clear in-memory chat caches during orphaned database cleanup
+        chatListCache.clear();
+        chatDB.clearAllChatKeys();
+        clearAllSharedChatKeys().catch(() => {});
+        console.debug(
+          "[AuthSessionActions] Cleared in-memory chat caches during orphaned database cleanup",
+        );
+
         // No notification needed - this is automatic cleanup
 
         // Clear IndexedDB databases asynchronously without blocking UI
@@ -644,6 +688,7 @@ export async function checkAuth(
       }
 
       needsDeviceVerification.set(false);
+      deviceVerificationType.set(null);
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -677,6 +722,7 @@ export async function checkAuth(
     );
 
     needsDeviceVerification.set(false);
+    deviceVerificationType.set(null);
 
     try {
       // Load user profile from IndexedDB optimistically
@@ -815,4 +861,5 @@ export function setAuthenticatedState(): void {
     isInitialized: true,
   }));
   needsDeviceVerification.set(false);
+  deviceVerificationType.set(null);
 }

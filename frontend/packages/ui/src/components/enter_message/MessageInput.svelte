@@ -88,6 +88,13 @@
         handleStopRecordingCleanup
     } from './handlers/recordingHandlers';
     import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
+    
+    // PII Detection
+    import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
+    import PIIWarningBanner from './PIIWarningBanner.svelte';
+    // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
+    import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
+    import { get } from 'svelte/store';
 
     const dispatch = createEventDispatcher();
 
@@ -166,6 +173,32 @@
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
     let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete
+    
+    // --- PII Detection State ---
+    // Tracks detected PII matches for highlighting and the warning banner
+    let detectedPII = $state<PIIMatch[]>([]);
+    // Set of PII match IDs that user has clicked to exclude from replacement
+    // These won't be replaced when sending and won't be highlighted
+    let piiExclusions = $state<Set<string>>(new Set());
+    // Cache of current PII Decoration objects to merge with unclosed-block decorations.
+    // Stored separately so they survive when applyHighlightingColors rebuilds the decoration set.
+    let currentPIIDecorations: any[] = [];
+    // Cache the last text we ran PII detection on to skip redundant work
+    let lastPIIText = '';
+    // Debounce timer for PII detection - safety net fallback for edge cases
+    let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
+    // This catches edge cases like slow typing followed by an immediate send.
+    const PII_DEBOUNCE_MS = 800;
+    // Characters that trigger immediate PII detection (natural word/token boundaries).
+    // PII patterns like emails, phone numbers, and API keys are only fully formed
+    // after the user types a delimiter, so we detect at these boundaries instead of
+    // running 16+ regex patterns on every single keystroke.
+    const PII_TRIGGER_CHARS = new Set([' ', ',', '.', '\n', '/', ')', ']', '}', ';', ':', '\t']);
+    // Flag set by paste handlers to force immediate PII detection on next editor update.
+    // Paste events inject complete content (possibly containing PII) so detection should
+    // not wait for a delimiter character.
+    let piiPasteDetectionPending = false;
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -211,8 +244,13 @@
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
                 console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
-                // Clear decorations when no unclosed blocks
-                currentDecorationSet = DecorationSet.empty;
+                // No unclosed blocks, but preserve PII decorations if any
+                if (currentPIIDecorations.length > 0) {
+                    const { state: st, view: vw } = editor;
+                    currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
+                } else {
+                    currentDecorationSet = DecorationSet.empty;
+                }
                 if (decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
                 }
@@ -855,7 +893,9 @@
                 });
             });
 
-            currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
+            // Merge unclosed-block decorations with PII decorations so both are visible
+            const allDecorations = [...tipTapDecorations, ...currentPIIDecorations];
+            currentDecorationSet = DecorationSet.create(doc, allDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
                     decorations: () => currentDecorationSet ?? DecorationSet.empty,
@@ -863,7 +903,7 @@
                 decorationPropsSet = true;
             }
             // Always dispatch to refresh (also clears when empty)
-            console.debug('[MessageInput] Dispatching transaction with decorations:', tipTapDecorations.length > 0 ? tipTapDecorations : 'empty');
+            console.debug('[MessageInput] Dispatching transaction with decorations:', allDecorations.length, '(blocks:', tipTapDecorations.length, 'pii:', currentPIIDecorations.length, ')');
             view.dispatch(state.tr);
 
         } catch (error) {
@@ -1064,7 +1104,10 @@
                         }
                     }
                     
-                    // No special handling needed - allow default paste
+                    // No special handling needed - allow default paste.
+                    // Flag for immediate PII detection on the next editor update,
+                    // since pasted text may contain complete PII patterns.
+                    piiPasteDetectionPending = true;
                     return false;
                 }
             }
@@ -1143,6 +1186,11 @@
         // (if any) are cleaned up here or in the onMount return.
         // For chatSyncService listeners, they are added in onMount and should be cleaned up in its return.
         // The unsubscribeAiTyping is also handled there.
+        
+        // Clean up PII detection state
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+        currentPIIDecorations = [];
+        lastPIIText = '';
     });
 
     // --- Editor Lifecycle Handlers ---
@@ -1361,6 +1409,246 @@
         showMentionDropdown = false;
         mentionQuery = '';
     }
+    
+    // =============================================================================
+    // PII Detection and Highlighting
+    // =============================================================================
+    
+    /**
+     * Hybrid PII detection trigger: runs detection at natural word/token boundaries
+     * (delimiter characters) instead of on every keystroke. This avoids running 16+
+     * regex patterns per character while still catching PII at the exact moment it
+     * becomes complete (e.g. after the space following an email address).
+     *
+     * Three trigger modes:
+     * 1. **Delimiter**: Immediate detection when user types a delimiter char (space,
+     *    comma, dot, newline, slash, etc.) — these mark the end of a token/word.
+     * 2. **Paste**: Immediate detection after paste events (content arrives complete).
+     * 3. **Debounce fallback**: If no delimiter is typed for PII_DEBOUNCE_MS, run
+     *    detection anyway as a safety net (e.g. slow typing then clicking Send).
+     *
+     * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
+     */
+    function runPIIDetection(editor: Editor, forcedByPaste = false) {
+        if (!editor || editor.isDestroyed) return;
+        
+        const text = editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        
+        // If text was cleared, update immediately (no need to debounce cleanup)
+        if (!text || text.trim().length === 0) {
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+            lastPIIText = text;
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Determine if the latest character typed is a delimiter (word boundary).
+        // Compare current text to last detected text to find what was just typed.
+        const lastChar = text.length > 0 ? text[text.length - 1] : '';
+        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+        
+        if (forcedByPaste || isDelimiter) {
+            // Trigger 1 & 2: Delimiter typed or paste event — run immediately
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+            runPIIDetectionImmediate(editor);
+        } else {
+            // Trigger 3: No delimiter — schedule fallback debounce.
+            // This catches cases where the user finishes typing PII but doesn't type
+            // a trailing delimiter before sending.
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
+            piiDebounceTimer = setTimeout(() => {
+                piiDebounceTimer = null;
+                runPIIDetectionImmediate(editor);
+            }, PII_DEBOUNCE_MS);
+        }
+    }
+    
+    /**
+     * Run PII detection immediately (no debounce).
+     * Used when the debounce timer fires and when the user interacts with PII
+     * UI (exclusions, undo-all).
+     * 
+     * After building PII decorations, calls rebuildDecorationSet() to merge
+     * them into the visible decoration set alongside any unclosed-block
+     * decorations that applyHighlightingColors previously created.
+     * 
+     * Optimization: skips re-detection if text hasn't changed since last run.
+     */
+    function runPIIDetectionImmediate(editor: Editor) {
+        if (!editor || editor.isDestroyed) return;
+        
+        const text = editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        lastPIIText = text;
+        
+        if (!text || text.trim().length === 0) {
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Read current privacy settings from the personalDataStore
+        const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+        
+        // If master toggle is off, skip all PII detection
+        if (!piiSettings.masterEnabled) {
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Build the set of disabled categories (categories where the toggle is OFF)
+        const disabledCategories = new Set<string>();
+        for (const [category, enabled] of Object.entries(piiSettings.categories)) {
+            if (!enabled) disabledCategories.add(category);
+        }
+        
+        // Get user-defined personal data entries that are enabled
+        const enabledEntries: PersonalDataEntry[] = get(personalDataStore.enabledEntries);
+        const personalDataForDetection: PersonalDataForDetection[] = enabledEntries.map(
+            (entry) => {
+                const result: PersonalDataForDetection = {
+                    id: entry.id,
+                    textToHide: entry.textToHide,
+                    replaceWith: entry.replaceWith,
+                };
+                // For address entries, include individual address lines as additional search texts
+                if (entry.type === 'address' && entry.addressLines) {
+                    const additionalTexts: string[] = [];
+                    if (entry.addressLines.street) additionalTexts.push(entry.addressLines.street);
+                    if (entry.addressLines.city) additionalTexts.push(entry.addressLines.city);
+                    result.additionalTexts = additionalTexts;
+                }
+                return result;
+            },
+        );
+        
+        // Build detection options with category filtering and personal data entries
+        const detectionOptions: PIIDetectionOptions = {
+            excludedIds: piiExclusions,
+            disabledCategories,
+            personalDataEntries: personalDataForDetection,
+        };
+        
+        // Detect PII with full store-aware options
+        const matches = detectPII(text, detectionOptions);
+        detectedPII = matches;
+        
+        if (matches.length > 0) {
+            console.debug('[MessageInput] PII detected:', matches.length, 'matches');
+            buildPIIDecorations(editor, matches);
+        } else {
+            currentPIIDecorations = [];
+        }
+        
+        // Rebuild the full decoration set so PII highlights become visible.
+        // rebuildDecorationSet merges currentPIIDecorations into the view and
+        // dispatches a transaction to refresh the display.
+        rebuildDecorationSet(editor);
+    }
+    
+    /**
+     * Build PII Decoration objects and store them in currentPIIDecorations.
+     * These are merged into the main decoration set by applyHighlightingColors
+     * or directly when no unclosed blocks exist.
+     */
+    function buildPIIDecorations(editor: Editor, matches: PIIMatch[]) {
+        const { doc } = editor.state;
+        
+        try {
+            currentPIIDecorations = matches.map(match => {
+                // TipTap positions are 1-indexed, text positions are 0-indexed
+                const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
+                const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
+                
+                // All PII types use the same orange/amber bold text style (matches ReadOnlyMessage .pii-revealed).
+                // The data-pii-type attribute is kept for tooltip display and click handling.
+                return Decoration.inline(from, to, {
+                    class: 'pii-highlight',
+                    'data-pii-id': match.id,
+                    'data-pii-type': match.type,
+                    title: `Click to keep original (${match.type.toLowerCase().replace(/_/g, ' ')})`
+                });
+            });
+        } catch (error) {
+            console.error('[MessageInput] Error building PII decorations:', error);
+            currentPIIDecorations = [];
+        }
+    }
+    
+    /**
+     * Handle click on a PII decoration to exclude it from replacement.
+     * Called when user clicks on highlighted sensitive data.
+     */
+    function handlePIIClick(matchId: string) {
+        // Add to exclusions set
+        piiExclusions = new Set([...piiExclusions, matchId]);
+        // Invalidate last text cache so detection re-runs immediately
+        lastPIIText = '';
+        
+        // Re-run detection immediately (no debounce) and rebuild decorations
+        if (editor && !editor.isDestroyed) {
+            runPIIDetectionImmediate(editor);
+            // Rebuild the full decoration set with updated PII decorations
+            rebuildDecorationSet(editor);
+        }
+        
+        console.debug('[MessageInput] PII exclusion added:', matchId);
+    }
+    
+    /**
+     * Handle "Undo All" from the PII warning banner.
+     * Excludes all detected PII so nothing gets replaced on send.
+     */
+    function handlePIIUndoAll() {
+        // Mark all current detections as excluded
+        const newExclusions = new Set(piiExclusions);
+        for (const match of detectedPII) {
+            newExclusions.add(match.id);
+        }
+        piiExclusions = newExclusions;
+        
+        // Clear detected PII and decorations
+        detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
+        
+        // Rebuild decoration set without PII decorations
+        if (editor && !editor.isDestroyed) {
+            rebuildDecorationSet(editor);
+        }
+        
+        console.debug('[MessageInput] All PII exclusions applied, user chose to keep original text');
+    }
+    
+    /**
+     * Rebuild the currentDecorationSet from scratch using the current PII decorations.
+     * Called after PII exclusions change to immediately update the view.
+     */
+    function rebuildDecorationSet(editor: Editor) {
+        const { state, view } = editor;
+        if (currentPIIDecorations.length > 0) {
+            // Re-run the unified parser to get unclosed-block decorations, then merge
+            // For simplicity, just rebuild with PII only - the next editor update
+            // will call handleUnifiedParsing which merges both
+            currentDecorationSet = DecorationSet.create(state.doc, currentPIIDecorations);
+        } else {
+            currentDecorationSet = DecorationSet.empty;
+        }
+        if (!decorationPropsSet) {
+            view.setProps({
+                decorations: () => currentDecorationSet ?? DecorationSet.empty,
+            });
+            decorationPropsSet = true;
+        }
+        view.dispatch(state.tr);
+    }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
         const newHasContent = !isContentEmptyExceptMention(editor);
@@ -1368,6 +1656,11 @@
             hasContent = newHasContent;
             if (!newHasContent) {
                 console.debug("[MessageInput] Content cleared, triggering draft deletion.");
+                // Clear PII detections and exclusions when content is cleared
+                detectedPII = [];
+                piiExclusions = new Set();
+                currentPIIDecorations = [];
+                lastPIIText = '';
             }
         }
         
@@ -1380,7 +1673,15 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // Use unified parser for write mode
+        // PII Detection: hybrid trigger — immediate on delimiter chars and paste events,
+        // debounce fallback for regular typing. See runPIIDetection() for details.
+        const wasPaste = piiPasteDetectionPending;
+        piiPasteDetectionPending = false;
+        runPIIDetection(editor, wasPaste);
+
+        // Use unified parser for write mode (handles unclosed-block decorations).
+        // PII decorations from currentPIIDecorations are merged in by
+        // applyHighlightingColors when unclosed blocks exist.
         handleUnifiedParsing(editor);
 
         // Dispatch live text change event so parent components can react on each keystroke
@@ -1413,6 +1714,7 @@
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
@@ -1490,6 +1792,7 @@
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.removeEventListener('click', handleEditorClick);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
@@ -1658,6 +1961,27 @@
     }
  
     // --- Specific Event Handlers ---
+    
+    /**
+     * Handle clicks in the editor to detect clicks on PII highlights.
+     * When a user clicks on a highlighted PII item, we exclude it from replacement.
+     */
+    function handleEditorClick(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        
+        // Check if the clicked element is a PII highlight
+        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
+            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
+            const piiId = piiElement?.getAttribute('data-pii-id');
+            
+            if (piiId) {
+                event.preventDefault();
+                event.stopPropagation();
+                handlePIIClick(piiId);
+            }
+        }
+    }
+    
     function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
         const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
         if (result) {
@@ -1920,8 +2244,13 @@
             editor,
             dispatch,
             (value) => (hasContent = value),
-            currentChatId
+            currentChatId,
+            piiExclusions // Pass PII exclusions so excluded matches are not replaced
         );
+        
+        // Clear PII state after sending
+        detectedPII = [];
+        piiExclusions = new Set();
     }
 
     /**
@@ -2168,6 +2497,12 @@
  
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown}>
+    <!-- PII Warning Banner - shown when sensitive data is detected in the input -->
+    <PIIWarningBanner 
+        matches={detectedPII}
+        onUndoAll={handlePIIUndoAll}
+    />
+    
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}

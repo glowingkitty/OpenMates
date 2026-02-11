@@ -21,8 +21,8 @@ check_reputation:
   cs: Zkontrolovat pověst
   sv: Kontrollera rykte
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 check_reputation.description:
   context: Description for check reputation focus mode
   en: Check if a business is legit and reliable.
@@ -46,8 +46,8 @@ check_reputation.description:
   cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
   sv: Kontrollera om ett företag är legitimt och pålitligt.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 analyze_privacy:
   context: Focus mode name for analyzing privacy
   en: Analyze privacy
@@ -71,8 +71,8 @@ analyze_privacy:
   cs: Analyzovat soukromí
   sv: Analysera integritet
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 analyze_privacy.description:
   context: Description for analyze privacy focus mode
   en: Analyze the privacy implications of a website or service based on its legal pages.
@@ -96,8 +96,8 @@ analyze_privacy.description:
   cs: Analyzujte důsledky pro soukromí webové stránky nebo služby na základě jejích právních stránek.
   sv: Analysera integritetskonsekvenserna för en webbplats eller tjänst baserat på dess juridiska sidor.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 research:
   context: Focus mode name for research
   en: Research
@@ -121,33 +121,33 @@ research:
   cs: Výzkum
   sv: Forskning
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 research.description:
-  context: Description for research focus mode
-  en: Make multiple web searches to get a bigger picture of a topic and its causes and effects.
-  de: Führe mehrere Websuchen durch, um ein umfassenderes Bild eines Themas und seiner Ursachen und Auswirkungen zu erhalten.
-  zh: 进行多次网络搜索，以更全面地了解主题及其原因和影响。
-  es: Realiza múltiples búsquedas web para obtener una visión más amplia de un tema y sus causas y efectos.
-  fr: Effectuez plusieurs recherches web pour obtenir une vue d'ensemble d'un sujet et de ses causes et effets.
-  pt: Faça várias pesquisas na web para obter uma visão mais ampla de um tópico e suas causas e efeitos.
-  ru: Выполните несколько веб-поисков, чтобы получить более полную картину темы и её причин и следствий.
-  ja: 複数のウェブ検索を行い、トピックとその原因と影響の全体像を把握する。
-  ko: 여러 웹 검색을 수행하여 주제와 그 원인 및 효과에 대한 더 큰 그림을 얻으세요.
-  it: Esegui più ricerche web per ottenere un quadro più ampio di un argomento e delle sue cause ed effetti.
-  tr: Bir konunun ve nedenlerinin ve etkilerinin daha geniş bir resmini elde etmek için birden fazla web araması yapın.
-  vi: Thực hiện nhiều tìm kiếm web để có cái nhìn tổng quan hơn về một chủ đề và nguyên nhân cũng như tác động của nó.
-  id: Lakukan beberapa pencarian web untuk mendapatkan gambaran yang lebih besar tentang suatu topik dan penyebab serta efeknya.
-  pl: Wykonaj wiele wyszukiwań internetowych, aby uzyskać szerszy obraz tematu oraz jego przyczyn i skutków.
-  nl: Voer meerdere webzoekopdrachten uit om een groter beeld te krijgen van een onderwerp en de oorzaken en gevolgen ervan.
-  ar: قم بإجراء عمليات بحث متعددة على الويب للحصول على صورة أكبر لموضوع وأسبابه وآثاره.
-  hi: किसी विषय और उसके कारणों और प्रभावों की बड़ी तस्वीर प्राप्त करने के लिए कई वेब खोज करें।
-  th: ทำการค้นหาเว็บหลายครั้งเพื่อให้เห็นภาพรวมของหัวข้อและสาเหตุและผลกระทบ
-  cs: Proveďte více webových vyhledávání, abyste získali širší obraz tématu a jeho příčin a účinků.
-  sv: Gör flera webbsökningar för att få en större bild av ett ämne och dess orsaker och effekter.
+  context: Description for research focus mode (max 55 chars for 2-line card display)
+  en: Research a topic from multiple angles.
+  de: Ein Thema aus mehreren Blickwinkeln recherchieren.
+  zh: 从多个角度研究一个主题。
+  es: Investiga un tema desde múltiples ángulos.
+  fr: Rechercher un sujet sous plusieurs angles.
+  pt: Pesquisar um tema de múltiplos ângulos.
+  ru: Исследовать тему с разных сторон.
+  ja: 複数の角度からトピックを調査する。
+  ko: 여러 각도에서 주제를 조사합니다.
+  it: Ricerca un argomento da più angolazioni.
+  tr: Bir konuyu birden fazla açıdan araştırın.
+  vi: Nghiên cứu một chủ đề từ nhiều góc độ.
+  id: Teliti topik dari berbagai sudut pandang.
+  pl: Zbadaj temat z wielu perspektyw.
+  nl: Onderzoek een onderwerp vanuit meerdere hoeken.
+  ar: ابحث في موضوع من زوايا متعددة.
+  hi: किसी विषय को कई दृष्टिकोणों से शोध करें।
+  th: วิจัยหัวข้อจากหลายมุมมอง
+  cs: Prozkoumejte téma z více úhlů pohledu.
+  sv: Undersök ett ämne från flera vinklar.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 deep_web_research:
   context: Focus mode name for deep web research
   en: Deep web research
@@ -171,8 +171,8 @@ deep_web_research:
   cs: Hluboký webový výzkum
   sv: Djup webbforskning
   verified_by_human:
-  - en
-  - de
+    - en
+    - de
 deep_web_research.description:
   context: Description for deep web research focus mode
   en: Create a plan what to research and then start in depth web research to gather a report based on the findings.
@@ -196,5 +196,5 @@ deep_web_research.description:
   cs: Vytvořte plán, co zkoumat, a poté zahajte hloubkový webový výzkum, abyste shromáždili zprávu na základě zjištění.
   sv: Skapa en plan för vad som ska undersökas och börja sedan djup webbforskning för att samla en rapport baserad på resultaten.
   verified_by_human:
-  - en
-  - de
+    - en
+    - de

@@ -1290,3 +1290,99 @@ loadMore:
     cs: více
     sv: fler
     verified_by_human: []
+
+resume_last_chat.title:
+  context: Title shown above the resume chat card prompting user to continue their last chat
+  en: Continue where you left off
+  de: Dort fortfahren, wo du aufgehört hast
+  zh: 继续上次的对话
+  es: Continúa donde lo dejaste
+  fr: Reprendre là où vous vous êtes arrêté
+  pt: Continue de onde parou
+  ru: Продолжить с того места, где остановились
+  ja: 前回の続きから
+  ko: 마지막 대화 이어가기
+  it: Riprendi da dove avevi lasciato
+  tr: Kaldığınız yerden devam edin
+  vi: Tiếp tục cuộc trò chuyện
+  id: Lanjutkan dari yang terakhir
+  pl: Kontynuuj od miejsca, w którym skończyłeś
+  nl: Ga verder waar je gebleven was
+  ar: تابع من حيث توقفت
+  hi: जहाँ छोड़ा था वहाँ से जारी रखें
+  th: ดำเนินการต่อจากจุดที่คุณค้างไว้
+  cs: Pokračujte tam, kde jste skončili
+  sv: Fortsätt där du slutade
+  verified_by_human: []
+
+resume_last_chat.continue_button:
+  context: Button text to resume/continue the last chat
+  en: Continue
+  de: Fortfahren
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続ける
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: متابعة
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  cs: Pokračovat
+  sv: Fortsätt
+  verified_by_human: []
+
+resume_last_chat.start_new:
+  context: Link text to skip resume and start a new chat instead
+  en: or start a new chat
+  de: oder neuen Chat starten
+  zh: 或开始新对话
+  es: o iniciar un nuevo chat
+  fr: ou commencer une nouvelle conversation
+  pt: ou iniciar um novo chat
+  ru: или начать новый чат
+  ja: または新しいチャットを開始
+  ko: 또는 새 채팅 시작
+  it: o avvia una nuova chat
+  tr: veya yeni sohbet başlat
+  vi: hoặc bắt đầu cuộc trò chuyện mới
+  id: atau mulai chat baru
+  pl: lub rozpocznij nowy czat
+  nl: of start een nieuw gesprek
+  ar: أو ابدأ محادثة جديدة
+  hi: या नई चैट शुरू करें
+  th: หรือเริ่มแชทใหม่
+  cs: nebo začněte nový chat
+  sv: eller starta en ny chatt
+  verified_by_human: []
+
+context_menu.credits:
+  context: Label shown next to the credit amount in chat/message context menus (e.g. "1.234 credits")
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  verified_by_human: []

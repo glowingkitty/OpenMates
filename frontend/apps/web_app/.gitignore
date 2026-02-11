@@ -12,3 +12,11 @@ vite.config.ts.timestamp-*
 
 # Generated documentation data (regenerated on build)
 src/lib/generated/docs-data.json
+
+# Generated PWA service worker files (produced by @vite-pwa/sveltekit during build)
+static/sw.js
+static/sw.js.map
+static/workbox-*.js
+static/workbox-*.js.map
+static/manifest.webmanifest
+static/manifest.json

@@ -552,6 +552,12 @@ class ChatCacheMixin:
             if 'draft_json' in data_to_set: # Defensively remove if schema not yet updated
                 del data_to_set['draft_json']
             
+            # Redis hash values must be strings, bytes, ints, or floats.
+            # Convert boolean values to int (0/1) for Redis compatibility.
+            for k, v in data_to_set.items():
+                if isinstance(v, bool):
+                    data_to_set[k] = int(v)
+            
             await client.hmset(key, data_to_set)
             await client.expire(key, ttl if ttl is not None else self.CHAT_LIST_ITEM_DATA_TTL)
             return True
@@ -927,11 +933,12 @@ class ChatCacheMixin:
     
     # ========== AI CACHE METHODS (Vault-encrypted messages for AI inference) ==========
     
-    async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 100) -> bool:
+    async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 500) -> bool:
         """
         Adds a vault-encrypted message to AI inference cache (prepends).
         Used by message_received_handler.py when storing new messages for AI context.
-        Automatically limits to last 100 messages per chat.
+        Automatically limits to last 500 messages per chat to support 120k token context windows.
+        Token-based truncation is applied at inference time (preprocessor/main_processor).
         Also enforces TOP_N_MESSAGES_COUNT limit (LRU eviction of oldest chats).
         """
         client = await self.client
@@ -1899,6 +1906,11 @@ class ChatCacheMixin:
         The chat history is already cached on the server (recent chats are cached).
         When continuing, we retrieve the chat from cache using get_chat_messages().
         
+        NOTE: The per-user index was removed because permission request persistence
+        is now handled client-side via encrypted system messages in chat history.
+        The client (ChatHistory.svelte) detects "unpaired" requests and re-shows
+        the dialog automatically after session recovery.
+        
         Args:
             chat_id: Chat ID
             context: MINIMAL request context needed to re-trigger processing:
@@ -1932,6 +1944,7 @@ class ChatCacheMixin:
             import json
             context_json = json.dumps(context)
             await client.set(key, context_json, ex=ttl)
+            
             logger.info(f"Stored pending app settings/memories request context for chat {chat_id} with TTL {ttl}s")
             return True
         except Exception as e:
@@ -1970,7 +1983,8 @@ class ChatCacheMixin:
     
     async def delete_pending_app_settings_memories_request(
         self,
-        chat_id: str
+        chat_id: str,
+        user_id: str = None
     ) -> bool:
         """
         Delete pending app settings/memories request context.
@@ -1979,6 +1993,7 @@ class ChatCacheMixin:
         
         Args:
             chat_id: Chat ID
+            user_id: User ID (kept for API compatibility, no longer used for index cleanup)
             
         Returns:
             True if deleted (or didn't exist), False on error

@@ -151,3 +151,231 @@ want_to_learn.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+preferred_tech.example_1:
+  context: Example entry for preferred technologies (a programming language)
+  en: Python
+  de: Python
+  zh: Python
+  es: Python
+  fr: Python
+  pt: Python
+  ru: Python
+  ja: Python
+  ko: Python
+  it: Python
+  tr: Python
+  vi: Python
+  id: Python
+  pl: Python
+  nl: Python
+  ar: Python
+  hi: Python
+  th: Python
+  cs: Python
+  sv: Python
+  verified_by_human:
+    - en
+    - de
+preferred_tech.example_2:
+  context: Example entry for preferred technologies (a programming language)
+  en: TypeScript
+  de: TypeScript
+  zh: TypeScript
+  es: TypeScript
+  fr: TypeScript
+  pt: TypeScript
+  ru: TypeScript
+  ja: TypeScript
+  ko: TypeScript
+  it: TypeScript
+  tr: TypeScript
+  vi: TypeScript
+  id: TypeScript
+  pl: TypeScript
+  nl: TypeScript
+  ar: TypeScript
+  hi: TypeScript
+  th: TypeScript
+  cs: TypeScript
+  sv: TypeScript
+  verified_by_human:
+    - en
+    - de
+preferred_tech.example_3:
+  context: Example entry for preferred technologies (a frontend framework)
+  en: Svelte
+  de: Svelte
+  zh: Svelte
+  es: Svelte
+  fr: Svelte
+  pt: Svelte
+  ru: Svelte
+  ja: Svelte
+  ko: Svelte
+  it: Svelte
+  tr: Svelte
+  vi: Svelte
+  id: Svelte
+  pl: Svelte
+  nl: Svelte
+  ar: Svelte
+  hi: Svelte
+  th: Svelte
+  cs: Svelte
+  sv: Svelte
+  verified_by_human:
+    - en
+    - de
+projects.example_1:
+  context: Example entry for projects (a type of personal project)
+  en: Personal website
+  de: Persönliche Website
+  zh: 个人网站
+  es: Sitio web personal
+  fr: Site web personnel
+  pt: Site pessoal
+  ru: Личный сайт
+  ja: 個人ウェブサイト
+  ko: 개인 웹사이트
+  it: Sito web personale
+  tr: Kişisel web sitesi
+  vi: Trang web cá nhân
+  id: Situs web pribadi
+  pl: Strona osobista
+  nl: Persoonlijke website
+  ar: موقع شخصي
+  hi: व्यक्तिगत वेबसाइट
+  th: เว็บไซต์ส่วนตัว
+  cs: Osobní web
+  sv: Personlig webbplats
+  verified_by_human:
+    - en
+    - de
+projects.example_2:
+  context: Example entry for projects (a type of app project)
+  en: Mobile app
+  de: Mobile App
+  zh: 移动应用
+  es: Aplicación móvil
+  fr: Application mobile
+  pt: Aplicativo móvel
+  ru: Мобильное приложение
+  ja: モバイルアプリ
+  ko: 모바일 앱
+  it: App mobile
+  tr: Mobil uygulama
+  vi: Ứng dụng di động
+  id: Aplikasi seluler
+  pl: Aplikacja mobilna
+  nl: Mobiele app
+  ar: تطبيق جوال
+  hi: मोबाइल ऐप
+  th: แอปมือถือ
+  cs: Mobilní aplikace
+  sv: Mobilapp
+  verified_by_human:
+    - en
+    - de
+projects.example_3:
+  context: Example entry for projects (a type of backend project)
+  en: API backend
+  de: API-Backend
+  zh: API后端
+  es: Backend de API
+  fr: Backend API
+  pt: Backend de API
+  ru: API-бэкенд
+  ja: APIバックエンド
+  ko: API 백엔드
+  it: Backend API
+  tr: API arka ucu
+  vi: Backend API
+  id: Backend API
+  pl: Backend API
+  nl: API-backend
+  ar: واجهة برمجة خلفية
+  hi: API बैकएंड
+  th: แบ็กเอนด์ API
+  cs: API backend
+  sv: API-backend
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_1:
+  context: Example entry for want to learn (a programming language)
+  en: Rust
+  de: Rust
+  zh: Rust
+  es: Rust
+  fr: Rust
+  pt: Rust
+  ru: Rust
+  ja: Rust
+  ko: Rust
+  it: Rust
+  tr: Rust
+  vi: Rust
+  id: Rust
+  pl: Rust
+  nl: Rust
+  ar: Rust
+  hi: Rust
+  th: Rust
+  cs: Rust
+  sv: Rust
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_2:
+  context: Example entry for want to learn (a tech field)
+  en: Machine Learning
+  de: Maschinelles Lernen
+  zh: 机器学习
+  es: Aprendizaje automático
+  fr: Apprentissage automatique
+  pt: Aprendizado de máquina
+  ru: Машинное обучение
+  ja: 機械学習
+  ko: 머신 러닝
+  it: Machine Learning
+  tr: Makine öğrenimi
+  vi: Học máy
+  id: Pembelajaran mesin
+  pl: Uczenie maszynowe
+  nl: Machine learning
+  ar: التعلم الآلي
+  hi: मशीन लर्निंग
+  th: การเรียนรู้ของเครื่อง
+  cs: Strojové učení
+  sv: Maskininlärning
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_3:
+  context: Example entry for want to learn (a DevOps tool)
+  en: Kubernetes
+  de: Kubernetes
+  zh: Kubernetes
+  es: Kubernetes
+  fr: Kubernetes
+  pt: Kubernetes
+  ru: Kubernetes
+  ja: Kubernetes
+  ko: Kubernetes
+  it: Kubernetes
+  tr: Kubernetes
+  vi: Kubernetes
+  id: Kubernetes
+  pl: Kubernetes
+  nl: Kubernetes
+  ar: Kubernetes
+  hi: Kubernetes
+  th: Kubernetes
+  cs: Kubernetes
+  sv: Kubernetes
+  verified_by_human:
+    - en
+    - de

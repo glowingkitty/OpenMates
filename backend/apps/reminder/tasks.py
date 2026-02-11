@@ -5,10 +5,12 @@
 
 import logging
 import asyncio
+import hashlib
+import json
 import uuid
 import time
-import json
-from typing import Dict, Any
+
+import httpx
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -118,63 +120,158 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     created_date=created_date
                 )
 
-                # Process based on target type
+                # Determine target chat_id
+                # For new_chat: generate a new chat_id
+                # For existing_chat: use the stored target_chat_id
                 if target_type == "new_chat":
-                    success, result_data = await _create_new_chat_with_reminder(
-                        reminder=reminder,
-                        message_content=message_content,
-                        encryption_service=encryption_service,
-                        directus_service=directus_service,
-                        cache_service=cache_service,
-                    )
-                else:  # existing_chat
-                    success, result_data = await _send_reminder_to_existing_chat(
-                        reminder=reminder,
-                        message_content=message_content,
-                        encryption_service=encryption_service,
-                        directus_service=directus_service,
-                        cache_service=cache_service,
-                    )
-                
-                # Send WebSocket notification to user if processing succeeded
-                if success and user_id and result_data:
-                    try:
-                        await task.publish_websocket_event(
-                            user_id_hash=user_id,
-                            event="reminder_fired",
-                            payload={
-                                "reminder_id": reminder_id,
-                                "chat_id": result_data.get("chat_id"),
-                                "message_id": result_data.get("message_id"),
-                                "target_type": target_type,
-                                "is_repeating": repeat_config is not None,
-                                "encrypted_content": result_data.get("encrypted_content"),
-                            }
-                        )
-                        logger.debug(f"Sent WebSocket notification for reminder {reminder_id}")
-                    except Exception as ws_error:
-                        # WebSocket notification failure should not fail the reminder
-                        logger.warning(f"Failed to send WebSocket notification for reminder {reminder_id}: {ws_error}")
-                    
-                    # Send email notification if user has email notifications enabled
-                    try:
-                        await _send_reminder_email_notification(
-                            user_id=user_id,
-                            reminder_prompt=prompt,
-                            trigger_time=format_reminder_time(current_time, timezone),
-                            chat_id=result_data.get("chat_id", ""),
-                            chat_title=result_data.get("chat_title"),
-                            is_new_chat=result_data.get("is_new_chat", True),
-                            directus_service=directus_service,
-                        )
-                    except Exception as email_error:
-                        # Email notification failure should not fail the reminder
-                        logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
+                    target_chat_id = str(uuid.uuid4())
+                else:
+                    target_chat_id = reminder.get("target_chat_id")
+                    if not target_chat_id:
+                        logger.error(f"No target_chat_id for existing_chat reminder {reminder_id}")
+                        error_count += 1
+                        continue
 
-                if not success:
-                    logger.error(f"Failed to process reminder {reminder_id}")
-                    error_count += 1
-                    continue
+                # Generate message ID for the system message
+                message_id = str(uuid.uuid4())
+
+                # Decrypt chat title for new_chat target
+                chat_title = None
+                if target_type == "new_chat":
+                    encrypted_new_chat_title = reminder.get("encrypted_new_chat_title")
+                    if encrypted_new_chat_title:
+                        try:
+                            decrypted_title = await encryption_service.decrypt_with_user_key(
+                                ciphertext=encrypted_new_chat_title,
+                                key_id=vault_key_id
+                            )
+                            if decrypted_title:
+                                chat_title = decrypted_title
+                        except Exception as e:
+                            logger.warning(f"Could not decrypt chat title for reminder {reminder_id}: {e}")
+                    if not chat_title:
+                        # Derive title from prompt (first 50 chars)
+                        chat_title = prompt[:50] + ("..." if len(prompt) > 50 else "")
+
+                # ARCHITECTURE: Zero-Knowledge Reminder Delivery
+                # 
+                # Phase 1 (User Online): Send PLAINTEXT content via WebSocket.
+                #   The client encrypts with the chat key, persists, and syncs back.
+                #
+                # Phase 2 (User Offline): Queue the delivery payload in cache.
+                #   When the user reconnects, the WebSocket endpoint delivers
+                #   pending reminders. Email notification is sent as a backup.
+                #
+                # This ensures the server never stores messages encrypted with a key
+                # the client can't access (vault key vs chat key mismatch).
+
+                # PRE-CREATE CHAT IN DIRECTUS (for new_chat targets)
+                # This prevents a race condition where the frontend receives the
+                # reminder_fired WebSocket event and sends chat_system_message_added
+                # before the chat exists in Directus, causing "Chat not found" errors.
+                if target_type == "new_chat" and directus_service:
+                    hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+                    try:
+                        minimal_chat_metadata = {
+                            "id": target_chat_id,
+                            "hashed_user_id": hashed_uid,
+                            "created_at": current_time,
+                            "updated_at": current_time,
+                            "messages_v": 0,
+                            "title_v": 0,
+                            "last_edited_overall_timestamp": current_time,
+                            "last_message_timestamp": current_time,
+                            "unread_count": 1,
+                        }
+                        created_data, is_duplicate = await directus_service.chat.create_chat_in_directus(minimal_chat_metadata)
+                        if created_data:
+                            logger.info(f"Pre-created chat {target_chat_id} in Directus for reminder {reminder_id}")
+                        elif is_duplicate:
+                            logger.debug(f"Chat {target_chat_id} already exists (race condition), continuing")
+                        else:
+                            logger.warning(f"Failed to pre-create chat {target_chat_id} in Directus, continuing anyway")
+                    except Exception as create_err:
+                        logger.warning(f"Error pre-creating chat {target_chat_id}: {create_err}, continuing anyway")
+
+                delivery_payload = {
+                    "reminder_id": reminder_id,
+                    "chat_id": target_chat_id,
+                    "message_id": message_id,
+                    "target_type": target_type,
+                    "is_repeating": repeat_config is not None,
+                    "content": message_content,  # PLAINTEXT - client encrypts with chat key
+                    "chat_title": chat_title,  # For new_chat target
+                    "user_id": user_id,  # Required by WebSocket relay for routing
+                    "fired_at": current_time,  # When the reminder actually fired
+                }
+
+                # Try real-time WebSocket delivery first
+                try:
+                    await task.publish_websocket_event(
+                        user_id_hash=user_id,
+                        event="reminder_fired",
+                        payload=delivery_payload
+                    )
+                    logger.info(f"Published reminder_fired WebSocket event for reminder {reminder_id} to user {user_id[:8]}...")
+                except Exception as ws_error:
+                    logger.error(f"Failed to publish WebSocket event for reminder {reminder_id}: {ws_error}")
+
+                # Always queue for pending delivery as a safety net.
+                # The WebSocket pub/sub is fire-and-forget - we can't know if the user
+                # actually received it. The client will deduplicate by message_id if it
+                # receives both the real-time event and the pending delivery on reconnect.
+                try:
+                    await cache_service.add_pending_reminder_delivery(
+                        user_id=user_id,
+                        delivery_payload=delivery_payload
+                    )
+                    logger.debug(f"Queued pending delivery for reminder {reminder_id}")
+                except Exception as queue_error:
+                    logger.warning(f"Failed to queue pending delivery for reminder {reminder_id}: {queue_error}")
+
+                # Send email notification if user has email notifications enabled
+                try:
+                    await _send_reminder_email_notification(
+                        user_id=user_id,
+                        reminder_prompt=prompt,
+                        trigger_time=format_reminder_time(current_time, timezone),
+                        chat_id=target_chat_id,
+                        chat_title=chat_title,
+                        is_new_chat=(target_type == "new_chat"),
+                        directus_service=directus_service,
+                        encryption_service=encryption_service,
+                    )
+                except Exception as email_error:
+                    # Email notification failure should not fail the reminder
+                    logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
+
+                # ======================================================
+                # DISPATCH AI ASK REQUEST
+                # 
+                # Trigger an AI response for the reminder. The AI will
+                # receive the reminder prompt as the user message and
+                # generate a helpful follow-up. This runs regardless of
+                # whether the user is online.
+                #
+                # - If user is online: AI streams via WebSocket normally
+                # - If user is offline: existing offline handling stores
+                #   the response in pending delivery queue (60d) + sends email
+                # ======================================================
+                try:
+                    await _dispatch_reminder_ai_request(
+                        user_id=user_id,
+                        chat_id=target_chat_id,
+                        message_id=message_id,
+                        prompt=prompt,
+                        target_type=target_type,
+                        chat_title=chat_title,
+                        reminder=reminder,
+                        encryption_service=encryption_service,
+                        cache_service=cache_service,
+                    )
+                except Exception as ai_error:
+                    # AI dispatch failure should not fail the reminder itself
+                    logger.warning(f"Failed to dispatch AI request for reminder {reminder_id}: {ai_error}")
 
                 # Handle repeating vs one-time
                 if repeat_config:
@@ -233,211 +330,175 @@ async def _process_due_reminders_async(task: BaseServiceTask):
         await task.cleanup_services()
 
 
-async def _create_new_chat_with_reminder(
-    reminder: Dict[str, Any],
-    message_content: str,
+## NOTE: _create_new_chat_with_reminder and _send_reminder_to_existing_chat
+## were removed as part of the zero-knowledge architecture fix.
+## 
+## Previously, the server would encrypt reminder messages with the user's Vault key
+## and insert them directly into Directus. However, the client expects messages to be
+## encrypted with the chat key (client-side zero-knowledge encryption).
+## 
+## The new approach sends plaintext reminder content to the client via WebSocket.
+## The client encrypts with the chat key, saves to IndexedDB, and sends back to
+## the server for persistence via the existing chat_system_message_added flow.
+## This ensures the zero-knowledge encryption model is preserved.
+
+
+async def _dispatch_reminder_ai_request(
+    user_id: str,
+    chat_id: str,
+    message_id: str,
+    prompt: str,
+    target_type: str,
+    chat_title: str | None,
+    reminder: dict,
     encryption_service,
-    directus_service,
     cache_service,
-) -> tuple[bool, Dict[str, Any]]:
+) -> None:
     """
-    Create a new chat with the reminder as a system message.
+    Dispatch an AI ask request for a fired reminder.
     
-    Returns:
-        Tuple of (success: bool, result_data: dict with chat_id, message_id, encrypted_content)
-    """
-    try:
-        user_id = reminder.get("user_id")
-        vault_key_id = reminder.get("vault_key_id")
-        reminder_id = reminder.get("reminder_id")
-        encrypted_new_chat_title = reminder.get("encrypted_new_chat_title")
-
-        # Generate IDs
-        chat_id = str(uuid.uuid4())
-        message_id = str(uuid.uuid4())
-        now_ts = int(time.time())
-
-        # Decrypt the chat title
-        chat_title = "Reminder"
-        if encrypted_new_chat_title:
-            try:
-                decrypted_title = await encryption_service.decrypt_with_user_key(
-                    ciphertext=encrypted_new_chat_title,
-                    key_id=vault_key_id
-                )
-                if decrypted_title:
-                    chat_title = decrypted_title
-            except Exception as e:
-                logger.warning(f"Could not decrypt chat title for reminder {reminder_id}: {e}")
-
-        # Hash user_id for Directus storage
-        import hashlib
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-
-        # Encrypt the title and message for storage
-        encrypted_title, _ = await encryption_service.encrypt_with_user_key(
-            plaintext=chat_title,
-            key_id=vault_key_id
-        )
-        
-        encrypted_content, _ = await encryption_service.encrypt_with_user_key(
-            plaintext=message_content,
-            key_id=vault_key_id
-        )
-
-        # Create the chat in Directus
-        chat_payload = {
-            "id": chat_id,
-            "hashed_user_id": hashed_user_id,
-            "encrypted_title": encrypted_title,
-            "created_at": now_ts,
-            "updated_at": now_ts,
-            "messages_v": 1,
-            "title_v": 1,
-            "last_edited_overall_timestamp": now_ts,
-            "last_message_timestamp": now_ts,
-            "unread_count": 1,
-        }
-
-        created_chat, is_duplicate = await directus_service.chat.create_chat_in_directus(chat_payload)
-        
-        if not created_chat and not is_duplicate:
-            logger.error(f"Failed to create chat for reminder {reminder_id}")
-            return False, {}
-
-        # Create the system message
-        message_payload = {
-            "id": message_id,
-            "chat_id": chat_id,
-            "hashed_user_id": hashed_user_id,
-            "role": "system",
-            "encrypted_content": encrypted_content,
-            "created_at": now_ts,
-        }
-
-        created_message = await directus_service.chat.create_message_in_directus(message_payload)
-        
-        if not created_message:
-            logger.error(f"Failed to create message for reminder {reminder_id}")
-            return False, {}
-
-        logger.info(f"Created new chat {chat_id} with reminder message for reminder {reminder_id}")
-        
-        # Return success with result data for WebSocket and email notifications
-        return True, {
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "encrypted_content": encrypted_content,
-            "encrypted_title": encrypted_title,
-            "chat_title": chat_title,  # Plain text title for email
-            "is_new_chat": True,
-        }
-
-    except Exception as e:
-        logger.error(f"Error creating new chat with reminder: {e}", exc_info=True)
-        return False, {}
-
-
-async def _send_reminder_to_existing_chat(
-    reminder: Dict[str, Any],
-    message_content: str,
-    encryption_service,
-    directus_service,
-    cache_service,
-) -> tuple[bool, Dict[str, Any]]:
-    """
-    Send a reminder as a system message to an existing chat.
+    Builds the message history from cached vault-encrypted chat history (for
+    existing_chat reminders) and sends the reminder prompt as the latest user
+    message. The AI response streams through the normal pipeline:
+    - Online user: real-time WebSocket streaming
+    - Offline user: response stored in pending delivery queue + email notification
     
-    Returns:
-        Tuple of (success: bool, result_data: dict with chat_id, message_id, encrypted_content)
+    Args:
+        user_id: User's UUID
+        chat_id: Target chat ID
+        message_id: The system message ID (for reference)
+        prompt: The decrypted reminder prompt (plaintext)
+        target_type: 'new_chat' or 'existing_chat'
+        chat_title: Chat title (for new chats)
+        reminder: Full reminder data dict
+        encryption_service: EncryptionService instance
+        cache_service: CacheService instance
     """
-    try:
-        user_id = reminder.get("user_id")
-        vault_key_id = reminder.get("vault_key_id")
-        reminder_id = reminder.get("reminder_id")
-        target_chat_id = reminder.get("target_chat_id")
+    vault_key_id = reminder.get("vault_key_id")
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+    # Build message history for AI context
+    message_history = []
+
+    if target_type == "existing_chat":
+        # Restore cached chat history from vault-encrypted storage
         encrypted_chat_history = reminder.get("encrypted_chat_history")
-
-        if not target_chat_id:
-            logger.error(f"No target_chat_id for existing_chat reminder {reminder_id}")
-            return False, {}
-
-        message_id = str(uuid.uuid4())
-        now_ts = int(time.time())
-
-        # Hash user_id for Directus storage
-        import hashlib
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-
-        # Encrypt the message content
-        encrypted_content, _ = await encryption_service.encrypt_with_user_key(
-            plaintext=message_content,
-            key_id=vault_key_id
-        )
-
-        # Restore cached chat history to AI cache if available
-        if encrypted_chat_history:
+        if encrypted_chat_history and vault_key_id:
             try:
                 decrypted_history = await encryption_service.decrypt_with_user_key(
                     ciphertext=encrypted_chat_history,
                     key_id=vault_key_id
                 )
                 if decrypted_history:
-                    chat_history = json.loads(decrypted_history)
-                    # Restore to AI cache for context
-                    # This allows the AI to continue the conversation with context
-                    for msg in chat_history:
-                        await cache_service.add_ai_message_to_history(
-                            user_id=user_id,
-                            chat_id=target_chat_id,
-                            encrypted_message_json=json.dumps(msg)
-                        )
-                    logger.debug(f"Restored {len(chat_history)} messages to AI cache for reminder {reminder_id}")
+                    cached_messages = json.loads(decrypted_history)
+                    for msg in cached_messages:
+                        # get_ai_messages_history() returns List[str] (JSON strings from Redis),
+                        # so each element may be a raw JSON string that needs parsing first.
+                        if isinstance(msg, str):
+                            try:
+                                msg = json.loads(msg)
+                            except (json.JSONDecodeError, TypeError):
+                                logger.debug("Skipping unparseable cached message for reminder AI request")
+                                continue
+                        
+                        if not isinstance(msg, dict):
+                            logger.debug(f"Skipping non-dict cached message (type={type(msg).__name__})")
+                            continue
+                        
+                        # Extract content from vault-encrypted cache messages.
+                        # These are server-side encrypted with encryption_key_user_server,
+                        # so we need to decrypt the encrypted_content field.
+                        encrypted_content = msg.get("encrypted_content")
+                        if encrypted_content:
+                            try:
+                                decrypted_content = await encryption_service.decrypt_with_user_key(
+                                    ciphertext=encrypted_content,
+                                    key_id=vault_key_id
+                                )
+                                if decrypted_content:
+                                    message_history.append({
+                                        "content": decrypted_content,
+                                        "role": msg.get("role", "user"),
+                                        "created_at": msg.get("created_at", int(time.time())),
+                                    })
+                            except Exception as e_decrypt:
+                                logger.debug(f"Could not decrypt cached message for reminder AI request: {e_decrypt}")
+                                continue
+                        else:
+                            # Fallback: if content is plaintext (shouldn't happen in normal flow)
+                            content = msg.get("content", "")
+                            if content:
+                                message_history.append({
+                                    "content": content,
+                                    "role": msg.get("role", "user"),
+                                    "created_at": msg.get("created_at", int(time.time())),
+                                })
+                    logger.info(
+                        f"Restored {len(message_history)} messages from cached history "
+                        f"for reminder AI request"
+                    )
             except Exception as e:
-                logger.warning(f"Could not restore chat history for reminder {reminder_id}: {e}")
+                logger.warning(f"Could not restore chat history for AI request: {e}")
 
-        # Create the system message in Directus
-        message_payload = {
-            "id": message_id,
-            "chat_id": target_chat_id,
-            "hashed_user_id": hashed_user_id,
-            "role": "system",
-            "encrypted_content": encrypted_content,
-            "created_at": now_ts,
-        }
+    # Add the reminder prompt as the latest "user" message for the AI to respond to
+    message_history.append({
+        "content": prompt,
+        "role": "user",
+        "created_at": int(time.time()),
+    })
 
-        created_message = await directus_service.chat.create_message_in_directus(message_payload)
-        
-        if not created_message:
-            logger.error(f"Failed to create message for reminder {reminder_id}")
-            return False, {}
+    # Get user's timezone for AI context
+    user_timezone = await cache_service.get_user_timezone(user_id)
+    user_preferences = {}
+    if user_timezone:
+        user_preferences["timezone"] = user_timezone
 
-        # Update chat metadata
-        try:
-            await directus_service.chat.update_chat_fields_in_directus(
-                chat_id=target_chat_id,
-                fields_to_update={
-                    "updated_at": now_ts,
-                    "last_message_timestamp": now_ts,
-                    "unread_count": 1,  # Mark as unread
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Could not update chat metadata for reminder {reminder_id}: {e}")
+    # Build AskSkillRequest payload
+    # CRITICAL: For new_chat targets, always set chat_has_title=False so the
+    # AI preprocessor generates title, icon_names, and category for the new chat.
+    # Without this, the preprocessor sees chat_has_title=True (because we have a
+    # decrypted title from the reminder) and skips icon/category generation,
+    # resulting in chats with no icon and no category gradient color.
+    chat_has_title_flag = False if target_type == "new_chat" else bool(chat_title)
+    
+    ask_request = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "user_id": user_id,
+        "user_id_hash": user_id_hash,
+        "message_history": message_history,
+        "chat_has_title": chat_has_title_flag,
+        "mate_id": None,  # Let preprocessor determine
+        "active_focus_id": None,
+        "user_preferences": user_preferences,
+        "app_settings_memories_metadata": None,
+    }
 
-        logger.info(f"Sent reminder message to existing chat {target_chat_id} for reminder {reminder_id}")
-        
-        # Return success with result data for WebSocket notification
-        return True, {
-            "chat_id": target_chat_id,
-            "message_id": message_id,
-            "encrypted_content": encrypted_content,
-            "is_new_chat": False,
-        }
+    # Dispatch to AI app via HTTP (same pattern as message_received_handler.py)
+    ai_app_url = "http://app-ai:8000/skills/ask"
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            ai_app_url,
+            json=ask_request,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        ai_task_id = response_data.get("task_id")
 
-    except Exception as e:
-        logger.error(f"Error sending reminder to existing chat: {e}", exc_info=True)
-        return False, {}
+    if ai_task_id:
+        # Mark this chat as having an active AI task
+        await cache_service.set_active_ai_task(chat_id, ai_task_id)
+        logger.info(
+            f"Dispatched AI ask request for reminder in chat {chat_id}, "
+            f"task_id={ai_task_id}"
+        )
+    else:
+        logger.warning(
+            f"AI app returned response but no task_id for reminder chat {chat_id}. "
+            f"Response: {response_data}"
+        )
 
 
 async def _send_reminder_email_notification(
@@ -448,11 +509,13 @@ async def _send_reminder_email_notification(
     chat_title: str | None,
     is_new_chat: bool,
     directus_service,
+    encryption_service,
 ) -> bool:
     """
     Send an email notification for a fired reminder.
     
     Checks if the user has email notifications enabled before sending.
+    Decrypts the vault-encrypted notification email before dispatching.
     Uses a Celery task to send the email asynchronously.
     
     Args:
@@ -463,6 +526,7 @@ async def _send_reminder_email_notification(
         chat_title: Optional title of the chat
         is_new_chat: Whether a new chat was created
         directus_service: Directus service for fetching user profile
+        encryption_service: EncryptionService for decrypting vault-encrypted fields
         
     Returns:
         True if email was dispatched, False otherwise
@@ -478,11 +542,32 @@ async def _send_reminder_email_notification(
         user_profile = user_profile_result[1]
         
         # Check if user has email notifications enabled
-        notification_email = user_profile.get("notification_email")
         email_notifications_enabled = user_profile.get("email_notifications_enabled", False)
-        
-        if not notification_email or not email_notifications_enabled:
+        if not email_notifications_enabled:
             logger.debug(f"User {user_id} does not have email notifications enabled")
+            return False
+        
+        # Decrypt the vault-encrypted notification email
+        encrypted_notification_email = user_profile.get("encrypted_notification_email")
+        if not encrypted_notification_email:
+            logger.debug(f"User {user_id} has no encrypted_notification_email configured")
+            return False
+        
+        vault_key_id = user_profile.get("vault_key_id")
+        if not vault_key_id:
+            logger.warning(f"User {user_id} has no vault_key_id, cannot decrypt notification email")
+            return False
+        
+        try:
+            notification_email = await encryption_service.decrypt_with_user_key(
+                encrypted_notification_email, vault_key_id
+            )
+        except Exception as decrypt_error:
+            logger.error(f"Failed to decrypt notification email for user {user_id}: {decrypt_error}", exc_info=True)
+            return False
+        
+        if not notification_email:
+            logger.warning(f"Notification email decryption returned empty result for user {user_id}")
             return False
         
         # Get user preferences for the email
@@ -505,12 +590,48 @@ async def _send_reminder_email_notification(
             queue='email'
         )
         
-        logger.info(f"Dispatched reminder email notification to {notification_email} for user {user_id}")
+        logger.info(f"Dispatched reminder email notification for user {user_id}")
         return True
         
     except Exception as e:
         logger.error(f"Error dispatching reminder email notification: {e}", exc_info=True)
         return False
+
+
+@app.task(name="reminder.audit_pending_deliveries", base=BaseServiceTask, bind=True)
+def audit_pending_deliveries(self):
+    """
+    Periodic task that audits pending delivery entries.
+    
+    Called by Celery Beat every 6 hours. It:
+    1. Scans all pending delivery lists in cache
+    2. Logs users who have undelivered messages (for monitoring)
+    3. Redis TTL handles actual expiry (60 days) - this task is for audit/visibility
+    """
+    return asyncio.run(_audit_pending_deliveries_async(self))
+
+
+async def _audit_pending_deliveries_async(task: BaseServiceTask):
+    """Async implementation of audit_pending_deliveries."""
+    try:
+        await task.initialize_services()
+
+        cache_service = task._cache_service
+        if not cache_service:
+            return {"success": False, "error": "Cache service not available"}
+
+        users_with_pending = await cache_service.cleanup_expired_pending_deliveries()
+
+        return {
+            "success": True,
+            "users_with_pending": users_with_pending
+        }
+
+    except Exception as e:
+        logger.error(f"Error auditing pending deliveries: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+    finally:
+        await task.cleanup_services()
 
 
 @app.task(name="reminder.get_stats", base=BaseServiceTask, bind=True)

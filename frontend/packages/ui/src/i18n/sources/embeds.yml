@@ -389,6 +389,121 @@ code_info:
   cs: "{lineCount} {lineCountText}, {language}"
   sv: "{lineCount} {lineCountText}, {language}"
   verified_by_human: []
+document_snippet:
+  context: Default title for document embeds when no title is provided
+  en: Document
+  de: Dokument
+  zh: 文档
+  es: Documento
+  fr: Document
+  pt: Documento
+  ru: Документ
+  ja: ドキュメント
+  ko: 문서
+  it: Documento
+  tr: Belge
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokument
+  nl: Document
+  ar: مستند
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokument
+  sv: Dokument
+  verified_by_human: []
+document_word_singular:
+  context: Singular form of 'word' for document embeds, e.g. 'word'
+  en: word
+  de: Wort
+  zh: 词
+  es: palabra
+  fr: mot
+  pt: palavra
+  ru: слово
+  ja: 語
+  ko: 단어
+  it: parola
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słowo
+  nl: woord
+  ar: كلمة
+  hi: शब्द
+  th: คำ
+  cs: slovo
+  sv: ord
+  verified_by_human: []
+document_word_plural:
+  context: Plural form of 'word' for document embeds, e.g. 'words'
+  en: words
+  de: Wörter
+  zh: 词
+  es: palabras
+  fr: mots
+  pt: palavras
+  ru: слов
+  ja: 語
+  ko: 단어
+  it: parole
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słów
+  nl: woorden
+  ar: كلمات
+  hi: शब्द
+  th: คำ
+  cs: slov
+  sv: ord
+  verified_by_human: []
+document_generating:
+  context: Status text when document is being generated
+  en: Generating document...
+  de: Dokument wird erstellt...
+  zh: 正在生成文档...
+  es: Generando documento...
+  fr: Génération du document...
+  pt: Gerando documento...
+  ru: Создание документа...
+  ja: ドキュメントを生成中...
+  ko: 문서 생성 중...
+  it: Generazione documento...
+  tr: Belge oluşturuluyor...
+  vi: Đang tạo tài liệu...
+  id: Membuat dokumen...
+  pl: Generowanie dokumentu...
+  nl: Document genereren...
+  ar: جاري إنشاء المستند...
+  hi: दस्तावेज़ बनाया जा रहा है...
+  th: กำลังสร้างเอกสาร...
+  cs: Generování dokumentu...
+  sv: Genererar dokument...
+  verified_by_human: []
+document_no_content:
+  context: Message shown when no document content is available
+  en: No document content available.
+  de: Kein Dokumentinhalt verfügbar.
+  zh: 没有可用的文档内容。
+  es: No hay contenido de documento disponible.
+  fr: Aucun contenu de document disponible.
+  pt: Nenhum conteúdo de documento disponível.
+  ru: Содержимое документа недоступно.
+  ja: ドキュメントの内容がありません。
+  ko: 문서 내용이 없습니다.
+  it: Nessun contenuto del documento disponibile.
+  tr: Belge içeriği mevcut değil.
+  vi: Không có nội dung tài liệu nào.
+  id: Tidak ada konten dokumen tersedia.
+  pl: Brak dostępnej treści dokumentu.
+  nl: Geen documentinhoud beschikbaar.
+  ar: لا يوجد محتوى مستند متاح.
+  hi: कोई दस्तावेज़ सामग्री उपलब्ध नहीं है।
+  th: ไม่มีเนื้อหาเอกสารที่พร้อมใช้งาน
+  cs: Žádný obsah dokumentu není k dispozici.
+  sv: Inget dokumentinnehåll tillgängligt.
+  verified_by_human: []
 table:
   context: Default title for table/sheet embeds when no title is provided
   en: Table
@@ -1365,3 +1480,587 @@ reminder.already_fired:
   cs: Tato připomínka již byla spuštěna
   sv: Denna påminnelse har redan utlösts
   verified_by_human: [en, de]
+connection:
+  context: Singular label for a travel connection result
+  en: connection
+  de: Verbindung
+  zh: 连接
+  es: conexión
+  fr: connexion
+  pt: conexão
+  ru: соединение
+  ja: 接続
+  ko: 연결
+  it: connessione
+  tr: bağlantı
+  vi: kết nối
+  id: koneksi
+  pl: połączenie
+  nl: verbinding
+  ar: اتصال
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelse
+  verified_by_human: [en, de]
+connections:
+  context: Plural label for travel connection results
+  en: connections
+  de: Verbindungen
+  zh: 连接
+  es: conexiones
+  fr: connexions
+  pt: conexões
+  ru: соединений
+  ja: 接続
+  ko: 연결
+  it: connessioni
+  tr: bağlantılar
+  vi: kết nối
+  id: koneksi
+  pl: połączenia
+  nl: verbindingen
+  ar: اتصالات
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelser
+  verified_by_human: [en, de]
+from:
+  context: Price prefix, e.g. 'from EUR 330'
+  en: from
+  de: ab
+  zh: 从
+  es: desde
+  fr: "à partir de"
+  pt: "a partir de"
+  ru: от
+  ja: から
+  ko: 부터
+  it: da
+  tr: den itibaren
+  vi: từ
+  id: dari
+  pl: od
+  nl: vanaf
+  ar: من
+  hi: से
+  th: จาก
+  cs: od
+  sv: från
+  verified_by_human: [en, de]
+search_failed:
+  context: Error title when a skill search fails
+  en: Search failed
+  de: Suche fehlgeschlagen
+  zh: 搜索失败
+  es: Búsqueda fallida
+  fr: Recherche échouée
+  pt: Pesquisa falhou
+  ru: Поиск не удался
+  ja: 検索に失敗しました
+  ko: 검색 실패
+  it: Ricerca fallita
+  tr: Arama başarısız
+  vi: Tìm kiếm thất bại
+  id: Pencarian gagal
+  pl: Wyszukiwanie nie powiodło się
+  nl: Zoeken mislukt
+  ar: فشل البحث
+  hi: खोज विफल
+  th: การค้นหาล้มเหลว
+  cs: Hledání selhalo
+  sv: Sökningen misslyckades
+  verified_by_human: [en, de]
+loading:
+  context: Loading state text while results are being fetched
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  verified_by_human: [en, de]
+no_results:
+  context: Message when no results were found
+  en: No connections found.
+  de: Keine Verbindungen gefunden.
+  zh: 未找到连接。
+  es: No se encontraron conexiones.
+  fr: Aucune connexion trouvée.
+  pt: Nenhuma conexão encontrada.
+  ru: Соединения не найдены.
+  ja: 接続が見つかりません。
+  ko: 연결을 찾을 수 없습니다.
+  it: Nessuna connessione trovata.
+  tr: Bağlantı bulunamadı.
+  vi: Không tìm thấy kết nối.
+  id: Tidak ada koneksi ditemukan.
+  pl: Nie znaleziono połączeń.
+  nl: Geen verbindingen gevonden.
+  ar: لم يتم العثور على اتصالات.
+  hi: कोई कनेक्शन नहीं मिला।
+  th: ไม่พบการเชื่อมต่อ
+  cs: Nebyly nalezeny žádné spoje.
+  sv: Inga förbindelser hittades.
+  verified_by_human: [en, de]
+book_on:
+  context: CTA button text, e.g. 'Book on Google Flights'
+  en: Book on {provider}
+  de: Buchen auf {provider}
+  zh: 在{provider}上预订
+  es: Reservar en {provider}
+  fr: Réserver sur {provider}
+  pt: Reservar no {provider}
+  ru: Забронировать на {provider}
+  ja: "{provider}で予約"
+  ko: "{provider}에서 예약"
+  it: Prenota su {provider}
+  tr: "{provider} üzerinden rezerve et"
+  vi: Đặt trên {provider}
+  id: Pesan di {provider}
+  pl: Zarezerwuj na {provider}
+  nl: Boek op {provider}
+  ar: احجز على {provider}
+  hi: "{provider} पर बुक करें"
+  th: จองบน {provider}
+  cs: Rezervovat na {provider}
+  sv: Boka på {provider}
+  verified_by_human: [en, de]
+open_google_flights:
+  context: CTA button text when no direct airline booking URL is available
+  en: Open Google Flights
+  de: Google Flights öffnen
+  zh: 打开 Google Flights
+  es: Abrir Google Flights
+  fr: Ouvrir Google Flights
+  pt: Abrir Google Flights
+  ru: Открыть Google Flights
+  ja: Google Flightsを開く
+  ko: Google Flights 열기
+  it: Apri Google Flights
+  tr: Google Flights'ı aç
+  vi: Mở Google Flights
+  id: Buka Google Flights
+  pl: Otwórz Google Flights
+  nl: Google Flights openen
+  ar: افتح Google Flights
+  hi: Google Flights खोलें
+  th: เปิด Google Flights
+  cs: Otevřít Google Flights
+  sv: Öppna Google Flights
+  verified_by_human: [en, de]
+copied_to_clipboard:
+  context: Notification shown when content has been copied to clipboard
+  en: Copied to clipboard
+  de: Kopiert
+  zh: 已复制
+  es: Copiado al portapapeles
+  fr: Copié
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào clipboard
+  id: Disalin ke clipboard
+  pl: Skopiowano do schowka
+  nl: Naar klembord gekopieerd
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: Kopierat till urklipp
+  verified_by_human: []
+copy_failed:
+  context: Notification shown when copying to clipboard fails
+  en: Failed to copy to clipboard
+  de: Kopieren fehlgeschlagen
+  zh: 复制失败
+  es: Error al copiar
+  fr: Échec de la copie
+  pt: Falha ao copiar
+  ru: Не удалось скопировать
+  ja: コピーに失敗しました
+  ko: 복사 실패
+  it: Copia fallita
+  tr: Kopyalama başarısız
+  vi: Không thể sao chép
+  id: Gagal menyalin
+  pl: Nie udało się skopiować
+  nl: Kopiëren mislukt
+  ar: فشل النسخ
+  hi: कॉपी करने में विफल
+  th: คัดลอกไม่สำเร็จ
+  cs: Kopírování se nezdařilo
+  sv: Kopiering misslyckades
+  verified_by_human: []
+download_itinerary:
+  context: Button label to download travel itinerary as PDF
+  en: Download itinerary
+  de: Reiseplan herunterladen
+  zh: 下载行程
+  es: Descargar itinerario
+  fr: "Télécharger l'itinéraire"
+  pt: Baixar itinerário
+  ru: Скачать маршрут
+  ja: 旅程をダウンロード
+  ko: 여행 일정 다운로드
+  it: Scarica itinerario
+  tr: Güzergahı indir
+  vi: Tải hành trình
+  id: Unduh rencana perjalanan
+  pl: Pobierz plan podróży
+  nl: Reisplan downloaden
+  ar: تحميل خط السير
+  hi: यात्रा कार्यक्रम डाउनलोड करें
+  th: ดาวน์โหลดกำหนดการเดินทาง
+  cs: Stáhnout itinerář
+  sv: Ladda ner resplan
+  verified_by_human: [en, de]
+image_generate:
+  context: Image generate skill label shown in BasicInfosBar - shows the skill name "Generate"
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерация
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  verified_by_human: []
+image_generate_draft:
+  context: Image generate draft skill label shown in BasicInfosBar - shows the skill name "Generate Draft"
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草稿
+  es: Generar borrador
+  fr: "Générer un brouillon"
+  pt: Gerar rascunho
+  ru: Генерация черновика
+  ja: 下書き生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: "Tạo bản nháp"
+  id: Buat draf
+  pl: "Generuj szkic"
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट बनाएं
+  th: สร้างแบบร่าง
+  cs: "Generovat návrh"
+  sv: Generera utkast
+  verified_by_human: []
+image_generate.error:
+  context: Error message when image generation fails
+  en: Image generation failed
+  de: Bildgenerierung fehlgeschlagen
+  zh: 图片生成失败
+  es: La generación de imagen falló
+  fr: "La génération d'image a échoué"
+  pt: Falha na geração de imagem
+  ru: Ошибка генерации изображения
+  ja: 画像生成に失敗しました
+  ko: 이미지 생성 실패
+  it: Generazione immagine fallita
+  tr: Görsel oluşturma başarısız
+  vi: Tạo hình ảnh thất bại
+  id: Pembuatan gambar gagal
+  pl: Generowanie obrazu nie powiodło się
+  nl: Afbeelding genereren mislukt
+  ar: فشل إنشاء الصورة
+  hi: चित्र बनाना विफल रहा
+  th: สร้างรูปภาพล้มเหลว
+  cs: Generování obrázku selhalo
+  sv: Bildgenerering misslyckades
+  verified_by_human: []
+image_generate.loading:
+  context: Loading text while image is being decrypted
+  en: Loading image...
+  de: Bild wird geladen...
+  zh: 正在加载图片...
+  es: Cargando imagen...
+  fr: "Chargement de l'image..."
+  pt: Carregando imagem...
+  ru: Загрузка изображения...
+  ja: 画像を読み込み中...
+  ko: 이미지 로딩 중...
+  it: Caricamento immagine...
+  tr: Görsel yükleniyor...
+  vi: Đang tải hình ảnh...
+  id: Memuat gambar...
+  pl: Ładowanie obrazu...
+  nl: Afbeelding laden...
+  ar: جاري تحميل الصورة...
+  hi: चित्र लोड हो रहा है...
+  th: กำลังโหลดรูปภาพ...
+  cs: Načítání obrázku...
+  sv: Laddar bild...
+  verified_by_human: []
+image_generate.prompt_label:
+  context: Label for the prompt field in image fullscreen view
+  en: Prompt
+  de: Eingabe
+  zh: 提示
+  es: Indicación
+  fr: Invite
+  pt: Prompt
+  ru: Промпт
+  ja: プロンプト
+  ko: 프롬프트
+  it: Prompt
+  tr: İstem
+  vi: Lời nhắc
+  id: Prompt
+  pl: Prompt
+  nl: Prompt
+  ar: التعليمات
+  hi: प्रॉम्प्ट
+  th: คำสั่ง
+  cs: Výzva
+  sv: Prompt
+  verified_by_human: []
+image_generate.model_label:
+  context: Label for model name in image fullscreen view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  verified_by_human: []
+image_generate.aspect_ratio:
+  context: Label for aspect ratio in image fullscreen view
+  en: Aspect Ratio
+  de: Seitenverhältnis
+  zh: 宽高比
+  es: Relación de aspecto
+  fr: "Rapport d'aspect"
+  pt: Proporção
+  ru: Соотношение сторон
+  ja: アスペクト比
+  ko: 종횡비
+  it: Rapporto aspetto
+  tr: En boy oranı
+  vi: Tỷ lệ khung hình
+  id: Rasio aspek
+  pl: Proporcje
+  nl: Beeldverhouding
+  ar: نسبة العرض إلى الارتفاع
+  hi: पक्षानुपात
+  th: อัตราส่วนภาพ
+  cs: Poměr stran
+  sv: Bildförhållande
+  verified_by_human: []
+image_generate.resolution:
+  context: Label for resolution in image fullscreen view
+  en: Resolution
+  de: Auflösung
+  zh: 分辨率
+  es: Resolución
+  fr: Résolution
+  pt: Resolução
+  ru: Разрешение
+  ja: 解像度
+  ko: 해상도
+  it: Risoluzione
+  tr: Çözünürlük
+  vi: Độ phân giải
+  id: Resolusi
+  pl: Rozdzielczość
+  nl: Resolutie
+  ar: الدقة
+  hi: संकल्प
+  th: ความละเอียด
+  cs: Rozlišení
+  sv: Upplösning
+  verified_by_human: []
+image_generate.download:
+  context: Button label to download the original image
+  en: Download Original
+  de: Original herunterladen
+  zh: 下载原始文件
+  es: Descargar original
+  fr: "Télécharger l'original"
+  pt: Baixar original
+  ru: Скачать оригинал
+  ja: オリジナルをダウンロード
+  ko: 원본 다운로드
+  it: Scarica originale
+  tr: Orijinali indir
+  vi: Tải bản gốc
+  id: Unduh asli
+  pl: Pobierz oryginał
+  nl: Origineel downloaden
+  ar: تحميل الأصلي
+  hi: मूल डाउनलोड करें
+  th: ดาวน์โหลดต้นฉบับ
+  cs: Stáhnout originál
+  sv: Ladda ner original
+  verified_by_human: []
+image_generate.generated_by:
+  context: Text shown above the prompt card in fullscreen view, followed by the model name. E.g. "Generated by Gemini 3 Pro"
+  en: Generated by
+  de: Generiert von
+  zh: 生成方
+  es: Generado por
+  fr: Généré par
+  pt: Gerado por
+  ru: Сгенерировано
+  ja: 生成モデル
+  ko: 생성 모델
+  it: Generato da
+  tr: Oluşturan
+  vi: Được tạo bởi
+  id: Dibuat oleh
+  pl: Wygenerowano przez
+  nl: Gegenereerd door
+  ar: تم الإنشاء بواسطة
+  hi: द्वारा उत्पन्न
+  th: สร้างโดย
+  cs: Vygenerováno pomocí
+  sv: Genererat av
+  verified_by_human: []
+context_menu.view:
+  context: Context menu action to open embed in fullscreen view
+  en: View
+  de: Anzeigen
+  verified_by_human: []
+context_menu.share:
+  context: Context menu action to share an embed
+  en: Share
+  de: Teilen
+  verified_by_human: []
+context_menu.copy:
+  context: Context menu action to copy embed content
+  en: Copy
+  de: Kopieren
+  verified_by_human: []
+context_menu.download:
+  context: Context menu action to download embed content
+  en: Download
+  de: Herunterladen
+  verified_by_human: []
+context_menu.deactivate:
+  context: Context menu action to deactivate a focus mode
+  en: Deactivate
+  de: Deaktivieren
+  verified_by_human: []
+context_menu.details:
+  context: Context menu action to view focus mode details in app store
+  en: Details
+  de: Details
+  verified_by_human: []
+focus_mode.activated:
+  context: Status text shown on focus mode embed after activation completes
+  en: Focus activated
+  de: Fokus aktiviert
+  verified_by_human: []
+focus_mode.activating:
+  context: Status text shown during focus mode countdown. {seconds} is replaced with the remaining seconds.
+  en: "Activate in {seconds} sec ..."
+  de: "Aktivierung in {seconds} Sek. ..."
+  verified_by_human: []
+focus_mode.reject_hint:
+  context: "Helper text below the focus mode card during countdown explaining how to prevent activation. Uses \\n for line break."
+  en: "Click or press ESC to prevent focus mode &\ncontinue regular chat"
+  de: "Klicken oder ESC drücken um Fokus-Modus zu verhindern &\nnormal weiterzuchatten"
+  verified_by_human: []
+days:
+  context: Label for number of days (e.g., "22 / 31 days")
+  en: days
+  de: Tage
+  verified_by_human:
+    - en
+    - de
+cheapest:
+  context: Label for the cheapest price in a price calendar
+  en: Cheapest
+  de: Günstigster
+  verified_by_human:
+    - en
+    - de
+most_expensive:
+  context: Label for the most expensive price in a price calendar
+  en: Most expensive
+  de: Teuerster
+  verified_by_human:
+    - en
+    - de
+coverage:
+  context: Label for data coverage (how many days have price data)
+  en: Coverage
+  de: Abdeckung
+  verified_by_human:
+    - en
+    - de
+no_price_data:
+  context: Message shown when no price data is available for a route
+  en: No price data available for this route
+  de: Keine Preisdaten für diese Strecke verfügbar
+  verified_by_human:
+    - en
+    - de
+price_calendar_note:
+  context: Footnote explaining that price calendar prices are cached estimates
+  en: Prices are cached estimates (~48h old). Search specific dates for live pricing.
+  de: Preise sind zwischengespeicherte Schätzungen (~48h alt). Suche nach konkreten Daten für aktuelle Preise.
+  verified_by_human:
+    - en
+    - de
+get_booking_link:
+  context: CTA button text for on-demand booking URL lookup (before loading)
+  en: Get booking link
+  de: Buchungslink laden
+  verified_by_human:
+    - en
+    - de
+loading_booking:
+  context: CTA button text while fetching booking URL from server
+  en: Loading booking link...
+  de: Buchungslink wird geladen...
+  verified_by_human:
+    - en
+    - de

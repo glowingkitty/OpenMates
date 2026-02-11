@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import DemoMessageContent from './DemoMessageContent.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
@@ -12,13 +13,11 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
-  import { getModelDisplayName } from '../utils/modelDisplayName';
+  import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
-  import { isPublicChat } from '../demo_chats/convertToChat';
   import { chatDB } from '../services/db';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
-  import { generateShareKeyBlob } from '../services/shareEncryption';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   
@@ -57,10 +56,16 @@
     original_message = null,
     containerWidth = 0,
     _embedUpdateTimestamp = 0,
+    hasEmbedErrors = false,
     appSettingsMemoriesResponse = undefined,
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
-    isThinkingStreaming = false
+    isThinkingStreaming = false,
+    piiMappings = undefined,
+    piiRevealed = false,
+    // Message identification props (for usage/cost lookup in message context menu)
+    messageId = undefined,
+    userMessageId = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -76,10 +81,16 @@
     original_message?: any;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
+    hasEmbedErrors?: boolean; // Whether any embeds in this message failed (shows error banner)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent?: string; // Decrypted thinking content
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
+    piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
+    piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
+    // Message identification props (for usage/cost lookup in message context menu)
+    messageId?: string; // Message ID for cost lookup
+    userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
   } = $props();
   
   // State for thinking section expansion
@@ -119,6 +130,39 @@
   // Breakpoint is 500px to match the original media query
   let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
 
+  // Check if original_message content contains special placeholders (used in demo chats)
+  // When present, we use DemoMessageContent for special placeholder handling
+  // We check original_message.content because at this point `content` is already TipTap JSON
+  // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
+  const DEMO_PLACEHOLDERS = [
+    '[[example_chats_group]]',
+    '[[dev_example_chats_group]]',
+    '[[app_store_group]]',
+    '[[skills_group]]',
+    '[[focus_modes_group]]',
+    '[[settings_memories_group]]',
+    '[[dev_app_store_group]]',
+    '[[dev_skills_group]]',
+    '[[dev_focus_modes_group]]',
+    '[[dev_settings_memories_group]]',
+    '[[for_developers_embed]]',
+  ];
+  let hasExampleChatsPlaceholder = $derived((() => {
+    const originalContent = original_message?.content;
+    if (typeof originalContent === 'string') {
+      return DEMO_PLACEHOLDERS.some(p => originalContent.includes(p));
+    }
+    return false;
+  })());
+  
+  // Get the original markdown content (for DemoMessageContent which needs the raw markdown)
+  let originalMarkdownContent = $derived(
+    typeof original_message?.content === 'string' ? original_message.content : ''
+  );
+  
+  // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
+  let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
     if (appCards && (!messageParts || messageParts.length === 0)) {
@@ -143,11 +187,13 @@
   let showMenu = $state(false);
   let menuX = $state(0);
   let menuY = $state(0);
-  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code'>('default');
+  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code' | 'focusMode'>('default');
   let selectedNode = $state<any>(null);
-  let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
+  let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'focusMode' | 'default'>('default');
   let selectedAppId = $state<string | null>(null);
   let selectedSkillId = $state<string | null>(null);
+  let selectedFocusId = $state<string | null>(null);
+  let selectedFocusModeName = $state<string | null>(null);
 
   // Message context menu state
   let showMessageMenu = $state(false);
@@ -177,61 +223,59 @@
   });
 
   /**
-   * Handle reporting a bad answer
+   * Handle reporting a bad answer.
+   * Pre-fills the report issue form with context and enables the "share chat" toggle
+   * so the admin can access the full chat for investigation.
    */
-  async function handleReportBadAnswer() {
+  function handleReportBadAnswer() {
     if (!original_message) return;
 
-    const chatId = original_message.chat_id;
-    const messageId = original_message.message_id;
-
-    // Construct the share chat URL (not direct chat access)
-    let link = `${window.location.origin}/share/chat/${chatId}`;
-
-    // For non-public chats (real user chats), we MUST include the encryption key
-    // so the server admin can decrypt the entire chat to investigate the quality issue.
-    if (!isPublicChat(chatId)) {
-      try {
-        // Get the chat key and convert to base64 format expected by generateShareKeyBlob
-        const chatKey = chatDB.getChatKey(chatId);
-        if (chatKey) {
-          let chatKeyBase64: string;
-          if (chatKey instanceof Uint8Array) {
-            chatKeyBase64 = btoa(String.fromCharCode(...chatKey));
-          } else if (typeof chatKey === 'string') {
-            chatKeyBase64 = chatKey;
-          } else {
-            throw new Error('Unexpected chat key format');
-          }
-
-          // Generate a proper share key blob (no expiration, no password for reporting)
-          const encryptedBlob = await generateShareKeyBlob(chatId, chatKeyBase64, 0, undefined);
-
-          // Include message ID for highlighting/scrolling to the reported message
-          link += `#key=${encryptedBlob}&messageid=${messageId}`;
-          console.debug(`[ChatMessage] Generated encrypted share blob and included message ID in report link for real user chat ${chatId}`);
-        } else {
-          console.warn(`[ChatMessage] Could not find encryption key for real user chat ${chatId} during report`);
-        }
-      } catch (error) {
-        console.error(`[ChatMessage] Error generating share key blob for chat ${chatId}:`, error);
-      }
-    } else {
-      // For public chats, still include message ID for highlighting
-      link += `#messageid=${messageId}`;
-      console.debug(`[ChatMessage] Included message ID in public chat report link for ${chatId}`);
-    }
-
-    const template = $text('chat.report_bad_answer.template.text', { values: { link } });
     const title = $text('chat.report_bad_answer.title.text');
 
     reportIssueStore.set({
       title: title,
-      description: template
+      shareChat: true
     });
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+    
+    // Paste a translated retry prompt into the message input so the user can
+    // immediately ask the assistant to try again with web search / app skills.
+    const retryText = $text('chat.report_bad_answer.retry_message.text');
+    if (retryText) {
+      window.dispatchEvent(new CustomEvent('setRetryMessage', { detail: { text: retryText } }));
+    }
+  }
+
+  /**
+   * Opens the report issue settings page pre-filled with context about a failed embed/skill.
+   * Enables the "share chat" toggle so the admin can investigate.
+   */
+  function handleReportEmbedError() {
+    if (!original_message) return;
+
+    reportIssueStore.set({
+      title: 'App skill processing error',
+      shareChat: true
+    });
+
+    settingsDeepLink.set('report_issue');
+    panelState.openSettings();
+  }
+
+  /**
+   * Navigate to the AI Ask model details page in the app store settings.
+   * Resolves the model_name (display name or ID) to its model ID for deep linking.
+   */
+  function handleGeneratedByClick() {
+    if (!model_name) return;
+    const modelMeta = getModelByNameOrId(model_name);
+    if (modelMeta) {
+      // Deep link to the model details page in the AI Ask skill settings
+      settingsDeepLink.set(`app_store/ai/skill/ask/model/${modelMeta.id}`);
+      panelState.openSettings();
+    }
   }
 
   /**
@@ -383,7 +427,9 @@
   // Removed handleMessageClick to avoid intrusive menu on tap
 
   /**
-   * Copies the full message content to clipboard, or selected text if available
+   * Copies the full message content to clipboard, or selected text if available.
+   * Respects PII visibility state: when PII is hidden, placeholders are used
+   * instead of original values in the copied content.
    */
   async function handleCopyMessage() {
     try {
@@ -395,11 +441,21 @@
         contentToCopy = selection.toString();
         console.debug('[ChatMessage] Copying selected text');
       } else {
-        // Otherwise copy the full message content
+        // original_message.content has PLACEHOLDERS (raw from DB).
+        // When PII is revealed, we need to restore originals for the user.
+        // When PII is hidden, the raw content already has placeholders — use as-is.
         contentToCopy = typeof original_message?.content === 'string' 
           ? original_message.content 
           : JSON.stringify(content);
-        console.debug('[ChatMessage] Copying full message content');
+        
+        if (piiRevealed && piiMappings && piiMappings.length > 0) {
+          // Revealed mode: user wants originals — restore placeholders → originals
+          const { restorePIIInText } = await import('./enter_message/services/piiDetectionService');
+          contentToCopy = restorePIIInText(contentToCopy, piiMappings);
+          console.debug('[ChatMessage] Restored PII originals for copy (revealed mode)');
+        } else {
+          console.debug('[ChatMessage] Copying message with placeholders (hidden mode)');
+        }
       }
         
       await navigator.clipboard.writeText(contentToCopy);
@@ -473,17 +529,25 @@
     // Check DOM element for data attributes first (more reliable for app-skill-use embeds)
     const appId = dom.getAttribute('data-app-id');
     const skillId = dom.getAttribute('data-skill-id');
+    const focusIdAttr = dom.getAttribute('data-focus-id');
+    const focusModeNameAttr = dom.getAttribute('data-focus-mode-name');
+    const embedTypeAttr = dom.getAttribute('data-embed-type');
     selectedAppId = appId;
     selectedSkillId = skillId;
+    selectedFocusId = focusIdAttr;
+    selectedFocusModeName = focusModeNameAttr;
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
+      // Focus mode activation embed
+      if (node.attrs.type === 'focus-mode-activation' || embedTypeAttr === 'focus-mode-activation') {
+        menuType = 'focusMode';
+        embedType = 'focusMode';
       // Code embeds can have different type values: 'code', 'code-code', 'code-block', 'code-code-group'
-      const isCodeEmbed = node.attrs.type === 'code' || 
+      } else if (node.attrs.type === 'code' || 
                           node.attrs.type === 'code-code' || 
                           node.attrs.type === 'code-block' || 
-                          node.attrs.type?.startsWith('code-code');
-      if (isCodeEmbed) {
+                          node.attrs.type?.startsWith('code-code')) {
         menuType = 'code';
         embedType = 'code';
       } else if (node.attrs.type === 'pdf') {
@@ -496,14 +560,20 @@
         // Video embed (YouTube, etc.)
         menuType = 'video';
         embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use' && appId === 'videos' && skillId === 'get_transcript') {
-        // Video transcript embed
-        menuType = 'video-transcript';
-        embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use' && appId === 'web' && skillId === 'search') {
-        // Web search skill embed
-        menuType = 'web';
-        embedType = 'default';
+      } else if (node.attrs.type === 'app-skill-use') {
+        // App skill embeds - determine menu type based on appId/skillId
+        if (appId === 'videos' && skillId === 'get_transcript') {
+          menuType = 'video-transcript';
+          embedType = 'video';
+        } else if (appId === 'web' && skillId === 'search') {
+          menuType = 'web';
+          embedType = 'default';
+        } else {
+          // All other app-skill-use embeds: use appId-skillId as menuType
+          // This enables context-menu actions based on the specific app/skill combination
+          menuType = 'default';
+          embedType = 'default';
+        }
       } else {
         menuType = 'default';
         embedType = 'default';
@@ -659,6 +729,40 @@
         selectedNode = null;
       }
 
+      return;
+    }
+
+    // Handle actions for focus mode embeds
+    if (menuType === 'focusMode') {
+      if (action === 'deactivate') {
+        console.debug('[ChatMessage] Focus mode deactivation requested via context menu:', selectedFocusId);
+        // Dispatch deactivation event (handled by ActiveChat or a global listener)
+        document.dispatchEvent(
+          new CustomEvent('focusModeDeactivated', {
+            bubbles: true,
+            detail: {
+              focusId: selectedFocusId,
+              appId: selectedAppId,
+              focusModeName: selectedFocusModeName,
+            },
+          }),
+        );
+      } else if (action === 'details') {
+        console.debug('[ChatMessage] Focus mode details requested via context menu:', selectedFocusId);
+        // Navigate to the focus mode details page in settings / app store
+        document.dispatchEvent(
+          new CustomEvent('focusModeDetailsRequested', {
+            bubbles: true,
+            detail: {
+              focusId: selectedFocusId,
+              appId: selectedAppId,
+            },
+          }),
+        );
+      }
+
+      showMenu = false;
+      selectedNode = null;
       return;
     }
 
@@ -888,6 +992,226 @@
           break;
       }
     }
+    // Handle actions for app-skill-use embeds based on appId/skillId
+    // These handlers cover all app skills that support copy/download from the context menu
+    else if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use' && selectedAppId) {
+      const embedId = getEmbedIdFromNode(selectedNode);
+      if (!embedId) {
+        console.warn('[ChatMessage] No embed ID found for app-skill-use embed action');
+        showMenu = false;
+        selectedNode = null;
+        return;
+      }
+
+      try {
+        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+        const embedData = await resolveEmbed(embedId);
+        if (!embedData?.content) {
+          console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
+        const decodedContent = typeof embedData.content === 'string'
+          ? await decodeToonContent(embedData.content)
+          : embedData.content as Record<string, unknown>;
+        if (!decodedContent) {
+          console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
+
+        // --- Images: download original image with prompt-based filename and metadata ---
+        if (selectedAppId === 'images' && action === 'download') {
+          const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+          const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
+          const aesKey = decodedContent.aes_key as string | undefined;
+          const aesNonce = decodedContent.aes_nonce as string | undefined;
+          const imagePrompt = decodedContent.prompt as string | undefined;
+          const imageModel = decodedContent.model as string | undefined;
+          const imageGeneratedAt = decodedContent.generated_at as string | undefined;
+
+          if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+            try {
+              const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
+              const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
+              const blob = await fetchAndDecryptImage(
+                s3BaseUrl,
+                files.original.s3_key,
+                aesKey,
+                aesNonce
+              );
+              const ext = files.original.format || 'png';
+              
+              // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
+              let downloadBlob: Blob = blob;
+              if (ext === 'png') {
+                const arrayBuffer = await blob.arrayBuffer();
+                const metadataBytes = embedPngMetadata(arrayBuffer, {
+                  prompt: imagePrompt,
+                  model: imageModel,
+                  software: 'OpenMates',
+                  generatedAt: imageGeneratedAt
+                });
+                // Copy into a plain ArrayBuffer to satisfy BlobPart typing
+                const ab = new ArrayBuffer(metadataBytes.byteLength);
+                new Uint8Array(ab).set(metadataBytes);
+                downloadBlob = new Blob([ab], { type: 'image/png' });
+              }
+              
+              const filename = generateImageFilename(imagePrompt, ext);
+              
+              const url = URL.createObjectURL(downloadBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Image downloaded');
+            } catch (err) {
+              console.error('[ChatMessage] Error downloading image:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to download image');
+            }
+          } else {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.error('Original image not available');
+          }
+        }
+
+        // --- Docs: copy (plain text) or download (docx) ---
+        else if (selectedAppId === 'docs') {
+          const htmlContent = (decodedContent.html as string) || '';
+          const docTitle = (decodedContent.title as string) || '';
+          const docFilename = (decodedContent.filename as string) || docTitle || 'document';
+
+          if (action === 'copy') {
+            // Strip HTML to plain text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            if (plainText) {
+              await navigator.clipboard.writeText(plainText);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Document copied to clipboard');
+            }
+          } else if (action === 'download') {
+            try {
+              const { asBlob } = await import('html-docx-js-typescript');
+              const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docTitle}</title></head><body>${htmlContent}</body></html>`;
+              const blob = await asBlob(fullHtml) as Blob;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = docFilename.endsWith('.docx') ? docFilename : `${docFilename}.docx`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Document downloaded');
+            } catch (err) {
+              console.error('[ChatMessage] Error downloading document:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to download document');
+            }
+          }
+        }
+
+        // --- Sheets: copy (CSV or markdown) or download (CSV) ---
+        else if (selectedAppId === 'sheets') {
+          const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+          const sheetTitle = (decodedContent.title as string) || 'table';
+
+          if (action === 'copy') {
+            // Copy as CSV format for easy pasting into spreadsheet apps
+            if (tableContent) {
+              // Convert markdown table to CSV
+              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+              const csv = lines.map((line: string) =>
+                line.split('|')
+                  .map((cell: string) => cell.trim())
+                  .filter((cell: string) => cell !== '')
+                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                  .join(',')
+              ).join('\n');
+              await navigator.clipboard.writeText(csv);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Table copied as CSV');
+            }
+          } else if (action === 'download') {
+            if (tableContent) {
+              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+              const csv = lines.map((line: string) =>
+                line.split('|')
+                  .map((cell: string) => cell.trim())
+                  .filter((cell: string) => cell !== '')
+                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                  .join(',')
+              ).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Table downloaded as CSV');
+            }
+          }
+        }
+
+        // --- Web Read: copy article text ---
+        else if (selectedAppId === 'web' && selectedSkillId === 'read' && action === 'copy') {
+          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+          const textParts = results.map(r => {
+            let part = '';
+            if (r.title) part += `# ${r.title}\n\n`;
+            if (r.url) part += `Source: ${r.url}\n\n`;
+            if (r.markdown) part += r.markdown;
+            return part;
+          }).filter(Boolean);
+          if (textParts.length > 0) {
+            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Article copied to clipboard');
+          }
+        }
+
+        // --- News Read: copy article text ---
+        else if (selectedAppId === 'news' && selectedSkillId === 'read' && action === 'copy') {
+          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+          const textParts = results.map(r => {
+            let part = '';
+            if (r.title) part += `# ${r.title}\n\n`;
+            if (r.url) part += `Source: ${r.url}\n\n`;
+            if (r.markdown) part += r.markdown;
+            return part;
+          }).filter(Boolean);
+          if (textParts.length > 0) {
+            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Article copied to clipboard');
+          }
+        }
+      } catch (error) {
+        console.error('[ChatMessage] Error handling app-skill-use action:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to perform action');
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+      }
+
+      return;
+    }
     // Handle other actions for legacy embed types
     else {
       switch (action) {
@@ -956,6 +1280,16 @@
   }
 </script>
 
+{#if role === 'system'}
+  <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
+  <!-- NOTE: content may be TipTap JSON (converted by G_mapToInternalMessage), so we prefer
+       the original plaintext from original_message.content for display -->
+  <div class="chat-message system">
+    <div class="system-message-notice">
+      <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+    </div>
+  </div>
+{:else}
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
   {#if role === 'assistant'}
     <!-- Use openmates_official category for official messages (shows favicon, no AI badge) -->
@@ -996,7 +1330,17 @@
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
               {selectable}
+              {piiMappings}
+              {piiRevealed}
               on:message-embed-click={handleEmbedClick}
+          />
+        {:else if hasExampleChatsPlaceholder}
+          <!-- Demo chat with {example_chats_group} placeholder - use special component -->
+          <DemoMessageContent
+              content={originalMarkdownContent}
+              chatId={currentChatId}
+              isStreaming={status === 'streaming'}
+              {selectable}
           />
         {:else}
           <ReadOnlyMessage 
@@ -1005,6 +1349,8 @@
               isStreaming={status === 'streaming'}
               {_embedUpdateTimestamp}
               {selectable}
+              {piiMappings}
+              {piiRevealed}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}
@@ -1036,8 +1382,22 @@
       </div>
 
       {#if showMenu}
-        {@const showCopyAction = menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web'}
-        {@const showDownloadAction = menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf'}
+        {@const isFocusMode = menuType === 'focusMode'}
+        {@const showCopyAction = !isFocusMode && (
+          menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web' ||
+          /* App-skill-use embeds that support copy (matching fullscreen onCopy capability) */
+          (selectedAppId === 'docs') ||
+          (selectedAppId === 'sheets') ||
+          (selectedAppId === 'web' && selectedSkillId === 'read') ||
+          (selectedAppId === 'news' && selectedSkillId === 'read')
+        )}
+        {@const showDownloadAction = !isFocusMode && (
+          menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
+          /* App-skill-use embeds that support download (matching fullscreen onDownload capability) */
+          (selectedAppId === 'images') ||
+          (selectedAppId === 'docs') ||
+          (selectedAppId === 'sheets')
+        )}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -1048,10 +1408,13 @@
           y={menuY}
           show={showMenu}
           embedType={embedType}
-          showView={true}
-          showShare={true}
+          showView={!isFocusMode}
+          showShare={!isFocusMode}
           showCopy={showCopyAction}
           showDownload={showDownloadAction}
+          showDeactivate={isFocusMode}
+          showDetails={isFocusMode}
+          messageId={messageId}
           onClose={() => {
             showMenu = false;
             selectedNode = null;
@@ -1060,6 +1423,8 @@
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
+          onDeactivate={() => handleMenuAction('deactivate')}
+          onDetails={() => handleMenuAction('details')}
         />
       {/if}
 
@@ -1071,12 +1436,15 @@
           onClose={() => showMessageMenu = false}
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
+          {messageId}
+          {userMessageId}
+          {role}
         />
       {/if}
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</div>
+        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</button>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
@@ -1092,6 +1460,16 @@
             </span>
           {/if}
         </button>
+      </div>
+    {/if}
+    {#if role === 'assistant' && hasEmbedErrors}
+      <div class="embed-error-banner">
+        <span class="embed-error-text">
+          {$text('chat.embed_error.message.text')}
+          <span class="embed-error-link" onclick={handleReportEmbedError} onkeydown={(e) => { if (e.key === 'Enter') handleReportEmbedError(); }} role="button" tabindex="0">
+            {$text('chat.embed_error.report_link.text')}
+          </span>
+        </span>
       </div>
     {/if}
     {#if messageStatusText}
@@ -1136,6 +1514,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 {#if showFullscreen}
     <CodeFullscreen 
@@ -1148,6 +1527,27 @@
 {/if}
 
 <style>
+  /* System message notice: smaller text, centered, used for credit errors etc. */
+  .chat-message.system {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  .system-message-notice {
+    max-width: 80%;
+    text-align: center;
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+  }
+
+  .system-message-text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-grey-60, #888);
+  }
+
   .chat-app-cards-container {
     display: flex;
     gap: 20px;
@@ -1252,6 +1652,33 @@
 
   .pending {
     opacity: 0.7;
+  }
+
+  /* Error banner shown below assistant messages when an app skill embed fails */
+  .embed-error-banner {
+    margin-top: 8px;
+    margin-left: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+  }
+
+  .embed-error-text {
+    font-size: 13px;
+    color: var(--color-grey-60, #888);
+    line-height: 1.4;
+  }
+
+  .embed-error-link {
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+  }
+
+  .embed-error-link:hover {
+    text-decoration-style: solid;
   }
 
   .message-status {

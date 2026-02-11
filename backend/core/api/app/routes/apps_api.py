@@ -1058,6 +1058,157 @@ async def list_apps(
         raise HTTPException(status_code=500, detail="Failed to list apps")
 
 
+# ---------------------------------------------------------------------------
+# Travel app custom routes (non-skill endpoints)
+# ---------------------------------------------------------------------------
+
+class BookingLinkRequest(BaseModel):
+    """Request for on-demand booking URL lookup via SerpAPI."""
+    booking_token: str = Field(
+        ...,
+        description="The booking_token from a flight search result (from search_connections skill output)."
+    )
+    booking_context: Optional[Dict[str, str]] = Field(
+        None,
+        description="Original SerpAPI search parameters needed for booking_token lookup. "
+        "Keys: departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class."
+    )
+    hashed_chat_id: Optional[str] = Field(
+        None,
+        description="SHA-256 hashed chat ID to link the usage entry to the chat where the booking was initiated."
+    )
+
+
+class BookingLinkResponse(BaseModel):
+    """Response containing the resolved booking URL and provider name."""
+    success: bool
+    booking_url: Optional[str] = Field(
+        None,
+        description="Direct clickable booking URL (e.g., airline website or OTA). None if no booking link found."
+    )
+    booking_provider: Optional[str] = Field(
+        None,
+        description="Name of the booking provider (e.g., 'Lufthansa', 'Kayak'). None if no booking link found."
+    )
+    credits_charged: Optional[int] = Field(
+        None,
+        description="Credits charged for this lookup (25 credits = 1 SerpAPI credit)."
+    )
+    error: Optional[str] = Field(None, description="Error message if lookup failed.")
+
+
+def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
+    """
+    Register travel-specific REST endpoints that are not standard skills.
+
+    Currently registers:
+    - POST /v1/apps/travel/booking-link — On-demand booking URL lookup using
+      a booking_token from a previous flight search. Costs 25 credits (1 SerpAPI credit).
+
+    Supports both session auth (web app) and API key auth (external clients).
+    """
+    from backend.apps.travel.providers.serpapi_provider import lookup_booking_url
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+
+    async def booking_link_handler(
+        request_body: BookingLinkRequest,
+        request: Request = None,
+        user=Depends(get_current_user_or_api_key),
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> BookingLinkResponse:
+        """
+        Look up a booking URL for a flight using the booking_token from search results.
+
+        When a user searches for flights via the search_connections skill, each result
+        includes a `booking_token`. This endpoint uses that token to fetch a direct
+        booking URL from SerpAPI (costs 1 SerpAPI credit = 25 OpenMates credits).
+
+        This avoids spending credits on booking lookups during the initial search,
+        only charging when the user actually wants to book a specific flight.
+
+        Supports both session authentication (web app) and API key authentication.
+        """
+        # Extract user_id from the User object (works for both session and API key auth)
+        user_id = user.id if hasattr(user, 'id') else str(user)
+
+        try:
+            logger.info(
+                f"Travel booking-link: User {user_id} requesting "
+                f"booking URL (token: {request_body.booking_token[:20]}...)"
+            )
+
+            result = await lookup_booking_url(
+                request_body.booking_token,
+                booking_context=request_body.booking_context,
+            )
+
+            # Only charge credits if we successfully got a booking URL
+            credits_charged = 0
+            if result.get("booking_url"):
+                credits_charged = 25
+                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+                usage_details = {
+                    "external_request": False,
+                    "units_processed": 1,
+                }
+                # Link the usage entry to the chat where the booking was initiated
+                # so it appears in the user's per-chat usage breakdown.
+                if request_body.hashed_chat_id:
+                    usage_details["chat_id"] = request_body.hashed_chat_id
+                await charge_credits_via_internal_api(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    credits=credits_charged,
+                    app_id="travel",
+                    skill_id="booking_link",
+                    usage_details=usage_details,
+                )
+
+            return BookingLinkResponse(
+                success=True,
+                booking_url=result.get("booking_url"),
+                booking_provider=result.get("booking_provider"),
+                credits_charged=credits_charged,
+            )
+
+        except ValueError as e:
+            logger.error(f"Travel booking-link config error: {e}")
+            return BookingLinkResponse(
+                success=False,
+                error="Booking service not configured",
+            )
+        except Exception as e:
+            logger.error(
+                f"Travel booking-link error for user {user_id}: {e}",
+                exc_info=True,
+            )
+            return BookingLinkResponse(
+                success=False,
+                error=f"Booking lookup failed: {str(e)}",
+            )
+
+    # Register the endpoint — no ApiKeyAuth dependency since we use
+    # get_current_user_or_api_key which handles both auth methods
+    app.add_api_route(
+        path="/v1/apps/travel/booking-link",
+        endpoint=limiter.limit("30/minute")(booking_link_handler),
+        methods=["POST"],
+        response_model=BookingLinkResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="travel_booking_link",
+        summary="Look up booking URL for a flight",
+        description=(
+            "Look up a direct booking URL for a flight using the booking_token "
+            "from a previous search_connections result. Costs 25 credits per "
+            "successful lookup (1 SerpAPI credit). Returns the best booking "
+            "option (preferring direct airline over OTA). "
+            "Supports both session and API key authentication."
+        ),
+    )
+    logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
+
+
 def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYAML]):
     """
     Dynamically register explicit routes for each app and each skill.
@@ -2040,5 +2191,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             )
             
             logger.info(f"Registered routes for skill: GET/POST /v1/apps/{app_id}/skills/{skill.id}")
+        
+        # Register app-specific custom endpoints (non-skill routes)
+        if app_id == "travel":
+            _register_travel_custom_routes(app, app_name)
         
         logger.info(f"Registered routes for app: GET /v1/apps/{app_id}")

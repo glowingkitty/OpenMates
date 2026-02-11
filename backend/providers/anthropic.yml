@@ -106,16 +106,23 @@ models:
         price: 0.30
         currency: USD
 
-  - id: "claude-opus-4-5-20251101" # Official model ID
-    name: "Claude Opus 4.5"
+  - id: "claude-opus-4-6" # Official model ID
+    name: "Claude Opus 4.6"
     description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-11-01" # Model release date (derived from model ID suffix)
+    release_date: "2026-02-06" # Model release date
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-opus-4-5-20251101" # Exact LMArena model name
-      openrouter: "anthropic/claude-opus-4-5-20251101"
+      lmarena: "claude-opus-4-6" # Exact LMArena model name
+      openrouter: "anthropic/claude-opus-4-6"
+    # Search aliases allow users to find this model by searching for previous version names
+    # e.g., typing "4.5" or "opus 4.5" in the @ mention dropdown will still find this model
+    search_aliases:
+      - "opus 4.5"
+      - "claude 4.5 opus"
+      - "4.5"
+      - "claude-opus-4-5"
     input_types:
       - text
       - image
@@ -125,13 +132,13 @@ models:
     servers:
       - id: "anthropic"
         name: "Anthropic API"
-        model_id: "claude-opus-4-5-20251101" # Direct API uses the model ID as-is
+        model_id: "claude-opus-4-6" # Direct API uses the model ID as-is
         region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
-        model_id: "anthropic/claude-opus-4.5" # OpenRouter model identifier
+        model_id: "anthropic/claude-opus-4-6" # OpenRouter model identifier
         region: "US" # Server region for UI display
-    pricing: # Model-specific base pricing
+    pricing: # Model-specific base pricing (same as Opus 4.5)
       tokens:
         input:
           per_credit_unit: 70 # 1 credit per 70 input tokens

@@ -1,0 +1,121 @@
+# Translations for docs app settings and memories categories
+# See backend/apps/docs/app.yml for the settings_and_memories definitions
+
+writing_style:
+  context: Settings/memory name for writing style preferences
+  en: Writing Styles
+  de: Schreibstile
+  zh: 写作风格
+  es: Estilos de escritura
+  fr: Styles d'écriture
+  pt: Estilos de escrita
+  ru: Стили письма
+  ja: 文章スタイル
+  ko: 글쓰기 스타일
+  it: Stili di scrittura
+  tr: Yazı stilleri
+  vi: Phong cách viết
+  id: Gaya penulisan
+  pl: Style pisania
+  nl: Schrijfstijlen
+  ar: أساليب الكتابة
+  hi: लेखन शैलियाँ
+  th: รูปแบบการเขียน
+  cs: Styly psaní
+  sv: Skrivstilar
+  verified_by_human: []
+writing_style.description:
+  context: Description for writing style preferences
+  en: Your preferred writing styles for documents.
+  de: Deine bevorzugten Schreibstile für Dokumente.
+  zh: 您首选的文档写作风格。
+  es: Tus estilos de escritura preferidos para documentos.
+  fr: Vos styles d'écriture préférés pour les documents.
+  pt: Seus estilos de escrita preferidos para documentos.
+  ru: Ваши предпочитаемые стили письма для документов.
+  ja: 文書のお好みの文章スタイル。
+  ko: 문서에 대한 선호하는 글쓰기 스타일.
+  it: I tuoi stili di scrittura preferiti per i documenti.
+  tr: Belgeler için tercih ettiğiniz yazı stilleri.
+  vi: Phong cách viết ưa thích của bạn cho tài liệu.
+  id: Gaya penulisan pilihan Anda untuk dokumen.
+  pl: Twoje preferowane style pisania dokumentów.
+  nl: Je voorkeursstijlen voor het schrijven van documenten.
+  ar: أساليب الكتابة المفضلة لديك للمستندات.
+  hi: दस्तावेज़ों के लिए आपकी पसंदीदा लेखन शैलियाँ।
+  th: รูปแบบการเขียนที่คุณชอบสำหรับเอกสาร
+  cs: Vaše preferované styly psaní dokumentů.
+  sv: Dina föredragna skribentstilar för dokument.
+  verified_by_human: []
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+writing_style.example_1:
+  context: Example entry for writing styles (a formal style)
+  en: Formal Business
+  de: Formell geschäftlich
+  zh: 正式商务
+  es: Negocios formal
+  fr: Professionnel formel
+  pt: Negócios formal
+  ru: Формальный деловой
+  ja: フォーマルビジネス
+  ko: 공식 비즈니스
+  it: Business formale
+  tr: Resmi iş
+  vi: Kinh doanh trang trọng
+  id: Bisnis formal
+  pl: Formalny biznesowy
+  nl: Formeel zakelijk
+  ar: أعمال رسمية
+  hi: औपचारिक व्यवसाय
+  th: ธุรกิจเป็นทางการ
+  cs: Formální obchodní
+  sv: Formellt affärsspråk
+  verified_by_human: []
+writing_style.example_2:
+  context: Example entry for writing styles (an academic style)
+  en: Academic
+  de: Akademisch
+  zh: 学术
+  es: Académico
+  fr: Académique
+  pt: Acadêmico
+  ru: Академический
+  ja: 学術的
+  ko: 학술적
+  it: Accademico
+  tr: Akademik
+  vi: Học thuật
+  id: Akademis
+  pl: Akademicki
+  nl: Academisch
+  ar: أكاديمي
+  hi: शैक्षणिक
+  th: วิชาการ
+  cs: Akademický
+  sv: Akademiskt
+  verified_by_human: []
+writing_style.example_3:
+  context: Example entry for writing styles (a casual blog style)
+  en: Casual Blog
+  de: Lockerer Blog
+  zh: 随意博客
+  es: Blog informal
+  fr: Blog décontracté
+  pt: Blog casual
+  ru: Неформальный блог
+  ja: カジュアルブログ
+  ko: 캐주얼 블로그
+  it: Blog informale
+  tr: Günlük blog
+  vi: Blog thường ngày
+  id: Blog santai
+  pl: Blog nieformalny
+  nl: Informeel blog
+  ar: مدونة غير رسمية
+  hi: अनौपचारिक ब्लॉग
+  th: บล็อกทั่วไป
+  cs: Neformální blog
+  sv: Avslappnad blogg
+  verified_by_human: []

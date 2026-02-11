@@ -500,7 +500,17 @@ function parseAppYaml(appId, filePath) {
           pricing = extractPricingFromSkillConfig(skill.skill_config);
         }
 
-        // If still no pricing, try to extract from provider YAML based on skill providers
+        // If still no pricing, try to extract from full_model_reference or provider YAML
+        if (!pricing && skill.full_model_reference) {
+          // Parse "provider/model" format (e.g., "google/gemini-3-pro-image-preview")
+          const parts = skill.full_model_reference.split("/");
+          if (parts.length === 2) {
+            const [refProviderId, refModelId] = parts;
+            pricing = extractProviderPricing(refProviderId, refModelId);
+          }
+        }
+
+        // If still no pricing, try provider-level pricing from skill providers
         if (!pricing && skill.providers && skill.providers.length > 0) {
           const providerName = skill.providers[0];
           const providerId = mapProviderNameToId(providerName, appId);
@@ -619,7 +629,37 @@ function parseAppYaml(appId, filePath) {
           type: (item.type || "single").trim(),
           // Include schema_definition if present (for dynamic form generation)
           schema_definition: item.schema || item.schema_definition || undefined,
+          // Include example translation keys if present (shown to non-authenticated users to illustrate the category)
+          // These are translation key suffixes that get prefixed with "app_settings_memories." for lookup via $text()
+          example_translation_keys: Array.isArray(item.example_translation_keys)
+            ? item.example_translation_keys
+                .map((e) =>
+                  normalizeTranslationKey(
+                    (e || "").trim(),
+                    "app_settings_memories.",
+                  ),
+                )
+                .filter((e) => e.length > 0)
+            : undefined,
         };
+
+        // Auto-inject 'added_date' into every settings/memories schema.
+        // This is a universal field that records when a user created an entry.
+        // It's auto_generated (hidden from UI forms, auto-populated by the client)
+        // and converted to human-readable format before being included in LLM prompts.
+        // Injecting it here prevents the need to define it in every app.yml file.
+        if (
+          memoryMetadata.schema_definition &&
+          memoryMetadata.schema_definition.properties
+        ) {
+          if (!memoryMetadata.schema_definition.properties.added_date) {
+            memoryMetadata.schema_definition.properties.added_date = {
+              type: "integer",
+              description: "Unix timestamp when added",
+              auto_generated: true,
+            };
+          }
+        }
 
         if (
           memoryMetadata.id &&
@@ -674,21 +714,28 @@ function parseAppYaml(appId, filePath) {
       }
     }
 
-    // Only include apps that have at least one skill, focus mode, or settings_and_memories
-    // with a stage matching the current environment (production or development).
+    // Check for instructions - apps with instructions are valid even without skills/focuses/memories
+    // Instructions are injected into the AI system prompt to enable app-specific behaviors
+    // (e.g., docs app injects document generation instructions)
+    const hasInstructions =
+      Array.isArray(appData.instructions) && appData.instructions.length > 0;
+
+    // Only include apps that have at least one skill, focus mode, settings_and_memories,
+    // or instructions matching the current environment (production or development).
     // Apps are included if ANY of their items match the environment stage, regardless
     // of app-level stage field (which we don't check).
     const hasContent =
       appMetadata.skills.length > 0 ||
       appMetadata.focus_modes.length > 0 ||
-      appMetadata.settings_and_memories.length > 0;
+      appMetadata.settings_and_memories.length > 0 ||
+      hasInstructions;
 
     if (!hasContent) {
       const stageType = INCLUDE_DEVELOPMENT
         ? "production or development"
         : "production";
       console.warn(
-        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, or settings_and_memories found. Excluding from App Store.`,
+        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, settings_and_memories, or instructions found. Excluding from App Store.`,
       );
       return null;
     }
@@ -861,9 +908,38 @@ function generateTypeScript(appsMetadata) {
                 return `                ${line}`;
               })
               .join("\n");
-            lines.push(indentedSchema);
+            // Add comma after schema if example_translation_keys follow, otherwise no comma
+            if (
+              memory.example_translation_keys &&
+              memory.example_translation_keys.length > 0
+            ) {
+              lines.push(indentedSchema + ",");
+            } else {
+              lines.push(indentedSchema);
+            }
           } else {
-            lines.push(`                type: ${JSON.stringify(memory.type)}`);
+            // Add comma after type if example_translation_keys follow, otherwise no comma
+            if (
+              memory.example_translation_keys &&
+              memory.example_translation_keys.length > 0
+            ) {
+              lines.push(
+                `                type: ${JSON.stringify(memory.type)},`,
+              );
+            } else {
+              lines.push(
+                `                type: ${JSON.stringify(memory.type)}`,
+              );
+            }
+          }
+          // Include example translation keys if present (resolved via $text() in the frontend)
+          if (
+            memory.example_translation_keys &&
+            memory.example_translation_keys.length > 0
+          ) {
+            lines.push(
+              `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)}`,
+            );
           }
           lines.push(`            },`);
         }

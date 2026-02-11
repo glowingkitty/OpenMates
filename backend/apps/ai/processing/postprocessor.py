@@ -145,6 +145,7 @@ class PostProcessingResult(BaseModel):
     new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (max 5 words each)")
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
+    chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
     # Phase 1 output: Categories that might be relevant for generating new settings/memories
     relevant_settings_memory_categories: List[str] = Field(default_factory=list, description="Up to 3 category IDs (format: app_id.item_type) that could have new entries based on conversation")
     # Phase 2 output: Actual suggested entries (populated by separate memory generation step)
@@ -157,6 +158,7 @@ async def handle_postprocessing(
     assistant_response: str,
     chat_summary: str,
     chat_tags: List[str],
+    message_history: List[Dict[str, Any]],
     base_instructions: Dict[str, Any],
     secrets_manager: SecretsManager,
     cache_service: CacheService,
@@ -177,6 +179,8 @@ async def handle_postprocessing(
         assistant_response: Last assistant response content
         chat_summary: Chat summary from preprocessing (based on full chat history)
         chat_tags: Chat tags from preprocessing (topics, technologies, concepts discussed)
+        message_history: Full chat message history (list of dicts with role/content),
+            truncated to 120k token budget. Used for generating accurate updated summaries.
         base_instructions: Base instructions from yml
         secrets_manager: Secrets manager instance
         cache_service: Cache service instance
@@ -204,7 +208,8 @@ async def handle_postprocessing(
         raise RuntimeError("postprocess_response_tool not found in base_instructions.yml")
 
     # Build message history for post-processing LLM call
-    # Include: system context + chat summary (from preprocessing) + last user message + assistant response
+    # Include: system context + full chat history (truncated to 120k tokens) + latest assistant response
+    # The full history allows the LLM to generate accurate updated summaries and contextual suggestions
     messages = []
 
     # Add current date/time context (critical for temporal awareness in suggestions)
@@ -212,15 +217,6 @@ async def handle_postprocessing(
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     # Add system context about the task
-    system_message = (
-        f"Current date and time: {date_time_str}\n\n"
-        "You are analyzing a conversation to generate helpful suggestions. "
-        "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
-        "Generate new chat suggestions that are related but explore new angles."
-    )
-    messages.append({"role": "system", "content": system_message})
-
-    # Add chat summary and tags from preprocessing (provides context about the full conversation)
     chat_tags_str = ", ".join(chat_tags) if chat_tags else "No tags"
     
     # Add available app IDs to system context
@@ -241,18 +237,53 @@ async def handle_postprocessing(
         )
     else:
         settings_memory_context = ""
-    
-    messages.append({
-        "role": "system",
-        "content": f"Full conversation summary: {chat_summary}\nConversation tags: {chat_tags_str}{available_apps_context}{settings_memory_context}"
-    })
 
-    # Add the last user-assistant exchange as a single user message
+    system_message = (
+        f"Current date and time: {date_time_str}\n\n"
+        "You are analyzing a conversation to generate helpful suggestions and an updated chat summary. "
+        "The full conversation history is provided below. "
+        "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
+        "Generate new chat suggestions that are related but explore new angles.\n\n"
+        f"Conversation tags: {chat_tags_str}"
+        f"{available_apps_context}{settings_memory_context}"
+    )
+    messages.append({"role": "system", "content": system_message})
+
+    # Include the full chat history (already truncated to 120k token budget by caller)
+    # This gives the postprocessor access to the entire conversation for accurate summarization
+    # and contextually relevant suggestions, instead of relying on a condensed 20-word summary.
+    from backend.apps.ai.utils.llm_utils import truncate_message_history_to_token_budget
+    POSTPROCESSING_MAX_HISTORY_TOKENS = 120000
+    
+    if message_history:
+        # Truncate to token budget (in case caller didn't already truncate)
+        truncated_history = truncate_message_history_to_token_budget(
+            message_history,
+            max_tokens=POSTPROCESSING_MAX_HISTORY_TOKENS,
+        )
+        
+        # Transform internal format messages to LLM format (role + content only)
+        for msg in truncated_history:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if not content:
+                continue
+            # Only include user and assistant messages (skip tool/system messages from history)
+            if role in ("user", "assistant"):
+                messages.append({"role": role, "content": content if isinstance(content, str) else str(content)})
+        
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Included {len(truncated_history)} messages "
+            f"from full chat history for post-processing"
+        )
+    
+    # Append the latest assistant response (not yet in message_history)
+    # and a final user instruction for the LLM
     # (Mistral requires last message to be from user, not assistant)
     combined_context = (
-        f"Last user message: {user_message}\n\n"
-        f"Assistant's response: {assistant_response}\n\n"
-        f"Based on this exchange and the conversation context, generate follow-up and new chat suggestions."
+        f"Assistant's latest response: {assistant_response}\n\n"
+        "Based on the full conversation history above and this latest response, "
+        "generate follow-up and new chat suggestions, and update the chat summary."
     )
     messages.append({"role": "user", "content": combined_context})
 
@@ -316,11 +347,21 @@ async def handle_postprocessing(
             else:
                 logger.warning(f"[Task ID: {task_id}] [PostProcessor] Invalid category ID '{category_id}' filtered out (not in available categories)")
     
+    # Validate chat_summary from post-processing LLM
+    postproc_chat_summary = llm_result.arguments.get("chat_summary")
+    if postproc_chat_summary and isinstance(postproc_chat_summary, str) and postproc_chat_summary.strip():
+        postproc_chat_summary = postproc_chat_summary.strip()
+        logger.debug(f"[Task ID: {task_id}] [PostProcessor] chat_summary generated (length: {len(postproc_chat_summary)} characters)")
+    else:
+        logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
+        postproc_chat_summary = None
+
     result = PostProcessingResult(
         follow_up_request_suggestions=llm_result.arguments.get("follow_up_request_suggestions", []),
         new_chat_request_suggestions=llm_result.arguments.get("new_chat_request_suggestions", []),
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
+        chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         relevant_settings_memory_categories=validated_categories[:3]  # Limit to 3 categories for Phase 2
     )
 

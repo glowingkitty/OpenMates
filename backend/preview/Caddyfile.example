@@ -81,7 +81,7 @@
 	}
 
 	# Valid referers from openmates.org domains only
-	# Matches: openmates.org, app.openmates.org, app.dev.openmates.org, etc.
+	# Matches: openmates.org, dev.openmates.org, etc.
 	@valid_referer expression {header.Referer}.matches("^https://([a-zA-Z0-9-]+\\.)*openmates\\.org(/.*)?$")
 	
 	# Handle valid webapp requests

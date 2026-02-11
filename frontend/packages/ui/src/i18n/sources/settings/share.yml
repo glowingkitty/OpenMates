@@ -971,7 +971,7 @@ share_with_community_info:
   fr: 'Si vous sélectionnez "Partager avec la communauté", votre chat peut également être sélectionné pour être montré à d''autres utilisateurs sur la plateforme, ainsi que sur les réseaux sociaux et lors d''événements.'
   pt: 'Se você selecionar "Compartilhar com a comunidade", seu chat também pode ser selecionado para ser mostrado a outros usuários na plataforma, bem como nas redes sociais e em eventos.'
   ru: 'Если вы выберете "Поделиться с сообществом", ваш чат также может быть выбран для показа другим пользователям на платформе, а также в социальных сетях и на мероприятиях.'
-  ja: '「コミュニティで共有」を選択すると、あなたのチャットはプラットフォーム上の他のユーザー、ソーシャルメディア、イベントで表示される可能性があります。'
+  ja: "「コミュニティで共有」を選択すると、あなたのチャットはプラットフォーム上の他のユーザー、ソーシャルメディア、イベントで表示される可能性があります。"
   ko: '"커뮤니티와 공유"를 선택하면 귀하의 채팅이 플랫폼의 다른 사용자, 소셜 미디어 및 이벤트에 표시될 수 있습니다.'
   it: 'Se selezioni "Condividi con la comunità", la tua chat potrebbe anche essere selezionata per essere mostrata ad altri utenti sulla piattaforma, così come sui social media e agli eventi.'
   tr: '"Toplulukla paylaş"ı seçerseniz, sohbetiniz platformdaki diğer kullanıcılara, sosyal medyada ve etkinliklerde gösterilmek üzere de seçilebilir.'
@@ -985,6 +985,16 @@ share_with_community_info:
   cs: 'Pokud vyberete "Sdílet s komunitou", váš chat může být také vybrán k zobrazení jiným uživatelům na platformě, stejně jako na sociálních médiích a na akcích.'
   sv: 'Om du väljer "Dela med gemenskapen", kan din chatt också väljas för att visas för andra användare på plattformen, samt på sociala medier och vid evenemang.'
   verified_by_human: []
+
+include_sensitive_data:
+  context: Toggle label for including sensitive personal data (emails, phones, etc.) in shared content
+  en: Include sensitive data
+  de: Sensible Daten einschließen
+
+include_sensitive_data_warning:
+  context: Warning shown when user enables the include sensitive data toggle, explaining that personal info will be visible to recipients
+  en: "Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients."
+  de: "Ihre persönlichen Daten (E-Mails, Telefonnummern usw.) werden in den geteilten Inhalten enthalten sein. Aktivieren Sie dies nur, wenn Sie allen Empfängern vertrauen."
 
 optional_settings:
   context: Header for optional share settings section
@@ -1081,6 +1091,3 @@ click_to_enlarge_qr:
   cs: Klikněte na QR kód pro zvětšení
   sv: Klicka på QR-koden för att förstora
   verified_by_human: []
-
-
-

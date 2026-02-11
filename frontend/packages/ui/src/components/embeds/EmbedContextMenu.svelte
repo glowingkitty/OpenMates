@@ -19,8 +19,9 @@
 
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import { authStore } from '../../stores/authStore';
+  import { apiEndpoints, getApiEndpoint } from '../../config/api';
 
   /**
    * Props interface for embed context menu
@@ -37,7 +38,7 @@
     /** Whether to show the menu */
     show?: boolean;
     /** Embed type to determine available actions */
-    embedType?: 'code' | 'video' | 'website' | 'pdf' | 'default';
+    embedType?: 'code' | 'video' | 'website' | 'pdf' | 'focusMode' | 'default';
     /** Whether to show View action (opens fullscreen) */
     showView?: boolean;
     /** Whether to show Share action */
@@ -46,6 +47,12 @@
     showCopy?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
+    /** Whether to show Deactivate action (for focus mode embeds) */
+    showDeactivate?: boolean;
+    /** Whether to show Details action (for focus mode embeds) */
+    showDetails?: boolean;
+    /** Message ID for fetching credit cost (optional) */
+    messageId?: string;
     /** Callback when menu should close */
     onClose?: () => void;
     /** Callback when View action is triggered */
@@ -56,6 +63,10 @@
     onCopy?: () => void;
     /** Callback when Download action is triggered */
     onDownload?: () => void;
+    /** Callback when Deactivate action is triggered (focus mode) */
+    onDeactivate?: () => void;
+    /** Callback when Details action is triggered (focus mode) */
+    onDetails?: () => void;
   }
 
   let {
@@ -69,12 +80,46 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    showDeactivate = false,
+    showDetails = false,
+    messageId = undefined,
     onClose,
     onView,
     onShare,
     onCopy,
-    onDownload
+    onDownload,
+    onDeactivate,
+    onDetails
   }: Props = $props();
+  
+  // State for embed credits (fetched from usage API)
+  let embedCredits = $state<number | null>(null);
+  
+  // Format credits with dots as thousand separators (European style)
+  function formatCredits(credits: number): string {
+    return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+  
+  // Fetch embed credits when menu is shown (only for authenticated users with messageId)
+  $effect(() => {
+    if (show && messageId && $authStore.isAuthenticated) {
+      const endpoint = `${getApiEndpoint(apiEndpoints.usage.messageCost)}?message_id=${encodeURIComponent(messageId)}`;
+      fetch(endpoint, { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && typeof data.credits === 'number') {
+            embedCredits = data.credits;
+          } else {
+            embedCredits = null;
+          }
+        })
+        .catch(() => {
+          embedCredits = null;
+        });
+    } else {
+      embedCredits = null;
+    }
+  });
 
   let menuElement = $state<HTMLDivElement>();
   let adjustedX = $state(x);
@@ -182,7 +227,7 @@
   /**
    * Action type for menu items
    */
-  type MenuAction = 'view' | 'share' | 'copy' | 'download';
+  type MenuAction = 'view' | 'share' | 'copy' | 'download' | 'deactivate' | 'details';
 
   /**
    * Get the callback for a given action
@@ -193,6 +238,8 @@
       case 'share': return onShare;
       case 'copy': return onCopy;
       case 'download': return onDownload;
+      case 'deactivate': return onDeactivate;
+      case 'details': return onDetails;
       default: return undefined;
     }
   }
@@ -284,6 +331,14 @@
     style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
     bind:this={menuElement}
   >
+    <!-- Credits display - shown when available (fetched from usage API) -->
+    {#if embedCredits !== null && embedCredits > 0}
+      <div class="embed-credits">
+        <div class="clickable-icon icon_coins"></div>
+        {formatCredits(embedCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
+      </div>
+    {/if}
+    
     <!-- View action - opens fullscreen -->
     {#if showView}
       <button
@@ -325,6 +380,28 @@
       >
         <div class="clickable-icon icon_download"></div>
         {$text('embeds.context_menu.download.text', { default: 'Download' })}
+      </button>
+    {/if}
+
+    <!-- Deactivate action - deactivates focus mode (focus mode embeds only) -->
+    {#if showDeactivate}
+      <button
+        class="menu-item deactivate"
+        onclick={(event) => handleButtonClick('deactivate', event)}
+      >
+        <div class="clickable-icon icon_pause"></div>
+        {$text('embeds.context_menu.deactivate.text', { default: 'Deactivate' })}
+      </button>
+    {/if}
+
+    <!-- Details action - opens focus mode details in app store (focus mode embeds only) -->
+    {#if showDetails}
+      <button
+        class="menu-item details"
+        onclick={(event) => handleButtonClick('details', event)}
+      >
+        <div class="clickable-icon icon_info"></div>
+        {$text('embeds.context_menu.details.text', { default: 'Details' })}
       </button>
     {/if}
   </div>
@@ -384,6 +461,25 @@
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
     border-bottom: 8px solid var(--color-grey-blue);
+  }
+
+  /* Embed credits displayed above the action buttons */
+  .embed-credits {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    margin-bottom: 4px;
+    color: var(--color-grey-50);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid var(--color-grey-30);
+  }
+  
+  .embed-credits .clickable-icon {
+    width: 14px;
+    height: 14px;
+    background: var(--color-grey-50);
   }
 
   .menu-item {

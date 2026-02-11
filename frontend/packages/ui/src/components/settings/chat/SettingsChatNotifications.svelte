@@ -1,6 +1,8 @@
 <!--
-Chat Notifications Settings - Push notification preferences
-Allows users to enable/disable notifications and configure notification categories
+Chat Notifications Settings - Push and Email notification preferences
+Allows users to enable/disable notifications and configure notification categories.
+Email notifications are only sent when the user is offline (no active WebSocket connections).
+When enabled, notifications are sent to the user's login email (from account settings).
 -->
 
 <script lang="ts">
@@ -11,12 +13,20 @@ Allows users to enable/disable notifications and configure notification categori
         requiresPWAInstall
     } from '../../../stores/pushNotificationStore';
     import { pushNotificationService } from '../../../services/pushNotificationService';
-    import { updateProfile } from '../../../stores/userProfile';
+    import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
+    import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
+    import { webSocketService } from '../../../services/websocketService';
     
-    // Local state
+    // Local state for push notifications
     let isRequestingPermission = $state(false);
     let showIOSInstructions = $state(false);
+    
+    // Local state for email notifications
+    // When enabled, uses the login email from account settings (no separate email input needed)
+    let emailNotificationsEnabled = $state($userProfile.email_notifications_enabled ?? false);
+    let emailPreferences = $state($userProfile.email_notification_preferences ?? { aiResponses: true });
+    let isSavingEmail = $state(false);
     
     /**
      * Sync push notification settings to server via user profile update
@@ -32,7 +42,8 @@ Allows users to enable/disable notifications and configure notification categori
         const syncData = pushNotificationStore.getServerSyncData();
         updateProfile({
             push_notification_enabled: syncData.push_notification_enabled,
-            push_notification_preferences: syncData.push_notification_preferences
+            push_notification_preferences: syncData.push_notification_preferences,
+            push_notification_banner_shown: syncData.push_notification_banner_shown
         });
         console.debug('[SettingsChatNotifications] Synced settings to server:', syncData);
     }
@@ -42,6 +53,10 @@ Allows users to enable/disable notifications and configure notification categori
     let permission = $derived($pushNotificationStore.permission);
     let isEnabled = $derived($pushNotificationStore.enabled);
     let preferences = $derived($pushNotificationStore.preferences);
+    
+    // iOS devices in Safari (non-PWA) report push as unsupported, but it works after
+    // installing the app to the home screen. Show install instructions instead of "not supported".
+    let needsPWAInstall = $derived($requiresPWAInstall);
     
     // Permission status text
     let permissionStatusText = $derived(
@@ -106,11 +121,163 @@ Allows users to enable/disable notifications and configure notification categori
     function closeIOSInstructions(): void {
         showIOSInstructions = false;
     }
+    
+    // =====================================================
+    // EMAIL NOTIFICATION HANDLERS
+    // =====================================================
+    
+    /**
+     * Send email notification settings to server via WebSocket.
+     * Server will encrypt the email and store it.
+     */
+    async function sendEmailSettingsToServer(enabled: boolean, email: string | null): Promise<void> {
+        try {
+            await webSocketService.sendMessage('email_notification_settings', {
+                enabled,
+                email,  // Plaintext email - server will encrypt it
+                preferences: emailPreferences
+            });
+            console.debug('[SettingsChatNotifications] Sent email notification settings to server');
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Failed to send email notification settings:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Handle email notifications enable/disable toggle.
+     * When enabled: automatically uses the user's login email from account settings.
+     * When disabled: clears the notification email from the server.
+     */
+    async function handleToggleEmailEnabled(): Promise<void> {
+        if (!$authStore.isAuthenticated) {
+            console.debug('[SettingsChatNotifications] User not authenticated, skipping email toggle');
+            return;
+        }
+        
+        isSavingEmail = true;
+        
+        try {
+            if (!emailNotificationsEnabled) {
+                // Enabling: fetch the login email and send to server for encryption
+                const loginEmail = await getEmailDecryptedWithMasterKey();
+                if (!loginEmail) {
+                    console.error('[SettingsChatNotifications] Could not retrieve login email for notifications');
+                    return;
+                }
+                
+                // Send to server via WebSocket (server encrypts and stores)
+                await sendEmailSettingsToServer(true, loginEmail);
+                
+                // Update local state optimistically
+                emailNotificationsEnabled = true;
+                updateProfile({
+                    email_notifications_enabled: true,
+                    email_notification_preferences: emailPreferences
+                });
+                
+                console.debug('[SettingsChatNotifications] Email notifications enabled with login email');
+            } else {
+                // Disabling: send disable request to server
+                await sendEmailSettingsToServer(false, null);
+                
+                // Update local state
+                emailNotificationsEnabled = false;
+                updateProfile({
+                    email_notifications_enabled: false,
+                    email_notification_preferences: emailPreferences
+                });
+                
+                console.debug('[SettingsChatNotifications] Email notifications disabled');
+            }
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Error toggling email notifications:', error);
+            // Revert local state on error
+            emailNotificationsEnabled = !emailNotificationsEnabled;
+        } finally {
+            isSavingEmail = false;
+        }
+    }
+    
+    /**
+     * Toggle AI responses email notification preference
+     */
+    async function handleToggleAIResponses(): Promise<void> {
+        const newPreferences = {
+            ...emailPreferences,
+            aiResponses: !emailPreferences.aiResponses
+        };
+        
+        // Update local state first
+        emailPreferences = newPreferences;
+        
+        // Sync to server if email notifications are enabled
+        if (emailNotificationsEnabled) {
+            await syncEmailPreferencesToServer();
+        } else {
+            // Just update local profile
+            updateProfile({
+                email_notification_preferences: newPreferences
+            });
+        }
+    }
+    
+    /**
+     * Sync email notification preferences to server via WebSocket
+     */
+    async function syncEmailPreferencesToServer(): Promise<void> {
+        if (!$authStore.isAuthenticated) {
+            console.debug('[SettingsChatNotifications] User not authenticated, skipping email preferences sync');
+            return;
+        }
+        
+        try {
+            // Get current email to include in the update (server needs it to maintain encryption)
+            const loginEmail = await getEmailDecryptedWithMasterKey();
+            await webSocketService.sendMessage('email_notification_settings', {
+                enabled: emailNotificationsEnabled,
+                email: loginEmail,
+                preferences: emailPreferences
+            });
+            
+            // Update local profile
+            updateProfile({
+                email_notification_preferences: emailPreferences
+            });
+            
+            console.debug('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Failed to sync email preferences:', error);
+        }
+    }
 </script>
 
 <div class="notifications-settings-container">
-    <!-- Not Supported Warning -->
-    {#if !isSupported}
+    <!-- Push Notification Support Status -->
+    {#if !isSupported && needsPWAInstall}
+        <!-- iOS Safari (non-PWA): Push is available after adding to Home Screen -->
+        <div class="pwa-install-banner">
+            <div class="pwa-install-header">
+                <span class="pwa-install-title">
+                    {$text('settings.chat.notifications.pwa_install_title.text', { 
+                        default: 'Add to Home Screen to Enable Notifications' 
+                    })}
+                </span>
+            </div>
+            <p class="pwa-install-desc">
+                {$text('settings.chat.notifications.pwa_install_desc.text', {
+                    default: 'Push notifications require the app to be installed on your device. Follow these steps:'
+                })}
+            </p>
+            <div class="pwa-install-steps">
+                <p>{$text('notifications.push.ios_install_step1.text', { default: '1. Tap the Share button in Safari' })}</p>
+                <p>{$text('notifications.push.ios_install_step2.text', { default: '2. Select "Add to Home Screen"' })}</p>
+                <p>{$text('notifications.push.ios_install_step3.text', { default: '3. Open OpenMates from your home screen' })}</p>
+                <p>{$text('notifications.push.ios_install_step4.text', { default: '4. Then you can enable notifications here' })}</p>
+            </div>
+        </div>
+    {:else if !isSupported}
+        <!-- Truly unsupported browser/device -->
         <div class="warning-banner">
             <span class="warning-text">
                 {$text('settings.chat.notifications.not_supported.text', { 
@@ -188,6 +355,64 @@ Allows users to enable/disable notifications and configure notification categori
         {/if}
     {/if}
     
+    <!-- ================================================== -->
+    <!-- EMAIL NOTIFICATIONS SECTION -->
+    <!-- ================================================== -->
+    <div class="email-section">
+        <h3 class="section-title">
+            {$text('settings.chat.notifications.email_section.text', { default: 'Email Notifications' })}
+        </h3>
+        
+        <!-- Info banner explaining how email notifications work -->
+        <div class="info-banner email-info">
+            <span class="info-text">
+                {$text('settings.chat.notifications.email_how_it_works.text', { 
+                    default: "Email notifications are only sent when you're not actively using OpenMates on any device." 
+                })}
+            </span>
+        </div>
+        
+        <!-- Main Enable/Disable Toggle for Email -->
+        <!-- Uses the login email from account settings automatically -->
+        <SettingsItem
+            type="submenu"
+            icon="subsetting_icon subsetting_icon_email"
+            title={$text('settings.chat.notifications.email_enable.text', { default: 'Email Notifications' })}
+            subtitleTop={$text('settings.chat.notifications.email_enable_desc.text', { 
+                default: "Receive emails when you're offline" 
+            })}
+            hasToggle={true}
+            checked={emailNotificationsEnabled}
+            disabled={isSavingEmail}
+            onClick={handleToggleEmailEnabled}
+        />
+        
+        <!-- Email notification options (only show if enabled) -->
+        {#if emailNotificationsEnabled}
+            <div class="email-options">
+                <!-- AI Responses toggle -->
+                <SettingsItem
+                    type="submenu"
+                    icon="subsetting_icon subsetting_icon_chat"
+                    title={$text('settings.chat.notifications.email_ai_responses.text', { default: 'AI Responses' })}
+                    subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc.text', { 
+                        default: "When an assistant completes a response while you're away" 
+                    })}
+                    hasToggle={true}
+                    checked={emailPreferences.aiResponses}
+                    onClick={handleToggleAIResponses}
+                />
+            </div>
+        {/if}
+        
+        <!-- Saving indicator -->
+        {#if isSavingEmail}
+            <div class="saving-indicator">
+                {$text('settings.chat.notifications.email_saving.text', { default: 'Saving...' })}
+            </div>
+        {/if}
+    </div>
+    
     <!-- iOS PWA Instructions Modal -->
     {#if showIOSInstructions}
         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -239,6 +464,49 @@ Allows users to enable/disable notifications and configure notification categori
         font-size: 13px;
         line-height: 1.5;
         color: var(--color-font-primary);
+    }
+    
+    /* PWA Install Instructions Banner (iOS Safari non-PWA) */
+    .pwa-install-banner {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-primary, var(--color-grey-30));
+    }
+    
+    .pwa-install-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+    
+    .pwa-install-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--color-font-primary);
+        line-height: 1.4;
+    }
+    
+    .pwa-install-desc {
+        font-size: 13px;
+        color: var(--color-grey-60);
+        line-height: 1.5;
+        margin: 0 0 12px 0;
+    }
+    
+    .pwa-install-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .pwa-install-steps p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        line-height: 1.6;
     }
     
     .category-section {
@@ -314,5 +582,30 @@ Allows users to enable/disable notifications and configure notification categori
     
     .ios-modal-close:hover {
         background-color: var(--color-button-primary-hover);
+    }
+    
+    /* Email Notifications Section Styles */
+    .email-section {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+    
+    .email-info {
+        margin-bottom: 16px;
+    }
+    
+    .email-options {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-grey-10);
+    }
+    
+    .saving-indicator {
+        text-align: center;
+        font-size: 12px;
+        color: var(--color-grey-50);
+        margin-top: 12px;
+        padding: 8px;
     }
 </style>

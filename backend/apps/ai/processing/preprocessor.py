@@ -59,7 +59,7 @@ class PreprocessingResult(BaseModel):
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
-    chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
+    chat_summary: Optional[str] = Field(None, description="Concise summary (max 20 words) of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
@@ -73,6 +73,13 @@ class PreprocessingResult(BaseModel):
     selected_fallback_model_id: Optional[str] = None
     model_selection_reason: Optional[str] = Field(None, description="Explanation of why these models were selected (for debugging/logging).")
     filtered_cn_models: bool = Field(False, description="True if China-origin models were excluded due to sensitive content.")
+
+    # Detected language of the user's request (ISO 639-1 two-letter code)
+    # Used for loading disclaimers and other user-facing messages in the correct language
+    output_language: str = Field(
+        "en",
+        description="ISO 639-1 two-letter language code of the user's core request/instruction. Detected by preprocessing LLM."
+    )
 
     # Hardcoded disclaimer injection - ensures legal disclaimers are always shown for sensitive topics
     # This is NOT LLM-dependent; the disclaimer will be appended by stream_consumer after response completes
@@ -491,6 +498,18 @@ async def handle_preprocessing(
             # For non-user messages, append the dict representation
             sanitized_message_history.append(msg_dict)
     
+    # Truncate message history to fit within 120k token budget for summary generation
+    # This ensures the preprocessing LLM (Mistral Small, 128k context) receives as much
+    # conversation context as possible for generating accurate chat summaries,
+    # while leaving room for the system prompt, tool definitions, and output tokens.
+    # Uses fast character-based estimation (~4 chars/token) to avoid expensive tokenization.
+    from backend.apps.ai.utils.llm_utils import truncate_message_history_to_token_budget
+    PREPROCESSING_MAX_HISTORY_TOKENS = 120000
+    sanitized_message_history = truncate_message_history_to_token_budget(
+        sanitized_message_history,
+        max_tokens=PREPROCESSING_MAX_HISTORY_TOKENS,
+    )
+    
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")
         return PreprocessingResult(
@@ -592,7 +611,11 @@ async def handle_preprocessing(
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
     # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
     # with valid stages (filtered during server startup). All skills in these apps are valid.
+    # Two lists are maintained:
+    #   - available_skills_list: enriched with preprocessor_hints for the LLM prompt (e.g., "travel-price_calendar: Monthly flight price overview...")
+    #   - available_skill_ids: bare identifiers for validation of LLM responses (e.g., "travel-price_calendar")
     available_skills_list: List[str] = []
+    available_skill_ids: List[str] = []
 
     if discovered_apps_metadata:
         for app_id, app_metadata in discovered_apps_metadata.items():
@@ -607,7 +630,12 @@ async def handle_preprocessing(
                     # with valid stages (filtered during server startup via should_include_app_by_stage)
                     # Use hyphen format for skill identifiers (consistent with tool names)
                     skill_identifier = f"{app_id}-{skill.id}"
-                    available_skills_list.append(skill_identifier)
+                    available_skill_ids.append(skill_identifier)
+                    # Include preprocessor_hint if available so the LLM can make informed skill selection decisions
+                    if skill.preprocessor_hint:
+                        available_skills_list.append(f"{skill_identifier}: {skill.preprocessor_hint.strip()}")
+                    else:
+                        available_skills_list.append(skill_identifier)
     
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
@@ -843,8 +871,59 @@ async def handle_preprocessing(
     model_selection_reason: Optional[str] = None
     filtered_cn_models = china_related
 
+    # --- Resolve @best-model:{category} to actual model ID ---
+    # If the user used @best-model:coding (or similar), resolve it to the top-ranked model
+    # in that category from the leaderboard, then treat it like a regular @ai-model override.
+    if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
+        best_category = user_overrides.best_model_category
+        logger.info(
+            f"{log_prefix} BEST_MODEL: Resolving @best-model:{best_category} to top-ranked model"
+        )
+        try:
+            from backend.core.api.app.tasks.leaderboard_tasks import get_best_model_for_category, get_leaderboard_data
+
+            leaderboard_data = await get_leaderboard_data()
+            if leaderboard_data:
+                best_entry = get_best_model_for_category(
+                    leaderboard_data=leaderboard_data,
+                    category=best_category,
+                    exclude_cn=china_related,
+                )
+                if best_entry:
+                    resolved_model_id = best_entry.get("model_id")
+                    resolved_provider = best_entry.get("provider_id")
+                    if resolved_model_id and resolved_provider:
+                        user_overrides.model_id = resolved_model_id
+                        user_overrides.model_provider = None  # Will be resolved from config
+                        logger.info(
+                            f"{log_prefix} BEST_MODEL: Resolved @best-model:{best_category} -> "
+                            f"{resolved_provider}/{resolved_model_id} "
+                            f"(composite_score={best_entry.get('composite_score')})"
+                        )
+                    else:
+                        logger.warning(
+                            f"{log_prefix} BEST_MODEL: Top model entry missing model_id or provider_id. "
+                            f"Entry: {best_entry}. Falling back to auto-selection."
+                        )
+                else:
+                    logger.warning(
+                        f"{log_prefix} BEST_MODEL: No models found for category '{best_category}'. "
+                        f"Falling back to auto-selection."
+                    )
+            else:
+                logger.warning(
+                    f"{log_prefix} BEST_MODEL: No leaderboard data available. "
+                    f"Falling back to auto-selection."
+                )
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} BEST_MODEL: Failed to resolve @best-model:{best_category}: {e}. "
+                f"Falling back to auto-selection."
+            )
+
     # --- Apply User Model Override (@ai-model:...) if specified ---
     # User can force a specific model using @ai-model:{model_id} or @ai-model:{model_id}:{provider}
+    # Also handles resolved @best-model: overrides from above.
     # This overrides the automatic model selection based on leaderboard rankings
     model_override_applied = False
     if user_overrides and user_overrides.model_id:
@@ -1040,6 +1119,11 @@ async def handle_preprocessing(
             )
             
             logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions...")
+            # Pass the FULL dynamic_context (same as first call) so the retry LLM has all the info
+            # it needs. We only extract category from the retry result, but having complete context
+            # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
+            # as a union with the first call's skills, since the retry may identify skills the first
+            # call missed (or vice versa).
             retry_llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
                 task_id=f"{request_data.chat_id}_{request_data.message_id}_retry",
                 model_id=preprocessing_model,
@@ -1048,7 +1132,7 @@ async def handle_preprocessing(
                 tool_definition=retry_tool_definition,
                 secrets_manager=secrets_manager,
                 user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-                dynamic_context={"CATEGORIES_LIST": available_categories_list}
+                dynamic_context=dynamic_context  # Use the same full context as the first call
             )
             
             if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
@@ -1076,6 +1160,33 @@ async def handle_preprocessing(
                     validated_category = "general_knowledge"
                     # Update llm_analysis_args with fallback category
                     llm_analysis_args["category"] = validated_category
+                
+                # --- Merge relevant_app_skills from retry into first call's results ---
+                # The retry LLM may select different/additional skills compared to the first call.
+                # Since the first call returned an invalid category, it may also have had a suboptimal
+                # skill selection. We take the UNION of both to maximize coverage.
+                # This is safe because the skill validation logic downstream will filter out any
+                # invalid skills, and the main LLM decides which tools to actually invoke.
+                if retry_llm_call_result.arguments:
+                    retry_skills = retry_llm_call_result.arguments.get("relevant_app_skills")
+                    original_skills = llm_analysis_args.get("relevant_app_skills")
+                    if retry_skills and isinstance(retry_skills, list):
+                        if original_skills and isinstance(original_skills, list):
+                            # Union: combine both lists, preserving order (original first, then retry additions)
+                            original_set = set(original_skills)
+                            merged_skills = list(original_skills) + [s for s in retry_skills if s not in original_set]
+                            if len(merged_skills) > len(original_skills):
+                                logger.info(
+                                    f"{log_prefix} Merged relevant_app_skills from retry into first call results. "
+                                    f"Original: {original_skills}, Retry: {retry_skills}, Merged: {merged_skills}"
+                                )
+                                llm_analysis_args["relevant_app_skills"] = merged_skills
+                        elif not original_skills or not isinstance(original_skills, list):
+                            # First call had no skills, use retry's skills entirely
+                            logger.info(
+                                f"{log_prefix} Using relevant_app_skills from retry (first call had none): {retry_skills}"
+                            )
+                            llm_analysis_args["relevant_app_skills"] = retry_skills
         except Exception as retry_exc:
             logger.error(
                 f"{log_prefix} Exception during category validation retry: {retry_exc}. "
@@ -1294,6 +1405,20 @@ async def handle_preprocessing(
         chat_tags_val = chat_tags_val[:10]
         llm_analysis_args["chat_tags"] = chat_tags_val
     
+    # --- Validate output_language field (ISO 639-1 two-letter code) ---
+    # This is used for loading disclaimers and other user-facing messages in the correct language
+    SUPPORTED_LANGUAGES = {"en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"}
+    output_language_val = llm_analysis_args.get("output_language", "en")
+    if not isinstance(output_language_val, str) or output_language_val not in SUPPORTED_LANGUAGES:
+        logger.warning(
+            f"{log_prefix} LLM returned invalid output_language '{output_language_val}'. "
+            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Defaulting to 'en'."
+        )
+        output_language_val = "en"
+        llm_analysis_args["output_language"] = output_language_val
+    else:
+        logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
+
     # Extract relevant_app_skills from LLM response if present (for tool preselection)
     # For now, if not provided by LLM, we'll set to None (meaning all skills available)
     relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
@@ -1303,7 +1428,7 @@ async def handle_preprocessing(
         # Maps hallucinated skill names to valid skill identifiers
         skill_resolver_map: Dict[str, str] = {}
         
-        for valid_skill in available_skills_list:
+        for valid_skill in available_skill_ids:
             # Add exact match
             skill_resolver_map[valid_skill] = valid_skill
             
@@ -1331,7 +1456,7 @@ async def handle_preprocessing(
         invalid_skills = []
         
         for skill in relevant_app_skills_val:
-            if skill in available_skills_list:
+            if skill in available_skill_ids:
                 # Exact match - no correction needed
                 validated_relevant_skills.append(skill)
             elif skill in skill_resolver_map:
@@ -1354,7 +1479,7 @@ async def handle_preprocessing(
         if invalid_skills:
             logger.warning(
                 f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
-                f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
+                f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
                 f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
             )
         if validated_relevant_skills:
@@ -1473,6 +1598,7 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+        output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,

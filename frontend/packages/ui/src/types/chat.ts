@@ -13,7 +13,8 @@ export type MessageStatus =
   | "failed"
   | "waiting_for_internet"
   | "streaming"
-  | "processing";
+  | "processing"
+  | "waiting_for_user"; // Chat is paused waiting for user action (e.g., insufficient credits, app settings permission)
 
 export type MessageRole = "user" | "assistant" | "system"; // Added system for potential future use
 
@@ -60,6 +61,24 @@ export interface Message {
   // Metadata (not encrypted - for UI rendering and cost tracking)
   has_thinking?: boolean; // Quick check if message has thinking content
   thinking_token_count?: number; // Token count for thinking (for cost tracking)
+
+  // PII (Personally Identifiable Information) anonymization fields
+  // Used to store placeholder-to-original-value mappings for client-side restoration
+  // Server only sees placeholders (e.g., [EMAIL_1]), client restores originals for display
+  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_1]": { original: "user@example.com", type: "EMAIL" }, ... }
+  pii_mappings?: PIIMapping[]; // Decrypted PII mappings (computed on-demand, never stored)
+}
+
+/**
+ * A single PII mapping entry for restoration
+ */
+export interface PIIMapping {
+  /** The placeholder text (e.g., "[EMAIL_1]") */
+  placeholder: string;
+  /** The original PII value (e.g., "user@example.com") */
+  original: string;
+  /** The type of PII for styling purposes */
+  type: string;
 }
 
 // Represents the state of a full chat on the client, aligned with chat_sync_architecture.md
@@ -90,7 +109,7 @@ export interface Chat {
   waiting_for_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message. Chat should still be visible in sidebar.
 
   // New encrypted fields for zero-knowledge architecture from message processing
-  encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
+  encrypted_chat_summary?: string | null; // Encrypted chat summary (max 20 words) generated during post-processing
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
@@ -106,6 +125,7 @@ export interface Chat {
   follow_up_request_suggestions?: string | null; // Cleartext JSON array of follow-up suggestions for demo chats
   icon?: string | null; // Cleartext icon name for demo chats
   category?: string | null; // Cleartext category for demo chats
+  demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
 
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
@@ -277,6 +297,7 @@ export interface AIMessageUpdatePayload {
   model_name?: string | null;
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
+  rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
 }
 
 export interface AITypingStartedPayload {
@@ -315,8 +336,10 @@ export interface AIBackgroundResponseCompletedPayload {
   task_id: string;
   full_content: string;
   model_name?: string | null;
+  category?: string | null; // Mate category for proper display (icon, color)
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
+  rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
 }
 
 // --- Thinking/Reasoning Payloads (Server to Client) ---
@@ -523,7 +546,11 @@ export interface ServerBatchMessageFormat {
 }
 
 export interface ChatContentBatchResponsePayload {
-  messages_by_chat_id: Record<string, ServerBatchMessageFormat[]>; // Use the new specific type here
+  messages_by_chat_id: Record<string, (ServerBatchMessageFormat | string)[]>; // Messages may be JSON strings (from sync cache) or objects
+  versions_by_chat_id?: Record<
+    string,
+    { messages_v: number; server_message_count: number }
+  >; // Per-chat version info for updating local tracking
 }
 
 export interface OfflineSyncCompletePayload {

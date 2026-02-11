@@ -49,7 +49,7 @@ Let me generate the document you requested.
 
 ##### Document | Processing | Fullscreen view
 
-Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and instantiated with CKEditor in fullscreen.
+Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and rendered with sanitized HTML + custom CSS in a multi-page layout. Future editing will use TipTap (already a project dependency) lazy-loaded on demand.
 
 Figma design:
 
@@ -96,7 +96,7 @@ Let me generate the document you requested.
 
 ##### Document | Finished | Fullscreen view
 
-Show document in fullscreen mode, with preview element in bottom of the screen (with filename, pages count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and instantiated with CKEditor in fullscreen.
+Show document in fullscreen mode, with preview element in bottom of the screen (with filename, pages count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and rendered with sanitized HTML + custom CSS. Editing mode will use TipTap (already a project dependency) lazy-loaded when the user clicks "Edit" (not yet implemented).
 
 Figma design:
 

@@ -25,6 +25,9 @@ import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptE
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
+import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
+import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
+import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -102,6 +105,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Determine status - prefer embedData status, then attrs.status, then 'processing'
     const status = embedData?.status || attrs.status || "processing";
 
+    // CRITICAL: Skip rendering error embeds - they should be hidden from users
+    // Failed skill executions should not be shown in the user experience
+    if (status === "error") {
+      console.debug(
+        `[AppSkillUseRenderer] Hiding error embed from user:`,
+        attrs.contentRef || attrs.id,
+      );
+      content.innerHTML = "";
+      return;
+    }
+
     // CRITICAL: Merge query from multiple sources to ensure it's available for display
     // Priority: decodedContent > embedData > attrs
     if (!decodedContent) {
@@ -173,6 +187,26 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      // For travel search_connections, render using Svelte component
+      if (appId === "travel" && skillId === "search_connections") {
+        return this.renderTravelSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For travel price_calendar, render price calendar preview
+      if (appId === "travel" && skillId === "price_calendar") {
+        return this.renderTravelPriceCalendarComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For video transcript, render video transcript preview using Svelte component
       // Check both 'get_transcript' and 'get-transcript' (hyphen variant)
       if (
@@ -230,6 +264,25 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           { appId, skillId, decodedContent, status },
         );
         return this.renderReminderComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For image generation, render image preview using Svelte component
+      if (
+        appId === "images" &&
+        (skillId === "generate" || skillId === "generate_draft")
+      ) {
+        console.debug("[AppSkillUseRenderer] Rendering image generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderImageGenerateComponent(
           attrs,
           embedData,
           decodedContent,
@@ -555,6 +608,142 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MapsSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render travel search_connections embed using Svelte component
+   */
+  private renderTravelSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Google";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(TravelSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted TravelSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting TravelSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render travel price_calendar embed using Svelte component
+   */
+  private renderTravelPriceCalendarComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(TravelPriceCalendarEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted TravelPriceCalendarEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting TravelPriceCalendarEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
@@ -1041,6 +1230,99 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting ReminderEmbedPreview component:",
+        error,
+      );
+      // Fallback to generic skill rendering
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render image generate embed using Svelte component
+   * Uses Svelte 5's mount() API to mount the component into the DOM
+   */
+  private renderImageGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    // Extract image-specific fields from decoded content
+    const prompt = decodedContent?.prompt || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const error = decodedContent?.error || "";
+    // Determine the actual skill ID from embed content or attributes
+    const imageSkillId =
+      decodedContent?.skill_id || attrs.skill_id || "generate";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    // Clear the content element
+    content.innerHTML = "";
+
+    // Mount the Svelte component
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(ImageGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId: imageSkillId as "generate" | "generate_draft",
+          prompt,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ImageGenerateEmbedPreview component:",
+        {
+          embedId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ImageGenerateEmbedPreview component:",
         error,
       );
       // Fallback to generic skill rendering

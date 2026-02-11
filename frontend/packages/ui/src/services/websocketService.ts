@@ -6,31 +6,34 @@
  * It also provides a mechanism for other parts of the application to listen to generic
  * WebSocket events like 'open', 'close', 'error', and 'message'.
  */
-import { getWebSocketUrl } from '../config/api';
-import { getSessionId } from '../utils/sessionId';
-import { getWebSocketToken } from '../utils/cookies'; // Use getWebSocketToken instead of getAuthRefreshToken
-import { authStore } from '../stores/authStore'; // To check login status
-import { get } from 'svelte/store'; // Import get
-import { isLoggingOut, forcedLogoutInProgress } from '../stores/signupState'; // Import logout state
-import { websocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
-import { notificationStore } from '../stores/notificationStore'; // Import notification store
+import { getWebSocketUrl } from "../config/api";
+import { getSessionId } from "../utils/sessionId";
+import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
+import { authStore } from "../stores/authStore"; // To check login status
+import { get } from "svelte/store"; // Import get
+import { isLoggingOut, forcedLogoutInProgress } from "../stores/signupState"; // Import logout state
+import { websocketStatus } from "../stores/websocketStatusStore"; // Import the new shared store
+import { notificationStore } from "../stores/notificationStore"; // Import notification store
 
 /**
  * Sanitize sensitive data from URLs for logging
  * Removes tokens and session IDs to prevent credential leakage
  */
 function sanitizeUrlForLogging(url: string | undefined | null): string {
-    if (!url) return 'null';
-    try {
-        const urlObj = new URL(url);
-        // Remove token and sessionId from query params
-        urlObj.searchParams.delete('token');
-        urlObj.searchParams.delete('sessionId');
-        return urlObj.toString();
-    } catch {
-        // If URL parsing fails, still try to redact
-        return url.replace(/([?&])(token|sessionId)=[^&]*/gi, '$1$2=***REDACTED***');
-    }
+  if (!url) return "null";
+  try {
+    const urlObj = new URL(url);
+    // Remove token and sessionId from query params
+    urlObj.searchParams.delete("token");
+    urlObj.searchParams.delete("sessionId");
+    return urlObj.toString();
+  } catch {
+    // If URL parsing fails, still try to redact
+    return url.replace(
+      /([?&])(token|sessionId)=[^&]*/gi,
+      "$1$2=***REDACTED***",
+    );
+  }
 }
 
 /**
@@ -38,661 +41,962 @@ function sanitizeUrlForLogging(url: string | undefined | null): string {
  * Shows only first few characters to help with debugging
  */
 function sanitizeTokenForLogging(token: string | null | undefined): string {
-    if (!token) return 'null';
-    return `"${token.substring(0, 8)}...***REDACTED***"`;
+  if (!token) return "null";
+  return `"${token.substring(0, 8)}...***REDACTED***"`;
 }
 
 // Define message types based on the plan (can be expanded)
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
-    // === Client to Server ===
-    | 'initial_sync_request'           // Section 5.2: Client sends its local state (chat_id + versions map)
-    | 'update_title'                   // Section 6.2: Client sends new title
-    | 'update_draft'                   // Section 7.2: Client sends new draft (Tiptap JSON or null)
-    | 'delete_chat'                    // Client requests to delete a chat
-    | 'sync_offline_changes'           // Section 10.3: Client sends queued offline changes
-    | 'request_chat_content_batch'     // Section 5.5: Client requests full message history for new/updated chats if not sent initially
-    | 'update_post_processing_metadata' // Client sends encrypted post-processing metadata (suggestions, summary, tags) for Directus sync
-    | 'app_settings_memories_confirmed' // Client sends decrypted app settings/memories when user confirms (server encrypts and caches)
-    | 'ping'                           // Standard keep-alive
+  // === Client to Server ===
+  | "initial_sync_request" // Section 5.2: Client sends its local state (chat_id + versions map)
+  | "update_title" // Section 6.2: Client sends new title
+  | "update_draft" // Section 7.2: Client sends new draft (Tiptap JSON or null)
+  | "delete_chat" // Client requests to delete a chat
+  | "sync_offline_changes" // Section 10.3: Client sends queued offline changes
+  | "request_chat_content_batch" // Section 5.5: Client requests full message history for new/updated chats if not sent initially
+  | "update_post_processing_metadata" // Client sends encrypted post-processing metadata (suggestions, summary, tags) for Directus sync
+  | "app_settings_memories_confirmed" // Client sends decrypted app settings/memories when user confirms (server encrypts and caches)
+  | "ping" // Standard keep-alive
 
-    // === Server to Client ===
-    | 'initial_sync_response'          // Section 5.4 & initial_sync_handler.py: Server responds with sync plan, deltas, and full chat order
-    | 'priority_chat_ready'            // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
-    | 'cache_primed'                   // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
-    | 'chat_title_updated'             // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
-    | 'chat_draft_updated'             // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v). Note: Does NOT include last_edited_overall_timestamp (only messages update that)
-    | 'chat_message_added'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
-    | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
-    | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
-    | 'request_app_settings_memories'  // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
-    | 'dismiss_app_settings_memories_dialog' // Server auto-rejects pending request (user sent new message without responding to dialog)
-    | 'app_settings_memories_sync_ready' // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
-    | 'app_settings_memories_entry_synced' // Multi-device sync: Another device created/updated an entry
-    | 'app_settings_memories_entry_stored' // Acknowledgment that server stored entry successfully
-    | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
-    | 'pong'                           // Response to client's ping
+  // === Server to Client ===
+  | "initial_sync_response" // Section 5.4 & initial_sync_handler.py: Server responds with sync plan, deltas, and full chat order
+  | "priority_chat_ready" // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
+  | "cache_primed" // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
+  | "chat_title_updated" // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
+  | "chat_draft_updated" // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v). Note: Does NOT include last_edited_overall_timestamp (only messages update that)
+  | "chat_message_added" // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
+  | "chat_deleted" // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
+  | "offline_sync_complete" // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
+  | "request_app_settings_memories" // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
+  | "dismiss_app_settings_memories_dialog" // Server auto-rejects pending request (user sent new message without responding to dialog)
+  | "app_settings_memories_sync_ready" // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
+  | "app_settings_memories_entry_synced" // Multi-device sync: Another device created/updated an entry
+  | "app_settings_memories_entry_stored" // Acknowledgment that server stored entry successfully
+  | "error" // General error message from server (e.g., validation failure, unexpected issue)
+  | "pong" // Response to client's ping
 
-    // Specific error/conflict types (if still used by backend, though new architecture aims to minimize client-side conflict states)
-    | 'draft_conflict'                 // Potentially for server-side rejection of a draft update if absolutely necessary (e.g. version mismatch not caught by offline logic)
+  // Specific error/conflict types (if still used by backend, though new architecture aims to minimize client-side conflict states)
+  | "draft_conflict" // Potentially for server-side rejection of a draft update if absolutely necessary (e.g. version mismatch not caught by offline logic)
 
-    // UI/Internal Events (dispatched locally by WebSocketService, not actual WS message types from server)
-    | 'reAuthRequired'                 // E.g., if server closes connection with a code indicating 2FA needed
-    | 'authError'                      // E.g., if server closes connection with a generic auth policy violation
-    | 'connection_failed_reconnect'    // UI notification: Max reconnect attempts reached
-    | 'connection_failed_initial'      // UI notification: Initial connection attempt failed
+  // UI/Internal Events (dispatched locally by WebSocketService, not actual WS message types from server)
+  | "reAuthRequired" // E.g., if server closes connection with a code indicating 2FA needed
+  | "authError" // E.g., if server closes connection with a generic auth policy violation
+  | "connection_failed_reconnect" // UI notification: Max reconnect attempts reached
+  | "connection_failed_initial" // UI notification: Initial connection attempt failed
 
-    // Kept for potential future use (e.g., LLM message streaming)
-    | 'message_update'                 // For streaming updates to a message content while it's being generated
-    | 'user_credits_updated'
-    | 'user_admin_status_updated'      // Notification that user admin status has changed
-    | 'credit_note_ready'               // Notification that credit note PDF is ready for download
-    | 'message_queued'                  // Notification that a message was queued because an AI task is active
-    | 'demo_chat_updated'               // Notification that a demo chat status has changed (for admins)
-
-    ;
+  // Kept for potential future use (e.g., LLM message streaming)
+  | "message_update" // For streaming updates to a message content while it's being generated
+  | "user_credits_updated"
+  | "user_admin_status_updated" // Notification that user admin status has changed
+  | "credit_note_ready" // Notification that credit note PDF is ready for download
+  | "message_queued" // Notification that a message was queued because an AI task is active
+  | "demo_chat_updated"; // Notification that a demo chat status has changed (for admins)
 
 interface WebSocketMessage {
-    type: KnownMessageTypes | string; // Allow known types + any string
-    payload: any;
+  type: KnownMessageTypes | string; // Allow known types + any string
+  payload: any;
 }
 
 type MessageHandler = (payload: any) => void;
 
 class WebSocketService extends EventTarget {
-    private ws: WebSocket | null = null;
-    private url: string | null = null;
-    private reconnectAttempts = 0;
-    private maxReconnectAttempts = 10;
-    private reconnectInterval = 1000; // Start with 1 second
-    private maxReconnectInterval = 5000; // Max 5 seconds (reduced from 30s for faster offline detection)
-    private messageHandlers: Map<string, MessageHandler[]> = new Map();
-    private connectionPromise: Promise<void> | null = null;
-    private resolveConnectionPromise: (() => void) | null = null;
-    private rejectConnectionPromise: ((reason?: any) => void) | null = null;
-    private pingIntervalId: NodeJS.Timeout | null = null;
-    private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
-    private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
-    private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
-    private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
-    private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
+  private ws: WebSocket | null = null;
+  private url: string | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+  private reconnectInterval = 1000; // Start with 1 second
+  private maxReconnectInterval = 5000; // Max 5 seconds (reduced from 30s for faster offline detection)
+  private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private connectionPromise: Promise<void> | null = null;
+  private resolveConnectionPromise: (() => void) | null = null;
+  private rejectConnectionPromise: ((reason?: any) => void) | null = null;
+  private pingIntervalId: NodeJS.Timeout | null = null;
+  private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
+  private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
+  private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
+  private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
+  private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
+  private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
 
-    // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
-    // These are acknowledgment messages from the server that confirm operations completed successfully.
-    // The frontend handles these operations optimistically, so we don't need explicit handlers.
-    private readonly allowedNoHandlerTypes = new Set<string>([
-        'active_chat_set_ack',
-        'pong', // Pong responses to ping - handler registered in constructor
-        'draft_delete_receipt', // Server acknowledgment that draft deletion was processed successfully
-        // Add more types here if needed
-    ]);
+  // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
+  // These are acknowledgment messages from the server that confirm operations completed successfully.
+  // The frontend handles these operations optimistically, so we don't need explicit handlers.
+  private readonly allowedNoHandlerTypes = new Set<string>([
+    "active_chat_set_ack",
+    "pong", // Pong responses to ping - handler registered in constructor
+    "draft_delete_receipt", // Server acknowledgment that draft deletion was processed successfully
+    // Add more types here if needed
+  ]);
 
-    constructor() {
-        super();
-        // Listen to auth changes to connect/disconnect
-        authStore.subscribe(auth => {
-            if (auth.isAuthenticated) {
-                // Only attempt to connect if not already connected AND no connection attempt is in progress.
-                if (!this.isConnected() && !this.connectionPromise) {
-                    console.debug('[WebSocketService] Auth detected, no active connection or pending attempt, connecting...');
-                    this.connect().catch(err => {
-                        // Catch errors from connect() here if it's called without await
-                        // and we don't want them to be unhandled.
-                        console.warn('[WebSocketService] Connection attempt triggered by authStore failed:', err);
-                    });
-                } else if (this.isConnected()) {
-                    console.debug('[WebSocketService] Auth detected, already connected.');
-                } else if (this.connectionPromise) {
-                    console.debug('[WebSocketService] Auth detected, connection attempt already in progress.');
-                }
-            } else if (!auth.isAuthenticated && (this.isConnected() || this.connectionPromise)) {
-                // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
-                console.debug('[WebSocketService] No longer authenticated, disconnecting active/pending connection...');
-                this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
-                websocketStatus.setStatus('disconnected');
-            }
-        });
-        this.registerDefaultErrorHandlers();
-        this.registerPongHandler(); // Add call to new pong handler registration
-        
-        // Listen for network online event to trigger immediate reconnection
-        // This helps detect when server comes back online faster than exponential backoff
-        if (typeof window !== 'undefined') {
-            window.addEventListener('online', () => {
-                console.info('[WebSocketService] Network online event detected - attempting immediate reconnection');
-                // Reset reconnect attempts to allow immediate reconnection
-                if (this.reconnectAttempts > 0 && get(authStore).isAuthenticated && !this.isConnected() && !this.connectionPromise) {
-                    this.reconnectAttempts = 0; // Reset to allow immediate connection
-                    console.debug('[WebSocketService] Resetting reconnect attempts and connecting immediately');
-                    this.connect().catch(err => {
-                        console.warn('[WebSocketService] Immediate reconnection after network online failed:', err);
-                    });
-                }
+  constructor() {
+    super();
+    // Listen to auth changes to connect/disconnect
+    authStore.subscribe((auth) => {
+      if (auth.isAuthenticated) {
+        // Only attempt to connect if not already connected AND no connection attempt is in progress.
+        if (!this.isConnected() && !this.connectionPromise) {
+          console.debug(
+            "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
+          );
+          this.connect().catch((err) => {
+            // Catch errors from connect() here if it's called without await
+            // and we don't want them to be unhandled.
+            console.warn(
+              "[WebSocketService] Connection attempt triggered by authStore failed:",
+              err,
+            );
+          });
+        } else if (this.isConnected()) {
+          console.debug("[WebSocketService] Auth detected, already connected.");
+        } else if (this.connectionPromise) {
+          console.debug(
+            "[WebSocketService] Auth detected, connection attempt already in progress.",
+          );
+        }
+      } else if (
+        !auth.isAuthenticated &&
+        (this.isConnected() || this.connectionPromise)
+      ) {
+        // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
+        console.debug(
+          "[WebSocketService] No longer authenticated, disconnecting active/pending connection...",
+        );
+        this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
+        websocketStatus.setStatus("disconnected");
+      }
+    });
+    this.registerDefaultErrorHandlers();
+    this.registerPongHandler(); // Add call to new pong handler registration
+
+    // Listen for network online event to trigger immediate reconnection
+    // This helps detect when server comes back online faster than exponential backoff
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", () => {
+        console.info(
+          "[WebSocketService] Network online event detected - attempting immediate reconnection",
+        );
+        // Reconnect immediately when network is restored.
+        // Covers two scenarios:
+        // 1. reconnectAttempts > 0: We were already trying to reconnect (normal disconnect flow)
+        // 2. reconnectAttempts === 0 but WS is dead: Connection silently died during device sleep/hibernate
+        //    without onclose firing, so reconnectAttempts was never incremented
+        if (
+          get(authStore).isAuthenticated &&
+          !this.isConnected() &&
+          !this.connectionPromise
+        ) {
+          this.reconnectAttempts = 0; // Reset to allow immediate connection
+          console.debug(
+            "[WebSocketService] Resetting reconnect attempts and connecting immediately",
+          );
+          this.connect().catch((err) => {
+            console.warn(
+              "[WebSocketService] Immediate reconnection after network online failed:",
+              err,
+            );
+          });
+        }
+      });
+
+      // Listen for page visibility changes to detect device wake / tab resume.
+      // When a device sleeps or the user switches tabs for a long time, the WebSocket
+      // connection may silently die. The browser won't fire 'online' (network didn't change)
+      // and the ping/pong mechanism may not fire (timers are throttled in background tabs).
+      // This handler runs an immediate liveness check when the user returns to the page.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        if (!get(authStore).isAuthenticated) return;
+
+        console.debug(
+          "[WebSocketService] Page became visible - checking connection liveness",
+        );
+
+        if (!this.isConnected() && !this.connectionPromise) {
+          // WebSocket is dead (either ws is null or readyState is not OPEN).
+          // This commonly happens after device sleep where onclose may not have fired.
+          console.info(
+            "[WebSocketService] Connection is dead after tab/device resume - reconnecting immediately",
+          );
+          this.reconnectAttempts = 0;
+          this.connect().catch((err) => {
+            console.warn(
+              "[WebSocketService] Reconnection after visibility change failed:",
+              err,
+            );
+          });
+        } else if (this.isConnected()) {
+          // WebSocket appears connected but may be stale (server may have already
+          // cleaned up our connection during the sleep period).
+          // Send an immediate ping to verify liveness. If the pong doesn't come
+          // back, the existing pong timeout logic will close and reconnect.
+          console.debug(
+            "[WebSocketService] Connection appears alive after resume - sending liveness ping",
+          );
+          try {
+            this.sendMessage("ping", {}).catch(() => {
+              // If sending fails, the connection is dead - onclose will handle reconnection
+              console.warn(
+                "[WebSocketService] Liveness ping failed to send - connection likely dead",
+              );
             });
+          } catch {
+            // Sync error from sendMessage, connection is dead
+            console.warn(
+              "[WebSocketService] Liveness ping threw - connection likely dead",
+            );
+          }
         }
+      });
+    }
+  }
+
+  private registerDefaultErrorHandlers(): void {
+    this.on("error", (payload: any) => {
+      console.error(
+        "[WebSocketService] Received error message from server:",
+        payload,
+      );
+      let errorMessage = "An unexpected error occurred on the server.";
+      if (payload && typeof payload.message === "string") {
+        errorMessage = payload.message;
+      } else if (typeof payload === "string") {
+        errorMessage = payload;
+      }
+      notificationStore.error(`Server error: ${errorMessage}`);
+    });
+  }
+
+  private registerPongHandler(): void {
+    this.on("pong", (payload: any) => {
+      // Pong received, clear pong timeout
+      console.debug("[WebSocketService] Pong received, clearing timeout");
+      if (this.pongTimeoutId) {
+        clearTimeout(this.pongTimeoutId);
+        this.pongTimeoutId = null;
+      }
+    });
+  }
+
+  /**
+   * Called by external consumers (e.g., ChatSyncService) when any data-bearing
+   * message is received. Receiving real data (like AI streaming chunks) is proof
+   * that the connection is alive, so we clear any pending pong timeout.
+   * This prevents the pong timeout from firing mid-stream when the server is
+   * busy sending AI chunks and might delay its pong response.
+   */
+  public notifyDataActivity(): void {
+    this.lastActivityTimestamp = Date.now();
+    // If a pong timeout is pending, clear it – the connection is clearly alive
+    if (this.pongTimeoutId) {
+      clearTimeout(this.pongTimeoutId);
+      this.pongTimeoutId = null;
+      console.debug(
+        "[WebSocketService] Pong timeout cleared due to incoming data activity",
+      );
+    }
+  }
+
+  public connect(): Promise<void> {
+    // If already connected or connecting, return existing promise
+    if (this.isConnected() || this.connectionPromise) {
+      return this.connectionPromise || Promise.resolve();
     }
 
-    private registerDefaultErrorHandlers(): void {
-        this.on('error', (payload: any) => {
-            console.error('[WebSocketService] Received error message from server:', payload);
-            let errorMessage = 'An unexpected error occurred on the server.';
-            if (payload && typeof payload.message === 'string') {
-                errorMessage = payload.message;
-            } else if (typeof payload === 'string') {
-                errorMessage = payload;
+    if (!get(authStore).isAuthenticated) {
+      console.warn(
+        "[WebSocketService] Cannot connect: User not authenticated.",
+      );
+      websocketStatus.setStatus("disconnected"); // Ensure status is disconnected
+      return Promise.reject("User not authenticated");
+    }
+
+    // Prevent connection attempts during logout to avoid auth errors
+    if (get(isLoggingOut) || get(forcedLogoutInProgress)) {
+      console.debug("[WebSocketService] Cannot connect: Logout in progress.");
+      websocketStatus.setStatus("disconnected");
+      return Promise.reject("Logout in progress");
+    }
+
+    // --- START ADDITION: Update Status ---
+    const isReconnecting = this.reconnectAttempts > 0;
+    websocketStatus.setStatus(isReconnecting ? "reconnecting" : "connecting");
+
+    const sessionId = getSessionId();
+    const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
+
+    // Enhanced debug logging for Safari/iPad troubleshooting
+    console.debug(
+      `[WebSocketService] Auth token retrieved: ${sanitizeTokenForLogging(authToken)}`,
+    );
+    if (!authToken) {
+      console.warn(
+        "[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad",
+      );
+      console.debug(
+        "[WebSocketService] Checking sessionStorage keys:",
+        typeof sessionStorage !== "undefined"
+          ? Object.keys(sessionStorage)
+          : "sessionStorage not available",
+      );
+    }
+
+    this.url = getWebSocketUrl(sessionId, authToken || undefined);
+    console.debug(
+      `[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ""}`,
+    );
+
+    // Create a new promise for this connection attempt
+    this.connectionPromise = new Promise((resolve, reject) => {
+      this.resolveConnectionPromise = resolve;
+      this.rejectConnectionPromise = reject;
+
+      try {
+        const currentWS = new WebSocket(this.url); // Create new instance
+        this.ws = currentWS; // Make this the current WS instance for the service
+
+        currentWS.onopen = () => {
+          if (this.ws !== currentWS) {
+            // Check if this instance is still the "active" one
+            console.warn(
+              "[WebSocketService] onopen from a superseded WebSocket instance. Closing it and ignoring event.",
+            );
+            currentWS.close(1000, "Superseded by new connection attempt");
+            return;
+          }
+          console.info("[WebSocketService] Connection established.");
+          this.reconnectAttempts = 0; // Reset on successful connection
+          this.reconnectInterval = 1000; // Reset interval
+          this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
+          this.dispatchEvent(new CustomEvent("open"));
+          websocketStatus.setStatus("connected"); // Update status
+          this.startPing(); // Start pinging on successful connection
+          if (this.resolveConnectionPromise) {
+            this.resolveConnectionPromise();
+          }
+          this.connectionPromise = null; // Clear promise on success
+        };
+
+        currentWS.onmessage = (event) => {
+          if (this.ws !== currentWS && this.isConnected()) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(
+                "[WebSocketService] onmessage from a superseded WebSocket instance while a newer connection is active. Ignoring message.",
+              );
             }
-            notificationStore.error(`Server error: ${errorMessage}`);
-        });
-    }
-
-    private registerPongHandler(): void {
-        this.on('pong', (payload: any) => {
-            // Pong received, clear pong timeout
-            console.debug('[WebSocketService] Pong received, clearing timeout');
-            if (this.pongTimeoutId) {
-                clearTimeout(this.pongTimeoutId);
-                this.pongTimeoutId = null;
+            return;
+          }
+          try {
+            const rawMessage = JSON.parse(event.data as string);
+            // Only log if not ping/pong
+            if (rawMessage.type !== "ping" && rawMessage.type !== "pong") {
+              console.debug(
+                "[WebSocketService] Raw received data:",
+                rawMessage,
+              );
             }
-        });
-    }
 
-    public connect(): Promise<void> {
-         // If already connected or connecting, return existing promise
-        if (this.isConnected() || this.connectionPromise) {
-            return this.connectionPromise || Promise.resolve();
-        }
+            let messageType: string | undefined;
+            let messagePayload: any;
+            let dispatchEventDetail: { type: string; payload: any };
 
-        if (!get(authStore).isAuthenticated) {
-            console.warn('[WebSocketService] Cannot connect: User not authenticated.');
-            websocketStatus.setStatus('disconnected'); // Ensure status is disconnected
-            return Promise.reject('User not authenticated');
-        }
-
-        // Prevent connection attempts during logout to avoid auth errors
-        if (get(isLoggingOut) || get(forcedLogoutInProgress)) {
-            console.debug('[WebSocketService] Cannot connect: Logout in progress.');
-            websocketStatus.setStatus('disconnected');
-            return Promise.reject('Logout in progress');
-        }
-
-        // --- START ADDITION: Update Status ---
-        const isReconnecting = this.reconnectAttempts > 0;
-        websocketStatus.setStatus(isReconnecting ? 'reconnecting' : 'connecting');
-
-        const sessionId = getSessionId();
-        const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
-
-        // Enhanced debug logging for Safari/iPad troubleshooting
-        console.debug(`[WebSocketService] Auth token retrieved: ${sanitizeTokenForLogging(authToken)}`);
-        if (!authToken) {
-            console.warn('[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad');
-            console.debug('[WebSocketService] Checking sessionStorage keys:', typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : 'sessionStorage not available');
-        }
-
-        this.url = getWebSocketUrl(sessionId, authToken || undefined);
-        console.debug(`[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
-
-        // Create a new promise for this connection attempt
-        this.connectionPromise = new Promise((resolve, reject) => {
-            this.resolveConnectionPromise = resolve;
-            this.rejectConnectionPromise = reject;
-
-            try {
-                const currentWS = new WebSocket(this.url); // Create new instance
-                this.ws = currentWS; // Make this the current WS instance for the service
-
-                currentWS.onopen = () => {
-                    if (this.ws !== currentWS) { // Check if this instance is still the "active" one
-                        console.warn('[WebSocketService] onopen from a superseded WebSocket instance. Closing it and ignoring event.');
-                        currentWS.close(1000, 'Superseded by new connection attempt');
-                        return;
-                    }
-                    console.info('[WebSocketService] Connection established.');
-                    this.reconnectAttempts = 0; // Reset on successful connection
-                    this.reconnectInterval = 1000; // Reset interval
-                    this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
-                    this.dispatchEvent(new CustomEvent('open'));
-                    websocketStatus.setStatus('connected'); // Update status
-                    this.startPing(); // Start pinging on successful connection
-                    if (this.resolveConnectionPromise) {
-                        this.resolveConnectionPromise();
-                    }
-                    this.connectionPromise = null; // Clear promise on success
-                };
-
-                currentWS.onmessage = (event) => {
-                    if (this.ws !== currentWS && this.isConnected()) {
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.warn('[WebSocketService] onmessage from a superseded WebSocket instance while a newer connection is active. Ignoring message.');
-                        }
-                        return;
-                    }
-                    try {
-                        const rawMessage = JSON.parse(event.data as string);
-                        // Only log if not ping/pong
-                        if (rawMessage.type !== 'ping' && rawMessage.type !== 'pong') {
-                            console.debug('[WebSocketService] Raw received data:', rawMessage);
-                        }
-
-                        let messageType: string | undefined;
-                        let messagePayload: any;
-                        let dispatchEventDetail: { type: string; payload: any };
-
-                        if (typeof rawMessage.type === 'string') {
-                            messageType = rawMessage.type;
-                            messagePayload = rawMessage.payload;
-                            dispatchEventDetail = rawMessage as WebSocketMessage;
-                        } else if (typeof rawMessage.event === 'string') {
-                            messageType = rawMessage.event;
-                            // For messages with 'event' field, use the entire message as the payload
-                            // since the data is directly in the message, not in a 'payload' field
-                            messagePayload = rawMessage; 
-                            dispatchEventDetail = { type: messageType, payload: rawMessage };
-                        } else {
-                            console.warn('[WebSocketService] Received message with unknown structure (no type or event field):', rawMessage);
-                            this.dispatchEvent(new CustomEvent('message_error', { detail: { error: 'Unknown message structure', data: rawMessage } }));
-                            return;
-                        }
-
-                        if (messageType !== 'ping' && messageType !== 'pong') {
-                            console.debug(`[WebSocketService] Determined messageType: "${messageType}"`);
-                        }
-                        
-                        // 🔍 STREAMING DEBUG: Log WebSocket message reception for ai_message_update
-                        if (messageType === 'ai_message_update') {
-                            const seq = messagePayload?.sequence || 'unknown';
-                            const contentLength = messagePayload?.full_content_so_far?.length || 0;
-                            const timestamp = new Date().toISOString();
-                            console.log(
-                                `[WebSocketService] 🔴 RAW MESSAGE RECEIVED | ` +
-                                `type: ${messageType} | ` +
-                                `seq: ${seq} | ` +
-                                `content_length: ${contentLength} chars | ` +
-                                `timestamp: ${timestamp}`
-                            );
-                        }
-                        
-                        this.dispatchEvent(new CustomEvent('message', { detail: dispatchEventDetail }));
-
-                        // Call specific handlers
-                        if (messageType) {
-                            const handlers = this.messageHandlers.get(messageType);
-                            if (handlers && handlers.length > 0) {
-                                if (messageType !== 'ping' && messageType !== 'pong') {
-                                    console.debug(`[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`);
-                                }
-                                
-                                // 🔍 STREAMING DEBUG: Log handler execution for ai_message_update
-                                if (messageType === 'ai_message_update') {
-                                    const seq = messagePayload?.sequence || 'unknown';
-                                    console.log(
-                                        `[WebSocketService] 🟣 HANDLER EXECUTION | ` +
-                                        `type: ${messageType} | ` +
-                                        `seq: ${seq} | ` +
-                                        `handlers_count: ${handlers.length}`
-                                    );
-                                }
-                                
-                                handlers.forEach((handler, index) => {
-                                    try {
-                                        if (messageType !== 'ping' && messageType !== 'pong') {
-                                            console.debug(`[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`);
-                                        }
-                                        
-                                        // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
-                                        if (messageType === 'ai_message_update') {
-                                            const seq = messagePayload?.sequence || 'unknown';
-                                            console.log(
-                                                `[WebSocketService] 🟠 CALLING HANDLER | ` +
-                                                `handler_index: ${index + 1} | ` +
-                                                `type: ${messageType} | ` +
-                                                `seq: ${seq}`
-                                            );
-                                        }
-                                        
-                                        handler(messagePayload); // Pass the correctly determined payload
-                                    } catch (handlerError) {
-                                        console.error(`[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`, handlerError);
-                                    }
-                                });
-                            } else if (!this.allowedNoHandlerTypes.has(messageType)) {
-                                if (messageType !== 'ping' && messageType !== 'pong') {
-                                    console.warn(`[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`, this.messageHandlers);
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        console.error('[WebSocketService] Error parsing message or in handler:', error, 'Raw Data:', event.data);
-                        this.dispatchEvent(new CustomEvent('message_error', { detail: { error: 'Parsing/handling error', originalError: error, data: event.data } }));
-                    }
-                };
-
-                currentWS.onerror = (event) => {
-                    // ADDED: Detailed log for onerror (sanitized)
-                    console.error(`[WebSocketService] DEBUG: onerror triggered. Event:`, event, `For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`);
-
-                    // If this error is for an old WebSocket instance, and not the current this.ws, log and ignore for main promise.
-                    if (this.ws !== null && this.ws !== currentWS) {
-                        console.warn('[WebSocketService] onerror from a superseded WebSocket instance:', event);
-                        return;
-                    }
-                    console.error('[WebSocketService] WebSocket error:', event); // Keep original error log
-                    this.dispatchEvent(new CustomEvent('error', { detail: event }));
-
-                    // Only reject the main connectionPromise if this error is from the current WebSocket attempt
-                    if (this.rejectConnectionPromise && this.ws === currentWS) {
-                        this.rejectConnectionPromise('WebSocket error');
-                        this.connectionPromise = null; // Clear promise on error for the current attempt
-                    }
-                    // Don't set status to failed here, let onclose handle it if it's also called.
-                    // However, an error often precedes a close.
-                };
-    
-                currentWS.onclose = (event) => {
-                    // ADDED: Initial log to confirm onclose is triggered and see event details (sanitized)
-                    console.log(`[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`);
-
-                    // If this.ws is not null AND this.ws is not the currentWS that's closing,
-                    // it means this is a close event from an older, superseded WebSocket instance.
-                    // We should ignore it for the main state management (reconnect logic, main promise).
-                    if (this.ws !== null && this.ws !== currentWS) {
-                        // ADDED: More specific log when ignoring superseded instance (sanitized)
-                        console.warn(`[WebSocketService] DEBUG: onclose event from a superseded WebSocket instance (event for ${sanitizeUrlForLogging(currentWS.url)}, code ${event.code}) is being IGNORED because current this.ws is ${sanitizeUrlForLogging(this.ws?.url)}.`);
-                        return;
-                    }
-
-                    // If we reach here, this onclose event is for the WebSocket instance that was (or still is) this.ws,
-                    // or this.ws was already null (meaning the last attempt failed and nulled it).
-                    console.warn(`[WebSocketService] Connection closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
-                    const currentStoreState = get(websocketStatus);
-                    const previousStatus = currentStoreState.status;
-
-                    // Important: Null out this.ws only if currentWS is indeed the one that was active and is now closing.
-                    if (this.ws === currentWS) {
-                        this.ws = null;
-                        this.stopPing(); // Stop pinging if the active connection closes
-                    }
-                    
-                    // Only dispatch 'close' if it wasn't already disconnected or in an error state
-                    // and if this close event pertains to what was the active connection.
-                    if (previousStatus !== 'disconnected' && previousStatus !== 'error') {
-                        this.dispatchEvent(new CustomEvent('close', { detail: event }));
-                    }
-    
-                    // Handle specific close codes
-                    if (event.code === status.WS_1008_POLICY_VIOLATION) {
-                        console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
-                        websocketStatus.setError(event.reason || 'Connection closed due to policy violation.', 'error');
-                        this.consecutiveAbnormalClosures = 0; // Reset counter on explicit policy violation
-                        if (event.reason?.includes("2FA required")) {
-                            this.dispatchEvent(new CustomEvent('reAuthRequired', { detail: { type: '2fa' } }));
-                        } else {
-                            this.dispatchEvent(new CustomEvent('authError'));
-                        }
-                        // Reject and clear the main connection promise only if this close event corresponds to the current attempt's promise
-                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) { // Check if a promise exists and no ws is active
-                             this.rejectConnectionPromise(`Connection closed: ${event.reason}`);
-                             this.connectionPromise = null;
-                        }
-                        return; // Do not attempt reconnect on auth errors
-                    }
-
-                    // Detect auth failures: Close code 1006 (abnormal closure) often indicates connection rejection
-                    // When server returns 403 Forbidden during handshake, WebSocket fails with 1006
-                    // After multiple consecutive 1006 failures, treat as auth error
-                    if (event.code === 1006 && !event.wasClean) {
-                        this.consecutiveAbnormalClosures++;
-                        console.warn(`[WebSocketService] Abnormal closure (code 1006) detected. Consecutive count: ${this.consecutiveAbnormalClosures}/${this.AUTH_FAILURE_THRESHOLD}`);
-                        
-                        // Check if close reason or error indicates auth failure
-                        const reason = event.reason?.toLowerCase() || '';
-                        const isAuthRelated = reason.includes('forbidden') || 
-                                            reason.includes('403') || 
-                                            reason.includes('invalid') || 
-                                            reason.includes('expired') ||
-                                            reason.includes('token') ||
-                                            reason.includes('unauthorized');
-                        
-                        // If we have multiple consecutive failures OR explicit auth-related reason, treat as auth error
-                        if (this.consecutiveAbnormalClosures >= this.AUTH_FAILURE_THRESHOLD || isAuthRelated) {
-                            console.error('[WebSocketService] Detected authentication failure (repeated 1006 closures or auth-related reason). Logging out user.');
-                            websocketStatus.setError('Authentication failed. Please log in again.', 'error');
-                            this.consecutiveAbnormalClosures = 0; // Reset counter
-                            this.dispatchEvent(new CustomEvent('authError', { detail: { reason: 'Session expired or invalid token' } }));
-                            
-                            // Reject and clear the main connection promise
-                            if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
-                                this.rejectConnectionPromise('Authentication failed');
-                                this.connectionPromise = null;
-                            }
-                            return; // Do not attempt reconnect on auth errors
-                        }
-                    } else {
-                        // Reset counter on successful connection or other close codes
-                        if (event.wasClean || event.code !== 1006) {
-                            this.consecutiveAbnormalClosures = 0;
-                        }
-                    }
-
-                    // Attempt to reconnect if not a deliberate disconnect or auth error
-                    // This logic should only run if the closing WS was the "main" one or if no "main" one exists (this.ws is null)
-                    if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
-                        websocketStatus.setStatus('reconnecting');
-                        this.reconnectAttempts++;
-                        const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectInterval);
-                        console.info(`[WebSocketService] Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
-                        
-                        // Clear the current connection promise before scheduling a new connect,
-                        // if this onclose pertains to the promise of the current attempt.
-                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
-                            // Don't reject, as a reconnect is pending. Just clear.
-                            // Or, the promise is for a single attempt, so it should be rejected.
-                            // Let's assume promise is for single attempt for now.
-                            this.rejectConnectionPromise(new Error(`Connection closed (code ${event.code}), attempting reconnect.`));
-                            this.connectionPromise = null;
-                        } else if (this.connectionPromise && !this.ws) {
-                            // If rejectConnectionPromise is null but promise exists (e.g. resolved by a racing onopen)
-                            this.connectionPromise = null;
-                        }
-
-                        setTimeout(() => this.connect(), delay);
-                    } else if (get(authStore).isAuthenticated) { // Max reconnect attempts reached
-                        console.error('[WebSocketService] Max reconnect attempts reached. Giving up.');
-                        websocketStatus.setError('Max reconnect attempts reached. Giving up.', 'error');
-                        this.dispatchEvent(new CustomEvent('connection_failed_reconnect'));
-                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
-                             this.rejectConnectionPromise('Max reconnect attempts reached');
-                             this.connectionPromise = null;
-                        }
-                    } else { // User logged out
-                        websocketStatus.setStatus('disconnected');
-                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
-                            this.rejectConnectionPromise('User logged out during connection attempt.');
-                        }
-                        this.connectionPromise = null; // Clear promise
-                    }
-                };
-            } catch (error) {
-                console.error('[WebSocketService] Failed to create WebSocket:', error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                websocketStatus.setError(errorMessage, 'error');
-                // Dispatch specific event for UI feedback
-                // UI should listen for 'connection_failed_initial' and inform the user about the initial connection failure
-                this.dispatchEvent(new CustomEvent('connection_failed_initial', { detail: error }));
-                 if (this.rejectConnectionPromise) {
-                      this.rejectConnectionPromise(error);
-                 }
-                 this.connectionPromise = null; // Clear promise on creation failure
+            if (typeof rawMessage.type === "string") {
+              messageType = rawMessage.type;
+              messagePayload = rawMessage.payload;
+              dispatchEventDetail = rawMessage as WebSocketMessage;
+            } else if (typeof rawMessage.event === "string") {
+              messageType = rawMessage.event;
+              // For messages with 'event' field, use the entire message as the payload
+              // since the data is directly in the message, not in a 'payload' field
+              messagePayload = rawMessage;
+              dispatchEventDetail = { type: messageType, payload: rawMessage };
+            } else {
+              console.warn(
+                "[WebSocketService] Received message with unknown structure (no type or event field):",
+                rawMessage,
+              );
+              this.dispatchEvent(
+                new CustomEvent("message_error", {
+                  detail: {
+                    error: "Unknown message structure",
+                    data: rawMessage,
+                  },
+                }),
+              );
+              return;
             }
-        });
 
-        return this.connectionPromise;
-    }
+            if (messageType !== "ping" && messageType !== "pong") {
+              console.debug(
+                `[WebSocketService] Determined messageType: "${messageType}"`,
+              );
+            }
 
-    public disconnect(): void {
-        if (this.ws) {
-            console.info('[WebSocketService] Disconnecting...');
-            this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect attempts on manual disconnect
-                        this.ws.close(1000, 'Client initiated disconnect'); // Normal closure
+            // 🔍 STREAMING DEBUG: Log WebSocket message reception for ai_message_update
+            if (messageType === "ai_message_update") {
+              const seq = messagePayload?.sequence || "unknown";
+              const contentLength =
+                messagePayload?.full_content_so_far?.length || 0;
+              const timestamp = new Date().toISOString();
+              console.log(
+                `[WebSocketService] 🔴 RAW MESSAGE RECEIVED | ` +
+                  `type: ${messageType} | ` +
+                  `seq: ${seq} | ` +
+                  `content_length: ${contentLength} chars | ` +
+                  `timestamp: ${timestamp}`,
+              );
+            }
+
+            this.dispatchEvent(
+              new CustomEvent("message", { detail: dispatchEventDetail }),
+            );
+
+            // Call specific handlers
+            if (messageType) {
+              const handlers = this.messageHandlers.get(messageType);
+              if (handlers && handlers.length > 0) {
+                if (messageType !== "ping" && messageType !== "pong") {
+                  console.debug(
+                    `[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`,
+                  );
+                }
+
+                // 🔍 STREAMING DEBUG: Log handler execution for ai_message_update
+                if (messageType === "ai_message_update") {
+                  const seq = messagePayload?.sequence || "unknown";
+                  console.log(
+                    `[WebSocketService] 🟣 HANDLER EXECUTION | ` +
+                      `type: ${messageType} | ` +
+                      `seq: ${seq} | ` +
+                      `handlers_count: ${handlers.length}`,
+                  );
+                }
+
+                handlers.forEach((handler, index) => {
+                  try {
+                    if (messageType !== "ping" && messageType !== "pong") {
+                      console.debug(
+                        `[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`,
+                      );
+                    }
+
+                    // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
+                    if (messageType === "ai_message_update") {
+                      const seq = messagePayload?.sequence || "unknown";
+                      console.log(
+                        `[WebSocketService] 🟠 CALLING HANDLER | ` +
+                          `handler_index: ${index + 1} | ` +
+                          `type: ${messageType} | ` +
+                          `seq: ${seq}`,
+                      );
+                    }
+
+                    handler(messagePayload); // Pass the correctly determined payload
+                  } catch (handlerError) {
+                    console.error(
+                      `[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`,
+                      handlerError,
+                    );
+                  }
+                });
+              } else if (!this.allowedNoHandlerTypes.has(messageType)) {
+                if (messageType !== "ping" && messageType !== "pong") {
+                  console.warn(
+                    `[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`,
+                    this.messageHandlers,
+                  );
+                }
+              }
+            }
+          } catch (error) {
+            console.error(
+              "[WebSocketService] Error parsing message or in handler:",
+              error,
+              "Raw Data:",
+              event.data,
+            );
+            this.dispatchEvent(
+              new CustomEvent("message_error", {
+                detail: {
+                  error: "Parsing/handling error",
+                  originalError: error,
+                  data: event.data,
+                },
+              }),
+            );
+          }
+        };
+
+        currentWS.onerror = (event) => {
+          // ADDED: Detailed log for onerror (sanitized)
+          console.error(
+            `[WebSocketService] DEBUG: onerror triggered. Event:`,
+            event,
+            `For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`,
+          );
+
+          // If this error is for an old WebSocket instance, and not the current this.ws, log and ignore for main promise.
+          if (this.ws !== null && this.ws !== currentWS) {
+            console.warn(
+              "[WebSocketService] onerror from a superseded WebSocket instance:",
+              event,
+            );
+            return;
+          }
+          console.error("[WebSocketService] WebSocket error:", event); // Keep original error log
+          this.dispatchEvent(new CustomEvent("error", { detail: event }));
+
+          // Only reject the main connectionPromise if this error is from the current WebSocket attempt
+          if (this.rejectConnectionPromise && this.ws === currentWS) {
+            this.rejectConnectionPromise("WebSocket error");
+            this.connectionPromise = null; // Clear promise on error for the current attempt
+          }
+          // Don't set status to failed here, let onclose handle it if it's also called.
+          // However, an error often precedes a close.
+        };
+
+        currentWS.onclose = (event) => {
+          // ADDED: Initial log to confirm onclose is triggered and see event details (sanitized)
+          console.log(
+            `[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`,
+          );
+
+          // If this.ws is not null AND this.ws is not the currentWS that's closing,
+          // it means this is a close event from an older, superseded WebSocket instance.
+          // We should ignore it for the main state management (reconnect logic, main promise).
+          if (this.ws !== null && this.ws !== currentWS) {
+            // ADDED: More specific log when ignoring superseded instance (sanitized)
+            console.warn(
+              `[WebSocketService] DEBUG: onclose event from a superseded WebSocket instance (event for ${sanitizeUrlForLogging(currentWS.url)}, code ${event.code}) is being IGNORED because current this.ws is ${sanitizeUrlForLogging(this.ws?.url)}.`,
+            );
+            return;
+          }
+
+          // If we reach here, this onclose event is for the WebSocket instance that was (or still is) this.ws,
+          // or this.ws was already null (meaning the last attempt failed and nulled it).
+          console.warn(
+            `[WebSocketService] Connection closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`,
+          );
+          const currentStoreState = get(websocketStatus);
+          const previousStatus = currentStoreState.status;
+
+          // Important: Null out this.ws only if currentWS is indeed the one that was active and is now closing.
+          if (this.ws === currentWS) {
             this.ws = null;
-        }
-        this.stopPing(); // Stop pinging on disconnect
-        // Ensure status is set even if already disconnected
-        websocketStatus.setStatus('disconnected');
-         if (this.rejectConnectionPromise) {
-             this.rejectConnectionPromise('Manual disconnect'); // Reject any pending connection promise
-         }
-        this.connectionPromise = null; // Clear connection promise
-    }
+            this.stopPing(); // Stop pinging if the active connection closes
+          }
 
-    // Disconnect and clear all handlers - used during logout
-    public disconnectAndClearHandlers(): void {
-        console.info('[WebSocketService] Disconnecting and clearing all handlers...');
-        this.disconnect();
-        this.clearAllHandlers();
-    }
+          // Only dispatch 'close' if it wasn't already disconnected or in an error state
+          // and if this close event pertains to what was the active connection.
+          if (previousStatus !== "disconnected" && previousStatus !== "error") {
+            this.dispatchEvent(new CustomEvent("close", { detail: event }));
+          }
 
-    private startPing(): void {
-        this.stopPing(); // Clear any existing ping interval
-        this.pingIntervalId = setInterval(() => {
-            if (this.isConnected()) {
-                try {
-                    console.debug('[WebSocketService] Sending ping...');
-                    this.sendMessage('ping', {}); // sendMessage already checks for connection
-                    // Start pong timeout
-                    if (this.pongTimeoutId) {
-                        clearTimeout(this.pongTimeoutId);
-                    }
-                    this.pongTimeoutId = setTimeout(() => {
-                        console.error('[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.');
-                        if (this.ws) {
-                            // Attempt to close the WebSocket. This should trigger the onclose handler,
-                            // which contains the reconnection logic.
-                            console.log('[WebSocketService] Pong Timeout: Closing current WebSocket with code 1000 to trigger reconnect sequence.');
-                            this.ws.close(1000, "Pong timeout - client initiated close"); // Use code 1000
-                            // No need to call this.ws = null or this.stopPing() here, as onclose should handle it.
-                        } else {
-                            // If ws is already null (e.g., due to a race condition or prior error),
-                            // directly attempt a reconnect if authenticated.
-                            console.warn('[WebSocketService] Pong Timeout: this.ws is already null. Directly attempting reconnect if authenticated.');
-                            if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
-                                // Manually trigger parts of the onclose logic for reconnection
-                                websocketStatus.setStatus('reconnecting');
-                                this.reconnectAttempts++;
-                                const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectInterval);
-                                console.info(`[WebSocketService] Pong Timeout: Attempting direct reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
-                                setTimeout(() => this.connect(), delay);
-                            } else if (get(authStore).isAuthenticated) {
-                                console.error('[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Giving up.');
-                                websocketStatus.setError('Max reconnect attempts reached after pong timeout.', 'error');
-                                this.dispatchEvent(new CustomEvent('connection_failed_reconnect'));
-                            }
-                        }
-                    }, this.PONG_TIMEOUT);
-                } catch (error) {
-                    console.warn('[WebSocketService] Error sending ping:', error);
-                    // If ping fails, connection might be stale. Reconnect logic in onclose should handle it.
-                }
+          // Handle specific close codes
+          if (event.code === status.WS_1008_POLICY_VIOLATION) {
+            console.error(
+              "[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won't reconnect automatically.",
+            );
+            websocketStatus.setError(
+              event.reason || "Connection closed due to policy violation.",
+              "error",
+            );
+            this.consecutiveAbnormalClosures = 0; // Reset counter on explicit policy violation
+            if (event.reason?.includes("2FA required")) {
+              this.dispatchEvent(
+                new CustomEvent("reAuthRequired", { detail: { type: "2fa" } }),
+              );
+            } else if (event.reason?.includes("Passkey required")) {
+              this.dispatchEvent(
+                new CustomEvent("reAuthRequired", {
+                  detail: { type: "passkey" },
+                }),
+              );
+            } else {
+              this.dispatchEvent(new CustomEvent("authError"));
             }
-        }, this.PING_INTERVAL);
-    }
+            // Reject and clear the main connection promise only if this close event corresponds to the current attempt's promise
+            if (
+              this.rejectConnectionPromise &&
+              this.connectionPromise &&
+              !this.ws
+            ) {
+              // Check if a promise exists and no ws is active
+              this.rejectConnectionPromise(
+                `Connection closed: ${event.reason}`,
+              );
+              this.connectionPromise = null;
+            }
+            return; // Do not attempt reconnect on auth errors
+          }
 
-    private stopPing(): void {
-        if (this.pingIntervalId) {
-            clearInterval(this.pingIntervalId);
-            this.pingIntervalId = null;
+          // Detect auth failures: Close code 1006 (abnormal closure) often indicates connection rejection
+          // When server returns 403 Forbidden during handshake, WebSocket fails with 1006
+          // After multiple consecutive 1006 failures, treat as auth error
+          if (event.code === 1006 && !event.wasClean) {
+            this.consecutiveAbnormalClosures++;
+            console.warn(
+              `[WebSocketService] Abnormal closure (code 1006) detected. Consecutive count: ${this.consecutiveAbnormalClosures}/${this.AUTH_FAILURE_THRESHOLD}`,
+            );
+
+            // Check if close reason or error indicates auth failure
+            const reason = event.reason?.toLowerCase() || "";
+            const isAuthRelated =
+              reason.includes("forbidden") ||
+              reason.includes("403") ||
+              reason.includes("invalid") ||
+              reason.includes("expired") ||
+              reason.includes("token") ||
+              reason.includes("unauthorized");
+
+            // If we have multiple consecutive failures OR explicit auth-related reason, treat as auth error
+            if (
+              this.consecutiveAbnormalClosures >= this.AUTH_FAILURE_THRESHOLD ||
+              isAuthRelated
+            ) {
+              console.error(
+                "[WebSocketService] Detected authentication failure (repeated 1006 closures or auth-related reason). Logging out user.",
+              );
+              websocketStatus.setError(
+                "Authentication failed. Please log in again.",
+                "error",
+              );
+              this.consecutiveAbnormalClosures = 0; // Reset counter
+              this.dispatchEvent(
+                new CustomEvent("authError", {
+                  detail: { reason: "Session expired or invalid token" },
+                }),
+              );
+
+              // Reject and clear the main connection promise
+              if (
+                this.rejectConnectionPromise &&
+                this.connectionPromise &&
+                !this.ws
+              ) {
+                this.rejectConnectionPromise("Authentication failed");
+                this.connectionPromise = null;
+              }
+              return; // Do not attempt reconnect on auth errors
+            }
+          } else {
+            // Reset counter on successful connection or other close codes
+            if (event.wasClean || event.code !== 1006) {
+              this.consecutiveAbnormalClosures = 0;
+            }
+          }
+
+          // Attempt to reconnect if not a deliberate disconnect or auth error
+          // This logic should only run if the closing WS was the "main" one or if no "main" one exists (this.ws is null)
+          if (
+            get(authStore).isAuthenticated &&
+            this.reconnectAttempts < this.maxReconnectAttempts
+          ) {
+            websocketStatus.setStatus("reconnecting");
+            this.reconnectAttempts++;
+            const delay = Math.min(
+              this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
+              this.maxReconnectInterval,
+            );
+            console.info(
+              `[WebSocketService] Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`,
+            );
+
+            // Clear the current connection promise before scheduling a new connect,
+            // if this onclose pertains to the promise of the current attempt.
+            if (
+              this.rejectConnectionPromise &&
+              this.connectionPromise &&
+              !this.ws
+            ) {
+              // Don't reject, as a reconnect is pending. Just clear.
+              // Or, the promise is for a single attempt, so it should be rejected.
+              // Let's assume promise is for single attempt for now.
+              this.rejectConnectionPromise(
+                new Error(
+                  `Connection closed (code ${event.code}), attempting reconnect.`,
+                ),
+              );
+              this.connectionPromise = null;
+            } else if (this.connectionPromise && !this.ws) {
+              // If rejectConnectionPromise is null but promise exists (e.g. resolved by a racing onopen)
+              this.connectionPromise = null;
+            }
+
+            setTimeout(() => this.connect(), delay);
+          } else if (get(authStore).isAuthenticated) {
+            // Max reconnect attempts reached
+            console.error(
+              "[WebSocketService] Max reconnect attempts reached. Giving up.",
+            );
+            websocketStatus.setError(
+              "Max reconnect attempts reached. Giving up.",
+              "error",
+            );
+            this.dispatchEvent(new CustomEvent("connection_failed_reconnect"));
+            if (
+              this.rejectConnectionPromise &&
+              this.connectionPromise &&
+              !this.ws
+            ) {
+              this.rejectConnectionPromise("Max reconnect attempts reached");
+              this.connectionPromise = null;
+            }
+          } else {
+            // User logged out
+            websocketStatus.setStatus("disconnected");
+            if (
+              this.rejectConnectionPromise &&
+              this.connectionPromise &&
+              !this.ws
+            ) {
+              this.rejectConnectionPromise(
+                "User logged out during connection attempt.",
+              );
+            }
+            this.connectionPromise = null; // Clear promise
+          }
+        };
+      } catch (error) {
+        console.error("[WebSocketService] Failed to create WebSocket:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        websocketStatus.setError(errorMessage, "error");
+        // Dispatch specific event for UI feedback
+        // UI should listen for 'connection_failed_initial' and inform the user about the initial connection failure
+        this.dispatchEvent(
+          new CustomEvent("connection_failed_initial", { detail: error }),
+        );
+        if (this.rejectConnectionPromise) {
+          this.rejectConnectionPromise(error);
         }
-        if (this.pongTimeoutId) {
+        this.connectionPromise = null; // Clear promise on creation failure
+      }
+    });
+
+    return this.connectionPromise;
+  }
+
+  public disconnect(): void {
+    if (this.ws) {
+      console.info("[WebSocketService] Disconnecting...");
+      this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect attempts on manual disconnect
+      this.ws.close(1000, "Client initiated disconnect"); // Normal closure
+      this.ws = null;
+    }
+    this.stopPing(); // Stop pinging on disconnect
+    // Ensure status is set even if already disconnected
+    websocketStatus.setStatus("disconnected");
+    if (this.rejectConnectionPromise) {
+      this.rejectConnectionPromise("Manual disconnect"); // Reject any pending connection promise
+    }
+    this.connectionPromise = null; // Clear connection promise
+  }
+
+  // Disconnect and clear all handlers - used during logout
+  public disconnectAndClearHandlers(): void {
+    console.info(
+      "[WebSocketService] Disconnecting and clearing all handlers...",
+    );
+    this.disconnect();
+    this.clearAllHandlers();
+  }
+
+  private startPing(): void {
+    this.stopPing(); // Clear any existing ping interval
+    this.pingIntervalId = setInterval(() => {
+      if (this.isConnected()) {
+        try {
+          console.debug("[WebSocketService] Sending ping...");
+          this.sendMessage("ping", {}); // sendMessage already checks for connection
+          // Start pong timeout
+          if (this.pongTimeoutId) {
             clearTimeout(this.pongTimeoutId);
-            this.pongTimeoutId = null;
-        }
-    }
-
-    public isConnected(): boolean {
-        return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-    }
-
-    public async sendMessage(type: string, payload: any): Promise<void> {
-        const message: WebSocketMessage = { type, payload };
-        if (!this.isConnected()) {
-            if (type !== 'ping') {
-                console.warn('[WebSocketService] Not connected. Attempting to connect before sending.');
+          }
+          this.pongTimeoutId = setTimeout(() => {
+            // Before declaring the connection stale, check if we received any
+            // real data recently (e.g., AI streaming chunks). If data arrived
+            // within the pong timeout window, the connection is alive – the
+            // server was just too busy streaming to respond to our ping.
+            const timeSinceLastActivity =
+              Date.now() - this.lastActivityTimestamp;
+            if (timeSinceLastActivity < this.PONG_TIMEOUT) {
+              console.debug(
+                `[WebSocketService] Pong timeout fired but connection has recent activity (${timeSinceLastActivity}ms ago). Skipping close.`,
+              );
+              this.pongTimeoutId = null;
+              return;
             }
-            try {
-                await this.connect(); // Wait for connection
-            } catch (error) {
-                if (type !== 'ping') {
-                    console.error('[WebSocketService] Connection failed, cannot send message:', message);
-                }
-                throw new Error('WebSocket not connected');
+            console.error(
+              "[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.",
+            );
+            if (this.ws) {
+              // Attempt to close the WebSocket. This should trigger the onclose handler,
+              // which contains the reconnection logic.
+              console.log(
+                "[WebSocketService] Pong Timeout: Closing current WebSocket with code 1000 to trigger reconnect sequence.",
+              );
+              this.ws.close(1000, "Pong timeout - client initiated close"); // Use code 1000
+              // No need to call this.ws = null or this.stopPing() here, as onclose should handle it.
+            } else {
+              // If ws is already null (e.g., due to a race condition or prior error),
+              // directly attempt a reconnect if authenticated.
+              console.warn(
+                "[WebSocketService] Pong Timeout: this.ws is already null. Directly attempting reconnect if authenticated.",
+              );
+              if (
+                get(authStore).isAuthenticated &&
+                this.reconnectAttempts < this.maxReconnectAttempts
+              ) {
+                // Manually trigger parts of the onclose logic for reconnection
+                websocketStatus.setStatus("reconnecting");
+                this.reconnectAttempts++;
+                const delay = Math.min(
+                  this.reconnectInterval *
+                    Math.pow(2, this.reconnectAttempts - 1),
+                  this.maxReconnectInterval,
+                );
+                console.info(
+                  `[WebSocketService] Pong Timeout: Attempting direct reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`,
+                );
+                setTimeout(() => this.connect(), delay);
+              } else if (get(authStore).isAuthenticated) {
+                console.error(
+                  "[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Giving up.",
+                );
+                websocketStatus.setError(
+                  "Max reconnect attempts reached after pong timeout.",
+                  "error",
+                );
+                this.dispatchEvent(
+                  new CustomEvent("connection_failed_reconnect"),
+                );
+              }
             }
+          }, this.PONG_TIMEOUT);
+        } catch (error) {
+          console.warn("[WebSocketService] Error sending ping:", error);
+          // If ping fails, connection might be stale. Reconnect logic in onclose should handle it.
         }
+      }
+    }, this.PING_INTERVAL);
+  }
 
-        // Check again after attempting connection
-        if (this.isConnected()) {
-            try {
-                if (type !== 'ping') {
-                    console.debug('[WebSocketService] Sending message:', message);
-                }
-                this.ws?.send(JSON.stringify(message));
-            } catch (error) {
-                if (type !== 'ping') {
-                    console.error('[WebSocketService] Error sending message:', error);
-                }
-                throw error; // Re-throw error after logging
-            }
-        } else {
-            if (type !== 'ping') {
-                console.error('[WebSocketService] Still not connected after attempt, cannot send message:', message);
-            }
-            throw new Error('WebSocket not connected after reconnect attempt');
+  private stopPing(): void {
+    if (this.pingIntervalId) {
+      clearInterval(this.pingIntervalId);
+      this.pingIntervalId = null;
+    }
+    if (this.pongTimeoutId) {
+      clearTimeout(this.pongTimeoutId);
+      this.pongTimeoutId = null;
+    }
+  }
+
+  public isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  public async sendMessage(type: string, payload: any): Promise<void> {
+    const message: WebSocketMessage = { type, payload };
+    if (!this.isConnected()) {
+      if (type !== "ping") {
+        console.warn(
+          "[WebSocketService] Not connected. Attempting to connect before sending.",
+        );
+      }
+      try {
+        await this.connect(); // Wait for connection
+      } catch (error) {
+        if (type !== "ping") {
+          console.error(
+            "[WebSocketService] Connection failed, cannot send message:",
+            message,
+          );
         }
+        throw new Error("WebSocket not connected");
+      }
     }
 
-    // Register handlers for specific message types
-    public on(messageType: string, handler: MessageHandler): void {
-        if (!this.messageHandlers.has(messageType)) {
-            this.messageHandlers.set(messageType, []);
+    // Check again after attempting connection
+    if (this.isConnected()) {
+      try {
+        if (type !== "ping") {
+          console.debug("[WebSocketService] Sending message:", message);
         }
-        const currentHandlers = this.messageHandlers.get(messageType);
-        // Check if this exact handler is already registered to prevent duplicates
-        if (currentHandlers && !currentHandlers.includes(handler)) {
-            currentHandlers.push(handler);
-            console.debug(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`);
-        } else if (currentHandlers) {
-            console.warn(`[WebSocketService] ⚠️ Handler already registered for "${messageType}"! Skipping duplicate registration.`);
+        this.ws?.send(JSON.stringify(message));
+      } catch (error) {
+        if (type !== "ping") {
+          console.error("[WebSocketService] Error sending message:", error);
         }
+        throw error; // Re-throw error after logging
+      }
+    } else {
+      if (type !== "ping") {
+        console.error(
+          "[WebSocketService] Still not connected after attempt, cannot send message:",
+          message,
+        );
+      }
+      throw new Error("WebSocket not connected after reconnect attempt");
     }
+  }
 
-    // Unregister handlers
-    public off(messageType: string, handler: MessageHandler): void {
-        const handlers = this.messageHandlers.get(messageType);
-        if (handlers) {
-            const index = handlers.indexOf(handler);
-            if (index > -1) {
-                handlers.splice(index, 1);
-            }
-            if (handlers.length === 0) {
-                this.messageHandlers.delete(messageType);
-            }
-        }
+  // Register handlers for specific message types
+  public on(messageType: string, handler: MessageHandler): void {
+    if (!this.messageHandlers.has(messageType)) {
+      this.messageHandlers.set(messageType, []);
     }
+    const currentHandlers = this.messageHandlers.get(messageType);
+    // Check if this exact handler is already registered to prevent duplicates
+    if (currentHandlers && !currentHandlers.includes(handler)) {
+      currentHandlers.push(handler);
+      console.debug(
+        `[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`,
+      );
+    } else if (currentHandlers) {
+      console.warn(
+        `[WebSocketService] ⚠️ Handler already registered for "${messageType}"! Skipping duplicate registration.`,
+      );
+    }
+  }
 
-    // Clear all handlers for a specific message type
-    public clearHandlers(messageType: string): void {
-        if (this.messageHandlers.has(messageType)) {
-            this.messageHandlers.delete(messageType);
-            console.debug(`[WebSocketService] Cleared all handlers for message type: "${messageType}"`);
-        }
+  // Unregister handlers
+  public off(messageType: string, handler: MessageHandler): void {
+    const handlers = this.messageHandlers.get(messageType);
+    if (handlers) {
+      const index = handlers.indexOf(handler);
+      if (index > -1) {
+        handlers.splice(index, 1);
+      }
+      if (handlers.length === 0) {
+        this.messageHandlers.delete(messageType);
+      }
     }
+  }
 
-    // Clear all handlers for all message types
-    public clearAllHandlers(): void {
-        const handlerCount = Array.from(this.messageHandlers.values()).reduce((total, handlers) => total + handlers.length, 0);
-        this.messageHandlers.clear();
-        console.debug(`[WebSocketService] Cleared all handlers (${handlerCount} total)`);
-        this.dispatchEvent(new CustomEvent('handlers_cleared'));
+  // Clear all handlers for a specific message type
+  public clearHandlers(messageType: string): void {
+    if (this.messageHandlers.has(messageType)) {
+      this.messageHandlers.delete(messageType);
+      console.debug(
+        `[WebSocketService] Cleared all handlers for message type: "${messageType}"`,
+      );
     }
+  }
+
+  // Clear all handlers for all message types
+  public clearAllHandlers(): void {
+    const handlerCount = Array.from(this.messageHandlers.values()).reduce(
+      (total, handlers) => total + handlers.length,
+      0,
+    );
+    this.messageHandlers.clear();
+    console.debug(
+      `[WebSocketService] Cleared all handlers (${handlerCount} total)`,
+    );
+    this.dispatchEvent(new CustomEvent("handlers_cleared"));
+  }
 }
 
 // Export a singleton instance
@@ -701,19 +1005,19 @@ export const webSocketService = new WebSocketService();
 // Add status constants from FastAPI if not already available globally
 // These might need adjustment based on actual FastAPI status codes used
 const status = {
-    WS_1000_NORMAL_CLOSURE: 1000,
-    WS_1001_GOING_AWAY: 1001,
-    WS_1002_PROTOCOL_ERROR: 1002,
-    WS_1003_UNSUPPORTED_DATA: 1003,
-    WS_1005_NO_STATUS_RCVD: 1005,
-    WS_1006_ABNORMAL_CLOSURE: 1006,
-    WS_1007_INVALID_FRAMEWORK_PAYLOAD_DATA: 1007,
-    WS_1008_POLICY_VIOLATION: 1008,
-    WS_1009_MESSAGE_TOO_BIG: 1009,
-    WS_1010_MANDATORY_EXT: 1010,
-    WS_1011_INTERNAL_ERROR: 1011,
-    WS_1012_SERVICE_RESTART: 1012,
-    WS_1013_TRY_AGAIN_LATER: 1013,
-    WS_1014_BAD_GATEWAY: 1014,
-    WS_1015_TLS_HANDSHAKE: 1015,
+  WS_1000_NORMAL_CLOSURE: 1000,
+  WS_1001_GOING_AWAY: 1001,
+  WS_1002_PROTOCOL_ERROR: 1002,
+  WS_1003_UNSUPPORTED_DATA: 1003,
+  WS_1005_NO_STATUS_RCVD: 1005,
+  WS_1006_ABNORMAL_CLOSURE: 1006,
+  WS_1007_INVALID_FRAMEWORK_PAYLOAD_DATA: 1007,
+  WS_1008_POLICY_VIOLATION: 1008,
+  WS_1009_MESSAGE_TOO_BIG: 1009,
+  WS_1010_MANDATORY_EXT: 1010,
+  WS_1011_INTERNAL_ERROR: 1011,
+  WS_1012_SERVICE_RESTART: 1012,
+  WS_1013_TRY_AGAIN_LATER: 1013,
+  WS_1014_BAD_GATEWAY: 1014,
+  WS_1015_TLS_HANDSHAKE: 1015,
 };

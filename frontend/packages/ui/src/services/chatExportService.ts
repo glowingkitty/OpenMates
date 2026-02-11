@@ -6,12 +6,46 @@
 import { chatDB } from "./db";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
-import type { Chat, Message } from "../types/chat";
+import type { Chat, Message, PIIMapping } from "../types/chat";
 import {
   extractEmbedReferences,
   loadEmbeds,
   decodeToonContent,
 } from "./embedResolver";
+import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
+
+/**
+ * Options for controlling PII handling during export.
+ * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_1]").
+ * When piiHidden is false (revealed), we restore originals for the export.
+ * When piiHidden is true (default), content keeps placeholders as-is.
+ */
+export interface PIIExportOptions {
+  /** Whether PII should be hidden in the export (placeholders instead of originals) */
+  piiHidden: boolean;
+  /** Cumulative PII mappings from all user messages in the chat */
+  piiMappings: PIIMapping[];
+}
+
+/**
+ * Apply PII handling to message content based on export options.
+ * Message content from DB has PLACEHOLDERS. When PII is revealed (piiHidden=false),
+ * we restore original values for the export. When hidden, content keeps placeholders.
+ */
+function applyPIIToContent(
+  content: string,
+  piiOptions?: PIIExportOptions,
+): string {
+  if (!piiOptions || piiOptions.piiMappings.length === 0) {
+    return content;
+  }
+  if (!piiOptions.piiHidden) {
+    // Revealed mode: restore placeholders → originals for export
+    return restorePIIInText(content, piiOptions.piiMappings);
+  }
+  // Hidden mode: content already has placeholders from DB, return as-is
+  return content;
+}
 
 /**
  * Downloads a chat as a YAML file
@@ -335,11 +369,13 @@ async function getAllEmbedsForChat(messages: Message[]): Promise<any[]> {
  * @param chat - The chat to convert
  * @param messages - Array of messages
  * @param includeLink - Whether to include the shareable link in the YAML (default: false for downloads, true for clipboard)
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
 export async function convertChatToYaml(
   chat: Chat,
   messages: Message[],
   includeLink: boolean = false,
+  piiOptions?: PIIExportOptions,
 ): Promise<string> {
   const yamlData: any = {
     chat: {
@@ -438,8 +474,9 @@ export async function convertChatToYaml(
   const embedsPromise = getAllEmbedsForChat(messages);
 
   // Add messages (embed placeholders remain unchanged in message content)
+  // When PII is hidden, original values in message content are replaced with placeholders
   for (const message of messages) {
-    const messageData = await convertMessageToYaml(message);
+    const messageData = await convertMessageToYaml(message, piiOptions);
     yamlData.messages.push(messageData);
   }
 
@@ -476,8 +513,14 @@ function safeTimestampToISO(
  * Includes thinking content for thinking models (Gemini, Anthropic Claude, etc.)
  * when available. Thinking content is decrypted from encrypted_thinking_content
  * if needed and included as a separate field in the exported message.
+ *
+ * @param message - The message to convert
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
-async function convertMessageToYaml(message: Message): Promise<any> {
+async function convertMessageToYaml(
+  message: Message,
+  piiOptions?: PIIExportOptions,
+): Promise<any> {
   try {
     const messageData: any = {
       role: message.role,
@@ -495,12 +538,12 @@ async function convertMessageToYaml(message: Message): Promise<any> {
 
     // Process message content
     if (typeof message.content === "string") {
-      // Simple text content
-      messageData.content = message.content;
+      // Simple text content — apply PII handling if needed
+      messageData.content = applyPIIToContent(message.content, piiOptions);
     } else if (message.content && typeof message.content === "object") {
-      // TipTap JSON content - convert to markdown for YAML
+      // TipTap JSON content - convert to markdown for YAML, then apply PII handling
       const markdown = await convertTiptapToMarkdown(message.content);
-      messageData.content = markdown;
+      messageData.content = applyPIIToContent(markdown, piiOptions);
     } else {
       messageData.content = "";
     }
@@ -765,15 +808,17 @@ export function generateChatLink(chatId: string): string {
 }
 
 /**
- * Copies chat to clipboard as YAML with embedded link wrapped in a markdown code block
- * When pasted inside OpenMates, only the link is used
- * When pasted outside, the full YAML is available in a formatted code block
+ * Copies the chat to clipboard in YAML format wrapped in a markdown code block.
+ * When pasted inside OpenMates, the embedded link is used to import the chat.
+ * When pasted outside OpenMates, the full YAML is available as formatted text.
  * @param chat - The chat to copy
  * @param messages - Array of messages in the chat
+ * @param piiOptions - Optional PII export options to control sensitive data handling
  */
 export async function copyChatToClipboard(
   chat: Chat,
   messages: Message[],
+  piiOptions?: PIIExportOptions,
 ): Promise<void> {
   try {
     console.debug("[ChatExportService] Copying chat to clipboard:", {
@@ -781,8 +826,13 @@ export async function copyChatToClipboard(
       messageCount: messages.length,
     });
 
-    // Generate YAML with embedded link
-    const yamlContent = await convertChatToYaml(chat, messages, true);
+    // Generate YAML with embedded link, respecting PII visibility
+    const yamlContent = await convertChatToYaml(
+      chat,
+      messages,
+      true,
+      piiOptions,
+    );
 
     // Wrap YAML content in a markdown code block for better formatting when pasted
     const codeBlock = `\`\`\`yaml\n${yamlContent}\n\`\`\``;

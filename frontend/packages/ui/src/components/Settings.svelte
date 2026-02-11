@@ -72,6 +72,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
     import SettingsStats from './settings/server/SettingsStats.svelte';
+    import SettingsGiftCardGenerator from './settings/server/SettingsGiftCardGenerator.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -110,6 +111,15 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+
+    // Import privacy settings components
+    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
+    import SettingsHidePersonalData from './settings/privacy/SettingsHidePersonalData.svelte';
+    import SettingsAddName from './settings/privacy/SettingsAddName.svelte';
+    import SettingsAddAddress from './settings/privacy/SettingsAddAddress.svelte';
+    import SettingsAddBirthday from './settings/privacy/SettingsAddBirthday.svelte';
+    import SettingsAddCustomEntry from './settings/privacy/SettingsAddCustomEntry.svelte';
+    import SettingsAutoDeletion from './settings/privacy/SettingsAutoDeletion.svelte';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -126,6 +136,10 @@ changes to the documentation (to keep the documentation up to date).
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
+    // Timestamp when settings was last programmatically opened (e.g., via deep link from AppStoreCard click)
+    // Used to prevent handleClickOutside from immediately closing settings on the same click event.
+    // On mobile, the same tap that opens settings also triggers the document click listener which would close it.
+    let lastProgrammaticOpenTime = 0;
     let isTeamEnabled = $state(true);
     // Use incognito mode store instead of local state
     let isIncognitoEnabled = $derived($incognitoMode);
@@ -163,8 +177,17 @@ changes to the documentation (to keep the documentation up to date).
     // Define base settingsViews map for component mapping
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const baseSettingsViews: Record<string, any> = {
-        // TODO: Uncomment and implement these components when available
-        // 'privacy': SettingsPrivacy,
+        // Privacy settings — anonymization, device permissions, auto deletion
+        'privacy': SettingsPrivacy,
+        'privacy/hide-personal-data': SettingsHidePersonalData,
+        'privacy/hide-personal-data/add-name': SettingsAddName,
+        'privacy/hide-personal-data/add-address': SettingsAddAddress,
+        'privacy/hide-personal-data/add-birthday': SettingsAddBirthday,
+        'privacy/hide-personal-data/add-custom': SettingsAddCustomEntry,
+        // Auto-deletion period editing — one component, three routes (category determined from path)
+        'privacy/auto-deletion/chats': SettingsAutoDeletion,
+        'privacy/auto-deletion/files': SettingsAutoDeletion,
+        'privacy/auto-deletion/usage_data': SettingsAutoDeletion,
         // 'user': SettingsUser,
         'usage': SettingsUsage,
         'chat': SettingsChat,
@@ -197,6 +220,7 @@ changes to the documentation (to keep the documentation up to date).
         'server/software-update': SettingsSoftwareUpdate,
         'server/community-suggestions': SettingsCommunitySuggestions,
         'server/stats': SettingsStats,
+        'server/gift-cards': SettingsGiftCardGenerator,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
@@ -1034,6 +1058,15 @@ changes to the documentation (to keep the documentation up to date).
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
     	if ($isMobileView) {
+    		// CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
+    		// On mobile, the same tap that triggers openSettings() also bubbles up to document,
+    		// causing handleClickOutside to immediately close the just-opened panel.
+    		// A 300ms grace period prevents this race condition while still allowing
+    		// genuine outside clicks to close the panel normally.
+    		if (Date.now() - lastProgrammaticOpenTime < 300) {
+    			return;
+    		}
+    		
     		const settingsMenu = document.querySelector('.settings-menu');
     		const profileWrapper = document.querySelector('.profile-container-wrapper');
     		const closeButton = document.querySelector('.close-icon-container');
@@ -1489,10 +1522,13 @@ changes to the documentation (to keep the documentation up to date).
     // The reverse sync (local -> panelState) is handled by toggleMenu() and other close handlers
     $effect(() => {
     	// If panelState says settings should be open but our local state says closed
-    	// This handles external opens (e.g., from share button)
+    	// This handles external opens (e.g., from share button, AppStoreCard clicks)
     	if ($panelState.isSettingsOpen && !isMenuVisible) {
     		isMenuVisible = true;
     		settingsMenuVisible.set(true); // Also update the store for consistency
+    		// Record the programmatic open time so handleClickOutside doesn't immediately close
+    		// the panel on mobile (where the same tap event bubbles to document)
+    		lastProgrammaticOpenTime = Date.now();
    
             // Delay hiding the original profile until after transform animation (400ms)
             // This ensures it moves to its position first, then hides, matching manual toggle

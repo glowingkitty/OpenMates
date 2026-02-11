@@ -18,8 +18,8 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-05T11:58:10.912Z
-// **Models included**: 17
+// **Generated**: 2026-02-11T14:20:26.518Z
+// **Models included**: 18
 
 /**
  * Server/provider information for a model.
@@ -127,8 +127,8 @@ export const modelsMetadata: AIModelMetadata[] = [
         pricing: {"input_tokens_per_credit":350,"output_tokens_per_credit":70},
     },
     {
-        id: "claude-opus-4-5-20251101",
-        name: "Claude Opus 4.5",
+        id: "claude-opus-4-6",
+        name: "Claude Opus 4.6",
         description: "Most powerful Claude model for highly complex tasks, research, and creative writing.",
         provider_id: "anthropic",
         provider_name: "Anthropic",
@@ -138,10 +138,11 @@ export const modelsMetadata: AIModelMetadata[] = [
         output_types: ["text"],
         for_app_skill: "ai.ask",
         tier: "premium",
-        release_date: "2025-11-01",
+        release_date: "2026-02-06",
         servers: [{"id":"anthropic","name":"Anthropic API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
         default_server: "anthropic",
         pricing: {"input_tokens_per_credit":70,"output_tokens_per_credit":15},
+        search_aliases: ["opus 4.5","claude 4.5 opus","4.5","claude-opus-4-5"],
     },
     {
         id: "claude-sonnet-4-5-20250929",
@@ -190,8 +191,8 @@ export const modelsMetadata: AIModelMetadata[] = [
         reasoning: true,
         tier: "standard",
         release_date: "2025-12-01",
-        servers: [{"id":"google","name":"Google Vertex AI (MaaS)","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "google",
+        servers: [{"id":"google_maas","name":"Google Vertex AI (MaaS)","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
+        default_server: "google_maas",
         pricing: {"input_tokens_per_credit":600,"output_tokens_per_credit":200},
     },
     {
@@ -313,6 +314,24 @@ export const modelsMetadata: AIModelMetadata[] = [
         servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"google","name":"Google Cloud Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
         default_server: "mistral",
         pricing: {"input_tokens_per_credit":3300,"output_tokens_per_credit":1100},
+    },
+    {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+        description: "Kimi K2.5 is Moonshot AI's native multimodal thinking agent with vision and Agent Swarm capabilities. Features 1T total parameters (32B activated), native INT4 quantization for 2x inference speed, and 256K context window. Excels in visual coding, agentic tool-calling, and multi-step reasoning. Primary: Together AI; Fallback: OpenRouter.",
+        provider_id: "moonshot",
+        provider_name: "Moonshot AI",
+        logo_svg: "icons/moonshot.svg",
+        country_origin: "CN",
+        input_types: ["text","image"],
+        output_types: ["text"],
+        for_app_skill: "ai.ask",
+        reasoning: true,
+        tier: "standard",
+        release_date: "2026-01-27",
+        servers: [{"id":"together","name":"Together AI","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
+        default_server: "together",
+        pricing: {"input_tokens_per_credit":650,"output_tokens_per_credit":120},
     },
     {
         id: "gpt-5.2",

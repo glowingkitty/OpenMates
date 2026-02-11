@@ -79,6 +79,8 @@
     hasFullWidthImage?: boolean;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
+    /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
+    titleIcon?: import('svelte').Snippet;
   }
   
   let {
@@ -99,7 +101,8 @@
     customStatusText,
     showSkillIcon = true,
     hasFullWidthImage = false,
-    onEmbedDataUpdated
+    onEmbedDataUpdated,
+    titleIcon
   }: Props = $props();
   
   // Local reactive state for status - can be updated when embedUpdated fires
@@ -663,6 +666,7 @@
         {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
+        {titleIcon}
       />
     </div>
   {:else}
@@ -695,6 +699,7 @@
         {faviconIsCircular}
         {showSkillIcon}
         customStatusText={customStatusText}
+        {titleIcon}
       />
     </div>
   {/if}

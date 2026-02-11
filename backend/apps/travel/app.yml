@@ -3,77 +3,280 @@ description_translation_key: travel.description.text
 icon_image: |
   travel.svg
 category: personal
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
+  # Trips: Planned or past trips with destination and dates
   - id: trips
     name_translation_key: travel.trips.text
     description_translation_key: travel.trips.description.text
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "travel.trips.example_1.text"
+      - "travel.trips.example_2.text"
+      - "travel.trips.example_3.text"
     schema:
       type: object
       properties:
         destination:
           type: string
           description: City or country
+          is_title: true
         start_date:
           type: string
           format: date
-          description: YYYY-MM-DD
+          description: Start date (YYYY-MM-DD)
+          is_subtitle: true
         end_date:
           type: string
           format: date
-          description: YYYY-MM-DD
+          description: End date (YYYY-MM-DD)
         notes:
           type: string
-          description: Additional notes
+          description: Additional notes about the trip
       required:
-      - destination
-      - start_date
+        - destination
+  # Preferred airlines: Airlines the user prefers to fly with
   - id: preferred_airlines
     name_translation_key: travel.preferred_airlines.text
     description_translation_key: travel.preferred_airlines.description.text
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_airlines.example_1.text"
+      - "travel.preferred_airlines.example_2.text"
+      - "travel.preferred_airlines.example_3.text"
     schema:
-      type: array
-      items:
-        type: string
-      description: List of preferred airlines
+      type: object
+      properties:
+        name:
+          type: string
+          description: Airline name (e.g., Lufthansa, British Airways)
+          is_title: true
+      required:
+        - name
+  # Preferred transport methods: How the user prefers to travel
   - id: preferred_transport_methods
     name_translation_key: travel.preferred_transport_methods.text
     description_translation_key: travel.preferred_transport_methods.description.text
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_transport_methods.example_1.text"
+      - "travel.preferred_transport_methods.example_2.text"
+      - "travel.preferred_transport_methods.example_3.text"
     schema:
-      type: array
-      items:
-        type: string
-        enum:
-        - bike
-        - public_transport
-        - train
-        - plane
-        - car
-        - walking
-      description: List of preferred transport methods, ordered by preference
-  - id: interests
-    name_translation_key: travel.interests.text
-    description_translation_key: travel.interests.description.text
+      type: object
+      properties:
+        method:
+          type: string
+          description: Transport method
+          enum:
+            - bike
+            - public_transport
+            - train
+            - plane
+            - car
+            - walking
+          is_title: true
+      required:
+        - method
+  # Preferred Activities: Activities and experiences the user enjoys at travel destinations
+  # (e.g., visiting beaches, exploring museums, hiking, trying local cuisine)
+  # NOT for transport preferences or flight bookings — those are in preferred_transport_methods / preferred_airlines
+  - id: preferred_activities
+    name_translation_key: travel.preferred_activities.text
+    description_translation_key: travel.preferred_activities.description.text
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_activities.example_1.text"
+      - "travel.preferred_activities.example_2.text"
+      - "travel.preferred_activities.example_3.text"
+      - "travel.preferred_activities.example_4.text"
     schema:
-      type: array
-      items:
-        type: string
-      description: List of travel-related interests
+      type: object
+      properties:
+        name:
+          type: string
+          description: Activity or experience enjoyed at travel destinations (e.g., visiting beaches, exploring museums, hiking, trying local food)
+          is_title: true
+      required:
+        - name
 skills:
   - id: search_connections
-    name_translation_key: travel.search_connections.text
-    description_translation_key: travel.search_connections.description.text
-    stage: planning
-    class_path: |
-      skills.search_connections.SearchConnectionsSkill
+    name_translation_key: travel.search.text
+    description_translation_key: travel.search.description.text
+    preprocessor_hint: >
+      Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
+      Use when user specifies an exact travel date. Costs 25 credits per search.
+    stage: production
+    class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
+    pricing:
+      per_unit:
+        credits: 25
     providers:
-      - Citymapper
-      - Lyko.tech
+      - Google
+    exclude_fields_for_llm:
+      - type
+      - hash
+      - carrier_code
+      - segments
+      - booking_token
+      - booking_context
+    suggestions_follow_up_requests:
+      - Search for cheaper dates
+      - Show only direct flights
+      - Search for trains instead
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of connection search requests. Each request searches for
+            transport connections for a complete trip (one-way, round trip,
+            or multi-stop).
+          items:
+            type: object
+            properties:
+              legs:
+                type: array
+                description: >
+                  Ordered list of trip legs. One-way trip = 1 leg.
+                  Round trip = 2 legs (outbound + return). Multi-stop = N legs.
+                  Each leg specifies an origin, destination, and departure date.
+                items:
+                  type: object
+                  properties:
+                    origin:
+                      type: string
+                      description: >
+                        Origin city or location name (e.g. "Munich", "London Heathrow",
+                        "Berlin"). The system resolves this to airport codes or
+                        coordinates internally.
+                    destination:
+                      type: string
+                      description: Destination city or location name.
+                    date:
+                      type: string
+                      description: Departure date in YYYY-MM-DD format.
+                  required:
+                    - origin
+                    - destination
+                    - date
+              transport_methods:
+                type: array
+                description: >
+                  Transport types to search. Currently supported: ["airplane"].
+                  Future: "train", "bus", "boat".
+                items:
+                  type: string
+                  enum:
+                    - airplane
+                    - train
+                    - bus
+                    - boat
+                default:
+                  - airplane
+              passengers:
+                type: integer
+                description: Number of adult passengers.
+                default: 1
+              travel_class:
+                type: string
+                description: Cabin class for flights.
+                enum:
+                  - economy
+                  - premium_economy
+                  - business
+                  - first
+                default: economy
+              max_results:
+                type: integer
+                description: Maximum number of connection options to return per transport method.
+                default: 6
+              non_stop_only:
+                type: boolean
+                description: If true, only return direct/non-stop connections.
+                default: false
+              currency:
+                type: string
+                description: Preferred currency for prices (ISO 4217 code).
+                default: EUR
+              sort_by:
+                type: string
+                description: >
+                  How to sort the results. Options: "price_asc" (cheapest first,
+                  default), "price_desc" (most expensive first), "duration_asc"
+                  (shortest first), "duration_desc" (longest first),
+                  "departure_asc" (earliest departure first), "departure_desc"
+                  (latest departure first), "stops_asc" (fewest stops first),
+                  "stops_desc" (most stops first).
+                enum:
+                  - price_asc
+                  - price_desc
+                  - duration_asc
+                  - duration_desc
+                  - departure_asc
+                  - departure_desc
+                  - stops_asc
+                  - stops_desc
+                default: price_asc
+            required:
+              - legs
+      required:
+        - requests
+  - id: price_calendar
+    name_translation_key: travel.price_calendar.text
+    description_translation_key: travel.price_calendar.description.text
+    preprocessor_hint: >
+      Monthly flight price overview: cheapest price per day across an entire month on a route.
+      Use for flexible dates, "prices for March", "cheapest time to fly", monthly price comparisons.
+      Prefer over search_connections for date-flexible queries (1 credit vs 25).
+    stage: production
+    class_path: backend.apps.travel.skills.price_calendar.PriceCalendarSkill
+    pricing:
+      per_unit:
+        credits: 1
+    providers:
+      - Travelpayouts
+    suggestions_follow_up_requests:
+      - Search flights for the cheapest date
+      - Show next month
+      - Show previous month
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of price calendar requests. Each request fetches the cheapest
+            cached flight prices for every day of a given month on a route.
+            Ideal for finding the cheapest travel dates at a glance.
+          items:
+            type: object
+            properties:
+              origin:
+                type: string
+                description: >
+                  Origin city or airport name (e.g. "Munich", "Berlin",
+                  "London Heathrow") or IATA code (e.g. "MUC"). The system
+                  resolves city names to airport codes internally.
+              destination:
+                type: string
+                description: Destination city or airport name, or IATA code.
+              month:
+                type: string
+                description: >
+                  Month to show prices for, in YYYY-MM format (e.g. "2026-03").
+              currency:
+                type: string
+                description: Price currency (ISO 4217 code, e.g. "EUR", "USD").
+                default: EUR
+            required:
+              - origin
+              - destination
+              - month
+      required:
+        - requests

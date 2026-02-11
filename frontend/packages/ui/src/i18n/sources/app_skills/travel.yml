@@ -1,50 +1,64 @@
-search_connections:
-  context: Skill name for search connections
+search:
+  context: Skill name for travel search connections (flights, trains, routes between cities)
   en: Search connections
   de: Verbindungen suchen
   zh: 搜索连接
   es: Buscar conexiones
   fr: Rechercher des connexions
   pt: Pesquisar conexões
-  ru: Поиск соединений
+  ru: Поиск рейсов
   ja: 接続を検索
   ko: 연결 검색
-  it: Cerca connessioni
+  it: Cerca collegamenti
   tr: Bağlantı ara
-  vi: Tìm kiếm kết nối
+  vi: Tìm kết nối
   id: Cari koneksi
   pl: Szukaj połączeń
-  nl: Zoek verbindingen
-  ar: البحث عن الاتصالات
+  nl: Verbindingen zoeken
+  ar: بحث عن الاتصالات
   hi: कनेक्शन खोजें
-  th: ค้นหาการเชื่อมต่อ
+  th: ค้นหาเส้นทาง
   cs: Hledat spojení
-  sv: Sök anslutningar
+  sv: Sök förbindelser
   verified_by_human:
     - en
     - de
-search_connections.description:
-  context: Description for search connections skill
-  en: Find routes by train, plane, car or foot.
-  de: Routen per Zug, Flug, Auto oder Fuß finden.
-  zh: 通过火车、飞机、汽车或步行查找路线。
-  es: Encuentra rutas en tren, avión, coche o a pie.
-  fr: Trouvez des itinéraires en train, avion, voiture.
-  pt: Encontre rotas de trem, avião, carro ou a pé.
-  ru: Найдите маршруты поездом, самолетом, машиной.
-  ja: 電車、飛行機、車、徒歩でルート検索。
-  ko: 기차, 비행기, 차, 도보로 경로 찾기.
-  it: Trova percorsi in treno, aereo, auto o a piedi.
-  tr: Tren, uçak, araba veya yürüyerek rota bulun.
-  vi: Tìm tuyến đường bằng tàu, máy bay, xe hơi.
-  id: Temukan rute kereta, pesawat, mobil atau jalan.
-  pl: Znajdź trasy pociągiem, samolotem, autem.
-  nl: Vind routes per trein, vliegtuig, auto of te voet.
-  ar: ابحث عن طرق بالقطار أو الطائرة أو السيارة.
-  hi: ट्रेन, विमान, कार या पैदल मार्ग खोजें।
-  th: ค้นหาเส้นทางโดยรถไฟ เครื่องบิน รถยนต์
-  cs: Najděte trasy vlakem, letadlem, autem, pěšky.
-  sv: Hitta rutter med tåg, flyg, bil eller till fots.
+search.description:
+  context: Description for the travel search skill - searches for flights, trains, and routes between cities
+  en: Find flights, trains, and routes between cities.
+  de: Finde Flüge, Züge und Routen zwischen Städten.
+  zh: 查找城市之间的航班、火车和路线。
+  es: Encuentra vuelos, trenes y rutas entre ciudades.
+  fr: Trouvez des vols, trains et itinéraires entre villes.
+  pt: Encontre voos, trens e rotas entre cidades.
+  ru: Найдите рейсы, поезда и маршруты между городами.
+  ja: 都市間のフライト、電車、ルートを検索。
+  ko: 도시 간 항공편, 기차, 경로를 찾으세요.
+  it: Trova voli, treni e percorsi tra le città.
+  tr: Şehirler arası uçuş, tren ve güzergah bulun.
+  vi: Tìm chuyến bay, tàu và tuyến đường giữa các thành phố.
+  id: Temukan penerbangan, kereta, dan rute antar kota.
+  pl: Znajdź loty, pociągi i trasy między miastami.
+  nl: Vind vluchten, treinen en routes tussen steden.
+  ar: ابحث عن رحلات الطيران والقطارات والطرق بين المدن.
+  hi: शहरों के बीच उड़ानें, ट्रेनें और मार्ग खोजें।
+  th: ค้นหาเที่ยวบิน รถไฟ และเส้นทางระหว่างเมือง
+  cs: Najděte lety, vlaky a trasy mezi městy.
+  sv: Hitta flyg, tåg och rutter mellan städer.
+  verified_by_human:
+    - en
+    - de
+price_calendar:
+  context: Skill name for travel price calendar (monthly flight price heatmap)
+  en: Price Calendar
+  de: Preiskalender
+  verified_by_human:
+    - en
+    - de
+price_calendar.description:
+  context: Description for the travel price calendar skill - shows cheapest flight prices for each day of a month
+  en: Show flight price trends for a month on a route.
+  de: Zeige Flugpreistrends für einen Monat auf einer Strecke.
   verified_by_human:
     - en
     - de

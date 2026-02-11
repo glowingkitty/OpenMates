@@ -14,6 +14,7 @@ Usage Settings - View usage statistics and export usage data
     import * as LucideIcons from '@lucide/svelte';
     import Icon from '../Icon.svelte';
     import { decryptWithMasterKey, getKeyFromStorage } from '../../services/cryptoService';
+    import { appsMetadata } from '../../data/appsMetadata';
 
     // Usage entry interface
     interface UsageEntry {
@@ -248,15 +249,24 @@ Usage Settings - View usage statistics and export usage data
         return entries.reduce((sum, entry) => sum + (entry.credits ?? 0), 0);
     }
 
+    // Look up the skill's name_translation_key from static app metadata.
+    // Returns the correct key (e.g. "app_skills.travel.search.text") or null if not found.
+    function getSkillTranslationKey(appId: string, skillId: string): string | null {
+        const app = appsMetadata[appId];
+        if (!app?.skills) return null;
+        const skill = app.skills.find(s => s.id === skillId);
+        return skill?.name_translation_key ?? null;
+    }
+
     // Get display name for usage entry
     function getEntryDisplayName(entry: UsageEntry): string {
         if (entry.app_id && entry.skill_id) {
-            // Try to get app/skill name from translation keys
+            // Look up skill translation key from app metadata (correct approach)
             const appKey = `apps.${entry.app_id}.text`;
-            const skillKey = `apps.${entry.app_id}.skills.${entry.skill_id}.text`;
+            const skillTranslationKey = getSkillTranslationKey(entry.app_id, entry.skill_id);
             try {
                 const appName = $text(appKey);
-                const skillName = $text(skillKey);
+                const skillName = skillTranslationKey ? $text(skillTranslationKey) : entry.skill_id;
                 return `${appName} - ${skillName}`;
             } catch {
                 return `${entry.app_id} - ${entry.skill_id}`;
@@ -1212,11 +1222,9 @@ Usage Settings - View usage statistics and export usage data
                     }
                 })() : null}
                 {@const skillName = entry.skill_id && entry.app_id ? (() => {
-                    try {
-                        return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
-                    } catch {
-                        return entry.skill_id;
-                    }
+                    const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                    if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                    return entry.skill_id;
                 })() : null}
                 {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
                 {@const entryIcon = getEntryIcon(entry)}
@@ -1302,11 +1310,9 @@ Usage Settings - View usage statistics and export usage data
                         }
                     })() : null}
                     {@const skillName = entry.skill_id && entry.app_id ? (() => {
-                        try {
-                            return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
-                        } catch {
-                            return entry.skill_id;
-                        }
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
                     })() : null}
                     {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
                     {@const entryIcon = getEntryIcon(entry)}
@@ -1373,11 +1379,9 @@ Usage Settings - View usage statistics and export usage data
             <div class="detail-entries">
                 {#each usageEntries as entry}
                     {@const skillName = entry.skill_id && entry.app_id ? (() => {
-                        try {
-                            return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
-                        } catch {
-                            return entry.skill_id;
-                        }
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
                     })() : null}
                     {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity.text')}
                     {@const entryIcon = getEntryIcon(entry)}

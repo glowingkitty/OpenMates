@@ -518,6 +518,221 @@ def test_tip_creator_authenticated(api_client):
     assert response.status_code in [200, 400, 404], f"Unexpected status code: {response.status_code}, {response.text}"
 
 @pytest.mark.integration
+def test_execute_skill_travel_search_connections(api_client):
+    """
+    Test executing the 'travel/search_connections' skill.
+    Searches for a one-way flight from Munich to London via the Amadeus API.
+    """
+    from datetime import datetime, timedelta
+
+    # Use a date 14 days in the future to ensure availability
+    departure_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
+
+    payload = {
+        "requests": [
+            {
+                "legs": [
+                    {
+                        "origin": "Munich",
+                        "destination": "London",
+                        "date": departure_date,
+                    }
+                ],
+                "transport_methods": ["airplane"],
+                "passengers": 1,
+                "travel_class": "economy",
+                "max_results": 3,
+                "currency": "EUR",
+            }
+        ]
+    }
+
+    print(f"\n[TRAVEL] Searching flights: Munich -> London on {departure_date}")
+    response = api_client.post(
+        "/v1/apps/travel/skills/search_connections",
+        json=payload,
+        timeout=30.0,
+    )
+    assert response.status_code == 200, f"Travel search_connections failed: {response.text}"
+
+    data = response.json()
+    # Wrapped in WrappedSkillResponse: {success: bool, data: ..., credits_charged: ...}
+    assert data["success"] is True, f"Skill returned success=False: {data}"
+    assert "data" in data
+    skill_data = data["data"]
+    assert "results" in skill_data
+
+    # Validate result structure
+    results = skill_data["results"]
+    assert len(results) > 0, "Expected at least one result group"
+
+    # First result group should have results
+    first_group = results[0]
+    assert "id" in first_group, "Result group should have 'id'"
+    assert "results" in first_group, "Result group should have 'results'"
+
+    connections = first_group["results"]
+    assert len(connections) > 0, "Expected at least one flight connection"
+
+    # Validate first connection structure
+    conn = connections[0]
+    assert conn["type"] == "connection", f"Expected type 'connection', got '{conn.get('type')}'"
+    assert conn["transport_method"] == "airplane"
+    assert conn.get("total_price") is not None, "Expected a price"
+    assert conn.get("currency") is not None, "Expected a currency"
+    assert conn.get("legs") is not None, "Expected legs array"
+    assert len(conn["legs"]) >= 1, "Expected at least one leg"
+
+    # Validate leg structure
+    leg = conn["legs"][0]
+    assert "origin" in leg, "Leg should have 'origin'"
+    assert "destination" in leg, "Leg should have 'destination'"
+    assert "departure" in leg, "Leg should have 'departure'"
+    assert "arrival" in leg, "Leg should have 'arrival'"
+    assert "duration" in leg, "Leg should have 'duration'"
+    assert "stops" in leg, "Leg should have 'stops'"
+    assert "segments" in leg, "Leg should have 'segments'"
+
+    # Validate segment structure
+    assert len(leg["segments"]) >= 1, "Expected at least one segment"
+    segment = leg["segments"][0]
+    assert "carrier" in segment, "Segment should have 'carrier'"
+    assert "departure_station" in segment, "Segment should have 'departure_station'"
+    assert "arrival_station" in segment, "Segment should have 'arrival_station'"
+
+    # Print summary
+    print(f"[TRAVEL] Found {len(connections)} connection(s)")
+    for i, c in enumerate(connections[:3]):
+        legs_info = c.get("legs", [])
+        if legs_info:
+            first = legs_info[0]
+            print(
+                f"  [{i+1}] {first.get('origin')} -> {first.get('destination')} | "
+                f"{first.get('duration')} | {first.get('stops')} stop(s) | "
+                f"{c.get('total_price')} {c.get('currency')}"
+            )
+
+    # Verify provider
+    assert skill_data.get("provider") == "Amadeus", f"Expected provider 'Amadeus', got '{skill_data.get('provider')}'"
+
+
+@pytest.mark.integration
+def test_execute_skill_ask_deepseek_v3_2(api_client):
+    """
+    Test executing the 'ai/ask' skill targeting DeepSeek V3.2 specifically.
+    
+    This validates that the google_maas_client.py OpenAI-compatible API client
+    correctly routes requests to Google Vertex AI MaaS for DeepSeek V3.2.
+    
+    Uses the @ai-model: override syntax to force model selection.
+    """
+    payload = {
+        "messages": [
+            {"role": "user", "content": "What is the capital of France? @ai-model:deepseek-v3.2"}
+        ],
+        "stream": False
+    }
+    
+    print("\n[DEEPSEEK TEST] Sending request targeting DeepSeek V3.2 via @ai-model override...")
+    try:
+        # DeepSeek via Google MaaS can be slower due to the additional hop
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=60.0)
+        assert response.status_code == 200, f"DeepSeek V3.2 skill execution failed with status {response.status_code}: {response.text}"
+        
+        data = response.json()
+        
+        # Should NOT have an error response
+        assert "error" not in data, f"Got error response: {data.get('error')}"
+        
+        # Validate OpenAI-compatible response structure
+        assert "choices" in data, f"Response missing 'choices' field. Got keys: {list(data.keys())}"
+        assert len(data["choices"]) > 0, "Response should have at least one choice"
+        
+        choice = data["choices"][0]
+        assert "message" in choice, f"Choice missing 'message' field. Got: {choice}"
+        assert "content" in choice["message"], f"Message missing 'content'. Got: {choice['message']}"
+        
+        content = choice["message"]["content"]
+        assert content, "Response content should not be empty"
+        assert len(content) > 10, f"Response suspiciously short ({len(content)} chars): {content}"
+        
+        # Verify the answer is correct
+        assert "Paris" in content, f"Expected 'Paris' in response, got: {content[:200]}"
+        
+        # Verify model attribution in response metadata
+        assert "model" in data, "Response should include 'model' field"
+        model_name = data["model"].lower()
+        assert "deepseek" in model_name, f"Expected model name to contain 'deepseek', got: {data['model']}"
+        
+        # Verify the response has proper finish reason
+        assert choice.get("finish_reason") in ["stop", "end_turn", None], \
+            f"Unexpected finish_reason: {choice.get('finish_reason')}"
+        
+        print(f"[DEEPSEEK TEST] Model: {data.get('model')}")
+        print(f"[DEEPSEEK TEST] Response length: {len(content)} chars")
+        print(f"[DEEPSEEK TEST] Content preview: {content[:200]}")
+        
+        # Verify usage metadata if present
+        # Note: Google MaaS streaming may not always return prompt/completion token counts
+        # (they can be 0 in SSE mode), but our token estimator provides user_input_tokens
+        # and system_prompt_tokens independently.
+        if "usage" in data and data["usage"]:
+            usage = data["usage"]
+            total_tokens = (
+                usage.get("prompt_tokens", 0)
+                + usage.get("completion_tokens", 0)
+                + usage.get("user_input_tokens", 0)
+                + usage.get("system_prompt_tokens", 0)
+            )
+            assert total_tokens > 0, "Expected some token count (from provider or our estimator)"
+            print(f"[DEEPSEEK TEST] Tokens: prompt={usage.get('prompt_tokens')}, completion={usage.get('completion_tokens')}, user_input={usage.get('user_input_tokens')}, system_prompt={usage.get('system_prompt_tokens')}")
+        
+        print("[DEEPSEEK TEST] PASSED - DeepSeek V3.2 via Google MaaS is working correctly!")
+        
+    except httpx.TimeoutException:
+        print("\n[TIMEOUT] DeepSeek V3.2 request timed out after 60 seconds.")
+        pytest.fail("DeepSeek V3.2 request timed out after 60 seconds")
+
+
+@pytest.mark.integration
+def test_execute_skill_ask_deepseek_multi_turn(api_client):
+    """
+    Test multi-turn conversation with DeepSeek V3.2.
+    Sends a two-message conversation to verify context handling through the
+    google_maas_client.py OpenAI-compatible endpoint.
+    """
+    payload = {
+        "messages": [
+            {"role": "user", "content": "Remember this number: 42. @ai-model:deepseek-v3.2"},
+            {"role": "assistant", "content": "I'll remember the number 42."},
+            {"role": "user", "content": "What number did I ask you to remember?"}
+        ],
+        "stream": False
+    }
+    
+    print("\n[DEEPSEEK MULTI-TURN] Testing multi-turn conversation with DeepSeek V3.2...")
+    try:
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=60.0)
+        assert response.status_code == 200, f"Multi-turn request failed: {response.text}"
+        
+        data = response.json()
+        assert "error" not in data, f"Got error response: {data.get('error')}"
+        assert "choices" in data, f"Response missing 'choices'. Keys: {list(data.keys())}"
+        
+        content = data["choices"][0].get("message", {}).get("content", "")
+        assert content, "Response content should not be empty"
+        
+        # The model should recall the number 42
+        assert "42" in content, f"Expected model to recall '42', got: {content[:300]}"
+        
+        print(f"[DEEPSEEK MULTI-TURN] Response: {content[:200]}")
+        print("[DEEPSEEK MULTI-TURN] PASSED - Context maintained across turns!")
+        
+    except httpx.TimeoutException:
+        pytest.fail("Multi-turn DeepSeek request timed out after 60 seconds")
+
+
+@pytest.mark.integration
 def test_invalid_api_key():
     """Test that an invalid API key returns 401."""
     headers = {"Authorization": "Bearer sk-api-invalid-key"}

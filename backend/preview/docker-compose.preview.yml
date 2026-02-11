@@ -63,7 +63,7 @@ services:
       PREVIEW_API_KEY: "${PREVIEW_API_KEY:-}"  # Optional: set for API key auth
       
       # CORS - adjust for your domains
-      PREVIEW_CORS_ORIGINS: "${PREVIEW_CORS_ORIGINS:-https://openmates.org,https://app.openmates.org}"
+      PREVIEW_CORS_ORIGINS: "${PREVIEW_CORS_ORIGINS:-https://openmates.org}"
       
       # Referer validation - webapp only, no direct API access
       # Empty referers are NOT allowed (webapp always sends referer)

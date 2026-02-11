@@ -53,6 +53,7 @@ async def handle_encrypted_chat_metadata(
         encrypted_content = payload.get("encrypted_content")
         encrypted_sender_name = payload.get("encrypted_sender_name")
         encrypted_category = payload.get("encrypted_category")
+        encrypted_pii_mappings = payload.get("encrypted_pii_mappings")  # PII placeholder-to-original mappings
         
         logger.info(f"📥 RECEIVED encrypted_chat_metadata for chat {chat_id}: message_id={message_id}, has_content={bool(encrypted_content)}")
         
@@ -278,7 +279,8 @@ async def handle_encrypted_chat_metadata(
                     versions.get("messages_v"),
                     versions.get("last_edited_overall_timestamp", int(datetime.now(timezone.utc).timestamp())),
                     encrypted_chat_key,
-                    user_id
+                    user_id,
+                    encrypted_pii_mappings  # PII placeholder-to-original mappings (encrypted)
                 ],
                 queue='persistence'
             )

@@ -150,6 +150,21 @@
 		const publicChat = getPublicChatById(chatId);
 
 		if (publicChat) {
+			// CRITICAL: For non-authenticated users during initial page load, check if they have
+			// existing sessionStorage drafts BEFORE loading the default public chat.
+			// Without this, a page reload with #chat-id=demo-for-everyone would discard the user's draft
+			// because loadDemoWelcomeChat (which handles draft restoration) is only called from onNoHash.
+			if (!$authStore.isAuthenticated && isProcessingInitialHash) {
+				const draftChatIds = getAllDraftChatIdsWithDrafts();
+				if (draftChatIds.length > 0) {
+					console.debug(
+						`[+page.svelte] Non-auth user has sessionStorage drafts during initial hash load - redirecting to loadDemoWelcomeChat instead of loading public chat ${chatId}`
+					);
+					await loadDemoWelcomeChat();
+					return;
+				}
+			}
+
 			// This is a demo or legal chat - load it directly (no need to wait for sync)
 			console.debug(`[+page.svelte] Found deep-linked public chat:`, chatId);
 
@@ -767,6 +782,23 @@
 				);
 				forcedLogoutInProgress.set(true);
 
+				// Show auto-logout notification explaining the user needs "Stay logged in"
+				// This must be triggered here because checkAuth() will skip its notification
+				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
+				// Use setTimeout to ensure the notification container is rendered first.
+				setTimeout(() => {
+					const t = get(text);
+					notificationStore.autoLogout(
+						t('login.auto_logout_notification.message.text'),
+						undefined,
+						7000,
+						t('login.auto_logout_notification.title.text')
+					);
+					console.debug(
+						'[+page.svelte] Showed auto-logout notification for stayLoggedIn=false reload'
+					);
+				}, 500);
+
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
 				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
 				if (originalHash) {
@@ -1127,22 +1159,41 @@
 			const handlePhase1ChatLoad = async () => {
 				console.debug('[+page.svelte] Phase 1 complete, loading last opened chat');
 				await handleSyncCompleteAndLoadChat();
+
+				// UX IMPROVEMENT: Mark sync as completed after Phase 1 so that
+				// NewChatSuggestions and the "Resume last chat" card appear immediately.
+				// Previously gated behind phasedSyncComplete (after ALL phases), which
+				// caused a delay where users saw "Loading chats..." for several seconds.
+				// Phase 2/3 data (more chats, updated suggestions) flows in silently.
+				if (!$phasedSyncState.initialSyncCompleted) {
+					phasedSyncState.markSyncCompleted();
+					console.debug('[+page.svelte] Marked sync as completed after Phase 1 for faster UX');
+				}
 			};
 
-			// Mark sync completed when phasedSyncComplete fires (after all phases)
+			// SAFETY NET: Also listen for phasedSyncComplete as a fallback.
+			// Phase 1 may not fire in certain scenarios:
+			// - Non-authenticated users (no chats to sync)
+			// - Authenticated users with no chats
+			// - Sync errors (startPhasedSync throws before server responds)
+			// - Synthetic completion events (timeout or error recovery)
+			// Without this fallback, initialSyncCompleted would stay false forever,
+			// leaving the UI stuck on "Loading chats..." indefinitely.
 			const handleSyncCompleted = () => {
-				console.debug('[+page.svelte] Full sync complete, marking as completed');
-				phasedSyncState.markSyncCompleted();
+				if (!$phasedSyncState.initialSyncCompleted) {
+					console.debug('[+page.svelte] Full sync complete (fallback), marking as completed');
+					phasedSyncState.markSyncCompleted();
+				}
 			};
 
 			// Only Phase 1 triggers chat loading - this is the "last opened chat" data
 			chatSyncService.addEventListener('phase_1_last_chat_ready', handlePhase1ChatLoad);
 
-			// phasedSyncComplete marks overall sync as done (for sync status UI)
+			// phasedSyncComplete is the safety net for when Phase 1 doesn't fire
 			chatSyncService.addEventListener('phasedSyncComplete', handleSyncCompleted);
 
 			console.debug(
-				'[+page.svelte] Sync event listeners registered (Phase 1 for chat load, phasedSyncComplete for status)'
+				'[+page.svelte] Sync event listeners registered (Phase 1 for chat load + phasedSyncComplete as fallback)'
 			);
 		}
 
@@ -1557,6 +1608,10 @@
 		// Listen for hash changes (e.g., user pastes a new URL with different chat_id)
 		window.addEventListener('hashchange', handleHashChange);
 
+		// Listen for demo chat selection from embed preview cards (ExampleChatsGroup)
+		// These cards are nested deep in message content and can't use Svelte events
+		window.addEventListener('demoChatSelected', handleDemoChatSelected);
+
 		// Listen for pending deep link processing after successful login
 		// This handles cases where user opened a deep link while not authenticated
 		const pendingDeepLinkHandlerWrapper = (event: Event) => {
@@ -1593,6 +1648,8 @@
 		if (pendingDeepLinkHandler) {
 			window.removeEventListener('processPendingDeepLink', pendingDeepLinkHandler);
 		}
+		// Remove demo chat selection event listener
+		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
 		// Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
@@ -1837,6 +1894,62 @@
 		// if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
 		//    panelState.toggleActivityHistory(); // Or a specific close action
 		// }
+	}
+
+	/**
+	 * Handle demo chat selected from embed preview cards (ExampleChatsGroup)
+	 * These are community demo chats rendered inside message content that need
+	 * to be loaded when clicked. Unlike sidebar clicks which use Svelte events,
+	 * embed cards use window events because they're nested deep in the component tree.
+	 */
+	async function handleDemoChatSelected(event: Event) {
+		console.log('[+page.svelte] === handleDemoChatSelected START ===');
+		const customEvent = event as CustomEvent;
+		const selectedChat: Chat = customEvent.detail?.chat;
+		if (!selectedChat?.chat_id) {
+			console.warn('[+page.svelte] demoChatSelected event missing chat data:', customEvent.detail);
+			return;
+		}
+
+		console.log(
+			'[+page.svelte] Received demoChatSelected event:',
+			selectedChat.chat_id,
+			'title:',
+			selectedChat.title
+		);
+		console.log('[+page.svelte] activeChat ref available:', !!activeChat);
+
+		const loadChatWithRetry = async (retries = 20): Promise<void> => {
+			if (activeChat) {
+				console.log('[+page.svelte] activeChat ready, loading demo chat:', selectedChat.chat_id);
+				try {
+					await activeChat.loadChat(selectedChat);
+					console.log(
+						'[+page.svelte] Successfully called loadChat for demo chat:',
+						selectedChat.chat_id
+					);
+				} catch (error) {
+					console.error(
+						'[+page.svelte] ERROR in loadChat for demo chat:',
+						selectedChat.chat_id,
+						error
+					);
+				}
+				return;
+			} else if (retries > 0) {
+				console.log('[+page.svelte] activeChat not ready, retrying...', retries, 'retries left');
+				const delay = retries > 10 ? 50 : 100;
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return loadChatWithRetry(retries - 1);
+			} else {
+				console.error(
+					'[+page.svelte] activeChat not available for demo chat load after all retries'
+				);
+			}
+		};
+
+		await loadChatWithRetry();
+		console.log('[+page.svelte] === handleDemoChatSelected END ===');
 	}
 
 	// Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)

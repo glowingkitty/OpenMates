@@ -18,7 +18,7 @@ This ensures users can never have a password without 2FA enabled.
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
-    import { getMasterKeyFromIndexedDB } from '../../../services/cryptoKeyStorage';
+    import { getMasterKey } from '../../../services/cryptoKeyStorage';
     import SecurityAuth from './SecurityAuth.svelte';
     import SettingsTwoFactorAuth from './SettingsTwoFactorAuth.svelte';
 
@@ -253,8 +253,8 @@ This ensures users can never have a password without 2FA enabled.
                 throw new Error('Email salt not available. Please log out and log back in.');
             }
 
-            // Get master key from IndexedDB
-            const masterKey = await getMasterKeyFromIndexedDB();
+            // Get master key from memory (stayLoggedIn=false) or IndexedDB (stayLoggedIn=true)
+            const masterKey = await getMasterKey();
             if (!masterKey) {
                 throw new Error('Master key not available. Please log out and log back in.');
             }

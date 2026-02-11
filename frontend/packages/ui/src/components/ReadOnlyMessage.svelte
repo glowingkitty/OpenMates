@@ -13,6 +13,9 @@
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
+    import { Decoration, DecorationSet } from 'prosemirror-view';
+    import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
+    import type { PIIMapping } from '../types/chat';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -21,12 +24,16 @@
         content, 
         isStreaming = false, 
         _embedUpdateTimestamp = 0,
-        selectable = false
+        selectable = false,
+        piiMappings = undefined,
+        piiRevealed = false
     }: { 
         content: any; 
         isStreaming?: boolean; 
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
+        piiMappings?: PIIMapping[];
+        piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -529,6 +536,200 @@
         editor.view.dom.addEventListener('touchend', handleTouchEnd as EventListener);
         editor.view.dom.addEventListener('touchcancel', handleTouchEnd as EventListener);
         editorCreated = true;
+        
+        // Apply PII highlighting decorations after editor is created
+        applyPIIDecorations(editor);
+    }
+    
+    /**
+     * Find PII original values directly in the ProseMirror document and return
+     * their correct document positions. This avoids the position mismatch that
+     * occurs when using flat-text indices (from editor.getText()) because
+     * ProseMirror positions include structural offsets for block boundaries
+     * (each paragraph open/close adds to the position count).
+     *
+     * Walks every text node in the document and searches for each PII original
+     * value within that node's text content, yielding exact ProseMirror positions.
+     */
+    function findPIIPositionsInDoc(doc: import('prosemirror-model').Node, mappings: PIIMapping[]): Array<{
+        from: number;
+        to: number;
+        type: string;
+        label: string;
+    }> {
+        const results: Array<{ from: number; to: number; type: string; label: string }> = [];
+        // Build lookup entries that search for BOTH originals and placeholders.
+        // The text might contain either depending on the current visibility state.
+        const piiLookup: Array<{ searchText: string; type: string; label: string }> = [];
+        for (const m of mappings) {
+            const type = m.type || 'UNKNOWN';
+            const label = getPIILabel(type);
+            if (m.original) {
+                piiLookup.push({ searchText: m.original, type, label });
+            }
+            if (m.placeholder) {
+                piiLookup.push({ searchText: m.placeholder, type, label });
+            }
+        }
+        
+        doc.descendants((node, pos) => {
+            if (!node.isText || !node.text) return;
+            const nodeText = node.text;
+            // For each PII mapping, search for all occurrences within this text node
+            for (const pii of piiLookup) {
+                let searchFrom = 0;
+                while (searchFrom < nodeText.length) {
+                    const idx = nodeText.indexOf(pii.searchText, searchFrom);
+                    if (idx === -1) break;
+                    // ProseMirror position: pos is the absolute position of the text node start
+                    const from = pos + idx;
+                    const to = from + pii.searchText.length;
+                    results.push({ from, to, type: pii.type, label: pii.label });
+                    searchFrom = idx + pii.searchText.length;
+                }
+            }
+        });
+        
+        // Sort by position and deduplicate overlapping ranges
+        results.sort((a, b) => a.from - b.from);
+        // Remove overlapping results (keep the first one found)
+        const deduped: typeof results = [];
+        let lastEnd = -1;
+        for (const r of results) {
+            if (r.from >= lastEnd) {
+                deduped.push(r);
+                lastEnd = r.to;
+            }
+        }
+        return deduped;
+    }
+
+    /**
+     * Apply ProseMirror decorations to highlight restored PII values in read-only messages.
+     * 
+     * Searches the ProseMirror document directly (not flat text) to find correct
+     * positions for PII values. Also strips link marks from PII ranges so that
+     * emails don't render as clickable <a> tags.
+     *
+     * Two modes:
+     * - piiRevealed=true: Shows original values with orange bold text
+     * - piiRevealed=false (default): Replaces originals with placeholders, shown in green bold text
+     */
+    function applyPIIDecorations(editorInstance: Editor) {
+        if (!piiMappings || piiMappings.length === 0 || !editorInstance || editorInstance.isDestroyed) return;
+        
+        try {
+            const { state, view } = editorInstance;
+            const { doc } = state;
+            
+            // Find PII positions by walking the ProseMirror document directly.
+            // This gives correct positions that account for block-level structural offsets.
+            const piiPositions = findPIIPositionsInDoc(doc, piiMappings);
+            
+            if (piiPositions.length === 0) return;
+            
+            // Step 1: Remove link marks from PII ranges so emails/URLs don't
+            // render as clickable <a> tags. PII values should be plain highlighted text.
+            const linkMarkType = state.schema.marks.link;
+            if (linkMarkType) {
+                let tr = state.tr;
+                let hasLinkRemovals = false;
+                for (const pos of piiPositions) {
+                    let hasLink = false;
+                    doc.nodesBetween(pos.from, pos.to, (node) => {
+                        if (node.isText && linkMarkType.isInSet(node.marks)) {
+                            hasLink = true;
+                        }
+                    });
+                    if (hasLink) {
+                        tr = tr.removeMark(pos.from, pos.to, linkMarkType);
+                        hasLinkRemovals = true;
+                    }
+                }
+                if (hasLinkRemovals) {
+                    view.dispatch(tr);
+                }
+            }
+            
+            // Step 2: In HIDDEN mode, replace the actual text with placeholders.
+            // In REVEALED mode, restore originals (in case we previously replaced them).
+            // This is done via ProseMirror transactions so the DOM updates naturally.
+            const afterLinkState = editorInstance.state;
+            const afterLinkDoc = afterLinkState.doc;
+            const afterLinkPositions = findPIIPositionsInDoc(afterLinkDoc, piiMappings);
+            
+            // Build lookup maps for both directions
+            const originalToPlaceholder = new Map<string, string>();
+            const placeholderToOriginal = new Map<string, string>();
+            for (const m of piiMappings) {
+                originalToPlaceholder.set(m.original, m.placeholder);
+                placeholderToOriginal.set(m.placeholder, m.original);
+            }
+            
+            // Replace text content: swap originals↔placeholders depending on mode
+            let replaceTr = afterLinkState.tr;
+            let hasReplacements = false;
+            // Process positions in reverse order to avoid offset shifts
+            for (let i = afterLinkPositions.length - 1; i >= 0; i--) {
+                const pos = afterLinkPositions[i];
+                // Extract the current text in this range
+                let currentText = '';
+                afterLinkDoc.nodesBetween(pos.from, pos.to, (node, nodePos) => {
+                    if (node.isText && node.text) {
+                        const start = Math.max(0, pos.from - nodePos);
+                        const end = Math.min(node.text.length, pos.to - nodePos);
+                        currentText += node.text.slice(start, end);
+                    }
+                });
+                
+                let targetText: string | null = null;
+                if (!piiRevealed && originalToPlaceholder.has(currentText)) {
+                    // Hidden mode: replace original with placeholder
+                    targetText = originalToPlaceholder.get(currentText)!;
+                } else if (piiRevealed && placeholderToOriginal.has(currentText)) {
+                    // Revealed mode: replace placeholder with original
+                    targetText = placeholderToOriginal.get(currentText)!;
+                }
+                
+                if (targetText && targetText !== currentText) {
+                    const textNode = afterLinkState.schema.text(targetText);
+                    replaceTr = replaceTr.replaceWith(pos.from, pos.to, textNode);
+                    hasReplacements = true;
+                }
+            }
+            if (hasReplacements) {
+                view.dispatch(replaceTr);
+            }
+            
+            // Step 3: Apply PII highlight decorations on the (potentially updated) doc.
+            const updatedState = editorInstance.state;
+            const updatedDoc = updatedState.doc;
+            
+            // Re-find positions in updated doc after text replacements
+            const updatedPositions = findPIIPositionsInDoc(updatedDoc, piiMappings);
+            
+            const cssClass = piiRevealed ? 'pii-restored pii-revealed' : 'pii-restored pii-hidden';
+            const titleSuffix = piiRevealed ? '(sensitive data)' : '(hidden for privacy)';
+            
+            const decorations = updatedPositions.map(pos => {
+                return Decoration.inline(pos.from, pos.to, {
+                    class: cssClass,
+                    'data-pii-type': pos.type,
+                    title: `${pos.label} ${titleSuffix}`
+                });
+            });
+            
+            const decorationSet = DecorationSet.create(updatedDoc, decorations);
+            view.setProps({
+                decorations: () => decorationSet,
+            });
+            // Dispatch a no-op transaction to force ProseMirror to apply the decorations
+            view.dispatch(updatedState.tr);
+            
+            logger.debug(`Applied ${decorations.length} PII decorations (revealed: ${piiRevealed}) to read-only message`);
+        } catch (error) {
+            console.error('[ReadOnlyMessage] Error applying PII decorations:', error);
+        }
     }
 
     onMount(() => {
@@ -642,6 +843,9 @@
                 // Now safely replace content - the min-height prevents visual collapse
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
                 
+                // Re-apply PII decorations after content update
+                applyPIIDecorations(editor);
+                
                 // STREAMING FIX: After content renders, update min-height if content grew taller
                 // This allows smooth upward growth while preventing any shrinkage during streaming
                 if (isStreaming && editorElement) {
@@ -665,6 +869,19 @@
         }
     });
 
+
+    // Re-apply PII decorations when piiRevealed changes (user toggled visibility)
+    // This allows instant switching between showing placeholders and original values
+    // without re-processing the entire message content.
+    let previousPiiRevealed = $state(piiRevealed);
+    $effect(() => {
+        if (piiRevealed !== previousPiiRevealed) {
+            previousPiiRevealed = piiRevealed;
+            if (editor && !editor.isDestroyed) {
+                applyPIIDecorations(editor);
+            }
+        }
+    });
 
     onDestroy(() => {
         if (editor) {
@@ -987,4 +1204,54 @@
     }
 
     /* Remove artificial margins - whitespace should be preserved naturally */
+
+    /* ==========================================================================
+       PII RESTORED HIGHLIGHTING
+       Bold colored text for ALL PII types in read-only messages.
+       Same orange/amber color as the message input editor (MessageInput.styles.css).
+       No links, no underlines — just bold colored text.
+       
+        Two modes controlled by CSS classes:
+        - .pii-revealed: Original values shown in orange bold (warns sensitive data is exposed)
+        - .pii-hidden: Placeholders shown in green bold (indicates data is safely anonymized)
+       ========================================================================== */
+
+    /* Base style for all restored PII — shared by both revealed and hidden modes.
+       Uses bold colored text instead of background highlights for clean appearance. */
+    :global(.read-only-message .pii-restored) {
+        border-bottom: none;
+        text-decoration: none !important;
+        cursor: default;
+        font-family: inherit;
+        font-size: inherit;
+        letter-spacing: inherit;
+        font-weight: 600;
+    }
+
+    /* REVEALED MODE: Orange/amber bold text — warns that sensitive data is exposed */
+    :global(.read-only-message .pii-restored.pii-revealed) {
+        color: #f59e0b;
+    }
+
+    /* HIDDEN MODE: Green-toned bold text — indicates data is safely anonymized.
+       The original text is replaced by the placeholder in the DOM via ProseMirror,
+       so no CSS overlay trick is needed. */
+    :global(.read-only-message .pii-restored.pii-hidden) {
+        color: #4ade80;
+    }
+
+    /* Override link styling when PII is inside an anchor tag (e.g. email auto-linked).
+       PII values must NOT appear as clickable links — strip all link appearance. */
+    :global(.read-only-message a .pii-restored),
+    :global(.read-only-message .pii-restored a),
+    :global(.read-only-message a.pii-restored),
+    :global(.read-only-message .ProseMirror a .pii-restored),
+    :global(.read-only-message .ProseMirror .pii-restored a),
+    :global(.read-only-message .ProseMirror a.pii-restored) {
+        -webkit-text-fill-color: inherit !important;
+        color: inherit !important;
+        text-decoration: none !important;
+        pointer-events: none;
+        cursor: default;
+    }
 </style>

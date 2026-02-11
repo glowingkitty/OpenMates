@@ -22,6 +22,8 @@
     import CodeGetDocsEmbedPreview from '../../../components/embeds/code/CodeGetDocsEmbedPreview.svelte';
     import CodeEmbedPreview from '../../../components/embeds/code/CodeEmbedPreview.svelte';
     import ReminderEmbedPreview from '../../../components/embeds/reminder/ReminderEmbedPreview.svelte';
+    import TravelSearchEmbedPreview from '../../../components/embeds/travel/TravelSearchEmbedPreview.svelte';
+    import TravelPriceCalendarEmbedPreview from '../../../components/embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -416,6 +418,37 @@
                         filename: decodedContent.filename,
                         lineCount: decodedContent.line_count || 0,
                         codeContent: codeContent,
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Travel app: search_connections skill
+            if (embedAppId === 'travel' && (skillId === 'search_connections' || skillId === 'search-connections')) {
+                return {
+                    component: TravelSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Google',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Travel app: price_calendar skill
+            if (embedAppId === 'travel' && (skillId === 'price_calendar' || skillId === 'price-calendar')) {
+                return {
+                    component: TravelPriceCalendarEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        status: status,
+                        results: decodedContent.results || [],
                         isMobile: false,
                         onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
                     }

@@ -437,6 +437,29 @@ report_bad_answer.title:
   cs: Špatná kvalita odpovědi
   sv: Dålig svarskvalitet
   verified_by_human: []
+report_bad_answer.retry_message:
+  context: Message pasted into the chat input when user clicks the dislike button, asking the assistant to try again with better tools
+  en: I am not happy with the response. Use web search or other app skills and try again.
+  de: Ich bin mit der Antwort nicht zufrieden. Verwende die Websuche oder andere App-Skills und versuche es erneut.
+  zh: 我对这个回答不满意。请使用网络搜索或其他应用技能重新尝试。
+  es: No estoy satisfecho con la respuesta. Usa la busqueda web u otras habilidades de la app e intentalo de nuevo.
+  fr: Je ne suis pas satisfait de la reponse. Utilise la recherche web ou d'autres competences de l'application et reessaie.
+  pt: Nao estou satisfeito com a resposta. Use a pesquisa na web ou outras habilidades do app e tente novamente.
+  ru: Я не доволен ответом. Используй веб-поиск или другие навыки приложения и попробуй снова.
+  ja: この回答に満足していません。ウェブ検索や他のアプリスキルを使ってもう一度試してください。
+  ko: 이 응답에 만족하지 않습니다. 웹 검색이나 다른 앱 스킬을 사용해서 다시 시도해 주세요.
+  it: Non sono soddisfatto della risposta. Usa la ricerca web o altre competenze dell'app e riprova.
+  tr: Bu yanittan memnun degilim. Web aramasini veya diger uygulama becerilerini kullan ve tekrar dene.
+  vi: Toi khong hai long voi cau tra loi. Hay su dung tim kiem web hoac cac ky nang ung dung khac va thu lai.
+  id: Saya tidak puas dengan jawabannya. Gunakan pencarian web atau keterampilan aplikasi lainnya dan coba lagi.
+  pl: Nie jestem zadowolony z odpowiedzi. Uzyj wyszukiwania internetowego lub innych umiejetnosci aplikacji i sprobuj ponownie.
+  nl: Ik ben niet tevreden met het antwoord. Gebruik de webzoekmachine of andere app-vaardigheden en probeer het opnieuw.
+  ar: "\u0644\u0633\u062A \u0631\u0627\u0636\u064A\u064B\u0627 \u0639\u0646 \u0627\u0644\u0631\u062F. \u0627\u0633\u062A\u062E\u062F\u0645 \u0628\u062D\u062B \u0627\u0644\u0648\u064A\u0628 \u0623\u0648 \u0645\u0647\u0627\u0631\u0627\u062A \u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0623\u062E\u0631\u0649 \u0648\u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649."
+  hi: "\u092E\u0948\u0902 \u0907\u0938 \u0909\u0924\u094D\u0924\u0930 \u0938\u0947 \u0916\u0941\u0936 \u0928\u0939\u0940\u0902 \u0939\u0942\u0901\u0964 \u0935\u0947\u092C \u0938\u0930\u094D\u091A \u092F\u093E \u0905\u0928\u094D\u092F \u0910\u092A \u0915\u094C\u0936\u0932 \u0915\u093E \u0909\u092A\u092F\u094B\u0917 \u0915\u0930\u0947\u0902 \u0914\u0930 \u092B\u093F\u0930 \u0938\u0947 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964"
+  th: "\u0E09\u0E31\u0E19\u0E44\u0E21\u0E48\u0E1E\u0E2D\u0E43\u0E08\u0E01\u0E31\u0E1A\u0E04\u0E33\u0E15\u0E2D\u0E1A\u0E19\u0E35\u0E49 \u0E43\u0E0A\u0E49\u0E01\u0E32\u0E23\u0E04\u0E49\u0E19\u0E2B\u0E32\u0E40\u0E27\u0E47\u0E1A\u0E2B\u0E23\u0E37\u0E2D\u0E17\u0E31\u0E01\u0E29\u0E30\u0E41\u0E2D\u0E1B\u0E2D\u0E37\u0E48\u0E19\u0E46 \u0E41\u0E25\u0E30\u0E25\u0E2D\u0E07\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"
+  cs: Nejsem spokojen s odpovedi. Pouzij webove vyhledavani nebo jine dovednosti aplikace a zkus to znovu.
+  sv: Jag ar inte nojd med svaret. Anvand webbsokning eller andra appfardigheter och forsok igen.
+  verified_by_human: []
 report_bad_answer.template:
   context: Prefilled template for reporting a bad answer
   en: "\n\n\nMessage link:\n{link}"
@@ -459,6 +482,52 @@ report_bad_answer.template:
   th: "\n\n\nลิงก์ข้อความ:\n{link}"
   cs: "\n\n\nOdkaz na zprávu:\n{link}"
   sv: "\n\n\nMeddelandelänk:\n{link}"
+  verified_by_human: []
+embed_error.message:
+  context: Error banner shown below assistant message when an app skill embed fails to process
+  en: An error occurred while processing your request.
+  de: Beim Verarbeiten Ihrer Anfrage ist ein Fehler aufgetreten.
+  zh: 处理您的请求时发生错误。
+  es: Se produjo un error al procesar su solicitud.
+  fr: Une erreur s'est produite lors du traitement de votre demande.
+  pt: Ocorreu um erro ao processar sua solicitacao.
+  ru: Произошла ошибка при обработке вашего запроса.
+  ja: リクエストの処理中にエラーが発生しました。
+  ko: 요청을 처리하는 중 오류가 발생했습니다.
+  it: Si e verificato un errore durante l'elaborazione della richiesta.
+  tr: Istegi islerken bir hata olustu.
+  vi: Da xay ra loi khi xu ly yeu cau cua ban.
+  id: Terjadi kesalahan saat memproses permintaan Anda.
+  pl: Wystapil blad podczas przetwarzania zadania.
+  nl: Er is een fout opgetreden bij het verwerken van uw verzoek.
+  ar: حدث خطأ أثناء معالجة طلبك.
+  hi: आपके अनुरोध को संसाधित करते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะประมวลผลคำขอของคุณ
+  cs: Pri zpracovani vaseho pozadavku doslo k chybe.
+  sv: Ett fel uppstod vid behandling av din begaran.
+  verified_by_human: []
+embed_error.report_link:
+  context: Clickable link text in the error banner to report the issue
+  en: Click here to report the issue, to help fixing it.
+  de: Klicken Sie hier, um das Problem zu melden und bei der Behebung zu helfen.
+  zh: 点击此处报告问题，以帮助修复它。
+  es: Haga clic aqui para reportar el problema y ayudar a solucionarlo.
+  fr: Cliquez ici pour signaler le probleme et aider a le resoudre.
+  pt: Clique aqui para relatar o problema e ajudar a corrigi-lo.
+  ru: Нажмите здесь, чтобы сообщить о проблеме и помочь её исправить.
+  ja: ここをクリックして問題を報告し、修正にご協力ください。
+  ko: 문제를 신고하고 수정에 도움을 주려면 여기를 클릭하세요.
+  it: Clicca qui per segnalare il problema e aiutare a risolverlo.
+  tr: Sorunu bildirmek ve cozulmesine yardimci olmak icin buraya tiklayin.
+  vi: Nhan vao day de bao cao su co va giup khac phuc.
+  id: Klik di sini untuk melaporkan masalah dan membantu memperbaikinya.
+  pl: Kliknij tutaj, aby zglosic problem i pomoc go naprawic.
+  nl: Klik hier om het probleem te melden en te helpen bij het oplossen.
+  ar: انقر هنا للإبلاغ عن المشكلة والمساعدة في إصلاحها.
+  hi: समस्या की रिपोर्ट करने और इसे ठीक करने में मदद करने के लिए यहां क्लिक करें।
+  th: คลิกที่นี่เพื่อรายงานปัญหาและช่วยแก้ไข
+  cs: Kliknete sem pro nahlaseni problemu a pomoc pri jeho oprave.
+  sv: Klicka har for att rapportera problemet och hjalpa till att atgarda det.
   verified_by_human: []
 generated_by:
   context: Label indicating which AI model generated the response
@@ -575,3 +644,13 @@ settings_memories_suggestions.privacy_notice:
   cs: "Vaše nastavení a vzpomínky jsou šifrovány a mohou být dešifrovány pouze vašimi zařízeními."
   sv: "Dina inställningar och minnen är krypterade och kan endast dekrypteras av dina enheter."
   verified_by_human: []
+
+pii_hide:
+  context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
+  en: Hide sensitive data
+  de: Sensible Daten ausblenden
+
+pii_show:
+  context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
+  en: Show sensitive data
+  de: Sensible Daten anzeigen

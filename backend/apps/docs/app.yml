@@ -1,0 +1,62 @@
+# Docs App Configuration
+# Handles document generation and management (Word/Google Docs-like documents)
+# Documents are created via document_html fenced code blocks in the AI response stream
+
+# App metadata
+app_id: docs
+name_translation_key: docs.text
+description_translation_key: docs.description.text
+icon_image: |
+  docs.svg
+category: productivity
+stage: production
+
+# Embed types produced by this app
+embeds:
+  - id: doc_embed
+    description_embed: Rich document preview with formatted HTML content (reports, articles, letters, etc.)
+
+# Instructions injected into the AI system prompt when this app is available
+# These are loaded dynamically by the main processor based on app discovery
+instructions:
+  - instruction: |
+      **Document Generation (Docs App)**
+      When the user asks you to create, write, or generate a document, report, article, blog post,
+      essay, cover letter, proposal, memo, guide, or any substantial formatted content:
+      - Use the ```document_html code fence to produce the document
+      - Include a <!-- title: "..." --> comment as the first line with the document title
+      - Include a <!-- filename: "Descriptive_Name.docx" --> comment as the second line with a .docx filename
+        The filename should be a short, descriptive name using underscores (e.g., "Rental_Agreement.docx", "Cover_Letter_Google.docx", "Q4_Sales_Report.docx")
+      - Use semantic HTML for proper structure (h1-h6, p, ul/ol, table, blockquote, etc.)
+      - The document will be rendered as an interactive preview card that the user can open in fullscreen
+
+# Skills (planned for future implementation)
+skills: []
+
+# Focuses (planned for future implementation)
+focus_modes: []
+
+# Settings and memories for document generation preferences
+settings_and_memories:
+  - id: writing_style
+    name_translation_key: docs.writing_style.text
+    description_translation_key: docs.writing_style.description.text
+    type: list
+    stage: production
+    example_translation_keys:
+      - "docs.writing_style.example_1.text"
+      - "docs.writing_style.example_2.text"
+      - "docs.writing_style.example_3.text"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Style name (e.g., Formal Business, Academic, Casual Blog)
+          is_title: true
+        description:
+          type: string
+          description: Description of this writing style and when to use it
+          is_subtitle: true
+      required:
+        - name
