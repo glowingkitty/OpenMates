@@ -224,7 +224,6 @@
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          Origin: window.location.origin,
         },
         body: JSON.stringify({
           booking_token: connection.booking_token,
