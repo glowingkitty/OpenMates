@@ -17,9 +17,10 @@ import hashlib
 import base64
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from io import BytesIO
 
+import httpx
 from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -29,8 +30,121 @@ from backend.core.api.app.utils.image_processing import process_image_for_storag
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 
 logger = logging.getLogger(__name__)
+
+# Internal API configuration for billing calls
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+
+
+async def _charge_image_generation_credits(
+    user_id: str,
+    user_id_hash: str,
+    app_id: str,
+    skill_id: str,
+    model_ref: Optional[str],
+    original_width: int,
+    original_height: int,
+    chat_id: Optional[str],
+    message_id: Optional[str],
+    log_prefix: str
+) -> None:
+    """
+    Charge credits for a successful image generation.
+    
+    Uses the provider pricing config (fetched via internal API) to calculate
+    the correct credits based on the pricing model:
+    - per_unit with unit_name "megapixel": charges based on actual image megapixels
+    - per_unit with unit_name "image": charges a fixed amount per image
+    - Fallback: charges MINIMUM_CREDITS_CHARGED if no pricing config found
+    
+    Billing is non-blocking: failures are logged but don't break image delivery.
+    """
+    try:
+        headers = {"Content-Type": "application/json"}
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+
+        # Fetch provider model pricing via internal API
+        pricing_config = None
+        if model_ref and "/" in model_ref:
+            provider_id, model_suffix = model_ref.split("/", 1)
+            endpoint = f"{INTERNAL_API_BASE_URL}/internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(endpoint, headers=headers)
+                if response.status_code == 200:
+                    pricing_config = response.json()
+                    logger.info(f"{log_prefix} Fetched pricing config for '{model_ref}': {pricing_config}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to fetch pricing for '{model_ref}': {response.status_code}")
+
+        # Calculate credits based on pricing config
+        if pricing_config:
+            # Determine units_processed based on the pricing model
+            per_unit = pricing_config.get("per_unit") or (pricing_config.get("pricing", {}).get("per_unit"))
+            unit_name = per_unit.get("unit_name", "image") if per_unit else "image"
+            
+            if unit_name == "megapixel" and original_width > 0 and original_height > 0:
+                # Calculate megapixels from actual image dimensions
+                megapixels = (original_width * original_height) / 1_000_000
+                # Round up to nearest whole unit for billing (at least 1)
+                units_processed = max(1, round(megapixels))
+                logger.info(
+                    f"{log_prefix} Image is {original_width}x{original_height} = {megapixels:.2f} megapixels, "
+                    f"billing for {units_processed} unit(s)"
+                )
+            else:
+                # Per-image pricing (e.g., google/gemini: 200 credits per image)
+                units_processed = 1
+            
+            credits_charged = calculate_total_credits(
+                pricing_config=pricing_config,
+                units_processed=units_processed
+            )
+        else:
+            # No pricing config found - charge minimum to avoid free usage
+            credits_charged = MINIMUM_CREDITS_CHARGED
+            logger.warning(f"{log_prefix} No pricing config for '{model_ref}', using minimum charge: {credits_charged}")
+
+        if credits_charged <= 0:
+            logger.debug(f"{log_prefix} Calculated credits is 0, skipping billing.")
+            return
+
+        # Prepare usage details for the billing service
+        usage_details = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "units_processed": 1,  # Always 1 image per Celery task
+        }
+
+        charge_payload = {
+            "user_id": user_id,
+            "user_id_hash": user_id_hash,
+            "credits": credits_charged,
+            "skill_id": skill_id,
+            "app_id": app_id,
+            "usage_details": usage_details
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            logger.info(f"{log_prefix} Charging {credits_charged} credits for '{app_id}.{skill_id}' (model: {model_ref})")
+            response = await client.post(url, json=charge_payload, headers=headers)
+            response.raise_for_status()
+            logger.info(f"{log_prefix} Successfully charged {credits_charged} credits for '{app_id}.{skill_id}'")
+
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            f"{log_prefix} HTTP error charging credits for '{app_id}.{skill_id}': "
+            f"{e.response.status_code} - {e.response.text}", exc_info=True
+        )
+        # Don't raise - billing failure shouldn't break image delivery
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits for '{app_id}.{skill_id}': {e}", exc_info=True)
+        # Don't raise - billing failure shouldn't break image delivery
 
 
 def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
@@ -105,7 +219,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 4. Call Provider API
         logger.info(f"{log_prefix} Calling provider for model: {model_ref}")
         image_bytes = None
+        # actual_model: full provider reference for logging and XMP metadata
+        # display_model_id: short model ID matching frontend modelsMetadata
+        #   (e.g., "flux-schnell", "gemini-3-pro-image-preview") for embed content
         actual_model = model_ref or "Unknown AI"
+        display_model_id = model_ref.split('/')[-1] if model_ref and "/" in model_ref else (model_ref or "Unknown")
         
         if model_ref and "google" in model_ref:
             model_id = model_ref.split('/')[-1] if "/" in model_ref else model_ref
@@ -116,6 +234,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 model_id=model_id
             )
             actual_model = f"Google {model_id}"
+            display_model_id = model_id
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
             # Map model ref to fal.ai model ID
             # bfl/flux-schnell -> fal-ai/flux-2/klein/9b/base
@@ -129,6 +248,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 model_id=fal_model_id
             )
             actual_model = f"fal.ai {fal_model_id}"
+            # display_model_id already set from model_ref split (e.g., "flux-schnell")
         else:
             # Fallback to draft if not specified or unknown
             logger.warning(f"{log_prefix} Unknown or missing model reference '{model_ref}', falling back to FLUX.2 Klein")
@@ -139,24 +259,45 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 model_id=fal_model_id
             )
             actual_model = f"fal.ai {fal_model_id} (fallback)"
+            display_model_id = "flux-schnell"
 
         if not image_bytes:
             raise Exception("Provider returned empty image data")
 
-        # Update model_ref to the actual model used for the rest of the task
-        model_ref = actual_model
+        # Log actual provider model used, keep display_model_id for embed content
+        logger.info(f"{log_prefix} Provider model: {actual_model}, display ID: {display_model_id}")
 
         # 5. Get original image dimensions
         original_width, original_height = _get_image_dimensions(image_bytes)
         logger.info(f"{log_prefix} Original image dimensions: {original_width}x{original_height}")
 
+        # 5b. Charge credits for the image generation
+        # Done after successful generation but before processing/upload, so we only
+        # charge for images that were actually generated by the provider.
+        # Uses the original full_model_reference (e.g., "bfl/flux-schnell" or
+        # "google/gemini-3-pro-image-preview") to look up provider pricing.
+        hashed_user_id = _hash_value(user_id)
+        await _charge_image_generation_credits(
+            user_id=user_id,
+            user_id_hash=hashed_user_id,
+            app_id=app_id,
+            skill_id=skill_id,
+            model_ref=arguments.get("full_model_reference"),
+            original_width=original_width,
+            original_height=original_height,
+            chat_id=chat_id,
+            message_id=message_id,
+            log_prefix=log_prefix
+        )
+
         # 6. Process image (Original + Full WEBP + Preview WEBP)
         logger.info(f"{log_prefix} Processing image into multiple formats...")
         
-        # Prepare metadata for labeling (no visible text, just invisible standard metadata)
+        # Prepare metadata for XMP/C2PA labeling (invisible standard metadata).
+        # Uses actual_model (full provider reference) for accurate provenance tracking.
         labeling_metadata = {
             "prompt": prompt,
-            "model": model_ref,
+            "model": actual_model,
             "software": "OpenMates",
             "source": "OpenMates AI",
             "generated_at": datetime.now(timezone.utc).isoformat()
@@ -286,7 +427,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "aes_nonce": nonce_b64,          # GCM nonce shared across all image formats
             "vault_wrapped_aes_key": encrypted_aes_key_vault,  # For server-side LLM vision access
             "prompt": prompt,
-            "model": model_ref,
+            "model": display_model_id,
             "aspect_ratio": aspect_ratio,
             "generated_at": generated_at
         }
@@ -322,7 +463,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Store encrypted in IndexedDB
         # 4. Send encrypted version back to server for Directus persistence
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        hashed_user_id = _hash_value(user_id)
+        # hashed_user_id already computed in step 5b (billing)
         
         # Use EmbedService.send_embed_data_to_client for standard WebSocket delivery
         from backend.core.api.app.services.embed_service import EmbedService
@@ -372,7 +513,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 for format_name, meta in files_metadata.items()
             },
             "prompt": prompt,
-            "model": model_ref,
+            "model": display_model_id,
             "aspect_ratio": aspect_ratio,
             "generated_at": generated_at
         }
