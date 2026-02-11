@@ -78,6 +78,7 @@
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
+    import { getCategoryGradientColors, getFallbackIconForCategory, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
@@ -1666,48 +1667,77 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
     // Local state for the "Continue where you left off" card on the new chat screen.
-    // Always shows the most recently used chat. Refreshes every time the user
-    // returns to the welcome screen (e.g. after opening a chat and clicking "new chat").
+    // Shows the chat matching $userProfile.last_opened (most recently opened/viewed chat).
+    // Refreshes every time the user returns to the welcome screen or last_opened changes.
     let resumeChatData = $state<Chat | null>(null);
     let resumeChatTitle = $state<string | null>(null);
+    let resumeChatCategory = $state<string | null>(null);
+    let resumeChatIcon = $state<string | null>(null);
 
     /**
-     * Query IndexedDB for the most recently edited chat and populate the resume card.
-     * Called by an $effect when the welcome screen appears, and can be retried for sync delays.
+     * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
+     * Decrypts title, category, and icon for the resume card display.
+     * Returns true if a chat was found and loaded.
      */
-    async function loadResumeChatFromDB(): Promise<boolean> {
+    async function loadResumeChatFromDB(lastOpenedId: string): Promise<boolean> {
         try {
             await chatDB.init();
-            const allChats = await chatDB.getAllChats();
 
-            // Find the most recent chat (sorted by last_edited_overall_timestamp desc)
-            const mostRecent = allChats.find(c => c.last_edited_overall_timestamp > 0);
-            if (!mostRecent) return false;
+            // Look up the specific chat by ID from last_opened
+            const chat = await chatDB.getChat(lastOpenedId);
+            if (!chat) return false;
 
-            // Decrypt the title for display
+            // Decrypt title, category, and icon using the chat key
             let decryptedTitle: string | null = null;
-            if (mostRecent.encrypted_title) {
-                try {
-                    const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
-                    let chatKey = chatDB.getChatKey(mostRecent.chat_id);
-                    if (!chatKey && mostRecent.encrypted_chat_key) {
-                        chatKey = await decryptChatKeyWithMasterKey(mostRecent.encrypted_chat_key);
-                        if (chatKey) {
-                            chatDB.setChatKey(mostRecent.chat_id, chatKey);
-                        }
-                    }
-                    if (chatKey) {
-                        decryptedTitle = await decryptWithChatKey(mostRecent.encrypted_title, chatKey);
-                    }
-                } catch {
-                    // Title decryption failed – fall through to default
+            let decryptedCategory: string | null = null;
+            let decryptedIcon: string | null = null;
+
+            const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+            let chatKey = chatDB.getChatKey(chat.chat_id);
+            if (!chatKey && chat.encrypted_chat_key) {
+                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                if (chatKey) {
+                    chatDB.setChatKey(chat.chat_id, chatKey);
                 }
             }
 
-            const displayTitle = mostRecent.title || decryptedTitle || 'Untitled Chat';
-            resumeChatData = mostRecent;
+            if (chatKey) {
+                // Decrypt title
+                if (chat.encrypted_title) {
+                    try {
+                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+                    } catch {
+                        // Title decryption failed – fall through to default
+                    }
+                }
+                // Decrypt category
+                if (chat.encrypted_category) {
+                    try {
+                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                    } catch {
+                        // Category decryption failed – will use fallback
+                    }
+                }
+                // Decrypt icon
+                if (chat.encrypted_icon) {
+                    try {
+                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                    } catch {
+                        // Icon decryption failed – will use fallback
+                    }
+                }
+            }
+
+            // Use cleartext fields as fallback (demo chats have these set directly)
+            const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+            const displayCategory = chat.category || decryptedCategory || null;
+            const displayIcon = chat.icon || decryptedIcon || null;
+
+            resumeChatData = chat;
             resumeChatTitle = displayTitle;
-            console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${mostRecent.chat_id})`);
+            resumeChatCategory = displayCategory;
+            resumeChatIcon = displayIcon;
+            console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
             return true;
         } catch (error) {
             console.warn('[ActiveChat] Error loading resume chat from IndexedDB:', error);
@@ -1716,12 +1746,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Refresh the resume card every time the welcome screen appears for an authenticated user.
+    // Reacts to $userProfile.last_opened changes so opening a chat updates the card on return.
     // Retries a few times to handle sync delays on fresh login (IndexedDB may be empty initially).
     $effect(() => {
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
+        const lastOpened = $userProfile.last_opened;
 
-        if (!isWelcome || !isAuth) {
+        // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
+        // (not empty, not '/chat/new' which means the user was already on the new chat screen)
+        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new') {
+            resumeChatData = null;
+            resumeChatTitle = null;
+            resumeChatCategory = null;
+            resumeChatIcon = null;
             return;
         }
 
@@ -1731,7 +1769,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         const tryLoad = async (attempt: number) => {
             if (cancelled) return;
-            const found = await loadResumeChatFromDB();
+            const found = await loadResumeChatFromDB(lastOpened);
             if (!found && !cancelled && attempt < maxAttempts) {
                 setTimeout(() => tryLoad(attempt + 1), delayMs);
             }
@@ -3130,6 +3168,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Clear resume state
         resumeChatData = null;
         resumeChatTitle = null;
+        resumeChatCategory = null;
+        resumeChatIcon = null;
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
         phasedSyncState.markInitialChatLoaded();
@@ -5275,13 +5315,47 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <p>
-                                        {#each welcomePromptParts as part, index}
-                                            <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
-                                        {/each}
-                                    </p>
+                                    <!-- Subtitle: show "Continue where you left off" when resume chat exists,
+                                         otherwise show the default "What do you need help with?" prompt -->
+                                    {#if resumeChatData}
+                                        <p>{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</p>
+                                    {:else}
+                                        <p>
+                                            {#each welcomePromptParts as part, index}
+                                                <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
+                                            {/each}
+                                        </p>
+                                    {/if}
                                 </div>
                             </div>
+
+                            <!-- Resume card: shown below greeting when there's a chat to resume -->
+                            {#if resumeChatData}
+                                {@const category = resumeChatCategory || 'general_knowledge'}
+                                {@const gradientColors = getCategoryGradientColors(category)}
+                                {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                <button 
+                                    class="resume-chat-card"
+                                    onclick={handleResumeLastChat}
+                                    type="button"
+                                >
+                                    <div 
+                                        class="resume-chat-category-circle"
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="resume-chat-category-icon">
+                                            <IconComponent size={16} color="white" />
+                                        </div>
+                                    </div>
+                                    <div class="resume-chat-content">
+                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                    </div>
+                                    <div class="resume-chat-arrow">
+                                        <div class="icon icon_chevron_right"></div>
+                                    </div>
+                                </button>
+                            {/if}
                         </div>
                     {/if}
 
@@ -5320,33 +5394,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     <div class="message-input-container">
-                        <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
-                        <!-- Driven by local $effect that queries IndexedDB directly (no Phase 1 timing dependency) -->
-                        <!-- Also hide on mobile when keyboard is open to free up vertical space -->
-                        {#if showWelcome && resumeChatData && !hideWelcomeForKeyboard}
-                            <div class="resume-last-chat-section" transition:fade={{ duration: 300 }}>
-                                <div class="resume-last-chat-header">
-                                    <span class="resume-title">{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</span>
-                                </div>
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleResumeLastChat}
-                                    type="button"
-                                >
-                                    <div class="resume-chat-icon">
-                                        <div class="icon icon_chat"></div>
-                                    </div>
-                                    <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
-                                    </div>
-                                    <div class="resume-chat-arrow">
-                                        <div class="icon icon_chevron_right"></div>
-                                    </div>
-                                </button>
-                                <!-- No dismiss button – user is already in "new chat" mode -->
-                            </div>
-                        {/if}
-                        
                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
                         <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
                         <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
@@ -6289,36 +6336,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
-    /* Resume Last Chat section - shown above NewChatSuggestions after login */
-    .resume-last-chat-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
-        max-width: 629px;
-        width: 100%;
-    }
-
-    .resume-last-chat-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .resume-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-grey-70);
-    }
-
+    /* Resume chat card - shown in center-content below welcome greeting */
     .resume-chat-card {
         display: flex;
         align-items: center;
         gap: 12px;
         width: 100%;
-        padding: 14px 16px;
+        max-width: 400px;
+        padding: 12px 16px;
+        margin-top: 16px;
         background-color: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
         border-radius: 12px;
@@ -6339,21 +6365,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: none;
     }
 
-    .resume-chat-icon {
+    /* Category gradient circle matching Chat.svelte sidebar design */
+    .resume-chat-category-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, var(--color-primary-40), var(--color-primary-60));
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         flex-shrink: 0;
     }
 
-    .resume-chat-icon .icon {
-        width: 20px;
-        height: 20px;
-        filter: brightness(0) invert(1);
+    .resume-chat-category-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .resume-chat-content {
