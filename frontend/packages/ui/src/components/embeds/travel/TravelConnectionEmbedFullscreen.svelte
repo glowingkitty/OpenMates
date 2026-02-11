@@ -448,40 +448,10 @@
   // ---------------------------------------------------------------------------
   
   /**
-   * Handle share - opens share settings for this connection embed.
-   * Uses the same pattern as other fullscreen embeds (WebSearch, Videos, etc.)
+   * Share is handled by UnifiedEmbedFullscreen's built-in share handler
+   * which uses currentEmbedId, appId, and skillId to construct the embed
+   * share context and properly opens the settings panel (including on mobile).
    */
-  async function handleShare() {
-    try {
-      console.debug('[TravelConnectionEmbedFullscreen] Opening share settings:', { embedId, route: routeDisplay });
-      
-      if (!embedId) {
-        console.warn('[TravelConnectionEmbedFullscreen] No embed_id available - cannot create share link');
-        notificationStore.error('Unable to share this connection. Missing embed ID.');
-        return;
-      }
-      
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-      
-      const embedContext = {
-        type: 'travel_connection',
-        embed_id: embedId,
-        title: routeDisplay || 'Flight Connection',
-      };
-      
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-      navigateToSettings('shared/share', 'Share Connection', 'share', 'settings.share.share_travel_connection.text');
-      settingsDeepLink.set('shared/share');
-      panelState.openSettings();
-      
-      console.debug('[TravelConnectionEmbedFullscreen] Opened share settings');
-    } catch (error) {
-      console.error('[TravelConnectionEmbedFullscreen] Error opening share settings:', error);
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
   
   // ---------------------------------------------------------------------------
   // Copy flight details to clipboard
@@ -954,7 +924,6 @@
   skillId="connection"
   title=""
   {onClose}
-  onShare={handleShare}
   onCopy={handleCopy}
   onDownload={handleDownload}
   skillIconName="search"

@@ -353,48 +353,9 @@ ${sanitizedHtml}
     }
   }
 
-  // Handle share
-  async function handleShare() {
-    try {
-      console.debug('[DocsEmbedFullscreen] Opening share settings for document embed:', {
-        embedId,
-        title: displayTitle,
-        wordCount: actualWordCount
-      });
-
-      if (!embedId) {
-        console.warn('[DocsEmbedFullscreen] No embed_id available');
-        notificationStore.error('Unable to share this document. Missing embed ID.');
-        return;
-      }
-
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      const embedContext = {
-        type: 'document',
-        embed_id: embedId,
-        title: displayTitle,
-        wordCount: actualWordCount
-      };
-
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-
-      navigateToSettings(
-        'shared/share',
-        $text('settings.share.share_document.text', { default: 'Share Document' }),
-        'share',
-        'settings.share.share_document.text'
-      );
-
-      settingsDeepLink.set('shared/share');
-      panelState.openSettings();
-    } catch (error) {
-      console.error('[DocsEmbedFullscreen] Error opening share settings:', error);
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
 </script>
 
 <UnifiedEmbedFullscreen
@@ -404,7 +365,7 @@ ${sanitizedHtml}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
-  onShare={handleShare}
+  currentEmbedId={embedId}
   skillIconName={skillIconName}
   status="finished"
   {skillName}

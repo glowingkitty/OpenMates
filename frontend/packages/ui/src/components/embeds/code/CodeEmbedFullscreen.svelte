@@ -151,60 +151,9 @@
     }
   }
 
-  // Handle share - opens share settings menu for this specific code embed
-  async function handleShare() {
-    try {
-      console.debug('[CodeEmbedFullscreen] Opening share settings for code embed:', {
-        embedId,
-        filename: renderFilename,
-        language: renderLanguage,
-        lineCount: actualLineCount
-      });
-
-      // Check if we have embed_id for proper sharing
-      if (!embedId) {
-        console.warn('[CodeEmbedFullscreen] No embed_id available - cannot create encrypted share link');
-        notificationStore.error('Unable to share this code embed. Missing embed ID.');
-        return;
-      }
-
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      // Set embed context with embed_id for proper encrypted sharing
-      const embedContext = {
-        type: 'code',
-        embed_id: embedId,
-        filename: renderFilename,
-        language: renderLanguage,
-        lineCount: actualLineCount
-      };
-
-      // Store embed context for SettingsShare
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-
-      // Navigate to share settings
-      navigateToSettings(
-        'shared/share',
-        $text('settings.share.share_code.text', { default: 'Share Code' }),
-        'share',
-        'settings.share.share_code.text'
-      );
-
-      // Also set settingsDeepLink to ensure Settings component navigates properly
-      settingsDeepLink.set('shared/share');
-
-      // Open settings panel
-      panelState.openSettings();
-
-      console.debug('[CodeEmbedFullscreen] Opened share settings for code embed');
-    } catch (error) {
-      console.error('[CodeEmbedFullscreen] Error opening share settings:', error);
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
   
 </script>
 
@@ -219,7 +168,7 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
-  onShare={handleShare}
+  currentEmbedId={embedId}
   skillIconName={skillIconName}
   status="finished"
   {skillName}

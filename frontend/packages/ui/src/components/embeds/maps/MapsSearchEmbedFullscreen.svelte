@@ -179,62 +179,9 @@
     return [];
   }
   
-  // Handle share - opens share settings menu for this specific maps search embed
-  async function handleShare() {
-    try {
-      console.debug('[MapsSearchEmbedFullscreen] Opening share settings for maps search embed:', {
-        embedId,
-        query,
-        provider
-      });
-
-      // Check if we have embed_id for proper sharing
-      if (!embedId) {
-        console.warn('[MapsSearchEmbedFullscreen] No embed_id available - cannot create encrypted share link');
-        const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this maps search embed. Missing embed ID.');
-        return;
-      }
-
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      // Set embed context with embed_id for proper encrypted sharing
-      const embedContext = {
-        type: 'maps_search',
-        embed_id: embedId,
-        query: query,
-        provider: provider
-      };
-
-      // Store embed context for SettingsShare
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-
-      // Navigate to share settings
-      navigateToSettings('shared/share', 'Share Maps Search', 'share', 'settings.share.share_maps_search.text');
-      
-      // Also set settingsDeepLink to ensure Settings component navigates properly
-      settingsDeepLink.set('shared/share');
-
-      // Open settings panel
-      panelState.openSettings();
-
-      console.debug('[MapsSearchEmbedFullscreen] Opened share settings for maps search embed');
-    } catch (error) {
-      console.error('[MapsSearchEmbedFullscreen] Error opening share settings:', error);
-      const { notificationStore } = await import('../../../stores/notificationStore');
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
-  
-  // Handle opening search in Google Maps
-  function handleOpenInProvider() {
-    // Create Google Maps search URL
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
   
   // Handle opening place in Google Maps
   function handleOpenPlace(place: PlaceSearchResult) {
@@ -414,12 +361,11 @@
   The childEmbedTransformer converts raw embed data to PlaceSearchResult format
 -->
 <UnifiedEmbedFullscreen
-  onShare={handleShare}
   appId="maps"
   skillId="search"
   title=""
   {onClose}
-  onOpen={handleOpenInProvider}
+  currentEmbedId={embedId}
   skillIconName="search"
   status="finished"
   {skillName}

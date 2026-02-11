@@ -366,60 +366,9 @@
     }
   }
   
-  // Handle share - opens share settings menu for this specific website embed
-  async function handleShare() {
-    try {
-      console.debug('[WebsiteEmbedFullscreen] Opening share settings for website embed:', {
-        embedId,
-        url,
-        title: displayTitle,
-        description: displayDescription
-      });
-
-      // Check if we have embed_id for proper sharing
-      if (!embedId) {
-        console.warn('[WebsiteEmbedFullscreen] No embed_id available - cannot create encrypted share link');
-        const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this website embed. Missing embed ID.');
-        return;
-      }
-
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      // Set embed context with embed_id for proper encrypted sharing
-      const embedContext = {
-        type: 'website',
-        embed_id: embedId,
-        url: url,
-        title: displayTitle,
-        description: displayDescription,
-        favicon: faviconUrl,
-        image: imageUrl,
-        snippets: snippets
-      };
-
-      // Store embed context for SettingsShare
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-
-      // Navigate to share settings
-      navigateToSettings('shared/share', 'Share Website', 'share', 'settings.share.share_website.text');
-      
-      // Also set settingsDeepLink to ensure Settings component navigates properly
-      settingsDeepLink.set('shared/share');
-
-      // Open settings panel
-      panelState.openSettings();
-
-      console.debug('[WebsiteEmbedFullscreen] Opened share settings for website embed');
-    } catch (error) {
-      console.error('[WebsiteEmbedFullscreen] Error opening share settings:', error);
-      const { notificationStore } = await import('../../../stores/notificationStore');
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
   
   // Track image loading error to hide broken images
   let imageError = $state(false);
@@ -441,7 +390,7 @@
   skillId="website"
   title=""
   {onClose}
-  onShare={handleShare}
+  currentEmbedId={embedId}
   skillIconName="website"
   skillName={displayTitle}
   faviconUrl={faviconUrl}

@@ -986,9 +986,14 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 ### Debugging Production Issues
 
-When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`:
+When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`.
+
+**IMPORTANT: Always update the local `main` ref from remote first** before inspecting production code. The local `main` ref can be stale since we never switch to it — run `git fetch origin main` to ensure you're viewing the actual production code:
 
 ```bash
+# ✅ ALWAYS run this first to update local main ref
+git fetch origin main
+
 # View a specific file as it exists on the main (production) branch
 git show main:backend/core/api/app/routes/settings.py
 

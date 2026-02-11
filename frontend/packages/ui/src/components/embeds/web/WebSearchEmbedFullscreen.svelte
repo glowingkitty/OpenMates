@@ -364,55 +364,9 @@
     }
   }
 
-  // Handle share - opens share settings menu for this specific web search embed
-  async function handleShare() {
-    try {
-      console.debug('[WebSearchEmbedFullscreen] Opening share settings for web search embed:', {
-        embedId,
-        query,
-        provider
-      });
-
-      // Check if we have embed_id for proper sharing
-      if (!embedId) {
-        console.warn('[WebSearchEmbedFullscreen] No embed_id available - cannot create encrypted share link');
-        const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this web search embed. Missing embed ID.');
-        return;
-      }
-
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      // Set embed context with embed_id for proper encrypted sharing
-      const embedContext = {
-        type: 'web_search',
-        embed_id: embedId,
-        query: query,
-        provider: provider
-      };
-
-      // Store embed context for SettingsShare
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-
-      // Navigate to share settings
-      navigateToSettings('shared/share', 'Share Web Search', 'share', 'settings.share.share_web_search.text');
-      
-      // Also set settingsDeepLink to ensure Settings component navigates properly
-      settingsDeepLink.set('shared/share');
-
-      // Open settings panel
-      panelState.openSettings();
-
-      console.debug('[WebSearchEmbedFullscreen] Opened share settings for web search embed');
-    } catch (error) {
-      console.error('[WebSearchEmbedFullscreen] Error opening share settings:', error);
-      const { notificationStore } = await import('../../../stores/notificationStore');
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
 </script>
 
 <!-- 
@@ -440,7 +394,6 @@
   skillId="search"
   title=""
   onClose={handleMainClose}
-  onShare={handleShare}
   skillIconName="search"
   status={fullscreenStatus}
   {skillName}

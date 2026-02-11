@@ -58,6 +58,8 @@
     import ReminderEmbedPreview from '../../embeds/reminder/ReminderEmbedPreview.svelte';
     import TravelSearchEmbedPreview from '../../embeds/travel/TravelSearchEmbedPreview.svelte';
     import TravelPriceCalendarEmbedPreview from '../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
+    import ImageGenerateEmbedPreview from '../../embeds/images/ImageGenerateEmbedPreview.svelte';
+    import SheetEmbedPreview from '../../embeds/sheets/SheetEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -311,6 +313,39 @@
                         query: decodedContent.query || '',
                         status: status,
                         results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'images' && (skillId === 'generate' || skillId === 'generate_draft')) {
+                // Image generate embed
+                return {
+                    component: ImageGenerateEmbedPreview,
+                    props: {
+                        id: embedId,
+                        skillId: skillId as 'generate' | 'generate_draft',
+                        prompt: decodedContent.prompt || '',
+                        s3BaseUrl: decodedContent.s3_base_url || '',
+                        files: decodedContent.files || undefined,
+                        aesKey: decodedContent.aes_key || '',
+                        aesNonce: decodedContent.aes_nonce || '',
+                        status: status,
+                        error: decodedContent.error as string | undefined,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'sheets' && skillId === 'sheet') {
+                // Sheet/table embed
+                return {
+                    component: SheetEmbedPreview,
+                    props: {
+                        id: embedId,
+                        title: decodedContent.title || '',
+                        rowCount: decodedContent.row_count || 0,
+                        colCount: decodedContent.col_count || 0,
+                        tableContent: decodedContent.table_content || decodedContent.content || '',
+                        status: status,
                         isMobile: false,
                         onFullscreen: () => {}
                     }
