@@ -71,9 +71,26 @@ Usage Settings - View usage statistics and export usage data
     }
 
     // Tab types
-    type UsageTab = 'chats' | 'apps' | 'api';
+    type UsageTab = 'overview' | 'chats' | 'apps' | 'api';
     type TimeGrouping = 'month' | 'day';
     type SortOption = 'last_edited' | 'most_expensive';
+
+    // Daily overview item interface (returned from API)
+    interface DailyOverviewItem {
+        type: 'chat' | 'app' | 'api_key';
+        chat_id: string | null;
+        app_id: string | null;
+        api_key_hash: string | null;
+        total_credits: number;
+        entry_count: number;
+    }
+
+    // Daily overview day structure (returned from API)
+    interface DailyOverviewDay {
+        date: string; // YYYY-MM-DD
+        total_credits: number;
+        items: DailyOverviewItem[];
+    }
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
@@ -84,8 +101,14 @@ Usage Settings - View usage statistics and export usage data
     let isLoadingSummaries = $state(false);
     let isLoadingDetails = $state(false);
     
+    // Daily overview state
+    let dailyOverview: DailyOverviewDay[] = $state([]);
+    let isLoadingDailyOverview = $state(false);
+    let loadedDays = $state(7);
+    let hasMoreDays = $state(false);
+    
     // UI state
-    let activeTab: UsageTab = $state('chats');
+    let activeTab: UsageTab = $state('overview');
     let timeGrouping: TimeGrouping = $state('month');
     let sortOption: SortOption = $state('last_edited');
     let selectedChatId: string | null = $state(null); // Changed from selectedChatHash to selectedChatId
@@ -326,14 +349,18 @@ Usage Settings - View usage statistics and export usage data
                 loadApiKeys().catch(err => console.warn('[SettingsUsage] Failed to load API keys:', err));
             }
 
-            // Map tab type to API type
-            const apiTypeMap: Record<UsageTab, string> = {
+            // Map tab type to API type (overview is handled separately, not via summaries)
+            const apiTypeMap: Record<string, string> = {
                 'chats': 'chats',
                 'apps': 'apps',
                 'api': 'api_keys'
             };
             
             const apiType = apiTypeMap[type];
+            if (!apiType) {
+                console.warn(`[SettingsUsage] No API type mapping for tab '${type}', skipping summary fetch`);
+                return;
+            }
             const endpoint = `${getApiEndpoint(apiEndpoints.usage.getSummaries)}?type=${apiType}&months=${months}`;
             console.log('Fetching usage summaries from:', endpoint);
             
@@ -387,14 +414,18 @@ Usage Settings - View usage statistics and export usage data
         errorMessage = null;
 
         try {
-            // Map tab type to API type
-            const apiTypeMap: Record<UsageTab, string> = {
+            // Map tab type to API type for details
+            const apiTypeMap: Record<string, string> = {
                 'chats': 'chat',
                 'apps': 'app',
                 'api': 'api_key'
             };
             
             const apiType = apiTypeMap[type];
+            if (!apiType) {
+                console.warn(`[SettingsUsage] No API type mapping for tab '${type}', skipping detail fetch`);
+                return;
+            }
             const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDetails)}?type=${apiType}&identifier=${encodeURIComponent(identifier)}&year_month=${yearMonth}`;
             console.log('Fetching usage details from:', endpoint);
             
@@ -431,6 +462,102 @@ Usage Settings - View usage statistics and export usage data
         }
     }
     
+    // Fetch daily overview data (all types combined, grouped by day)
+    async function fetchDailyOverview(days: number = loadedDays) {
+        isLoadingDailyOverview = true;
+        errorMessage = null;
+
+        try {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDailyOverview)}?days=${days}`;
+            console.log('Fetching daily overview from:', endpoint);
+            
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to fetch daily overview: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+
+            const data = await response.json();
+            console.log('Received daily overview:', data);
+            
+            if (!data || typeof data !== 'object' || !Array.isArray(data.days)) {
+                throw new Error('Invalid response format: expected days array');
+            }
+
+            dailyOverview = data.days;
+            hasMoreDays = data.has_more_days === true;
+            
+            // Load chat metadata for any chat items in the overview
+            for (const day of dailyOverview) {
+                for (const item of day.items) {
+                    if (item.type === 'chat' && item.chat_id) {
+                        // Load metadata in background (non-blocking)
+                        loadChatMetadata(item.chat_id).catch(err => 
+                            console.warn('[SettingsUsage] Failed to load metadata for chat:', item.chat_id, err)
+                        );
+                    }
+                }
+            }
+            
+            console.log(`Loaded daily overview: ${data.days.length} days`);
+        } catch (error) {
+            console.error('Error fetching daily overview:', error);
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = $text('settings.usage.error_loading.text');
+            }
+            dailyOverview = [];
+            hasMoreDays = false;
+        } finally {
+            isLoadingDailyOverview = false;
+        }
+    }
+
+    // Load more days for the daily overview
+    async function loadMoreDays() {
+        loadedDays += 7;
+        await fetchDailyOverview(loadedDays);
+    }
+
+    /**
+     * Get a human-readable label for a day in the daily overview.
+     * Returns "Today", "Yesterday", or a formatted date string.
+     */
+    function getDayLabel(dateStr: string): string {
+        try {
+            // Parse the YYYY-MM-DD date string
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            if (date.getTime() === today.getTime()) {
+                return $text('settings.usage.today.text');
+            }
+            if (date.getTime() === yesterday.getTime()) {
+                return $text('settings.usage.yesterday.text');
+            }
+            
+            // Format as localized date
+            return date.toLocaleDateString(undefined, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return dateStr;
+        }
+    }
+
     // Update chat summaries from API response
     async function updateChatSummariesFromAPI(summaries: any[]) {
         // Clear existing data and rebuild (or merge if we want to support incremental loading)
@@ -1009,7 +1136,13 @@ Usage Settings - View usage statistics and export usage data
             return;
         }
         lastFetchedTab = currentTab;
-        fetchUsageSummaries(currentTab, loadedMonths);
+        
+        // Overview tab uses a different API endpoint
+        if (currentTab === 'overview') {
+            fetchDailyOverview(loadedDays);
+        } else {
+            fetchUsageSummaries(currentTab, loadedMonths);
+        }
     });
 
     // Load API keys when API tab is active
@@ -1061,8 +1194,11 @@ Usage Settings - View usage statistics and export usage data
     });
 
     onMount(() => {
-        // Load initial summaries
-        fetchUsageSummaries(activeTab, loadedMonths).then(() => {
+        // Load initial data based on default tab (overview)
+        const initialLoad = activeTab === 'overview' 
+            ? fetchDailyOverview(loadedDays)
+            : fetchUsageSummaries(activeTab, loadedMonths);
+        initialLoad.then(() => {
             hasInitialized = true;
         });
         
@@ -1097,6 +1233,15 @@ Usage Settings - View usage statistics and export usage data
 
 <!-- Tabs for filtering -->
 <div class="usage-tabs">
+    <button
+        class="tab-button"
+        class:active={activeTab === 'overview'}
+        onclick={() => activeTab = 'overview'}
+        title={$text('settings.usage.tab_overview.text')}
+        aria-label={$text('settings.usage.tab_overview.text')}
+    >
+        <div class="tab-icon icon icon_usage"></div>
+    </button>
     <button
         class="tab-button"
         class:active={activeTab === 'chats'}
@@ -1165,6 +1310,129 @@ Usage Settings - View usage statistics and export usage data
             title={$text('retry.text')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
+{:else if activeTab === 'overview'}
+    <!-- Daily overview: Show all usage grouped by day -->
+    {#if isLoadingDailyOverview}
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <span>{$text('settings.usage.loading.text')}</span>
+        </div>
+    {:else if dailyOverview.length === 0}
+        <div class="empty-state">
+            <div class="empty-icon"></div>
+            <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+            <p>{$text('settings.usage.no_usage_on_day.text')}</p>
+        </div>
+    {:else}
+        {#each dailyOverview as day}
+            <div class="time-group">
+                <div class="time-header">
+                    <h4 class="time-title">{getDayLabel(day.date)}</h4>
+                    <div class="time-total">
+                        <span class="credits-amount">{formatCredits(day.total_credits)}</span>
+                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                    </div>
+                </div>
+                
+                {#if day.items.length === 0}
+                    <div class="overview-empty-day">
+                        <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day.text')}</span>
+                    </div>
+                {:else}
+                    {#each day.items as item}
+                        {#if item.type === 'chat' && item.chat_id}
+                            <!-- Chat item with metadata -->
+                            {@const cached = chatMetadataMap.get(item.chat_id)}
+                            {@const metadata = cached?.metadata}
+                            {@const chat = cached?.chat}
+                            {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                            {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
+                            {@const category = canShowDetails ? (metadata?.category || null) : null}
+                            {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                            {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                            {@const IconComponent = getLucideIcon(iconName)}
+                            {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
+                            
+                            <div class="overview-usage-item">
+                                <div class="chat-usage-icon-wrapper">
+                                    <div 
+                                        class="chat-usage-icon-circle" 
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="chat-usage-icon">
+                                            <IconComponent size={16} color="white" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="overview-item-content">
+                                    <div class="overview-item-title">{title}</div>
+                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                </div>
+                                <div class="overview-item-credits">
+                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                </div>
+                            </div>
+                        {:else if item.type === 'app' && item.app_id}
+                            <!-- App item -->
+                            {@const appName = getAppName(item.app_id)}
+                            {@const appIconName = getAppIconName(item.app_id)}
+                            
+                            <div class="overview-usage-item">
+                                <div class="app-usage-icon-wrapper">
+                                    <Icon 
+                                        name={appIconName}
+                                        type="app"
+                                        size="28px"
+                                    />
+                                </div>
+                                <div class="overview-item-content">
+                                    <div class="overview-item-title">{appName}</div>
+                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                </div>
+                                <div class="overview-item-credits">
+                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                </div>
+                            </div>
+                        {:else if item.type === 'api_key'}
+                            <!-- API key item -->
+                            <div class="overview-usage-item">
+                                <div class="app-usage-icon-wrapper">
+                                    <Icon 
+                                        name="code"
+                                        type="default"
+                                        size="28px"
+                                    />
+                                </div>
+                                <div class="overview-item-content">
+                                    <div class="overview-item-title">{$text('settings.usage.api_key_label.text')}</div>
+                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                </div>
+                                <div class="overview-item-credits">
+                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                </div>
+                            </div>
+                        {/if}
+                    {/each}
+                {/if}
+            </div>
+        {/each}
+        
+        <!-- Load more days button -->
+        {#if hasMoreDays && !isLoadingDailyOverview}
+            <div class="show-more-container">
+                <button
+                    class="show-more-button"
+                    onclick={loadMoreDays}
+                    aria-label={$text('settings.usage.load_more_days.text')}
+                >
+                    {$text('settings.usage.load_more_days.text')}
+                </button>
+            </div>
+        {/if}
+    {/if}
 {:else if selectedChatId && usageEntries.length > 0}
     <!-- Detail view for selected chat -->
     <div class="usage-detail-view">
@@ -1628,7 +1896,7 @@ Usage Settings - View usage statistics and export usage data
         {/if}
     {/if}
     
-    <!-- Show more months button -->
+    <!-- Show more months button (only for non-overview tabs - overview is handled in its own branch above) -->
     {#if hasMoreMonths && !isLoadingSummaries}
         <div class="show-more-container">
             <button
@@ -2271,5 +2539,64 @@ Usage Settings - View usage statistics and export usage data
     .show-more-button:hover {
         background: var(--color-grey-15);
         border-color: var(--color-grey-40);
+    }
+
+    /* Daily overview styles */
+    .overview-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+
+    .overview-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .overview-item-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .overview-item-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .overview-item-subtitle {
+        color: var(--color-grey-50);
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    .overview-item-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .overview-empty-day {
+        padding: 16px;
+        text-align: center;
+    }
+
+    .overview-empty-text {
+        color: var(--color-grey-50);
+        font-size: 13px;
     }
 </style>

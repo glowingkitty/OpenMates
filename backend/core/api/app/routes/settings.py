@@ -1563,6 +1563,63 @@ async def get_message_cost(
         raise HTTPException(status_code=500, detail="Failed to fetch message cost")
 
 
+# --- Endpoint for fetching daily usage overview (all types combined) ---
+# Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
+@router.get("/usage/daily-overview", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
+@limiter.limit("30/minute")
+async def get_daily_overview(
+    request: Request,
+    days: int = 7,
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Fetch daily usage overview combining all usage types (chats, apps, API keys).
+    Returns data grouped by day, with today first and previous days following.
+    Used by the Overview tab in usage settings for a day-by-day credit spending view.
+    """
+    try:
+        # Validate days parameter (reasonable limits)
+        if days < 1 or days > 90:
+            raise HTTPException(status_code=400, detail="Days must be between 1 and 90")
+        
+        logger.info(f"Fetching daily overview for user {current_user.id}, last {days} days")
+        
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Fetch daily overview from the usage service
+        daily_data = await directus_service.usage.get_daily_overview(
+            user_id_hash=user_id_hash,
+            days=days
+        )
+        
+        # Calculate total days available by checking if the oldest requested day has data
+        # If the last day has data, there might be more days available
+        has_more_days = False
+        if daily_data and len(daily_data) >= days:
+            # Check if the oldest day has any items - if so, there might be more
+            oldest_day = daily_data[-1] if daily_data else None
+            if oldest_day and oldest_day.get("items"):
+                has_more_days = True
+        
+        logger.info(f"Successfully fetched {len(daily_data)} days of daily overview for user {current_user.id}")
+        
+        return {
+            "days": daily_data,
+            "requested_days": days,
+            "total_days": len(daily_data),
+            "has_more_days": has_more_days
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching daily overview for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch daily overview")
+
+
 # --- Endpoint for exporting usage data as CSV ---
 @router.get("/usage/export", include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")  # Lower limit for export to prevent abuse

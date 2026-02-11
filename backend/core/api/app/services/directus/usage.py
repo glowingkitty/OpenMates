@@ -249,6 +249,21 @@ class UsageMethods:
                     # Log error but don't fail usage entry creation
                     logger.error(f"{log_prefix} Error updating monthly summaries: {e_summary}", exc_info=True)
                 
+                # Update daily summaries incrementally (fire-and-forget, non-blocking)
+                # Daily summaries power the Overview tab in usage settings
+                try:
+                    await self._update_daily_summaries(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                        credits_charged=credits_charged,
+                        chat_id=normalized_chat_id,
+                        app_id=app_id,
+                        api_key_hash=api_key_hash
+                    )
+                except Exception as e_daily:
+                    # Log error but don't fail usage entry creation
+                    logger.error(f"{log_prefix} Error updating daily summaries: {e_daily}", exc_info=True)
+                
                 return entry_id
             else:
                 logger.error(f"{log_prefix} Failed to create usage entry. Response: {response_data}")
@@ -422,6 +437,323 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error updating {collection} summary: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
+
+    async def _update_daily_summaries(
+        self,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str]
+    ):
+        """
+        Update daily summaries incrementally when a usage entry is created.
+        Mirrors the monthly summary pattern but groups by date (YYYY-MM-DD).
+        Daily summaries power the Overview tab in the usage settings page.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            timestamp: Unix timestamp in seconds
+            credits_charged: Number of credits charged
+            chat_id: Optional chat ID (for chat summaries)
+            app_id: App identifier (for app summaries)
+            api_key_hash: Optional API key hash (for API key summaries)
+        """
+        log_prefix = "DirectusService (daily summaries):"
+        
+        try:
+            # Convert timestamp to date format (YYYY-MM-DD)
+            dt = datetime.fromtimestamp(timestamp)
+            date_str = dt.strftime("%Y-%m-%d")
+            
+            # Update chat daily summary if chat_id is provided and it's not an API request
+            if chat_id and not api_key_hash:
+                await self._update_daily_summary(
+                    collection="usage_daily_chat_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="chat_id",
+                    identifier_value=chat_id,
+                    date_str=date_str,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix
+                )
+            
+            # Update app daily summary (always, since app_id is required)
+            await self._update_daily_summary(
+                collection="usage_daily_app_summaries",
+                user_id_hash=user_id_hash,
+                identifier_key="app_id",
+                identifier_value=app_id,
+                date_str=date_str,
+                credits_charged=credits_charged,
+                log_prefix=log_prefix
+            )
+            
+            # Update API key daily summary if api_key_hash is provided
+            if api_key_hash:
+                await self._update_daily_summary(
+                    collection="usage_daily_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=api_key_hash,
+                    date_str=date_str,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix
+                )
+            
+            # Invalidate daily overview cache
+            # Clear common day ranges so the overview tab refreshes
+            for days in [7, 14, 30]:
+                cache_key = f"usage_daily_overview:{user_id_hash}:{days}"
+                await self.sdk.cache.delete(cache_key)
+                
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating daily summaries: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def _update_daily_summary(
+        self,
+        collection: str,
+        user_id_hash: str,
+        identifier_key: str,
+        identifier_value: str,
+        date_str: str,
+        credits_charged: int,
+        log_prefix: str
+    ):
+        """
+        Update or create a daily summary record.
+        Similar to _update_summary but uses 'date' (YYYY-MM-DD) instead of 'year_month'.
+        Daily tables don't have is_archived/archive_s3_key fields.
+        
+        Args:
+            collection: Name of the daily summary collection
+            user_id_hash: Hashed user identifier
+            identifier_key: Key name for the identifier (e.g., "chat_id", "app_id", "api_key_hash")
+            identifier_value: Value of the identifier
+            date_str: Date in format "YYYY-MM-DD"
+            credits_charged: Number of credits to add
+            log_prefix: Logging prefix
+        """
+        try:
+            # Try to find existing daily summary
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier_value},
+                    "date": {"_eq": date_str}
+                },
+                "fields": "id,total_credits,entry_count",
+                "limit": 1
+            }
+            
+            existing = await self.sdk.get_items(collection, params=params, no_cache=True)
+            
+            if existing and len(existing) > 0:
+                # Update existing daily summary
+                summary = existing[0]
+                summary_id = summary.get("id")
+                current_credits = summary.get("total_credits", 0)
+                current_count = summary.get("entry_count", 0)
+                
+                update_data = {
+                    "total_credits": current_credits + credits_charged,
+                    "entry_count": current_count + 1,
+                    "updated_at": int(datetime.now().timestamp())
+                }
+                
+                await self.sdk.update_item(collection, summary_id, update_data)
+                logger.debug(f"{log_prefix} Updated {collection} {summary_id} (+{credits_charged} credits, +1 entry)")
+            else:
+                # Create new daily summary
+                current_timestamp = int(datetime.now().timestamp())
+                
+                create_data = {
+                    "user_id_hash": user_id_hash,
+                    identifier_key: identifier_value,
+                    "date": date_str,
+                    "total_credits": credits_charged,
+                    "entry_count": 1,
+                    "created_at": current_timestamp,
+                    "updated_at": current_timestamp
+                }
+                
+                success, result = await self.sdk.create_item(collection, create_data)
+                if success and result:
+                    logger.debug(f"{log_prefix} Created new {collection} for {identifier_key}={identifier_value}, date={date_str}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to create {collection}: {result}")
+                    
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating {collection}: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def get_daily_overview(
+        self,
+        user_id_hash: str,
+        days: int = 7
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch daily usage overview combining all three daily summary tables.
+        Returns a list of day objects, each containing all usage items for that day
+        (chats, apps, API keys combined). Used by the Overview tab in usage settings.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            days: Number of days to fetch (default: 7)
+            
+        Returns:
+            List of day objects: [{date: "2026-02-11", total_credits: 450, items: [...]}]
+            Sorted by date descending (most recent first).
+        """
+        log_prefix = "DirectusService (daily overview):"
+        logger.info(f"{log_prefix} Fetching daily overview for user '{user_id_hash}', last {days} days")
+        
+        try:
+            # Check cache first
+            cache_key = f"usage_daily_overview:{user_id_hash}:{days}"
+            cached = await self.sdk.cache.get(cache_key)
+            if cached:
+                logger.debug(f"{log_prefix} Cache HIT for daily overview")
+                return cached
+            
+            # Calculate list of date strings for the requested days
+            from datetime import timedelta
+            dates = []
+            for i in range(days):
+                day_date = datetime.now() - timedelta(days=i)
+                dates.append(day_date.strftime("%Y-%m-%d"))
+            
+            # Query all three daily summary tables in parallel
+            # Each table returns items for the requested date range
+            common_filter = {
+                "user_id_hash": {"_eq": user_id_hash},
+                "date": {"_in": dates}
+            }
+            
+            chat_params = {
+                "filter": common_filter,
+                "fields": "chat_id,date,total_credits,entry_count",
+                "sort": ["-date"],
+                "limit": -1
+            }
+            app_params = {
+                "filter": common_filter,
+                "fields": "app_id,date,total_credits,entry_count",
+                "sort": ["-date"],
+                "limit": -1
+            }
+            api_key_params = {
+                "filter": common_filter,
+                "fields": "api_key_hash,date,total_credits,entry_count",
+                "sort": ["-date"],
+                "limit": -1
+            }
+            
+            # Fetch all three in parallel for performance
+            import asyncio
+            chat_summaries, app_summaries, api_key_summaries = await asyncio.gather(
+                self.sdk.get_items("usage_daily_chat_summaries", params=chat_params, no_cache=True),
+                self.sdk.get_items("usage_daily_app_summaries", params=app_params, no_cache=True),
+                self.sdk.get_items("usage_daily_api_key_summaries", params=api_key_params, no_cache=True),
+            )
+            
+            # Combine all items grouped by date
+            # Structure: {date: {items: [...], total_credits: N}}
+            days_map: Dict[str, Dict[str, Any]] = {}
+            
+            # Process chat summaries
+            for summary in (chat_summaries or []):
+                date = summary.get("date")
+                if not date:
+                    continue
+                if date not in days_map:
+                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                days_map[date]["items"].append({
+                    "type": "chat",
+                    "chat_id": summary.get("chat_id"),
+                    "app_id": None,
+                    "api_key_hash": None,
+                    "total_credits": summary.get("total_credits", 0),
+                    "entry_count": summary.get("entry_count", 0)
+                })
+                days_map[date]["total_credits"] += summary.get("total_credits", 0)
+            
+            # Process app summaries
+            for summary in (app_summaries or []):
+                date = summary.get("date")
+                if not date:
+                    continue
+                if date not in days_map:
+                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                days_map[date]["items"].append({
+                    "type": "app",
+                    "chat_id": None,
+                    "app_id": summary.get("app_id"),
+                    "api_key_hash": None,
+                    "total_credits": summary.get("total_credits", 0),
+                    "entry_count": summary.get("entry_count", 0)
+                })
+                # Note: Don't add to total_credits here since app usage overlaps with chat usage
+                # (every chat usage also creates an app summary). We'll deduplicate below.
+            
+            # Process API key summaries
+            for summary in (api_key_summaries or []):
+                date = summary.get("date")
+                if not date:
+                    continue
+                if date not in days_map:
+                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                days_map[date]["items"].append({
+                    "type": "api_key",
+                    "chat_id": None,
+                    "app_id": None,
+                    "api_key_hash": summary.get("api_key_hash"),
+                    "total_credits": summary.get("total_credits", 0),
+                    "entry_count": summary.get("entry_count", 0)
+                })
+                days_map[date]["total_credits"] += summary.get("total_credits", 0)
+            
+            # Recalculate total_credits per day as sum of chat + API key credits
+            # (app credits overlap with chat credits, so we exclude them from the day total)
+            for date_key, day_data in days_map.items():
+                chat_total = sum(
+                    item["total_credits"] for item in day_data["items"] if item["type"] == "chat"
+                )
+                api_key_total = sum(
+                    item["total_credits"] for item in day_data["items"] if item["type"] == "api_key"
+                )
+                day_data["total_credits"] = chat_total + api_key_total
+            
+            # Sort items within each day by credits descending (most expensive first)
+            for day_data in days_map.values():
+                day_data["items"].sort(key=lambda x: x.get("total_credits", 0), reverse=True)
+            
+            # Convert to sorted list (most recent date first)
+            result = sorted(days_map.values(), key=lambda x: x["date"], reverse=True)
+            
+            # Also include empty days in the response so the frontend knows which days exist
+            # (This helps the frontend distinguish "no data" from "not loaded")
+            existing_dates = set(days_map.keys())
+            for date in dates:
+                if date not in existing_dates:
+                    result.append({"date": date, "total_credits": 0, "items": []})
+            
+            # Re-sort after adding empty days
+            result.sort(key=lambda x: x["date"], reverse=True)
+            
+            # Cache for 5 minutes
+            if result:
+                await self.sdk.cache.set(cache_key, result, ttl=300)
+                logger.debug(f"{log_prefix} Cached daily overview ({len(result)} days)")
+            
+            logger.info(f"{log_prefix} Returning {len(result)} days for daily overview")
+            return result
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching daily overview: {e}", exc_info=True)
+            return []
 
     async def get_user_usage_entries(
         self,
