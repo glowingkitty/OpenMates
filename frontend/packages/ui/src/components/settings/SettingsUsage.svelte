@@ -77,9 +77,8 @@ Usage Settings - View usage statistics and export usage data
 
     // Daily overview item interface (returned from API)
     interface DailyOverviewItem {
-        type: 'chat' | 'app' | 'api_key';
+        type: 'chat' | 'api_key';
         chat_id: string | null;
-        app_id: string | null;
         api_key_hash: string | null;
         total_credits: number;
         entry_count: number;
@@ -1231,7 +1230,7 @@ Usage Settings - View usage statistics and export usage data
     <p class="header-description">{$text('settings.usage.description.text')}</p>
 </div>
 
-<!-- Tabs for filtering -->
+<!-- Category tabs -->
 <div class="usage-tabs">
     <button
         class="tab-button"
@@ -1268,32 +1267,6 @@ Usage Settings - View usage statistics and export usage data
         aria-label={$text('settings.usage.tab_api.text')}
     >
         <div class="tab-icon icon icon_code"></div>
-    </button>
-    <button
-        class="tab-button"
-        class:active={timeGrouping === 'month'}
-        onclick={() => timeGrouping = 'month'}
-        title={$text('settings.usage.group_by_month.text')}
-        aria-label={$text('settings.usage.group_by_month.text')}
-    >
-        <div class="tab-icon icon icon_calendar"></div>
-    </button>
-    <button
-        class="tab-button"
-        class:active={timeGrouping === 'day'}
-        onclick={() => timeGrouping = 'day'}
-        title={$text('settings.usage.group_by_day.text')}
-        aria-label={$text('settings.usage.group_by_day.text')}
-    >
-        <div class="tab-icon icon icon_calendar"></div>
-    </button>
-    <button
-        class="tab-button"
-        onclick={() => sortOption = sortOption === 'last_edited' ? 'most_expensive' : 'last_edited'}
-        title={$text('settings.usage.sort.text')}
-        aria-label={$text('settings.usage.sort.text')}
-    >
-        <div class="tab-icon icon icon_sort"></div>
     </button>
 </div>
 
@@ -1366,28 +1339,6 @@ Usage Settings - View usage statistics and export usage data
                                 </div>
                                 <div class="overview-item-content">
                                     <div class="overview-item-title">{title}</div>
-                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
-                                </div>
-                                <div class="overview-item-credits">
-                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
-                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                                </div>
-                            </div>
-                        {:else if item.type === 'app' && item.app_id}
-                            <!-- App item -->
-                            {@const appName = getAppName(item.app_id)}
-                            {@const appIconName = getAppIconName(item.app_id)}
-                            
-                            <div class="overview-usage-item">
-                                <div class="app-usage-icon-wrapper">
-                                    <Icon 
-                                        name={appIconName}
-                                        type="app"
-                                        size="28px"
-                                    />
-                                </div>
-                                <div class="overview-item-content">
-                                    <div class="overview-item-title">{appName}</div>
                                     <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
                                 </div>
                                 <div class="overview-item-credits">
@@ -1963,11 +1914,12 @@ Usage Settings - View usage statistics and export usage data
         padding: 10px;
         margin-bottom: 16px;
         border-bottom: 1px solid var(--color-grey-20);
+        justify-content: flex-start;
     }
 
     .tab-button {
-        width: 40px;
-        height: 40px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
@@ -1976,6 +1928,7 @@ Usage Settings - View usage statistics and export usage data
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
+        flex-shrink: 0;
     }
 
     .tab-button:hover {
@@ -1989,8 +1942,8 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .tab-icon {
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
     }
 
     .loading-state {

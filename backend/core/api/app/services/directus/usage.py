@@ -595,9 +595,10 @@ class UsageMethods:
         days: int = 7
     ) -> List[Dict[str, Any]]:
         """
-        Fetch daily usage overview combining all three daily summary tables.
-        Returns a list of day objects, each containing all usage items for that day
-        (chats, apps, API keys combined). Used by the Overview tab in usage settings.
+        Fetch daily usage overview combining chat and API key daily summary tables.
+        Returns a list of day objects, each containing chat and API key usage items
+        for that day (no app breakdown - apps overlap with chats). Used by the
+        Overview tab in usage settings.
         
         Args:
             user_id_hash: Hashed user identifier
@@ -606,6 +607,7 @@ class UsageMethods:
         Returns:
             List of day objects: [{date: "2026-02-11", total_credits: 450, items: [...]}]
             Sorted by date descending (most recent first).
+            Items are only 'chat' and 'api_key' types (no 'app' items).
         """
         log_prefix = "DirectusService (daily overview):"
         logger.info(f"{log_prefix} Fetching daily overview for user '{user_id_hash}', last {days} days")
@@ -625,8 +627,9 @@ class UsageMethods:
                 day_date = datetime.now() - timedelta(days=i)
                 dates.append(day_date.strftime("%Y-%m-%d"))
             
-            # Query all three daily summary tables in parallel
-            # Each table returns items for the requested date range
+            # Query chat and API key daily summary tables in parallel
+            # App summaries are excluded because app credits overlap with chat credits
+            # (every chat message also creates an app summary entry)
             common_filter = {
                 "user_id_hash": {"_eq": user_id_hash},
                 "date": {"_in": dates}
@@ -638,12 +641,6 @@ class UsageMethods:
                 "sort": ["-date"],
                 "limit": -1
             }
-            app_params = {
-                "filter": common_filter,
-                "fields": "app_id,date,total_credits,entry_count",
-                "sort": ["-date"],
-                "limit": -1
-            }
             api_key_params = {
                 "filter": common_filter,
                 "fields": "api_key_hash,date,total_credits,entry_count",
@@ -651,11 +648,10 @@ class UsageMethods:
                 "limit": -1
             }
             
-            # Fetch all three in parallel for performance
+            # Fetch both in parallel for performance
             import asyncio
-            chat_summaries, app_summaries, api_key_summaries = await asyncio.gather(
+            chat_summaries, api_key_summaries = await asyncio.gather(
                 self.sdk.get_items("usage_daily_chat_summaries", params=chat_params, no_cache=True),
-                self.sdk.get_items("usage_daily_app_summaries", params=app_params, no_cache=True),
                 self.sdk.get_items("usage_daily_api_key_summaries", params=api_key_params, no_cache=True),
             )
             
@@ -670,33 +666,15 @@ class UsageMethods:
                     continue
                 if date not in days_map:
                     days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                credits = summary.get("total_credits", 0)
                 days_map[date]["items"].append({
                     "type": "chat",
                     "chat_id": summary.get("chat_id"),
-                    "app_id": None,
                     "api_key_hash": None,
-                    "total_credits": summary.get("total_credits", 0),
+                    "total_credits": credits,
                     "entry_count": summary.get("entry_count", 0)
                 })
-                days_map[date]["total_credits"] += summary.get("total_credits", 0)
-            
-            # Process app summaries
-            for summary in (app_summaries or []):
-                date = summary.get("date")
-                if not date:
-                    continue
-                if date not in days_map:
-                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
-                days_map[date]["items"].append({
-                    "type": "app",
-                    "chat_id": None,
-                    "app_id": summary.get("app_id"),
-                    "api_key_hash": None,
-                    "total_credits": summary.get("total_credits", 0),
-                    "entry_count": summary.get("entry_count", 0)
-                })
-                # Note: Don't add to total_credits here since app usage overlaps with chat usage
-                # (every chat usage also creates an app summary). We'll deduplicate below.
+                days_map[date]["total_credits"] += credits
             
             # Process API key summaries
             for summary in (api_key_summaries or []):
@@ -705,26 +683,15 @@ class UsageMethods:
                     continue
                 if date not in days_map:
                     days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                credits = summary.get("total_credits", 0)
                 days_map[date]["items"].append({
                     "type": "api_key",
                     "chat_id": None,
-                    "app_id": None,
                     "api_key_hash": summary.get("api_key_hash"),
-                    "total_credits": summary.get("total_credits", 0),
+                    "total_credits": credits,
                     "entry_count": summary.get("entry_count", 0)
                 })
-                days_map[date]["total_credits"] += summary.get("total_credits", 0)
-            
-            # Recalculate total_credits per day as sum of chat + API key credits
-            # (app credits overlap with chat credits, so we exclude them from the day total)
-            for date_key, day_data in days_map.items():
-                chat_total = sum(
-                    item["total_credits"] for item in day_data["items"] if item["type"] == "chat"
-                )
-                api_key_total = sum(
-                    item["total_credits"] for item in day_data["items"] if item["type"] == "api_key"
-                )
-                day_data["total_credits"] = chat_total + api_key_total
+                days_map[date]["total_credits"] += credits
             
             # Sort items within each day by credits descending (most expensive first)
             for day_data in days_map.values():
