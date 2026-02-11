@@ -55,3 +55,51 @@ export function getModelDisplayName(modelNameOrId: string): string {
   // Return input as-is (already a human-readable name or unknown model)
   return modelNameOrId;
 }
+
+// Build a lookup map from model display name to metadata (lazy-initialized)
+let modelsByName: Record<string, AIModelMetadata> | null = null;
+
+/**
+ * Lazily initialize the models-by-name lookup map.
+ * Uses lowercase display name as key for case-insensitive matching.
+ */
+function getModelsByName(): Record<string, AIModelMetadata> {
+  if (!modelsByName) {
+    modelsByName = modelsMetadata.reduce(
+      (acc, model) => {
+        acc[model.name.toLowerCase()] = model;
+        return acc;
+      },
+      {} as Record<string, AIModelMetadata>,
+    );
+  }
+  return modelsByName;
+}
+
+/**
+ * Resolve a model by its display name or ID.
+ * Looks up the model first by ID (exact match), then by display name (case-insensitive).
+ *
+ * Used to resolve the model_name from assistant messages (which can be either
+ * a model ID or a human-readable name) back to full model metadata, enabling
+ * deep links to model detail pages.
+ *
+ * @param modelNameOrId - Either a model ID or a display name
+ * @returns Full model metadata, or undefined if not found
+ *
+ * @example
+ * getModelByNameOrId("gemini-3-pro-preview")  // AIModelMetadata for Gemini 3 Pro
+ * getModelByNameOrId("Gemini 3 Pro")          // AIModelMetadata for Gemini 3 Pro
+ * getModelByNameOrId("Unknown Model")         // undefined
+ */
+export function getModelByNameOrId(
+  modelNameOrId: string,
+): AIModelMetadata | undefined {
+  // First try by ID (exact match)
+  const byId = getModelsById()[modelNameOrId];
+  if (byId) return byId;
+
+  // Then try by display name (case-insensitive)
+  const byName = getModelsByName()[modelNameOrId.toLowerCase()];
+  return byName;
+}

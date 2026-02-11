@@ -13,7 +13,7 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
-  import { getModelDisplayName } from '../utils/modelDisplayName';
+  import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import { chatDB } from '../services/db';
@@ -260,6 +260,20 @@
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  /**
+   * Navigate to the AI Ask model details page in the app store settings.
+   * Resolves the model_name (display name or ID) to its model ID for deep linking.
+   */
+  function handleGeneratedByClick() {
+    if (!model_name) return;
+    const modelMeta = getModelByNameOrId(model_name);
+    if (modelMeta) {
+      // Deep link to the model details page in the AI Ask skill settings
+      settingsDeepLink.set(`app_store/ai/skill/ask/model/${modelMeta.id}`);
+      panelState.openSettings();
+    }
   }
 
   /**
@@ -1187,7 +1201,7 @@
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <div class="generated-by">{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</div>
+        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</button>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
