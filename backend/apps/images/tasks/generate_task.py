@@ -348,23 +348,12 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             check_cache_status=False  # Skip dedup check - we know this is the first "finished" event
         )
         
-        # 12. Publish embed_update event so frontend re-renders the preview
-        # This is the event that triggers the processing -> finished transition
-        client = await task._cache_service.client
-        if client:
-            channel_key = f"websocket:user:{hashed_user_id}"
-            embed_update_payload = {
-                "type": "embed_update",
-                "event_for_client": "embed_update",
-                "embed_id": embed_id,
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "user_id_uuid": user_id,
-                "user_id_hash": hashed_user_id,
-                "status": "finished"
-            }
-            await client.publish(channel_key, json.dumps(embed_update_payload))
-            logger.info(f"{log_prefix} Published embed_update event for embed {embed_id}")
+        # 12. NOTE: embed_update event is NO LONGER published here.
+        # The send_embed_data_to_client() call above (step 11) already delivers all content
+        # the frontend needs (plaintext TOON for client-side encryption, status, metadata).
+        # Publishing an additional embed_update causes the frontend to process the same embed
+        # twice, resulting in "DUPLICATE DETECTED" warnings and redundant work.
+        # The frontend's handleSendEmbedDataImpl handles the processing -> finished transition.
 
         # 13. Prepare result for API response
         # This is what gets returned via task polling and REST API

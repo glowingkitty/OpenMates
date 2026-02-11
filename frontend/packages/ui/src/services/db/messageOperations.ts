@@ -436,22 +436,33 @@ export async function saveMessage(
   let contentDuplicate: Message | null = null;
 
   try {
-    // Use a separate read-only transaction to check for duplicates
-    const checkTransaction = await dbInstance.getTransaction(
+    // CRITICAL FIX: Use SEPARATE transactions for each check operation.
+    // Each check involves async decryption (getMessage -> decryptMessageFields,
+    // findContentDuplicate -> getMessagesForChat -> decryptMessageFields).
+    // Async operations cause the IDB transaction to auto-commit before the next
+    // operation can use it, resulting in InvalidStateError.
+    // Using separate transactions avoids this because each transaction only
+    // needs to survive through its own async operation.
+    const checkTransaction1 = await dbInstance.getTransaction(
       MESSAGES_STORE_NAME,
       "readonly",
     );
     existingMessage = await getMessage(
       dbInstance,
       message.message_id,
-      checkTransaction,
+      checkTransaction1,
     );
 
     if (!existingMessage) {
+      // Create a fresh transaction for the content duplicate check
+      const checkTransaction2 = await dbInstance.getTransaction(
+        MESSAGES_STORE_NAME,
+        "readonly",
+      );
       contentDuplicate = await findContentDuplicate(
         dbInstance,
         message,
-        checkTransaction,
+        checkTransaction2,
       );
     }
   } catch (checkError) {

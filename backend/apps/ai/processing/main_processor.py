@@ -3015,6 +3015,10 @@ async def handle_main_processing(
                 # Publish embed_update events to notify frontend that embeds have been updated
                 # For multiple requests, publish one event per embed
                 # NOTE: Skip for async skills - the Celery task handles WebSocket notifications
+                # CRITICAL FIX: Skip embeds that already had send_embed_data published inside
+                # update_embed_with_results() (flagged as from_placeholder=True). Publishing both
+                # send_embed_data and embed_update for the same embed causes duplicate processing
+                # on the frontend, resulting in "DUPLICATE DETECTED" warnings and wasted work.
                 if not is_async_skill and updated_embed_data_list and cache_service:
                     try:
                         client = await cache_service.client
@@ -3023,6 +3027,16 @@ async def handle_main_processing(
                             channel_key = f"websocket:user:{request_data.user_id_hash}"
                             
                             for embed_data in updated_embed_data_list:
+                                # Skip embeds that were already sent via send_embed_data_to_client()
+                                # inside update_embed_with_results() - sending embed_update would be
+                                # redundant and cause the frontend to process the same embed twice
+                                if embed_data.get("from_placeholder"):
+                                    embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
+                                    logger.debug(
+                                        f"{log_prefix} Skipping embed_update for {embed_id} - already sent via send_embed_data in update_embed_with_results"
+                                    )
+                                    continue
+
                                 embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
                                 if not embed_id:
                                     continue

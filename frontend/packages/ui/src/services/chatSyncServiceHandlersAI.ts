@@ -1995,6 +1995,29 @@ export async function handleEmbedUpdateImpl(
     `[ChatSyncService:AI] Received 'embed_update' for embed ${payload.embed_id}`,
   );
 
+  // CRITICAL FIX: If this embed was already fully processed by handleSendEmbedDataImpl
+  // (which handles encryption, key storage, and Directus persistence), skip the embed_update
+  // entirely. The embed_update is redundant in this case and can cause race conditions
+  // (e.g., trying to access embed keys before IndexedDB storage completes).
+  if (isEmbedAlreadyProcessed(payload.embed_id)) {
+    console.debug(
+      `[ChatSyncService:AI] embed_update: Skipping ${payload.embed_id} - already fully processed by send_embed_data handler`,
+    );
+    // Still dispatch a lightweight UI refresh event (status may have changed)
+    serviceInstance.dispatchEvent(
+      new CustomEvent("embedUpdated", {
+        detail: {
+          embed_id: payload.embed_id,
+          chat_id: payload.chat_id,
+          message_id: payload.message_id,
+          status: payload.status,
+          child_embed_ids: payload.child_embed_ids,
+        },
+      }),
+    );
+    return;
+  }
+
   try {
     // Load the existing embed from cache (may be in-memory only from processing stage)
     const { embedStore } = await import("./embedStore");
