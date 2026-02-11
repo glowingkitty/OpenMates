@@ -956,20 +956,20 @@
         {/if}
         
         <!-- Booking CTA: three-state button (idle -> loading -> loaded) -->
+        <!-- All three states render in the same spot with identical dimensions -->
         {#if bookingState === 'loaded' && resolvedBookingUrl}
           <!-- State: loaded — direct booking link available -->
           <button class="cta-button" onclick={handleOpenBookingUrl}>
             {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
           </button>
         {:else if bookingState === 'loading'}
-          <!-- State: loading — fetching booking link -->
-          <button class="cta-button cta-loading" disabled>
+          <!-- State: loading — spinner replaces the button in the same spot -->
+          <div class="cta-button cta-loading">
             <span class="cta-spinner"></span>
-            {$text('embeds.loading_booking.text') || 'Loading booking link...'}
-          </button>
+          </div>
         {:else if connection.booking_token && bookingState === 'idle'}
-          <!-- State: idle — booking token available, user can request link -->
-          <button class="cta-button cta-load-booking" onclick={handleLoadBookingLink}>
+          <!-- State: idle — regular primary button to fetch the booking link -->
+          <button class="cta-button" onclick={handleLoadBookingLink}>
             {$text('embeds.get_booking_link.text') || 'Get booking link'}
           </button>
         {/if}
@@ -1207,70 +1207,57 @@
     opacity: 0.8;
   }
   
-  /* CTA Booking Button */
+  /* CTA Booking Button — uses the standard primary button design.
+     All three states (idle, loading, loaded) share this base so they
+     occupy the exact same space and swapping between them is seamless. */
   .cta-button {
     background-color: var(--color-button-primary);
     color: white;
     border: none;
-    border-radius: 15px;
-    padding: 12px 24px;
+    border-radius: 20px;
+    padding: 12px 30px;
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.15s;
+    transition: all 0.15s ease-in-out;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     margin-top: 16px;
     min-width: 200px;
+    height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .cta-button:hover {
     background-color: var(--color-button-primary-hover);
-    transform: translateY(-1px);
+    scale: 1.02;
   }
   
   .cta-button:active {
     background-color: var(--color-button-primary-pressed);
-    transform: translateY(0);
+    scale: 0.98;
+    filter: none;
   }
   
-  /* "Get booking link" button — outlined style to invite action */
-  .cta-load-booking {
-    background-color: transparent;
-    color: var(--color-button-primary);
-    border: 2px solid var(--color-button-primary);
-  }
-  
-  .cta-load-booking:hover {
-    background-color: var(--color-button-primary);
-    color: white;
-  }
-  
-  .cta-load-booking:active {
-    background-color: var(--color-button-primary-pressed);
-    color: white;
-  }
-  
-  /* Loading state button */
+  /* Loading state — same dimensions, just shows a spinner */
   .cta-loading {
     background-color: var(--color-grey-30, #e0e0e0);
-    color: var(--color-grey-70, #555);
-    cursor: wait;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    cursor: default;
+    filter: none;
   }
   
   .cta-loading:hover {
     background-color: var(--color-grey-30, #e0e0e0);
-    transform: none;
+    scale: 1;
   }
   
   /* Spinner animation */
   .cta-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--color-grey-50, #999);
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid var(--color-grey-50, #999);
     border-top-color: var(--color-grey-80, #444);
     border-radius: 50%;
     animation: cta-spin 0.8s linear infinite;
