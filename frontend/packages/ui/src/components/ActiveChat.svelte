@@ -1677,7 +1677,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
      * Decrypts title, category, and icon for the resume card display.
-     * Returns true if a chat was found and loaded.
+     * Skips draft chats (no title and no messages) so only real chats with
+     * content are shown in the "Continue where you left off" card.
+     * Returns true if a non-draft chat was found and loaded.
      */
     async function loadResumeChatFromDB(lastOpenedId: string): Promise<boolean> {
         try {
@@ -1725,6 +1727,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch {
                         // Icon decryption failed – will use fallback
                     }
+                }
+            }
+
+            // Determine if this chat has a real title (plaintext for demo chats, or decrypted)
+            const hasTitle = !!(chat.title || decryptedTitle);
+
+            // Skip draft chats: chats with no title and no messages are drafts.
+            // Only show the resume card for chats that have actual content.
+            if (!hasTitle) {
+                const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+                if (!lastMessage) {
+                    console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
+                    return false;
                 }
             }
 

@@ -590,6 +590,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					}
 				}
 				
+				// Skip draft chats (no title and no messages) — only show resume card for real chats
+				const hasTitle = !!(chat.title || decryptedTitle);
+				if (!hasTitle) {
+					const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+					if (!lastMessage) {
+						console.info(`[Chats] Skipping Phase 1 draft chat (no title, no messages): ${targetChatId}`);
+						// Still update the chat list, but don't show resume card
+						chatListCache.markDirty();
+						await updateChatListFromDB(true);
+						return;
+					}
+				}
+				
 				// Use cleartext title for demo chats, decrypted title otherwise
 				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
 				
