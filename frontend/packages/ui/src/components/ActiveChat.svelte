@@ -1912,7 +1912,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
-    
+
+    // Hide the welcome greeting and resume-chat card on mobile when the keyboard is open.
+    // This frees up vertical space so the input area isn't squeezed against the keyboard.
+    let hideWelcomeForKeyboard = $derived(messageInputFocused && isEffectivelyNarrow);
+
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
     // This is passed to ChatHistory/ChatMessage for proper responsive behavior
@@ -5289,7 +5293,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Update the welcome content to use transition and showWelcome -->
                     <!-- ONLY show welcome message when there's no resume chat to display -->
                     <!-- If user has a previous chat to resume, skip the "Hey {username}" greeting -->
-                    {#if showWelcome && !resumeChatData}
+                    <!-- Also hide on mobile when keyboard is open to free up vertical space -->
+                    {#if showWelcome && !resumeChatData && !hideWelcomeForKeyboard}
                         <div
                             class="center-content"
                             transition:fade={{ duration: 300 }}
@@ -5349,7 +5354,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <div class="message-input-container">
                         <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
                         <!-- Driven by local $effect that queries IndexedDB directly (no Phase 1 timing dependency) -->
-                        {#if showWelcome && resumeChatData}
+                        <!-- Also hide on mobile when keyboard is open to free up vertical space -->
+                        {#if showWelcome && resumeChatData && !hideWelcomeForKeyboard}
                             <div class="resume-last-chat-section" transition:fade={{ duration: 300 }}>
                                 <div class="resume-last-chat-header">
                                     <span class="resume-title">{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</span>
