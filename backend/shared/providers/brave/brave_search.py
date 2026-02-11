@@ -13,6 +13,7 @@
 
 import logging
 import os
+import asyncio
 import httpx
 from typing import Dict, Any, Optional
 
@@ -26,6 +27,80 @@ BRAVE_API_KEY_NAME = "api_key"
 
 # Brave Search API base URL
 BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
+
+# Retry configuration for 429 rate limit responses
+MAX_429_RETRIES = 3  # Maximum number of retries on 429
+DEFAULT_429_RETRY_DELAY = 1.1  # Default delay in seconds when Retry-After header is missing
+
+
+async def _request_with_429_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    params: Dict[str, Any],
+    headers: Dict[str, str],
+    query: str,
+    search_type: str = "search"
+) -> httpx.Response:
+    """
+    Make an HTTP GET request with automatic retry on 429 (Too Many Requests).
+    
+    Instead of failing immediately on rate limit errors, this waits for the
+    rate limit window to reset and retries. The wait time is derived from the
+    API's Retry-After header, or falls back to a sensible default (1.1s).
+    
+    This approach lets the Brave API itself be the source of truth for rate limits,
+    rather than requiring manual plan configuration.
+    
+    Args:
+        client: The httpx.AsyncClient to use for the request
+        url: The request URL
+        params: Query parameters
+        headers: Request headers
+        query: The search query (for logging)
+        search_type: Type of search for logging (e.g., "web", "news", "video")
+    
+    Returns:
+        The successful httpx.Response
+    
+    Raises:
+        httpx.HTTPStatusError: If the request fails with a non-429 error,
+                               or if retries are exhausted
+    """
+    for attempt in range(1, MAX_429_RETRIES + 1):
+        response = await client.get(url, params=params, headers=headers)
+        
+        if response.status_code != 429:
+            # Not rate-limited — raise on other errors, or return success
+            response.raise_for_status()
+            return response
+        
+        # 429 Too Many Requests — wait and retry
+        if attempt >= MAX_429_RETRIES:
+            # Exhausted retries, raise the 429 as an error
+            logger.warning(
+                f"Brave {search_type} search rate limit: exhausted {MAX_429_RETRIES} retries "
+                f"for query '{query}'"
+            )
+            response.raise_for_status()
+        
+        # Determine wait time from Retry-After header or default
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                wait_seconds = float(retry_after)
+            except (ValueError, TypeError):
+                wait_seconds = DEFAULT_429_RETRY_DELAY
+        else:
+            wait_seconds = DEFAULT_429_RETRY_DELAY
+        
+        logger.info(
+            f"Brave {search_type} search rate limited (429) for query '{query}' "
+            f"(attempt {attempt}/{MAX_429_RETRIES}). Waiting {wait_seconds:.1f}s before retry..."
+        )
+        await asyncio.sleep(wait_seconds)
+    
+    # Unreachable — the loop either returns or raises on every path.
+    raise RuntimeError("Rate limit retries exhausted")  # pragma: no cover
 
 
 async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
@@ -226,8 +301,10 @@ async def search_web(
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
+            response = await _request_with_429_retry(
+                client=client, url=url, params=params, headers=headers,
+                query=query, search_type="web"
+            )
             
             result_data = response.json()
             
@@ -416,8 +493,10 @@ async def search_videos(
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
+            response = await _request_with_429_retry(
+                client=client, url=url, params=params, headers=headers,
+                query=query, search_type="video"
+            )
             
             result_data = response.json()
             
@@ -586,8 +665,10 @@ async def search_news(
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
+            response = await _request_with_429_retry(
+                client=client, url=url, params=params, headers=headers,
+                query=query, search_type="news"
+            )
             
             result_data = response.json()
             

@@ -790,6 +790,22 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       } as EmbedNodeAttributes;
     }
 
+    // If only one valid embed remains after filtering errors, dissolve the group
+    // and return the single embed directly (no need for a group wrapper).
+    // Example: 2 searches requested, 1 failed with 429 → show the surviving one
+    // as a standalone embed instead of a "1 request" group.
+    if (validEmbeds.length === 1) {
+      const singleEmbed = validEmbeds[0];
+      console.debug(
+        "[AppSkillUseGroupHandler] Only 1 valid embed after filtering errors - dissolving group, returning single embed:",
+        singleEmbed.id,
+      );
+      return {
+        ...singleEmbed,
+        type: "app-skill-use",
+      } as EmbedNodeAttributes;
+    }
+
     // Generate deterministic group ID BEFORE sorting (based on first item in original order)
     // This is critical for streaming updates - the group ID must remain stable
     const groupId = generateDeterministicGroupId(validEmbeds);
