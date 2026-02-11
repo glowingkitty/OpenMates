@@ -540,50 +540,19 @@
 				return; // Already loaded, don't load default
 			}
 
-			try {
-				// Ensure chatDB is initialized
-				await chatDB.init();
-
-				// Try to load the last opened chat from IndexedDB
-				// This will succeed as soon as the chat data is saved during any sync phase
-				const lastChat = await chatDB.getChat(lastOpenedChatId);
-
-				if (lastChat && activeChat) {
-					if (isSettingsHash) {
-						console.debug(
-							'[+page.svelte] [PRIORITY 3] ✅ Loading last_opened chat after settings hash:',
-							lastOpenedChatId
-						);
-					} else {
-						console.debug(
-							'[+page.svelte] ✅ Loading last opened chat from sync (login):',
-							lastOpenedChatId
-						);
-					}
-
-					// Update the active chat store so the sidebar highlights it when opened
-					activeChatStore.setActiveChat(lastOpenedChatId);
-
-					// Load the chat in the UI
-					activeChat.loadChat(lastChat);
-
-					console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
-					return; // Successfully loaded, don't load default
-				} else if (!lastChat) {
-					console.debug(
-						'[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase'
-					);
-					// Don't return - will load default below
-				} else if (!activeChat) {
-					console.debug('[+page.svelte] ActiveChat component not ready yet, retrying...');
-					// Retry after a short delay if activeChat isn't ready
-					setTimeout(handleSyncCompleteAndLoadLastChat, 100);
-					return; // Will retry, don't load default yet
-				}
-			} catch (error) {
-				console.error('[+page.svelte] Error loading last opened chat:', error);
-				// Continue to load default chat on error
-			}
+			// DON'T directly load the last opened chat here.
+			// Instead, let the "Resume last chat?" UI handle it.
+			// Chats.svelte's Phase 1 handler (handlePhase1LastChatReadyEvent) will
+			// populate phasedSyncState.resumeChatData, and ActiveChat.svelte will
+			// show the resume prompt on the new chat welcome screen.
+			// This gives the user the choice to resume or start fresh.
+			console.debug(
+				'[+page.svelte] Last opened chat found, deferring to "Resume last chat?" UI:',
+				lastOpenedChatId
+			);
+			// Keep the new chat welcome screen visible (don't set active chat)
+			activeChatStore.clearActiveChat();
+			return; // Let Chats.svelte Phase 1 handler show the resume UI
 		}
 
 		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
