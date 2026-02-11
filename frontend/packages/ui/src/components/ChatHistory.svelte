@@ -226,6 +226,10 @@
    * 
    * Used together with appSettingsMemoriesResponseMap to detect "unpaired" requests
    * (a request without a matching response) which indicates a pending permission dialog.
+   * 
+   * IMPORTANT: Both this map and the response map use user_message_id from the system message
+   * content as the key. This ensures symmetric lookup — a request and its response always
+   * map to the same key, preventing false "unpaired" detection.
    */
   let appSettingsMemoriesRequestMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesRequestContent>();
@@ -235,16 +239,10 @@
         const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
         if (request) {
           map.set(request.user_message_id, request);
-          console.debug(
-            `[ChatHistory:RequestMap] Found request: user_message_id=${request.user_message_id}, request_id=${request.request_id}`
-          );
         }
       }
     }
     
-    if (map.size > 0) {
-      console.debug(`[ChatHistory:RequestMap] Total requests found: ${map.size}`);
-    }
     return map;
   });
 
@@ -253,53 +251,37 @@
    * System messages with type 'app_settings_memories_response' contain the user's decision
    * (included/rejected) and should be displayed as part of the user's message, not separately.
    * 
-   * FALLBACK LOGIC: For demo/shared chats, the user_message_id in the system message content
-   * may reference the original chat's message ID (which no longer exists). In this case, we
-   * fall back to position-based association: find the most recent user message before this
-   * system message in the array.
+   * IMPORTANT: Uses user_message_id from the system message content directly as the key,
+   * matching the same strategy as the request map. Both request and response system messages
+   * store the same user_message_id (the client-generated ID of the triggering user message),
+   * so using it directly ensures they always pair correctly.
+   * 
+   * FALLBACK: If user_message_id is missing from the response content (should not happen
+   * in normal flow), falls back to position-based association with the nearest preceding
+   * user message.
    */
   let appSettingsMemoriesResponseMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesResponseContent>();
     
-    // First, collect all user message IDs for lookup
-    const userMessageIds = new Set<string>();
-    for (const msg of messages) {
-      if (msg.role === 'user') {
-        userMessageIds.add(msg.id);
-      }
-    }
-    
-    // Now process system messages
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.role === 'system') {
-        // Debug: log the raw content type and value for system messages
-        const rawContent = msg.original_message?.content;
-        console.debug(
-          `[ChatHistory:ResponseMap] System message ${msg.id}: content type=${typeof rawContent}, ` +
-          `content preview=${typeof rawContent === 'string' ? rawContent.substring(0, 80) : String(rawContent)}`
-        );
-        
-        const response = parseAppSettingsMemoriesResponse(rawContent);
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
-          // Try to use user_message_id if it matches a known user message
-          if (response.user_message_id && userMessageIds.has(response.user_message_id)) {
+          // Use user_message_id directly as the map key — same strategy as the request map.
+          // Both request and response system messages store the same user_message_id
+          // (the client-generated ID of the user message that triggered the request).
+          if (response.user_message_id) {
             map.set(response.user_message_id, response);
-            console.debug(
-              `[ChatHistory:ResponseMap] Found response: user_message_id=${response.user_message_id}, action=${response.action} (matched user message)`
-            );
           } else {
-            console.warn(
-              `[ChatHistory:ResponseMap] Response user_message_id=${response.user_message_id} NOT in userMessageIds. ` +
-              `Known user IDs: [${[...userMessageIds].join(', ')}]. Using fallback.`
-            );
-            // FALLBACK: user_message_id doesn't match any user message (common in demo/shared chats)
-            // Find the most recent user message before this system message
+            // FALLBACK: user_message_id is missing (should not happen in normal flow).
+            // Fall back to position-based association with the nearest preceding user message.
             for (let j = i - 1; j >= 0; j--) {
               if (messages[j].role === 'user') {
                 map.set(messages[j].id, response);
-                console.debug(
-                  `[ChatHistory:ResponseMap] Fallback: mapped response to user message ${messages[j].id}`
+                console.warn(
+                  `[ChatHistory] Response system message missing user_message_id, ` +
+                  `fell back to position-based mapping with user message ${messages[j].id}`
                 );
                 break;
               }
@@ -309,9 +291,6 @@
       }
     }
     
-    if (map.size > 0) {
-      console.debug(`[ChatHistory:ResponseMap] Total responses found: ${map.size}, keys: [${[...map.keys()].join(', ')}]`);
-    }
     return map;
   });
 
@@ -415,16 +394,7 @@
     // Find the first unpaired request in this chat's messages
     for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
-        console.warn(
-          `[ChatHistory:UnpairedDetection] ⚠️ UNPAIRED request found: user_message_id=${userMessageId}, request_id=${request.request_id}. ` +
-          `ResponseMap keys: [${[...appSettingsMemoriesResponseMap.keys()].join(', ')}]. ` +
-          `Total messages: ${messages.length}, system messages: ${messages.filter(m => m.role === 'system').length}`
-        );
         return request;
-      } else {
-        console.debug(
-          `[ChatHistory:UnpairedDetection] Request ${request.request_id} is PAIRED with response for user_message_id=${userMessageId}`
-        );
       }
     }
     return null;
