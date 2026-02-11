@@ -6,7 +6,7 @@
 # code duplication while making endpoints visible in the OpenAPI schema.
 
 from fastapi import APIRouter
-from backend.core.api.app.routes.settings import get_usage_summaries, get_usage_details, export_usage_csv
+from backend.core.api.app.routes.settings import get_usage_summaries, get_usage_details, export_usage_csv, get_chat_total_credits, get_message_cost
 
 # Create a router that will be included in OpenAPI docs
 router = APIRouter(prefix="/v1/settings/usage", tags=["Usage"])
@@ -15,4 +15,6 @@ router = APIRouter(prefix="/v1/settings/usage", tags=["Usage"])
 # This allows them to appear in the OpenAPI schema while keeping the implementation in one place
 router.get("/summaries")(get_usage_summaries)
 router.get("/details")(get_usage_details)
+router.get("/chat-total")(get_chat_total_credits)
+router.get("/message-cost")(get_message_cost)
 router.get("/export")(export_usage_csv)

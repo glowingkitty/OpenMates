@@ -1362,3 +1362,27 @@ resume_last_chat.start_new:
   cs: nebo začněte nový chat
   sv: eller starta en ny chatt
   verified_by_human: []
+
+context_menu.credits:
+  context: Label shown next to the credit amount in chat/message context menus (e.g. "1.234 credits")
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  verified_by_human: []

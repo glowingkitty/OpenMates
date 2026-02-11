@@ -800,6 +800,107 @@ class UsageMethods:
             logger.error(f"{log_prefix} Error fetching usage entries for summary: {e}", exc_info=True)
             return []
     
+    async def get_chat_total_credits(
+        self,
+        user_id_hash: str,
+        chat_id: str
+    ) -> int:
+        """
+        Get the total credits used for a specific chat across all months.
+        Uses the usage_monthly_chat_summaries table which stores total_credits
+        in cleartext, so no decryption is needed. Very fast.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            chat_id: The chat ID to look up
+            
+        Returns:
+            Total credits used for this chat (sum across all months)
+        """
+        log_prefix = "DirectusService (usage chat total):"
+        logger.debug(f"{log_prefix} Getting total credits for chat '{chat_id}'")
+        
+        try:
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "chat_id": {"_eq": chat_id}
+                },
+                "fields": "total_credits",
+                "limit": -1
+            }
+            
+            summaries = await self.sdk.get_items(
+                "usage_monthly_chat_summaries", params=params, no_cache=True
+            )
+            
+            total = sum(s.get("total_credits", 0) for s in summaries)
+            logger.debug(f"{log_prefix} Chat '{chat_id}' total credits: {total} (from {len(summaries)} month(s))")
+            return total
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error getting chat total credits: {e}", exc_info=True)
+            return 0
+
+    async def get_message_credits(
+        self,
+        user_id_hash: str,
+        message_id: str,
+        user_vault_key_id: str
+    ) -> Optional[int]:
+        """
+        Get the credits charged for a specific message.
+        Queries the usage collection by message_id and decrypts the credits field.
+        Typically returns a single entry since each message generates one usage record.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            message_id: The message ID to look up
+            user_vault_key_id: User's vault key ID for decryption
+            
+        Returns:
+            Credits charged for this message, or None if not found
+        """
+        log_prefix = "DirectusService (usage message):"
+        logger.debug(f"{log_prefix} Getting credits for message '{message_id}'")
+        
+        try:
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "message_id": {"_eq": message_id}
+                },
+                "fields": "encrypted_credits_costs_total",
+                "limit": 1
+            }
+            
+            entries = await self.sdk.get_items("usage", params=params, no_cache=True)
+            
+            if not entries:
+                logger.debug(f"{log_prefix} No usage entry found for message '{message_id}'")
+                return None
+            
+            encrypted_credits = entries[0].get("encrypted_credits_costs_total")
+            if not encrypted_credits:
+                logger.debug(f"{log_prefix} No encrypted credits for message '{message_id}'")
+                return 0
+            
+            decrypted = await self.encryption_service.decrypt_with_user_key(
+                encrypted_credits, user_vault_key_id
+            )
+            
+            try:
+                credits = int(decrypted)
+            except (ValueError, TypeError):
+                credits = 0
+            
+            logger.debug(f"{log_prefix} Message '{message_id}' credits: {credits}")
+            return credits
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error getting message credits: {e}", exc_info=True)
+            return None
+
     async def _decrypt_usage_entries(
         self,
         entries: List[Dict[str, Any]],
