@@ -500,7 +500,17 @@ function parseAppYaml(appId, filePath) {
           pricing = extractPricingFromSkillConfig(skill.skill_config);
         }
 
-        // If still no pricing, try to extract from provider YAML based on skill providers
+        // If still no pricing, try to extract from full_model_reference or provider YAML
+        if (!pricing && skill.full_model_reference) {
+          // Parse "provider/model" format (e.g., "google/gemini-3-pro-image-preview")
+          const parts = skill.full_model_reference.split("/");
+          if (parts.length === 2) {
+            const [refProviderId, refModelId] = parts;
+            pricing = extractProviderPricing(refProviderId, refModelId);
+          }
+        }
+
+        // If still no pricing, try provider-level pricing from skill providers
         if (!pricing && skill.providers && skill.providers.length > 0) {
           const providerName = skill.providers[0];
           const providerId = mapProviderNameToId(providerName, appId);
