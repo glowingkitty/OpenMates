@@ -5646,6 +5646,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             error={String(imgContent.error || '')}
                             onClose={handleCloseEmbedFullscreen}
                             embedId={embedFullscreenData.embedId}
+                            skillId={skillId === 'generate_draft' ? 'generate_draft' : 'generate'}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}

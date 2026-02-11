@@ -205,9 +205,29 @@ def process_image_for_storage(
         if metadata:
             xmp_data = _generate_ai_xmp(metadata)
             
-            # Also apply C2PA to original if it's a supported format
-            if orig_format.upper() in ["JPEG", "JPG", "PNG", "WEBP"]:
-                results['original'] = _apply_c2pa_signing(image_bytes, metadata, orig_format)
+            # Embed XMP metadata into the original image before C2PA signing.
+            # For WEBP/JPEG, Pillow supports xmp= param directly.
+            # For PNG, we inject XMP via an iTXt chunk with the standard key.
+            fmt_upper = orig_format.upper()
+            if fmt_upper == "PNG":
+                from PIL.PngImagePlugin import PngInfo
+                orig_io = io.BytesIO()
+                png_info = PngInfo()
+                png_info.add_text("XML:com.adobe.xmp", xmp_data.decode("utf-8"), zip=False)
+                img.save(orig_io, format="PNG", pnginfo=png_info)
+                results['original'] = orig_io.getvalue()
+            elif fmt_upper in ["JPEG", "JPG"]:
+                orig_io = io.BytesIO()
+                img.save(orig_io, format="JPEG", quality=98, xmp=xmp_data)
+                results['original'] = orig_io.getvalue()
+            elif fmt_upper == "WEBP":
+                orig_io = io.BytesIO()
+                img.save(orig_io, format="WEBP", quality=98, xmp=xmp_data)
+                results['original'] = orig_io.getvalue()
+            
+            # Apply C2PA signing to original (signs the XMP-embedded version)
+            if fmt_upper in ["JPEG", "JPG", "PNG", "WEBP"]:
+                results['original'] = _apply_c2pa_signing(results['original'], metadata, orig_format)
         
         # 1. Generate Full-size WEBP
         full_webp_io = io.BytesIO()

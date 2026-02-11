@@ -167,7 +167,7 @@
       : $text('embeds.image_generate.text')
   );
   
-  // Truncate prompt for preview (2 lines max)
+  // Truncate prompt for processing skeleton state (2 lines max)
   let promptPreview = $derived.by(() => {
     if (!prompt) return '';
     const text = prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
@@ -303,7 +303,9 @@
           {/if}
         </div>
       {:else if status === 'finished' && !error}
-        <!-- Finished state: show decrypted image + prompt -->
+        <!-- Finished state: show decrypted image only (no prompt text below, so the image
+             extends all the way into the BasicInfosBar via the negative margin-bottom
+             from hasFullWidthImage, eliminating white space). -->
         <div class="image-content">
           {#if imageUrl}
             <div class="image-container">
@@ -317,12 +319,6 @@
             <div class="image-error-small">
               <span class="error-icon-small">!</span>
               <span>{imageError}</span>
-            </div>
-          {/if}
-          
-          {#if promptPreview}
-            <div class="image-prompt">
-              <span class="prompt-text">{promptPreview}</span>
             </div>
           {/if}
         </div>
@@ -450,22 +446,8 @@
     display: block;
   }
   
-  .image-prompt {
-    padding: 8px 12px;
-    background: var(--color-grey-5, #fafafa);
-    border-top: 1px solid var(--color-grey-15, #f0f0f0);
-  }
-  
-  .image-prompt .prompt-text {
-    font-size: 12px;
-    color: var(--color-grey-60, #666);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
+  /* Note: .image-prompt section was removed from the template to allow the image
+     to extend into the BasicInfosBar area (via hasFullWidthImage negative margin). */
   
   /* Image load error */
   .image-error-small {
@@ -522,10 +504,7 @@
     line-height: 1.4;
   }
   
-  /* Mobile adjustments */
-  .mobile .image-prompt .prompt-text {
-    font-size: 11px;
-  }
+  /* Mobile adjustments - no special handling needed since prompt was removed from preview */
   
   /* Dark mode support */
   :global(.dark) .skeleton-image {
@@ -548,14 +527,7 @@
     background: var(--color-grey-90, #1a1a1a);
   }
   
-  :global(.dark) .image-prompt {
-    background: var(--color-grey-95, #111);
-    border-top-color: var(--color-grey-85, #252525);
-  }
-  
-  :global(.dark) .image-prompt .prompt-text {
-    color: var(--color-grey-40, #aaa);
-  }
+  /* Dark mode .image-prompt styles removed (section no longer in template) */
   
   :global(.dark) .error-state {
     background: var(--color-error-95, #2a1515);
