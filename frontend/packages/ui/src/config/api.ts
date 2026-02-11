@@ -170,6 +170,7 @@ export const apiEndpoints = {
     getSummaries: "/v1/settings/usage/summaries", // Get usage summaries (fast)
     getDetails: "/v1/settings/usage/details", // Get usage details (lazy loading)
     getDailyOverview: "/v1/settings/usage/daily-overview", // Get daily usage overview (all types combined, grouped by day)
+    getChatEntries: "/v1/settings/usage/chat-entries", // Get all usage entries for a specific chat (no month filter)
     chatTotal: "/v1/settings/usage/chat-total", // Get total credits for a specific chat
     messageCost: "/v1/settings/usage/message-cost", // Get credits for a specific message
     export: "/v1/settings/usage/export", // Export usage data as CSV

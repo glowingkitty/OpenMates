@@ -1099,6 +1099,59 @@ class UsageMethods:
             logger.error(f"{log_prefix} Error fetching usage entries for summary: {e}", exc_info=True)
             return []
     
+    async def get_all_chat_entries(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        chat_id: str,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch all usage entries for a specific chat across all time (no month filter).
+        Used by the overview detail view to show all skill uses for a chat.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            user_vault_key_id: User's vault key ID for decryption
+            chat_id: The chat ID to fetch entries for
+            limit: Maximum number of entries to return (default 100)
+            
+        Returns:
+            List of decrypted usage entries, sorted by created_at descending
+        """
+        log_prefix = "DirectusService (chat entries):"
+        logger.info(f"{log_prefix} Fetching all entries for chat '{chat_id}', user '{user_id_hash}'")
+        
+        try:
+            # Query usage collection for all entries matching this chat
+            filter_dict = {
+                "user_id_hash": {"_eq": user_id_hash},
+                "chat_id": {"_eq": chat_id},
+                "source": {"_eq": "chat"}
+            }
+            
+            params = {
+                "filter": filter_dict,
+                "fields": "*",
+                "sort": ["-created_at"],
+                "limit": limit
+            }
+            
+            entries = await self.sdk.get_items("usage", params=params, no_cache=True)
+            
+            if not entries:
+                logger.info(f"{log_prefix} No entries found for chat '{chat_id}'")
+                return []
+            
+            # Decrypt all entries
+            decrypted = await self._decrypt_usage_entries(entries, user_vault_key_id)
+            logger.info(f"{log_prefix} Returning {len(decrypted)} entries for chat '{chat_id}'")
+            return decrypted
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching chat entries: {e}", exc_info=True)
+            return []
+
     async def get_chat_total_credits(
         self,
         user_id_hash: str,

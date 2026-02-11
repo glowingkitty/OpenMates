@@ -918,3 +918,118 @@ api_key_label:
   cs: API klíč
   sv: API-nyckel
   verified_by_human: []
+model_label:
+  context: Label for the AI model used in a usage entry detail view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  verified_by_human: []
+input_tokens_label:
+  context: Label for input tokens count in a usage entry detail view
+  en: Input tokens
+  de: Eingabe-Token
+  zh: 输入令牌
+  es: Tokens de entrada
+  fr: Tokens d'entrée
+  pt: Tokens de entrada
+  ru: Входные токены
+  ja: 入力トークン
+  ko: 입력 토큰
+  it: Token di input
+  tr: Giriş token
+  vi: Token đầu vào
+  id: Token masukan
+  pl: Tokeny wejściowe
+  nl: Invoertokens
+  ar: رموز الإدخال
+  hi: इनपुट टोकन
+  th: โทเค็นอินพุต
+  cs: Vstupní tokeny
+  sv: Inmatningstoken
+  verified_by_human: []
+output_tokens_label:
+  context: Label for output tokens count in a usage entry detail view
+  en: Output tokens
+  de: Ausgabe-Token
+  zh: 输出令牌
+  es: Tokens de salida
+  fr: Tokens de sortie
+  pt: Tokens de saída
+  ru: Выходные токены
+  ja: 出力トークン
+  ko: 출력 토큰
+  it: Token di output
+  tr: Çıkış token
+  vi: Token đầu ra
+  id: Token keluaran
+  pl: Tokeny wyjściowe
+  nl: Uitvoertokens
+  ar: رموز الإخراج
+  hi: आउटपुट टोकन
+  th: โทเค็นเอาต์พุต
+  cs: Výstupní tokeny
+  sv: Utmatningstoken
+  verified_by_human: []
+total_credits_label:
+  context: Label for total credits in a usage entry detail view
+  en: Total credits
+  de: Gesamt-Credits
+  zh: 总积分
+  es: Créditos totales
+  fr: Crédits totaux
+  pt: Créditos totais
+  ru: Всего кредитов
+  ja: 合計クレジット
+  ko: 총 크레딧
+  it: Crediti totali
+  tr: Toplam kredi
+  vi: Tổng tín dụng
+  id: Total kredit
+  pl: Łączne kredyty
+  nl: Totale credits
+  ar: إجمالي الرصيد
+  hi: कुल क्रेडिट
+  th: เครดิตทั้งหมด
+  cs: Celkové kredity
+  sv: Totala krediter
+  verified_by_human: []
+entry_detail_title:
+  context: Title shown in the usage entry detail view header
+  en: Usage Details
+  de: Nutzungsdetails
+  zh: 使用详情
+  es: Detalles de uso
+  fr: Détails d'utilisation
+  pt: Detalhes de uso
+  ru: Детали использования
+  ja: 使用詳細
+  ko: 사용 세부정보
+  it: Dettagli utilizzo
+  tr: Kullanım Detayları
+  vi: Chi tiết sử dụng
+  id: Detail Penggunaan
+  pl: Szczegóły użycia
+  nl: Gebruiksdetails
+  ar: تفاصيل الاستخدام
+  hi: उपयोग विवरण
+  th: รายละเอียดการใช้งาน
+  cs: Podrobnosti použití
+  sv: Användningsdetaljer
+  verified_by_human: []

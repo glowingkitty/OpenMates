@@ -116,6 +116,12 @@ Usage Settings - View usage statistics and export usage data
     let selectedApiKeyHash: string | null = $state(null); // Selected API key hash for detail view
     let selectedApiKeyMonth: string | null = $state(null); // Selected API key's month for detail view
     
+    // Overview detail view state (drill-down from daily overview)
+    let overviewSelectedChatId: string | null = $state(null); // Selected chat from overview tab
+    let overviewChatEntries: UsageEntry[] = $state([]); // All entries for the selected chat
+    let isLoadingOverviewEntries = $state(false);
+    let overviewSelectedEntry: UsageEntry | null = $state(null); // Selected entry for detail view (level 2)
+    
     // Chat metadata cache for usage display
     let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null }>>(new Map());
     
@@ -491,15 +497,24 @@ Usage Settings - View usage statistics and export usage data
             hasMoreDays = data.has_more_days === true;
             
             // Load chat metadata for any chat items in the overview
+            // Collect all promises and await them so we can trigger a reactive update
+            const metadataPromises: Promise<void>[] = [];
             for (const day of dailyOverview) {
                 for (const item of day.items) {
                     if (item.type === 'chat' && item.chat_id) {
-                        // Load metadata in background (non-blocking)
-                        loadChatMetadata(item.chat_id).catch(err => 
-                            console.warn('[SettingsUsage] Failed to load metadata for chat:', item.chat_id, err)
+                        metadataPromises.push(
+                            loadChatMetadata(item.chat_id).then(() => {}).catch(err => 
+                                console.warn('[SettingsUsage] Failed to load metadata for chat:', item.chat_id, err)
+                            )
                         );
                     }
                 }
+            }
+            // Wait for all metadata to load, then reassign the map to trigger Svelte reactivity
+            // (Map.set() mutates in-place which Svelte 5 $state doesn't detect)
+            if (metadataPromises.length > 0) {
+                await Promise.all(metadataPromises);
+                chatMetadataMap = new Map(chatMetadataMap);
             }
             
             console.log(`Loaded daily overview: ${data.days.length} days`);
@@ -521,6 +536,39 @@ Usage Settings - View usage statistics and export usage data
     async function loadMoreDays() {
         loadedDays += 7;
         await fetchDailyOverview(loadedDays);
+    }
+
+    // Fetch all usage entries for a specific chat (no month filter)
+    // Used when clicking a chat in the overview tab to see all skill uses
+    async function fetchChatEntries(chatId: string) {
+        isLoadingOverviewEntries = true;
+        overviewChatEntries = [];
+        
+        try {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getChatEntries)}?chat_id=${encodeURIComponent(chatId)}`;
+            console.log('Fetching chat entries from:', endpoint);
+            
+            const response = await fetch(endpoint, { credentials: 'include' });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Failed to fetch chat entries: ${response.status} ${errorData.detail || ''}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data || !Array.isArray(data.entries)) {
+                throw new Error('Invalid response format: expected entries array');
+            }
+            
+            overviewChatEntries = data.entries;
+            console.log(`Loaded ${data.entries.length} entries for chat '${chatId}'`);
+        } catch (error) {
+            console.error('Error fetching chat entries:', error);
+            overviewChatEntries = [];
+        } finally {
+            isLoadingOverviewEntries = false;
+        }
     }
 
     /**
@@ -1136,6 +1184,11 @@ Usage Settings - View usage statistics and export usage data
         }
         lastFetchedTab = currentTab;
         
+        // Reset overview drill-down state when switching tabs
+        overviewSelectedChatId = null;
+        overviewSelectedEntry = null;
+        overviewChatEntries = [];
+        
         // Overview tab uses a different API endpoint
         if (currentTab === 'overview') {
             fetchDailyOverview(loadedDays);
@@ -1284,104 +1337,272 @@ Usage Settings - View usage statistics and export usage data
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
 {:else if activeTab === 'overview'}
-    <!-- Daily overview: Show all usage grouped by day -->
-    {#if isLoadingDailyOverview}
-        <div class="loading-state">
-            <div class="loading-spinner"></div>
-            <span>{$text('settings.usage.loading.text')}</span>
-        </div>
-    {:else if dailyOverview.length === 0}
-        <div class="empty-state">
-            <div class="empty-icon"></div>
-            <h4>{$text('settings.usage.no_usage_title.text')}</h4>
-            <p>{$text('settings.usage.no_usage_on_day.text')}</p>
-        </div>
-    {:else}
-        {#each dailyOverview as day}
-            <div class="time-group">
-                <div class="time-header">
-                    <h4 class="time-title">{getDayLabel(day.date)}</h4>
-                    <div class="time-total">
-                        <span class="credits-amount">{formatCredits(day.total_credits)}</span>
-                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+    <!-- Overview tab: 3-level drill-down -->
+    
+    {#if overviewSelectedEntry}
+        <!-- LEVEL 2: Single entry detail view (model, tokens, credits breakdown) -->
+        {#each [overviewSelectedEntry] as selEntry}
+            {@const entryAppName = selEntry.app_id ? (() => {
+                try { return $text(`apps.${selEntry.app_id}.text`); }
+                catch { return selEntry.app_id; }
+            })() : null}
+            {@const entrySkillName = selEntry.skill_id && selEntry.app_id ? (() => {
+                const key = getSkillTranslationKey(selEntry.app_id!, selEntry.skill_id!);
+                if (key) { try { return $text(key); } catch { return selEntry.skill_id; } }
+                return selEntry.skill_id;
+            })() : null}
+            {@const entryDisplayName = entryAppName && entrySkillName 
+                ? `${entryAppName} - ${entrySkillName}` 
+                : entryAppName || selEntry.type || $text('settings.usage.unknown_activity.text')}
+            {@const entryIconName = getEntryIcon(selEntry)}
+            
+            <div class="usage-detail-view">
+                <button 
+                    class="back-button"
+                    onclick={() => overviewSelectedEntry = null}
+                >
+                    <div class="clickable-icon icon_back"></div>
+                    <span>{$text('settings.usage.back.text')}</span>
+                </button>
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <div class="entry-icon icon icon_{entryIconName}" style="width: 32px; height: 32px;"></div>
+                    </div>
+                    <div class="detail-title-wrapper">
+                        <h3 class="detail-title">{entryDisplayName}</h3>
+                        <p class="detail-subtitle">{formatRelativeTime(selEntry.created_at)}</p>
                     </div>
                 </div>
                 
-                {#if day.items.length === 0}
-                    <div class="overview-empty-day">
-                        <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day.text')}</span>
-                    </div>
-                {:else}
-                    {#each day.items as item}
-                        {#if item.type === 'chat' && item.chat_id}
-                            <!-- Chat item with metadata -->
-                            {@const cached = chatMetadataMap.get(item.chat_id)}
-                            {@const metadata = cached?.metadata}
-                            {@const chat = cached?.chat}
-                            {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                            {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
-                            {@const category = canShowDetails ? (metadata?.category || null) : null}
-                            {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
-                            {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                            {@const IconComponent = getLucideIcon(iconName)}
-                            {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
-                            
-                            <div class="overview-usage-item">
-                                <div class="chat-usage-icon-wrapper">
-                                    <div 
-                                        class="chat-usage-icon-circle" 
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                    >
-                                        <div class="chat-usage-icon">
-                                            <IconComponent size={16} color="white" />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="overview-item-content">
-                                    <div class="overview-item-title">{title}</div>
-                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
-                                </div>
-                                <div class="overview-item-credits">
-                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
-                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                                </div>
-                            </div>
-                        {:else if item.type === 'api_key'}
-                            <!-- API key item -->
-                            <div class="overview-usage-item">
-                                <div class="app-usage-icon-wrapper">
-                                    <Icon 
-                                        name="code"
-                                        type="default"
-                                        size="28px"
-                                    />
-                                </div>
-                                <div class="overview-item-content">
-                                    <div class="overview-item-title">{$text('settings.usage.api_key_label.text')}</div>
-                                    <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
-                                </div>
-                                <div class="overview-item-credits">
-                                    <span class="credits-amount">{formatCredits(item.total_credits)}</span>
-                                    <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                                </div>
-                            </div>
-                        {/if}
-                    {/each}
-                {/if}
+                <div class="entry-detail-fields">
+                    {#if selEntry.credits}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.total_credits_label.text')}</span>
+                            <span class="entry-detail-value">
+                                <span class="credits-amount">{formatCredits(selEntry.credits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </span>
+                        </div>
+                    {/if}
+                    {#if selEntry.model_used}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.model_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.model_used}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.input_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.input_tokens_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.output_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.output_tokens_label.text')}</span>
+                            <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                </div>
             </div>
         {/each}
+    {:else if overviewSelectedChatId}
+        <!-- LEVEL 1: Chat entries list (all skill uses for this chat) -->
+        {@const chatCached = chatMetadataMap.get(overviewSelectedChatId)}
+        {@const chatMeta = chatCached?.metadata}
+        {@const chatObj = chatCached?.chat}
+        {@const chatIsHidden = chatObj ? ((chatObj as any).is_hidden_candidate || (chatObj as any).is_hidden) : false}
+        {@const chatCanShow = !chatIsHidden || (chatIsHidden && hiddenChatsUnlocked)}
+        {@const chatCategory = chatCanShow ? (chatMeta?.category || null) : null}
+        {@const chatIconName = chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle'}
+        {@const chatGradient = chatCanShow && chatCategory ? getCategoryGradientColors(chatCategory) : null}
+        {@const ChatIcon = getLucideIcon(chatIconName)}
+        {@const chatTitle = chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat'}
         
-        <!-- Load more days button -->
-        {#if hasMoreDays && !isLoadingDailyOverview}
-            <div class="show-more-container">
-                <button
-                    class="show-more-button"
-                    onclick={loadMoreDays}
-                    aria-label={$text('settings.usage.load_more_days.text')}
-                >
-                    {$text('settings.usage.load_more_days.text')}
-                </button>
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    overviewSelectedChatId = null;
+                    overviewChatEntries = [];
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back.text')}</span>
+            </button>
+            
+            <div class="detail-header">
+                <div class="detail-icon-wrapper">
+                    <div 
+                        class="chat-usage-icon-circle" 
+                        style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
+                    >
+                        <div class="chat-usage-icon">
+                            <ChatIcon size={16} color="white" />
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-title-wrapper">
+                    <h3 class="detail-title">{chatTitle}</h3>
+                </div>
             </div>
+            
+            {#if isLoadingOverviewEntries}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading.text')}</span>
+                </div>
+            {:else if overviewChatEntries.length === 0}
+                <div class="empty-state">
+                    <div class="empty-icon"></div>
+                    <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                </div>
+            {:else}
+                {#each overviewChatEntries as entry}
+                    {@const oAppName = entry.app_id ? (() => {
+                        try { return $text(`apps.${entry.app_id}.text`); }
+                        catch { return entry.app_id; }
+                    })() : null}
+                    {@const oSkillName = entry.skill_id && entry.app_id ? (() => {
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
+                    })() : null}
+                    {@const oDisplayName = oAppName && oSkillName 
+                        ? `${oAppName} - ${oSkillName}` 
+                        : oAppName || entry.type || $text('settings.usage.unknown_activity.text')}
+                    {@const oEntryIcon = getEntryIcon(entry)}
+                    
+                    <button
+                        type="button"
+                        class="detail-entry clickable"
+                        onclick={() => overviewSelectedEntry = entry}
+                    >
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{oEntryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{oDisplayName}</div>
+                                {#if entry.model_used}
+                                    <div class="entry-sublabel">{entry.model_used}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </div>
+                    </button>
+                {/each}
+            {/if}
+        </div>
+    {:else}
+        <!-- LEVEL 0: Daily overview (days with items) -->
+        {#if isLoadingDailyOverview}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading.text')}</span>
+            </div>
+        {:else if dailyOverview.length === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <p>{$text('settings.usage.no_usage_on_day.text')}</p>
+            </div>
+        {:else}
+            {#each dailyOverview as day}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{getDayLabel(day.date)}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(day.total_credits)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#if day.items.length === 0}
+                        <div class="overview-empty-day">
+                            <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day.text')}</span>
+                        </div>
+                    {:else}
+                        {#each day.items as item}
+                            {#if item.type === 'chat' && item.chat_id}
+                                <!-- Chat item - clickable to drill down -->
+                                {@const cached = chatMetadataMap.get(item.chat_id)}
+                                {@const metadata = cached?.metadata}
+                                {@const chat = cached?.chat}
+                                {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                                {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
+                                {@const category = canShowDetails ? (metadata?.category || null) : null}
+                                {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                                {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
+                                
+                                <button
+                                    type="button"
+                                    class="overview-usage-item clickable"
+                                    onclick={async () => {
+                                        overviewSelectedChatId = item.chat_id;
+                                        await fetchChatEntries(item.chat_id!);
+                                    }}
+                                >
+                                    <div class="chat-usage-icon-wrapper">
+                                        <div 
+                                            class="chat-usage-icon-circle" 
+                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                        >
+                                            <div class="chat-usage-icon">
+                                                <IconComponent size={16} color="white" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="overview-item-content">
+                                        <div class="overview-item-title">{title}</div>
+                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                    </div>
+                                    <div class="overview-item-credits">
+                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                    </div>
+                                </button>
+                            {:else if item.type === 'api_key'}
+                                <!-- API key item -->
+                                <div class="overview-usage-item">
+                                    <div class="app-usage-icon-wrapper">
+                                        <Icon 
+                                            name="code"
+                                            type="default"
+                                            size="28px"
+                                        />
+                                    </div>
+                                    <div class="overview-item-content">
+                                        <div class="overview-item-title">{$text('settings.usage.api_key_label.text')}</div>
+                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                    </div>
+                                    <div class="overview-item-credits">
+                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                    </div>
+                                </div>
+                            {/if}
+                        {/each}
+                    {/if}
+                </div>
+            {/each}
+            
+            <!-- Load more days button -->
+            {#if hasMoreDays && !isLoadingDailyOverview}
+                <div class="show-more-container">
+                    <button
+                        class="show-more-button"
+                        onclick={loadMoreDays}
+                        aria-label={$text('settings.usage.load_more_days.text')}
+                    >
+                        {$text('settings.usage.load_more_days.text')}
+                    </button>
+                </div>
+            {/if}
         {/if}
     {/if}
 {:else if selectedChatId && usageEntries.length > 0}
@@ -2372,6 +2593,22 @@ Usage Settings - View usage statistics and export usage data
 
     .detail-entry {
         margin-bottom: 16px;
+        background: none;
+        border: none;
+        padding: 0;
+        width: 100%;
+        text-align: left;
+        font: inherit;
+        color: inherit;
+    }
+
+    .detail-entry.clickable {
+        cursor: pointer;
+    }
+
+    .detail-entry.clickable .entry-content:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
     }
 
     .entry-time {
@@ -2506,6 +2743,13 @@ Usage Settings - View usage statistics and export usage data
         border: 1px solid var(--color-grey-20);
         transition: all 0.2s ease;
         width: 100%;
+        text-align: left;
+        font: inherit;
+        color: inherit;
+    }
+
+    .overview-usage-item.clickable {
+        cursor: pointer;
     }
 
     .overview-usage-item:hover {
@@ -2551,5 +2795,39 @@ Usage Settings - View usage statistics and export usage data
     .overview-empty-text {
         color: var(--color-grey-50);
         font-size: 13px;
+    }
+
+    /* Entry detail fields (Level 2 - model, tokens, credits) */
+    .entry-detail-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0 10px;
+    }
+
+    .entry-detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--color-grey-15);
+    }
+
+    .entry-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .entry-detail-label {
+        color: var(--color-grey-60);
+        font-size: 14px;
+    }
+
+    .entry-detail-value {
+        color: var(--color-text);
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
 </style>
