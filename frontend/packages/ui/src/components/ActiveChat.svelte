@@ -6268,7 +6268,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
-        /* Allow clicks to pass through to ChatHistory underneath,
+        /* Render above ChatHistory (which is also position:absolute and comes after in DOM) */
+        z-index: 1;
+        /* Allow clicks to pass through the non-interactive parts to ChatHistory underneath,
            but re-enable pointer-events on interactive children (resume card button) */
         pointer-events: none;
         display: flex;
