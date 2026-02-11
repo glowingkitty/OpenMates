@@ -84,19 +84,32 @@ class GenerateSkill(BaseSkill):
         # Extract user context for the task
         user_id = kwargs.get("user_id")
         
+        # Accept placeholder embed_ids from main_processor context.
+        # When the main_processor creates placeholder embeds before skill execution,
+        # it passes the embed_ids so the Celery task can UPDATE the existing placeholder
+        # instead of creating a new embed. This enables the in-place transition from
+        # "processing" -> "finished" in the frontend.
+        placeholder_embed_ids = kwargs.get("placeholder_embed_ids", [])
+        
         # According to the multiple requests pattern, each request should be processed 
         # in parallel by spawning separate Celery tasks.
         results = []  # List of {task_id, embed_id} dicts
         
-        for req in requests:
+        for idx, req in enumerate(requests):
             prompt = req.get("prompt")
             if not prompt:
                 logger.warning(f"Skipping image generation request: missing 'prompt' field. Req: {req}")
                 continue
             
-            # Generate embed_id here so we can return it immediately
-            # The Celery task will create the embed with this ID
-            embed_id = str(uuid.uuid4())
+            # Use placeholder embed_id if available (from main_processor),
+            # otherwise generate a new one (backward compatibility / standalone usage).
+            # The Celery task will update the existing placeholder embed with this ID.
+            if idx < len(placeholder_embed_ids) and placeholder_embed_ids[idx]:
+                embed_id = placeholder_embed_ids[idx]
+                logger.info(f"Using placeholder embed_id from main_processor: {embed_id}")
+            else:
+                embed_id = str(uuid.uuid4())
+                logger.info(f"No placeholder embed_id for request {idx}, generating new: {embed_id}")
             
             # Prepare arguments for the Celery task
             # We include all relevant context for the task to process independently

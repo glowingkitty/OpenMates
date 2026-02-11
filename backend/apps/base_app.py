@@ -251,6 +251,9 @@ class BaseApp:
             api_key_hash = request_body.get("_api_key_hash")
             device_hash = request_body.get("_device_hash")
             external_request = request_body.get("_external_request", False)
+            # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
+            # to update existing placeholder embeds instead of creating new ones
+            placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
 
             # Initialize skill instance
             # Extract full_model_reference from skill_definition
@@ -290,7 +293,8 @@ class BaseApp:
                 "device_hash": device_hash,
                 "external_request": external_request,
                 "chat_id": chat_id,
-                "message_id": message_id
+                "message_id": message_id,
+                "placeholder_embed_ids": placeholder_embed_ids
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
