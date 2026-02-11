@@ -76,16 +76,32 @@ export default defineConfig({
 							},
 							networkTimeoutSeconds: 10
 						}
+					},
+					// Serve the app shell for navigation requests with NetworkFirst strategy.
+					// This replaces the previous `navigateFallback: 'index.html'` which caused
+					// "non-precached-url" crashes when a new deployment changed file hashes but
+					// the old service worker was still active (skipWaiting: false). The old SW
+					// would try to serve index.html from its precache, but cleanupOutdatedCaches
+					// had already removed the old revision, causing an unrecoverable error.
+					//
+					// NetworkFirst ensures:
+					// 1. Online: always fetches the latest HTML from the server (correct behavior)
+					// 2. Offline: falls back to the last cached version of the page
+					// 3. No crashes: if the cache is empty, the request simply fails gracefully
+					//    instead of throwing a non-precached-url error
+					{
+						urlPattern: ({ request }) => request.mode === 'navigate',
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'navigation-cache',
+							expiration: {
+								maxEntries: 10,
+								maxAgeSeconds: 24 * 60 * 60 // 24 hours
+							},
+							networkTimeoutSeconds: 5
+						}
 					}
-				],
-				// Return the cached app shell (index.html) for any navigation request that
-				// fails to reach the network. This is the critical piece for offline support:
-				// without it, opening the app while offline shows "Safari can't find the server"
-				// instead of loading the cached SvelteKit SPA shell.
-				// The SPA shell then hydrates and reads chat data from IndexedDB.
-				navigateFallback: 'index.html',
-				// Don't serve the app shell fallback for API routes or non-app paths
-				navigateFallbackDenylist: [/^\/api\//, /^\/\.well-known\//]
+				]
 			},
 			devOptions: {
 				enabled: true,
@@ -124,10 +140,10 @@ export default defineConfig({
 				// Manual chunk splitting strategy to improve caching and load performance
 				// Split large dependencies into separate chunks that can be cached independently
 				manualChunks(id) {
-				// TipTap and ProseMirror (~2MB) - loaded only for message input
-				if (id.includes('tiptap') || id.includes('prosemirror')) {
-					return 'editor';
-				}
+					// TipTap and ProseMirror (~2MB) - loaded only for message input
+					if (id.includes('tiptap') || id.includes('prosemirror')) {
+						return 'editor';
+					}
 					// Translation files (~1.5MB total) - loaded per-language as needed
 					if (
 						id.includes('/chunks/de.js') ||

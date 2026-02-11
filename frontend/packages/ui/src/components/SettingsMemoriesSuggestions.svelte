@@ -12,6 +12,7 @@
    * Design: First card is centered, horizontal scroll for multiple cards.
    * Privacy: Uses SHA-256 hashes for rejection (zero-knowledge).
    */
+  import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import { text } from "@repo/ui";
   import type { SuggestedSettingsMemoryEntry } from "../types/apps";
@@ -151,15 +152,18 @@
    * 1. Not already rejected
    * 2. Don't already exist in user's data (case-insensitive title match)
    *
-   * Subscribes to the appSettingsMemoriesStore so filtering re-runs
-   * when entries are loaded, added, or deleted.
+   * Uses a store version counter (incremented via onMount subscription) so
+   * that the $effect re-runs when entries are loaded, added, or deleted.
    */
   let filteredSuggestions = $state<SuggestedSettingsMemoryEntry[]>([]);
 
   // Subscribe to store changes to get reactive updates when entries change.
-  // This ensures filtering re-runs when entries are loaded, added, or deleted.
+  // CRITICAL: Use onMount instead of $effect for the subscription to avoid
+  // an infinite loop. Subscribing inside $effect causes the callback to fire
+  // immediately (standard Svelte store contract), which mutates storeVersion,
+  // which re-triggers the effect, re-subscribes, fires again → infinite loop.
   let storeVersion = $state(0);
-  $effect(() => {
+  onMount(() => {
     const unsubscribeStore = appSettingsMemoriesStore.subscribe(() => {
       storeVersion++;
     });
@@ -170,7 +174,13 @@
   $effect(() => {
     // Track reactive dependencies: suggestions prop, rejectedHashes prop, and store version
     void storeVersion;
-    filterSuggestions();
+    void suggestions;
+    void rejectedHashes;
+    // CRITICAL: Wrap async filterSuggestions in a try-catch to prevent unhandled
+    // promise rejections from crashing Svelte's reactive flush cycle
+    filterSuggestions().catch((error) => {
+      console.error("[SettingsMemoriesSuggestions] Error filtering suggestions:", error);
+    });
   });
 
   async function filterSuggestions() {
