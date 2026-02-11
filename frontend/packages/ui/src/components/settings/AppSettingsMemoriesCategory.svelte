@@ -372,12 +372,9 @@
                 {/if}
             </div>
         {:else}
-            <!-- For non-authenticated users, show the description and example entries -->
-            <div class="description-only">
-                {#if categoryDescription}
-                    <p class="description-text">{categoryDescription}</p>
-                {/if}
-                {#if exampleTranslationKeys.length > 0}
+            <!-- For non-authenticated users, show example entries (description already shown in header above) -->
+            {#if exampleTranslationKeys.length > 0}
+                <div class="examples-only">
                     <div class="examples-section">
                         <p class="examples-label">{$text('settings.app_settings_memories.examples_label.text')}</p>
                         <div class="examples-list">
@@ -391,8 +388,8 @@
                             {/each}
                         </div>
                     </div>
-                {/if}
-            </div>
+                </div>
+            {/if}
         {/if}
     {/if}
 </div>
@@ -466,16 +463,9 @@
         background: var(--button-hover-background, #e0e0e0);
     }
     
-    .description-only {
+    .examples-only {
         padding: 2rem;
         margin-top: 1rem;
-    }
-    
-    .description-text {
-        margin: 0;
-        color: var(--text-secondary, #666666);
-        font-size: 1rem;
-        line-height: 1.6;
     }
     
     .examples-section {
