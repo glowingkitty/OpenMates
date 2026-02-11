@@ -5335,6 +5335,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {@const gradientColors = getCategoryGradientColors(category)}
                                 {@const iconName = getValidIconName(resumeChatIcon || '', category)}
                                 {@const IconComponent = getLucideIcon(iconName)}
+                                {@const ChevronRight = getLucideIcon('chevron-right')}
                                 <button 
                                     class="resume-chat-card"
                                     onclick={handleResumeLastChat}
@@ -5352,7 +5353,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                     </div>
                                     <div class="resume-chat-arrow">
-                                        <div class="icon icon_chevron_right"></div>
+                                        <ChevronRight size={16} color="var(--color-grey-50)" />
                                     </div>
                                 </button>
                             {/if}
@@ -6267,6 +6268,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
+        /* Allow clicks to pass through to ChatHistory underneath,
+           but re-enable pointer-events on interactive children (resume card button) */
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     /* Adjust welcome content position for narrow containers */
@@ -6351,6 +6358,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         cursor: pointer;
         transition: all 0.2s ease;
         text-align: left;
+        pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
     }
 
     .resume-chat-card:hover {
@@ -6406,11 +6414,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-    }
-
-    .resume-chat-arrow .icon {
-        width: 16px;
-        height: 16px;
         opacity: 0.5;
     }
 
