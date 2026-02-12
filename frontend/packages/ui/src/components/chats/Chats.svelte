@@ -397,7 +397,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
 	
 	// Get ordered group entries for display
-	let orderedGroupedChats = $derived((() => {
+	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
+	// This allows the "Show more" button to be rendered between user chats and static sections,
+	// so users don't have to scroll past intro/example/legal chats to find it.
+	const STATIC_GROUP_KEYS = ['shared_by_others', 'intro', 'examples', 'legal'];
+	
+	let orderedUserChatGroups = $derived((() => {
 		const groups = groupedChatsForDisplay;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
@@ -410,18 +415,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
-		// These are older real user chats, so they should come before the static sections
-		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !STATIC_GROUP_KEYS.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
 			}
 		}
-
-		// 3. Finally, add the static sections in the specified order
+		
+		return orderedEntries;
+	})());
+	
+	let orderedStaticChatGroups = $derived((() => {
+		const groups = groupedChatsForDisplay;
+		const orderedEntries: [string, ChatType[]][] = [];
+		
+		// Add static sections in the specified order
 		// shared_by_others comes first (before intro/examples/legal) since these are chats from real users
-		for (const groupKey of staticGroups) {
+		for (const groupKey of STATIC_GROUP_KEYS) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
@@ -429,6 +438,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		
 		return orderedEntries;
 	})());
+	
+
 
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
@@ -2985,122 +2996,131 @@ async function updateChatListFromDBInternal(force = false) {
 			{/if}
 			
 			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), loadTier: {loadTier}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
-			<div class="chat-groups">
-				{#each orderedGroupedChats as [groupKey, groupItems] (groupKey)}
-					{#if groupItems.length > 0}
-						<div class="chat-group">
-							<!-- Pass the translation function `$_` to the utility -->
-							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-							{#each groupItems as chat (chat.chat_id)}
-								<div
-									role="button"
-									tabindex="0"
-									class="chat-item"
-									class:active={selectedChatId === chat.chat_id}
-									class:incognito={chat.is_incognito}
-									onclick={(event) => {
-										handleChatItemClick(chat, event);
-									}}
-									onkeydown={(e) => {
-										// Handle keyboard selection with modifiers
-										const isShift = e.shiftKey;
-										const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+			
+			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
+			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
+				{#if groupItems.length > 0}
+					<div class="chat-group">
+						<!-- Pass the translation function `$_` to the utility -->
+						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+						{#each groupItems as chat (chat.chat_id)}
+							<div
+								role="button"
+								tabindex="0"
+								class="chat-item"
+								class:active={selectedChatId === chat.chat_id}
+								class:incognito={chat.is_incognito}
+								onclick={(event) => {
+									handleChatItemClick(chat, event);
+								}}
+								onkeydown={(e) => {
+									// Handle keyboard selection with modifiers
+									const isShift = e.shiftKey;
+									const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+									
+									if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
+										e.preventDefault();
 										
-										if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
-											e.preventDefault();
-											
-											// Shift+Space/Enter: Select range
-											if (isShift && lastSelectedChatId) {
-												const allChatsList = flattenedNavigableChats;
-												const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
-												const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+										// Shift+Space/Enter: Select range
+										if (isShift && lastSelectedChatId) {
+											const allChatsList = flattenedNavigableChats;
+											const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
+											const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
 
-												if (lastIndex !== -1 && currentIndex !== -1) {
-													if (!selectMode) {
-														selectMode = true;
-														selectedChatIds.clear();
-													}
-
-													const startIndex = Math.min(lastIndex, currentIndex);
-													const endIndex = Math.max(lastIndex, currentIndex);
-													
-													for (let i = startIndex; i <= endIndex; i++) {
-														selectedChatIds.add(allChatsList[i].chat_id);
-													}
-													selectedChatIds = new Set(selectedChatIds);
-													lastSelectedChatId = chat.chat_id;
-													return;
-												}
-											}
-											
-											// Cmd/Ctrl+Space/Enter: Toggle selection
-											if (isCmdOrCtrl) {
+											if (lastIndex !== -1 && currentIndex !== -1) {
 												if (!selectMode) {
 													selectMode = true;
-													if (selectedChatId) {
-														selectedChatIds.add(selectedChatId);
-														lastSelectedChatId = selectedChatId;
-													}
+													selectedChatIds.clear();
 												}
 
-												if (selectedChatIds.has(chat.chat_id)) {
-													selectedChatIds.delete(chat.chat_id);
-													if (lastSelectedChatId === chat.chat_id) {
-														const remaining = Array.from(selectedChatIds);
-														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-													}
-												} else {
-													selectedChatIds.add(chat.chat_id);
-													lastSelectedChatId = chat.chat_id;
+												const startIndex = Math.min(lastIndex, currentIndex);
+												const endIndex = Math.max(lastIndex, currentIndex);
+												
+												for (let i = startIndex; i <= endIndex; i++) {
+													selectedChatIds.add(allChatsList[i].chat_id);
 												}
 												selectedChatIds = new Set(selectedChatIds);
-												return;
-											}
-											
-											// Normal Space/Enter in select mode: toggle selection
-											if (selectMode) {
-												if (selectedChatIds.has(chat.chat_id)) {
-													selectedChatIds.delete(chat.chat_id);
-													if (lastSelectedChatId === chat.chat_id) {
-														const remaining = Array.from(selectedChatIds);
-														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-													}
-												} else {
-													selectedChatIds.add(chat.chat_id);
-													lastSelectedChatId = chat.chat_id;
-												}
-												selectedChatIds = new Set(selectedChatIds);
+												lastSelectedChatId = chat.chat_id;
 												return;
 											}
 										}
 										
-										// Fallback to normal keyboard navigation
-										handleKeyDown(e, chat);
-									}}
-									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-									aria-label={chat.encrypted_title || 'Unnamed chat'}
-								>
-									<ChatComponent 
-										chat={chat} 
-										activeChatId={selectedChatId}
-										selectMode={selectMode}
-										selectedChatIds={selectedChatIds}
-										onToggleSelection={(chatId: string) => {
-											if (selectedChatIds.has(chatId)) {
-												selectedChatIds.delete(chatId);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-											} else {
-												selectedChatIds.add(chatId);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										// Cmd/Ctrl+Space/Enter: Toggle selection
+										if (isCmdOrCtrl) {
+											if (!selectMode) {
+												selectMode = true;
+												if (selectedChatId) {
+													selectedChatIds.add(selectedChatId);
+													lastSelectedChatId = selectedChatId;
+												}
 											}
-										}}
-									/>
-								</div>
-							{/each}
-						</div>
-					{/if}
+
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+										
+										// Normal Space/Enter in select mode: toggle selection
+										if (selectMode) {
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+									}
+									
+									// Fallback to normal keyboard navigation
+									handleKeyDown(e, chat);
+								}}
+								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
+								aria-label={chat.encrypted_title || 'Unnamed chat'}
+							>
+								<ChatComponent 
+									chat={chat} 
+									activeChatId={selectedChatId}
+									selectMode={selectMode}
+									selectedChatIds={selectedChatIds}
+									onToggleSelection={(chatId: string) => {
+										if (selectedChatIds.has(chatId)) {
+											selectedChatIds.delete(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										} else {
+											selectedChatIds.add(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										}
+									}}
+								/>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{/snippet}
+			
+			<div class="chat-groups">
+				<!-- 1. User chat groups (time-based: today, yesterday, month groups, etc.) -->
+				{#each orderedUserChatGroups as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 				
+				<!-- 2. "Show more" button — placed ABOVE static sections (intro, examples, legal)
+				     so users don't have to scroll past non-user content to load more of their chats -->
 				{#if showMoreButtonVisible}
 					<div class="load-more-container">
 						<button
@@ -3116,6 +3136,11 @@ async function updateChatListFromDBInternal(force = false) {
 						</button>
 					</div>
 				{/if}
+				
+				<!-- 3. Static chat groups (shared_by_others, intro, examples, legal) -->
+				{#each orderedStaticChatGroups as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
+				{/each}
 			</div>
 		{/if}
 
