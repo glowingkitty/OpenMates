@@ -199,6 +199,11 @@
   let selectedSkillId = $state<string | null>(null);
   let selectedFocusId = $state<string | null>(null);
   let selectedFocusModeName = $state<string | null>(null);
+  // Embed ID extracted from the DOM element's data-embed-id attribute.
+  // This is more reliable than extracting from the ProseMirror node attrs because
+  // for grouped embeds the ProseMirror node is the group (not the individual embed),
+  // while the DOM element always refers to the specific embed that was right-clicked.
+  let selectedDomEmbedId = $state<string | null>(null);
 
   // Message context menu state
   let showMessageMenu = $state(false);
@@ -635,6 +640,8 @@
     selectedSkillId = skillId;
     selectedFocusId = focusIdAttr;
     selectedFocusModeName = focusModeNameAttr;
+    // Store the embed ID from the DOM (reliable for both individual and grouped embeds)
+    selectedDomEmbedId = dom.getAttribute('data-embed-id');
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
@@ -659,8 +666,10 @@
         // Video embed (YouTube, etc.)
         menuType = 'video';
         embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use') {
-        // App skill embeds - determine menu type based on appId/skillId
+      } else if (node.attrs.type === 'app-skill-use' || node.attrs.type === 'app-skill-use-group') {
+        // App skill embeds (individual or grouped) - determine menu type based on appId/skillId
+        // For grouped embeds, the DOM element still refers to the specific embed that was right-clicked
+        // so appId/skillId from the DOM are correct even when the ProseMirror node is the group
         if (appId === 'videos' && skillId === 'get_transcript') {
           menuType = 'video-transcript';
           embedType = 'video';
@@ -686,7 +695,15 @@
   }
 
   function getEmbedIdFromNode(node: any): string | null {
-    const raw = node?.attrs?.id || node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.contentRef;
+    // CRITICAL: Prioritize contentRef over attrs.id because attrs.id is a TipTap-generated UUID
+    // (from generateUUID() in embedParsing.ts) and NOT the actual embed ID stored in EmbedStore.
+    // The real embed ID lives in contentRef as "embed:<embed_id>".
+    const contentRef = node?.attrs?.contentRef;
+    if (typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+      return contentRef.replace('embed:', '');
+    }
+    // Fallback to other attributes (for non-standard embed types)
+    const raw = node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.id;
     if (!raw) return null;
     if (typeof raw === 'string' && raw.startsWith('embed:')) return raw.replace('embed:', '');
     if (typeof raw === 'string') return raw;
@@ -737,8 +754,9 @@
     // Handle fullscreen for supported node types
     // Dispatch embedfullscreen event to open fullscreen (same as clicking the embed)
     if (action === 'view') {
-        // Get embed ID from node attributes
-        const embedId = selectedNode.attrs?.id || selectedNode.attrs?.contentRef?.replace('embed:', '');
+        // Get embed ID - prefer DOM-extracted ID (works for both individual and grouped embeds),
+        // then try contentRef (real embed ID), and finally attrs.id as last resort
+        const embedId = selectedDomEmbedId || selectedNode.attrs?.contentRef?.replace('embed:', '') || selectedNode.attrs?.id;
         
         if (!embedId) {
             console.warn('[ChatMessage] No embed ID found for view action');
@@ -758,8 +776,8 @@
             fullscreenEmbedType = 'videos-video'; // Already correct
         } else if (fullscreenEmbedType === 'website' || fullscreenEmbedType === 'website-group') {
             fullscreenEmbedType = 'website';
-        } else if (fullscreenEmbedType === 'app-skill-use') {
-            fullscreenEmbedType = 'app-skill-use'; // Already correct
+        } else if (fullscreenEmbedType === 'app-skill-use' || fullscreenEmbedType === 'app-skill-use-group') {
+            fullscreenEmbedType = 'app-skill-use'; // Normalize group type to individual for fullscreen
         }
         
         // Dispatch embedfullscreen event to trigger fullscreen (ActiveChat will handle it)
@@ -793,7 +811,7 @@
     }
 
     if (action === 'share') {
-      const embedId = getEmbedIdFromNode(selectedNode);
+      const embedId = selectedDomEmbedId || getEmbedIdFromNode(selectedNode);
       if (!embedId) {
         console.warn('[ChatMessage] No embed ID found for share action');
         const { notificationStore } = await import('../stores/notificationStore');
@@ -1092,9 +1110,14 @@
       }
     }
     // Handle actions for app-skill-use embeds based on appId/skillId
-    // These handlers cover all app skills that support copy/download from the context menu
-    else if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use' && selectedAppId) {
-      const embedId = getEmbedIdFromNode(selectedNode);
+    // These handlers cover all app skills that support copy/download from the context menu.
+    // Also handles app-skill-use-group nodes: when the user right-clicks an individual embed
+    // inside a group, ProseMirror resolves to the group node, but the DOM element still refers
+    // to the specific embed (via data-embed-id). We use selectedDomEmbedId for reliable ID lookup.
+    else if (selectedNode.type.name === 'embed' && (selectedNode.attrs.type === 'app-skill-use' || selectedNode.attrs.type === 'app-skill-use-group') && selectedAppId) {
+      // Prefer the embed ID from the DOM element (reliable for both individual and grouped embeds)
+      // Fall back to ProseMirror node attrs for non-grouped embeds
+      const embedId = selectedDomEmbedId || getEmbedIdFromNode(selectedNode);
       if (!embedId) {
         console.warn('[ChatMessage] No embed ID found for app-skill-use embed action');
         showMenu = false;
@@ -1517,6 +1540,7 @@
           onClose={() => {
             showMenu = false;
             selectedNode = null;
+            selectedDomEmbedId = null;
           }}
           onView={() => handleMenuAction('view')}
           onShare={() => handleMenuAction('share')}
