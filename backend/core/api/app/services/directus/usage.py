@@ -158,21 +158,22 @@ class UsageMethods:
             encrypted_user_input_tokens = None
             encrypted_system_prompt_tokens = None
 
-            # Encrypt server provider and region (only for AI Ask skill, like tokens)
+            # Encrypt server provider and region for ALL skills (not gated to AI Ask)
+            # This allows non-AI skills (web search, images, maps, etc.) to also display
+            # provider and region info in the usage detail view.
             encrypted_server_provider = None
             encrypted_server_region = None
-            if should_save_tokens:
-                if server_provider:
-                    res = await self.encryption_service.encrypt_with_user_key(
-                        key_id=encryption_key_id, plaintext=server_provider
-                    )
-                    encrypted_server_provider = res[0] if res else None
-                
-                if server_region:
-                    res = await self.encryption_service.encrypt_with_user_key(
-                        key_id=encryption_key_id, plaintext=server_region
-                    )
-                    encrypted_server_region = res[0] if res else None
+            if server_provider:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=server_provider
+                )
+                encrypted_server_provider = res[0] if res else None
+            
+            if server_region:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=server_region
+                )
+                encrypted_server_region = res[0] if res else None
 
             if should_save_tokens:
                 if actual_input_tokens is not None:

@@ -7,12 +7,13 @@ provider_id: "google_maps"
 name: "Google Maps"
 description: "Google Maps Platform Places API for location-based search and place information."
 logo_svg: "logos/google_maps.svg" # Path for UI, relative to a common logos directory
+region: "US" # Google Maps Platform HQ is in the US
 
 # API endpoint configuration
 api_base_url: "https://places.googleapis.com/v1"
 
 # Google Maps Platform Pricing
-# 
+#
 # The Places API (New) uses a pay-as-you-go pricing model based on SKUs (Stock Keeping Units).
 # Different fields in the response trigger different SKUs with different costs.
 #
@@ -49,17 +50,17 @@ api_base_url: "https://places.googleapis.com/v1"
 # These limits are enforced by Google's infrastructure
 rate_limits:
   default:
-    requests_per_100_seconds: 100  # Default Google Maps Platform rate limit
-    requests_per_day: null  # No daily limit by default (pay-as-you-go)
+    requests_per_100_seconds: 100 # Default Google Maps Platform rate limit
+    requests_per_day: null # No daily limit by default (pay-as-you-go)
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Google's pricing)
-# 
+#
 # Pricing calculation based on Text Search Enterprise SKU ($0.032 per request):
 # - Base cost: $0.032 per search request (for fields: displayName, formattedAddress, location, types, rating)
 # - Converting to OpenMates credits (1 credit = $0.001 USD):
 # - $0.032 / $0.001 = 32 credits (exact break-even cost)
-# 
+#
 # We round up to 40 credits per request to cover:
 # - Currency conversion buffer (USD to EUR fluctuations)
 # - Small operational overhead
@@ -69,5 +70,5 @@ rate_limits:
 # Users are always charged 40 credits per search request
 # If a user makes 5 parallel search requests, they are charged 200 credits total (5 * 40)
 pricing:
-  per_request_credits: 40  # Always 40 credits per search request for users
+  per_request_credits: 40 # Always 40 credits per search request for users
 

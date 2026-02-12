@@ -840,6 +840,70 @@ async def calculate_skill_credits(
     return credits_charged
 
 
+def resolve_skill_provider_info(
+    skill: AppSkillDefinition,
+    app_id: str,
+    config_manager: ConfigManager,
+) -> Dict[str, Optional[str]]:
+    """
+    Resolve provider display name, region, and model reference for a skill.
+    Used to populate usage_details so the usage detail view shows provider/region
+    for all skills, not just AI Ask.
+    
+    Returns dict with keys: model_used, server_provider, server_region
+    """
+    model_used = skill.full_model_reference  # e.g., "bfl/flux-schnell" or None
+    server_provider = None
+    server_region = None
+    
+    # Determine provider_id
+    provider_id = None
+    if skill.full_model_reference and "/" in skill.full_model_reference:
+        provider_id = skill.full_model_reference.split("/", 1)[0]
+    elif skill.providers and len(skill.providers) > 0:
+        pname = skill.providers[0]
+        provider_id = pname.lower()
+        # Same name-to-ID mapping as main_processor.py
+        if pname == "Google" and app_id == "maps":
+            provider_id = "google_maps"
+        elif pname in ("Brave", "Brave Search"):
+            provider_id = "brave"
+    
+    if provider_id:
+        try:
+            provider_config = config_manager.get_provider_config(provider_id)
+            if provider_config:
+                server_provider = provider_config.get("name", provider_id)
+                server_region = provider_config.get("region")  # Top-level region (API-only providers)
+                
+                # For model-based providers, try to find region from the model's default server
+                if skill.full_model_reference and "/" in skill.full_model_reference:
+                    _, model_suffix = skill.full_model_reference.split("/", 1)
+                    for model in provider_config.get("models", []):
+                        if isinstance(model, dict) and model.get("id") == model_suffix:
+                            default_server = model.get("default_server")
+                            servers = model.get("servers", [])
+                            for server in servers:
+                                if isinstance(server, dict) and server.get("name") == default_server:
+                                    srv_region = server.get("region")
+                                    if srv_region:
+                                        server_region = srv_region
+                                    break
+                            if not server_region and servers:
+                                first_server = servers[0]
+                                if isinstance(first_server, dict):
+                                    server_region = first_server.get("region", server_region)
+                            break
+        except Exception as e:
+            logger.warning(f"Failed to resolve provider info for skill '{app_id}.{skill.id}': {e}")
+    
+    return {
+        "model_used": model_used,
+        "server_provider": server_provider,
+        "server_region": server_region,
+    }
+
+
 async def charge_credits_via_internal_api(
     user_id: str,
     user_id_hash: str,
@@ -1158,6 +1222,8 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 usage_details = {
                     "external_request": False,
                     "units_processed": 1,
+                    "server_provider": "SerpAPI",  # Travel booking uses SerpAPI/Google Flights
+                    "server_region": "US",  # SerpAPI is US-based
                 }
                 # Link the usage entry to the chat where the booking was initiated
                 # so it appears in the user's per-chat usage breakdown.
@@ -1675,11 +1741,17 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
+                                    # Resolve provider info for usage tracking
+                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    
                                     # Create usage details (matching format from main_processor.py)
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
-                                        "units_processed": units_processed  # Number of requests processed
+                                        "units_processed": units_processed,  # Number of requests processed
+                                        "model_used": provider_info["model_used"],
+                                        "server_provider": provider_info["server_provider"],
+                                        "server_region": provider_info["server_region"],
                                     }
                                     
                                     # Charge credits (this happens asynchronously and won't block the response)
@@ -1923,10 +1995,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
-                                        "units_processed": 1
+                                        "units_processed": 1,
+                                        "model_used": provider_info["model_used"],
+                                        "server_provider": provider_info["server_provider"],
+                                        "server_region": provider_info["server_region"],
                                     }
                                     await charge_credits_via_internal_api(
                                         user_id=user_info['user_id'],
@@ -2019,10 +2095,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
-                                        "units_processed": units_processed  # Number of requests processed
+                                        "units_processed": units_processed,  # Number of requests processed
+                                        "model_used": provider_info["model_used"],
+                                        "server_provider": provider_info["server_provider"],
+                                        "server_region": provider_info["server_region"],
                                     }
                                     await charge_credits_via_internal_api(
                                         user_id=user_info['user_id'],
@@ -2104,11 +2184,17 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
+                                    # Resolve provider info for usage tracking
+                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    
                                     # Create usage details (matching format from main_processor.py)
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
-                                        "units_processed": units_processed  # Number of requests processed
+                                        "units_processed": units_processed,  # Number of requests processed
+                                        "model_used": provider_info["model_used"],
+                                        "server_provider": provider_info["server_provider"],
+                                        "server_region": provider_info["server_region"],
                                     }
                                     
                                     # Charge credits (this happens asynchronously and won't block the response)

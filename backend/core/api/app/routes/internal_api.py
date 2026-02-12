@@ -174,6 +174,69 @@ async def get_provider_pricing_route(
         logger.error(f"Error fetching provider pricing for {provider_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error fetching provider pricing: {str(e)}")
 
+
+@router.get("/config/provider_info/{provider_id}")
+async def get_provider_info_route(
+    provider_id: str,
+    model_ref: Optional[str] = None,
+    config_manager: ConfigManager = Depends(get_config_manager)
+) -> Dict[str, Any]:
+    """
+    Returns display name and region for a provider.
+    
+    For API-only providers (brave, firecrawl, youtube, google_maps, context7),
+    the region comes from the top-level 'region' field in the provider YAML.
+    
+    For model-based providers, if model_ref is provided (e.g., "anthropic/claude-haiku-4-5-20251001"),
+    we look up the model's default server to find the region. Falls back to the
+    top-level region if model/server lookup fails.
+    
+    Args:
+        provider_id: The provider ID (e.g., "brave", "anthropic", "bfl")
+        model_ref: Optional full model reference (e.g., "anthropic/claude-haiku-4-5-20251001")
+                   Used to find model-specific server region for model-based providers.
+    
+    Returns:
+        Dict with "name" (display name) and "region" (e.g., "US", "EU")
+    """
+    try:
+        provider_config = config_manager.get_provider_config(provider_id)
+        if not provider_config:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found.")
+        
+        name = provider_config.get("name", provider_id)
+        region = provider_config.get("region")  # Top-level region (API-only providers)
+        
+        # For model-based providers, try to find region from the model's default server
+        if model_ref and "/" in model_ref:
+            _, model_suffix = model_ref.split("/", 1)
+            models = provider_config.get("models", [])
+            for model in models:
+                if isinstance(model, dict) and model.get("id") == model_suffix:
+                    # Found the model - look up its default server's region
+                    default_server = model.get("default_server")
+                    servers = model.get("servers", [])
+                    for server in servers:
+                        if isinstance(server, dict) and server.get("name") == default_server:
+                            server_region = server.get("region")
+                            if server_region:
+                                region = server_region
+                            break
+                    # If no default_server match, try the first server
+                    if not region and servers:
+                        first_server = servers[0]
+                        if isinstance(first_server, dict):
+                            region = first_server.get("region", region)
+                    break
+        
+        return {"name": name, "region": region}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching provider info for {provider_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error fetching provider info: {str(e)}")
+
+
 # Pydantic model for usage recording payload (mirroring BaseSkill.record_skill_usage)
 class UsageRecordPayload(BaseModel):
     user_id: str  # Actual user ID (needed to look up vault_key_id for encryption)

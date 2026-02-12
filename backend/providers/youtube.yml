@@ -7,6 +7,7 @@ provider_id: "youtube"
 name: "YouTube"
 description: "YouTube video transcript extraction via proxy service."
 logo_svg: "logos/youtube.svg" # Path for UI, relative to a common logos directory
+region: "US" # YouTube/Google HQ is in the US
 
 # API endpoint configuration
 # Note: YouTube transcript extraction uses a proxy service
@@ -14,12 +15,12 @@ logo_svg: "logos/youtube.svg" # Path for UI, relative to a common logos director
 
 rate_limits:
   default:
-    requests_per_second: 50  # Reasonable default for Residential Proxies (no hard limit, but good practice)
-    requests_per_day: null  # No daily limit (governed by monthly data allowance)
+    requests_per_second: 50 # Reasonable default for Residential Proxies (no hard limit, but good practice)
+    requests_per_day: null # No daily limit (governed by monthly data allowance)
 
 # Pricing information
 # Cost per request in credits (user-facing pricing)
-# 
+#
 # Revenue Share Model (see docs/architecture/revenue_share_model.md):
 # - User pays: 20 credits per transcript request
 # - Creator (video owner) gets: 9 credits (claimable by channel owner)
@@ -35,5 +36,5 @@ rate_limits:
 # Users are always charged 20 credits per transcript request
 # If a user makes 5 parallel transcript requests, they are charged 100 credits total (5 * 20)
 pricing:
-  per_request_credits: 20  # Always 20 credits per transcript request for users (9 to creator, 1 to YouTube, 10 to OpenMates)
+  per_request_credits: 20 # Always 20 credits per transcript request for users (9 to creator, 1 to YouTube, 10 to OpenMates)
 

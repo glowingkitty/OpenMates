@@ -92,6 +92,24 @@ async def _charge_image_generation_credits(
             logger.debug(f"{log_prefix} Calculated credits is 0, skipping billing.")
             return
 
+        # Resolve provider info (name + region) for usage tracking
+        resolved_provider_name = None
+        resolved_region = None
+        if model_ref and "/" in model_ref:
+            try:
+                info_provider_id = model_ref.split("/", 1)[0]
+                model_ref_param = f"?model_ref={model_ref}"
+                info_url = f"{INTERNAL_API_BASE_URL}/internal/config/provider_info/{info_provider_id}{model_ref_param}"
+                async with httpx.AsyncClient(timeout=10.0) as info_client:
+                    info_resp = await info_client.get(info_url, headers=headers)
+                    if info_resp.status_code == 200:
+                        provider_info = info_resp.json()
+                        resolved_provider_name = provider_info.get("name")
+                        resolved_region = provider_info.get("region")
+                        logger.debug(f"{log_prefix} Resolved provider info: name={resolved_provider_name}, region={resolved_region}")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Failed to fetch provider info for model '{model_ref}': {e}")
+
         charge_payload = {
             "user_id": user_id,
             "user_id_hash": user_id_hash,
@@ -102,6 +120,9 @@ async def _charge_image_generation_credits(
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "units_processed": 1,
+                "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-schnell")
+                "server_provider": resolved_provider_name,  # Provider display name (e.g., "BFL", "Google")
+                "server_region": resolved_region,  # Server region (e.g., "US")
             }
         }
 

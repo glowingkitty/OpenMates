@@ -506,6 +506,38 @@ async def _charge_skill_credits(
             logger.debug(f"{log_prefix} Calculated credits for skill '{app_id}.{skill_id}' is 0, skipping billing.")
             return
         
+        # Resolve provider info (name + region) for usage tracking
+        # This allows the usage detail view to show provider and region for ALL skills,
+        # not just AI Ask. We derive the provider_id from full_model_reference or providers list.
+        resolved_provider_name = None
+        resolved_region = None
+        resolved_model_used = skill_def.full_model_reference  # e.g., "bfl/flux-schnell" or None
+        
+        # Determine provider_id for info lookup
+        info_provider_id = None
+        if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
+            info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
+        elif skill_def.providers and len(skill_def.providers) > 0:
+            # Re-use the same name-to-ID mapping as the pricing lookup
+            pname = skill_def.providers[0]
+            info_provider_id = pname.lower()
+            if pname == "Google" and app_id == "maps":
+                info_provider_id = "google_maps"
+            elif pname in ("Brave", "Brave Search"):
+                info_provider_id = "brave"
+        
+        if info_provider_id:
+            try:
+                model_ref_param = f"?model_ref={skill_def.full_model_reference}" if skill_def.full_model_reference else ""
+                info_endpoint = f"internal/config/provider_info/{info_provider_id}{model_ref_param}"
+                provider_info = await _make_internal_api_request("GET", info_endpoint)
+                if provider_info and isinstance(provider_info, dict):
+                    resolved_provider_name = provider_info.get("name")
+                    resolved_region = provider_info.get("region")
+                    logger.debug(f"{log_prefix} Resolved provider info for '{info_provider_id}': name={resolved_provider_name}, region={resolved_region}")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Failed to fetch provider info for '{info_provider_id}': {e}")
+        
         # Prepare usage details
         # Include chat_id and message_id when skill is triggered in a chat context
         # These fields are important for linking usage entries to chat sessions
@@ -514,7 +546,10 @@ async def _charge_skill_credits(
             "chat_id": request_data.chat_id,  # Always available in AskSkillRequest
             "message_id": request_data.message_id,  # Always available in AskSkillRequest
             "is_incognito": getattr(request_data, 'is_incognito', False),  # Include incognito flag for billing
-            "units_processed": units_processed
+            "units_processed": units_processed,
+            "model_used": resolved_model_used,  # Full model reference (e.g., "bfl/flux-schnell") or None
+            "server_provider": resolved_provider_name,  # Provider display name (e.g., "Brave Search", "BFL")
+            "server_region": resolved_region,  # Server region (e.g., "US", "EU")
         }
         
         # Charge credits via internal API (this will also create usage entry)
