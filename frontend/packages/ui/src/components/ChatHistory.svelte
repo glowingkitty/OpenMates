@@ -699,7 +699,16 @@
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
+      
+      // CRITICAL: Activate the spacer FIRST, before scrolling.
+      // The spacer adds enough scrollable height to reach the desired scroll position.
+      // Without it, the container's scrollHeight may be too small for the target offset.
+      isSpacerActive = true;
+      // Set an initial spacer height equal to the viewport height to guarantee
+      // enough room to scroll the user message to the top.
+      spacerHeight = container.clientHeight;
 
+      // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
         setTimeout(() => {
           const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -707,10 +716,10 @@
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Calculate scroll position to show the BOTTOM of the user message near the top
-            // messageRect.bottom gives us the bottom edge of the message
-            // We want the bottom of the message to be ~60px from the top of the viewport
-            // This shows the last 1-2 lines of the user message with space below for the response
+            // Calculate scroll position to show the BOTTOM of the user message near the top.
+            // messageRect.bottom gives us the bottom edge of the message.
+            // We want the bottom of the message to be ~60px from the top of the viewport.
+            // This shows the last 1-2 lines of the user message with space below for the response.
             const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
             const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
 
@@ -720,10 +729,6 @@
             });
 
             shouldScrollToNewUserMessage = false;
-            // Activate the spacer: ensures there's enough scrollable height below the
-            // user message so this scroll position remains valid as the AI response streams in.
-            // The spacer fills the viewport below the user message and shrinks as the response grows.
-            isSpacerActive = true;
 
             setTimeout(() => {
               isScrolling = false;
