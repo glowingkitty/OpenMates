@@ -327,25 +327,17 @@ test('completes full account recovery flow with same password', async ({
 	// ========================================================================
 	// Step 9: Wait for reset to complete
 	// ========================================================================
-	// We should see either a loading/resetting screen followed by success,
-	// or directly the success message
-	const successMessage = page.locator('.success-icon, .step-content h3').filter({
-		hasText: /reset.*complete|account.*reset/i
-	});
-	await expect(successMessage).toBeVisible({ timeout: 60000 });
+	// After reset, the PasswordAndTfaOtp component dispatches 'backToEmail'
+	// which resets the login to the email step. The success notification is shown
+	// briefly. We wait for the email input to reappear as confirmation of success.
+	// The reset API call can take 10-20 seconds for data deletion.
+	const emailReappeared = page.locator('input[type="email"][name="username"]');
+	await expect(emailReappeared).toBeVisible({ timeout: 120000 });
 	await takeStepScreenshot(page, 'reset-complete');
-	logRecoveryCheckpoint('Account reset completed successfully!');
+	logRecoveryCheckpoint('Account reset completed, returned to login email step.');
 
-	// ========================================================================
-	// Step 10: Navigate back to login and verify login with new password
-	// ========================================================================
-	const goToLoginButton = page.getByRole('button', { name: /go to login|login/i });
-	await goToLoginButton.click();
-	logRecoveryCheckpoint('Clicked "Go to login" button.');
-
-	// Wait for the login interface to reset to email step
-	await page.waitForTimeout(2000);
-	await takeStepScreenshot(page, 'back-to-login');
+	// Small delay to ensure notification was shown
+	await page.waitForTimeout(1000);
 
 	// Re-enter email
 	const loginEmailInput = page.locator('input[type="email"][name="username"]');
