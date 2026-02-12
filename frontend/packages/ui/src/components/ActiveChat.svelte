@@ -2410,6 +2410,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // These should be rendered as system notices, not as assistant bubbles
             const isRejectionMessage = !!chunk.rejection_reason;
             
+            // Check if we have a placeholder assistant message for this user_message_id.
+            // If so, upgrade the placeholder to the real message (preserving the DOM element)
+            // instead of creating a new one. This prevents scroll jumps from new DOM insertion.
+            const placeholderId = `placeholder-${chunk.user_message_id}`;
+            const placeholderIndex = currentMessages.findIndex(m => m.message_id === placeholderId);
+            
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
@@ -2433,13 +2439,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 encrypted_category: undefined
             };
 
-            console.debug(`[ActiveChat] Created new AI message with model_name: "${newAiMessage.model_name}" for message ${newAiMessage.message_id}`, {
-                chunkModelName: chunk.model_name,
-                fallbackModelName: fallbackModelName,
-                finalModelName: newAiMessage.model_name,
-                chatId: chunk.chat_id
-            });
-            currentMessages = [...currentMessages, newAiMessage];
+            if (placeholderIndex !== -1) {
+                // Replace the placeholder in-place to avoid DOM insertion (prevents scroll jump).
+                // The DOM element stays the same, only its content/status changes.
+                console.debug(`[ActiveChat] Replacing placeholder ${placeholderId} with real AI message ${chunk.message_id}`);
+                currentMessages[placeholderIndex] = newAiMessage;
+                currentMessages = [...currentMessages]; // Trigger reactivity
+            } else {
+                console.debug(`[ActiveChat] Created new AI message with model_name: "${newAiMessage.model_name}" for message ${newAiMessage.message_id}`, {
+                    chunkModelName: chunk.model_name,
+                    fallbackModelName: fallbackModelName,
+                    finalModelName: newAiMessage.model_name,
+                    chatId: chunk.chat_id
+                });
+                currentMessages = [...currentMessages, newAiMessage];
+            }
             messageToSave = newAiMessage;
             isNewMessageInStream = true;
             previousContentLengthForPersistence = 0;
@@ -2448,7 +2462,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
                 `seq: ${chunk.sequence} | ` +
                 `message_id: ${chunk.message_id} | ` +
-                `content_length: ${newAiMessage.content.length} chars`
+                `content_length: ${newAiMessage.content.length} chars` +
+                (placeholderIndex !== -1 ? ' (replaced placeholder)' : '')
             );
             console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
         } else {
@@ -4782,9 +4797,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (messageIndex !== -1) {
                     const updatedMessage = { ...currentMessages[messageIndex], status: 'processing' as const };
                     currentMessages[messageIndex] = updatedMessage;
-                    currentMessages = [...currentMessages]; // Trigger reactivity
+                    
+                    // Insert a placeholder assistant message so the user sees a loading indicator
+                    // in the chat area (not just the typing indicator at the bottom).
+                    // The placeholder uses a temporary ID that will be replaced when the real 
+                    // AI message ID arrives with the first streaming chunk.
+                    const placeholderId = `placeholder-${user_message_id}`;
+                    const existingPlaceholder = currentMessages.find(m => m.message_id === placeholderId);
+                    if (!existingPlaceholder) {
+                        const placeholderMessage: ChatMessageModel = {
+                            message_id: placeholderId,
+                            chat_id: chat_id,
+                            user_message_id: user_message_id,
+                            role: 'assistant',
+                            category: currentTypingStatus?.category || undefined,
+                            content: '', // Empty — the loading indicator is shown by ChatMessage when status is 'processing'
+                            status: 'processing',
+                            created_at: Math.floor(Date.now() / 1000),
+                            encrypted_content: '',
+                        };
+                        currentMessages = [...currentMessages, placeholderMessage];
+                        console.debug('[ActiveChat] Inserted placeholder assistant message for loading indicator:', placeholderId);
+                    } else {
+                        currentMessages = [...currentMessages]; // Trigger reactivity
+                    }
 
-                    // Save status update to DB
+                    // Save status update to DB (only the user message, not the placeholder)
                     try {
                         await chatDB.saveMessage(updatedMessage);
                     } catch (error) {

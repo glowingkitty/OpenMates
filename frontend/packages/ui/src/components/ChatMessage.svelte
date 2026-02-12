@@ -1323,7 +1323,18 @@
           />
         {/if}
         
-        {#if showFullMessage && fullContent}
+        <!-- AI Loading Indicator: Shown for placeholder assistant messages during processing.
+             Displays a shimmer animation while waiting for the AI to start streaming.
+             This is replaced by ReadOnlyMessage once streaming begins. -->
+        {#if role === 'assistant' && status === 'processing' && (!content || (typeof content === 'string' && content.length === 0))}
+          <div class="ai-loading-indicator">
+            <div class="ai-loading-dots">
+              <span class="ai-loading-dot"></span>
+              <span class="ai-loading-dot"></span>
+              <span class="ai-loading-dot"></span>
+            </div>
+          </div>
+        {:else if showFullMessage && fullContent}
           <ReadOnlyMessage 
               bind:this={readOnlyMessageComponent}
               content={fullContent}
@@ -1527,6 +1538,50 @@
 {/if}
 
 <style>
+  /* AI Loading Indicator: Shown inside assistant message bubble during processing.
+     Three pulsing dots that indicate the AI is working on a response.
+     Uses the primary gradient color for brand consistency. */
+  .ai-loading-indicator {
+    display: flex;
+    align-items: center;
+    padding: 8px 4px;
+    min-height: 24px;
+  }
+
+  .ai-loading-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .ai-loading-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+    opacity: 0.4;
+    animation: ai-dot-pulse 1.4s ease-in-out infinite;
+  }
+
+  .ai-loading-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .ai-loading-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes ai-dot-pulse {
+    0%, 80%, 100% {
+      opacity: 0.4;
+      transform: scale(0.8);
+    }
+    40% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   /* System message notice: smaller text, centered, used for credit errors etc. */
   .chat-message.system {
     display: flex;

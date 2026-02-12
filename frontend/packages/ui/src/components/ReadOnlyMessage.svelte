@@ -931,23 +931,31 @@
     }
     
     /* STREAMING FIX: Use CSS containment during streaming to prevent layout thrashing.
-       contain: layout prevents the browser from recalculating layout for ancestors
-       when the content inside this element changes. This significantly reduces
-       the visual stutter during streaming updates. */
+       contain: style prevents style recalculations from propagating to ancestors,
+       while still allowing height changes to flow normally to the parent container.
+       
+       IMPORTANT: We previously used `contain: layout` which prevented the container from
+       reporting its actual size to parent elements. This caused the "text stretching" glitch
+       where content grew but the bubble/scroll container didn't resize properly.
+       `contain: style` is sufficient to prevent style recalculation cascading without
+       blocking height propagation. */
     .read-only-message.is-streaming {
-        contain: layout;
+        contain: style;
     }
     
     /* STREAMING FIX: Ensure editor-content transitions smoothly during streaming.
-       The will-change hint tells the browser to optimize for height changes. */
+       overflow-anchor: none prevents the browser's automatic scroll anchoring from
+       fighting with our manual scroll position management during streaming. */
     .editor-content {
         /* Prevent sudden height collapse by ensuring content always takes space */
         min-height: 1em;
     }
     
     .read-only-message.is-streaming .editor-content {
-        /* Hint to browser that height will change, enabling GPU optimization */
-        will-change: contents;
+        /* Disable browser's automatic scroll anchoring during streaming.
+           Without this, the browser tries to "helpfully" adjust scroll position when
+           content above the anchor changes height, causing visual jumps. */
+        overflow-anchor: none;
     }
 
     /* Style overrides for read-only mode */

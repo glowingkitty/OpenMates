@@ -493,9 +493,17 @@
 
   const dispatch = createEventDispatcher();
 
-  let lastUserMessageId: string | null = null;
-  let shouldScrollToNewUserMessage = false;
-  let isScrolling = false;
+  // CRITICAL: These must be $state() for Svelte 5 reactivity.
+  // The scroll $effect at line ~689 reads these variables, and without $state(),
+  // changes to them won't trigger re-execution of the effect — breaking the
+  // ChatGPT-style scroll that positions the user message near the top after sending.
+  let lastUserMessageId = $state<string | null>(null);
+  let shouldScrollToNewUserMessage = $state(false);
+  let isScrolling = $state(false);
+  
+  // Track whether the user has manually scrolled away during streaming.
+  // When true, spacer height updates are frozen to prevent disrupting the user's scroll position.
+  let userHasScrolledAway = $state(false);
 
   // Detect if any message is currently streaming
   let isCurrentlyStreaming = $derived(
@@ -555,6 +563,7 @@
     shouldScrollToNewUserMessage = false;
     isSpacerActive = false;
     spacerHeight = 0;
+    userHasScrolledAway = false;
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -573,6 +582,7 @@
       shouldScrollToNewUserMessage = false;
       isSpacerActive = false;
       spacerHeight = 0;
+      userHasScrolledAway = false;
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -737,6 +747,7 @@
       wasStreaming = false;
       isSpacerActive = false;
       spacerHeight = 0;
+      userHasScrolledAway = false;
     }
   });
 
@@ -764,8 +775,12 @@
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     messages;
 
+    // If the user has scrolled away to read older messages, freeze the spacer
+    // so their scroll position isn't disrupted by the growing AI response.
+    if (userHasScrolledAway) return;
+
     tick().then(() => {
-      if (!container || !isSpacerActive) return;
+      if (!container || !isSpacerActive || userHasScrolledAway) return;
       
       // Find the last message element (the streaming AI response)
       const messageWrappers = container.querySelectorAll('[data-message-id]');
@@ -853,6 +868,19 @@
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
+
+    // Detect if user has manually scrolled away during streaming.
+    // If streaming is active and the user scrolls upward (away from the bottom),
+    // freeze spacer updates so their scroll position isn't disrupted.
+    if (isCurrentlyStreaming && container) {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If user scrolled more than 150px from the bottom, they're reading older messages
+      if (distanceFromBottom > 150) {
+        userHasScrolledAway = true;
+      } else {
+        userHasScrolledAway = false;
+      }
+    }
 
     // Performance optimization: Use requestAnimationFrame for immediate UI updates
     // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
@@ -1090,14 +1118,17 @@
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
             {#each displayMessages as msg (msg.id)}
+                <!-- Disable fade/flip animations for streaming and processing messages
+                     to prevent visual glitches when content height changes rapidly.
+                     Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
-                     in:fade={{ duration: 300 }}
-                     animate:flip={{ duration: 250 }}>
+                     in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                     animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
@@ -1165,6 +1196,11 @@
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    /* Disable browser's automatic scroll anchoring.
+       During streaming, content grows from the bottom which triggers the browser's
+       scroll-anchoring algorithm. This fights with our manual scroll management
+       and causes unpredictable jumps. We handle scroll position ourselves. */
+    overflow-anchor: none;
     /* Add mask for top and bottom fade effect */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
