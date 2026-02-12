@@ -1372,7 +1372,7 @@ Usage Settings - View usage statistics and export usage data
     <p class="header-description">{$text('settings.usage.description.text')}</p>
 </div>
 
-<!-- Category tabs - icon-only clickable icons -->
+<!-- Category tabs - simple clickable icons -->
 <div class="usage-tabs">
     <button
         class="tab-icon-button"
@@ -1381,7 +1381,7 @@ Usage Settings - View usage statistics and export usage data
         title={$text('settings.usage.tab_overview.text')}
         aria-label={$text('settings.usage.tab_overview.text')}
     >
-        <div class="tab-icon icon icon_usage"></div>
+        <Icon name="usage" type="default" size="24px" />
     </button>
     <button
         class="tab-icon-button"
@@ -1390,7 +1390,7 @@ Usage Settings - View usage statistics and export usage data
         title={$text('settings.usage.tab_chats.text')}
         aria-label={$text('settings.usage.tab_chats.text')}
     >
-        <div class="tab-icon icon icon_chat"></div>
+        <Icon name="chat" type="default" size="24px" />
     </button>
     <button
         class="tab-icon-button"
@@ -1399,7 +1399,7 @@ Usage Settings - View usage statistics and export usage data
         title={$text('settings.usage.tab_apps.text')}
         aria-label={$text('settings.usage.tab_apps.text')}
     >
-        <div class="tab-icon icon icon_app"></div>
+        <Icon name="app" type="default" size="24px" />
     </button>
     <button
         class="tab-icon-button"
@@ -1408,7 +1408,7 @@ Usage Settings - View usage statistics and export usage data
         title={$text('settings.usage.tab_api.text')}
         aria-label={$text('settings.usage.tab_api.text')}
     >
-        <div class="tab-icon icon icon_coding"></div>
+        <Icon name="coding" type="default" size="24px" />
     </button>
 </div>
 
@@ -2302,41 +2302,35 @@ Usage Settings - View usage statistics and export usage data
 
     .usage-tabs {
         display: flex;
-        gap: 12px;
+        gap: 16px;
         padding: 10px;
         margin-bottom: 16px;
         border-bottom: 1px solid var(--color-grey-20);
         justify-content: flex-start;
+        align-items: center;
     }
 
     .tab-icon-button {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 1px solid var(--color-grey-30);
-        background: var(--color-grey-10);
+        background: none;
+        border: none;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 6px;
+        border-radius: 8px;
         transition: all 0.2s ease;
         flex-shrink: 0;
-        padding: 0;
+        opacity: 0.5;
     }
 
     .tab-icon-button:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-40);
+        opacity: 0.8;
+        background: var(--color-grey-10);
     }
 
     .tab-icon-button.active {
-        background: var(--color-primary);
-        border-color: var(--color-primary);
-    }
-
-    .tab-icon {
-        width: 20px;
-        height: 20px;
+        opacity: 1;
     }
 
     .loading-state {

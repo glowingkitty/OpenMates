@@ -5,6 +5,7 @@
 
 import logging
 import asyncio
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -697,19 +698,36 @@ class UsageMethods:
             # Chats that don't exist anymore (hard-deleted) will be flagged as is_deleted=True.
             chat_metadata_map: Dict[str, Dict[str, Any]] = {}
             chat_metadata_fetch_succeeded = False
+            valid_uuid_chat_ids: list = []  # Defined outside try block for use in is_deleted logic
             if unique_chat_ids:
                 try:
+                    # Filter out non-UUID chat_ids before querying the chats collection.
+                    # The chats.id column is of type UUID in PostgreSQL, so passing non-UUID
+                    # values (e.g., SHA-256 hashes from legacy/corrupt data) in a _in filter
+                    # causes a Postgres 500 error that silently returns [] from Directus,
+                    # which incorrectly flags ALL chats as deleted.
+                    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                    valid_uuid_chat_ids = [cid for cid in unique_chat_ids if uuid_pattern.match(cid)]
+                    non_uuid_chat_ids = unique_chat_ids - set(valid_uuid_chat_ids)
+                    
+                    if non_uuid_chat_ids:
+                        logger.warning(f"{log_prefix} Skipping {len(non_uuid_chat_ids)} non-UUID chat_ids in metadata query: {list(non_uuid_chat_ids)[:3]}...")
+                    
                     chat_fields = "id,encrypted_title,encrypted_category,encrypted_icon,encrypted_chat_key"
-                    chat_filter = {
-                        "id": {"_in": list(unique_chat_ids)}
-                    }
-                    # Use admin_required=True because the chats collection may have
-                    # row-level permissions that restrict access by user ownership
-                    chat_records = await self.sdk.get_items("chats", params={
-                        "filter": chat_filter,
-                        "fields": chat_fields,
-                        "limit": -1
-                    }, no_cache=True, admin_required=True)
+                    
+                    if valid_uuid_chat_ids:
+                        chat_filter = {
+                            "id": {"_in": valid_uuid_chat_ids}
+                        }
+                        # Use admin_required=True because the chats collection may have
+                        # row-level permissions that restrict access by user ownership
+                        chat_records = await self.sdk.get_items("chats", params={
+                            "filter": chat_filter,
+                            "fields": chat_fields,
+                            "limit": -1
+                        }, no_cache=True, admin_required=True)
+                    else:
+                        chat_records = []
                     
                     for chat in (chat_records or []):
                         chat_id = chat.get("id")
@@ -722,7 +740,7 @@ class UsageMethods:
                             }
                     
                     chat_metadata_fetch_succeeded = True
-                    logger.info(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(unique_chat_ids)} chats")
+                    logger.info(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(valid_uuid_chat_ids)} chats (skipped {len(non_uuid_chat_ids)} non-UUID)")
                 except Exception as meta_err:
                     logger.warning(f"{log_prefix} Failed to fetch chat metadata: {meta_err}")
                     # Non-fatal: continue without metadata enrichment
@@ -756,10 +774,11 @@ class UsageMethods:
                     chat_item["encrypted_icon"] = meta.get("encrypted_icon")
                     chat_item["encrypted_chat_key"] = meta.get("encrypted_chat_key")
                     chat_item["is_deleted"] = False
-                elif chat_id and chat_metadata_fetch_succeeded:
+                elif chat_id and chat_metadata_fetch_succeeded and chat_id in set(valid_uuid_chat_ids):
                     # Chat not found in Directus despite a successful query - it was hard-deleted
-                    # Only set is_deleted=True when the metadata fetch succeeded, to avoid
-                    # falsely marking chats as deleted when the query itself failed
+                    # Only set is_deleted=True when:
+                    # 1. The metadata fetch succeeded (to avoid false positives from query failures)
+                    # 2. The chat_id is a valid UUID (non-UUID chat_ids were never in the chats table)
                     chat_item["is_deleted"] = True
                 
                 days_map[date]["items"].append(chat_item)
