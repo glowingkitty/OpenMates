@@ -195,8 +195,8 @@
                 class="airline-logo"
                 src={logo.url}
                 alt={logo.code}
-                width="20"
-                height="20"
+                width="22"
+                height="22"
                 loading="lazy"
               />
             {/each}
@@ -289,16 +289,24 @@
   .airline-logos {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: -4px;
     margin-left: auto;
+  }
+
+  /* Stack logos with slight overlap for a compact circle group */
+  .airline-logos .airline-logo + .airline-logo {
+    margin-left: -6px;
   }
   
   .airline-logo {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     object-fit: cover;
-    background: var(--color-grey-20);
+    background: var(--color-grey-10, #fff);
+    border: 1.5px solid var(--color-grey-30, #e2e2e2);
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
   }
   
   /* Trip date */
