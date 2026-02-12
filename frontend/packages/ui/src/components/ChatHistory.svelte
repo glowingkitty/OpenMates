@@ -1119,12 +1119,13 @@
   The chat history container:
     - Takes full height and is scrollable.
     - Messages are aligned to the top for ChatGPT-style behavior.
+    - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
+<div class="chat-history-wrapper" style={containerStyle}>
 <div 
     class="chat-history-container" 
     class:empty={displayMessages.length === 0}
     bind:this={container}
-    style={containerStyle}
     onscroll={handleScroll}
 >
     {#if showMessages}
@@ -1168,20 +1169,20 @@
                 </div>
             {/each}
             
-            <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
-                 Creates the ChatGPT-like effect where the user message sits near the top
-                 with empty space below that gradually fills as the AI response streams in. -->
-            {#if spacerHeight > 0}
-                <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
-            {/if}
-            
             <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
-            <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
+            <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
             <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
             {#if shouldShowPermissionDialog}
                 <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
                 </div>
+            {/if}
+            
+            <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
+                 Creates the ChatGPT-like effect where the user message sits near the top
+                 with empty space below that gradually fills as the AI response streams in. -->
+            {#if spacerHeight > 0}
+                <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
             {/if}
             
             <!-- Settings/memories suggestions shown after the last assistant message -->
@@ -1200,22 +1201,35 @@
         </div>
     {/if}
     
-    <!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
-         Shown when a user message is processing (waiting for AI) and no streaming has started yet.
-         Fades out when the assistant response begins streaming. -->
-    {#if isAiProcessing}
-        <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
-            <div class="ai-processing-icon"></div>
-        </div>
-    {/if}
+</div>
+
+<!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
+     Positioned absolutely over the scroll container via the wrapper.
+     Shown when a user message is processing (waiting for AI) and no streaming has started yet.
+     Fades out when the assistant response begins streaming. -->
+{#if isAiProcessing}
+    <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
+        <div class="ai-processing-icon"></div>
+    </div>
+{/if}
 </div>
 
 <style>
+  /* Wrapper provides positioning context for the AI processing overlay.
+     Takes the same absolute positioning the container previously had. */
+  .chat-history-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
   .chat-history-container {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal scrollbar from appearing at certain viewport widths */
     padding: 10px;
@@ -1314,19 +1328,19 @@
   }
 
   /* AI Processing Overlay: Centered icon shown while waiting for AI response.
-     Positioned fixed within the scrollable container using sticky positioning
-     so it stays centered on screen regardless of scroll position. */
+     Positioned absolutely over the scroll container (sibling, not child).
+     This ensures it stays visually centered regardless of scroll position. */
   .ai-processing-overlay {
-    position: sticky;
-    top: 50%;
+    position: absolute;
+    top: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     pointer-events: none;
     z-index: 10;
-    margin-top: -20px; /* Offset to visually center (half the icon height) */
   }
 
   .ai-processing-icon {
