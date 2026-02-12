@@ -31,6 +31,7 @@ import type {
   SyncStatusResponsePayload,
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  LoadMoreChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
   // UpdateDraftPayload, // Now in types/chat.ts
@@ -254,6 +255,12 @@ export class ChatSynchronizationService extends EventTarget {
       phasedSyncHandlers.handlePhase3FullSyncImpl(
         this,
         payload as Phase3FullSyncPayload,
+      ),
+    );
+    webSocketService.on("load_more_chats_response", (payload) =>
+      phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
+        this,
+        payload as LoadMoreChatsResponsePayload,
       ),
     );
     webSocketService.on("phased_sync_complete", (payload) =>
@@ -904,6 +911,18 @@ export class ChatSynchronizationService extends EventTarget {
     unread_count: number,
   ): Promise<void> {
     await senders.sendChatReadStatusImpl(this, chat_id, unread_count);
+  }
+
+  /**
+   * Request additional older chats from the server beyond the initial 100.
+   * Used by the "Show more" button in the sidebar for on-demand pagination.
+   * These chats are stored in memory only (not IndexedDB) to prevent storage limits.
+   */
+  public async sendLoadMoreChats(
+    offset: number,
+    limit: number = 20,
+  ): Promise<void> {
+    await senders.sendLoadMoreChatsImpl(this, offset, limit);
   }
 
   // --- New Phased Sync Methods ---

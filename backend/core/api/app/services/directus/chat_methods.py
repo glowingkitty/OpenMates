@@ -783,17 +783,19 @@ class ChatMethods:
             return None
 
     async def get_core_chats_and_user_drafts_for_cache_warming(
-        self, user_id: str, limit: int = 1000
+        self, user_id: str, limit: int = 1000, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Fetches core data for multiple chats and all user drafts in a batched manner.
+        Supports pagination via offset parameter for loading older chats on demand.
         """
-        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
+        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}, offset: {offset}")
         chat_params = {
             'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
             'fields': CORE_CHAT_FIELDS_FOR_WARMING,
             'sort': '-pinned,-last_edited_overall_timestamp',
-            'limit': limit
+            'limit': limit,
+            'offset': offset
         }
         results_list = []
         try:

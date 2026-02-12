@@ -613,8 +613,26 @@ export interface Phase3FullSyncPayload {
     server_message_count?: number;
   }>;
   chat_count: number;
+  total_chat_count?: number; // Total chats on server (for "Show more" button beyond initial 100)
   new_chat_suggestions?: NewChatSuggestion[];
   phase?: "phase3";
+}
+
+/**
+ * Load more chats response payload — returned when user requests older chats
+ * beyond the initial 100 synced in Phase 3. These chats are metadata-only
+ * (no messages) and stored in memory only (not IndexedDB).
+ */
+export interface LoadMoreChatsResponsePayload {
+  chats: Array<{
+    chat_details: Partial<Chat> & { id: string };
+    messages?: null;
+    server_message_count?: null;
+  }>;
+  has_more: boolean;
+  total_count: number;
+  offset: number;
+  error?: string;
 }
 
 // Scroll position and read status payloads

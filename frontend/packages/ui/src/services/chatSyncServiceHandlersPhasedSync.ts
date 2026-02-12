@@ -8,6 +8,7 @@ import type {
   Phase3FullSyncPayload,
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
+  LoadMoreChatsResponsePayload,
   SyncEmbed,
   Chat,
   Message,
@@ -115,11 +116,17 @@ export async function handlePhase3FullSyncImpl(
 
   try {
     // Phase3FullSyncPayload may have additional fields (embeds, embed_keys) not in the type definition
-    const { chats, chat_count, new_chat_suggestions, embeds, embed_keys } =
-      payload as Phase3FullSyncPayload & {
-        embeds?: SyncEmbed[];
-        embed_keys?: EmbedKeyEntry[];
-      };
+    const {
+      chats,
+      chat_count,
+      total_chat_count,
+      new_chat_suggestions,
+      embeds,
+      embed_keys,
+    } = payload as Phase3FullSyncPayload & {
+      embeds?: SyncEmbed[];
+      embed_keys?: EmbedKeyEntry[];
+    };
 
     // CRITICAL: Validate that chats array exists before processing
     // The cache warming task sends {chat_count: N} without chats array
@@ -193,10 +200,12 @@ export async function handlePhase3FullSyncImpl(
     }
 
     // Dispatch event for UI components - use event name that Chats.svelte listens for
+    // total_chat_count tells the UI if there are more chats beyond the initial 100 (for "Show more" button)
     serviceInstance.dispatchEvent(
       new CustomEvent("phase_3_last_100_chats_ready", {
         detail: {
           chat_count,
+          total_chat_count: total_chat_count || 0,
           suggestions_count: new_chat_suggestions?.length || 0,
         },
       }),
@@ -1046,4 +1055,83 @@ function mergeServerChatWithLocal(
   }
 
   return merged;
+}
+
+/**
+ * Handle "load_more_chats_response" from the server.
+ * These are older chats beyond the initial 100 synced in Phase 3.
+ * They are dispatched as an event to Chats.svelte for in-memory display only
+ * (NOT stored in IndexedDB to prevent storage limit issues).
+ */
+export async function handleLoadMoreChatsResponseImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: LoadMoreChatsResponsePayload,
+): Promise<void> {
+  console.info(
+    `[ChatSyncService] Load more chats response: ${payload.chats?.length || 0} chats, has_more=${payload.has_more}, total=${payload.total_count}, offset=${payload.offset}`,
+  );
+
+  try {
+    if (payload.error) {
+      console.error(
+        `[ChatSyncService] Server error loading more chats: ${payload.error}`,
+      );
+    }
+
+    // Convert server chat format to the Chat type expected by the UI
+    // These are metadata-only chats (no messages) — messages load on-demand when user opens the chat
+    const chats: Chat[] = (payload.chats || [])
+      .map((chatWrapper) => {
+        const details = chatWrapper.chat_details;
+        if (!details?.id) return null;
+
+        return {
+          chat_id: details.id,
+          encrypted_title: details.encrypted_title || null,
+          title: null, // Will be decrypted by the UI
+          messages_v: details.messages_v || 0,
+          title_v: details.title_v || 0,
+          draft_v: 0,
+          encrypted_draft_md: null,
+          encrypted_draft_preview: null,
+          last_edited_overall_timestamp:
+            details.last_edited_overall_timestamp ||
+            details.updated_at ||
+            Math.floor(Date.now() / 1000),
+          unread_count: details.unread_count || 0,
+          created_at: details.created_at || Math.floor(Date.now() / 1000),
+          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
+          processing_metadata: false,
+          waiting_for_metadata: false,
+          encrypted_category: details.encrypted_category || null,
+          encrypted_icon: details.encrypted_icon || null,
+          encrypted_chat_key: details.encrypted_chat_key || null,
+          encrypted_chat_summary: details.encrypted_chat_summary || null,
+          encrypted_chat_tags: details.encrypted_chat_tags || null,
+          encrypted_follow_up_request_suggestions:
+            details.encrypted_follow_up_request_suggestions || null,
+          pinned: details.pinned || false,
+          is_shared: details.is_shared || false,
+          is_private: details.is_private || false,
+        } as Chat;
+      })
+      .filter((c): c is Chat => c !== null);
+
+    // Dispatch event to Chats.svelte — these chats go to memory only, NOT IndexedDB
+    serviceInstance.dispatchEvent(
+      new CustomEvent("load_more_chats_ready", {
+        detail: {
+          chats,
+          has_more: payload.has_more,
+          total_count: payload.total_count,
+          offset: payload.offset,
+        },
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService] Error handling load more chats response:",
+      error,
+    );
+  }
 }

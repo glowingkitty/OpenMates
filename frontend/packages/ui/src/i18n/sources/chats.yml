@@ -1243,53 +1243,29 @@ cancel:
   sv: Avbryt
   verified_by_human: []
 
-loadMore:
-  button:
-    context: Button to load more chats
-    en: Load more
-    de: Mehr laden
-    zh: 加载更多
-    es: Cargar más
-    fr: Charger plus
-    pt: Carregar mais
-    ru: Загрузить ещё
-    ja: もっと読み込む
-    ko: 더 불러오기
-    it: Carica altro
-    tr: Daha fazla yükle
-    vi: Tải thêm
-    id: Muat lebih banyak
-    pl: Załaduj więcej
-    nl: Meer laden
-    ar: تحميل المزيد
-    hi: और लोड करें
-    th: โหลดเพิ่มเติม
-    cs: Načíst více
-    sv: Ladda fler
-    verified_by_human: []
-  more:
-    context: Text indicating how many more chats are available
-    en: more
-    de: mehr
-    zh: 更多
-    es: más
-    fr: plus
-    pt: mais
-    ru: ещё
-    ja: もっと
-    ko: 더
-    it: altro
-    tr: daha
-    vi: nữa
-    id: lebih
-    pl: więcej
-    nl: meer
-    ar: المزيد
-    hi: और
-    th: เพิ่มเติม
-    cs: více
-    sv: fler
-    verified_by_human: []
+loadMore.button:
+  context: Button to show more chats in the sidebar
+  en: Show more
+  de: Mehr anzeigen
+  zh: 显示更多
+  es: Mostrar más
+  fr: Afficher plus
+  pt: Mostrar mais
+  ru: Показать ещё
+  ja: もっと表示
+  ko: 더 보기
+  it: Mostra altro
+  tr: Daha fazla göster
+  vi: Hiển thị thêm
+  id: Tampilkan lebih banyak
+  pl: Pokaż więcej
+  nl: Meer weergeven
+  ar: عرض المزيد
+  hi: और दिखाएं
+  th: แสดงเพิ่มเติม
+  cs: Zobrazit více
+  sv: Visa fler
+  verified_by_human: []
 
 resume_last_chat.title:
   context: Title shown above the resume chat card prompting user to continue their last chat

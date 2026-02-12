@@ -2495,3 +2495,29 @@ export async function sendRejectSettingsMemorySuggestionImpl(
     // Server sync failure is non-critical
   }
 }
+
+/**
+ * Request additional older chats from the server beyond the initial 100.
+ * Used by the "Show more" button for on-demand pagination.
+ * Chats returned are metadata-only (no messages) and stored in memory only.
+ */
+export async function sendLoadMoreChatsImpl(
+  serviceInstance: ChatSynchronizationService,
+  offset: number,
+  limit: number = 20,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("load_more_chats", {
+      offset,
+      limit,
+    });
+    console.info(
+      `[ChatSyncService:Senders] Requested more chats: offset=${offset}, limit=${limit}`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Senders] Error requesting more chats:",
+      error,
+    );
+  }
+}
