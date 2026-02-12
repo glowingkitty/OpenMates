@@ -165,6 +165,8 @@ async def handle_postprocessing(
     available_app_ids: List[str],
     available_settings_memory_categories: List[Dict[str, str]],
     is_incognito: bool = False,
+    output_language: str = "en",
+    user_system_language: str = "en",
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM (Phase 1).
@@ -187,6 +189,11 @@ async def handle_postprocessing(
         available_app_ids: List of available app IDs in the system (required for validation)
         available_settings_memory_categories: List of available categories with descriptions
             Format: [{"id": "code.preferred_tech", "description": "Technologies user prefers"}, ...]
+        output_language: ISO 639-1 code of the chat/conversation language (detected by preprocessor).
+            Used for generating follow-up suggestions in the same language as the conversation.
+        user_system_language: ISO 639-1 code of the user's UI/system language (from user profile).
+            Used for generating new chat suggestions in a consistent language on the welcome screen,
+            regardless of which language individual chats were conducted in.
 
     Returns:
         PostProcessingResult with suggestions and relevant_settings_memory_categories
@@ -195,7 +202,7 @@ async def handle_postprocessing(
         RuntimeError: If post-processing fails (no error swallowing)
     """
 
-    logger.info(f"[Task ID: {task_id}] [PostProcessor] Starting post-processing")
+    logger.info(f"[Task ID: {task_id}] [PostProcessor] Starting post-processing (chat_lang='{output_language}', system_lang='{user_system_language}')")
 
     # CRITICAL: Skip post-processing for incognito chats (no suggestions generated)
     if is_incognito:
@@ -238,6 +245,17 @@ async def handle_postprocessing(
     else:
         settings_memory_context = ""
 
+    # Build language instruction for suggestion generation
+    # Follow-up suggestions should match the conversation language (output_language) so they
+    # feel natural in context. New chat suggestions should use the user's system/UI language
+    # so the welcome screen has a consistent language, regardless of individual chat languages.
+    language_instruction = (
+        f"\n\nLanguage instructions:\n"
+        f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).\n"
+        f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).\n"
+        f"- **chat_summary**: Generate in English (always)."
+    )
+
     system_message = (
         f"Current date and time: {date_time_str}\n\n"
         "You are analyzing a conversation to generate helpful suggestions and an updated chat summary. "
@@ -246,6 +264,7 @@ async def handle_postprocessing(
         "Generate new chat suggestions that are related but explore new angles.\n\n"
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}{settings_memory_context}"
+        f"{language_instruction}"
     )
     messages.append({"role": "system", "content": system_message})
 

@@ -393,6 +393,7 @@ postprocess_response_tool:
       Guidelines:
       1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+         - **LANGUAGE**: Generate in the CONVERSATION language (same language the user and assistant used in the chat).
          - Suggestions should encourage:
            - Learning more about the topic discussed (from user's perspective)
            - Exploring different viewpoints (user asking questions)
@@ -402,6 +403,7 @@ postprocess_response_tool:
 
       2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+         - **LANGUAGE**: Generate in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen.
          - Relate to topics discussed but explore new angles
          - Encourage learning and exploration
          - Suggest using app skills and focus modes
@@ -420,14 +422,14 @@ postprocess_response_tool:
       properties:
         follow_up_request_suggestions:
           type: "array"
-          description: "6 follow-up suggestions (max 5 words each) to encourage deeper engagement"
+          description: "6 follow-up suggestions (max 5 words each) in the CONVERSATION language to encourage deeper engagement"
           items:
             type: "string"
           minItems: 6
           maxItems: 6
         new_chat_request_suggestions:
           type: "array"
-          description: "6 new chat suggestions (max 5 words each) related to current topics"
+          description: "6 new chat suggestions (max 5 words each) in the USER'S SYSTEM LANGUAGE (as specified in system message) related to current topics"
           items:
             type: "string"
           minItems: 6
