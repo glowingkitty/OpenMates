@@ -609,25 +609,43 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		try {
 			const chat = await chatDB.getChat(targetChatId);
 			if (chat) {
-				// Decrypt the title for display
+				// Decrypt title, category, and icon for the resume card display
 				let decryptedTitle: string | null = null;
-				if (chat.encrypted_title) {
-					try {
-						const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
-						// First decrypt the chat key if we have it encrypted
-						let chatKey = chatDB.getChatKey(targetChatId);
-						if (!chatKey && chat.encrypted_chat_key) {
-							chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-							if (chatKey) {
-								chatDB.setChatKey(targetChatId, chatKey);
-							}
-						}
+				let decryptedCategory: string | null = null;
+				let decryptedIcon: string | null = null;
+
+				try {
+					const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
+					// First decrypt the chat key if we have it encrypted
+					let chatKey = chatDB.getChatKey(targetChatId);
+					if (!chatKey && chat.encrypted_chat_key) {
+						chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
 						if (chatKey) {
-							decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+							chatDB.setChatKey(targetChatId, chatKey);
 						}
-					} catch (decryptError) {
-						console.warn('[Chats] Failed to decrypt Phase 1 chat title:', decryptError);
 					}
+					if (chatKey) {
+						// Decrypt title
+						if (chat.encrypted_title) {
+							try {
+								decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+							} catch { /* Title decryption failed – fall through to default */ }
+						}
+						// Decrypt category
+						if (chat.encrypted_category) {
+							try {
+								decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+							} catch { /* Category decryption failed – will use fallback */ }
+						}
+						// Decrypt icon
+						if (chat.encrypted_icon) {
+							try {
+								decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+							} catch { /* Icon decryption failed – will use fallback */ }
+						}
+					}
+				} catch (decryptError) {
+					console.warn('[Chats] Failed to decrypt Phase 1 chat fields:', decryptError);
 				}
 				
 				// Skip draft chats (no title and no messages) — only show resume card for real chats
@@ -643,12 +661,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					}
 				}
 				
-				// Use cleartext title for demo chats, decrypted title otherwise
+				// Use cleartext fields for demo chats, decrypted values otherwise
 				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+				const displayCategory = chat.category || decryptedCategory || null;
+				const displayIcon = chat.icon || decryptedIcon || null;
 				
-				// Store in resume state for the UI
-				phasedSyncState.setResumeChatData(chat, displayTitle);
-				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId})`);
+				// Store in resume state for the UI (ActiveChat subscribes to this store)
+				phasedSyncState.setResumeChatData(chat, displayTitle, displayCategory, displayIcon);
+				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId}), category: ${displayCategory}, icon: ${displayIcon}`);
 			} else {
 				console.warn(`[Chats] Phase 1 chat ${targetChatId} not found in IndexedDB after sync`);
 			}

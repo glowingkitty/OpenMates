@@ -1795,6 +1795,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return () => { cancelled = true; };
     });
 
+    // ─── Phase 1 Sync Bridge ──────────────────────────────────────────────
+    // When Phase 1 sync completes, Chats.svelte stores the resume chat data
+    // in phasedSyncState. This $effect bridges that store to our local state,
+    // ensuring the resume card appears even if the initial IndexedDB retry loop
+    // above has already exhausted (sync may take longer than 3 seconds on slow
+    // connections or cold starts after login).
+    $effect(() => {
+        const syncState = $phasedSyncState;
+        const isWelcome = showWelcome;
+        const isAuth = $authStore.isAuthenticated;
+
+        // Only sync from phasedSyncState when on the welcome screen, authenticated,
+        // and we don't already have resume data loaded from IndexedDB
+        if (isWelcome && isAuth && syncState.resumeChatData && !resumeChatData) {
+            resumeChatData = syncState.resumeChatData;
+            resumeChatTitle = syncState.resumeChatTitle;
+            resumeChatCategory = syncState.resumeChatCategory;
+            resumeChatIcon = syncState.resumeChatIcon;
+            console.info(`[ActiveChat] Resume chat synced from Phase 1 store: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
+        }
+    });
+
+    // ─── End Phase 1 Sync Bridge ──────────────────────────────────────────
+
     // Add state variable for scaling animation on the container using $state
     let activeScaling = $state(false);
 
@@ -3195,11 +3219,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const chatToResume = resumeChatData;
         console.info(`[ActiveChat] Resuming last chat: ${chatToResume.chat_id}`);
 
-        // Clear resume state
+        // Clear local resume state and the phased sync store
         resumeChatData = null;
         resumeChatTitle = null;
         resumeChatCategory = null;
         resumeChatIcon = null;
+        phasedSyncState.clearResumeChatData();
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
         phasedSyncState.markInitialChatLoaded();
