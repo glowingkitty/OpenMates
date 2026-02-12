@@ -377,6 +377,9 @@ const PII_PATTERNS: PIIPattern[] = [
       if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(trimmed)) return false;
       // Compact date without separators: YYYYMMDD (8 digits starting with 19xx or 20xx)
       if (/^(?:19|20)\d{6}$/.test(trimmed)) return false;
+      // Partial date fragments: 0DD-MM-YY or 0D-MM-DD patterns (e.g. "026-04-12"
+      // captured when regex grabs a substring from "2026-04-12")
+      if (/^0\d{1,2}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) return false;
       return true;
     },
   },
