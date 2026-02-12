@@ -91,9 +91,9 @@ class ClientLogForwarder {
       void this.flush();
     }, FLUSH_INTERVAL_MS);
 
-    // Use the original console to avoid capturing our own startup message in the forwarding loop
-    // (logCollector will still capture it, but that's fine - it's a useful debug breadcrumb)
-    console.debug(`[ClientLogForwarder] Started - tab=${this.tabId}`);
+    // Use warn level so this is visible even when debug logging is filtered in browser dev tools.
+    // This is a critical diagnostic breadcrumb confirming the forwarder activated for the admin user.
+    console.warn(`[ClientLogForwarder] Started - tab=${this.tabId}`);
   }
 
   /**
@@ -134,6 +134,11 @@ class ClientLogForwarder {
     // while this request is in flight
     const entries = this.buffer.splice(0, MAX_BATCH_SIZE);
 
+    const endpoint = getApiEndpoint(apiEndpoints.admin.clientLogs);
+    console.debug(
+      `[ClientLogForwarder] Flushing ${entries.length} entries to ${endpoint}`,
+    );
+
     try {
       const payload = {
         logs: entries.map((entry) => ({
@@ -148,29 +153,30 @@ class ClientLogForwarder {
         },
       };
 
-      const response = await fetch(
-        getApiEndpoint(apiEndpoints.admin.clientLogs),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "include", // Send auth cookies
-          body: JSON.stringify(payload),
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-      );
+        credentials: "include", // Send auth cookies
+        body: JSON.stringify(payload),
+      });
+
+      console.debug(`[ClientLogForwarder] Flush response: ${response.status}`);
 
       // If we get a 401/403, stop forwarding (user is no longer admin or session expired)
       if (response.status === 401 || response.status === 403) {
-        console.debug("[ClientLogForwarder] Auth failed, stopping forwarder");
+        console.warn(
+          `[ClientLogForwarder] Auth failed (${response.status}), stopping forwarder`,
+        );
         this.stop();
       }
       // Silently ignore other errors (429 rate limit, 500 server error, network issues)
       // This is non-critical debug infrastructure - should never interfere with the app
-    } catch {
-      // Network error or other fetch failure - silently drop the entries.
-      // This is intentionally silent: log forwarding must never disrupt the user experience.
+    } catch (err) {
+      // Network error or other fetch failure - log for debugging, then drop the entries.
+      console.debug("[ClientLogForwarder] Flush failed:", err);
     }
   }
 }

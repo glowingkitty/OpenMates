@@ -441,6 +441,9 @@ export async function checkAuth(
         // Start admin console log forwarding on session restore if user is admin.
         // This ensures log forwarding resumes after page refresh without requiring re-login.
         // Only admin users have logs forwarded - regular users are never affected.
+        console.debug(
+          `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
+        );
         if (data.user.is_admin) {
           clientLogForwarder.start();
         }
@@ -792,6 +795,15 @@ export async function checkAuth(
             );
             locale.set(localProfile.language);
           }
+        }
+
+        // Start admin console log forwarding in offline-first mode if user is admin.
+        // The local profile from IndexedDB preserves is_admin from the last successful session.
+        if (localProfile.is_admin) {
+          console.debug(
+            "[AuthSessionActions] Starting admin log forwarder (offline-first mode)",
+          );
+          clientLogForwarder.start();
         }
 
         return true; // Return true to indicate optimistic authentication
