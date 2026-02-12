@@ -67,7 +67,8 @@
     // Message identification props (for usage/cost lookup in message context menu)
     messageId = undefined,
     userMessageId = undefined,
-    onDeleteMessage = undefined
+    onDeleteMessage = undefined,
+    isFirstMessage = false
   }: {
     role?: MessageRole;
     category?: string;
@@ -94,6 +95,7 @@
     messageId?: string; // Message ID for cost lookup
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
     onDeleteMessage?: () => void; // Callback when user confirms message deletion
+    isFirstMessage?: boolean; // Whether this is the first message in the chat (delete is disabled for first messages)
   } = $props();
   
   // State for thinking section expansion
@@ -1377,15 +1379,11 @@
         {/if}
         
         <!-- AI Loading Indicator: Shown for placeholder assistant messages during processing.
-             Displays a shimmer animation while waiting for the AI to start streaming.
-             This is replaced by ReadOnlyMessage once streaming begins. -->
+             Displays the ai.svg icon with a gradient shimmer animation while waiting for
+             the AI to start streaming. Replaced by ReadOnlyMessage once streaming begins. -->
         {#if role === 'assistant' && status === 'processing' && (!content || (typeof content === 'string' && content.length === 0))}
           <div class="ai-loading-indicator">
-            <div class="ai-loading-dots">
-              <span class="ai-loading-dot"></span>
-              <span class="ai-loading-dot"></span>
-              <span class="ai-loading-dot"></span>
-            </div>
+            <div class="ai-loading-icon"></div>
           </div>
         {:else if showFullMessage && fullContent}
           <ReadOnlyMessage 
@@ -1500,7 +1498,8 @@
           onClose={() => showMessageMenu = false}
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
-          onDelete={messageId ? handleDeleteMessage : undefined}
+          onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
+          disableDelete={isFirstMessage}
           {messageId}
           {userMessageId}
           {role}
@@ -1593,46 +1592,44 @@
 
 <style>
   /* AI Loading Indicator: Shown inside assistant message bubble during processing.
-     Three pulsing dots that indicate the AI is working on a response.
-     Uses the primary gradient color for brand consistency. */
+     Displays the ai.svg sparkle icon with a sweeping gradient shimmer animation.
+     Uses CSS mask-image so the gradient paints only the icon shape. */
   .ai-loading-indicator {
     display: flex;
     align-items: center;
     padding: 8px 4px;
-    min-height: 24px;
+    min-height: 28px;
   }
 
-  .ai-loading-dots {
-    display: flex;
-    gap: 6px;
-    align-items: center;
+  .ai-loading-icon {
+    width: 28px;
+    height: 28px;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-30, #ccc) 0%,
+      var(--color-grey-30, #ccc) 40%,
+      var(--color-grey-10, #f0f0f0) 50%,
+      var(--color-grey-30, #ccc) 60%,
+      var(--color-grey-30, #ccc) 100%
+    );
+    background-size: 200% 100%;
+    animation: ai-icon-shimmer 1.5s infinite linear;
   }
 
-  .ai-loading-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-primary, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-    opacity: 0.4;
-    animation: ai-dot-pulse 1.4s ease-in-out infinite;
-  }
-
-  .ai-loading-dot:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .ai-loading-dot:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  @keyframes ai-dot-pulse {
-    0%, 80%, 100% {
-      opacity: 0.4;
-      transform: scale(0.8);
+  @keyframes ai-icon-shimmer {
+    0% {
+      background-position: 200% 0;
     }
-    40% {
-      opacity: 1;
-      transform: scale(1);
+    100% {
+      background-position: -200% 0;
     }
   }
 
