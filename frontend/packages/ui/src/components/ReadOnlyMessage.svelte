@@ -755,8 +755,12 @@
                 }
             },
             {
-                // Start loading slightly before message becomes visible (100px buffer)
-                rootMargin: '100px',
+                // Start loading well before message becomes visible to prevent
+                // content cutoff during fast scrolling. 500px buffer ensures editors
+                // are initialized roughly half a mobile screen before entering viewport,
+                // eliminating visual glitches while keeping memory usage reasonable
+                // (only ~2-3 extra editors pre-initialized at any time).
+                rootMargin: '500px',
                 threshold: 0.01
             }
         );
