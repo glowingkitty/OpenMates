@@ -406,26 +406,26 @@ Admin users have their browser console logs automatically forwarded to Loki via 
 ### Querying Client Logs via Loki
 
 ```bash
-# All admin client logs (last hour)
-docker exec api python -c "
-import asyncio, aiohttp
-async def q():
-    async with aiohttp.ClientSession() as s:
-        async with s.get('http://loki:3100/loki/api/v1/query_range', params={
-            'query': '{job=\"client-console\"}', 'limit': '50'
-        }) as r:
-            print(await r.text())
-asyncio.run(q())
-"
+# All admin client logs (last 30 min)
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py
 
-# Filter by level (error, warn, info, debug)
-# query: {job="client-console", level="error"}
+# Only errors from the last hour
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --since 60
 
-# Filter by user
-# query: {job="client-console", user_email="jan41139"}
+# Filter by admin user
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --user jan41139
 
 # Search log content
-# query: {job="client-console"} |= "WebSocket"
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --search "WebSocket"
+
+# Combine filters
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --user jan41139 --since 60
+
+# Raw JSON output
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --json
+
+# Follow mode (poll every 5s, like tail -f)
+docker exec api python /app/backend/scripts/inspect_frontend_logs.py --follow
 ```
 
 ### Key Loki Labels
