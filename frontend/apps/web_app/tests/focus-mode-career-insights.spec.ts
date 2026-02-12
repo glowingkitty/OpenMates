@@ -33,20 +33,13 @@ const {
 } = require('./signup-flow-helpers');
 
 /**
- * Focus mode test: Verify that the "Career insights" focus mode from the Jobs app
- * is triggered when the user expresses frustration with their current job and asks
- * for career advice.
+ * Focus mode tests: Verify the "Career insights" focus mode from the Jobs app
+ * works correctly in various scenarios:
  *
- * The test:
- * 1. Logs in with an existing test account
- * 2. Starts a new chat
- * 3. Sends a message expressing job frustration and asking for career advice
- * 4. Waits for the AI to respond and checks that a focus mode activation embed
- *    appears with focus-id "jobs-career_insights"
- * 5. Verifies the focus mode card renders correctly (countdown, name)
- * 6. Waits for the focus mode to activate (countdown completes)
- * 7. Verifies the activated state
- * 8. Deletes the chat
+ * 1. Activation: Focus mode activates when user expresses career frustration
+ * 2. Rejection: User can interrupt/cancel focus mode during countdown
+ * 3. Context menu: Shows focus mode indicator when active
+ * 4. Persistence: Focus mode remains active on follow-up messages
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of an existing test account.
@@ -58,6 +51,33 @@ const {
 const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
 const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
 const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+
+// ---------------------------------------------------------------------------
+// Selectors: Based on FocusModeActivationEmbed.svelte CSS classes
+// The Svelte component uses 'focus-mode-bar' as the main class.
+// The renderer sets data-embed-type, data-focus-id, data-app-id on the container.
+// ---------------------------------------------------------------------------
+const SELECTORS = {
+	/** Focus mode bar (inner Svelte component) with app-specific filter */
+	focusModeBar: '.focus-mode-bar[data-app-id="jobs"]',
+	/** Focus mode bar in activated state */
+	focusModeBarActivated: '.focus-mode-bar.activated[data-app-id="jobs"]',
+	/** Focus mode bar during countdown (not yet activated) */
+	focusModeBarCounting: '.focus-mode-bar.counting[data-app-id="jobs"]',
+	/** Status label (focus mode display name) */
+	statusLabel: '.status-label',
+	/** Status value (countdown text or "Focus activated") */
+	statusValue: '.status-value',
+	/** Status value in activated state */
+	statusValueActive: '.status-value.active-status',
+	/** Progress bar container (visible during countdown only) */
+	progressBar: '.progress-bar-container',
+	/** Reject hint text below the bar (visible during countdown only) */
+	rejectHint: '.reject-hint',
+	/** Chat context menu focus mode indicator */
+	contextMenuFocusIndicator: '.focus-mode-indicator',
+	contextMenuFocusLabel: '.focus-mode-label'
+};
 
 // ---------------------------------------------------------------------------
 // Shared helpers (same pattern as web-search-flow.spec.ts)
@@ -300,15 +320,34 @@ async function deleteActiveChat(
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Test: Career insights focus mode activation
-// ---------------------------------------------------------------------------
+/**
+ * Wait for the focus mode activation embed to appear and return the locator.
+ */
+async function waitForFocusModeEmbed(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
+	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	stepLabel: string
+): Promise<any> {
+	logCheckpoint('Waiting for focus mode activation embed to appear...');
 
-test('career frustration message triggers Career insights focus mode', async ({
-	page
-}: {
-	page: any;
-}) => {
+	const focusModeEmbed = page.locator(SELECTORS.focusModeBar);
+	await expect(focusModeEmbed.first()).toBeVisible({ timeout: 90000 });
+	logCheckpoint('Focus mode activation embed is visible!');
+	await takeStepScreenshot(page, `${stepLabel}-embed-visible`);
+
+	// Verify the focus mode ID contains "career_insights"
+	const focusId = await focusModeEmbed.first().getAttribute('data-focus-id');
+	logCheckpoint(`Focus mode ID: "${focusId}"`);
+	expect(focusId).toContain('career_insights');
+
+	return focusModeEmbed;
+}
+
+/**
+ * Helper to set up console/network logging on a page.
+ */
+function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -321,10 +360,20 @@ test('career frustration message triggers Career insights focus mode', async ({
 		const timestamp = new Date().toISOString();
 		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Test 1: Career insights focus mode activation (happy path)
+// ---------------------------------------------------------------------------
+
+test('career frustration message triggers Career insights focus mode', async ({
+	page
+}: {
+	page: any;
+}) => {
+	setupPageListeners(page);
 
 	test.slow();
-	// Focus mode activation involves AI preprocessing + main processing + streaming.
-	// Allow up to 5 minutes for the full flow.
 	test.setTimeout(300000);
 
 	const logCheckpoint = createSignupLogger('FOCUS_MODE_CAREER');
@@ -346,7 +395,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 	await startNewChat(page, logCheckpoint);
 
 	// ======================================================================
-	// STEP 2: Send a message expressing career frustration and asking for advice
+	// STEP 2: Send a message expressing career frustration
 	// ======================================================================
 	const careerMessage =
 		"I've been feeling really frustrated and stuck in my current job for the past year. " +
@@ -365,37 +414,24 @@ test('career frustration message triggers Career insights focus mode', async ({
 
 	// ======================================================================
 	// STEP 4: Check for focus mode activation embed
-	// The embed has data-embed-type="focus-mode-activation" and data-focus-id
-	// containing "career_insights". The focus ID format is "jobs-career_insights".
 	// ======================================================================
-	logCheckpoint('Waiting for focus mode activation embed to appear...');
-
-	// Look for the focus mode activation element by its data attributes.
-	// The component renders with class "focus-mode-activation" and data-focus-id.
-	const focusModeEmbed = page.locator('.focus-mode-activation[data-app-id="jobs"]');
-
-	await expect(focusModeEmbed.first()).toBeVisible({ timeout: 90000 });
-	logCheckpoint('Focus mode activation embed is visible!');
-	await takeStepScreenshot(page, 'focus-mode-embed-visible');
-
-	// Verify the focus mode ID contains "career_insights"
-	const focusId = await focusModeEmbed.first().getAttribute('data-focus-id');
-	logCheckpoint(`Focus mode ID: "${focusId}"`);
-	expect(focusId).toContain('career_insights');
+	const focusModeEmbed = await waitForFocusModeEmbed(
+		page,
+		logCheckpoint,
+		takeStepScreenshot,
+		'focus-mode'
+	);
 
 	// ======================================================================
 	// STEP 5: Verify focus mode card content
 	// ======================================================================
-	// Check the focus mode name is displayed
-	const focusName = focusModeEmbed.first().locator('.focus-name');
+	const focusName = focusModeEmbed.first().locator(SELECTORS.statusLabel);
 	await expect(focusName).toBeVisible({ timeout: 5000 });
 	const focusNameText = await focusName.textContent();
 	logCheckpoint(`Focus mode name displayed: "${focusNameText}"`);
-	// The name should be "Career insights" (English)
 	expect(focusNameText?.toLowerCase()).toContain('career');
 
-	// Check the status text is visible (should show countdown or activated)
-	const focusStatus = focusModeEmbed.first().locator('.focus-status');
+	const focusStatus = focusModeEmbed.first().locator(SELECTORS.statusValue);
 	await expect(focusStatus).toBeVisible({ timeout: 5000 });
 	const statusText = await focusStatus.textContent();
 	logCheckpoint(`Focus mode status text: "${statusText}"`);
@@ -403,30 +439,28 @@ test('career frustration message triggers Career insights focus mode', async ({
 	await takeStepScreenshot(page, 'focus-mode-card-verified');
 
 	// ======================================================================
-	// STEP 6: Wait for focus mode to activate (countdown completes in 4 seconds)
+	// STEP 6: Wait for focus mode to activate (4-second countdown)
 	// ======================================================================
 	logCheckpoint('Waiting for focus mode to activate (4-second countdown)...');
 
-	// The activated state adds the "activated" class to the card
-	const activatedEmbed = page.locator('.focus-mode-activation.activated[data-app-id="jobs"]');
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode has been activated!');
 
 	// Verify the activated status text
-	const activatedStatus = activatedEmbed.first().locator('.focus-status.active-status');
+	const activatedStatus = activatedEmbed.first().locator(SELECTORS.statusValueActive);
 	await expect(activatedStatus).toBeVisible({ timeout: 5000 });
 	const activatedStatusText = await activatedStatus.textContent();
 	logCheckpoint(`Activated status text: "${activatedStatusText}"`);
-	// Should say "Focus activated" or similar
 	expect(activatedStatusText?.toLowerCase()).toContain('activat');
 
-	// The progress bar should no longer be visible after activation
-	const progressBar = activatedEmbed.first().locator('.progress-bar-container');
+	// Progress bar should be hidden after activation
+	const progressBar = activatedEmbed.first().locator(SELECTORS.progressBar);
 	await expect(progressBar).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Progress bar is hidden after activation.');
 
-	// The reject hint should also be hidden after activation
-	const rejectHint = page.locator('.reject-hint');
+	// Reject hint should be hidden after activation
+	const rejectHint = page.locator(SELECTORS.rejectHint);
 	await expect(rejectHint).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Reject hint is hidden after activation.');
 
@@ -434,19 +468,15 @@ test('career frustration message triggers Career insights focus mode', async ({
 
 	// ======================================================================
 	// STEP 7: Verify the AI response contains career-related content
-	// After focus mode activates, the AI should respond with career advice
 	// ======================================================================
 	logCheckpoint('Waiting for AI response with career advice content...');
 
-	// Wait for the assistant response to contain some career-related keywords
-	// The AI should ask about the user's situation, interests, etc.
 	await expect(async () => {
 		const allAssistantMessages = page.locator('.message-wrapper.assistant');
 		const lastMessage = allAssistantMessages.last();
 		const text = await lastMessage.textContent();
 		const lowerText = text?.toLowerCase() ?? '';
 		logCheckpoint(`Checking assistant response text length: ${text?.length ?? 0}`);
-		// The response should contain at least one career-related keyword
 		const hasCareerContent =
 			lowerText.includes('career') ||
 			lowerText.includes('job') ||
@@ -467,4 +497,440 @@ test('career frustration message triggers Career insights focus mode', async ({
 	// ======================================================================
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'career-cleanup');
 	logCheckpoint('Career insights focus mode test completed successfully.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 2: Rejecting (interrupting) focus mode during countdown
+//
+// Verifies that clicking on the focus mode embed during the countdown:
+// 1. Stops the countdown immediately
+// 2. Hides the focus mode embed (rejected state)
+// 3. Creates a system message informing about the rejected focus mode
+// 4. The assistant response continues without focus mode
+// ---------------------------------------------------------------------------
+
+test('clicking focus mode embed during countdown rejects focus mode activation', async ({
+	page
+}: {
+	page: any;
+}) => {
+	setupPageListeners(page);
+
+	test.slow();
+	test.setTimeout(300000);
+
+	const logCheckpoint = createSignupLogger('FOCUS_MODE_REJECT');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'focus-mode-reject'
+	});
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	await archiveExistingScreenshots(logCheckpoint);
+	logCheckpoint('Starting focus mode rejection test.', { email: TEST_EMAIL });
+
+	// ======================================================================
+	// STEP 1: Login and start a new chat
+	// ======================================================================
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	// ======================================================================
+	// STEP 2: Send a career-related message to trigger focus mode
+	// ======================================================================
+	const careerMessage =
+		"I'm really unhappy with my current career situation. " +
+		"I've been in the same position for 3 years with no growth opportunities. " +
+		'What career path should I consider?';
+
+	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'reject-career');
+
+	// ======================================================================
+	// STEP 3: Wait for assistant response and focus mode embed
+	// ======================================================================
+	logCheckpoint('Waiting for assistant response...');
+	const assistantMessage = page.locator('.message-wrapper.assistant');
+	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
+
+	const focusModeEmbed = await waitForFocusModeEmbed(
+		page,
+		logCheckpoint,
+		takeStepScreenshot,
+		'reject-focus-mode'
+	);
+
+	// ======================================================================
+	// STEP 4: Verify the embed is in countdown state (not yet activated)
+	// ======================================================================
+	const countingEmbed = page.locator(SELECTORS.focusModeBarCounting);
+	const isCountingVisible = await countingEmbed
+		.first()
+		.isVisible({ timeout: 3000 })
+		.catch(() => false);
+	logCheckpoint(`Focus mode is in counting state: ${isCountingVisible}`);
+
+	// The progress bar should be visible during countdown
+	const progressBar = focusModeEmbed.first().locator(SELECTORS.progressBar);
+	const isProgressVisible = await progressBar.isVisible({ timeout: 3000 }).catch(() => false);
+	logCheckpoint(`Progress bar visible: ${isProgressVisible}`);
+
+	// The reject hint should be visible during countdown
+	const rejectHint = page.locator(SELECTORS.rejectHint);
+	const isHintVisible = await rejectHint.isVisible({ timeout: 3000 }).catch(() => false);
+	logCheckpoint(`Reject hint visible: ${isHintVisible}`);
+
+	await takeStepScreenshot(page, 'reject-countdown-state');
+
+	// ======================================================================
+	// STEP 5: Click on the embed to reject/interrupt the focus mode
+	// ======================================================================
+	logCheckpoint('Clicking on focus mode embed to reject...');
+	await focusModeEmbed.first().click();
+	logCheckpoint('Clicked focus mode embed to reject activation.');
+	await takeStepScreenshot(page, 'reject-clicked');
+
+	// ======================================================================
+	// STEP 6: Verify the embed is hidden after rejection
+	// The FocusModeActivationEmbed component hides itself when rejected
+	// (the entire {#if !isRejected} block becomes false)
+	// ======================================================================
+	logCheckpoint('Verifying focus mode embed is hidden after rejection...');
+	await expect(focusModeEmbed.first()).not.toBeVisible({ timeout: 5000 });
+	logCheckpoint('Focus mode embed is hidden after rejection.');
+
+	// Reject hint should also be gone
+	await expect(rejectHint).not.toBeVisible({ timeout: 5000 });
+	logCheckpoint('Reject hint is hidden after rejection.');
+
+	await takeStepScreenshot(page, 'reject-embed-hidden');
+
+	// ======================================================================
+	// STEP 7: Verify a system message about focus mode rejection appeared
+	// The ActiveChat handler creates a system message like "Rejected Career insights focus mode."
+	// ======================================================================
+	logCheckpoint('Checking for focus mode rejection system message...');
+
+	await expect(async () => {
+		// System messages appear in the message list. Look for text containing "Rejected" and "focus mode"
+		const allMessages = page.locator('.message-wrapper');
+		const count = await allMessages.count();
+		let foundRejectionMessage = false;
+
+		for (let i = 0; i < count; i++) {
+			const msgText = await allMessages.nth(i).textContent();
+			const lowerText = msgText?.toLowerCase() ?? '';
+			if (lowerText.includes('rejected') && lowerText.includes('focus mode')) {
+				foundRejectionMessage = true;
+				logCheckpoint(`Found rejection system message: "${msgText?.trim()}"`);
+				break;
+			}
+		}
+
+		expect(foundRejectionMessage).toBeTruthy();
+	}).toPass({ timeout: 15000 });
+
+	logCheckpoint('Rejection system message verified.');
+	await takeStepScreenshot(page, 'reject-system-message');
+
+	// ======================================================================
+	// STEP 8: Verify the assistant response continues without focus mode
+	// The response should still contain some content (assistant continues in regular mode)
+	// ======================================================================
+	logCheckpoint('Verifying assistant continues responding after rejection...');
+
+	await expect(async () => {
+		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const lastMessage = allAssistantMessages.last();
+		const text = await lastMessage.textContent();
+		logCheckpoint(`Assistant response text length after rejection: ${text?.length ?? 0}`);
+		// The response should have some meaningful content (more than just the embed)
+		expect((text?.length ?? 0) > 20).toBeTruthy();
+	}).toPass({ timeout: 60000 });
+
+	logCheckpoint('Assistant continues with regular response after focus mode rejection.');
+	await takeStepScreenshot(page, 'reject-response-continues');
+
+	// ======================================================================
+	// STEP 9: Delete the chat (cleanup)
+	// ======================================================================
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'reject-cleanup');
+	logCheckpoint('Focus mode rejection test completed successfully.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 3: Chat context menu shows focus mode indicator when active
+//
+// Verifies that after a focus mode is activated:
+// 1. The chat context menu (right-click on chat in sidebar) shows a focus mode indicator
+// 2. The indicator displays the correct focus mode name
+// ---------------------------------------------------------------------------
+
+test('chat context menu shows focus mode indicator when career insights is active', async ({
+	page
+}: {
+	page: any;
+}) => {
+	setupPageListeners(page);
+
+	test.slow();
+	test.setTimeout(300000);
+
+	const logCheckpoint = createSignupLogger('FOCUS_MODE_CONTEXT_MENU');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'focus-mode-context-menu'
+	});
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	await archiveExistingScreenshots(logCheckpoint);
+	logCheckpoint('Starting focus mode context menu test.', { email: TEST_EMAIL });
+
+	// ======================================================================
+	// STEP 1: Login and start a new chat
+	// ======================================================================
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	// ======================================================================
+	// STEP 2: Trigger focus mode activation
+	// ======================================================================
+	const careerMessage =
+		"I'm very frustrated with my career. I've been doing the same thing for years " +
+		'and I need help figuring out my next career move. What should I do?';
+
+	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
+
+	logCheckpoint('Waiting for assistant response...');
+	const assistantMessage = page.locator('.message-wrapper.assistant');
+	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
+
+	// Wait for focus mode embed and let it activate
+	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'ctx-menu-focus');
+
+	logCheckpoint('Waiting for focus mode to activate (countdown)...');
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
+	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
+	logCheckpoint('Focus mode has been activated!');
+
+	// Wait a moment for server sync to propagate the active focus state
+	await page.waitForTimeout(3000);
+	await takeStepScreenshot(page, 'ctx-menu-focus-activated');
+
+	// ======================================================================
+	// STEP 3: Open the chat context menu via right-click on the active chat in sidebar
+	// ======================================================================
+	logCheckpoint('Opening sidebar to find active chat...');
+
+	// Ensure sidebar is visible
+	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	if (await sidebarToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(500);
+	}
+
+	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Active chat item visible in sidebar.');
+
+	// Right-click to open context menu
+	await activeChatItem.click({ button: 'right' });
+	await page.waitForTimeout(500);
+	await takeStepScreenshot(page, 'ctx-menu-opened');
+	logCheckpoint('Opened chat context menu.');
+
+	// ======================================================================
+	// STEP 4: Verify focus mode indicator is shown in the context menu
+	// The ChatContextMenu.svelte renders a .focus-mode-indicator div when activeFocusId is set
+	// ======================================================================
+	logCheckpoint('Checking for focus mode indicator in context menu...');
+
+	const focusIndicator = page.locator(SELECTORS.contextMenuFocusIndicator);
+	await expect(focusIndicator).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Focus mode indicator is visible in context menu!');
+
+	// Verify the focus mode label shows the correct name
+	const focusLabel = page.locator(SELECTORS.contextMenuFocusLabel);
+	await expect(focusLabel).toBeVisible({ timeout: 5000 });
+	const labelText = await focusLabel.textContent();
+	logCheckpoint(`Focus mode label in context menu: "${labelText}"`);
+	// Should contain "career" (from "Career insights" or similar translation)
+	expect(labelText?.toLowerCase()).toContain('career');
+
+	await takeStepScreenshot(page, 'ctx-menu-focus-indicator-verified');
+
+	// Close context menu
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+
+	// ======================================================================
+	// STEP 5: Delete the chat (cleanup)
+	// ======================================================================
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'ctx-menu-cleanup');
+	logCheckpoint('Focus mode context menu test completed successfully.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: Focus mode remains active on follow-up messages
+//
+// Verifies that once a focus mode is activated:
+// 1. Sending a follow-up message keeps the focus mode active
+// 2. The follow-up response still uses the focus mode context
+// 3. The context menu still shows the focus mode indicator after follow-up
+// ---------------------------------------------------------------------------
+
+test('focus mode remains active on follow-up messages', async ({ page }: { page: any }) => {
+	setupPageListeners(page);
+
+	test.slow();
+	test.setTimeout(360000);
+
+	const logCheckpoint = createSignupLogger('FOCUS_MODE_FOLLOWUP');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'focus-mode-followup'
+	});
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	await archiveExistingScreenshots(logCheckpoint);
+	logCheckpoint('Starting focus mode follow-up persistence test.', { email: TEST_EMAIL });
+
+	// ======================================================================
+	// STEP 1: Login and start a new chat
+	// ======================================================================
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	// ======================================================================
+	// STEP 2: Trigger focus mode activation
+	// ======================================================================
+	const careerMessage =
+		"I'm really unhappy with my career and need guidance. " +
+		"I've been working as a software developer for 5 years but feel stuck. " +
+		'What career options should I explore?';
+
+	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'followup-initial');
+
+	logCheckpoint('Waiting for assistant response...');
+	const assistantMessage = page.locator('.message-wrapper.assistant');
+	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
+
+	// Wait for focus mode embed and activation
+	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'followup-focus');
+
+	logCheckpoint('Waiting for focus mode to activate...');
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
+	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
+	logCheckpoint('Focus mode has been activated!');
+
+	// Wait for the initial response to complete (streaming done)
+	await page.waitForTimeout(5000);
+	await takeStepScreenshot(page, 'followup-initial-response-done');
+
+	// ======================================================================
+	// STEP 3: Count assistant messages before follow-up
+	// ======================================================================
+	const allAssistantMessagesBefore = page.locator('.message-wrapper.assistant');
+	const countBefore = await allAssistantMessagesBefore.count();
+	logCheckpoint(`Assistant messages before follow-up: ${countBefore}`);
+
+	// ======================================================================
+	// STEP 4: Send a follow-up message (still career-related)
+	// ======================================================================
+	const followUpMessage =
+		"I'm particularly interested in transitioning to a product management role. " +
+		'What skills do I need and how should I prepare?';
+
+	await sendMessage(page, followUpMessage, logCheckpoint, takeStepScreenshot, 'followup-msg');
+
+	// ======================================================================
+	// STEP 5: Wait for follow-up assistant response
+	// ======================================================================
+	logCheckpoint('Waiting for follow-up assistant response...');
+
+	await expect(async () => {
+		const allAssistantMessagesAfter = page.locator('.message-wrapper.assistant');
+		const countAfter = await allAssistantMessagesAfter.count();
+		logCheckpoint(`Assistant messages after follow-up: ${countAfter} (was ${countBefore})`);
+		// At least one more assistant message should appear
+		expect(countAfter).toBeGreaterThan(countBefore);
+	}).toPass({ timeout: 90000 });
+
+	logCheckpoint('Follow-up assistant response received.');
+
+	// ======================================================================
+	// STEP 6: Verify follow-up response contains career/product management content
+	// This confirms the AI is still using the career focus mode context
+	// ======================================================================
+	logCheckpoint('Verifying follow-up response has career-focused content...');
+
+	await expect(async () => {
+		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const lastMessage = allAssistantMessages.last();
+		const text = await lastMessage.textContent();
+		const lowerText = text?.toLowerCase() ?? '';
+		logCheckpoint(`Follow-up response text length: ${text?.length ?? 0}`);
+		// The follow-up response should reference career/product management topics
+		const hasRelevantContent =
+			lowerText.includes('product') ||
+			lowerText.includes('management') ||
+			lowerText.includes('career') ||
+			lowerText.includes('transition') ||
+			lowerText.includes('skill') ||
+			lowerText.includes('role');
+		expect(hasRelevantContent).toBeTruthy();
+	}).toPass({ timeout: 30000 });
+
+	logCheckpoint(
+		'Follow-up response contains career-focused content, confirming focus mode persistence.'
+	);
+	await takeStepScreenshot(page, 'followup-response-verified');
+
+	// ======================================================================
+	// STEP 7: Verify focus mode is still active in context menu after follow-up
+	// ======================================================================
+	logCheckpoint('Checking context menu still shows focus mode after follow-up...');
+
+	// Ensure sidebar is visible
+	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	if (await sidebarToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(500);
+	}
+
+	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await activeChatItem.click({ button: 'right' });
+		await page.waitForTimeout(500);
+
+		const focusIndicator = page.locator(SELECTORS.contextMenuFocusIndicator);
+		await expect(focusIndicator).toBeVisible({ timeout: 10000 });
+		logCheckpoint('Focus mode indicator is STILL visible in context menu after follow-up!');
+
+		const focusLabel = page.locator(SELECTORS.contextMenuFocusLabel);
+		if (await focusLabel.isVisible({ timeout: 3000 }).catch(() => false)) {
+			const labelText = await focusLabel.textContent();
+			logCheckpoint(`Focus mode label after follow-up: "${labelText}"`);
+			expect(labelText?.toLowerCase()).toContain('career');
+		}
+
+		await takeStepScreenshot(page, 'followup-context-menu-still-active');
+
+		// Close context menu
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+	} else {
+		logCheckpoint('WARNING: Could not find active chat item to verify context menu.');
+	}
+
+	// ======================================================================
+	// STEP 8: Delete the chat (cleanup)
+	// ======================================================================
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'followup-cleanup');
+	logCheckpoint('Focus mode follow-up persistence test completed successfully.');
 });

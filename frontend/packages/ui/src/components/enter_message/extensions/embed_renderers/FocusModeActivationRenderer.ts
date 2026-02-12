@@ -7,6 +7,11 @@
  * - Click-to-reject during countdown
  * - "Focus activated" state after countdown
  *
+ * The renderer checks the current chat's active focus mode state (from IndexedDB/cache)
+ * to determine if the focus mode is already active. If so, it passes `alreadyActive=true`
+ * to the component, which skips the countdown and shows the activated state immediately.
+ * This prevents the countdown from replaying when the user revisits a chat.
+ *
  * On rejection the renderer:
  * 1. Dispatches a "focusModeRejected" custom event on document (picked up by ActiveChat)
  * 2. Sends a deactivation request to the backend via WebSocket
@@ -16,6 +21,9 @@ import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
 import FocusModeActivationEmbed from "../../../embeds/FocusModeActivationEmbed.svelte";
+import { activeChatStore } from "../../../../stores/activeChatStore";
+import { chatMetadataCache } from "../../../../services/chatMetadataCache";
+import { chatDB } from "../../../../services/db";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -39,11 +47,35 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
       return;
     }
 
+    // Check if this focus mode is already active on the current chat.
+    // This prevents the countdown from replaying when the user revisits
+    // a chat where a focus mode was previously activated.
+    let alreadyActive = false;
+    try {
+      const chatId = activeChatStore.get();
+      if (chatId) {
+        const chat = await chatDB.getChat(chatId);
+        if (chat) {
+          const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+          if (metadata?.activeFocusId === focusId) {
+            alreadyActive = true;
+          }
+        }
+      }
+    } catch (e) {
+      // Non-blocking: if we can't determine the active state, fall back to countdown
+      console.debug(
+        "[FocusModeActivationRenderer] Could not check active focus state:",
+        e,
+      );
+    }
+
     console.debug("[FocusModeActivationRenderer] Rendering:", {
       focusId,
       appId,
       focusModeName,
       embedId: attrs.id,
+      alreadyActive,
     });
 
     // Cleanup any existing mounted component
@@ -77,6 +109,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           focusId,
           appId,
           focusModeName,
+          alreadyActive,
           onReject: (rejectedFocusId: string, rejectedName: string) => {
             console.debug(
               "[FocusModeActivationRenderer] Focus mode rejected:",
@@ -141,7 +174,8 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
-    const focusModeName = attrs.focus_mode_name || attrs.focus_id || "Focus mode";
+    const focusModeName =
+      attrs.focus_mode_name || attrs.focus_id || "Focus mode";
     return `[Focus: ${focusModeName}]`;
   }
 

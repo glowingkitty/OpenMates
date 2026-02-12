@@ -48,6 +48,13 @@
     appId: string;
     /** Translated display name of the focus mode (translation key like 'jobs.career_insights.text') */
     focusModeName: string;
+    /**
+     * Whether this focus mode is already active on the chat (from server/IndexedDB state).
+     * When true, the countdown is skipped entirely and the component shows the static
+     * "Focus activated" state immediately. This prevents the countdown from replaying
+     * every time the user revisits a chat where a focus mode was previously activated.
+     */
+    alreadyActive?: boolean;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
     /** Callback when the user deactivates the focus mode via context menu */
@@ -61,6 +68,7 @@
     focusId,
     appId,
     focusModeName,
+    alreadyActive = false,
     onReject,
     onDeactivate: _onDeactivate,
     onDetails: _onDetails
@@ -74,9 +82,11 @@
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
 
-  // Check if this embed was already activated or rejected in a previous mount
-  const wasAlreadyActivated = activatedEmbedIds.has(id);
-  const wasAlreadyRejected = rejectedEmbedIds.has(id);
+  // Check if this embed was already activated or rejected in a previous mount.
+  // alreadyActive=true means the server/IndexedDB state confirms this focus mode
+  // is active on the chat, so we skip the countdown entirely (e.g., when revisiting a chat).
+  const wasAlreadyActivated = alreadyActive || activatedEmbedIds.has(id);
+  const wasAlreadyRejected = !alreadyActive && rejectedEmbedIds.has(id);
 
   // State
   let countdownValue = $state(wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS);
