@@ -5,6 +5,7 @@
  * - Markdown format of the chat history
  * - Separate code files for each code embed (with original file paths)
  * - Separate transcript files for each video transcript embed
+ * - AI-generated images (fetched from S3, decrypted, with PNG metadata)
  */
 
 import JSZip from "jszip";
@@ -22,6 +23,11 @@ import {
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
+import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
+import {
+  generateImageFilename,
+  embedPngMetadata,
+} from "../components/embeds/images/imageDownloadUtils";
 
 /**
  * Converts a single message to markdown format
@@ -542,6 +548,337 @@ async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<
 }
 
 /**
+ * Recursively loads all embeds and finds image embeds including nested ones
+ * (e.g. images inside app_skill_use composite embeds)
+ * @param embedIds - Array of embed IDs to load
+ * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
+ * @returns Array of image embed data with decryption info
+ */
+async function loadImageEmbedsRecursively(
+  embedIds: string[],
+  loadedEmbedIds: Set<string> = new Set(),
+): Promise<
+  Array<{
+    embed_id: string;
+    prompt?: string;
+    model?: string;
+    generated_at?: string;
+    s3_base_url: string;
+    s3_key: string;
+    aes_key: string;
+    aes_nonce: string;
+    format: string;
+  }>
+> {
+  const imageEmbeds: Array<{
+    embed_id: string;
+    prompt?: string;
+    model?: string;
+    generated_at?: string;
+    s3_base_url: string;
+    s3_key: string;
+    aes_key: string;
+    aes_nonce: string;
+    format: string;
+  }> = [];
+
+  // Filter out already loaded embeds
+  const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
+  if (newEmbedIds.length === 0) {
+    return imageEmbeds;
+  }
+
+  // Mark these as being loaded
+  newEmbedIds.forEach((id) => loadedEmbedIds.add(id));
+
+  // Load embeds from EmbedStore
+  const loadedEmbeds = await loadEmbeds(newEmbedIds);
+
+  console.debug(
+    "[ZipExportService] loadImageEmbedsRecursively: loaded embeds from store:",
+    {
+      requestedIds: newEmbedIds.length,
+      loadedCount: loadedEmbeds.length,
+      embedTypes: loadedEmbeds.map((e) => ({
+        id: e.embed_id,
+        type: e.type,
+        hasContent: !!e.content,
+        contentType: typeof e.content,
+      })),
+    },
+  );
+
+  // Process each embed
+  for (const embed of loadedEmbeds) {
+    try {
+      if (!embed.content || typeof embed.content !== "string") {
+        console.debug(
+          "[ZipExportService] Skipping embed with no/invalid content:",
+          {
+            embed_id: embed.embed_id,
+            type: embed.type,
+            contentIsNull: embed.content === null,
+            contentType: typeof embed.content,
+          },
+        );
+        continue;
+      }
+
+      // Decode TOON content to get actual embed values
+      const decodedContent = await decodeToonContent(embed.content);
+
+      console.debug("[ZipExportService] Image embed check:", {
+        embed_id: embed.embed_id,
+        embed_type: embed.type,
+        decoded_app_id: decodedContent?.app_id,
+        decoded_skill_id: decodedContent?.skill_id,
+        decoded_type: decodedContent?.type,
+        has_s3_base_url: !!decodedContent?.s3_base_url,
+        has_aes_key: !!decodedContent?.aes_key,
+        has_aes_nonce: !!decodedContent?.aes_nonce,
+        has_files: !!decodedContent?.files,
+        files_keys: decodedContent?.files
+          ? Object.keys(decodedContent.files)
+          : [],
+      });
+
+      // If this is an image generate embed, process it
+      // Image embeds are stored as app_skill_use with app_id="images"
+      // and skill_id="generate" or "generate_draft"
+      if (
+        decodedContent &&
+        typeof decodedContent === "object" &&
+        decodedContent.app_id === "images" &&
+        (decodedContent.skill_id === "generate" ||
+          decodedContent.skill_id === "generate_draft") &&
+        decodedContent.s3_base_url &&
+        decodedContent.aes_key &&
+        decodedContent.aes_nonce &&
+        decodedContent.files
+      ) {
+        // Prefer the original PNG for download, fall back to full, then preview
+        const fileEntry =
+          decodedContent.files.original ||
+          decodedContent.files.full ||
+          decodedContent.files.preview;
+
+        console.debug("[ZipExportService] Found image embed, fileEntry:", {
+          embed_id: embed.embed_id,
+          hasOriginal: !!decodedContent.files.original,
+          hasFull: !!decodedContent.files.full,
+          hasPreview: !!decodedContent.files.preview,
+          selectedKey: fileEntry?.s3_key,
+        });
+
+        if (fileEntry?.s3_key) {
+          imageEmbeds.push({
+            embed_id: embed.embed_id,
+            prompt: decodedContent.prompt,
+            model: decodedContent.model,
+            generated_at: decodedContent.generated_at,
+            s3_base_url: decodedContent.s3_base_url,
+            s3_key: fileEntry.s3_key,
+            aes_key: decodedContent.aes_key,
+            aes_nonce: decodedContent.aes_nonce,
+            format: fileEntry.format || "png",
+          });
+        }
+      }
+
+      // Handle nested embeds (composite embeds like app_skill_use)
+      const childEmbedIds: string[] = [];
+
+      // Check for embed_ids in the decoded content (for composite embeds)
+      if (decodedContent && typeof decodedContent === "object") {
+        if (Array.isArray(decodedContent.embed_ids)) {
+          childEmbedIds.push(...decodedContent.embed_ids);
+        } else if (typeof decodedContent.embed_ids === "string") {
+          childEmbedIds.push(
+            ...decodedContent.embed_ids
+              .split("|")
+              .filter((id: string) => id.trim()),
+          );
+        }
+      }
+
+      // Also check embed.embed_ids directly (from the embed metadata)
+      if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
+        childEmbedIds.push(...embed.embed_ids);
+      }
+
+      // Remove duplicates
+      const uniqueChildEmbedIds = Array.from(new Set(childEmbedIds));
+
+      // Recursively load child embeds
+      if (uniqueChildEmbedIds.length > 0) {
+        console.debug(
+          "[ZipExportService] Loading nested embeds for image processing:",
+          {
+            parentEmbedId: embed.embed_id,
+            childCount: uniqueChildEmbedIds.length,
+            childIds: uniqueChildEmbedIds,
+          },
+        );
+
+        const childImageEmbeds = await loadImageEmbedsRecursively(
+          uniqueChildEmbedIds,
+          loadedEmbedIds,
+        );
+        imageEmbeds.push(...childImageEmbeds);
+      }
+    } catch (error) {
+      console.warn(
+        "[ZipExportService] Error processing embed for image extraction:",
+        embed.embed_id,
+        error,
+      );
+    }
+  }
+
+  return imageEmbeds;
+}
+
+/**
+ * Gets all image embeds from a chat including nested embeds.
+ * Downloads, decrypts, and embeds PNG metadata for each image.
+ * @returns Array of image data ready to be added to zip
+ */
+async function getImageEmbedsForChat(messages: Message[]): Promise<
+  Array<{
+    filename: string;
+    blob: Blob;
+  }>
+> {
+  try {
+    // Extract all embed references from messages
+    const embedRefs = new Map<
+      string,
+      { type: string; embed_id: string; version?: number }
+    >();
+
+    for (const message of messages) {
+      let markdownContent = "";
+      if (typeof message.content === "string") {
+        markdownContent = message.content;
+      } else if (message.content && typeof message.content === "object") {
+        markdownContent = tipTapToCanonicalMarkdown(message.content);
+      }
+
+      const refs = extractEmbedReferences(markdownContent);
+      for (const ref of refs) {
+        // Include all embed types since nested embeds might contain images
+        if (!embedRefs.has(ref.embed_id)) {
+          embedRefs.set(ref.embed_id, ref);
+        }
+      }
+    }
+
+    console.debug(
+      "[ZipExportService] getImageEmbedsForChat: extracted embed references:",
+      {
+        messageCount: messages.length,
+        totalEmbedRefs: embedRefs.size,
+        refs: Array.from(embedRefs.values()).map((r) => ({
+          type: r.type,
+          embed_id: r.embed_id,
+        })),
+      },
+    );
+
+    if (embedRefs.size === 0) {
+      return [];
+    }
+
+    // Load image embed metadata recursively
+    const embedIds = Array.from(embedRefs.keys());
+    const imageEmbedInfos = await loadImageEmbedsRecursively(embedIds);
+
+    if (imageEmbedInfos.length === 0) {
+      return [];
+    }
+
+    console.debug(
+      "[ZipExportService] Found image embeds to download:",
+      imageEmbedInfos.length,
+    );
+
+    // Fetch, decrypt, and prepare each image for the zip
+    const imageResults: Array<{ filename: string; blob: Blob }> = [];
+    const usedFilenames = new Set<string>();
+
+    for (const imageInfo of imageEmbedInfos) {
+      try {
+        // Fetch and decrypt the image from S3
+        const blob = await fetchAndDecryptImage(
+          imageInfo.s3_base_url,
+          imageInfo.s3_key,
+          imageInfo.aes_key,
+          imageInfo.aes_nonce,
+        );
+
+        // For PNG images, embed metadata (prompt, model, etc.)
+        let downloadBlob: Blob = blob;
+        if (imageInfo.format === "png") {
+          try {
+            const arrayBuffer = await blob.arrayBuffer();
+            const metadataBytes = embedPngMetadata(arrayBuffer, {
+              prompt: imageInfo.prompt,
+              model: imageInfo.model,
+              software: "OpenMates",
+              generatedAt: imageInfo.generated_at,
+            });
+            const ab = new ArrayBuffer(metadataBytes.byteLength);
+            new Uint8Array(ab).set(metadataBytes);
+            downloadBlob = new Blob([ab], { type: "image/png" });
+          } catch (metaError) {
+            console.warn(
+              "[ZipExportService] Failed to embed PNG metadata, using raw image:",
+              metaError,
+            );
+          }
+        }
+
+        // Generate a human-readable filename from the prompt
+        let filename = generateImageFilename(
+          imageInfo.prompt,
+          imageInfo.format || "png",
+        );
+
+        // Ensure unique filenames
+        if (usedFilenames.has(filename.toLowerCase())) {
+          const ext = filename.lastIndexOf(".");
+          if (ext > 0) {
+            const baseName = filename.slice(0, ext);
+            const extStr = filename.slice(ext);
+            let counter = 2;
+            while (
+              usedFilenames.has(`${baseName}_${counter}${extStr}`.toLowerCase())
+            ) {
+              counter++;
+            }
+            filename = `${baseName}_${counter}${extStr}`;
+          }
+        }
+        usedFilenames.add(filename.toLowerCase());
+
+        imageResults.push({ filename, blob: downloadBlob });
+      } catch (error) {
+        console.warn(
+          "[ZipExportService] Failed to download/decrypt image embed:",
+          imageInfo.embed_id,
+          error,
+        );
+      }
+    }
+
+    return imageResults;
+  } catch (error) {
+    console.error("[ZipExportService] Error getting image embeds:", error);
+    return [];
+  }
+}
+
+/**
  * Determines the file extension for a code language
  */
 function getFileExtensionForLanguage(language: string): string {
@@ -640,6 +977,13 @@ export async function downloadChatAsZip(
       zip.file(filePath, transcriptEmbed.content);
     }
 
+    // Add image embeds as separate files (fetched, decrypted, with PNG metadata)
+    const imageEmbeds = await getImageEmbedsForChat(messages);
+    for (const imageEmbed of imageEmbeds) {
+      const filePath = `images/${imageEmbed.filename}`;
+      zip.file(filePath, imageEmbed.blob);
+    }
+
     // Generate and download zip
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
@@ -729,6 +1073,13 @@ export async function downloadChatsAsZip(
           // Store transcripts in a transcripts folder
           const filePath = `transcripts/${transcriptEmbed.filename}`;
           chatFolder.file(filePath, transcriptEmbed.content);
+        }
+
+        // Add image embeds as separate files (fetched, decrypted, with PNG metadata)
+        const imageEmbeds = await getImageEmbedsForChat(messages);
+        for (const imageEmbed of imageEmbeds) {
+          const filePath = `images/${imageEmbed.filename}`;
+          chatFolder.file(filePath, imageEmbed.blob);
         }
 
         successCount++;

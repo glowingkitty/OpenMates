@@ -57,6 +57,27 @@
 		// Initialize server status early to prevent UI flashing
 		// (e.g., legal chats briefly appearing on self-hosted instances)
 		initializeServerStatus();
+
+		// iOS Safari zoom fix: When the virtual keyboard closes, Safari can leave the page
+		// in a zoomed-in state. Use the visualViewport API to detect when the viewport height
+		// returns to the window height (keyboard closed) and reset any residual zoom by
+		// scrolling to top-left. This complements the maximum-scale=1 viewport meta tag.
+		if (window.visualViewport) {
+			let lastViewportHeight = window.visualViewport.height;
+			const handleViewportResize = () => {
+				const vv = window.visualViewport;
+				if (!vv) return;
+				const currentHeight = vv.height;
+				// Keyboard closed: viewport height increased back (keyboard was taking space)
+				// AND there's residual zoom offset that needs resetting
+				if (currentHeight > lastViewportHeight && (vv.offsetTop > 0 || vv.offsetLeft > 0)) {
+					// Reset any zoom/scroll offset left by iOS Safari keyboard dismiss
+					window.scrollTo(0, 0);
+				}
+				lastViewportHeight = currentHeight;
+			};
+			window.visualViewport.addEventListener('resize', handleViewportResize);
+		}
 	});
 
 	// Watch theme changes and update document attribute

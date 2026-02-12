@@ -1563,6 +1563,125 @@ async def get_message_cost(
         raise HTTPException(status_code=500, detail="Failed to fetch message cost")
 
 
+# --- Endpoint for fetching daily usage overview (all types combined) ---
+# Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
+@router.get("/usage/daily-overview", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
+@limiter.limit("30/minute")
+async def get_daily_overview(
+    request: Request,
+    days: int = 7,
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Fetch daily usage overview combining all usage types (chats, apps, API keys).
+    Returns data grouped by day, with today first and previous days following.
+    Used by the Overview tab in usage settings for a day-by-day credit spending view.
+    """
+    try:
+        # Validate days parameter (reasonable limits)
+        if days < 1 or days > 90:
+            raise HTTPException(status_code=400, detail="Days must be between 1 and 90")
+        
+        logger.info(f"Fetching daily overview for user {current_user.id}, last {days} days")
+        
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Fetch daily overview from the usage service
+        daily_data = await directus_service.usage.get_daily_overview(
+            user_id_hash=user_id_hash,
+            days=days
+        )
+        
+        # Calculate total days available by checking if the oldest requested day has data
+        # If the last day has data, there might be more days available
+        has_more_days = False
+        if daily_data and len(daily_data) >= days:
+            # Check if the oldest day has any items - if so, there might be more
+            oldest_day = daily_data[-1] if daily_data else None
+            if oldest_day and oldest_day.get("items"):
+                has_more_days = True
+        
+        logger.info(f"Successfully fetched {len(daily_data)} days of daily overview for user {current_user.id}")
+        
+        return {
+            "days": daily_data,
+            "requested_days": days,
+            "total_days": len(daily_data),
+            "has_more_days": has_more_days
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching daily overview for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch daily overview")
+
+
+# --- Endpoint for fetching all usage entries for a specific chat (no month filter) ---
+@router.get("/usage/chat-entries", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
+@limiter.limit("30/minute")
+async def get_chat_entries(
+    request: Request,
+    chat_id: str,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Fetch all usage entries for a specific chat across all time (no month filter).
+    Used by the overview detail view to show all skill uses for a chat.
+    Returns entries sorted by created_at descending.
+    """
+    try:
+        # Validate limit
+        if limit < 1 or limit > 500:
+            raise HTTPException(status_code=400, detail="Limit must be between 1 and 500")
+        
+        logger.info(f"Fetching all chat entries for user {current_user.id}, chat '{chat_id}'")
+        
+        # Get user's vault_key_id
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+        
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Fetch all entries for this chat
+        entries = await directus_service.usage.get_all_chat_entries(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            chat_id=chat_id,
+            limit=limit
+        )
+        
+        logger.info(f"Returning {len(entries)} chat entries for user {current_user.id}, chat '{chat_id}'")
+        
+        return {
+            "entries": entries,
+            "chat_id": chat_id,
+            "count": len(entries)
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching chat entries for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch chat entries")
+
+
 # --- Endpoint for exporting usage data as CSV ---
 @router.get("/usage/export", include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")  # Lower limit for export to prevent abuse

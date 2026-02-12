@@ -996,7 +996,17 @@ async def _handle_phase3_sync(
         # CACHE-FIRST STRATEGY: Get last 100 chat IDs from Redis cache (already populated by cache warming)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
         
-        logger.info(f"[PHASE3_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id}")
+        # Get total chat count for the user (used by frontend to show "Show more" button)
+        total_chat_count = 0
+        try:
+            client = await cache_service.client
+            if client:
+                key = cache_service._get_user_chat_ids_versions_key(user_id)
+                total_chat_count = await client.zcard(key) or 0
+        except Exception as count_error:
+            logger.warning(f"Phase 3: Could not get total chat count: {count_error}")
+        
+        logger.info(f"[PHASE3_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id} (total: {total_chat_count})")
         if cached_chat_ids:
             logger.debug(f"[PHASE3_DEBUG] Cached chat IDs: {cached_chat_ids[:3]}...")
         
@@ -1354,6 +1364,7 @@ async def _handle_phase3_sync(
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
+        # total_chat_count tells the client whether there are more chats beyond the 100 synced
         await manager.send_personal_message(
             {
                 "type": "phase_3_last_100_chats_ready",
@@ -1362,6 +1373,7 @@ async def _handle_phase3_sync(
                     "embeds": embeds_list,  # Flat deduplicated array
                     "embed_keys": all_embed_keys,  # Flat deduplicated array of embed keys
                     "chat_count": len(chats_to_send),
+                    "total_chat_count": total_chat_count,  # Total chats on server (for "Show more" button)
                     "phase": "phase3"
                 }
             },

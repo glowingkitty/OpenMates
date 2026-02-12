@@ -10,10 +10,10 @@
 //
 // This provides full offline support while avoiding database blocking issues during logout.
 
-import { writable, get } from 'svelte/store';
-import type { Chat, Message } from '../types/chat';
-import { demoChatsDB } from '../services/demoChatsDB';
-import type { DemoEmbed } from '../services/demoChatsDB';
+import { writable, get } from "svelte/store";
+import type { Chat, Message } from "../types/chat";
+import { demoChatsDB } from "../services/demoChatsDB";
+import type { DemoEmbed } from "../services/demoChatsDB";
 
 // ============================================================================
 // TYPES
@@ -24,9 +24,9 @@ import type { DemoEmbed } from '../services/demoChatsDB';
  * Contains the chat metadata, messages, and embeds
  */
 interface CommunityDemoData {
-    chat: Chat;
-    messages: Message[];
-    embeds: DemoEmbed[];  // Cleartext embeds for community demos
+  chat: Chat;
+  messages: Message[];
+  embeds: DemoEmbed[]; // Cleartext embeds for community demos
 }
 
 /**
@@ -34,10 +34,10 @@ interface CommunityDemoData {
  * Keyed by chat_id (e.g., "demo-1", "demo-2")
  */
 interface CommunityDemoStoreState {
-    chats: Map<string, CommunityDemoData>;
-    loaded: boolean; // True after initial load attempt (success or failure)
-    loading: boolean; // True while fetching from server
-    cacheLoaded: boolean; // True after IndexedDB cache has been loaded into memory
+  chats: Map<string, CommunityDemoData>;
+  loaded: boolean; // True after initial load attempt (success or failure)
+  loading: boolean; // True while fetching from server
+  cacheLoaded: boolean; // True after IndexedDB cache has been loaded into memory
 }
 
 // ============================================================================
@@ -48,10 +48,10 @@ interface CommunityDemoStoreState {
  * Initial state for the community demo store
  */
 const initialState: CommunityDemoStoreState = {
-    chats: new Map(),
-    loaded: false,
-    loading: false,
-    cacheLoaded: false
+  chats: new Map(),
+  loaded: false,
+  loading: false,
+  cacheLoaded: false,
 };
 
 /**
@@ -72,23 +72,42 @@ const store = writable<CommunityDemoStoreState>(initialState);
  * @param contentHash - SHA256 hash of content for change detection (optional)
  * @param embeds - Array of DemoEmbed objects for this chat (optional)
  */
-export async function addCommunityDemo(demoId: string, chat: Chat, messages: Message[], contentHash: string = '', embeds: DemoEmbed[] = []): Promise<void> {
-    // Add to in-memory store first (includes embeds)
-    store.update(state => {
-        const newChats = new Map(state.chats);
-        newChats.set(chat.chat_id, { chat, messages, embeds });
-        console.debug(`[CommunityDemoStore] Added community demo: ${demoId} (${chat.chat_id}) with ${messages.length} messages and ${embeds.length} embeds`);
-        return { ...state, chats: newChats };
-    });
+export async function addCommunityDemo(
+  demoId: string,
+  chat: Chat,
+  messages: Message[],
+  contentHash: string = "",
+  embeds: DemoEmbed[] = [],
+): Promise<void> {
+  // Add to in-memory store first (includes embeds)
+  store.update((state) => {
+    const newChats = new Map(state.chats);
+    newChats.set(chat.chat_id, { chat, messages, embeds });
+    console.debug(
+      `[CommunityDemoStore] Added community demo: ${demoId} (${chat.chat_id}) with ${messages.length} messages and ${embeds.length} embeds`,
+    );
+    return { ...state, chats: newChats };
+  });
 
-    // Cache in IndexedDB for offline support (don't await to avoid blocking UI)
-    try {
-        await demoChatsDB.storeDemoChat(demoId, chat, messages, contentHash, embeds);
-        console.debug(`[CommunityDemoStore] Cached community demo ${demoId} in IndexedDB (hash: ${contentHash.slice(0, 16)}...)`);
-    } catch (error) {
-        console.error(`[CommunityDemoStore] Failed to cache community demo ${demoId}:`, error);
-        // Don't throw - in-memory store is still working
-    }
+  // Cache in IndexedDB for offline support (don't await to avoid blocking UI)
+  try {
+    await demoChatsDB.storeDemoChat(
+      demoId,
+      chat,
+      messages,
+      contentHash,
+      embeds,
+    );
+    console.debug(
+      `[CommunityDemoStore] Cached community demo ${demoId} in IndexedDB (hash: ${contentHash.slice(0, 16)}...)`,
+    );
+  } catch (error) {
+    console.error(
+      `[CommunityDemoStore] Failed to cache community demo ${demoId}:`,
+      error,
+    );
+    // Don't throw - in-memory store is still working
+  }
 }
 
 /**
@@ -97,12 +116,12 @@ export async function addCommunityDemo(demoId: string, chat: Chat, messages: Mes
  * @returns Map of demo_id to content_hash
  */
 export async function getLocalContentHashes(): Promise<Map<string, string>> {
-    try {
-        return await demoChatsDB.getAllContentHashes();
-    } catch (error) {
-        console.error('[CommunityDemoStore] Failed to get content hashes:', error);
-        return new Map();
-    }
+  try {
+    return await demoChatsDB.getAllContentHashes();
+  } catch (error) {
+    console.error("[CommunityDemoStore] Failed to get content hashes:", error);
+    return new Map();
+  }
 }
 
 /**
@@ -111,9 +130,9 @@ export async function getLocalContentHashes(): Promise<Map<string, string>> {
  * @returns The Chat object or null if not found
  */
 export function getCommunityDemoChat(chatId: string): Chat | null {
-    const state = get(store);
-    const data = state.chats.get(chatId);
-    return data?.chat || null;
+  const state = get(store);
+  const data = state.chats.get(chatId);
+  return data?.chat || null;
 }
 
 /**
@@ -122,9 +141,9 @@ export function getCommunityDemoChat(chatId: string): Chat | null {
  * @returns Array of Message objects or empty array if not found
  */
 export function getCommunityDemoMessages(chatId: string): Message[] {
-    const state = get(store);
-    const data = state.chats.get(chatId);
-    return data?.messages || [];
+  const state = get(store);
+  const data = state.chats.get(chatId);
+  return data?.messages || [];
 }
 
 /**
@@ -134,9 +153,9 @@ export function getCommunityDemoMessages(chatId: string): Message[] {
  * @returns Array of DemoEmbed objects or empty array if not found
  */
 export function getCommunityDemoEmbeds(chatId: string): DemoEmbed[] {
-    const state = get(store);
-    const data = state.chats.get(chatId);
-    return data?.embeds || [];
+  const state = get(store);
+  const data = state.chats.get(chatId);
+  return data?.embeds || [];
 }
 
 /**
@@ -145,16 +164,16 @@ export function getCommunityDemoEmbeds(chatId: string): DemoEmbed[] {
  * @returns The DemoEmbed object or null if not found
  */
 export function getCommunityDemoEmbed(embedId: string): DemoEmbed | null {
-    const state = get(store);
-    // Convert MapIterator to Array to avoid --downlevelIteration requirement
-    const chatDataArray = Array.from(state.chats.values());
-    for (const data of chatDataArray) {
-        const embed = data.embeds.find(e => e.embed_id === embedId);
-        if (embed) {
-            return embed;
-        }
+  const state = get(store);
+  // Convert MapIterator to Array to avoid --downlevelIteration requirement
+  const chatDataArray = Array.from(state.chats.values());
+  for (const data of chatDataArray) {
+    const embed = data.embeds.find((e) => e.embed_id === embedId);
+    if (embed) {
+      return embed;
     }
-    return null;
+  }
+  return null;
 }
 
 /**
@@ -162,8 +181,8 @@ export function getCommunityDemoEmbed(embedId: string): DemoEmbed | null {
  * @returns Array of all community demo Chat objects
  */
 export function getAllCommunityDemoChats(): Chat[] {
-    const state = get(store);
-    return Array.from(state.chats.values()).map(data => data.chat);
+  const state = get(store);
+  return Array.from(state.chats.values()).map((data) => data.chat);
 }
 
 /**
@@ -174,8 +193,8 @@ export function getAllCommunityDemoChats(): Chat[] {
  * @returns True if this is a community demo (in our store)
  */
 export function isCommunityDemo(chatId: string): boolean {
-    const state = get(store);
-    return state.chats.has(chatId);
+  const state = get(store);
+  return state.chats.has(chatId);
 }
 
 /**
@@ -184,44 +203,48 @@ export function isCommunityDemo(chatId: string): boolean {
  * Loads messages and embeds for each cached demo chat
  */
 export async function loadFromCache(): Promise<void> {
-    const currentState = get(store);
-    if (currentState.cacheLoaded) {
-        return; // Already loaded
+  const currentState = get(store);
+  if (currentState.cacheLoaded) {
+    return; // Already loaded
+  }
+
+  try {
+    console.debug(
+      "[CommunityDemoStore] Loading community demos from IndexedDB cache...",
+    );
+    const cachedChats = await demoChatsDB.getAllDemoChats();
+
+    if (cachedChats.length > 0) {
+      // Load each cached chat with its messages and embeds
+      const newChats = new Map();
+      let totalEmbeds = 0;
+
+      for (const chat of cachedChats) {
+        const messages = await demoChatsDB.getDemoMessages(chat.chat_id);
+        const embeds = await demoChatsDB.getDemoEmbeds(chat.chat_id);
+        newChats.set(chat.chat_id, { chat, messages, embeds });
+        totalEmbeds += embeds.length;
+      }
+
+      store.update((state) => ({
+        ...state,
+        chats: newChats,
+        cacheLoaded: true,
+      }));
+
+      console.debug(
+        `[CommunityDemoStore] Loaded ${cachedChats.length} community demos with ${totalEmbeds} embeds from cache`,
+      );
+    } else {
+      // No cached chats, but cache is still "loaded" (empty)
+      store.update((state) => ({ ...state, cacheLoaded: true }));
+      console.debug("[CommunityDemoStore] No community demos in cache");
     }
-
-    try {
-        console.debug('[CommunityDemoStore] Loading community demos from IndexedDB cache...');
-        const cachedChats = await demoChatsDB.getAllDemoChats();
-
-        if (cachedChats.length > 0) {
-            // Load each cached chat with its messages and embeds
-            const newChats = new Map();
-            let totalEmbeds = 0;
-
-            for (const chat of cachedChats) {
-                const messages = await demoChatsDB.getDemoMessages(chat.chat_id);
-                const embeds = await demoChatsDB.getDemoEmbeds(chat.chat_id);
-                newChats.set(chat.chat_id, { chat, messages, embeds });
-                totalEmbeds += embeds.length;
-            }
-
-            store.update(state => ({
-                ...state,
-                chats: newChats,
-                cacheLoaded: true
-            }));
-
-            console.debug(`[CommunityDemoStore] Loaded ${cachedChats.length} community demos with ${totalEmbeds} embeds from cache`);
-        } else {
-            // No cached chats, but cache is still "loaded" (empty)
-            store.update(state => ({ ...state, cacheLoaded: true }));
-            console.debug('[CommunityDemoStore] No community demos in cache');
-        }
-    } catch (error) {
-        console.error('[CommunityDemoStore] Error loading from cache:', error);
-        // Mark as loaded even on error to avoid infinite retries
-        store.update(state => ({ ...state, cacheLoaded: true }));
-    }
+  } catch (error) {
+    console.error("[CommunityDemoStore] Error loading from cache:", error);
+    // Mark as loaded even on error to avoid infinite retries
+    store.update((state) => ({ ...state, cacheLoaded: true }));
+  }
 }
 
 /**
@@ -229,7 +252,7 @@ export async function loadFromCache(): Promise<void> {
  * @returns True if the initial load has been attempted
  */
 export function isLoaded(): boolean {
-    return get(store).loaded;
+  return get(store).loaded;
 }
 
 /**
@@ -237,7 +260,7 @@ export function isLoaded(): boolean {
  * @returns True if IndexedDB cache has been loaded into memory
  */
 export function isCacheLoaded(): boolean {
-    return get(store).cacheLoaded;
+  return get(store).cacheLoaded;
 }
 
 /**
@@ -245,7 +268,7 @@ export function isCacheLoaded(): boolean {
  * @returns True if currently fetching from server
  */
 export function isLoading(): boolean {
-    return get(store).loading;
+  return get(store).loading;
 }
 
 /**
@@ -253,7 +276,7 @@ export function isLoading(): boolean {
  * @param loading - Whether the store is currently loading
  */
 export function setLoading(loading: boolean): void {
-    store.update(state => ({ ...state, loading }));
+  store.update((state) => ({ ...state, loading }));
 }
 
 /**
@@ -261,16 +284,29 @@ export function setLoading(loading: boolean): void {
  * Call this after the load attempt, regardless of success/failure
  */
 export function markAsLoaded(): void {
-    store.update(state => ({ ...state, loaded: true, loading: false }));
+  store.update((state) => ({ ...state, loaded: true, loading: false }));
 }
 
 /**
  * Clear all community demo chats from the store
- * Used during logout or when refreshing data
+ * Used during logout or when refreshing data (e.g., language change)
+ *
+ * IMPORTANT: Preserves the `loading` state so that concurrent operations
+ * (like a forced reload after language change) can still properly track
+ * their loading status. Resetting loading to false mid-reload would cause
+ * the next call to skip the loading guard and start a competing reload.
  */
 export function clearCommunityDemos(): void {
-    console.debug('[CommunityDemoStore] Clearing all community demos');
-    store.set(initialState);
+  const currentState = get(store);
+  console.debug(
+    `[CommunityDemoStore] Clearing all community demos (preserving loading=${currentState.loading})`,
+  );
+  store.set({
+    chats: new Map(),
+    loaded: false,
+    loading: currentState.loading, // Preserve loading state to avoid race conditions
+    cacheLoaded: false,
+  });
 }
 
 /**
@@ -278,7 +314,7 @@ export function clearCommunityDemos(): void {
  * @returns Number of community demos in the store
  */
 export function getCommunityDemoCount(): number {
-    return get(store).chats.size;
+  return get(store).chats.size;
 }
 
 /**
@@ -286,19 +322,19 @@ export function getCommunityDemoCount(): number {
  * If not currently loading, resolves immediately.
  */
 export async function waitForLoadingComplete(): Promise<void> {
-    const currentState = get(store);
-    if (!currentState.loading) {
-        return;
-    }
+  const currentState = get(store);
+  if (!currentState.loading) {
+    return;
+  }
 
-    return new Promise(resolve => {
-        const unsubscribe = store.subscribe(state => {
-            if (!state.loading) {
-                unsubscribe();
-                resolve();
-            }
-        });
+  return new Promise((resolve) => {
+    const unsubscribe = store.subscribe((state) => {
+      if (!state.loading) {
+        unsubscribe();
+        resolve();
+      }
     });
+  });
 }
 
 // ============================================================================
@@ -310,22 +346,22 @@ export async function waitForLoadingComplete(): Promise<void> {
  * Useful for reactive components that need to re-render when demos are loaded
  */
 export const communityDemoStore = {
-    subscribe: store.subscribe,
-    // Expose public API methods for convenience
-    loadFromCache,
-    add: addCommunityDemo,
-    getChat: getCommunityDemoChat,
-    getMessages: getCommunityDemoMessages,
-    getEmbeds: getCommunityDemoEmbeds,
-    getEmbed: getCommunityDemoEmbed,
-    getAllChats: getAllCommunityDemoChats,
-    isDemo: isCommunityDemo,
-    isLoaded,
-    isCacheLoaded,
-    isLoading,
-    setLoading,
-    markAsLoaded,
-    clear: clearCommunityDemos,
-    count: getCommunityDemoCount,
-    waitForLoadingComplete
+  subscribe: store.subscribe,
+  // Expose public API methods for convenience
+  loadFromCache,
+  add: addCommunityDemo,
+  getChat: getCommunityDemoChat,
+  getMessages: getCommunityDemoMessages,
+  getEmbeds: getCommunityDemoEmbeds,
+  getEmbed: getCommunityDemoEmbed,
+  getAllChats: getAllCommunityDemoChats,
+  isDemo: isCommunityDemo,
+  isLoaded,
+  isCacheLoaded,
+  isLoading,
+  setLoading,
+  markAsLoaded,
+  clear: clearCommunityDemos,
+  count: getCommunityDemoCount,
+  waitForLoadingComplete,
 };

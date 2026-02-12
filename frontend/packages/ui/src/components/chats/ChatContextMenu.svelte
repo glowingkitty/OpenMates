@@ -18,6 +18,7 @@
         hideCopy?: boolean;
         selectMode?: boolean; // Whether we're in select mode (managed by Chats.svelte)
         selectedChatIds?: Set<string>; // Set of selected chat IDs (managed by Chats.svelte)
+        downloading?: boolean; // Whether a download is currently in progress
     }
     let { 
         x = 0,
@@ -28,7 +29,8 @@
         hideDownload = false,
         hideCopy = false,
         selectMode = false,
-        selectedChatIds = new Set<string>()
+        selectedChatIds = new Set<string>(),
+        downloading = false
     }: Props = $props();
 
     const dispatch: {
@@ -53,6 +55,9 @@
     // State for chat total credits
     let chatTotalCredits = $state<number | null>(null);
     
+    // State for active focus mode
+    let activeFocusId = $state<string | null>(null);
+    
     // Format credits with dots as thousand separators (European style)
     function formatCredits(credits: number): string {
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -74,6 +79,29 @@
             chatSummary = null;
         }
     });
+    
+    // Load active focus mode from decrypted metadata when menu is shown
+    $effect(() => {
+        if (show && chat) {
+            chatMetadataCache.getDecryptedMetadata(chat).then(metadata => {
+                activeFocusId = metadata?.activeFocusId ?? null;
+            });
+        } else {
+            activeFocusId = null;
+        }
+    });
+    
+    // Derive focus mode display info from focus ID
+    // Focus ID format: "{app_id}-{focus_name}" e.g., "jobs-career_insights"
+    let focusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    let focusTranslationKey = $derived(
+        activeFocusId ? `${activeFocusId.replace('-', '.')}.text` : null
+    );
+    let focusDisplayName = $derived(
+        focusTranslationKey
+            ? $text(focusTranslationKey, { default: activeFocusId?.split('-').slice(1).join(' ').replace(/_/g, ' ') || '' })
+            : null
+    );
     
     // Fetch chat total credits when menu is shown (only for authenticated users)
     $effect(() => {
@@ -156,9 +184,9 @@
     $effect(() => {
         if (show) {
             // First, calculate with estimated dimensions to prevent visual jump
-            // Increased estimates to account for potential chat summary and credits sections
+            // Increased estimates to account for potential chat summary, credits, and focus mode sections
             const estimatedWidth = 200;
-            const estimatedHeight = (chatSummary || chatTotalCredits) ? 220 : 120;
+            const estimatedHeight = (chatSummary || chatTotalCredits || activeFocusId) ? 240 : 120;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -188,7 +216,9 @@
     });
 
     // Handle clicking outside the menu
+    // Don't allow closing while a download is in progress
     function handleClickOutside(event: MouseEvent | TouchEvent) {
+        if (downloading) return;
         if (menuElement && !menuElement.contains(event.target as Node)) {
             dispatch('close', 'close');
         }
@@ -243,7 +273,11 @@
         }
 
         dispatch(action, action);
-        dispatch('close', 'close');
+        // Don't close the menu when download is clicked — keep it open to show loading state.
+        // The parent will close the menu after the download completes.
+        if (action !== 'download') {
+            dispatch('close', 'close');
+        }
     }
 
 
@@ -264,9 +298,9 @@
         }
     }
 
-    // Add scroll handler
+    // Add scroll handler - don't close while downloading
     function handleScroll() {
-        if (show) {
+        if (show && !downloading) {
             dispatch('close', 'close');
         }
     }
@@ -324,6 +358,14 @@
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
+        <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
+        {#if activeFocusId && focusAppId && focusDisplayName}
+            <div class="focus-mode-indicator">
+                <div class="focus-mode-icon" style="background: var(--color-app-{focusAppId});"></div>
+                <span class="focus-mode-label">{focusDisplayName}</span>
+            </div>
+        {/if}
+        
         <!-- Chat summary section (shown above buttons if available) -->
         {#if chatSummary || chatTotalCredits !== null}
             <div class="chat-info-section">
@@ -348,10 +390,14 @@
                 {#if !hideDownload}
                     <button
                         class="menu-item download"
-                        onclick={(event) => handleButtonClick('download', event)}
+                        class:downloading={downloading}
+                        disabled={downloading}
+                        onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
                     >
-                        <div class="clickable-icon icon_download"></div>
-                        {$text('chats.context_menu.download_selected.text', { default: 'Download selected' })}
+                        <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
+                        <span class:shimmer={downloading}>
+                            {downloading ? $text('chats.context_menu.downloading_selected.text', { default: 'Downloading...' }) : $text('chats.context_menu.download_selected.text', { default: 'Download selected' })}
+                        </span>
                     </button>
                 {/if}
 
@@ -405,10 +451,14 @@
             {#if !hideDownload}
                 <button
                     class="menu-item download"
-                    onclick={(event) => handleButtonClick('download', event)}
+                    class:downloading={downloading}
+                    disabled={downloading}
+                    onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
                 >
-                    <div class="clickable-icon icon_download"></div>
-                    {$text('chats.context_menu.download.text')}
+                    <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
+                    <span class:shimmer={downloading}>
+                        {downloading ? $text('chats.context_menu.downloading.text', { default: 'Downloading...' }) : $text('chats.context_menu.download.text')}
+                    </span>
                 </button>
             {/if}
 
@@ -535,6 +585,33 @@
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
+    }
+    
+    /* Active focus mode indicator at the top of the context menu */
+    .focus-mode-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px 8px;
+        border-bottom: 1px solid var(--color-grey-30);
+        margin-bottom: 4px;
+    }
+    
+    .focus-mode-icon {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .focus-mode-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-grey-80);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     /* Info section containing summary and/or credits */
@@ -705,5 +782,56 @@
     .menu-item.hide.disabled,
     .menu-item.unhide.disabled {
         cursor: not-allowed !important;
+    }
+
+    /* Downloading state: greyed out and unclickable */
+    .menu-item.downloading {
+        opacity: 0.6;
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+
+    .menu-item.downloading:hover {
+        background-color: transparent;
+    }
+
+    .menu-item.downloading:active {
+        transform: none;
+    }
+
+    /* Shimmer gradient animation for loading state (text and icon) */
+    .shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: shimmer 1.5s infinite linear;
+    }
+
+    /* Shimmer animation for the icon (mask-based icons use background color) */
+    .clickable-icon.shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite linear;
+    }
+
+    @keyframes shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
 </style>

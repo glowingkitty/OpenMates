@@ -118,6 +118,7 @@ export interface Chat {
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
+  encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
 
   // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
   // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions
@@ -227,6 +228,12 @@ export interface RequestChatContentBatchPayload {
 
 export interface DeleteChatPayload {
   chatId: string;
+}
+
+export interface DeleteMessagePayload {
+  chatId: string;
+  messageId: string;
+  embedIdsToDelete?: string[]; // Embed IDs the client determined should be deleted (not shared with other chats)
 }
 
 export interface DeleteDraftPayload {
@@ -444,6 +451,12 @@ export interface ChatDeletedPayload {
   chat_id: string;
   tombstone: boolean;
 }
+
+export interface MessageDeletedPayload {
+  chat_id: string;
+  message_id: string;
+  embed_ids_to_delete?: string[]; // Embed IDs to delete from IndexedDB on other devices (broadcast from server)
+}
 // --- End Chat Update Payloads ---
 
 // --- Core Sync Payloads (Server to Client) ---
@@ -613,8 +626,26 @@ export interface Phase3FullSyncPayload {
     server_message_count?: number;
   }>;
   chat_count: number;
+  total_chat_count?: number; // Total chats on server (for "Show more" button beyond initial 100)
   new_chat_suggestions?: NewChatSuggestion[];
   phase?: "phase3";
+}
+
+/**
+ * Load more chats response payload — returned when user requests older chats
+ * beyond the initial 100 synced in Phase 3. These chats are metadata-only
+ * (no messages) and stored in memory only (not IndexedDB).
+ */
+export interface LoadMoreChatsResponsePayload {
+  chats: Array<{
+    chat_details: Partial<Chat> & { id: string };
+    messages?: null;
+    server_message_count?: null;
+  }>;
+  has_more: boolean;
+  total_count: number;
+  offset: number;
+  error?: string;
 }
 
 // Scroll position and read status payloads

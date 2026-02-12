@@ -32,6 +32,7 @@ import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync 
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
 
 // Import core auth state and related flags
 import {
@@ -39,6 +40,7 @@ import {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  deviceVerificationReason,
 } from "./authState";
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
@@ -69,6 +71,7 @@ export async function checkAuth(
   isCheckingAuth.set(true);
   needsDeviceVerification.set(false); // Reset verification need
   deviceVerificationType.set(null); // Reset verification type
+  deviceVerificationReason.set(null); // Reset verification reason
 
   try {
     // Import getSessionId to include session_id in the request
@@ -120,10 +123,11 @@ export async function checkAuth(
       (data.re_auth_required === "2fa" || data.re_auth_required === "passkey")
     ) {
       console.warn(
-        `Session check indicates device ${data.re_auth_required} verification is required.`,
+        `Session check indicates device ${data.re_auth_required} verification is required (reason: ${data.re_auth_reason || "new_device"}).`,
       );
       needsDeviceVerification.set(true);
       deviceVerificationType.set(data.re_auth_required);
+      deviceVerificationReason.set(data.re_auth_reason || "new_device");
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -284,6 +288,7 @@ export async function checkAuth(
 
       needsDeviceVerification.set(false);
       deviceVerificationType.set(null);
+      deviceVerificationReason.set(null);
 
       // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
       // This ensures hash-based signup state works even if set after checkAuth() starts
@@ -437,6 +442,15 @@ export async function checkAuth(
           auto_topup_low_balance_currency:
             data.user.auto_topup_low_balance_currency,
         });
+        // Start admin console log forwarding on session restore if user is admin.
+        // This ensures log forwarding resumes after page refresh without requiring re-login.
+        // Only admin users have logs forwarded - regular users are never affected.
+        console.debug(
+          `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
+        );
+        if (data.user.is_admin) {
+          clientLogForwarder.start();
+        }
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }
@@ -448,6 +462,9 @@ export async function checkAuth(
         "Server explicitly indicates user is not logged in:",
         data.message,
       );
+
+      // Stop admin console log forwarding on session expiry (before clearing auth state)
+      clientLogForwarder.stop();
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
@@ -689,6 +706,7 @@ export async function checkAuth(
 
       needsDeviceVerification.set(false);
       deviceVerificationType.set(null);
+      deviceVerificationReason.set(null);
       authStore.update((state) => ({
         ...state,
         isAuthenticated: false,
@@ -723,6 +741,7 @@ export async function checkAuth(
 
     needsDeviceVerification.set(false);
     deviceVerificationType.set(null);
+    deviceVerificationReason.set(null);
 
     try {
       // Load user profile from IndexedDB optimistically
@@ -782,6 +801,15 @@ export async function checkAuth(
             );
             locale.set(localProfile.language);
           }
+        }
+
+        // Start admin console log forwarding in offline-first mode if user is admin.
+        // The local profile from IndexedDB preserves is_admin from the last successful session.
+        if (localProfile.is_admin) {
+          console.debug(
+            "[AuthSessionActions] Starting admin log forwarder (offline-first mode)",
+          );
+          clientLogForwarder.start();
         }
 
         return true; // Return true to indicate optimistic authentication
@@ -862,4 +890,5 @@ export function setAuthenticatedState(): void {
   }));
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
+  deviceVerificationReason.set(null);
 }

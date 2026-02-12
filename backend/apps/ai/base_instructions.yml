@@ -84,8 +84,9 @@ preprocess_request_tool:
           - **Important**: Only select skills from the provided list above. Use only the `app_id-skill_id` part (before the colon) in your response. Do not invent skill names.
       11. **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
           - Available focus modes (format: `app_id-focus_id`): {AVAILABLE_FOCUS_MODES}
-          - Include focus modes when the user's request would benefit from specialized behavior (e.g., in-depth research, code writing, fact checking).
-          - Match focus modes based on their names and descriptions from the available list.
+          - Include focus modes when the user's request matches the description/hint of an available focus mode. Each focus mode entry may include a description after a colon — use this to decide relevance.
+          - Focus modes cover a wide range of domains: career guidance, research, code writing, health, and more. **Always check each available focus mode's description** against the user's message.
+          - When a focus mode's description clearly matches the user's situation or intent, include it — even if the topic also fits a general category.
           - If no focus mode would help, if the available list is empty, or if user explicitly asks for normal mode, return an empty list: [].
           - **Important**: Only select focus modes that are actually listed in the provided {AVAILABLE_FOCUS_MODES} list. Do not invent focus mode names.
       12. **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
@@ -393,6 +394,7 @@ postprocess_response_tool:
       Guidelines:
       1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+         - **LANGUAGE**: Generate in the CONVERSATION language (same language the user and assistant used in the chat).
          - Suggestions should encourage:
            - Learning more about the topic discussed (from user's perspective)
            - Exploring different viewpoints (user asking questions)
@@ -402,6 +404,7 @@ postprocess_response_tool:
 
       2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+         - **LANGUAGE**: Generate in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen.
          - Relate to topics discussed but explore new angles
          - Encourage learning and exploration
          - Suggest using app skills and focus modes
@@ -420,14 +423,14 @@ postprocess_response_tool:
       properties:
         follow_up_request_suggestions:
           type: "array"
-          description: "6 follow-up suggestions (max 5 words each) to encourage deeper engagement"
+          description: "6 follow-up suggestions (max 5 words each) in the CONVERSATION language to encourage deeper engagement"
           items:
             type: "string"
           minItems: 6
           maxItems: 6
         new_chat_request_suggestions:
           type: "array"
-          description: "6 new chat suggestions (max 5 words each) related to current topics"
+          description: "6 new chat suggestions (max 5 words each) in the USER'S SYSTEM LANGUAGE (as specified in system message) related to current topics"
           items:
             type: "string"
           minItems: 6
@@ -445,7 +448,7 @@ postprocess_response_tool:
           maxItems: 5
         chat_summary:
           type: "string"
-          description: "An updated concise summary of the full conversation including this latest exchange (max 20 words). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
+          description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
         relevant_settings_memory_categories:
           type: "array"
           description: |

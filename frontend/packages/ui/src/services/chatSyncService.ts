@@ -19,6 +19,7 @@ import type {
   ChatMessageReceivedPayload,
   ChatMessageConfirmedPayload,
   ChatDeletedPayload,
+  MessageDeletedPayload,
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
   CachePrimedPayload,
@@ -31,6 +32,7 @@ import type {
   SyncStatusResponsePayload,
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  LoadMoreChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
   // UpdateDraftPayload, // Now in types/chat.ts
@@ -256,6 +258,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Phase3FullSyncPayload,
       ),
     );
+    webSocketService.on("load_more_chats_response", (payload) =>
+      phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
+        this,
+        payload as LoadMoreChatsResponsePayload,
+      ),
+    );
     webSocketService.on("phased_sync_complete", (payload) =>
       phasedSyncHandlers.handlePhasedSyncCompleteImpl(
         this,
@@ -303,6 +311,59 @@ export class ChatSynchronizationService extends EventTarget {
         payload as ChatDeletedPayload,
       ),
     );
+    // Handle single message deletion (broadcast from server to all devices)
+    webSocketService.on("message_deleted", (payload) => {
+      const { chat_id, message_id, embed_ids_to_delete } =
+        payload as MessageDeletedPayload;
+      console.debug(
+        `[ChatSyncService] Received message_deleted for message ${message_id} in chat ${chat_id}` +
+          (embed_ids_to_delete?.length
+            ? ` (${embed_ids_to_delete.length} embeds to delete)`
+            : ""),
+      );
+      // Delete from IndexedDB (idempotent - no error if already deleted)
+      chatDB
+        .deleteMessage(message_id)
+        .then(async () => {
+          // Delete associated embeds from IndexedDB (if any)
+          if (embed_ids_to_delete && embed_ids_to_delete.length > 0) {
+            try {
+              const { embedStore } = await import("./embedStore");
+              for (const embedId of embed_ids_to_delete) {
+                try {
+                  await embedStore.deleteEmbed(embedId);
+                } catch (embedErr) {
+                  console.warn(
+                    `[ChatSyncService] Failed to delete embed ${embedId} from IndexedDB on broadcast:`,
+                    embedErr,
+                  );
+                }
+              }
+              console.debug(
+                `[ChatSyncService] Deleted ${embed_ids_to_delete.length} embeds from IndexedDB on broadcast`,
+              );
+            } catch (importErr) {
+              console.error(
+                "[ChatSyncService] Failed to import embedStore for embed cleanup:",
+                importErr,
+              );
+            }
+          }
+
+          // Dispatch event so UI components (ChatHistory, ActiveChat) can react
+          this.dispatchEvent(
+            new CustomEvent("messageDeleted", {
+              detail: { chatId: chat_id, messageId: message_id },
+            }),
+          );
+        })
+        .catch((err) => {
+          console.error(
+            `[ChatSyncService] Error deleting message ${message_id} from IndexedDB on broadcast:`,
+            err,
+          );
+        });
+    });
     // Handle encrypted_chat_metadata updates (e.g., when chat is hidden/unhidden on another device)
     webSocketService.on("encrypted_chat_metadata", (payload) =>
       chatUpdateHandlers.handleEncryptedChatMetadataImpl(
@@ -808,6 +869,18 @@ export class ChatSynchronizationService extends EventTarget {
   ) {
     await senders.sendDeleteChatImpl(this, chat_id, embed_ids_to_delete);
   }
+  public async sendDeleteMessage(
+    chat_id: string,
+    message_id: string,
+    embed_ids_to_delete?: string[],
+  ) {
+    await senders.sendDeleteMessageImpl(
+      this,
+      chat_id,
+      message_id,
+      embed_ids_to_delete,
+    );
+  }
   public async sendNewMessage(
     message: Message,
     encryptedSuggestionToDelete?: string | null,
@@ -904,6 +977,18 @@ export class ChatSynchronizationService extends EventTarget {
     unread_count: number,
   ): Promise<void> {
     await senders.sendChatReadStatusImpl(this, chat_id, unread_count);
+  }
+
+  /**
+   * Request additional older chats from the server beyond the initial 100.
+   * Used by the "Show more" button in the sidebar for on-demand pagination.
+   * These chats are stored in memory only (not IndexedDB) to prevent storage limits.
+   */
+  public async sendLoadMoreChats(
+    offset: number,
+    limit: number = 20,
+  ): Promise<void> {
+    await senders.sendLoadMoreChatsImpl(this, offset, limit);
   }
 
   // --- New Phased Sync Methods ---

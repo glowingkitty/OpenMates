@@ -84,7 +84,7 @@
     >
         <!-- Header -->
         <div class="dialog-header">
-            <Icon name="sliders-horizontal" size="16" />
+            <div class="dialog-header-icon"></div>
             <span id="permission-dialog-title">{$text('chat.permissions.title.text') || 'Permissions'}</span>
         </div>
         
@@ -171,6 +171,22 @@
         color: var(--color-grey-60, #666);
         font-size: 13px;
         margin-bottom: 10px;
+    }
+    
+    /* Small settings gear icon next to "Permissions" header text */
+    .dialog-header-icon {
+        width: 16px;
+        height: 16px;
+        -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
+        mask-image: url('@openmates/ui/static/icons/settings.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: var(--color-grey-60, #666);
+        flex-shrink: 0;
     }
     
     .dialog-question {

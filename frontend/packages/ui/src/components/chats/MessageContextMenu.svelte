@@ -13,6 +13,8 @@
         onClose?: () => void;
         onCopy?: () => void;
         onSelect?: () => void;
+        onDelete?: () => void;
+        disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         messageId?: string;
         userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
         role?: MessageRole;
@@ -24,10 +26,15 @@
         onClose,
         onCopy,
         onSelect,
+        onDelete,
+        disableDelete = false,
         messageId = undefined,
         userMessageId = undefined,
         role = undefined
     }: Props = $props();
+    
+    // Two-step delete confirmation state
+    let confirmingDelete = $state(false);
 
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
@@ -121,7 +128,7 @@
     $effect(() => {
         if (show) {
             const estimatedWidth = 150;
-            const estimatedHeight = (role === 'assistant' && messageId) ? 130 : 100;
+            const estimatedHeight = (role === 'assistant' && messageId) ? 180 : 150;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -145,6 +152,13 @@
         }
     });
 
+    // Reset confirm state when menu is closed
+    $effect(() => {
+        if (!show) {
+            confirmingDelete = false;
+        }
+    });
+
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
         if (menuElement && !menuElement.contains(event.target as Node)) {
@@ -153,7 +167,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select', event: Event) {
+    function handleAction(action: 'copy' | 'select' | 'delete', event: Event) {
         event.stopPropagation();
         event.preventDefault();
         
@@ -161,6 +175,16 @@
         
         if (action === 'copy') onCopy?.();
         if (action === 'select') onSelect?.();
+        if (action === 'delete') {
+            if (!confirmingDelete) {
+                // First click: show confirmation
+                confirmingDelete = true;
+                return; // Don't close the menu yet
+            }
+            // Second click (confirm): execute delete
+            confirmingDelete = false;
+            onDelete?.();
+        }
         onClose?.();
     }
 
@@ -230,6 +254,25 @@
             <div class="clickable-icon icon_select"></div>
             {$text('chats.context_menu.select.text', { default: 'Select' })}
         </button>
+
+        {#if onDelete || disableDelete || !$authStore.isAuthenticated}
+            <div class="menu-separator"></div>
+            <button
+                class="menu-item delete"
+                class:confirming={confirmingDelete}
+                class:disabled={disableDelete || !$authStore.isAuthenticated}
+                disabled={disableDelete || !$authStore.isAuthenticated}
+                onclick={(event) => handleAction('delete', event)}
+            >
+                <div class="clickable-icon icon_delete"></div>
+                {#if confirmingDelete}
+                    {$text('chats.context_menu.confirm.text', { default: 'Confirm' })}
+                {/if}
+                {#if !confirmingDelete}
+                    {$text('chats.context_menu.delete_message.text', { default: 'Delete' })}
+                {/if}
+            </button>
+        {/if}
     </div>
 {/if}
 
@@ -338,6 +381,35 @@
     .menu-item:active {
         background-color: var(--color-grey-20);
         transform: scale(0.98);
+    }
+
+    .menu-separator {
+        height: 1px;
+        background-color: var(--color-grey-30);
+        margin: 4px 8px;
+    }
+
+    .menu-item.delete {
+        color: var(--color-error, #ff4444);
+    }
+
+    .menu-item.delete .clickable-icon {
+        background-color: var(--color-error, #ff4444);
+    }
+
+    .menu-item.delete.confirming {
+        background-color: var(--color-error, #ff4444);
+        color: white;
+    }
+
+    .menu-item.delete.confirming .clickable-icon {
+        background-color: white;
+    }
+
+    .menu-item.delete.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 
     .clickable-icon {

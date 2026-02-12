@@ -20,9 +20,11 @@
 -->
 
 <script lang="ts">
+  import { tick } from 'svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import { getAvailableApps } from '../../services/appSkillsService';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { settingsMenuVisible } from '../Settings.svelte';
   import { text } from '@repo/ui';
   
   /** Maximum number of items to display before showing "+N more" */
@@ -110,17 +112,32 @@
   
   /**
    * Handle app card click - open the App Store to the specific app's detail page.
-   * Uses settingsDeepLink store + panelState.openSettings() to navigate.
+   * Uses the mobile-aware deep link sequencing pattern:
+   * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
+   * 2. panelState.openSettings() - track panel state
+   * 3. await tick() + delay - wait for DOM propagation on mobile
+   * 4. settingsDeepLink.set(path) - navigate after menu is visible
    */
   async function handleAppSelect(appId: string) {
     console.debug('[AppStoreGroup] App selected:', appId);
     
-    // Set the deep link to the app's detail page in the App Store
-    settingsDeepLink.set(`app_store/${appId}`);
+    // CRITICAL: Set settingsMenuVisible to true FIRST
+    // Settings.svelte watches this store and will sync isMenuVisible
+    settingsMenuVisible.set(true);
     
-    // Open the settings panel (which will pick up the deep link)
+    // Also open via panelState for consistency (tracks panel state)
     const { panelState } = await import('../../stores/panelStateStore');
     panelState.openSettings();
+    
+    // CRITICAL: Wait for store update to propagate and DOM to update
+    // This ensures the Settings component's effect has time to sync isMenuVisible
+    // and the menu is actually visible in the DOM before setting the deep link
+    await tick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Set the deep link to the app's detail page in the App Store
+    // Must be LAST so the Settings menu is already open to receive it
+    settingsDeepLink.set(appId ? `app_store/${appId}` : 'app_store');
   }
 </script>
 

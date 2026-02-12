@@ -26,11 +26,12 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { settingsMenuVisible } from '../Settings.svelte';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   
@@ -465,12 +466,75 @@
     }, 300);
   }
   
-  // Handle share action - opens share menu for the embed
-  function handleShare() {
+  /**
+   * Built-in share handler: opens the share settings panel for this embed.
+   * If a custom onShare handler is provided by the parent, it delegates to that.
+   * Otherwise, it uses appId, skillId, and currentEmbedId to construct the
+   * embed share context automatically. This avoids duplicating the same share
+   * boilerplate in every fullscreen component.
+   */
+  async function handleShare() {
+    // Delegate to custom handler if provided
     if (onShare) {
       onShare();
-    } else {
-      console.debug('[UnifiedEmbedFullscreen] Share action (no handler provided)');
+      return;
+    }
+    
+    // Built-in share: requires currentEmbedId to generate an encrypted share link
+    if (!currentEmbedId) {
+      console.debug('[UnifiedEmbedFullscreen] Share action skipped - no currentEmbedId available');
+      return;
+    }
+    
+    try {
+      console.debug('[UnifiedEmbedFullscreen] Opening share settings for embed:', {
+        embedId: currentEmbedId,
+        appId,
+        skillId
+      });
+      
+      // Import navigateToSettings dynamically (only needed on share click)
+      const { navigateToSettings } = await import('../../stores/settingsNavigationStore');
+      
+      // Build embed context with available metadata
+      const embedContext: Record<string, unknown> = {
+        type: `${appId}_${skillId || 'embed'}`,
+        embed_id: currentEmbedId
+      };
+      
+      // Store embed context on window for SettingsShare to pick up
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
+      
+      // Build a translation key for the share title (e.g., 'settings.share.share_images_generate.text')
+      const shareTranslationKey = `settings.share.share_${appId}_${skillId || 'embed'}.text`;
+      const shareTitle = `Share ${appId} ${skillId || 'embed'}`;
+      
+      // Navigate to share settings
+      navigateToSettings('shared/share', shareTitle, 'share', shareTranslationKey);
+      
+      // CRITICAL: Set settingsMenuVisible FIRST so the Settings component syncs
+      // its local isMenuVisible state and sets the grace period for the
+      // click-outside handler. Without this, on mobile the tap event that
+      // triggered this share handler will bubble to the document click-outside
+      // handler, which sees the click originated outside the settings DOM and
+      // immediately closes the panel.
+      settingsMenuVisible.set(true);
+      
+      // Also open via panelState for consistency
+      panelState.openSettings();
+      
+      // Wait for store update to propagate and DOM to update before setting
+      // the deep link. This ensures the Settings component's effect has time
+      // to sync isMenuVisible and the menu is actually visible in the DOM.
+      await tick();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set deep link AFTER the menu is open to ensure proper navigation
+      settingsDeepLink.set('shared/share');
+      
+      console.debug('[UnifiedEmbedFullscreen] Opened share settings for embed');
+    } catch (error) {
+      console.error('[UnifiedEmbedFullscreen] Error opening share settings:', error);
     }
   }
   

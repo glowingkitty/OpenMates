@@ -757,3 +757,509 @@ view_chat_details:
   cs: Zobrazit podrobnosti chatu
   sv: Visa chattdetaljer
   verified_by_human: []
+tab_overview:
+  context: Overview tab label in usage settings - shows daily usage breakdown
+  en: Overview
+  de: Übersicht
+  zh: 概览
+  es: Resumen
+  fr: Aperçu
+  pt: Visão geral
+  ru: Обзор
+  ja: 概要
+  ko: 개요
+  it: Panoramica
+  tr: Genel bakış
+  vi: Tổng quan
+  id: Ikhtisar
+  pl: Przegląd
+  nl: Overzicht
+  ar: نظرة عامة
+  hi: अवलोकन
+  th: ภาพรวม
+  cs: Přehled
+  sv: Översikt
+  verified_by_human: []
+today:
+  context: Label for today's date in the daily usage overview
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: "Aujourd'hui"
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  verified_by_human: []
+yesterday:
+  context: Label for yesterday's date in the daily usage overview
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  verified_by_human: []
+no_usage_on_day:
+  context: Shown when there is no usage data for a specific day
+  en: No usage on this day
+  de: Keine Nutzung an diesem Tag
+  zh: 当天无使用记录
+  es: Sin uso en este día
+  fr: Aucune utilisation ce jour
+  pt: Sem uso neste dia
+  ru: Нет использования в этот день
+  ja: この日の使用はありません
+  ko: 이 날 사용 내역이 없습니다
+  it: Nessun utilizzo in questo giorno
+  tr: Bu gün kullanım yok
+  vi: Không có sử dụng vào ngày này
+  id: Tidak ada penggunaan pada hari ini
+  pl: Brak użycia w tym dniu
+  nl: Geen gebruik op deze dag
+  ar: لا يوجد استخدام في هذا اليوم
+  hi: इस दिन कोई उपयोग नहीं
+  th: ไม่มีการใช้งานในวันนี้
+  cs: Žádné použití v tento den
+  sv: Ingen användning denna dag
+  verified_by_human: []
+load_more_days:
+  context: Button to load more days in the daily overview
+  en: Load more days
+  de: Weitere Tage laden
+  zh: 加载更多天数
+  es: Cargar más días
+  fr: Charger plus de jours
+  pt: Carregar mais dias
+  ru: Загрузить больше дней
+  ja: さらに日を読み込む
+  ko: 더 많은 일자 불러오기
+  it: Carica altri giorni
+  tr: Daha fazla gün yükle
+  vi: Tải thêm ngày
+  id: Muat lebih banyak hari
+  pl: Wczytaj więcej dni
+  nl: Meer dagen laden
+  ar: تحميل المزيد من الأيام
+  hi: और दिन लोड करें
+  th: โหลดเพิ่มเติม
+  cs: Načíst více dní
+  sv: Ladda fler dagar
+  verified_by_human: []
+credits_label:
+  context: Label shown next to credit amounts in daily overview
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredytów
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kreditů
+  sv: krediter
+  verified_by_human: []
+api_key_label:
+  context: Label for API key items in the daily usage overview
+  en: API Key
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Clave API
+  fr: Clé API
+  pt: Chave API
+  ru: API-ключ
+  ja: APIキー
+  ko: API 키
+  it: Chiave API
+  tr: API Anahtarı
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucz API
+  nl: API-sleutel
+  ar: مفتاح API
+  hi: API कुंजी
+  th: คีย์ API
+  cs: API klíč
+  sv: API-nyckel
+  verified_by_human: []
+model_label:
+  context: Label for the AI model used in a usage entry detail view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  verified_by_human: []
+input_tokens_label:
+  context: Label for input tokens count in a usage entry detail view
+  en: Input tokens
+  de: Eingabe-Token
+  zh: 输入令牌
+  es: Tokens de entrada
+  fr: Tokens d'entrée
+  pt: Tokens de entrada
+  ru: Входные токены
+  ja: 入力トークン
+  ko: 입력 토큰
+  it: Token di input
+  tr: Giriş token
+  vi: Token đầu vào
+  id: Token masukan
+  pl: Tokeny wejściowe
+  nl: Invoertokens
+  ar: رموز الإدخال
+  hi: इनपुट टोकन
+  th: โทเค็นอินพุต
+  cs: Vstupní tokeny
+  sv: Inmatningstoken
+  verified_by_human: []
+output_tokens_label:
+  context: Label for output tokens count in a usage entry detail view
+  en: Output tokens
+  de: Ausgabe-Token
+  zh: 输出令牌
+  es: Tokens de salida
+  fr: Tokens de sortie
+  pt: Tokens de saída
+  ru: Выходные токены
+  ja: 出力トークン
+  ko: 출력 토큰
+  it: Token di output
+  tr: Çıkış token
+  vi: Token đầu ra
+  id: Token keluaran
+  pl: Tokeny wyjściowe
+  nl: Uitvoertokens
+  ar: رموز الإخراج
+  hi: आउटपुट टोकन
+  th: โทเค็นเอาต์พุต
+  cs: Výstupní tokeny
+  sv: Utmatningstoken
+  verified_by_human: []
+total_credits_label:
+  context: Label for total credits in a usage entry detail view
+  en: Total credits
+  de: Gesamt-Credits
+  zh: 总积分
+  es: Créditos totales
+  fr: Crédits totaux
+  pt: Créditos totais
+  ru: Всего кредитов
+  ja: 合計クレジット
+  ko: 총 크레딧
+  it: Crediti totali
+  tr: Toplam kredi
+  vi: Tổng tín dụng
+  id: Total kredit
+  pl: Łączne kredyty
+  nl: Totale credits
+  ar: إجمالي الرصيد
+  hi: कुल क्रेडिट
+  th: เครดิตทั้งหมด
+  cs: Celkové kredity
+  sv: Totala krediter
+  verified_by_human: []
+entry_detail_title:
+  context: Title shown in the usage entry detail view header
+  en: Usage Details
+  de: Nutzungsdetails
+  zh: 使用详情
+  es: Detalles de uso
+  fr: Détails d'utilisation
+  pt: Detalhes de uso
+  ru: Детали использования
+  ja: 使用詳細
+  ko: 사용 세부정보
+  it: Dettagli utilizzo
+  tr: Kullanım Detayları
+  vi: Chi tiết sử dụng
+  id: Detail Penggunaan
+  pl: Szczegóły użycia
+  nl: Gebruiksdetails
+  ar: تفاصيل الاستخدام
+  hi: उपयोग विवरण
+  th: รายละเอียดการใช้งาน
+  cs: Podrobnosti použití
+  sv: Användningsdetaljer
+  verified_by_human: []
+provider_label:
+  context: Label for the AI provider (e.g., Google, Anthropic, OpenAI) in usage entry detail view
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Aanbieder
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  verified_by_human: []
+server_provider_label:
+  context: Label for the server provider name (e.g., AWS Bedrock, Google Vertex AI) in usage entry detail view
+  en: Server
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  verified_by_human: []
+server_region_label:
+  context: Label for the server region (e.g., EU, US) in usage entry detail view
+  en: Region
+  de: Region
+  zh: 区域
+  es: Región
+  fr: Région
+  pt: Região
+  ru: Регион
+  ja: リージョン
+  ko: 리전
+  it: Regione
+  tr: Bölge
+  vi: Vùng
+  id: Wilayah
+  pl: Region
+  nl: Regio
+  ar: المنطقة
+  hi: क्षेत्र
+  th: ภูมิภาค
+  cs: Region
+  sv: Region
+  verified_by_human: []
+user_input_tokens_label:
+  context: Label for user input tokens count in usage entry detail view
+  en: User input tokens
+  de: Benutzereingabe-Token
+  zh: 用户输入令牌
+  es: Tokens de entrada del usuario
+  fr: Tokens d'entrée utilisateur
+  pt: Tokens de entrada do usuário
+  ru: Токены пользовательского ввода
+  ja: ユーザー入力トークン
+  ko: 사용자 입력 토큰
+  it: Token di input utente
+  tr: Kullanıcı giriş token
+  vi: Token đầu vào người dùng
+  id: Token masukan pengguna
+  pl: Tokeny wejściowe użytkownika
+  nl: Gebruikersinvoertokens
+  ar: رموز إدخال المستخدم
+  hi: उपयोगकर्ता इनपुट टोकन
+  th: โทเค็นอินพุตผู้ใช้
+  cs: Vstupní tokeny uživatele
+  sv: Användarens inmatningstoken
+  verified_by_human: []
+system_prompt_tokens_label:
+  context: Label for system prompt tokens count in usage entry detail view
+  en: System prompt tokens
+  de: Systemprompt-Token
+  zh: 系统提示令牌
+  es: Tokens del prompt del sistema
+  fr: Tokens du prompt système
+  pt: Tokens do prompt do sistema
+  ru: Токены системного промпта
+  ja: システムプロンプトトークン
+  ko: 시스템 프롬프트 토큰
+  it: Token del prompt di sistema
+  tr: Sistem istem token
+  vi: Token lời nhắc hệ thống
+  id: Token prompt sistem
+  pl: Tokeny promptu systemowego
+  nl: Systeemprompt-tokens
+  ar: رموز موجه النظام
+  hi: सिस्टम प्रॉम्प्ट टोकन
+  th: โทเค็นพรอมต์ระบบ
+  cs: Tokeny systémového promptu
+  sv: Systempromptstoken
+  verified_by_human: []
+credits_breakdown_label:
+  context: Label for the credit cost breakdown section in usage entry detail view
+  en: Credit breakdown
+  de: Aufschlüsselung
+  zh: 积分明细
+  es: Desglose de créditos
+  fr: Détail des crédits
+  pt: Detalhamento de créditos
+  ru: Разбивка кредитов
+  ja: クレジット内訳
+  ko: 크레딧 내역
+  it: Dettaglio crediti
+  tr: Kredi dökümü
+  vi: Chi tiết tín dụng
+  id: Rincian kredit
+  pl: Rozbicie kredytów
+  nl: Creditverdeling
+  ar: تفصيل الرصيد
+  hi: क्रेडिट विवरण
+  th: รายละเอียดเครดิต
+  cs: Rozpis kreditů
+  sv: Kreditfördelning
+  verified_by_human: []
+credits_system_prompt_label:
+  context: Label for system prompt credit cost in the breakdown
+  en: System prompt
+  de: Systemprompt
+  zh: 系统提示
+  es: Prompt del sistema
+  fr: Prompt système
+  pt: Prompt do sistema
+  ru: Системный промпт
+  ja: システムプロンプト
+  ko: 시스템 프롬프트
+  it: Prompt di sistema
+  tr: Sistem istemi
+  vi: Lời nhắc hệ thống
+  id: Prompt sistem
+  pl: Prompt systemowy
+  nl: Systeemprompt
+  ar: موجه النظام
+  hi: सिस्टम प्रॉम्प्ट
+  th: พรอมต์ระบบ
+  cs: Systémový prompt
+  sv: Systemprompt
+  verified_by_human: []
+credits_history_label:
+  context: Label for chat history credit cost in the breakdown
+  en: Chat history
+  de: Chatverlauf
+  zh: 聊天记录
+  es: Historial de chat
+  fr: Historique de chat
+  pt: Histórico de chat
+  ru: История чата
+  ja: チャット履歴
+  ko: 채팅 기록
+  it: Cronologia chat
+  tr: Sohbet geçmişi
+  vi: Lịch sử trò chuyện
+  id: Riwayat obrolan
+  pl: Historia czatu
+  nl: Chatgeschiedenis
+  ar: سجل المحادثة
+  hi: चैट इतिहास
+  th: ประวัติแชท
+  cs: Historie chatu
+  sv: Chatthistorik
+  verified_by_human: []
+credits_response_label:
+  context: Label for response credit cost in the breakdown
+  en: Response
+  de: Antwort
+  zh: 回复
+  es: Respuesta
+  fr: Réponse
+  pt: Resposta
+  ru: Ответ
+  ja: レスポンス
+  ko: 응답
+  it: Risposta
+  tr: Yanıt
+  vi: Phản hồi
+  id: Respons
+  pl: Odpowiedź
+  nl: Antwoord
+  ar: الاستجابة
+  hi: प्रतिक्रिया
+  th: การตอบกลับ
+  cs: Odpověď
+  sv: Svar
+  verified_by_human: []
+deleted_chat:
+  context: Label shown for usage entries from a chat that has been deleted
+  en: Deleted chat
+  de: Gelöschter Chat
+  zh: 已删除的聊天
+  es: Chat eliminado
+  fr: Chat supprimé
+  pt: Chat excluído
+  ru: Удалённый чат
+  ja: 削除されたチャット
+  ko: 삭제된 채팅
+  it: Chat eliminata
+  tr: Silinmiş sohbet
+  vi: Cuộc trò chuyện đã xóa
+  id: Obrolan dihapus
+  pl: Usunięty czat
+  nl: Verwijderd gesprek
+  ar: محادثة محذوفة
+  hi: हटाई गई चैट
+  th: แชทที่ถูกลบ
+  cs: Smazaný chat
+  sv: Borttagen chatt
+  verified_by_human: []

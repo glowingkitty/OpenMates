@@ -4,6 +4,7 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed } from "./embedResolver"; // Import storeEmbed
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
+import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import type { EmbedType } from "../message_parsing/types";
 import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -1070,6 +1071,17 @@ export async function handleAITypingStartedImpl( // Changed to async
               processing_metadata: verifyChat?.processing_metadata,
               processing_metadata_type: typeof verifyChat?.processing_metadata,
             },
+          );
+
+          // CRITICAL: Invalidate chatListCache directly so stale data is cleared
+          // even when the sidebar (Chats.svelte) is closed/unmounted (e.g., on mobile).
+          // Without this, the sidebar would show "Sending..." from the cached lastMessage
+          // because the localChatListChanged event handler only runs when the sidebar is mounted.
+          chatListCache.invalidateLastMessage(payload.chat_id);
+          chatMetadataCache.invalidateChat(payload.chat_id);
+          chatListCache.upsertChat(chatToUpdate);
+          console.info(
+            `[ChatSyncService:AI] 🗑️ Invalidated chatListCache/chatMetadataCache for chat ${payload.chat_id} (works even when sidebar is closed)`,
           );
 
           // CRITICAL: Dispatch localChatListChanged event to trigger immediate UI update
@@ -2658,6 +2670,68 @@ export async function handleSendEmbedDataImpl(
         `[ChatSyncService:AI] [EMBED_EVENT] Marked embed ${embedData.embed_id} as processed. ` +
           `Total processed embeds: ${processedFinalizedEmbeds.size}`,
       );
+
+      // CHECK: If this embed arrives with already_encrypted flag, it means the server
+      // is sending back client-encrypted data from Directus (e.g., when the cache had stale
+      // "processing" status but Directus had the finished embed). In this case, store directly
+      // in IndexedDB without re-encryption and do NOT send back to server (it's already there).
+      const alreadyEncrypted =
+        (embedData as unknown as Record<string, unknown>).already_encrypted ===
+        true;
+      if (alreadyEncrypted) {
+        console.info(
+          `[ChatSyncService:AI] Embed ${embedData.embed_id} arrived with already_encrypted=true - storing directly without re-encryption`,
+        );
+
+        const { embedStore } = await import("./embedStore");
+        const { computeSHA256 } = await import("../message_parsing/utils");
+        const embedRef = `embed:${embedData.embed_id}`;
+        const hashedChatId = await computeSHA256(embedData.chat_id || "");
+
+        // The content and type are already encrypted - store as-is
+        const encryptedEmbedForStorage = {
+          embed_id: embedData.embed_id,
+          encrypted_type: embedData.type, // Already encrypted
+          encrypted_content: embedData.content, // Already encrypted
+          encrypted_text_preview: embedData.text_preview,
+          status: embedData.status,
+          hashed_chat_id: hashedChatId,
+          embed_ids: embedData.embed_ids,
+          parent_embed_id: embedData.parent_embed_id,
+          version_number: embedData.version_number,
+          file_path: embedData.file_path,
+          content_hash: embedData.content_hash,
+          text_length_chars: embedData.text_length_chars,
+          is_private: embedData.is_private ?? false,
+          is_shared: embedData.is_shared ?? false,
+          createdAt: embedData.createdAt,
+          updatedAt: embedData.updatedAt,
+        };
+
+        await embedStore.putEncrypted(
+          embedRef,
+          encryptedEmbedForStorage,
+          (embedData.type || "app-skill-use") as EmbedType,
+        );
+        console.info(
+          `[ChatSyncService:AI] ✅ Stored already-encrypted embed ${embedData.embed_id} in IndexedDB (no re-encryption, no server round-trip)`,
+        );
+
+        // Dispatch event for UI refresh
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: embedData.chat_id,
+              message_id: embedData.message_id,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+        return;
+      }
 
       // HYBRID ENCRYPTION: Check if this is a server-managed (Vault) embed
       // If encryption_mode is "vault", we skip local encryption and key generation

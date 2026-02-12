@@ -36,7 +36,13 @@
   border-radius: 30px;
   position: relative;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* Only transition visual properties, NOT dimensions.
+     'transition: all' was causing height/width to animate during streaming
+     when embed groups are torn down and rebuilt, producing visible stretching. */
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
   vertical-align: middle;
   margin: 0;
   overflow: hidden;
@@ -570,9 +576,12 @@
   }
 }
 
-/* Animation for smooth transitions */
+/* Animation for smooth transitions (visual properties only, not dimensions) */
 :global(.ProseMirror .embed-unified-container) {
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 :global(.ProseMirror .embed-unified-container .embed-extended-preview) {

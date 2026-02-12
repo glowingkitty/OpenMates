@@ -838,6 +838,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
     "app.tasks.persistence_tasks.persist_delete_chat": "persistence",
+    "app.tasks.persistence_tasks.persist_delete_message": "persistence",
     "app.tasks.persistence_tasks.persist_ai_response_to_directus": "persistence",
     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",

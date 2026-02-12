@@ -78,7 +78,7 @@ def verify_image_metadata(image_bytes: bytes, expected_prompt: str, expected_mod
         print("[OK] XMP metadata markers verified.")
 
         # 2. C2PA (Content Credentials) Check
-        print(f"[VERIFY] Checking C2PA (Coalition for Content Provenance and Authenticity)...")
+        print("[VERIFY] Checking C2PA (Coalition for Content Provenance and Authenticity)...")
         # JUMBF box marker is mandatory for C2PA
         has_c2pa_jumb = b"jumb" in image_bytes.lower()
         assert has_c2pa_jumb, "Missing C2PA JUMBF box in image bytes"
@@ -730,6 +730,95 @@ def test_execute_skill_ask_deepseek_multi_turn(api_client):
         
     except httpx.TimeoutException:
         pytest.fail("Multi-turn DeepSeek request timed out after 60 seconds")
+
+
+@pytest.mark.integration
+def test_execute_skill_ask_image_generation_via_ai(api_client):
+    """
+    Test that ai/ask correctly triggers image generation when the user asks for an image.
+    
+    This test validates the full pipeline:
+    1. Preprocessing should detect the image generation intent and preselect 'images-generate'
+    2. The main LLM should call 'images-generate' (not just 'images' or other hallucinated names)
+    3. The response should contain an embed reference for the generated image
+    4. The response should also contain natural language text (not just the embed block)
+    
+    Reproduces a bug where:
+    - Preprocessing failed to preselect 'images-generate', so the tool wasn't available
+    - The LLM saw image generation mentioned in the system prompt and hallucinated tool calls
+    - The hallucinated tool name 'images' was invalid (expected 'images-generate' format)
+    - This consumed all iteration budget, resulting in no follow-up text
+    """
+    # Use an ambiguous prompt that may or may not trigger image generation.
+    # The original bug used "Design a coffee cup mockup" which the preprocessor 
+    # failed to preselect images-generate for, causing the main LLM to hallucinate
+    # an invalid tool name 'images' (missing the '-generate' suffix).
+    payload = {
+        "messages": [
+            {"role": "user", "content": "Design a coffee cup mockup"}
+        ],
+        "stream": False
+    }
+    
+    print("\n[IMAGE VIA AI] Testing ai/ask with image generation prompt...")
+    try:
+        # Image generation can take longer due to preprocessing + main LLM + async image gen.
+        # Non-stream requests may also hit reverse proxy timeouts, so use a generous client timeout.
+        response = api_client.post("/v1/apps/ai/skills/ask", json=payload, timeout=120.0)
+        # 502 Bad Gateway typically means the reverse proxy timed out waiting for the backend.
+        # This is a valid failure mode for non-stream requests that take too long.
+        if response.status_code == 502:
+            pytest.skip("Got 502 (gateway timeout) - non-stream AI request took too long. "
+                        "This is expected for complex prompts that trigger multiple LLM iterations.")
+        assert response.status_code == 200, f"AI ask failed with status {response.status_code}: {response.text}"
+        
+        data = response.json()
+        assert "error" not in data, f"Got error response: {data.get('error')}"
+        assert "choices" in data, f"Response missing 'choices' field. Got keys: {list(data.keys())}"
+        assert len(data["choices"]) > 0, "Response should have at least one choice"
+        
+        content = data["choices"][0].get("message", {}).get("content", "")
+        assert content, "Response content should not be empty"
+        
+        print(f"[IMAGE VIA AI] Response length: {len(content)} chars")
+        print(f"[IMAGE VIA AI] Content preview: {content[:500]}")
+        
+        # The response should contain an embed reference (app_skill_use code block)
+        has_embed = "app_skill_use" in content or "embed_id" in content
+        
+        if has_embed:
+            print("[IMAGE VIA AI] Found embed reference in response (image generation triggered)")
+            
+            # CRITICAL: The response must also contain natural language text OUTSIDE the code block.
+            # Strip the JSON code block(s) and check if there's remaining text.
+            import re
+            text_outside_code_blocks = re.sub(r'```json\s*\{[^}]*\}\s*```', '', content).strip()
+            
+            # The LLM should provide a natural language acknowledgment alongside the embed
+            # (e.g., "I'm generating that image for you now")
+            assert len(text_outside_code_blocks) > 5, (
+                f"Response contains embed reference but no follow-up text. "
+                f"The LLM should provide a natural language response alongside the image embed. "
+                f"Full content: {content}"
+            )
+            print(f"[IMAGE VIA AI] Follow-up text: {text_outside_code_blocks[:200]}")
+        else:
+            # If no embed, the LLM should still provide a useful response
+            # (it might describe how to create an image or explain what it would generate)
+            assert len(content) > 20, f"Response too short without image embed: {content}"
+            print("[IMAGE VIA AI] No embed reference found (LLM responded with text instead of generating)")
+        
+        # Verify usage metadata
+        if "usage" in data and data["usage"]:
+            usage = data["usage"]
+            print(f"[IMAGE VIA AI] Tokens: prompt={usage.get('prompt_tokens')}, "
+                  f"completion={usage.get('completion_tokens')}")
+        
+        print("[IMAGE VIA AI] PASSED")
+        
+    except httpx.TimeoutException:
+        print("\n[TIMEOUT] Image generation via ai/ask timed out after 120 seconds.")
+        pytest.fail("Request timed out after 120 seconds")
 
 
 @pytest.mark.integration

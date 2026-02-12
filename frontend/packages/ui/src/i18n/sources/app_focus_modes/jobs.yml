@@ -1,0 +1,50 @@
+career_insights:
+  context: Focus mode name for career insights in the Jobs app
+  en: Career insights
+  de: Karriere-Einblicke
+  zh: 职业洞察
+  es: Perspectivas profesionales
+  fr: Perspectives de carrière
+  pt: Insights de carreira
+  ru: Карьерные инсайты
+  ja: キャリアインサイト
+  ko: 커리어 인사이트
+  it: Approfondimenti sulla carriera
+  tr: Kariyer öngörüleri
+  vi: Thông tin chi tiết về nghề nghiệp
+  id: Wawasan karier
+  pl: Wgląd w karierę
+  nl: Carrière-inzichten
+  ar: رؤى مهنية
+  hi: करियर अंतर्दृष्टि
+  th: ข้อมูลเชิงลึกด้านอาชีพ
+  cs: Kariérní postřehy
+  sv: Karriärinsikter
+  verified_by_human:
+    - en
+    - de
+career_insights.description:
+  context: Description for career insights focus mode in the Jobs app
+  en: Explore your strengths, interests, and values to find the right career path.
+  de: Erkunde deine Stärken, Interessen und Werte, um den richtigen Karriereweg zu finden.
+  zh: 探索您的优势、兴趣和价值观，找到合适的职业道路。
+  es: Explora tus fortalezas, intereses y valores para encontrar el camino profesional adecuado.
+  fr: Explorez vos forces, intérêts et valeurs pour trouver la bonne voie professionnelle.
+  pt: Explore seus pontos fortes, interesses e valores para encontrar o caminho profissional certo.
+  ru: Исследуйте свои сильные стороны, интересы и ценности, чтобы найти правильный карьерный путь.
+  ja: 自分の強み、興味、価値観を探り、適切なキャリアパスを見つけましょう。
+  ko: 자신의 강점, 관심사, 가치관을 탐구하여 올바른 경력 경로를 찾으세요.
+  it: Esplora i tuoi punti di forza, interessi e valori per trovare il percorso professionale giusto.
+  tr: Doğru kariyer yolunu bulmak için güçlü yönlerinizi, ilgi alanlarınızı ve değerlerinizi keşfedin.
+  vi: Khám phá thế mạnh, sở thích và giá trị của bạn để tìm con đường nghề nghiệp phù hợp.
+  id: Jelajahi kekuatan, minat, dan nilai Anda untuk menemukan jalur karier yang tepat.
+  pl: Zbadaj swoje mocne strony, zainteresowania i wartości, aby znaleźć właściwą ścieżkę kariery.
+  nl: Verken je sterke punten, interesses en waarden om het juiste carrièrepad te vinden.
+  ar: استكشف نقاط قوتك واهتماماتك وقيمك للعثور على المسار المهني المناسب.
+  hi: सही करियर पथ खोजने के लिए अपनी ताकत, रुचियों और मूल्यों का अन्वेषण करें।
+  th: สำรวจจุดแข็ง ความสนใจ และค่านิยมของคุณเพื่อค้นหาเส้นทางอาชีพที่เหมาะสม
+  cs: Prozkoumejte své silné stránky, zájmy a hodnoty, abyste našli správnou kariérní cestu.
+  sv: Utforska dina styrkor, intressen och värderingar för att hitta rätt karriärväg.
+  verified_by_human:
+    - en
+    - de

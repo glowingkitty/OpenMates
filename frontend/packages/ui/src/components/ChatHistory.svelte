@@ -181,14 +181,18 @@
    * Returns the parsed content or null if not a valid response.
    */
   function parseAppSettingsMemoriesResponse(content: unknown): AppSettingsMemoriesResponseContent | null {
-    if (typeof content !== 'string') return null;
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseResponse] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_response') {
         return parsed as AppSettingsMemoriesResponseContent;
       }
-    } catch {
-      // Not valid JSON, ignore
+      console.warn(`[ChatHistory][parseResponse] parsed JSON but type was '${parsed.type}', not 'app_settings_memories_response'`);
+    } catch (e) {
+      console.warn(`[ChatHistory][parseResponse] JSON.parse failed for content (length=${content.length}):`, content.substring(0, 200), e);
     }
     return null;
   }
@@ -198,7 +202,10 @@
    * Returns the parsed content or null if not a valid request.
    */
   function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
-    if (typeof content !== 'string') return null;
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseRequest] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_request') {
@@ -234,6 +241,20 @@
   let appSettingsMemoriesRequestMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesRequestContent>();
     
+    // Debug: count system messages to understand what we're working with
+    const systemMessages = messages.filter(m => m.role === 'system');
+    if (systemMessages.length > 0) {
+      console.log(`[ChatHistory][RequestMap] Processing ${messages.length} messages (${systemMessages.length} system). System msgs:`,
+        systemMessages.map(m => ({
+          id: m.id,
+          hasOriginal: !!m.original_message,
+          hasContent: !!m.original_message?.content,
+          contentType: typeof m.original_message?.content,
+          contentPreview: typeof m.original_message?.content === 'string' ? m.original_message.content.substring(0, 80) : undefined
+        }))
+      );
+    }
+    
     for (const msg of messages) {
       if (msg.role === 'system') {
         const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
@@ -241,6 +262,10 @@
           map.set(request.user_message_id, request);
         }
       }
+    }
+    
+    if (map.size > 0) {
+      console.log(`[ChatHistory][RequestMap] Found ${map.size} request(s):`, [...map.keys()]);
     }
     
     return map;
@@ -268,6 +293,7 @@
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
+          console.log(`[ChatHistory][ResponseMap] Found response:`, { user_message_id: response.user_message_id, action: response.action, msgId: msg.id });
           // Use user_message_id directly as the map key — same strategy as the request map.
           // Both request and response system messages store the same user_message_id
           // (the client-generated ID of the user message that triggered the request).
@@ -289,6 +315,10 @@
           }
         }
       }
+    }
+    
+    if (map.size > 0) {
+      console.log(`[ChatHistory][ResponseMap] Found ${map.size} response(s):`, [...map.keys()]);
     }
     
     return map;
@@ -394,7 +424,10 @@
     // Find the first unpaired request in this chat's messages
     for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        console.warn(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" has NO matching response. Response map keys:`, [...appSettingsMemoriesResponseMap.keys()]);
         return request;
+      } else {
+        console.log(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" is PAIRED with response.`);
       }
     }
     return null;
@@ -460,14 +493,29 @@
 
   const dispatch = createEventDispatcher();
 
-  let lastUserMessageId: string | null = null;
-  let shouldScrollToNewUserMessage = false;
-  let isScrolling = false;
+  // CRITICAL: These must be $state() for Svelte 5 reactivity.
+  // The scroll $effect at line ~689 reads these variables, and without $state(),
+  // changes to them won't trigger re-execution of the effect — breaking the
+  // ChatGPT-style scroll that positions the user message near the top after sending.
+  let lastUserMessageId = $state<string | null>(null);
+  let shouldScrollToNewUserMessage = $state(false);
+  let isScrolling = $state(false);
+  
+  // Track whether the user has manually scrolled away during streaming.
+  // When true, spacer height updates are frozen to prevent disrupting the user's scroll position.
+  let userHasScrolledAway = $state(false);
 
   // Detect if any message is currently streaming
   let isCurrentlyStreaming = $derived(
     messages.some(m => m.status === 'streaming')
   );
+  
+  // Detect if AI is processing (user message sent, waiting for first streaming chunk).
+  // Shows the centered ai.svg loading icon overlay. Hides once streaming starts.
+  let isAiProcessing = $derived(
+    messages.some(m => m.status === 'processing') && !messages.some(m => m.status === 'streaming')
+  );
+  
   // Track previous streaming state to detect transitions
   let wasStreaming = $state(false);
 
@@ -522,6 +570,7 @@
     shouldScrollToNewUserMessage = false;
     isSpacerActive = false;
     spacerHeight = 0;
+    userHasScrolledAway = false;
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -540,6 +589,7 @@
       shouldScrollToNewUserMessage = false;
       isSpacerActive = false;
       spacerHeight = 0;
+      userHasScrolledAway = false;
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -656,7 +706,16 @@
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
+      
+      // CRITICAL: Activate the spacer FIRST, before scrolling.
+      // The spacer adds enough scrollable height to reach the desired scroll position.
+      // Without it, the container's scrollHeight may be too small for the target offset.
+      isSpacerActive = true;
+      // Set an initial spacer height equal to the viewport height to guarantee
+      // enough room to scroll the user message to the top.
+      spacerHeight = container.clientHeight;
 
+      // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
         setTimeout(() => {
           const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -664,10 +723,10 @@
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Calculate scroll position to show the BOTTOM of the user message near the top
-            // messageRect.bottom gives us the bottom edge of the message
-            // We want the bottom of the message to be ~60px from the top of the viewport
-            // This shows the last 1-2 lines of the user message with space below for the response
+            // Calculate scroll position to show the BOTTOM of the user message near the top.
+            // messageRect.bottom gives us the bottom edge of the message.
+            // We want the bottom of the message to be ~60px from the top of the viewport.
+            // This shows the last 1-2 lines of the user message with space below for the response.
             const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
             const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
 
@@ -677,10 +736,6 @@
             });
 
             shouldScrollToNewUserMessage = false;
-            // Activate the spacer: ensures there's enough scrollable height below the
-            // user message so this scroll position remains valid as the AI response streams in.
-            // The spacer fills the viewport below the user message and shrinks as the response grows.
-            isSpacerActive = true;
 
             setTimeout(() => {
               isScrolling = false;
@@ -704,6 +759,7 @@
       wasStreaming = false;
       isSpacerActive = false;
       spacerHeight = 0;
+      userHasScrolledAway = false;
     }
   });
 
@@ -731,8 +787,12 @@
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     messages;
 
+    // If the user has scrolled away to read older messages, freeze the spacer
+    // so their scroll position isn't disrupted by the growing AI response.
+    if (userHasScrolledAway) return;
+
     tick().then(() => {
-      if (!container || !isSpacerActive) return;
+      if (!container || !isSpacerActive || userHasScrolledAway) return;
       
       // Find the last message element (the streaming AI response)
       const messageWrappers = container.querySelectorAll('[data-message-id]');
@@ -799,11 +859,11 @@
     }
   }
   
-  export function scrollToBottom() {
+  export function scrollToBottom(smooth = false) {
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: 'auto' // Use instant scroll to avoid animation
+        behavior: smooth ? 'smooth' : 'auto' // Instant by default for programmatic calls; smooth for user-initiated
       });
     } else {
       console.warn("[ChatHistory] Container not found");
@@ -820,6 +880,19 @@
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
+
+    // Detect if user has manually scrolled away during streaming.
+    // If streaming is active and the user scrolls upward (away from the bottom),
+    // freeze spacer updates so their scroll position isn't disrupted.
+    if (isCurrentlyStreaming && container) {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If user scrolled more than 150px from the bottom, they're reading older messages
+      if (distanceFromBottom > 150) {
+        userHasScrolledAway = true;
+      } else {
+        userHasScrolledAway = false;
+      }
+    }
 
     // Performance optimization: Use requestAnimationFrame for immediate UI updates
     // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
@@ -848,8 +921,11 @@
     const isAtBottomLocal = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
+    // Check if scrolled to the very top (within 50px threshold)
+    const isAtTopLocal = container.scrollTop < 50;
+    
     // Dispatch immediate event for UI state changes (button visibility)
-    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal });
+    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
   }
 
   // Find the last message that's currently visible in viewport
@@ -1043,12 +1119,13 @@
   The chat history container:
     - Takes full height and is scrollable.
     - Messages are aligned to the top for ChatGPT-style behavior.
+    - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
+<div class="chat-history-wrapper" style={containerStyle}>
 <div 
     class="chat-history-container" 
     class:empty={displayMessages.length === 0}
     bind:this={container}
-    style={containerStyle}
     onscroll={handleScroll}
 >
     {#if showMessages}
@@ -1056,15 +1133,18 @@
              class:has-messages={displayMessages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-            {#each displayMessages as msg (msg.id)}
+            {#each displayMessages as msg, msgIndex (msg.id)}
+                <!-- Disable fade/flip animations for streaming and processing messages
+                     to prevent visual glitches when content height changes rapidly.
+                     Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
-                     in:fade={{ duration: 300 }}
-                     animate:flip={{ duration: 250 }}>
+                     in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                     animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
@@ -1084,24 +1164,25 @@
                         {piiRevealed}
                         messageId={msg.id}
                         userMessageId={msg.original_message?.user_message_id}
+                        isFirstMessage={msgIndex === 0}
                     />
                 </div>
             {/each}
+            
+            <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
+            <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
+            <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
+            {#if shouldShowPermissionDialog}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
             
             <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
                  Creates the ChatGPT-like effect where the user message sits near the top
                  with empty space below that gradually fills as the AI response streams in. -->
             {#if spacerHeight > 0}
                 <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
-            {/if}
-            
-            <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
-            <!-- This is rendered as part of the chat history so users can scroll while dialog is visible -->
-            <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
-            {#if shouldShowPermissionDialog}
-                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
-                    <AppSettingsMemoriesPermissionDialog />
-                </div>
             {/if}
             
             <!-- Settings/memories suggestions shown after the last assistant message -->
@@ -1119,19 +1200,46 @@
             {/if}
         </div>
     {/if}
+    
+</div>
+
+<!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
+     Positioned absolutely over the scroll container via the wrapper.
+     Shown when a user message is processing (waiting for AI) and no streaming has started yet.
+     Fades out when the assistant response begins streaming. -->
+{#if isAiProcessing}
+    <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
+        <div class="ai-processing-icon"></div>
+    </div>
+{/if}
 </div>
 
 <style>
+  /* Wrapper provides positioning context for the AI processing overlay.
+     Takes the same absolute positioning the container previously had. */
+  .chat-history-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
   .chat-history-container {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal scrollbar from appearing at certain viewport widths */
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    /* Disable browser's automatic scroll anchoring.
+       During streaming, content grows from the bottom which triggers the browser's
+       scroll-anchoring algorithm. This fights with our manual scroll management
+       and causes unpredictable jumps. We handle scroll position ourselves. */
+    overflow-anchor: none;
     /* Add mask for top and bottom fade effect */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
@@ -1217,5 +1325,53 @@
   .message-wrapper :global(.chat-message) {
     width: 100%;
     max-width: 900px;
+  }
+
+  /* AI Processing Overlay: Centered icon shown while waiting for AI response.
+     Positioned absolutely over the scroll container (sibling, not child).
+     This ensures it stays visually centered regardless of scroll position. */
+  .ai-processing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .ai-processing-icon {
+    width: 64px;
+    height: 64px;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-30, #ccc) 0%,
+      var(--color-grey-30, #ccc) 40%,
+      var(--color-grey-10, #f0f0f0) 50%,
+      var(--color-grey-30, #ccc) 60%,
+      var(--color-grey-30, #ccc) 100%
+    );
+    background-size: 200% 100%;
+    animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  @keyframes ai-processing-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 </style>

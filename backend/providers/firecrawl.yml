@@ -7,12 +7,13 @@ provider_id: "firecrawl"
 name: "Firecrawl"
 description: "Web scraping and crawling API for extracting content from websites."
 logo_svg: "logos/firecrawl.svg" # Path for UI, relative to a common logos directory
+region: "US" # Firecrawl is based in San Francisco, US
 
 # API endpoint configuration
 api_base_url: "https://api.firecrawl.dev/v2"
 
 # Firecrawl API Plans
-# 
+#
 # **Free Plan:**
 # - Price: €0 (one-time)
 # - Included Credits: 500 Firecrawl credits (pages)
@@ -55,30 +56,30 @@ api_base_url: "https://api.firecrawl.dev/v2"
 # Default plan is "hobby" if FIRECRAWL_PLAN is not set
 rate_limits:
   free:
-    requests_per_second: 2  # 2 concurrent requests
-    requests_per_month: null  # Limited by included credits (500)
+    requests_per_second: 2 # 2 concurrent requests
+    requests_per_month: null # Limited by included credits (500)
   hobby:
-    requests_per_second: 5  # 5 concurrent requests
-    requests_per_month: null  # Limited by included credits (3,000)
+    requests_per_second: 5 # 5 concurrent requests
+    requests_per_month: null # Limited by included credits (3,000)
   standard:
-    requests_per_second: 50  # 50 concurrent requests
-    requests_per_month: null  # Limited by included credits (100,000)
+    requests_per_second: 50 # 50 concurrent requests
+    requests_per_month: null # Limited by included credits (100,000)
   growth:
-    requests_per_second: 100  # 100 concurrent requests
-    requests_per_month: null  # Limited by included credits (500,000)
+    requests_per_second: 100 # 100 concurrent requests
+    requests_per_month: null # Limited by included credits (500,000)
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Firecrawl plan)
-# 
+#
 # Pricing calculation based on Hobby plan (€16/month for 3,000 pages):
 # - Base cost: €16 / 3,000 = €0.0053 per page scrape
 # - Overage cost: €8 / 1,000 = €0.008 per page scrape
 # - Average cost: ~€0.006 per page scrape
-# 
+#
 # Converting to OpenMates credits (using pricing.yml: 10,000 credits = €10, so 1 credit ≈ €0.001):
 # - €0.006 / €0.001 = 6 credits (base cost)
 # - €0.008 / €0.001 = 8 credits (overage cost)
-# 
+#
 # Revenue Share Model (see docs/architecture/revenue_share_model.md):
 # - User pays: 20 credits per scrape request
 # - Creator (website owner) gets: 10 credits (50% of user payment)
@@ -95,5 +96,5 @@ rate_limits:
 # Note: The Firecrawl plan (free/hobby/standard/growth) only affects rate limits and available features,
 #       not the user-facing pricing
 pricing:
-  per_request_credits: 20  # Always 20 credits per scrape request for users (10 to creator, 10 to OpenMates)
+  per_request_credits: 20 # Always 20 credits per scrape request for users (10 to creator, 10 to OpenMates)
 

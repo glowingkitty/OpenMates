@@ -120,7 +120,8 @@ class SessionResponse(BaseModel):
     message: str
     user: Optional[UserResponse] = None
     token_refresh_needed: bool = False
-    re_auth_required: Optional[str] = None # e.g., "2fa"
+    re_auth_required: Optional[str] = None # e.g., "2fa", "passkey"
+    re_auth_reason: Optional[str] = None # e.g., "new_device", "location_change" - explains WHY re-auth is needed (for UI messaging)
     require_invite_code: bool = True  # Default to True for backward compatibility
     ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
 

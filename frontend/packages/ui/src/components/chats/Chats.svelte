@@ -49,9 +49,16 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
-	// Phased Loading State
-	let displayLimit = $state(20); // Initially display up to 20 chats
-	let allChatsDisplayed = $state(false); // True if all chats are being displayed (limit is Infinity)
+	// Phased Loading State — 3-tier progressive display:
+	// Tier 1 ('initial'): Show first 20 chats from IndexedDB (fast initial render during sync)
+	// Tier 2 ('all_local'): Show all ~100 chats from IndexedDB (after sync or user clicks "Show more")
+	// Tier 3 ('loading_server'): Fetching additional older chats from server on demand
+	let loadTier: 'initial' | 'all_local' | 'loading_server' = $state('initial');
+	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond initial 100, in-memory only (NOT in IndexedDB)
+	let hasMoreOnServer = $state(false); // Whether the server has more chats beyond what's been loaded
+	let serverPaginationOffset = $state(100); // Next offset for fetching older chats from server
+	let loadingMoreChats = $state(false); // True while a "load more" request is in-flight
+	let totalServerChatCount = $state(0); // Total chat count reported by the server
 
 	// Select Mode State
 	let selectMode = $state(false); // Whether we're in multi-select mode
@@ -278,7 +285,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// CRITICAL SAFEGUARD: Deduplicate the final array by chat_id
 		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
 		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
-		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
+		// olderChatsFromServer are appended last — these are in-memory-only older chats loaded on demand
+		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._incognitoChats, ...olderChatsFromServer];
 		const seenIds = new Set<string>();
 		const deduplicatedChats: ChatType[] = [];
 		for (const chat of combinedChats) {
@@ -360,15 +368,60 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		return orderedEntries;
 	})());
 
+	// Static group keys — chats in these groups (intro, examples, legal, shared_by_others) are always shown,
+	// regardless of the phased loading tier. Only user chats (time-based groups) are subject to the display limit.
+	const STATIC_GROUP_KEYS = ['shared_by_others', 'intro', 'examples', 'legal'];
+
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	let chatsForDisplay = $derived(sortedAllChatsFiltered.slice(0, displayLimit));
+	// Tier 1 ('initial'): Show first 20 USER chats (fast render during sync), plus all static chats (intro, examples, legal)
+	// Tier 2+ ('all_local', 'loading_server'): Show all chats (IndexedDB + server-loaded)
+	// IMPORTANT: The limit of 20 applies only to user chats — intro, example, and legal chats are always shown
+	let chatsForDisplay = $derived((() => {
+		if (loadTier !== 'initial') {
+			return sortedAllChatsFiltered;
+		}
+		// Tier 1: Separate user chats from static chats, limit only user chats to 20
+		const userChats: ChatType[] = [];
+		const staticChats: ChatType[] = [];
+		for (const chat of sortedAllChatsFiltered) {
+			if (chat.group_key && STATIC_GROUP_KEYS.includes(chat.group_key)) {
+				staticChats.push(chat);
+			} else {
+				userChats.push(chat);
+			}
+		}
+		return [...userChats.slice(0, 20), ...staticChats];
+	})());
 	
+	// Determine if "Show more" button should be visible
+	// Tier 1 ('initial'): Show if there are more than 20 USER chats (excludes intro/example/legal)
+	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
+	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
+	let showMoreButtonVisible = $derived((() => {
+		if (loadTier === 'initial') {
+			const userChatCount = sortedAllChatsFiltered.filter(
+				c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+			).length;
+			return userChatCount > 20;
+		}
+		if (loadTier === 'loading_server') {
+			return true; // Keep button visible while loading
+		}
+		// 'all_local' — show if server has more chats
+		return hasMoreOnServer;
+	})());
+
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
 	
 	// Get ordered group entries for display
-	let orderedGroupedChats = $derived((() => {
+	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
+	// This allows the "Show more" button to be rendered between user chats and static sections,
+	// so users don't have to scroll past intro/example/legal chats to find it.
+	// NOTE: STATIC_GROUP_KEYS is declared earlier (before chatsForDisplay) since it's also used for phased loading.
+	
+	let orderedUserChatGroups = $derived((() => {
 		const groups = groupedChatsForDisplay;
 		const orderedEntries: [string, ChatType[]][] = [];
 		
@@ -381,18 +434,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
-		// These are older real user chats, so they should come before the static sections
-		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
-			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
+			if (!timeGroups.includes(groupKey) && !STATIC_GROUP_KEYS.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
 			}
 		}
-
-		// 3. Finally, add the static sections in the specified order
+		
+		return orderedEntries;
+	})());
+	
+	let orderedStaticChatGroups = $derived((() => {
+		const groups = groupedChatsForDisplay;
+		const orderedEntries: [string, ChatType[]][] = [];
+		
+		// Add static sections in the specified order
 		// shared_by_others comes first (before intro/examples/legal) since these are chats from real users
-		for (const groupKey of staticGroups) {
+		for (const groupKey of STATIC_GROUP_KEYS) {
 			if (groups[groupKey] && groups[groupKey].length > 0) {
 				orderedEntries.push([groupKey, groups[groupKey]]);
 			}
@@ -400,6 +457,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		
 		return orderedEntries;
 	})());
+	
+
 
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
@@ -409,6 +468,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
+	let languageChangeDemoDebounceTimer: ReturnType<typeof setTimeout> | null = null; // Debounce timer for demo reload on language change
+	let demoReloadAbortController: AbortController | null = null; // Abort controller to cancel in-flight demo reload on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -447,11 +508,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 	syncComplete = false;
 	 }, 1000);
 	 
-	 if (!allChatsDisplayed) {
-			displayLimit = Infinity; // Show all chats
-			allChatsDisplayed = true;
-			console.debug('[Chats] Sync complete, expanded display limit.');
-		}
+	 // Sync complete — no auto-expansion needed. User stays at current tier.
+		 // They can click "Show more" to see remaining chats.
+		 console.debug('[Chats] Sync complete, loadTier remains:', loadTier);
 	};
 
 	/**
@@ -569,33 +628,66 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		try {
 			const chat = await chatDB.getChat(targetChatId);
 			if (chat) {
-				// Decrypt the title for display
+				// Decrypt title, category, and icon for the resume card display
 				let decryptedTitle: string | null = null;
-				if (chat.encrypted_title) {
-					try {
-						const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
-						// First decrypt the chat key if we have it encrypted
-						let chatKey = chatDB.getChatKey(targetChatId);
-						if (!chatKey && chat.encrypted_chat_key) {
-							chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-							if (chatKey) {
-								chatDB.setChatKey(targetChatId, chatKey);
-							}
-						}
+				let decryptedCategory: string | null = null;
+				let decryptedIcon: string | null = null;
+
+				try {
+					const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
+					// First decrypt the chat key if we have it encrypted
+					let chatKey = chatDB.getChatKey(targetChatId);
+					if (!chatKey && chat.encrypted_chat_key) {
+						chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
 						if (chatKey) {
-							decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+							chatDB.setChatKey(targetChatId, chatKey);
 						}
-					} catch (decryptError) {
-						console.warn('[Chats] Failed to decrypt Phase 1 chat title:', decryptError);
+					}
+					if (chatKey) {
+						// Decrypt title
+						if (chat.encrypted_title) {
+							try {
+								decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+							} catch { /* Title decryption failed – fall through to default */ }
+						}
+						// Decrypt category
+						if (chat.encrypted_category) {
+							try {
+								decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+							} catch { /* Category decryption failed – will use fallback */ }
+						}
+						// Decrypt icon
+						if (chat.encrypted_icon) {
+							try {
+								decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+							} catch { /* Icon decryption failed – will use fallback */ }
+						}
+					}
+				} catch (decryptError) {
+					console.warn('[Chats] Failed to decrypt Phase 1 chat fields:', decryptError);
+				}
+				
+				// Skip draft chats (no title and no messages) — only show resume card for real chats
+				const hasTitle = !!(chat.title || decryptedTitle);
+				if (!hasTitle) {
+					const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+					if (!lastMessage) {
+						console.info(`[Chats] Skipping Phase 1 draft chat (no title, no messages): ${targetChatId}`);
+						// Still update the chat list, but don't show resume card
+						chatListCache.markDirty();
+						await updateChatListFromDB(true);
+						return;
 					}
 				}
 				
-				// Use cleartext title for demo chats, decrypted title otherwise
+				// Use cleartext fields for demo chats, decrypted values otherwise
 				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+				const displayCategory = chat.category || decryptedCategory || null;
+				const displayIcon = chat.icon || decryptedIcon || null;
 				
-				// Store in resume state for the UI
-				phasedSyncState.setResumeChatData(chat, displayTitle);
-				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId})`);
+				// Store in resume state for the UI (ActiveChat subscribes to this store)
+				phasedSyncState.setResumeChatData(chat, displayTitle, displayCategory, displayIcon);
+				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId}), category: ${displayCategory}, icon: ${displayIcon}`);
 			} else {
 				console.warn(`[Chats] Phase 1 chat ${targetChatId} not found in IndexedDB after sync`);
 			}
@@ -619,28 +711,31 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// Expand display limit to show recent chats
-		if (!allChatsDisplayed && displayLimit < 20) {
-			displayLimit = 20; // Show at least 20 recent chats
-		}
+		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
+		// No state change needed here; loadTier 'initial' already shows first 20
 	};
 
 	/**
 		* Handles 'phase_3_last_100_chats_ready' events from Phase 3 of the new phased sync system.
 		* This means the last 100 chats are ready and full sync is complete.
 		*/
-	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
+	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
+		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
 		
 		// Update the chat list to show all chats
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// CRITICAL: Always expand display limit to show all chats after Phase 3
-		// Don't check allChatsDisplayed - ensure it's always set
-		displayLimit = Infinity;
-		allChatsDisplayed = true;
-		console.info(`[Chats] Phase 3 complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
+		// Only track server-side pagination metadata.
+		if (event.detail.total_chat_count) {
+			totalServerChatCount = event.detail.total_chat_count;
+			hasMoreOnServer = event.detail.total_chat_count > 100;
+			serverPaginationOffset = 100; // Next fetch starts after the initial 100
+			console.info(`[Chats] Phase 3: total_chat_count=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
+		}
+		
+		console.info(`[Chats] Phase 3 complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// Show "Sync complete" message (syncing is derived from phasedSyncState)
 		syncComplete = true;
@@ -663,10 +758,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// CRITICAL: Always ensure all chats are displayed after sync complete
-		displayLimit = Infinity;
-		allChatsDisplayed = true;
-		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		// Sync complete — stay on current tier. User clicks "Show more" to expand.
+		console.info(`[Chats] Phased sync complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// NOW mark sync as completed (this hides the syncing indicator)
 		// This prevents redundant syncs when Chats component is remounted
@@ -679,6 +772,65 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		setTimeout(() => {
 			syncComplete = false;
 		}, 1000);
+	};
+
+	/**
+	 * Handles "Show more" button click — 3-tier progressive loading:
+	 * Tier 1 → 2: Expands from 20 to all ~100 local chats from IndexedDB
+	 * Tier 2 → 3: Requests additional older chats from the server (20 at a time, in-memory only)
+	 */
+	const handleShowMoreClick = async () => {
+		if (loadTier === 'initial') {
+			// Tier 1 → Tier 2: Show all local chats
+			loadTier = 'all_local';
+			console.debug('[Chats] User clicked "Show more" — expanding to show all local chats.');
+			return;
+		}
+
+		// Tier 2 → Tier 3: Fetch older chats from server
+		if (hasMoreOnServer && !loadingMoreChats) {
+			loadingMoreChats = true;
+			loadTier = 'loading_server';
+			console.debug(`[Chats] User clicked "Show more" — requesting older chats from server (offset=${serverPaginationOffset}).`);
+			try {
+				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, 20);
+			} catch (error) {
+				console.error('[Chats] Error requesting more chats:', error);
+				loadingMoreChats = false;
+			}
+		}
+	};
+
+	/**
+	 * Handles 'load_more_chats_ready' events from chatSyncService.
+	 * These are older chats fetched from the server on demand — stored in memory only (NOT IndexedDB).
+	 */
+	const handleLoadMoreChatsReadyEvent = (event: CustomEvent<{
+		chats: ChatType[];
+		has_more: boolean;
+		total_count: number;
+		offset: number;
+	}>) => {
+		const { chats, has_more, total_count, offset } = event.detail;
+		console.info(`[Chats] Received ${chats.length} older chats from server (offset=${offset}, has_more=${has_more}, total=${total_count}).`);
+
+		if (chats.length > 0) {
+			// Deduplicate against existing chats before appending
+			const existingIds = new Set(allChats.map(c => c.chat_id));
+			const newChats = chats.filter(c => !existingIds.has(c.chat_id));
+			
+			if (newChats.length > 0) {
+				olderChatsFromServer = [...olderChatsFromServer, ...newChats];
+				console.debug(`[Chats] Added ${newChats.length} new older chats (${chats.length - newChats.length} duplicates filtered).`);
+			}
+		}
+
+		// Update pagination state
+		hasMoreOnServer = has_more;
+		totalServerChatCount = total_count;
+		serverPaginationOffset = offset + chats.length;
+		loadingMoreChats = false;
+		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
 	};
 
 	/**
@@ -919,10 +1071,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.addEventListener('language-changed', languageChangeHandler);
 
 		// Language change handler for demo chats - reload demos in new language
+		// DEBOUNCED: The 'language-changed' event fires multiple times in quick succession
+		// (once from updateNavigationAndBreadcrumbs, once from setTimeout in SettingsLanguage).
+		// Without debouncing, two concurrent loadDemoChatsFromServer(true) calls race against
+		// each other - the second call's communityDemoStore.clear() can wipe data that the
+		// first call just added, causing demo chat titles to briefly disappear or stay stale.
 		handleLanguageChangeForDemos = () => {
-			// Reload demos for ALL users when language changes
-			console.debug('[Chats] Language changed - reloading community demo chats');
-			loadDemoChatsFromServer(true); // Pass true to force reload
+			// Clear any pending debounce timer (collapses multiple rapid events into one)
+			if (languageChangeDemoDebounceTimer) {
+				clearTimeout(languageChangeDemoDebounceTimer);
+			}
+			languageChangeDemoDebounceTimer = setTimeout(() => {
+				languageChangeDemoDebounceTimer = null;
+				console.debug('[Chats] Language changed (debounced) - reloading community demo chats');
+				loadDemoChatsFromServer(true).catch(error => {
+					console.error('[Chats] Error reloading demo chats after language change:', error);
+				});
+			}, 100); // 100ms debounce - long enough to collapse double-dispatch, short enough to feel instant
 		};
 		window.addEventListener('language-changed', handleLanguageChangeForDemos);
 
@@ -945,9 +1110,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Clear the persistent store
 			activeChatStore.clearActiveChat();
 			
-			// Reset display limit to show all demo chats
-			displayLimit = Infinity;
-			allChatsDisplayed = true;
+			// Reset display state to show all demo chats
+			loadTier = 'all_local';
+			olderChatsFromServer = [];
+			hasMoreOnServer = false;
+			serverPaginationOffset = 100;
+			loadingMoreChats = false;
+			totalServerChatCount = 0;
 			
 			// Force a reactive update to ensure UI reflects the cleared state
 			// This is especially important if chats were already loaded before logout
@@ -1017,6 +1186,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatSyncService.addEventListener('phase_2_last_20_chats_ready', handlePhase2Last20ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
+		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -1243,19 +1413,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
-		// Check if sync has already completed - if so, expand display limit
+		// If sync was already completed before this component mounted, ensure we have the latest data
+		// This handles the case where the sidebar was closed during sync (common on mobile)
+		// We intentionally stay on Tier 1 (20 chats) — user clicks "Show more" to see the rest
 		if ($phasedSyncState.initialSyncCompleted) {
-			// CRITICAL: Expand display limit to show all chats since sync is already done
-			// Without this, only the first 20 chats would be visible until the user closes/reopens the sidebar
-			if (!allChatsDisplayed) {
-				displayLimit = Infinity;
-				allChatsDisplayed = true;
-				console.debug('[Chats] Sync was already complete on mount, expanded display limit to show all chats');
-			}
-			
-			// CRITICAL: If sync completed before this component mounted, ensure we have the latest data
-			// This handles the case where the sidebar was closed during sync (common on mobile)
 			await updateChatListFromDB();
+			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
 		}
 	});
 	
@@ -1286,10 +1449,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			return;
 		}
 
+		// ABORT MECHANISM: Cancel any previous in-flight reload when a forced reload starts.
+		// This prevents race conditions where an old reload's results overwrite new data.
+		if (forceLanguageReload && demoReloadAbortController) {
+			console.debug('[Chats] Aborting previous demo reload in favor of new language reload');
+			demoReloadAbortController.abort();
+		}
+		const abortController = new AbortController();
+		if (forceLanguageReload) {
+			demoReloadAbortController = abortController;
+		}
+
 		try {
 			// CRITICAL: Wait for translations to be fully loaded before fetching
 			// This ensures svelteLocaleStore has the correct language for the API call
 			await waitLocale();
+			
+			// Check if this reload was superseded by a newer one
+			if (abortController.signal.aborted) {
+				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
+				return;
+			}
 			
 			communityDemoStore.setLoading(true);
 			
@@ -1315,6 +1495,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				await communityDemoStore.loadFromCache();
 			}
 
+			// Check abort again before making network requests
+			if (abortController.signal.aborted) {
+				console.debug('[Chats] Demo reload aborted before fetch (superseded by newer reload)');
+				return;
+			}
+
 			// STEP 3: Get local content hashes for change detection
 			const localHashes = await getLocalContentHashes();
 			const hashesParam = Array.from(localHashes.entries())
@@ -1332,7 +1518,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				? getApiEndpoint(`/v1/demo/chats?lang=${currentLang}&hashes=${encodeURIComponent(hashesParam)}`)
 				: getApiEndpoint(`/v1/demo/chats?lang=${currentLang}`);
 			
-			const response = await fetch(url);
+			const response = await fetch(url, { signal: abortController.signal });
 			if (!response.ok) {
 				// If server is unavailable, use cached demos (offline mode)
 				if (getAllCommunityDemoChats().length > 0) {
@@ -1368,13 +1554,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 			// Load each demo chat that needs updating
 			for (const demoChatMeta of demosToFetch) {
+				// Check abort before each demo fetch to bail out quickly if superseded
+				if (abortController.signal.aborted) {
+					console.debug('[Chats] Demo reload aborted during fetch loop');
+					return;
+				}
+
 				const demoId = demoChatMeta.demo_id;
 				const contentHash = demoChatMeta.content_hash || '';
 				if (!demoId) continue;
 
 				try {
 					// Fetch individual demo chat data
-					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`));
+					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`), { signal: abortController.signal });
 					if (!chatResponse.ok) {
 						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
 						continue;
@@ -1479,6 +1671,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					newlyLoadedIds.push(demoId);
 					console.debug(`[Chats] Successfully loaded community demo ${demoId} (chat_id: ${chatId}) into memory and cache`);
 				} catch (error) {
+					// Re-throw abort errors to be caught by the outer catch
+					if (error instanceof DOMException && error.name === 'AbortError') {
+						throw error;
+					}
 					console.error(`[Chats] Error loading community demo ${demoId}:`, error);
 				}
 			}
@@ -1486,6 +1682,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			communityDemoStore.markAsLoaded();
 			console.debug(`[Chats] Finished loading community demos: ${newlyLoadedIds.length} updated, ${getAllCommunityDemoChats().length} total`);
 		} catch (error) {
+			// Don't log abort errors (expected when a reload is superseded by a newer one)
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
+				return; // Don't markAsLoaded - the newer reload will handle it
+			}
 			console.error('[Chats] Error loading community demo chats from server:', error);
 			communityDemoStore.markAsLoaded();
 		}
@@ -1551,6 +1752,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
+		if (languageChangeDemoDebounceTimer) clearTimeout(languageChangeDemoDebounceTimer);
+		if (demoReloadAbortController) demoReloadAbortController.abort();
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		if (unsubscribeAuth) unsubscribeAuth();
 		
@@ -1565,6 +1768,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatSyncService.removeEventListener('phase_2_last_20_chats_ready', handlePhase2Last20ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
+		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -2544,6 +2748,9 @@ async function updateChatListFromDBInternal(force = false) {
         } catch (error) {
             console.error('[Chats] Error in bulk download:', error);
             notificationStore.error('Failed to download chats. Please try again.');
+        } finally {
+            // Signal to Chat.svelte context menu that bulk download is complete
+            window.dispatchEvent(new CustomEvent('chatBulkDownloadComplete'));
         }
     }
 
@@ -2646,9 +2853,9 @@ async function updateChatListFromDBInternal(force = false) {
 <!--
   Chat List Template
   - Shows a loading indicator or "no chats" message.
-  - Iterates through grouped chats (respecting displayLimit for phased loading).
+  - Iterates through grouped chats (3-tier loading: initial 20, all local, then server pagination).
   - Renders each chat item using the ChatComponent.
-  - Provides a "Load all chats" button if not all chats are displayed.
+  - Provides a "Show more" button if more chats are available (local or server).
   - Shows demo chats for both authenticated and non-authenticated users.
 -->
 <div class="activity-history-wrapper">
@@ -2885,138 +3092,152 @@ async function updateChatListFromDBInternal(force = false) {
 				</div>
 			{/if}
 			
-			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
-			<div class="chat-groups">
-				{#each orderedGroupedChats as [groupKey, groupItems] (groupKey)}
-					{#if groupItems.length > 0}
-						<div class="chat-group">
-							<!-- Pass the translation function `$_` to the utility -->
-							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-							{#each groupItems as chat (chat.chat_id)}
-								<div
-									role="button"
-									tabindex="0"
-									class="chat-item"
-									class:active={selectedChatId === chat.chat_id}
-									class:incognito={chat.is_incognito}
-									onclick={(event) => {
-										handleChatItemClick(chat, event);
-									}}
-									onkeydown={(e) => {
-										// Handle keyboard selection with modifiers
-										const isShift = e.shiftKey;
-										const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), loadTier: {loadTier}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
+			
+			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
+			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
+				{#if groupItems.length > 0}
+					<div class="chat-group">
+						<!-- Pass the translation function `$_` to the utility -->
+						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+						{#each groupItems as chat (chat.chat_id)}
+							<div
+								role="button"
+								tabindex="0"
+								class="chat-item"
+								class:active={selectedChatId === chat.chat_id}
+								class:incognito={chat.is_incognito}
+								onclick={(event) => {
+									handleChatItemClick(chat, event);
+								}}
+								onkeydown={(e) => {
+									// Handle keyboard selection with modifiers
+									const isShift = e.shiftKey;
+									const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+									
+									if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
+										e.preventDefault();
 										
-										if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
-											e.preventDefault();
-											
-											// Shift+Space/Enter: Select range
-											if (isShift && lastSelectedChatId) {
-												const allChatsList = flattenedNavigableChats;
-												const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
-												const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+										// Shift+Space/Enter: Select range
+										if (isShift && lastSelectedChatId) {
+											const allChatsList = flattenedNavigableChats;
+											const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
+											const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
 
-												if (lastIndex !== -1 && currentIndex !== -1) {
-													if (!selectMode) {
-														selectMode = true;
-														selectedChatIds.clear();
-													}
-
-													const startIndex = Math.min(lastIndex, currentIndex);
-													const endIndex = Math.max(lastIndex, currentIndex);
-													
-													for (let i = startIndex; i <= endIndex; i++) {
-														selectedChatIds.add(allChatsList[i].chat_id);
-													}
-													selectedChatIds = new Set(selectedChatIds);
-													lastSelectedChatId = chat.chat_id;
-													return;
-												}
-											}
-											
-											// Cmd/Ctrl+Space/Enter: Toggle selection
-											if (isCmdOrCtrl) {
+											if (lastIndex !== -1 && currentIndex !== -1) {
 												if (!selectMode) {
 													selectMode = true;
-													if (selectedChatId) {
-														selectedChatIds.add(selectedChatId);
-														lastSelectedChatId = selectedChatId;
-													}
+													selectedChatIds.clear();
 												}
 
-												if (selectedChatIds.has(chat.chat_id)) {
-													selectedChatIds.delete(chat.chat_id);
-													if (lastSelectedChatId === chat.chat_id) {
-														const remaining = Array.from(selectedChatIds);
-														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-													}
-												} else {
-													selectedChatIds.add(chat.chat_id);
-													lastSelectedChatId = chat.chat_id;
+												const startIndex = Math.min(lastIndex, currentIndex);
+												const endIndex = Math.max(lastIndex, currentIndex);
+												
+												for (let i = startIndex; i <= endIndex; i++) {
+													selectedChatIds.add(allChatsList[i].chat_id);
 												}
 												selectedChatIds = new Set(selectedChatIds);
-												return;
-											}
-											
-											// Normal Space/Enter in select mode: toggle selection
-											if (selectMode) {
-												if (selectedChatIds.has(chat.chat_id)) {
-													selectedChatIds.delete(chat.chat_id);
-													if (lastSelectedChatId === chat.chat_id) {
-														const remaining = Array.from(selectedChatIds);
-														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-													}
-												} else {
-													selectedChatIds.add(chat.chat_id);
-													lastSelectedChatId = chat.chat_id;
-												}
-												selectedChatIds = new Set(selectedChatIds);
+												lastSelectedChatId = chat.chat_id;
 												return;
 											}
 										}
 										
-										// Fallback to normal keyboard navigation
-										handleKeyDown(e, chat);
-									}}
-									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-									aria-label={chat.encrypted_title || 'Unnamed chat'}
-								>
-									<ChatComponent 
-										chat={chat} 
-										activeChatId={selectedChatId}
-										selectMode={selectMode}
-										selectedChatIds={selectedChatIds}
-										onToggleSelection={(chatId: string) => {
-											if (selectedChatIds.has(chatId)) {
-												selectedChatIds.delete(chatId);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-											} else {
-												selectedChatIds.add(chatId);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										// Cmd/Ctrl+Space/Enter: Toggle selection
+										if (isCmdOrCtrl) {
+											if (!selectMode) {
+												selectMode = true;
+												if (selectedChatId) {
+													selectedChatIds.add(selectedChatId);
+													lastSelectedChatId = selectedChatId;
+												}
 											}
-										}}
-									/>
-								</div>
-							{/each}
-						</div>
-					{/if}
+
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+										
+										// Normal Space/Enter in select mode: toggle selection
+										if (selectMode) {
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+									}
+									
+									// Fallback to normal keyboard navigation
+									handleKeyDown(e, chat);
+								}}
+								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
+								aria-label={chat.encrypted_title || 'Unnamed chat'}
+							>
+								<ChatComponent 
+									chat={chat} 
+									activeChatId={selectedChatId}
+									selectMode={selectMode}
+									selectedChatIds={selectedChatIds}
+									onToggleSelection={(chatId: string) => {
+										if (selectedChatIds.has(chatId)) {
+											selectedChatIds.delete(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										} else {
+											selectedChatIds.add(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										}
+									}}
+								/>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{/snippet}
+			
+			<div class="chat-groups">
+				<!-- 1. User chat groups (time-based: today, yesterday, month groups, etc.) -->
+				{#each orderedUserChatGroups as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 				
-				{#if !allChatsDisplayed && allChats.length > displayLimit}
+				<!-- 2. "Show more" button — placed ABOVE static sections (intro, examples, legal)
+				     so users don't have to scroll past non-user content to load more of their chats -->
+				{#if showMoreButtonVisible}
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
-							onclick={() => {
-								displayLimit = Infinity;
-								allChatsDisplayed = true;
-								console.debug('[Chats] User clicked "Load all chats".');
-							}}
+							disabled={loadingMoreChats}
+							onclick={handleShowMoreClick}
 						>
-							{$text('chats.loadMore.button.text')}
-							({allChats.length - chatsForDisplay.length} {$text('chats.loadMore.more.text')})
+							{#if loadingMoreChats}
+								...
+							{:else}
+								{$text('chats.loadMore.button.text')}
+							{/if}
 						</button>
 					</div>
 				{/if}
+				
+				<!-- 3. Static chat groups (shared_by_others, intro, examples, legal) -->
+				{#each orderedStaticChatGroups as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
+				{/each}
 			</div>
 		{/if}
 

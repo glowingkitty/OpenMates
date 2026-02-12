@@ -7,12 +7,13 @@ provider_id: "context7"
 name: "Context7"
 description: "Documentation retrieval API for programming libraries and frameworks. Provides up-to-date documentation from official sources."
 logo_svg: "logos/context7.svg" # Path for UI, relative to a common logos directory
+region: "US" # Context7 is a US-based service
 
 # API endpoint configuration
 api_base_url: "https://context7.com/api/v2"
 
 # Context7 API Plans (https://context7.com/plans)
-# 
+#
 # **Free Plan:**
 # - Price: $0
 # - API Calls: 500/month
@@ -41,7 +42,7 @@ rate_limits:
     requests_per_month: 500
   pro:
     requests_per_second: 50
-    requests_per_month: null  # 1000 free per seat, then overage billing
+    requests_per_month: null # 1000 free per seat, then overage billing
 
 # Pricing information
 # Cost per request in credits (user-facing pricing)
@@ -64,5 +65,5 @@ rate_limits:
 # - Users are charged 20 credits per get_docs request
 # - This covers Context7 API costs (we absorb the LLM selection overhead)
 pricing:
-  per_request_credits: 20  # 20 credits per get_docs request
+  per_request_credits: 20 # 20 credits per get_docs request
 

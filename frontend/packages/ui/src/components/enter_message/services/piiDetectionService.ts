@@ -363,12 +363,23 @@ const PII_PATTERNS: PIIPattern[] = [
     // Validate: require at least 7 digits total (country code excluded) to avoid
     // matching short number-like strings (zip codes, years, short IDs).
     validate: (match: string) => {
-      const digits = match.replace(/\D/g, "");
+      const trimmed = match.trim();
+      const digits = trimmed.replace(/\D/g, "");
       // Phone numbers have at least 7 digits (local) and at most 15 (ITU-T E.164)
       if (digits.length < 7 || digits.length > 15) return false;
       // Reject matches that are purely a year-like 4-digit number (shouldn't happen
       // given min 7 digits, but guard against edge cases)
-      if (/^\d{4}$/.test(match.trim())) return false;
+      if (/^\d{4}$/.test(trimmed)) return false;
+      // Reject date formats to avoid false positives on dates like 2026-04-12
+      // ISO: YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
+      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) return false;
+      // European/other: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY, MM-DD-YYYY
+      if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(trimmed)) return false;
+      // Compact date without separators: YYYYMMDD (8 digits starting with 19xx or 20xx)
+      if (/^(?:19|20)\d{6}$/.test(trimmed)) return false;
+      // Partial date fragments: 0DD-MM-YY or 0D-MM-DD patterns (e.g. "026-04-12"
+      // captured when regex grabs a substring from "2026-04-12")
+      if (/^0\d{1,2}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) return false;
       return true;
     },
   },

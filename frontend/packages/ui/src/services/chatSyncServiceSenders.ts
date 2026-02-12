@@ -15,6 +15,7 @@ import type {
   UpdateDraftPayload,
   DeleteDraftPayload,
   DeleteChatPayload,
+  DeleteMessagePayload,
   SetActiveChatPayload,
   CancelAITaskPayload,
   SyncOfflineChangesPayload, // Assuming this is used by a sender method if sendOfflineChanges is moved
@@ -204,6 +205,50 @@ export async function sendDeleteChatImpl(
       error,
     );
     throw error; // Re-throw so caller can handle the error
+  }
+}
+
+/**
+ * Send delete message request to server.
+ * NOTE: The actual deletion from IndexedDB should be done by the caller
+ * before calling this function. This function only handles server communication.
+ * @param chat_id - The ID of the chat containing the message
+ * @param message_id - The client_message_id of the message to delete
+ * @param embed_ids_to_delete - Optional array of embed IDs to delete on the server (not shared with other chats)
+ */
+export async function sendDeleteMessageImpl(
+  serviceInstance: ChatSynchronizationService,
+  chat_id: string,
+  message_id: string,
+  embed_ids_to_delete?: string[],
+): Promise<void> {
+  const payload: DeleteMessagePayload = {
+    chatId: chat_id,
+    messageId: message_id,
+  };
+
+  // Include embed IDs if any need server-side cleanup
+  if (embed_ids_to_delete && embed_ids_to_delete.length > 0) {
+    payload.embedIdsToDelete = embed_ids_to_delete;
+  }
+
+  try {
+    console.debug(
+      `[ChatSyncService:Senders] Sending delete_message request to server for message ${message_id} in chat ${chat_id}` +
+        (embed_ids_to_delete?.length
+          ? ` (${embed_ids_to_delete.length} embeds to delete)`
+          : ""),
+    );
+    await webSocketService.sendMessage("delete_message", payload);
+    console.debug(
+      `[ChatSyncService:Senders] Delete message request sent successfully for message ${message_id}`,
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:Senders] Error sending delete_message request for message ${message_id}:`,
+      error,
+    );
+    throw error;
   }
 }
 
@@ -1373,36 +1418,42 @@ export async function sendSetActiveChatImpl(
     return;
   }
 
-  // CRITICAL: Update IndexedDB immediately when switching chats or opening new chat window
-  // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server)
-  // The server update happens via WebSocket, but IndexedDB update is immediate for better UX
-  try {
-    // Import userDB and updateProfile dynamically to avoid circular dependencies
-    const { userDB } = await import("../services/userDB");
-    const { updateProfile } = await import("../stores/userProfile");
+  // CRITICAL: Update IndexedDB immediately when switching chats (but NOT for new chat window).
+  // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server).
+  // The server update happens via WebSocket, but IndexedDB update is immediate for better UX.
+  //
+  // When chatId is null (new chat window), we intentionally do NOT update last_opened.
+  // This preserves the previous real chat ID so the "Continue where you left off" resume card
+  // always shows the last chat with actual content, not a blank new chat screen.
+  // Signup paths (e.g. '/signup/one_time_codes') and '/chat/new' (signup completion) are passed
+  // as explicit string values, not null, so they still get stored correctly.
+  if (chatId !== null) {
+    try {
+      // Import userDB and updateProfile dynamically to avoid circular dependencies
+      const { userDB } = await import("../services/userDB");
+      const { updateProfile } = await import("../stores/userProfile");
 
-    // Determine the last_opened value:
-    // - If chatId is a real chat ID, use it
-    // - If chatId is null (new chat window), use '/chat/new'
-    // - This ensures tab reload opens the correct view (chat or new chat window)
-    const lastOpenedValue = chatId || "/chat/new";
+      // Update IndexedDB with new last_opened chat
+      // This is the source of truth for tab reload scenarios
+      await userDB.updateUserData({ last_opened: chatId });
 
-    // Update IndexedDB with new last_opened chat/window
-    // This is the source of truth for tab reload scenarios
-    await userDB.updateUserData({ last_opened: lastOpenedValue });
+      // Also update the userProfile store to keep it in sync
+      updateProfile({ last_opened: chatId });
 
-    // Also update the userProfile store to keep it in sync
-    updateProfile({ last_opened: lastOpenedValue });
-
+      console.debug(
+        `[ChatSyncService:Senders] Updated IndexedDB with last_opened: ${chatId}`,
+      );
+    } catch (error) {
+      console.error(
+        `[ChatSyncService:Senders] Error updating IndexedDB with last_opened: ${chatId}:`,
+        error,
+      );
+      // Don't fail the whole operation if IndexedDB update fails
+    }
+  } else {
     console.debug(
-      `[ChatSyncService:Senders] Updated IndexedDB with last_opened: ${lastOpenedValue} (chatId: ${chatId})`,
+      `[ChatSyncService:Senders] Skipping last_opened update for new chat window (preserving previous value)`,
     );
-  } catch (error) {
-    console.error(
-      `[ChatSyncService:Senders] Error updating IndexedDB with last_opened: ${chatId}:`,
-      error,
-    );
-    // Don't fail the whole operation if IndexedDB update fails
   }
 
   // Send to server via WebSocket (for cross-device sync and login scenarios)
@@ -2487,5 +2538,31 @@ export async function sendRejectSettingsMemorySuggestionImpl(
     );
     // Don't throw - rejection is already applied locally
     // Server sync failure is non-critical
+  }
+}
+
+/**
+ * Request additional older chats from the server beyond the initial 100.
+ * Used by the "Show more" button for on-demand pagination.
+ * Chats returned are metadata-only (no messages) and stored in memory only.
+ */
+export async function sendLoadMoreChatsImpl(
+  serviceInstance: ChatSynchronizationService,
+  offset: number,
+  limit: number = 20,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("load_more_chats", {
+      offset,
+      limit,
+    });
+    console.info(
+      `[ChatSyncService:Senders] Requested more chats: offset=${offset}, limit=${limit}`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Senders] Error requesting more chats:",
+      error,
+    );
   }
 }

@@ -783,17 +783,19 @@ class ChatMethods:
             return None
 
     async def get_core_chats_and_user_drafts_for_cache_warming(
-        self, user_id: str, limit: int = 1000
+        self, user_id: str, limit: int = 1000, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Fetches core data for multiple chats and all user drafts in a batched manner.
+        Supports pagination via offset parameter for loading older chats on demand.
         """
-        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
+        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}, offset: {offset}")
         chat_params = {
             'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
             'fields': CORE_CHAT_FIELDS_FOR_WARMING,
             'sort': '-pinned,-last_edited_overall_timestamp',
-            'limit': limit
+            'limit': limit,
+            'offset': offset
         }
         results_list = []
         try:
@@ -994,6 +996,40 @@ class ChatMethods:
             return success
         except Exception as e:
             logger.error(f"Error deleting all messages for chat_id: {chat_id}: {e}", exc_info=True)
+            return False
+
+    async def delete_message_by_client_id(self, chat_id: str, client_message_id: str) -> bool:
+        """
+        Deletes a single message from the 'messages' collection by its client_message_id.
+        Verifies the message belongs to the specified chat_id for safety.
+        """
+        logger.info(f"Attempting to delete message with client_message_id: {client_message_id} from chat: {chat_id}")
+        try:
+            # Query for the message by client_message_id AND chat_id (safety check)
+            message_params = {
+                'filter[client_message_id][_eq]': client_message_id,
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',
+                'limit': 1
+            }
+            messages = await self.directus_service.get_items('messages', params=message_params)
+            if not messages:
+                logger.info(f"No message found with client_message_id: {client_message_id} in chat: {chat_id}. Nothing to delete.")
+                return True  # Treat as success - message doesn't exist
+
+            directus_id = messages[0].get('id')
+            if not directus_id:
+                logger.error(f"Found message with client_message_id: {client_message_id} but it has no Directus ID.")
+                return False
+
+            success = await self.directus_service.delete_item(collection='messages', item_id=directus_id)
+            if success:
+                logger.info(f"Successfully deleted message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            else:
+                logger.warning(f"Failed to delete message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting message {client_message_id} from chat {chat_id}: {e}", exc_info=True)
             return False
 
     async def persist_delete_chat(self, chat_id: str) -> bool:

@@ -3,7 +3,7 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
+    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth, logout } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
@@ -128,6 +128,7 @@
     // Shows either 2FA or passkey verification depending on deviceVerificationType
     let showVerifyDeviceView = $derived($needsDeviceVerification);
     let verifyDeviceType = $derived($deviceVerificationType);
+    let verifyDeviceReason = $derived($deviceVerificationReason);
 
     /**
      * Clear pending draft from sessionStorage for privacy reasons
@@ -329,6 +330,7 @@
         verifyDeviceErrorMessage = null;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        deviceVerificationReason.set(null);
         
         // Clear general login errors and warnings
         loginFailedWarning = false;
@@ -1796,6 +1798,7 @@
         showTfaView = false;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        deviceVerificationReason.set(null);
         
         // Stop the timer
         stopInactivityTimer();
@@ -1843,24 +1846,31 @@
     // --- End Inactivity Timer Functions ---
 
 
-    // Handler to switch back from 2FA, passkey, or Device Verify view to standard login
-    function handleSwitchBackToLogin() {
+    // Handler to switch back from device verification view to standard login.
+    // Triggers a full logout to clear all client-side user data (crypto keys, IndexedDB,
+    // cookies, session) for security — especially important when re-auth was triggered
+    // by a country change, which could indicate unauthorized access.
+    async function handleSwitchBackToLogin() {
+        console.debug('[Login] handleSwitchBackToLogin: triggering full logout for clean state');
+        
+        // Perform full logout — clears master key, email keys, IndexedDB, cookies,
+        // WebSocket, session, and calls the backend logout endpoint
+        await logout();
+        
+        // Reset local UI state after logout completes
         showTfaView = false;
-        needsDeviceVerification.set(false); // Explicitly turn off device verification flag
-        deviceVerificationType.set(null); // Reset verification type
-        email = ''; // Clear email
-        password = ''; // Clear password
-        tfaErrorMessage = null; // Clear 2FA errors
-        verifyDeviceErrorMessage = null; // Clear device verification errors
-        loginFailedWarning = false; // Clear general login errors
-        // Reset to email step
+        email = '';
+        password = '';
+        tfaErrorMessage = null;
+        verifyDeviceErrorMessage = null;
+        loginFailedWarning = false;
         currentLoginStep = 'email';
         
-        // PRIVACY: Clear pending draft when user switches back from 2FA/Device Verify to login
+        // PRIVACY: Clear pending draft when user switches back from Device Verify to login
         // This ensures the saved message is deleted if user doesn't complete the flow
         clearPendingDraft();
         
-        // Optionally focus email input after a tick if not touch
+        // Focus email input after a tick if not touch
         tick().then(() => {
             if (emailInput && !isTouchDevice) {
                 emailInput.focus();
@@ -2158,6 +2168,7 @@
                                 <div in:fade={{ duration: 200 }}>
                                     {#if verifyDeviceType === 'passkey'}
                                         <VerifyDevicePasskey
+                                            reason={verifyDeviceReason}
                                             bind:isLoading
                                             bind:errorMessage={verifyDeviceErrorMessage}
                                             on:deviceVerified={async () => {
@@ -2170,6 +2181,7 @@
                                         />
                                     {:else}
                                         <VerifyDevice2FA
+                                            reason={verifyDeviceReason}
                                             bind:isLoading
                                             bind:errorMessage={verifyDeviceErrorMessage}
                                             on:deviceVerified={async () => {

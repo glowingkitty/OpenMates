@@ -428,45 +428,10 @@
   }
   
   /**
-   * Handle share button click
+   * Share is handled by UnifiedEmbedFullscreen's built-in share handler
+   * which uses currentEmbedId, appId, and skillId to construct the embed
+   * share context and properly opens the settings panel (including on mobile).
    */
-  async function handleShare() {
-    try {
-      console.debug('[WebReadEmbedFullscreen] Opening share settings:', { embedId, url: effectiveUrl });
-      
-      if (!embedId) {
-        console.warn('[WebReadEmbedFullscreen] No embed_id available - cannot create share link');
-        const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this embed. Missing embed ID.');
-        return;
-      }
-      
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-      
-      // Set embed context for SettingsShare
-      const embedContext = {
-        type: 'web_read',
-        embed_id: embedId,
-        url: effectiveUrl,
-        title: displayTitle
-      };
-      
-      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
-      
-      // Navigate to share settings
-      navigateToSettings('shared/share', 'Share', 'share', 'settings.share.text');
-      settingsDeepLink.set('shared/share');
-      panelState.openSettings();
-      
-    } catch (error) {
-      console.error('[WebReadEmbedFullscreen] Error opening share settings:', error);
-      const { notificationStore } = await import('../../../stores/notificationStore');
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -474,7 +439,6 @@
   skillId="read"
   title=""
   {onClose}
-  onShare={handleShare}
   skillIconName="text"
   status="finished"
   currentEmbedId={embedId}

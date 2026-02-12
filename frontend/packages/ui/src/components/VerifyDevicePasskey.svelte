@@ -20,9 +20,11 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
 
     // Props using Svelte 5 runes
     let {
+        reason = null,
         isLoading = $bindable(false),
         errorMessage = $bindable(null)
     }: {
+        reason?: 'new_device' | 'location_change' | null;
         isLoading?: boolean;
         errorMessage?: string | null;
     } = $props();
@@ -225,6 +227,13 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
 </script>
 
 <div class="verify-device-passkey">
+    {#if reason === 'location_change'}
+        <div class="location-change-notice">
+            <span class="icon icon_shield"></span>
+            <p>{$text('login.verify_device_location_change_notice.text')}</p>
+        </div>
+    {/if}
+
     <p class="verify-prompt">
         {$text('login.verify_device_passkey_prompt.text')}
     </p>
@@ -261,6 +270,31 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     .verify-device-passkey {
         display: flex;
         flex-direction: column;
+    }
+
+    .location-change-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 15px;
+        background-color: var(--color-warning-bg, var(--color-grey-10));
+        border-radius: 8px;
+        border-left: 3px solid var(--color-warning, var(--color-primary));
+    }
+
+    .location-change-notice .icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .location-change-notice p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--color-grey-70);
     }
 
     .verify-prompt {

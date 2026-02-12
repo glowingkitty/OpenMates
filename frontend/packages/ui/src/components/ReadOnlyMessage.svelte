@@ -755,8 +755,12 @@
                 }
             },
             {
-                // Start loading slightly before message becomes visible (100px buffer)
-                rootMargin: '100px',
+                // Start loading well before message becomes visible to prevent
+                // content cutoff during fast scrolling. 500px buffer ensures editors
+                // are initialized roughly half a mobile screen before entering viewport,
+                // eliminating visual glitches while keeping memory usage reasonable
+                // (only ~2-3 extra editors pre-initialized at any time).
+                rootMargin: '500px',
                 threshold: 0.01
             }
         );
@@ -846,20 +850,19 @@
                 // Re-apply PII decorations after content update
                 applyPIIDecorations(editor);
                 
-                // STREAMING FIX: After content renders, update min-height if content grew taller
-                // This allows smooth upward growth while preventing any shrinkage during streaming
+                // STREAMING FIX: After content renders, update min-height to match actual content.
+                // Always track the real height to prevent both collapse AND stale over-sizing.
+                // The pre-setContent min-height above prevents the brief visual collapse during
+                // the TipTap DOM rebuild; here we reconcile to the actual rendered height.
                 if (isStreaming && editorElement) {
                     requestAnimationFrame(() => {
                         if (!editorElement) return;
-                        const newHeight = editorElement.offsetHeight;
-                        const currentMinHeight = preservedMinHeight || 0;
-                        
-                        if (newHeight > currentMinHeight) {
-                            // Content grew - update min-height to the new larger value
-                            editorElement.style.minHeight = `${newHeight}px`;
-                            preservedMinHeight = newHeight;
-                        }
-                        // If content is shorter, keep the previous min-height to prevent collapse
+                        const newHeight = editorElement.scrollHeight;
+                        // Always update min-height to match the actual content.
+                        // This prevents stale min-height from keeping the container stretched
+                        // when embed groups are rebuilt at a different height.
+                        editorElement.style.minHeight = `${newHeight}px`;
+                        preservedMinHeight = newHeight;
                     });
                 }
             }
@@ -927,23 +930,31 @@
     }
     
     /* STREAMING FIX: Use CSS containment during streaming to prevent layout thrashing.
-       contain: layout prevents the browser from recalculating layout for ancestors
-       when the content inside this element changes. This significantly reduces
-       the visual stutter during streaming updates. */
+       contain: style prevents style recalculations from propagating to ancestors,
+       while still allowing height changes to flow normally to the parent container.
+       
+       IMPORTANT: We previously used `contain: layout` which prevented the container from
+       reporting its actual size to parent elements. This caused the "text stretching" glitch
+       where content grew but the bubble/scroll container didn't resize properly.
+       `contain: style` is sufficient to prevent style recalculation cascading without
+       blocking height propagation. */
     .read-only-message.is-streaming {
-        contain: layout;
+        contain: style;
     }
     
     /* STREAMING FIX: Ensure editor-content transitions smoothly during streaming.
-       The will-change hint tells the browser to optimize for height changes. */
+       overflow-anchor: none prevents the browser's automatic scroll anchoring from
+       fighting with our manual scroll position management during streaming. */
     .editor-content {
         /* Prevent sudden height collapse by ensuring content always takes space */
         min-height: 1em;
     }
     
     .read-only-message.is-streaming .editor-content {
-        /* Hint to browser that height will change, enabling GPU optimization */
-        will-change: contents;
+        /* Disable browser's automatic scroll anchoring during streaming.
+           Without this, the browser tries to "helpfully" adjust scroll position when
+           content above the anchor changes height, causing visual jumps. */
+        overflow-anchor: none;
     }
 
     /* Style overrides for read-only mode */

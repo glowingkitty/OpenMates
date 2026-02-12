@@ -30,6 +30,7 @@ import {
   authStore,
   needsDeviceVerification,
   deviceVerificationType,
+  deviceVerificationReason,
 } from "./authState";
 
 /**
@@ -226,6 +227,7 @@ export function setAuthenticated(value: boolean) {
     isResettingTFA.set(false);
     needsDeviceVerification.set(false);
     deviceVerificationType.set(null);
+    deviceVerificationReason.set(null);
     isInSignupProcess.set(false); // Ensure signup process is reset
   }
 }

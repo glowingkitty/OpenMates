@@ -78,6 +78,10 @@
   // Full suggestions pool (decrypted only), used for filtering
   let fullSuggestions = $state<string[]>([]);
   let loading = $state(true);
+  // Whether we're showing default (placeholder) suggestions before user's real ones arrive
+  let showingDefaults = $state(true);
+  // Fade transition state: 'visible' | 'fading-out' | 'fading-in'
+  let fadeState = $state<'visible' | 'fading-out' | 'fading-in'>('visible');
   // Carousel state - tracks current page (0-indexed)
   let currentSlide = $state(0);
   let suggestionsPerSlide = 3;
@@ -86,37 +90,83 @@
   let previousAuthState = $authStore.isAuthenticated;
 
   /**
-   * Load suggestions from IndexedDB (auth) or defaults (non-auth)
+   * Build the default suggestions array from translation keys.
+   * Used for non-auth users, as initial placeholder while sync loads, and as fallback.
+   */
+  function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
+      const t = get(_);
+      const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+      const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+      return shuffleArray(plainTextSuggestions.map(text => ({
+          text,
+          encrypted: '', // No encrypted version for default suggestions
+          id: '' // No ID for default suggestions
+      })));
+  }
+
+  /**
+   * Apply default suggestions to component state (used for immediate display).
+   */
+  function applyDefaultSuggestions() {
+      const defaults = buildDefaultSuggestions();
+      fullSuggestionsWithEncrypted = defaults;
+      fullSuggestions = defaults.map(s => s.text);
+      currentSlide = 0;
+      showingDefaults = true;
+  }
+
+  /**
+   * Transition from current suggestions to new ones with a fade-out / fade-in animation.
+   * Used when user's real suggestions arrive to replace the default placeholder suggestions.
+   */
+  function transitionToSuggestions(newSuggestions: Array<{ text: string; encrypted: string; id: string }>) {
+      // If currently showing defaults and new suggestions are different, do a crossfade
+      if (showingDefaults && newSuggestions.length > 0) {
+          fadeState = 'fading-out';
+          // After fade-out completes (200ms), swap data and fade-in
+          setTimeout(() => {
+              fullSuggestionsWithEncrypted = newSuggestions;
+              fullSuggestions = newSuggestions.map(s => s.text);
+              currentSlide = 0;
+              showingDefaults = false;
+              fadeState = 'fading-in';
+              // After fade-in completes, reset to normal visible state
+              setTimeout(() => {
+                  fadeState = 'visible';
+              }, 200);
+          }, 200);
+      } else {
+          // No transition needed - just swap directly (e.g. already showing user suggestions)
+          fullSuggestionsWithEncrypted = newSuggestions;
+          fullSuggestions = newSuggestions.map(s => s.text);
+          currentSlide = 0;
+          showingDefaults = newSuggestions.length === 0 || newSuggestions.every(s => s.id === '');
+      }
+  }
+
+  /**
+   * Load suggestions from IndexedDB (auth) or defaults (non-auth).
+   * For authenticated users, shows default suggestions immediately and transitions
+   * to real suggestions once they're loaded from IndexedDB.
    */
   const loadSuggestions = async () => {
-      loading = true;
-      
       // For non-authenticated users, use default suggestions instead of IndexedDB
       if (!$authStore.isAuthenticated) {
           console.debug('[NewChatSuggestions] Non-authenticated user - using default suggestions');
-          // Translate the suggestion keys to the current locale
-          const t = get(_);
-          const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-          
-          // Strip HTML tags from translated suggestions to display as plain text
-          const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-          
-          // Use default suggestions (no encrypted versions or IDs for non-auth users)
-          const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
-              text,
-              encrypted: '', // No encrypted version for default suggestions
-              id: '' // No ID for default suggestions
-          }));
-          // Shuffle default suggestions for variety
-          fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
-          fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
-          console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length);
-          currentSlide = 0; // Reset to first page when suggestions are reloaded
+          applyDefaultSuggestions();
           loading = false;
           return;
       }
 
-      // For authenticated users, load from IndexedDB
+      // For authenticated users: show defaults immediately so UI isn't empty,
+      // then transition to real suggestions when they're ready
+      if (loading && fullSuggestions.length === 0) {
+          applyDefaultSuggestions();
+          loading = false; // Show defaults immediately - no loading spinner
+          console.debug('[NewChatSuggestions] Showing default suggestions while loading user data');
+      }
+
+      // Load real suggestions from IndexedDB in the background
       // Handle case where database might be unavailable (e.g., during logout/deletion)
       try {
           await chatDB.init();
@@ -138,75 +188,28 @@
                   };
               })
           );
-          fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string; id: string } => s !== null);
+          let realSuggestions = decryptedSuggestions.filter((s): s is { text: string; encrypted: string; id: string } => s !== null);
 
           // Shuffle suggestions to ensure random order (not always newest-first)
-          // This provides variety in what users see each time suggestions are loaded
-          fullSuggestionsWithEncrypted = shuffleArray(fullSuggestionsWithEncrypted);
+          realSuggestions = shuffleArray(realSuggestions);
 
-          // Create decrypted-only array for filtering (maintains shuffled order)
-          fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
-
-          // CRITICAL FIX: If authenticated user has no suggestions, fall back to default suggestions
-          // This ensures users always see suggestions even if they haven't been set up yet
-          if ($authStore.isAuthenticated && fullSuggestions.length === 0) {
-              console.debug('[NewChatSuggestions] Authenticated user has no suggestions - falling back to default suggestions');
-              // Translate the suggestion keys to the current locale
-              const t = get(_);
-              const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-              
-              // Strip HTML tags from translated suggestions to display as plain text
-              const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-              
-              // Use default suggestions (no encrypted versions or IDs for fallback)
-              const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
-                  text,
-                  encrypted: '', // No encrypted version for default suggestions
-                  id: '' // No ID for default suggestions
-              }));
-              // Shuffle default suggestions for variety
-              fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
-              fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
+          // If authenticated user has real suggestions, transition to them
+          if (realSuggestions.length > 0) {
+              console.debug('[NewChatSuggestions] Loaded user suggestions, transitioning:', realSuggestions.length);
+              transitionToSuggestions(realSuggestions);
+          } else {
+              // No real suggestions yet - keep showing defaults (already displayed)
+              console.debug('[NewChatSuggestions] No user suggestions found, keeping defaults');
           }
-
-          console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length);
-          currentSlide = 0; // Reset to first page when suggestions are reloaded
       } catch (error) {
           // Handle database errors gracefully (e.g., database being deleted during logout)
-          // For non-authenticated users, this is expected - they don't need suggestions from DB
           if (!$authStore.isAuthenticated) {
-              console.debug('[NewChatSuggestions] Database unavailable for non-authenticated user - using default suggestions');
-              // Use default suggestions for non-authenticated users
-              const t = get(_);
-              const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-              const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-              const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
-                  text,
-                  encrypted: '', // No encrypted version for default suggestions
-                  id: '' // No ID for default suggestions
-              }));
-              // Shuffle default suggestions for variety
-              fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
-              fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
-              currentSlide = 0; // Reset to first page when suggestions are reloaded
+              console.debug('[NewChatSuggestions] Database unavailable for non-authenticated user - keeping default suggestions');
           } else {
               console.error('[NewChatSuggestions] Error loading suggestions:', error);
-              // For authenticated users with errors, also fall back to defaults
-              const t = get(_);
-              const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-              const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-              const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
-                  text,
-                  encrypted: '', // No encrypted version for default suggestions
-                  id: '' // No ID for default suggestions
-              }));
-              // Shuffle default suggestions for variety
-              fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
-              fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
-              currentSlide = 0; // Reset to first page when suggestions are reloaded
+              // Keep defaults visible - already showing them
+              console.debug('[NewChatSuggestions] Keeping default suggestions after error');
           }
-      } finally {
-          loading = false;
       }
   };
 
@@ -682,7 +685,7 @@
 </script>
 
 {#if !loading && visibleSuggestions.length > 0}
-  <div class="suggestions-wrapper">
+  <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
         {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
@@ -736,6 +739,21 @@
   .suggestions-wrapper {
     animation: fadeIn 200ms ease-out;
     animation-delay: 200ms;
+    transition: opacity 200ms ease;
+    opacity: 1;
+    position: relative;
+  }
+
+  /* Fade-out when transitioning from default to user suggestions */
+  .suggestions-wrapper.fade-out {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+  }
+
+  /* Fade-in when user suggestions are ready */
+  .suggestions-wrapper.fade-in {
+    opacity: 0;
+    animation: fadeIn 200ms ease-in forwards;
   }
 
   .suggestions-header {
@@ -773,6 +791,25 @@
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
     min-height: 60px;
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Gradient fade background that extends above the suggestions to overlay
+     background content (e.g., report issue button, chat content).
+     Matches the same pattern used in FollowUpSuggestions for consistency. */
+  .suggestions-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    bottom: -10px;
+    left: -9999px;
+    right: -9999px;
+    /* Gradient stays solid longer with a smoother, more gradual fade at the top
+       This ensures smooth transition while maintaining readability */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    z-index: -1;
+    pointer-events: none;
   }
 
   .carousel-nav {

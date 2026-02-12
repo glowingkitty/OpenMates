@@ -5,6 +5,7 @@
 
 import logging
 import asyncio
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -40,6 +41,8 @@ class UsageMethods:
         system_prompt_tokens: Optional[int] = None,
         api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
+        server_provider: Optional[str] = None,  # Server provider display name (e.g., "AWS Bedrock")
+        server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
     ) -> Optional[str]:
         """
         Creates a new usage entry in Directus.
@@ -67,6 +70,8 @@ class UsageMethods:
             system_prompt_tokens: Optional system prompt + history token count (only saved for AI Ask skill)
             api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
+            server_provider: Optional server provider display name (e.g., "AWS Bedrock", "Anthropic API"). Only for AI Ask skill.
+            server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
         """
         log_prefix = f"DirectusService ({self.collection}):"
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
@@ -154,6 +159,23 @@ class UsageMethods:
             encrypted_user_input_tokens = None
             encrypted_system_prompt_tokens = None
 
+            # Encrypt server provider and region for ALL skills (not gated to AI Ask)
+            # This allows non-AI skills (web search, images, maps, etc.) to also display
+            # provider and region info in the usage detail view.
+            encrypted_server_provider = None
+            encrypted_server_region = None
+            if server_provider:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=server_provider
+                )
+                encrypted_server_provider = res[0] if res else None
+            
+            if server_region:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=server_region
+                )
+                encrypted_server_region = res[0] if res else None
+
             if should_save_tokens:
                 if actual_input_tokens is not None:
                     encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -227,6 +249,10 @@ class UsageMethods:
                 payload["encrypted_credits_costs_history"] = encrypted_credits_costs_history
             if encrypted_credits_costs_response:
                 payload["encrypted_credits_costs_response"] = encrypted_credits_costs_response
+            if encrypted_server_provider:
+                payload["encrypted_server_provider"] = encrypted_server_provider
+            if encrypted_server_region:
+                payload["encrypted_server_region"] = encrypted_server_region
 
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
@@ -248,6 +274,21 @@ class UsageMethods:
                 except Exception as e_summary:
                     # Log error but don't fail usage entry creation
                     logger.error(f"{log_prefix} Error updating monthly summaries: {e_summary}", exc_info=True)
+                
+                # Update daily summaries incrementally (fire-and-forget, non-blocking)
+                # Daily summaries power the Overview tab in usage settings
+                try:
+                    await self._update_daily_summaries(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                        credits_charged=credits_charged,
+                        chat_id=normalized_chat_id,
+                        app_id=app_id,
+                        api_key_hash=api_key_hash
+                    )
+                except Exception as e_daily:
+                    # Log error but don't fail usage entry creation
+                    logger.error(f"{log_prefix} Error updating daily summaries: {e_daily}", exc_info=True)
                 
                 return entry_id
             else:
@@ -423,6 +464,373 @@ class UsageMethods:
             logger.error(f"{log_prefix} Error updating {collection} summary: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
 
+    async def _update_daily_summaries(
+        self,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str]
+    ):
+        """
+        Update daily summaries incrementally when a usage entry is created.
+        Mirrors the monthly summary pattern but groups by date (YYYY-MM-DD).
+        Daily summaries power the Overview tab in the usage settings page.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            timestamp: Unix timestamp in seconds
+            credits_charged: Number of credits charged
+            chat_id: Optional chat ID (for chat summaries)
+            app_id: App identifier (for app summaries)
+            api_key_hash: Optional API key hash (for API key summaries)
+        """
+        log_prefix = "DirectusService (daily summaries):"
+        
+        try:
+            # Convert timestamp to date format (YYYY-MM-DD)
+            dt = datetime.fromtimestamp(timestamp)
+            date_str = dt.strftime("%Y-%m-%d")
+            
+            # Update chat daily summary if chat_id is provided and it's not an API request
+            if chat_id and not api_key_hash:
+                await self._update_daily_summary(
+                    collection="usage_daily_chat_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="chat_id",
+                    identifier_value=chat_id,
+                    date_str=date_str,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix
+                )
+            
+            # Update app daily summary (always, since app_id is required)
+            await self._update_daily_summary(
+                collection="usage_daily_app_summaries",
+                user_id_hash=user_id_hash,
+                identifier_key="app_id",
+                identifier_value=app_id,
+                date_str=date_str,
+                credits_charged=credits_charged,
+                log_prefix=log_prefix
+            )
+            
+            # Update API key daily summary if api_key_hash is provided
+            if api_key_hash:
+                await self._update_daily_summary(
+                    collection="usage_daily_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=api_key_hash,
+                    date_str=date_str,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix
+                )
+            
+            # Invalidate daily overview cache
+            # Clear common day ranges so the overview tab refreshes
+            for days in [7, 14, 30]:
+                cache_key = f"usage_daily_overview:{user_id_hash}:{days}"
+                await self.sdk.cache.delete(cache_key)
+                
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating daily summaries: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def _update_daily_summary(
+        self,
+        collection: str,
+        user_id_hash: str,
+        identifier_key: str,
+        identifier_value: str,
+        date_str: str,
+        credits_charged: int,
+        log_prefix: str
+    ):
+        """
+        Update or create a daily summary record.
+        Similar to _update_summary but uses 'date' (YYYY-MM-DD) instead of 'year_month'.
+        Daily tables don't have is_archived/archive_s3_key fields.
+        
+        Args:
+            collection: Name of the daily summary collection
+            user_id_hash: Hashed user identifier
+            identifier_key: Key name for the identifier (e.g., "chat_id", "app_id", "api_key_hash")
+            identifier_value: Value of the identifier
+            date_str: Date in format "YYYY-MM-DD"
+            credits_charged: Number of credits to add
+            log_prefix: Logging prefix
+        """
+        try:
+            # Try to find existing daily summary
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier_value},
+                    "date": {"_eq": date_str}
+                },
+                "fields": "id,total_credits,entry_count",
+                "limit": 1
+            }
+            
+            existing = await self.sdk.get_items(collection, params=params, no_cache=True)
+            
+            if existing and len(existing) > 0:
+                # Update existing daily summary
+                summary = existing[0]
+                summary_id = summary.get("id")
+                current_credits = summary.get("total_credits", 0)
+                current_count = summary.get("entry_count", 0)
+                
+                update_data = {
+                    "total_credits": current_credits + credits_charged,
+                    "entry_count": current_count + 1,
+                    "updated_at": int(datetime.now().timestamp())
+                }
+                
+                await self.sdk.update_item(collection, summary_id, update_data)
+                logger.debug(f"{log_prefix} Updated {collection} {summary_id} (+{credits_charged} credits, +1 entry)")
+            else:
+                # Create new daily summary
+                current_timestamp = int(datetime.now().timestamp())
+                
+                create_data = {
+                    "user_id_hash": user_id_hash,
+                    identifier_key: identifier_value,
+                    "date": date_str,
+                    "total_credits": credits_charged,
+                    "entry_count": 1,
+                    "created_at": current_timestamp,
+                    "updated_at": current_timestamp
+                }
+                
+                success, result = await self.sdk.create_item(collection, create_data)
+                if success and result:
+                    logger.debug(f"{log_prefix} Created new {collection} for {identifier_key}={identifier_value}, date={date_str}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to create {collection}: {result}")
+                    
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating {collection}: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def get_daily_overview(
+        self,
+        user_id_hash: str,
+        days: int = 7
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch daily usage overview combining chat and API key daily summary tables.
+        Returns a list of day objects, each containing chat and API key usage items
+        for that day (no app breakdown - apps overlap with chats). Used by the
+        Overview tab in usage settings.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            days: Number of days to fetch (default: 7)
+            
+        Returns:
+            List of day objects: [{date: "2026-02-11", total_credits: 450, items: [...]}]
+            Sorted by date descending (most recent first).
+            Items are only 'chat' and 'api_key' types (no 'app' items).
+        """
+        log_prefix = "DirectusService (daily overview):"
+        logger.info(f"{log_prefix} Fetching daily overview for user '{user_id_hash}', last {days} days")
+        
+        try:
+            # Check cache first
+            cache_key = f"usage_daily_overview:{user_id_hash}:{days}"
+            cached = await self.sdk.cache.get(cache_key)
+            if cached:
+                logger.debug(f"{log_prefix} Cache HIT for daily overview")
+                return cached
+            
+            # Calculate list of date strings for the requested days
+            from datetime import timedelta
+            dates = []
+            for i in range(days):
+                day_date = datetime.now() - timedelta(days=i)
+                dates.append(day_date.strftime("%Y-%m-%d"))
+            
+            # Query chat and API key daily summary tables in parallel
+            # App summaries are excluded because app credits overlap with chat credits
+            # (every chat message also creates an app summary entry)
+            common_filter = {
+                "user_id_hash": {"_eq": user_id_hash},
+                "date": {"_in": dates}
+            }
+            
+            chat_params = {
+                "filter": common_filter,
+                "fields": "chat_id,date,total_credits,entry_count,updated_at",
+                "sort": ["-date"],
+                "limit": -1
+            }
+            api_key_params = {
+                "filter": common_filter,
+                "fields": "api_key_hash,date,total_credits,entry_count,updated_at",
+                "sort": ["-date"],
+                "limit": -1
+            }
+            
+            # Fetch both in parallel for performance
+            import asyncio
+            chat_summaries, api_key_summaries = await asyncio.gather(
+                self.sdk.get_items("usage_daily_chat_summaries", params=chat_params, no_cache=True),
+                self.sdk.get_items("usage_daily_api_key_summaries", params=api_key_params, no_cache=True),
+            )
+            
+            # Combine all items grouped by date
+            # Structure: {date: {items: [...], total_credits: N}}
+            days_map: Dict[str, Dict[str, Any]] = {}
+            
+            # Collect unique chat_ids to batch-fetch metadata
+            unique_chat_ids = set()
+            for summary in (chat_summaries or []):
+                chat_id = summary.get("chat_id")
+                if chat_id:
+                    unique_chat_ids.add(chat_id)
+            
+            # Batch-fetch chat metadata from the chats collection
+            # This provides encrypted_title, encrypted_category, encrypted_icon, encrypted_chat_key
+            # so clients can display chat info even for chats not synced to IndexedDB.
+            # Chats that don't exist anymore (hard-deleted) will be flagged as is_deleted=True.
+            chat_metadata_map: Dict[str, Dict[str, Any]] = {}
+            chat_metadata_fetch_succeeded = False
+            valid_uuid_chat_ids: list = []  # Defined outside try block for use in is_deleted logic
+            if unique_chat_ids:
+                try:
+                    # Filter out non-UUID chat_ids before querying the chats collection.
+                    # The chats.id column is of type UUID in PostgreSQL, so passing non-UUID
+                    # values (e.g., SHA-256 hashes from legacy/corrupt data) in a _in filter
+                    # causes a Postgres 500 error that silently returns [] from Directus,
+                    # which incorrectly flags ALL chats as deleted.
+                    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                    valid_uuid_chat_ids = [cid for cid in unique_chat_ids if uuid_pattern.match(cid)]
+                    non_uuid_chat_ids = unique_chat_ids - set(valid_uuid_chat_ids)
+                    
+                    if non_uuid_chat_ids:
+                        logger.warning(f"{log_prefix} Skipping {len(non_uuid_chat_ids)} non-UUID chat_ids in metadata query: {list(non_uuid_chat_ids)[:3]}...")
+                    
+                    chat_fields = "id,encrypted_title,encrypted_category,encrypted_icon,encrypted_chat_key"
+                    
+                    if valid_uuid_chat_ids:
+                        chat_filter = {
+                            "id": {"_in": valid_uuid_chat_ids}
+                        }
+                        # Use admin_required=True because the chats collection may have
+                        # row-level permissions that restrict access by user ownership
+                        chat_records = await self.sdk.get_items("chats", params={
+                            "filter": chat_filter,
+                            "fields": chat_fields,
+                            "limit": -1
+                        }, no_cache=True, admin_required=True)
+                    else:
+                        chat_records = []
+                    
+                    for chat in (chat_records or []):
+                        chat_id = chat.get("id")
+                        if chat_id:
+                            chat_metadata_map[chat_id] = {
+                                "encrypted_title": chat.get("encrypted_title"),
+                                "encrypted_category": chat.get("encrypted_category"),
+                                "encrypted_icon": chat.get("encrypted_icon"),
+                                "encrypted_chat_key": chat.get("encrypted_chat_key"),
+                            }
+                    
+                    chat_metadata_fetch_succeeded = True
+                    logger.info(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(valid_uuid_chat_ids)} chats (skipped {len(non_uuid_chat_ids)} non-UUID)")
+                except Exception as meta_err:
+                    logger.warning(f"{log_prefix} Failed to fetch chat metadata: {meta_err}")
+                    # Non-fatal: continue without metadata enrichment
+                    # chat_metadata_fetch_succeeded stays False so we don't wrongly mark chats as deleted
+            
+            # Process chat summaries
+            for summary in (chat_summaries or []):
+                date = summary.get("date")
+                if not date:
+                    continue
+                if date not in days_map:
+                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                credits = summary.get("total_credits", 0)
+                chat_id = summary.get("chat_id")
+                
+                # Build the chat item with metadata enrichment
+                chat_item: Dict[str, Any] = {
+                    "type": "chat",
+                    "chat_id": chat_id,
+                    "api_key_hash": None,
+                    "total_credits": credits,
+                    "entry_count": summary.get("entry_count", 0),
+                    "updated_at": summary.get("updated_at"),
+                }
+                
+                # Enrich with chat metadata (encrypted fields for client decryption)
+                if chat_id and chat_id in chat_metadata_map:
+                    meta = chat_metadata_map[chat_id]
+                    chat_item["encrypted_title"] = meta.get("encrypted_title")
+                    chat_item["encrypted_category"] = meta.get("encrypted_category")
+                    chat_item["encrypted_icon"] = meta.get("encrypted_icon")
+                    chat_item["encrypted_chat_key"] = meta.get("encrypted_chat_key")
+                    chat_item["is_deleted"] = False
+                elif chat_id and chat_metadata_fetch_succeeded and chat_id in set(valid_uuid_chat_ids):
+                    # Chat not found in Directus despite a successful query - it was hard-deleted
+                    # Only set is_deleted=True when:
+                    # 1. The metadata fetch succeeded (to avoid false positives from query failures)
+                    # 2. The chat_id is a valid UUID (non-UUID chat_ids were never in the chats table)
+                    chat_item["is_deleted"] = True
+                
+                days_map[date]["items"].append(chat_item)
+                days_map[date]["total_credits"] += credits
+            
+            # Process API key summaries
+            for summary in (api_key_summaries or []):
+                date = summary.get("date")
+                if not date:
+                    continue
+                if date not in days_map:
+                    days_map[date] = {"date": date, "total_credits": 0, "items": []}
+                credits = summary.get("total_credits", 0)
+                days_map[date]["items"].append({
+                    "type": "api_key",
+                    "chat_id": None,
+                    "api_key_hash": summary.get("api_key_hash"),
+                    "total_credits": credits,
+                    "entry_count": summary.get("entry_count", 0),
+                    "updated_at": summary.get("updated_at"),
+                })
+                days_map[date]["total_credits"] += credits
+            
+            # Sort items within each day by updated_at descending (most recently updated first)
+            for day_data in days_map.values():
+                day_data["items"].sort(key=lambda x: x.get("updated_at") or "", reverse=True)
+            
+            # Convert to sorted list (most recent date first)
+            result = sorted(days_map.values(), key=lambda x: x["date"], reverse=True)
+            
+            # Also include empty days in the response so the frontend knows which days exist
+            # (This helps the frontend distinguish "no data" from "not loaded")
+            existing_dates = set(days_map.keys())
+            for date in dates:
+                if date not in existing_dates:
+                    result.append({"date": date, "total_credits": 0, "items": []})
+            
+            # Re-sort after adding empty days
+            result.sort(key=lambda x: x["date"], reverse=True)
+            
+            # Cache for 5 minutes
+            if result:
+                await self.sdk.cache.set(cache_key, result, ttl=300)
+                logger.debug(f"{log_prefix} Cached daily overview ({len(result)} days)")
+            
+            logger.info(f"{log_prefix} Returning {len(result)} days for daily overview")
+            return result
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching daily overview: {e}", exc_info=True)
+            return []
+
     async def get_user_usage_entries(
         self,
         user_id_hash: str,
@@ -550,6 +958,18 @@ class UsageMethods:
                     if encrypted_credits_response:
                         decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
                             encrypted_credits_response, user_vault_key_id
+                        )
+
+                    encrypted_server_provider = entry.get("encrypted_server_provider")
+                    if encrypted_server_provider:
+                        decrypt_tasks["server_provider"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_server_provider, user_vault_key_id
+                        )
+
+                    encrypted_server_region = entry.get("encrypted_server_region")
+                    if encrypted_server_region:
+                        decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_server_region, user_vault_key_id
                         )
                     
                     # Execute all decryptions in parallel for this entry
@@ -800,6 +1220,59 @@ class UsageMethods:
             logger.error(f"{log_prefix} Error fetching usage entries for summary: {e}", exc_info=True)
             return []
     
+    async def get_all_chat_entries(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        chat_id: str,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch all usage entries for a specific chat across all time (no month filter).
+        Used by the overview detail view to show all skill uses for a chat.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            user_vault_key_id: User's vault key ID for decryption
+            chat_id: The chat ID to fetch entries for
+            limit: Maximum number of entries to return (default 100)
+            
+        Returns:
+            List of decrypted usage entries, sorted by created_at descending
+        """
+        log_prefix = "DirectusService (chat entries):"
+        logger.info(f"{log_prefix} Fetching all entries for chat '{chat_id}', user '{user_id_hash}'")
+        
+        try:
+            # Query usage collection for all entries matching this chat
+            filter_dict = {
+                "user_id_hash": {"_eq": user_id_hash},
+                "chat_id": {"_eq": chat_id},
+                "source": {"_eq": "chat"}
+            }
+            
+            params = {
+                "filter": filter_dict,
+                "fields": "*",
+                "sort": ["-created_at"],
+                "limit": limit
+            }
+            
+            entries = await self.sdk.get_items("usage", params=params, no_cache=True)
+            
+            if not entries:
+                logger.info(f"{log_prefix} No entries found for chat '{chat_id}'")
+                return []
+            
+            # Decrypt all entries
+            decrypted = await self._decrypt_usage_entries(entries, user_vault_key_id)
+            logger.info(f"{log_prefix} Returning {len(decrypted)} entries for chat '{chat_id}'")
+            return decrypted
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching chat entries: {e}", exc_info=True)
+            return []
+
     async def get_chat_total_credits(
         self,
         user_id_hash: str,
@@ -983,6 +1456,18 @@ class UsageMethods:
                     decrypt_tasks["credits_response"] = self.encryption_service.decrypt_with_user_key(
                         encrypted_credits_response, user_vault_key_id
                     )
+
+                encrypted_server_provider = entry.get("encrypted_server_provider")
+                if encrypted_server_provider:
+                    decrypt_tasks["server_provider"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_server_provider, user_vault_key_id
+                    )
+
+                encrypted_server_region = entry.get("encrypted_server_region")
+                if encrypted_server_region:
+                    decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_server_region, user_vault_key_id
+                    )
                 
                 if decrypt_tasks:
                     results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
@@ -1009,6 +1494,7 @@ class UsageMethods:
                                 except ValueError:
                                     processed_entry[field_name] = 0
                             else:
+                                # String fields: model_used, server_provider, server_region
                                 processed_entry[field_name] = result
                 
                 if "credits" not in processed_entry:

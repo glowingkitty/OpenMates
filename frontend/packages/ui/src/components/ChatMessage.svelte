@@ -17,6 +17,7 @@
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import { chatDB } from '../services/db';
+  import { chatSyncService } from '../services/chatSyncService';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -65,7 +66,9 @@
     piiRevealed = false,
     // Message identification props (for usage/cost lookup in message context menu)
     messageId = undefined,
-    userMessageId = undefined
+    userMessageId = undefined,
+    onDeleteMessage = undefined,
+    isFirstMessage = false
   }: {
     role?: MessageRole;
     category?: string;
@@ -91,6 +94,8 @@
     // Message identification props (for usage/cost lookup in message context menu)
     messageId?: string; // Message ID for cost lookup
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
+    onDeleteMessage?: () => void; // Callback when user confirms message deletion
+    isFirstMessage?: boolean; // Whether this is the first message in the chat (delete is disabled for first messages)
   } = $props();
   
   // State for thinking section expansion
@@ -194,6 +199,11 @@
   let selectedSkillId = $state<string | null>(null);
   let selectedFocusId = $state<string | null>(null);
   let selectedFocusModeName = $state<string | null>(null);
+  // Embed ID extracted from the DOM element's data-embed-id attribute.
+  // This is more reliable than extracting from the ProseMirror node attrs because
+  // for grouped embeds the ProseMirror node is the group (not the individual embed),
+  // while the DOM element always refers to the specific embed that was right-clicked.
+  let selectedDomEmbedId = $state<string | null>(null);
 
   // Message context menu state
   let showMessageMenu = $state(false);
@@ -262,6 +272,100 @@
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  /**
+   * Handle deleting this message from chat history.
+   * Deletes from IndexedDB locally, then sends server request to remove from cache and Directus.
+   * If this is an assistant message, also deletes the triggering user message (and vice versa).
+   */
+  async function handleDeleteMessage() {
+    if (!messageId || !original_message?.chat_id) {
+      console.error('[ChatMessage] Cannot delete: missing messageId or chat_id');
+      return;
+    }
+
+    const chatId = original_message.chat_id;
+    console.debug(`[ChatMessage] Deleting message ${messageId} from chat ${chatId}`);
+
+    try {
+      // Extract embed references from message content and clean them up from IndexedDB
+      const embedIdsToDelete: string[] = [];
+      const messageContent = typeof original_message?.content === 'string' ? original_message.content : '';
+      
+      if (messageContent) {
+        try {
+          const { extractEmbedReferences } = await import('../services/embedResolver');
+          const { embedStore } = await import('../services/embedStore');
+          const { computeSHA256 } = await import('../message_parsing/utils');
+          
+          const embedRefs = extractEmbedReferences(messageContent);
+          
+          if (embedRefs.length > 0) {
+            const hashedChatId = await computeSHA256(chatId);
+            
+            for (const ref of embedRefs) {
+              try {
+                const hashedEmbedId = await computeSHA256(ref.embed_id);
+                const isShared = await embedStore.isEmbedUsedByOtherChats(hashedEmbedId, hashedChatId);
+                
+                if (isShared) {
+                  console.debug(`[ChatMessage] Embed ${ref.embed_id} is shared, skipping deletion`);
+                } else {
+                  await embedStore.deleteEmbed(ref.embed_id, hashedEmbedId);
+                  embedIdsToDelete.push(ref.embed_id);
+                  console.debug(`[ChatMessage] Deleted embed ${ref.embed_id} from IndexedDB`);
+                }
+              } catch (embedErr) {
+                console.warn(`[ChatMessage] Error processing embed ${ref.embed_id} for deletion:`, embedErr);
+              }
+            }
+            
+            if (embedIdsToDelete.length > 0) {
+              console.debug(`[ChatMessage] Deleted ${embedIdsToDelete.length} embeds from IndexedDB`);
+            }
+          }
+        } catch (embedErr) {
+          console.warn('[ChatMessage] Error extracting/deleting embeds:', embedErr);
+        }
+      }
+
+      // Delete the message from local IndexedDB
+      await chatDB.deleteMessage(messageId);
+
+      // Send server request to delete from cache and Directus (including embed IDs for server cleanup)
+      try {
+        await chatSyncService.sendDeleteMessage(
+          chatId, messageId,
+          embedIdsToDelete.length > 0 ? embedIdsToDelete : undefined
+        );
+      } catch (err) {
+        console.error('[ChatMessage] Error sending delete_message to server (local deletion succeeded):', err);
+      }
+
+      // If this is an assistant message and we know the triggering user message, delete it too
+      // If this is a user message, try to find and delete the assistant response
+      if (role === 'assistant' && userMessageId) {
+        try {
+          await chatDB.deleteMessage(userMessageId);
+          await chatSyncService.sendDeleteMessage(chatId, userMessageId);
+        } catch (err) {
+          console.error('[ChatMessage] Error deleting paired user message:', err);
+        }
+      }
+
+      // Notify parent component via callback (if provided by ChatHistory)
+      onDeleteMessage?.();
+
+      // Also dispatch a global event so ChatHistory/ActiveChat can react
+      chatSyncService.dispatchEvent(
+        new CustomEvent('messageDeleted', {
+          detail: { chatId, messageId },
+        }),
+      );
+    } catch (err) {
+      console.error('[ChatMessage] Error deleting message:', err);
+    }
   }
 
   /**
@@ -536,6 +640,8 @@
     selectedSkillId = skillId;
     selectedFocusId = focusIdAttr;
     selectedFocusModeName = focusModeNameAttr;
+    // Store the embed ID from the DOM (reliable for both individual and grouped embeds)
+    selectedDomEmbedId = dom.getAttribute('data-embed-id');
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
@@ -560,8 +666,10 @@
         // Video embed (YouTube, etc.)
         menuType = 'video';
         embedType = 'video';
-      } else if (node.attrs.type === 'app-skill-use') {
-        // App skill embeds - determine menu type based on appId/skillId
+      } else if (node.attrs.type === 'app-skill-use' || node.attrs.type === 'app-skill-use-group') {
+        // App skill embeds (individual or grouped) - determine menu type based on appId/skillId
+        // For grouped embeds, the DOM element still refers to the specific embed that was right-clicked
+        // so appId/skillId from the DOM are correct even when the ProseMirror node is the group
         if (appId === 'videos' && skillId === 'get_transcript') {
           menuType = 'video-transcript';
           embedType = 'video';
@@ -587,7 +695,15 @@
   }
 
   function getEmbedIdFromNode(node: any): string | null {
-    const raw = node?.attrs?.id || node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.contentRef;
+    // CRITICAL: Prioritize contentRef over attrs.id because attrs.id is a TipTap-generated UUID
+    // (from generateUUID() in embedParsing.ts) and NOT the actual embed ID stored in EmbedStore.
+    // The real embed ID lives in contentRef as "embed:<embed_id>".
+    const contentRef = node?.attrs?.contentRef;
+    if (typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+      return contentRef.replace('embed:', '');
+    }
+    // Fallback to other attributes (for non-standard embed types)
+    const raw = node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.id;
     if (!raw) return null;
     if (typeof raw === 'string' && raw.startsWith('embed:')) return raw.replace('embed:', '');
     if (typeof raw === 'string') return raw;
@@ -638,8 +754,9 @@
     // Handle fullscreen for supported node types
     // Dispatch embedfullscreen event to open fullscreen (same as clicking the embed)
     if (action === 'view') {
-        // Get embed ID from node attributes
-        const embedId = selectedNode.attrs?.id || selectedNode.attrs?.contentRef?.replace('embed:', '');
+        // Get embed ID - prefer DOM-extracted ID (works for both individual and grouped embeds),
+        // then try contentRef (real embed ID), and finally attrs.id as last resort
+        const embedId = selectedDomEmbedId || selectedNode.attrs?.contentRef?.replace('embed:', '') || selectedNode.attrs?.id;
         
         if (!embedId) {
             console.warn('[ChatMessage] No embed ID found for view action');
@@ -659,8 +776,8 @@
             fullscreenEmbedType = 'videos-video'; // Already correct
         } else if (fullscreenEmbedType === 'website' || fullscreenEmbedType === 'website-group') {
             fullscreenEmbedType = 'website';
-        } else if (fullscreenEmbedType === 'app-skill-use') {
-            fullscreenEmbedType = 'app-skill-use'; // Already correct
+        } else if (fullscreenEmbedType === 'app-skill-use' || fullscreenEmbedType === 'app-skill-use-group') {
+            fullscreenEmbedType = 'app-skill-use'; // Normalize group type to individual for fullscreen
         }
         
         // Dispatch embedfullscreen event to trigger fullscreen (ActiveChat will handle it)
@@ -694,7 +811,7 @@
     }
 
     if (action === 'share') {
-      const embedId = getEmbedIdFromNode(selectedNode);
+      const embedId = selectedDomEmbedId || getEmbedIdFromNode(selectedNode);
       if (!embedId) {
         console.warn('[ChatMessage] No embed ID found for share action');
         const { notificationStore } = await import('../stores/notificationStore');
@@ -993,9 +1110,14 @@
       }
     }
     // Handle actions for app-skill-use embeds based on appId/skillId
-    // These handlers cover all app skills that support copy/download from the context menu
-    else if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use' && selectedAppId) {
-      const embedId = getEmbedIdFromNode(selectedNode);
+    // These handlers cover all app skills that support copy/download from the context menu.
+    // Also handles app-skill-use-group nodes: when the user right-clicks an individual embed
+    // inside a group, ProseMirror resolves to the group node, but the DOM element still refers
+    // to the specific embed (via data-embed-id). We use selectedDomEmbedId for reliable ID lookup.
+    else if (selectedNode.type.name === 'embed' && (selectedNode.attrs.type === 'app-skill-use' || selectedNode.attrs.type === 'app-skill-use-group') && selectedAppId) {
+      // Prefer the embed ID from the DOM element (reliable for both individual and grouped embeds)
+      // Fall back to ProseMirror node attrs for non-grouped embeds
+      const embedId = selectedDomEmbedId || getEmbedIdFromNode(selectedNode);
       if (!embedId) {
         console.warn('[ChatMessage] No embed ID found for app-skill-use embed action');
         showMenu = false;
@@ -1418,6 +1540,7 @@
           onClose={() => {
             showMenu = false;
             selectedNode = null;
+            selectedDomEmbedId = null;
           }}
           onView={() => handleMenuAction('view')}
           onShare={() => handleMenuAction('share')}
@@ -1436,6 +1559,8 @@
           onClose={() => showMessageMenu = false}
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
+          onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
+          disableDelete={isFirstMessage}
           {messageId}
           {userMessageId}
           {role}

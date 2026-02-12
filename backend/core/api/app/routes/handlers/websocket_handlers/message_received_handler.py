@@ -1170,12 +1170,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
         
-        # Get user's timezone for AI context (used for reminders, scheduling, time-aware responses)
-        user_timezone = await cache_service.get_user_timezone(user_id)
+        # Get user's timezone and system language for AI context
+        # Fetch user data once from cache to avoid multiple cache lookups
+        user_data_for_prefs = await cache_service.get_user_by_id(user_id)
         user_preferences_dict = {}
-        if user_timezone:
-            user_preferences_dict["timezone"] = user_timezone
-            logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
+        if user_data_for_prefs and isinstance(user_data_for_prefs, dict):
+            user_timezone = user_data_for_prefs.get("timezone")
+            if user_timezone:
+                user_preferences_dict["timezone"] = user_timezone
+                logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
+            # Include user's system/UI language (ISO 639-1 code, e.g., "en", "de")
+            # Used by postprocessor to generate new chat suggestions in the user's interface language
+            user_system_language = user_data_for_prefs.get("language", "en")
+            user_preferences_dict["language"] = user_system_language
+            logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
         
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,

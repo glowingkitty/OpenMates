@@ -78,12 +78,14 @@
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
+    import { getCategoryGradientColors, getFallbackIconForCategory, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
+    import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -101,7 +103,7 @@
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[]) => void;
         scrollToTop: () => void;
-        scrollToBottom: () => void;
+        scrollToBottom: (smooth?: boolean) => void;
         restoreScrollPosition: (messageId: string) => void;
     };
 
@@ -1664,6 +1666,160 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     let showWelcome = $state(true);
 
+    // ─── Resume Last Chat ───────────────────────────────────────────────
+    // Local state for the "Continue where you left off" card on the new chat screen.
+    // Shows the chat matching $userProfile.last_opened (most recently opened/viewed chat).
+    // Refreshes every time the user returns to the welcome screen or last_opened changes.
+    let resumeChatData = $state<Chat | null>(null);
+    let resumeChatTitle = $state<string | null>(null);
+    let resumeChatCategory = $state<string | null>(null);
+    let resumeChatIcon = $state<string | null>(null);
+
+    /**
+     * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
+     * Decrypts title, category, and icon for the resume card display.
+     * Skips draft chats (no title and no messages) so only real chats with
+     * content are shown in the "Continue where you left off" card.
+     * Returns true if a non-draft chat was found and loaded.
+     */
+    async function loadResumeChatFromDB(lastOpenedId: string): Promise<boolean> {
+        try {
+            await chatDB.init();
+
+            // Look up the specific chat by ID from last_opened
+            const chat = await chatDB.getChat(lastOpenedId);
+            if (!chat) return false;
+
+            // Decrypt title, category, and icon using the chat key
+            let decryptedTitle: string | null = null;
+            let decryptedCategory: string | null = null;
+            let decryptedIcon: string | null = null;
+
+            const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+            let chatKey = chatDB.getChatKey(chat.chat_id);
+            if (!chatKey && chat.encrypted_chat_key) {
+                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                if (chatKey) {
+                    chatDB.setChatKey(chat.chat_id, chatKey);
+                }
+            }
+
+            if (chatKey) {
+                // Decrypt title
+                if (chat.encrypted_title) {
+                    try {
+                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+                    } catch {
+                        // Title decryption failed – fall through to default
+                    }
+                }
+                // Decrypt category
+                if (chat.encrypted_category) {
+                    try {
+                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                    } catch {
+                        // Category decryption failed – will use fallback
+                    }
+                }
+                // Decrypt icon
+                if (chat.encrypted_icon) {
+                    try {
+                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                    } catch {
+                        // Icon decryption failed – will use fallback
+                    }
+                }
+            }
+
+            // Determine if this chat has a real title (plaintext for demo chats, or decrypted)
+            const hasTitle = !!(chat.title || decryptedTitle);
+
+            // Skip draft chats: chats with no title and no messages are drafts.
+            // Only show the resume card for chats that have actual content.
+            if (!hasTitle) {
+                const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+                if (!lastMessage) {
+                    console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
+                    return false;
+                }
+            }
+
+            // Use cleartext fields as fallback (demo chats have these set directly)
+            const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+            const displayCategory = chat.category || decryptedCategory || null;
+            const displayIcon = chat.icon || decryptedIcon || null;
+
+            resumeChatData = chat;
+            resumeChatTitle = displayTitle;
+            resumeChatCategory = displayCategory;
+            resumeChatIcon = displayIcon;
+            console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
+            return true;
+        } catch (error) {
+            console.warn('[ActiveChat] Error loading resume chat from IndexedDB:', error);
+            return false;
+        }
+    }
+
+    // Refresh the resume card every time the welcome screen appears for an authenticated user.
+    // Reacts to $userProfile.last_opened changes so opening a chat updates the card on return.
+    // Retries a few times to handle sync delays on fresh login (IndexedDB may be empty initially).
+    $effect(() => {
+        const isWelcome = showWelcome;
+        const isAuth = $authStore.isAuthenticated;
+        const lastOpened = $userProfile.last_opened;
+
+        // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
+        // (not empty, not '/chat/new' which means the user was already on the new chat screen)
+        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new') {
+            resumeChatData = null;
+            resumeChatTitle = null;
+            resumeChatCategory = null;
+            resumeChatIcon = null;
+            return;
+        }
+
+        let cancelled = false;
+        const maxAttempts = 6;
+        const delayMs = 500; // retry every 500ms for up to 3s
+
+        const tryLoad = async (attempt: number) => {
+            if (cancelled) return;
+            const found = await loadResumeChatFromDB(lastOpened);
+            if (!found && !cancelled && attempt < maxAttempts) {
+                setTimeout(() => tryLoad(attempt + 1), delayMs);
+            }
+        };
+
+        tryLoad(1);
+
+        return () => { cancelled = true; };
+    });
+
+    // ─── Phase 1 Sync Bridge ──────────────────────────────────────────────
+    // When Phase 1 sync completes, Chats.svelte stores the resume chat data
+    // in phasedSyncState. This $effect bridges that store to our local state,
+    // ensuring the resume card appears even if the initial IndexedDB retry loop
+    // above has already exhausted (sync may take longer than 3 seconds on slow
+    // connections or cold starts after login).
+    $effect(() => {
+        const syncState = $phasedSyncState;
+        const isWelcome = showWelcome;
+        const isAuth = $authStore.isAuthenticated;
+
+        // Only sync from phasedSyncState when on the welcome screen, authenticated,
+        // and we don't already have resume data loaded from IndexedDB
+        if (isWelcome && isAuth && syncState.resumeChatData && !resumeChatData) {
+            resumeChatData = syncState.resumeChatData;
+            resumeChatTitle = syncState.resumeChatTitle;
+            resumeChatCategory = syncState.resumeChatCategory;
+            resumeChatIcon = syncState.resumeChatIcon;
+            console.info(`[ActiveChat] Resume chat synced from Phase 1 store: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
+        }
+    });
+
+    // ─── End Phase 1 Sync Bridge ──────────────────────────────────────────
+
     // Add state variable for scaling animation on the container using $state
     let activeScaling = $state(false);
 
@@ -1680,6 +1836,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
     // Will be set correctly by loadChat() or handleScrollPositionUI() once scroll position is determined
     let isAtBottom = $state(false);
+    
+    // Track if user is at top of chat (for scroll-to-top button visibility)
+    let isAtTop = $state(true);
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
@@ -1825,7 +1984,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
-    
+
+    // Hide the welcome greeting and resume-chat card on mobile when the keyboard is open.
+    // This frees up vertical space so the input area isn't squeezed against the keyboard.
+    let hideWelcomeForKeyboard = $derived(messageInputFocused && isEffectivelyNarrow);
+
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
     // This is passed to ChatHistory/ChatMessage for proper responsive behavior
@@ -2544,6 +2707,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 await chatDB.saveMessage(updatedUserMessage);
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
+                            
+                            // CRITICAL: Invalidate the chatListCache last message so the sidebar
+                            // doesn't show stale "Sending..." when reopened on mobile.
+                            // The cache was populated with status:'sending' during sendHandlers.ts,
+                            // and without this invalidation, reopening the sidebar would use the stale cache.
+                            chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status:', error);
                         }
@@ -3034,61 +3203,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Handler for resuming the last chat from the "Resume last chat?" UI.
-     * Loads the chat stored in phasedSyncState.resumeChatData and clears the resume state.
+     * Loads the chat stored in local resumeChatData and clears the resume state.
      */
     async function handleResumeLastChat() {
-        const resumeChat = $phasedSyncState.resumeChatData;
-        if (!resumeChat) {
+        if (!resumeChatData) {
             console.warn('[ActiveChat] No resume chat data available');
             return;
         }
 
-        console.info(`[ActiveChat] Resuming last chat: ${resumeChat.chat_id}`);
+        const chatToResume = resumeChatData;
+        console.info(`[ActiveChat] Resuming last chat: ${chatToResume.chat_id}`);
 
-        // Clear the resume state first
+        // Clear local resume state and the phased sync store
+        resumeChatData = null;
+        resumeChatTitle = null;
+        resumeChatCategory = null;
+        resumeChatIcon = null;
         phasedSyncState.clearResumeChatData();
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
         phasedSyncState.markInitialChatLoaded();
 
         // Update the active chat store
-        activeChatStore.setActiveChat(resumeChat.chat_id);
+        activeChatStore.setActiveChat(chatToResume.chat_id);
 
         // Load the chat
-        await loadChat(resumeChat);
+        await loadChat(chatToResume);
 
         // Dispatch event to notify Chats.svelte to update selection
         const globalSelectEvent = new CustomEvent('globalChatSelected', {
             bubbles: true,
             composed: true,
-            detail: { chatId: resumeChat.chat_id }
+            detail: { chatId: chatToResume.chat_id }
         });
         window.dispatchEvent(globalSelectEvent);
 
         console.debug('[ActiveChat] Resume chat loaded and events dispatched');
     }
 
-    /**
-     * Handler for dismissing the "Resume last chat?" UI and starting a new chat instead.
-     * Clears the resume state without loading the chat.
-     */
-    function handleDismissResumeChat() {
-        console.info('[ActiveChat] User chose to start a new chat instead of resuming');
-        
-        // Clear the resume state
-        phasedSyncState.clearResumeChatData();
-
-        // Mark that user made an explicit choice
-        phasedSyncState.markUserMadeExplicitChoice();
-
-        // Focus the message input if on desktop
-        if (isDesktop() && messageInputFieldRef) {
-            setTimeout(() => {
-                messageInputFieldRef.focus();
-                console.debug('[ActiveChat] Auto-focused message input after dismissing resume chat');
-            }, 100);
-        }
-    }
+    // Note: handleDismissResumeChat removed – the resume card is always visible
+    // on the new chat screen (user is already in "new chat" mode, no need to dismiss).
 
     /**
      * Handler for the share button click.
@@ -3321,9 +3475,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Handle immediate UI state updates from ChatHistory (no debounce)
     function handleScrollPositionUI(event: CustomEvent) {
-        const { isAtBottom: atBottom } = event.detail;
+        const { isAtBottom: atBottom, isAtTop: atTop } = event.detail;
         // Immediately update UI state for responsive button visibility
         isAtBottom = atBottom;
+        isAtTop = atTop;
     }
     
     // Handle scroll position changes from ChatHistory (debounced for saving)
@@ -4665,7 +4820,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages]; // Trigger reactivity
 
-                    // Save status update to DB
+                    // Save status update to DB (only the user message, not the placeholder)
                     try {
                         await chatDB.saveMessage(updatedMessage);
                     } catch (error) {
@@ -4746,10 +4901,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        // Handle single message deletion (from this device or broadcast from another device)
+        const messageDeletedHandler = ((event: CustomEvent) => {
+            const { chatId, messageId } = event.detail;
+            if (chatId !== currentChat?.chat_id) return;
+
+            console.debug(`[ActiveChat] Received messageDeleted event for message ${messageId} in chat ${chatId}`);
+            // Remove the deleted message from the current messages array
+            const beforeCount = currentMessages.length;
+            currentMessages = currentMessages.filter(m => m.message_id !== messageId);
+
+            if (currentMessages.length < beforeCount) {
+                console.info(`[ActiveChat] Removed message ${messageId} from UI (${beforeCount} -> ${currentMessages.length})`);
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+            }
+        }) as EventListenerCallback;
+
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
+        chatSyncService.addEventListener('messageDeleted', messageDeletedHandler);
         
         // STREAM INTERRUPTION RECOVERY: When the WebSocket reconnects after a disconnect
         // that interrupted an active AI stream, finalize any streaming messages in the current
@@ -4999,6 +5173,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListenerCallback);
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
+            chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
@@ -5196,10 +5371,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     </div>
 
-                    <!-- Update the welcome content to use transition and showWelcome -->
-                    <!-- ONLY show welcome message when there's no resume chat to display -->
-                    <!-- If user has a previous chat to resume, skip the "Hey {username}" greeting -->
-                    {#if showWelcome && !$phasedSyncState.resumeChatData}
+                    <!-- Welcome greeting – always visible on the new chat screen -->
+                    <!-- Also hide on mobile when keyboard is open to free up vertical space -->
+                    {#if showWelcome && !hideWelcomeForKeyboard}
                         <div
                             class="center-content"
                             transition:fade={{ duration: 300 }}
@@ -5212,13 +5386,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <p>
-                                        {#each welcomePromptParts as part, index}
-                                            <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
-                                        {/each}
-                                    </p>
+                                    <!-- Subtitle: show "Continue where you left off" when resume chat exists,
+                                         otherwise show the default "What do you need help with?" prompt -->
+                                    {#if resumeChatData}
+                                        <p>{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</p>
+                                    {:else}
+                                        <p>
+                                            {#each welcomePromptParts as part, index}
+                                                <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
+                                            {/each}
+                                        </p>
+                                    {/if}
                                 </div>
                             </div>
+
+                            <!-- Resume card: shown below greeting when there's a chat to resume -->
+                            {#if resumeChatData}
+                                {@const category = resumeChatCategory || 'general_knowledge'}
+                                {@const gradientColors = getCategoryGradientColors(category)}
+                                {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {@const ChevronRight = getLucideIcon('chevron-right')}
+                                <button 
+                                    class="resume-chat-card"
+                                    onclick={handleResumeLastChat}
+                                    type="button"
+                                >
+                                    <div 
+                                        class="resume-chat-category-circle"
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="resume-chat-category-icon">
+                                            <IconComponent size={16} color="white" />
+                                        </div>
+                                    </div>
+                                    <div class="resume-chat-content">
+                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                    </div>
+                                    <div class="resume-chat-arrow">
+                                        <ChevronRight size={16} color="var(--color-grey-50)" />
+                                    </div>
+                                </button>
+                            {/if}
                         </div>
                     {/if}
 
@@ -5238,6 +5447,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         on:scrollPositionChanged={handleScrollPositionChanged}
                         on:scrolledToBottom={handleScrolledToBottom}
                     />
+
+                    <!-- Scroll-to-top button: visible when not at top and chat has messages -->
+                    {#if !showWelcome && !isAtTop}
+                        <button
+                            class="scroll-nav-button scroll-to-top-button"
+                            aria-label="Scroll to top"
+                            onclick={() => chatHistoryRef?.scrollToTop()}
+                        >
+                            <span class="scroll-nav-icon scroll-nav-icon-up"></span>
+                        </button>
+                    {/if}
+
+                    <!-- Scroll-to-bottom button: visible when not at bottom and chat has messages -->
+                    {#if !showWelcome && !isAtBottom}
+                        <button
+                            class="scroll-nav-button scroll-to-bottom-button"
+                            aria-label="Scroll to bottom"
+                            onclick={() => chatHistoryRef?.scrollToBottom(true)}
+                        >
+                            <span class="scroll-nav-icon"></span>
+                        </button>
+                    {/if}
                 </div>
 
                 <!-- Right side container for message input -->
@@ -5257,49 +5488,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     <div class="message-input-container">
-                        <!-- Show loading message while initial sync is in progress -->
-                        {#if showWelcome && !$phasedSyncState.initialSyncCompleted}
-                            <div class="sync-loading-message" transition:fade={{ duration: 200 }}>
-                                Loading chats...
-                            </div>
-                        {/if}
-                        
-                        <!-- Resume Last Chat section - shown above NewChatSuggestions when available -->
-                        <!-- Only visible when sync is complete and there's a resume chat available -->
-                        {#if showWelcome && $phasedSyncState.initialSyncCompleted && $phasedSyncState.resumeChatData}
-                            <div class="resume-last-chat-section" transition:fade={{ duration: 300 }}>
-                                <div class="resume-last-chat-header">
-                                    <span class="resume-title">{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</span>
-                                </div>
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleResumeLastChat}
-                                    type="button"
-                                >
-                                    <div class="resume-chat-icon">
-                                        <div class="icon icon_chat"></div>
-                                    </div>
-                                    <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{$phasedSyncState.resumeChatTitle || 'Untitled Chat'}</span>
-                                    </div>
-                                    <div class="resume-chat-arrow">
-                                        <div class="icon icon_chevron_right"></div>
-                                    </div>
-                                </button>
-                                <button 
-                                    class="resume-start-new-link"
-                                    onclick={handleDismissResumeChat}
-                                    type="button"
-                                >
-                                    {$text('chats.resume_last_chat.start_new.text', { default: 'or start a new chat' })}
-                                </button>
-                            </div>
-                        {/if}
-                        
                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
-                        <!-- Only show after initial sync is complete to avoid database race conditions -->
-                        <!-- Show whenever we're in welcome mode (no current chat) AND sync is complete -->
-                        {#if showWelcome && $phasedSyncState.initialSyncCompleted}
+                        <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
+                        <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
+                        {#if showWelcome}
                             <NewChatSuggestions
                                 messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
@@ -6169,6 +6361,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
+        /* Render above ChatHistory (which is also position:absolute and comes after in DOM) */
+        z-index: 1;
+        /* Allow clicks to pass through the non-interactive parts to ChatHistory underneath,
+           but re-enable pointer-events on interactive children (resume card button) */
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     /* Adjust welcome content position for narrow containers */
@@ -6238,53 +6438,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
-    .sync-loading-message {
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--color-grey-60);
-        padding: 8px 16px;
-        margin-bottom: 12px;
-        background-color: var(--color-grey-15);
-        border-radius: 8px;
-        font-style: italic;
-    }
-
-    /* Resume Last Chat section - shown above NewChatSuggestions after login */
-    .resume-last-chat-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
-        max-width: 629px;
-        width: 100%;
-    }
-
-    .resume-last-chat-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .resume-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-grey-70);
-    }
-
+    /* Resume chat card - shown in center-content below welcome greeting */
     .resume-chat-card {
         display: flex;
         align-items: center;
         gap: 12px;
         width: 100%;
-        padding: 14px 16px;
+        max-width: 400px;
+        padding: 12px 16px;
+        margin-top: 16px;
         background-color: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
         border-radius: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-align: left;
+        pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
     }
 
     .resume-chat-card:hover {
@@ -6299,21 +6468,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: none;
     }
 
-    .resume-chat-icon {
+    /* Category gradient circle matching Chat.svelte sidebar design */
+    .resume-chat-category-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, var(--color-primary-40), var(--color-primary-60));
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         flex-shrink: 0;
     }
 
-    .resume-chat-icon .icon {
-        width: 20px;
-        height: 20px;
-        filter: brightness(0) invert(1);
+    .resume-chat-category-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .resume-chat-content {
@@ -6337,29 +6509,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-    }
-
-    .resume-chat-arrow .icon {
-        width: 16px;
-        height: 16px;
         opacity: 0.5;
     }
 
-    .resume-start-new-link {
-        font-size: 13px;
-        color: var(--color-grey-60);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 4px 8px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-    }
-
-    .resume-start-new-link:hover {
-        color: var(--color-primary-60);
-        background-color: var(--color-grey-10);
-    }
     
     /* Read-only indicator for shared chats */
     .read-only-indicator {
@@ -6564,6 +6716,68 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
+    }
+
+    /* Scroll navigation buttons - round, icon-only, subtle grey.
+       Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
+    .scroll-nav-button {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        border: none;
+        background-color: var(--color-grey-20);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+        padding: 0;
+        margin: 0;
+        filter: none;
+    }
+
+    .scroll-nav-button:hover {
+        opacity: 1;
+        scale: none;
+        background-color: var(--color-grey-20);
+    }
+
+    .scroll-nav-button:active {
+        scale: none;
+        filter: none;
+        background-color: var(--color-grey-25);
+    }
+
+    .scroll-to-top-button {
+        top: 50px;
+    }
+
+    .scroll-to-bottom-button {
+        bottom: 80px;
+    }
+
+    /* Dropdown arrow icon using CSS mask (reuses existing dropdown.svg) */
+    .scroll-nav-icon {
+        display: block;
+        width: 12px;
+        height: 12px;
+        background-color: var(--color-grey-60);
+        -webkit-mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+    }
+
+    /* Rotate the icon 180deg for scroll-to-top (arrow points up) */
+    .scroll-nav-icon-up {
+        transform: rotate(180deg);
     }
 
     .top-buttons {

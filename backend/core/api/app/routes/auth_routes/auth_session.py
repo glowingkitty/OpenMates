@@ -122,16 +122,39 @@ async def get_session(
         is_new_device_hash = device_hash not in known_device_hashes
         logger.info(f"Session: Device hash {device_hash[:8]}... is new: {is_new_device_hash} for user {user_id[:6]}...")
 
-        # Step 4: Perform re-auth check if it's a new device
-        # Two scenarios require re-authentication on a new device:
-        # 1. User has 2FA (OTP) enabled -> require OTP code
-        # 2. User has passkeys configured (even without OTP 2FA) -> require passkey assertion
+        # Step 3b: Check for sudden country change within the same session
+        # This detects suspicious location changes (e.g., VPN switch, session hijacking)
+        # even when the device hash is already known from a previous session.
+        # The last_session_country is stored in the user cache on every successful session validation.
+        is_country_change = False
+        previous_country = user_data.get("last_session_country")
+        if previous_country and country_code and previous_country != country_code:
+            # Country has changed since the last session validation
+            # Only flag if both countries are real (not "Local" or "Unknown")
+            if previous_country not in ("Local", "Unknown", None) and country_code not in ("Local", "Unknown", None):
+                is_country_change = True
+                logger.warning(
+                    f"[SECURITY] Country change detected for user {user_id[:6]}...: "
+                    f"{previous_country} -> {country_code}. Triggering re-authentication."
+                )
+
+        # Step 4: Perform re-auth check if it's a new device OR a suspicious country change
+        # Three scenarios require re-authentication:
+        # 1. New device hash + 2FA (OTP) enabled -> require OTP code
+        # 2. New device hash + passkeys configured -> require passkey assertion
+        # 3. Country change detected (even for known devices) -> require passkey/2FA to prevent session hijacking
         # This prevents account takeover via stolen session cookies from a different location
-        if is_new_device_hash:
+        re_auth_reason = None
+        if is_country_change:
+            re_auth_reason = "location_change"
+        elif is_new_device_hash:
+            re_auth_reason = "new_device"
+
+        if is_new_device_hash or is_country_change:
             tfa_enabled = user_data.get("tfa_enabled", False)
             
             if tfa_enabled:
-                logger.warning(f"New device detected for user {user_id[:6]} and 2FA is enabled. Triggering 2FA re-auth.")
+                logger.warning(f"Re-auth triggered for user {user_id[:6]} (reason: {re_auth_reason}, 2FA enabled).")
                 # Return minimal user info needed for the re-auth screen
                 minimal_user_info = UserResponse(
                     id=user_id,
@@ -158,6 +181,7 @@ async def get_session(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Device verification required",
                     re_auth_required="2fa",
+                    re_auth_reason=re_auth_reason, # "new_device" or "location_change"
                     user=minimal_user_info, # Send user info for the verification screen
                     require_invite_code=require_invite_code
                 )
@@ -174,7 +198,7 @@ async def get_session(
                 has_passkeys = False
             
             if has_passkeys:
-                logger.warning(f"New device detected for user {user_id[:6]} and passkeys are configured. Triggering passkey re-auth.")
+                logger.warning(f"Re-auth triggered for user {user_id[:6]} (reason: {re_auth_reason}, passkeys configured).")
                 minimal_user_info = UserResponse(
                     id=user_id,
                     username=user_data.get("username"),
@@ -198,13 +222,14 @@ async def get_session(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Passkey verification required",
                     re_auth_required="passkey",
+                    re_auth_reason=re_auth_reason, # "new_device" or "location_change"
                     user=minimal_user_info, # Send user info for the verification screen
                     require_invite_code=require_invite_code
                 )
             
             logger.debug(f"User {user_id[:6]} does not require re-auth (no 2FA and no passkeys).")
         else:
-             logger.debug(f"User {user_id[:6]} does not require re-auth (device already known).")
+             logger.debug(f"User {user_id[:6]} does not require re-auth (device already known, no country change).")
 
 
         # --- Risk assessment passed (or 2FA not enabled), proceed with session validation ---
@@ -221,6 +246,15 @@ async def get_session(
             # Log the error but don't let it interrupt the user's session validation.
             logger.error(f"Failed during device record update process for user {user_id}: {e}", exc_info=True)
 
+        # Step 5b: Update last_session_country in cache for country change detection on next session check.
+        # This is stored AFTER re-auth checks pass, so the country is only updated when the session is fully validated.
+        # This ensures that if a user switches country and re-authenticates, the new country is stored.
+        if country_code and country_code not in ("Local", "Unknown", None):
+            try:
+                await cache_service.update_user(user_id, {"last_session_country": country_code})
+                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}...")
+            except Exception as e:
+                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
 
         # Step 6: Update last online timestamp
         try:

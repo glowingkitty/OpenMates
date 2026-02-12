@@ -417,60 +417,9 @@
     }
   }
   
-  // Handle share - opens share settings menu for this specific video embed
-  async function handleShare() {
-    try {
-      console.debug('[VideoEmbedFullscreen] Opening share settings for video embed:', {
-        embedId,
-        url,
-        title: displayTitle,
-        videoId
-      });
-
-      // Check if we have embed_id for proper sharing
-      if (!embedId) {
-        console.warn('[VideoEmbedFullscreen] No embed_id available - cannot create encrypted share link');
-        const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this video embed. Missing embed ID.');
-        return;
-      }
-
-      // Import required modules
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-
-      // Set embed context with embed_id for proper encrypted sharing
-      const embedContext = {
-        type: 'video',
-        embed_id: embedId,
-        url: url,
-        title: displayTitle,
-        videoId: videoId,
-        embedUrl: embedUrl,
-        thumbnailUrl: thumbnailUrl
-      };
-
-      // Store embed context for SettingsShare
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).__embedShareContext = embedContext;
-
-      // Navigate to share settings
-      navigateToSettings('shared/share', $text('settings.share.share_video.text', { default: 'Share Video' }), 'share', 'settings.share.share_video.text');
-      
-      // Also set settingsDeepLink to ensure Settings component navigates properly
-      settingsDeepLink.set('shared/share');
-
-      // Open settings panel
-      panelState.openSettings();
-
-      console.debug('[VideoEmbedFullscreen] Opened share settings for video embed');
-    } catch (error) {
-      console.error('[VideoEmbedFullscreen] Error opening share settings:', error);
-      const { notificationStore } = await import('../../../stores/notificationStore');
-      notificationStore.error('Failed to open share menu. Please try again.');
-    }
-  }
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
   
   // Handle entering picture-in-picture mode
   // This uses CSS-based transitions - no DOM movement
@@ -543,7 +492,7 @@
   title=""
   onClose={handleClose}
   onCopy={handleCopy}
-  onShare={handleShare}
+  currentEmbedId={embedId}
   skillIconName="video"
   status="finished"
   skillName={shortenedTitle}

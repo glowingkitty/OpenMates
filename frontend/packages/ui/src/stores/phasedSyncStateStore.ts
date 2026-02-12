@@ -76,6 +76,18 @@ export interface PhasedSyncState {
    * Stored separately since Chat.encrypted_title needs decryption.
    */
   resumeChatTitle: string | null;
+
+  /**
+   * Decrypted category for the resume chat.
+   * Used by ActiveChat to render the category gradient circle on the resume card.
+   */
+  resumeChatCategory: string | null;
+
+  /**
+   * Decrypted icon name for the resume chat.
+   * Used by ActiveChat to render the icon inside the category circle on the resume card.
+   */
+  resumeChatIcon: string | null;
 }
 
 const initialState: PhasedSyncState = {
@@ -87,6 +99,8 @@ const initialState: PhasedSyncState = {
   userMadeExplicitChoice: false,
   resumeChatData: null,
   resumeChatTitle: null,
+  resumeChatCategory: null,
+  resumeChatIcon: null,
 };
 
 const { subscribe, set, update } = writable<PhasedSyncState>(initialState);
@@ -235,12 +249,21 @@ export const phasedSyncState = {
    * Called when Phase 1 receives the last opened chat.
    * @param chat - The chat to show in the resume UI
    * @param decryptedTitle - The decrypted title to display
+   * @param decryptedCategory - The decrypted category (optional, for gradient circle)
+   * @param decryptedIcon - The decrypted icon name (optional, for category icon)
    */
-  setResumeChatData: (chat: Chat, decryptedTitle: string | null) => {
+  setResumeChatData: (
+    chat: Chat,
+    decryptedTitle: string | null,
+    decryptedCategory?: string | null,
+    decryptedIcon?: string | null,
+  ) => {
     update((state) => ({
       ...state,
       resumeChatData: chat,
       resumeChatTitle: decryptedTitle,
+      resumeChatCategory: decryptedCategory ?? null,
+      resumeChatIcon: decryptedIcon ?? null,
     }));
   },
 
@@ -253,6 +276,8 @@ export const phasedSyncState = {
       ...state,
       resumeChatData: null,
       resumeChatTitle: null,
+      resumeChatCategory: null,
+      resumeChatIcon: null,
     }));
   },
 

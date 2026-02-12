@@ -109,10 +109,18 @@
     let passkeyError = $state('');
     let tfaError = $state('');
     
-    // Auto-request the code when component mounts
+    // Reference for code input to allow auto-focus
+    let codeInput: HTMLInputElement = $state();
+    
+    // Auto-request the code when component mounts and focus the input
     onMount(() => {
         if (email) {
             requestResetCode();
+        }
+        // Auto-focus the verification code input (skip on touch devices to avoid keyboard popup)
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (codeInput && !isTouchDevice) {
+            codeInput.focus();
         }
     });
     
@@ -120,6 +128,23 @@
     let canVerifyCode = $derived(
         verificationCode.length === 6 && acknowledgeDataLoss && !isVerifying
     );
+    
+    /**
+     * Sanitize verification code input to only allow digits.
+     * Also auto-submits when 6 valid digits are entered and data loss is acknowledged.
+     */
+    function handleCodeInput(event: Event) {
+        const input = event.target as HTMLInputElement;
+        // Only allow digits and limit to 6 characters
+        verificationCode = input.value.replace(/\D/g, '').slice(0, 6);
+        // Ensure the input reflects the sanitized value
+        input.value = verificationCode;
+        
+        // Auto-verify when 6 digits entered and data loss acknowledged
+        if (verificationCode.length === 6 && acknowledgeDataLoss && !isVerifying) {
+            verifyCode();
+        }
+    }
     
     // ============================================================================
     // Helper Functions for WebAuthn
@@ -865,13 +890,16 @@
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_2fa"></span>
                     <input
+                        bind:this={codeInput}
                         id="verification-code"
                         type="text"
                         bind:value={verificationCode}
+                        oninput={handleCodeInput}
                         placeholder="123456"
                         maxlength="6"
                         pattern="[0-9]*"
                         inputmode="numeric"
+                        autocomplete="one-time-code"
                         disabled={isVerifying}
                         class:error={!!codeError}
                     />
@@ -888,9 +916,19 @@
                         id="acknowledge-data-loss"
                         ariaLabel={$text('login.acknowledge_data_loss.text')}
                     />
-                    <label for="acknowledge-data-loss" class="toggle-label">
+                    <!-- Use span+onclick instead of label[for] to avoid double-label conflict
+                         (Toggle.svelte already wraps its input in a <label>, so a second label
+                         with for= targeting the same input can cause the checkbox to toggle twice,
+                         effectively making the click a no-op in some browsers) -->
+                    <span
+                        class="toggle-label"
+                        role="button"
+                        tabindex="0"
+                        onclick={() => acknowledgeDataLoss = !acknowledgeDataLoss}
+                        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); acknowledgeDataLoss = !acknowledgeDataLoss; }}}
+                    >
                         {$text('login.acknowledge_data_loss.text')}
-                    </label>
+                    </span>
                 </div>
             </div>
             
@@ -1054,7 +1092,13 @@
                         maxlength="6"
                         pattern="[0-9]*"
                         inputmode="numeric"
+                        autocomplete="one-time-code"
                         disabled={isVerifying2FA}
+                        oninput={(e) => {
+                            const input = e.target as HTMLInputElement;
+                            tfaVerificationCode = input.value.replace(/\D/g, '').slice(0, 6);
+                            input.value = tfaVerificationCode;
+                        }}
                         onkeydown={(e) => e.key === 'Enter' && tfaVerificationCode.length === 6 && verify2FAAndReset()}
                     />
                 </div>
@@ -1225,6 +1269,7 @@
         color: var(--color-grey-70);
         line-height: 1.4;
         cursor: pointer;
+        user-select: none;
     }
     
     .success-message {

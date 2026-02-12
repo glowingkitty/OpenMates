@@ -571,7 +571,11 @@ async def reset_account(
         
         # 4.5. Check if 2FA setup is required
         # Users with password login method MUST have 2FA configured
-        has_existing_2fa = bool(user_data.get("tfa_enabled", False))
+        # CRITICAL: Check encrypted_tfa_secret existence - this is the actual 2FA data
+        # Note: There is NO tfa_enabled field in Directus schema - it only exists in cache
+        # The presence of encrypted_tfa_secret is the source of truth for 2FA status
+        # (consistent with verify-code endpoint above)
+        has_existing_2fa = bool(user_data.get("encrypted_tfa_secret"))
         encrypted_tfa_secret = None
         encrypted_tfa_app_name = None
         

@@ -540,50 +540,18 @@
 				return; // Already loaded, don't load default
 			}
 
-			try {
-				// Ensure chatDB is initialized
-				await chatDB.init();
-
-				// Try to load the last opened chat from IndexedDB
-				// This will succeed as soon as the chat data is saved during any sync phase
-				const lastChat = await chatDB.getChat(lastOpenedChatId);
-
-				if (lastChat && activeChat) {
-					if (isSettingsHash) {
-						console.debug(
-							'[+page.svelte] [PRIORITY 3] ✅ Loading last_opened chat after settings hash:',
-							lastOpenedChatId
-						);
-					} else {
-						console.debug(
-							'[+page.svelte] ✅ Loading last opened chat from sync (login):',
-							lastOpenedChatId
-						);
-					}
-
-					// Update the active chat store so the sidebar highlights it when opened
-					activeChatStore.setActiveChat(lastOpenedChatId);
-
-					// Load the chat in the UI
-					activeChat.loadChat(lastChat);
-
-					console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
-					return; // Successfully loaded, don't load default
-				} else if (!lastChat) {
-					console.debug(
-						'[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase'
-					);
-					// Don't return - will load default below
-				} else if (!activeChat) {
-					console.debug('[+page.svelte] ActiveChat component not ready yet, retrying...');
-					// Retry after a short delay if activeChat isn't ready
-					setTimeout(handleSyncCompleteAndLoadLastChat, 100);
-					return; // Will retry, don't load default yet
-				}
-			} catch (error) {
-				console.error('[+page.svelte] Error loading last opened chat:', error);
-				// Continue to load default chat on error
-			}
+			// DON'T directly load the last opened chat here.
+			// Instead, show the new chat welcome screen and let ActiveChat.svelte's
+			// $effect query IndexedDB for the most recent chat to show the
+			// "Continue where you left off" resume card. This avoids timing issues
+			// with Phase 1 sync and gives the user the choice to resume or start fresh.
+			console.debug(
+				'[+page.svelte] Last opened chat found, deferring to "Resume last chat?" UI:',
+				lastOpenedChatId
+			);
+			// Keep the new chat welcome screen visible (don't set active chat)
+			activeChatStore.clearActiveChat();
+			return; // ActiveChat $effect will find and display the resume card
 		}
 
 		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
@@ -1429,47 +1397,15 @@
 					return;
 				}
 
-				// Handle real chat ID
-				if (activeChat) {
-					console.debug(
-						'[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:',
-						lastOpenedChatId
-					);
-					const lastChat = await chatDB.getChat(lastOpenedChatId);
-					if (lastChat) {
-						// SECURITY: Don't load hidden chats on page reload - they require passcode to unlock
-						// Check if chat is a hidden candidate (can't decrypt with master key)
-						const chatWithHidden = lastChat as Chat & {
-							is_hidden_candidate?: boolean;
-							is_hidden?: boolean;
-						};
-						if (chatWithHidden.is_hidden_candidate || chatWithHidden.is_hidden) {
-							console.debug(
-								'[+page.svelte] [TAB RELOAD] Last opened chat is hidden, skipping load (requires passcode)'
-							);
-							// Clear last_opened to prevent trying to load it again
-							await userDB.updateUserData({ last_opened: '/chat/new' });
-							activeChatStore.clearActiveChat();
-							phasedSyncState.markSyncCompleted();
-							return;
-						}
-
-						console.debug(
-							'[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately'
-						);
-						activeChatStore.setActiveChat(lastOpenedChatId);
-						activeChat.loadChat(lastChat);
-						// Mark sync as completed since we already have data
-						phasedSyncState.markSyncCompleted();
-						console.debug(
-							'[+page.svelte] ✅ Chat loaded instantly from IndexedDB cache (tab reload)'
-						);
-					} else {
-						console.debug(
-							'[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync'
-						);
-					}
-				}
+				// Don't auto-load last opened chat on tab reload.
+				// Stay on the new chat welcome screen and let the "Continue where you left off"
+				// resume card in ActiveChat.svelte handle it — user can click to open.
+				console.debug(
+					'[+page.svelte] [TAB RELOAD] Staying on new chat page, resume card will show last opened chat:',
+					lastOpenedChatId
+				);
+				activeChatStore.clearActiveChat();
+				phasedSyncState.markSyncCompleted();
 			});
 		}
 
@@ -1560,23 +1496,13 @@
 								return;
 							}
 
-							// Handle real chat ID
-							const lastChat = await chatDB.getChat(lastOpenedChatId);
-							if (lastChat) {
-								if (isSettingsHash) {
-									console.debug(
-										'[+page.svelte] [PRIORITY 3] Loading last_opened chat after settings hash:',
-										lastOpenedChatId
-									);
-								} else {
-									console.debug(
-										'[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:',
-										lastOpenedChatId
-									);
-								}
-								activeChatStore.setActiveChat(lastOpenedChatId);
-								activeChat.loadChat(lastChat);
-							}
+							// Don't auto-load last opened chat — stay on new chat page.
+							// The "Continue where you left off" resume card will show the link.
+							console.debug(
+								'[+page.svelte] [TAB RELOAD] Staying on new chat page, resume card will show last opened chat:',
+								lastOpenedChatId
+							);
+							activeChatStore.clearActiveChat();
 						} catch (error) {
 							console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
 						}
@@ -1751,39 +1677,15 @@
 	}
 
 	/**
-	 * Load last opened chat for authenticated users, or create new chat if none exists
+	 * Stay on new chat page for authenticated users.
+	 * The "Continue where you left off" resume card in ActiveChat.svelte will show
+	 * a link to the last opened chat, letting the user decide whether to open it.
 	 */
 	async function loadLastOpenedChatOrCreateNew() {
 		console.debug(
-			'[+page.svelte] Loading last_opened chat or creating new chat for authenticated user'
+			'[+page.svelte] Staying on new chat page for authenticated user (resume card will show last opened chat)'
 		);
-
-		const profile = $userProfile;
-		if (profile?.last_opened) {
-			// Try to load last opened chat from local storage first
-			try {
-				const { chatDB } = await import('@repo/ui');
-				const localChat = await chatDB.getChat(profile.last_opened);
-
-				if (localChat && activeChat) {
-					console.debug(
-						'[+page.svelte] ✅ Loaded last_opened chat from local storage:',
-						profile.last_opened
-					);
-					activeChatStore.setActiveChat(profile.last_opened);
-					activeChat.loadChat(localChat);
-					return;
-				}
-			} catch (error) {
-				console.debug('[+page.svelte] Could not load last_opened chat from local storage:', error);
-			}
-		}
-
-		// Fallback: Wait for sync to complete and load from server, or create new chat
-		console.debug(
-			'[+page.svelte] No local last_opened chat found, waiting for sync or creating new chat'
-		);
-		// Note: This will be handled by the sync completion handler
+		activeChatStore.clearActiveChat();
 	}
 
 	/**

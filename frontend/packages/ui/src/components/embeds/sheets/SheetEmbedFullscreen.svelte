@@ -159,7 +159,7 @@
   showSkillIcon={false}
   title={fullscreenTitle}
   {onClose}
-  {embedId}
+  currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

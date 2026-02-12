@@ -41,6 +41,10 @@ email.privacy_info:
   de: >-
     Ihre E-Mail-Adresse wird verschlüsselt auf Ihrem Gerät und dem Server gespeichert.
     Nur Sie können sie mit Ihrem Hauptschlüssel entschlüsseln.
+email.copied:
+  context: Notification shown when email address is copied to clipboard
+  en: E-mail address copied to clipboard
+  de: E-Mail-Adresse in die Zwischenablage kopiert
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.

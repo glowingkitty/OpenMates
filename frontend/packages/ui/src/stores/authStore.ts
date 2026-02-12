@@ -10,6 +10,7 @@ import {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  deviceVerificationReason,
   authInitialState,
 } from "./authState";
 import * as sessionActions from "./authSessionActions";
@@ -30,6 +31,7 @@ export {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  deviceVerificationReason,
   authInitialState,
 };
 export * from "./authTypes";

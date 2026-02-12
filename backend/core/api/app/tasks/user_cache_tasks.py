@@ -1118,8 +1118,11 @@ async def _async_delete_user_account(
             if usage_ids:
                 await directus_service.bulk_delete_items("usage", usage_ids)
             
-            # Delete usage summaries (including app summaries) - bulk delete each collection
-            for collection in ["usage_monthly_chat_summaries", "usage_monthly_api_key_summaries", "usage_monthly_app_summaries"]:
+            # Delete usage summaries (monthly and daily) - bulk delete each collection
+            for collection in [
+                "usage_monthly_chat_summaries", "usage_monthly_api_key_summaries", "usage_monthly_app_summaries",
+                "usage_daily_chat_summaries", "usage_daily_app_summaries", "usage_daily_api_key_summaries"
+            ]:
                 summaries = await directus_service.get_items(
                     collection,
                     params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}

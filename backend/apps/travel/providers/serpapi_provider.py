@@ -983,13 +983,26 @@ def _pick_best_booking_option(
     ota_options: List[Tuple[float, str, str]] = []
 
     for opt in booking_options:
-        # Handle both "together" and "departing"/"returning" structures.
-        # For simplicity, prefer "together" (full itinerary) over split.
+        # SerpAPI returns booking options in two layouts:
+        #  1. "together" with a booking_request → single-ticket purchase
+        #  2. "separate_tickets": true → "together" is just a summary (no
+        #     booking_request); the actual bookable tickets are under
+        #     "departing" and "returning", each with its own booking_request.
+        # Some options only have a "booking_phone" and no booking_request
+        # at all — we skip those since we can't provide a clickable URL.
         tickets = []
-        if opt.get("together"):
-            tickets.append(opt["together"])
-        elif opt.get("departing"):
-            tickets.append(opt["departing"])
+        together = opt.get("together")
+        if together and together.get("booking_request"):
+            # Single-ticket option with a bookable URL.
+            tickets.append(together)
+        else:
+            # Either no "together" key, or "together" is just a summary
+            # without booking_request (separate_tickets case).  Fall back
+            # to "departing" (one-way) and optionally "returning".
+            if opt.get("departing"):
+                tickets.append(opt["departing"])
+            if opt.get("returning"):
+                tickets.append(opt["returning"])
 
         for ticket in tickets:
             booking_req = ticket.get("booking_request", {})
@@ -1002,7 +1015,12 @@ def _pick_best_booking_option(
             # by appending post_data as query parameters.
             clickable_url = _post_to_get_url(raw_url, post_data)
 
+            # Use the provider name from the bookable ticket, but if this
+            # is a split-ticket option, prefer the summary name from
+            # "together" (e.g. "Lufthansa, Oman Air") for user clarity.
             book_with = ticket.get("book_with", "Unknown")
+            if together and opt.get("separate_tickets"):
+                book_with = together.get("book_with", book_with)
             is_airline = ticket.get("airline", False)
 
             try:
@@ -1125,8 +1143,31 @@ async def lookup_booking_url(
 
     booking_options = data.get("booking_options", [])
     if not booking_options:
-        logger.debug("No booking options returned by SerpAPI")
+        # Log at WARNING with top-level keys so we can diagnose empty responses.
+        top_keys = list(data.keys())
+        logger.warning(
+            f"No booking_options in SerpAPI response. "
+            f"Top-level keys: {top_keys}. "
+            f"search_metadata.status={data.get('search_metadata', {}).get('status')}. "
+            f"error={data.get('error')}"
+        )
         return {"booking_url": None, "booking_provider": None}
+
+    # Log the structure of booking_options so we can debug parsing failures.
+    for idx, opt in enumerate(booking_options):
+        opt_keys = list(opt.keys())
+        together = opt.get("together")
+        departing = opt.get("departing")
+        ticket_info = "none"
+        if together:
+            br = together.get("booking_request", {})
+            ticket_info = f"together(book_with={together.get('book_with')}, url={bool(br.get('url'))}, airline={together.get('airline')})"
+        elif departing:
+            br = departing.get("booking_request", {})
+            ticket_info = f"departing(book_with={departing.get('book_with')}, url={bool(br.get('url'))}, airline={departing.get('airline')})"
+        logger.debug(
+            f"Booking option[{idx}]: keys={opt_keys}, ticket={ticket_info}"
+        )
 
     url, provider_name = _pick_best_booking_option(booking_options)
     logger.info(

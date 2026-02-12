@@ -7,12 +7,13 @@ provider_id: "brave"
 name: "Brave Search"
 description: "Privacy-preserving web search API with independent index."
 logo_svg: "logos/brave.svg" # Path for UI, relative to a common logos directory
+region: "US" # Brave Search HQ is in San Francisco, US
 
 # API endpoint configuration
 api_base_url: "https://api.search.brave.com/res/v1"
 
 # Brave Search API Plans
-# 
+#
 # **Free AI Plan:**
 # - Price: $0.00 (credit card required via Stripe)
 # - Rate Limits: 1 request per second, 2,000 requests per month
@@ -59,7 +60,7 @@ rate_limits:
     requests_per_month: 20000000
   pro:
     requests_per_second: 50
-    requests_per_month: null  # Unlimited
+    requests_per_month: null # Unlimited
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Brave plan)
@@ -68,5 +69,5 @@ rate_limits:
 # Note: The Brave plan (free/base/pro) only affects rate limits and available features,
 #       not the user-facing pricing
 pricing:
-  per_request_credits: 10  # Always 10 credits per search request for users
+  per_request_credits: 10 # Always 10 credits per search request for users
 

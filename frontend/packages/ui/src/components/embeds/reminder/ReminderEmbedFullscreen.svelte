@@ -172,7 +172,7 @@
   showSkillIcon={false}
   title=""
   {onClose}
-  {embedId}
+  currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

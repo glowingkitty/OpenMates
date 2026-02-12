@@ -1055,6 +1055,11 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
                 provider_name = "Unknown"
             
+            # Persist server provider/region on preprocessing_result so stream_consumer.py
+            # can include them in usage_details for billing persistence to the usage collection
+            preprocessing_result.server_provider_name = provider_name
+            preprocessing_result.server_region = server_region
+            
             # Log the final provider name and server region that will be sent to client
             logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             
@@ -1466,6 +1471,14 @@ async def _async_process_ai_skill_ask_task(
                     for msg in request_data.message_history
                 ]
 
+            # Extract language info for suggestion generation:
+            # - output_language: the conversation/chat language detected by preprocessor (for follow-up suggestions)
+            # - user_system_language: the user's UI/system language from their profile (for new chat suggestions)
+            # This ensures new chat suggestions are always in the user's system language,
+            # preventing a mixed-language welcome screen for multilingual users.
+            chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
+            user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
+
             # Phase 1: Post-processing with category selection
             postprocessing_result = await handle_postprocessing(
                 task_id=task_id,
@@ -1480,6 +1493,8 @@ async def _async_process_ai_skill_ask_task(
                 available_app_ids=available_app_ids,
                 available_settings_memory_categories=available_settings_memory_categories,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                output_language=chat_output_language,
+                user_system_language=user_system_language,
             )
 
             # Phase 2: Memory generation (only if Phase 1 identified relevant categories)

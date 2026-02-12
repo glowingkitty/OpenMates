@@ -1,0 +1,37 @@
+usage_daily_chat_summaries:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    user_id_hash:
+      type: string
+      length: 255
+      note: "[Indexed] Hashed identifier of the user this daily summary belongs to."
+
+    chat_id:
+      type: string
+      length: 255
+      note: "[Indexed] Chat ID in cleartext (for chat-based usage). Allows client to match with IndexedDB."
+
+    date:
+      type: string
+      length: 10
+      note: "[Indexed] Date in format 'YYYY-MM-DD'. Used for grouping and filtering daily usage."
+
+    total_credits:
+      type: integer
+      note: "Total credits consumed for this chat on this day. Incrementally updated when usage entries are created."
+
+    entry_count:
+      type: integer
+      note: "Number of usage entries for this chat on this day. Incrementally updated when usage entries are created."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when this daily summary record was first created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when this daily summary record was last updated (incremented on each usage entry creation)."

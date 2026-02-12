@@ -931,6 +931,64 @@ class ChatCacheMixin:
             logger.error(f"Error clearing sync messages for user {user_id[:8]}...: {e}")
             return 0
     
+    async def remove_message_from_cache(self, user_id: str, chat_id: str, client_message_id: str) -> bool:
+        """
+        Removes a single message (by client_message_id) from both the AI cache and sync cache lists.
+        Since Redis lists don't support efficient random-access removal by field value,
+        we read the full list, filter out the matching message, and rewrite.
+        """
+        import json as _json
+        removed_any = False
+
+        for key_fn, label in [
+            (self._get_chat_messages_key, "AI"),
+            (self._get_sync_messages_key, "sync"),
+        ]:
+            key = key_fn(user_id, chat_id)
+            try:
+                client = await self.client
+                if not client:
+                    continue
+
+                # Read all messages from the list
+                messages_bytes = await client.lrange(key, 0, -1)
+                if not messages_bytes:
+                    continue
+
+                # Filter out the message with matching client_message_id
+                filtered = []
+                found = False
+                for msg_bytes in messages_bytes:
+                    try:
+                        msg = _json.loads(msg_bytes.decode('utf-8'))
+                        msg_id = msg.get("client_message_id") or msg.get("message_id") or msg.get("id")
+                        if msg_id == client_message_id:
+                            found = True
+                            continue  # Skip this message (delete it)
+                    except Exception:
+                        pass
+                    filtered.append(msg_bytes.decode('utf-8') if isinstance(msg_bytes, bytes) else msg_bytes)
+
+                if found:
+                    # Get current TTL before rewriting
+                    ttl = await client.ttl(key)
+                    if ttl < 0:
+                        ttl = 3600  # Default 1h if no TTL set
+
+                    # Rewrite the list without the deleted message
+                    await client.delete(key)
+                    if filtered:
+                        await client.rpush(key, *filtered)
+                        await client.expire(key, ttl)
+                    removed_any = True
+                    logger.info(f"Removed message {client_message_id} from {label} cache for chat {chat_id}")
+                else:
+                    logger.debug(f"Message {client_message_id} not found in {label} cache for chat {chat_id}")
+            except Exception as e:
+                logger.error(f"Error removing message {client_message_id} from {label} cache for chat {chat_id}: {e}")
+
+        return removed_any
+
     # ========== AI CACHE METHODS (Vault-encrypted messages for AI inference) ==========
     
     async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 500) -> bool:
@@ -1593,6 +1651,42 @@ class ChatCacheMixin:
             logger.error(f"Error deleting embed cache for chat {chat_id}: {e}", exc_info=True)
             return deleted_count
     
+    async def remove_embed_from_chat_cache(self, chat_id: str, embed_id: str) -> bool:
+        """
+        Remove a single embed from cache: deletes the embed:{embed_id} key
+        and removes the embed_id from the chat:{chat_id}:embed_ids set.
+        
+        Args:
+            chat_id: The chat ID the embed belongs to
+            embed_id: The embed_id to remove
+            
+        Returns:
+            True if the embed was found and removed, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, cannot remove embed {embed_id} from cache")
+            return False
+        
+        removed = False
+        try:
+            # Delete the individual embed cache entry
+            embed_key = self._get_embed_cache_key(embed_id)
+            result = await client.delete(embed_key)
+            if result:
+                removed = True
+                logger.debug(f"Deleted embed cache key: {embed_key}")
+            
+            # Remove from the chat's embed index set
+            chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)
+            await client.srem(chat_embed_index_key, embed_id)
+            logger.debug(f"Removed embed {embed_id} from chat embed index: {chat_embed_index_key}")
+            
+            return removed
+        except Exception as e:
+            logger.error(f"Error removing embed {embed_id} from cache for chat {chat_id}: {e}", exc_info=True)
+            return removed
+
     async def get_sync_embeds_for_chat(self, chat_id: str) -> List[Dict[str, Any]]:
         """
         Get all embeds from sync cache for a chat.

@@ -313,6 +313,9 @@ focuses:
     name_translation_key: web.research.text
     description_translation_key: web.research.description.text
     stage: development
+    preprocessor_hint: >
+      Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
+      or needs comprehensive information gathered from multiple web sources.
     systemprompt: |
       You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
   - id: deep_web_research
