@@ -255,13 +255,13 @@
             {$text('chats.context_menu.select.text', { default: 'Select' })}
         </button>
 
-        {#if onDelete || disableDelete}
+        {#if onDelete || disableDelete || !$authStore.isAuthenticated}
             <div class="menu-separator"></div>
             <button
                 class="menu-item delete"
                 class:confirming={confirmingDelete}
-                class:disabled={disableDelete}
-                disabled={disableDelete}
+                class:disabled={disableDelete || !$authStore.isAuthenticated}
+                disabled={disableDelete || !$authStore.isAuthenticated}
                 onclick={(event) => handleAction('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
