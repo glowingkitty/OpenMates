@@ -2748,6 +2748,9 @@ async function updateChatListFromDBInternal(force = false) {
         } catch (error) {
             console.error('[Chats] Error in bulk download:', error);
             notificationStore.error('Failed to download chats. Please try again.');
+        } finally {
+            // Signal to Chat.svelte context menu that bulk download is complete
+            window.dispatchEvent(new CustomEvent('chatBulkDownloadComplete'));
         }
     }
 

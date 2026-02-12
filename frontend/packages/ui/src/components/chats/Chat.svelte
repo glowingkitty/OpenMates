@@ -79,6 +79,7 @@
   let showContextMenu = $state(false);
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
+  let isDownloading = $state(false); // Track download in progress for context menu loading state
 
   // Touch/long-press detection state
   let touchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -957,6 +958,19 @@
     // CRITICAL: If we're in select mode and there are selected chats, dispatch bulk actions to parent
     // Otherwise, handle single-chat actions locally
     if (selectMode && selectedChatIds.size > 0 && (action === 'download' || action === 'copy' || action === 'delete')) {
+      // For bulk download, show loading state in the context menu while download is processing
+      if (action === 'download') {
+        isDownloading = true;
+        // Listen for download completion from Chats.svelte
+        const onComplete = () => {
+          isDownloading = false;
+          showContextMenu = false;
+          window.removeEventListener('chatBulkDownloadComplete', onComplete);
+        };
+        window.addEventListener('chatBulkDownloadComplete', onComplete);
+        window.dispatchEvent(new CustomEvent('chatContextMenuBulkAction', { detail: action }));
+        return;
+      }
       // Dispatch bulk action to parent (Chats.svelte)
       window.dispatchEvent(new CustomEvent('chatContextMenuBulkAction', { detail: action }));
       showContextMenu = false;
@@ -965,7 +979,12 @@
     
     switch (action) {
       case 'download':
-        handleDownloadChat();
+        // Set loading state, await download, then close context menu
+        isDownloading = true;
+        handleDownloadChat().finally(() => {
+          isDownloading = false;
+          showContextMenu = false;
+        });
         break;
       case 'copy':
         handleCopyChat();
@@ -1866,6 +1885,7 @@
     hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
     selectMode={selectMode}
     selectedChatIds={selectedChatIds}
+    downloading={isDownloading}
     on:close={handleContextMenuAction}
     on:download={handleContextMenuAction}
     on:copy={handleContextMenuAction}

@@ -18,6 +18,7 @@
         hideCopy?: boolean;
         selectMode?: boolean; // Whether we're in select mode (managed by Chats.svelte)
         selectedChatIds?: Set<string>; // Set of selected chat IDs (managed by Chats.svelte)
+        downloading?: boolean; // Whether a download is currently in progress
     }
     let { 
         x = 0,
@@ -28,7 +29,8 @@
         hideDownload = false,
         hideCopy = false,
         selectMode = false,
-        selectedChatIds = new Set<string>()
+        selectedChatIds = new Set<string>(),
+        downloading = false
     }: Props = $props();
 
     const dispatch: {
@@ -188,7 +190,9 @@
     });
 
     // Handle clicking outside the menu
+    // Don't allow closing while a download is in progress
     function handleClickOutside(event: MouseEvent | TouchEvent) {
+        if (downloading) return;
         if (menuElement && !menuElement.contains(event.target as Node)) {
             dispatch('close', 'close');
         }
@@ -243,7 +247,11 @@
         }
 
         dispatch(action, action);
-        dispatch('close', 'close');
+        // Don't close the menu when download is clicked — keep it open to show loading state.
+        // The parent will close the menu after the download completes.
+        if (action !== 'download') {
+            dispatch('close', 'close');
+        }
     }
 
 
@@ -264,9 +272,9 @@
         }
     }
 
-    // Add scroll handler
+    // Add scroll handler - don't close while downloading
     function handleScroll() {
-        if (show) {
+        if (show && !downloading) {
             dispatch('close', 'close');
         }
     }
@@ -348,10 +356,14 @@
                 {#if !hideDownload}
                     <button
                         class="menu-item download"
-                        onclick={(event) => handleButtonClick('download', event)}
+                        class:downloading={downloading}
+                        disabled={downloading}
+                        onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
                     >
-                        <div class="clickable-icon icon_download"></div>
-                        {$text('chats.context_menu.download_selected.text', { default: 'Download selected' })}
+                        <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
+                        <span class:shimmer={downloading}>
+                            {downloading ? $text('chats.context_menu.downloading_selected.text', { default: 'Downloading...' }) : $text('chats.context_menu.download_selected.text', { default: 'Download selected' })}
+                        </span>
                     </button>
                 {/if}
 
@@ -405,10 +417,14 @@
             {#if !hideDownload}
                 <button
                     class="menu-item download"
-                    onclick={(event) => handleButtonClick('download', event)}
+                    class:downloading={downloading}
+                    disabled={downloading}
+                    onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
                 >
-                    <div class="clickable-icon icon_download"></div>
-                    {$text('chats.context_menu.download.text')}
+                    <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
+                    <span class:shimmer={downloading}>
+                        {downloading ? $text('chats.context_menu.downloading.text', { default: 'Downloading...' }) : $text('chats.context_menu.download.text')}
+                    </span>
                 </button>
             {/if}
 
@@ -705,5 +721,56 @@
     .menu-item.hide.disabled,
     .menu-item.unhide.disabled {
         cursor: not-allowed !important;
+    }
+
+    /* Downloading state: greyed out and unclickable */
+    .menu-item.downloading {
+        opacity: 0.6;
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+
+    .menu-item.downloading:hover {
+        background-color: transparent;
+    }
+
+    .menu-item.downloading:active {
+        transform: none;
+    }
+
+    /* Shimmer gradient animation for loading state (text and icon) */
+    .shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: shimmer 1.5s infinite linear;
+    }
+
+    /* Shimmer animation for the icon (mask-based icons use background color) */
+    .clickable-icon.shimmer {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-70) 0%,
+            var(--color-grey-70) 30%,
+            var(--color-grey-50) 50%,
+            var(--color-grey-70) 70%,
+            var(--color-grey-70) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite linear;
+    }
+
+    @keyframes shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
 </style>
