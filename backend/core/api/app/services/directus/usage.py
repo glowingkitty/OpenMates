@@ -696,17 +696,20 @@ class UsageMethods:
             # so clients can display chat info even for chats not synced to IndexedDB.
             # Chats that don't exist anymore (hard-deleted) will be flagged as is_deleted=True.
             chat_metadata_map: Dict[str, Dict[str, Any]] = {}
+            chat_metadata_fetch_succeeded = False
             if unique_chat_ids:
                 try:
                     chat_fields = "id,encrypted_title,encrypted_category,encrypted_icon,encrypted_chat_key"
                     chat_filter = {
                         "id": {"_in": list(unique_chat_ids)}
                     }
+                    # Use admin_required=True because the chats collection may have
+                    # row-level permissions that restrict access by user ownership
                     chat_records = await self.sdk.get_items("chats", params={
                         "filter": chat_filter,
                         "fields": chat_fields,
                         "limit": -1
-                    }, no_cache=True)
+                    }, no_cache=True, admin_required=True)
                     
                     for chat in (chat_records or []):
                         chat_id = chat.get("id")
@@ -718,10 +721,12 @@ class UsageMethods:
                                 "encrypted_chat_key": chat.get("encrypted_chat_key"),
                             }
                     
-                    logger.debug(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(unique_chat_ids)} chats")
+                    chat_metadata_fetch_succeeded = True
+                    logger.info(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(unique_chat_ids)} chats")
                 except Exception as meta_err:
                     logger.warning(f"{log_prefix} Failed to fetch chat metadata: {meta_err}")
                     # Non-fatal: continue without metadata enrichment
+                    # chat_metadata_fetch_succeeded stays False so we don't wrongly mark chats as deleted
             
             # Process chat summaries
             for summary in (chat_summaries or []):
@@ -751,8 +756,10 @@ class UsageMethods:
                     chat_item["encrypted_icon"] = meta.get("encrypted_icon")
                     chat_item["encrypted_chat_key"] = meta.get("encrypted_chat_key")
                     chat_item["is_deleted"] = False
-                elif chat_id:
-                    # Chat not found in Directus - it was hard-deleted
+                elif chat_id and chat_metadata_fetch_succeeded:
+                    # Chat not found in Directus despite a successful query - it was hard-deleted
+                    # Only set is_deleted=True when the metadata fetch succeeded, to avoid
+                    # falsely marking chats as deleted when the query itself failed
                     chat_item["is_deleted"] = True
                 
                 days_map[date]["items"].append(chat_item)

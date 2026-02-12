@@ -1372,43 +1372,43 @@ Usage Settings - View usage statistics and export usage data
     <p class="header-description">{$text('settings.usage.description.text')}</p>
 </div>
 
-<!-- Category tabs -->
+<!-- Category tabs - icon-only clickable icons -->
 <div class="usage-tabs">
     <button
-        class="tab-button"
+        class="tab-icon-button"
         class:active={activeTab === 'overview'}
         onclick={() => activeTab = 'overview'}
+        title={$text('settings.usage.tab_overview.text')}
         aria-label={$text('settings.usage.tab_overview.text')}
     >
-        <Icon name="usage" type="subsetting" />
-        <span class="tab-label">{$text('settings.usage.tab_overview.text')}</span>
+        <div class="tab-icon icon icon_usage"></div>
     </button>
     <button
-        class="tab-button"
+        class="tab-icon-button"
         class:active={activeTab === 'chats'}
         onclick={() => activeTab = 'chats'}
+        title={$text('settings.usage.tab_chats.text')}
         aria-label={$text('settings.usage.tab_chats.text')}
     >
-        <Icon name="chat" type="subsetting" />
-        <span class="tab-label">{$text('settings.usage.tab_chats.text')}</span>
+        <div class="tab-icon icon icon_chat"></div>
     </button>
     <button
-        class="tab-button"
+        class="tab-icon-button"
         class:active={activeTab === 'apps'}
         onclick={() => activeTab = 'apps'}
+        title={$text('settings.usage.tab_apps.text')}
         aria-label={$text('settings.usage.tab_apps.text')}
     >
-        <Icon name="app" type="subsetting" />
-        <span class="tab-label">{$text('settings.usage.tab_apps.text')}</span>
+        <div class="tab-icon icon icon_app"></div>
     </button>
     <button
-        class="tab-button"
+        class="tab-icon-button"
         class:active={activeTab === 'api'}
         onclick={() => activeTab = 'api'}
+        title={$text('settings.usage.tab_api.text')}
         aria-label={$text('settings.usage.tab_api.text')}
     >
-        <Icon name="coding" type="subsetting" />
-        <span class="tab-label">{$text('settings.usage.tab_api.text')}</span>
+        <div class="tab-icon icon icon_coding"></div>
     </button>
 </div>
 
@@ -2302,53 +2302,41 @@ Usage Settings - View usage statistics and export usage data
 
     .usage-tabs {
         display: flex;
-        gap: 8px;
+        gap: 12px;
         padding: 10px;
         margin-bottom: 16px;
         border-bottom: 1px solid var(--color-grey-20);
         justify-content: flex-start;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
     }
 
-    .usage-tabs::-webkit-scrollbar {
-        display: none;
-    }
-
-    .tab-button {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        border-radius: 20px;
+    .tab-icon-button {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition: all 0.2s ease;
         flex-shrink: 0;
-        white-space: nowrap;
+        padding: 0;
     }
 
-    .tab-button:hover {
+    .tab-icon-button:hover {
         background: var(--color-grey-15);
         border-color: var(--color-grey-40);
     }
 
-    .tab-button.active {
+    .tab-icon-button.active {
         background: var(--color-primary);
         border-color: var(--color-primary);
     }
 
-    .tab-label {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--color-grey-80);
-        line-height: 1;
-    }
-
-    .tab-button.active .tab-label {
-        color: white;
+    .tab-icon {
+        width: 20px;
+        height: 20px;
     }
 
     .loading-state {
