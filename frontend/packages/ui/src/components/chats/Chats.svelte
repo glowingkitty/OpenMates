@@ -368,22 +368,41 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		return orderedEntries;
 	})());
 
+	// Static group keys — chats in these groups (intro, examples, legal, shared_by_others) are always shown,
+	// regardless of the phased loading tier. Only user chats (time-based groups) are subject to the display limit.
+	const STATIC_GROUP_KEYS = ['shared_by_others', 'intro', 'examples', 'legal'];
+
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	// Tier 1 ('initial'): Show first 20 chats (fast render during sync)
+	// Tier 1 ('initial'): Show first 20 USER chats (fast render during sync), plus all static chats (intro, examples, legal)
 	// Tier 2+ ('all_local', 'loading_server'): Show all chats (IndexedDB + server-loaded)
-	let chatsForDisplay = $derived(
-		loadTier === 'initial'
-			? sortedAllChatsFiltered.slice(0, 20)
-			: sortedAllChatsFiltered
-	);
+	// IMPORTANT: The limit of 20 applies only to user chats — intro, example, and legal chats are always shown
+	let chatsForDisplay = $derived((() => {
+		if (loadTier !== 'initial') {
+			return sortedAllChatsFiltered;
+		}
+		// Tier 1: Separate user chats from static chats, limit only user chats to 20
+		const userChats: ChatType[] = [];
+		const staticChats: ChatType[] = [];
+		for (const chat of sortedAllChatsFiltered) {
+			if (chat.group_key && STATIC_GROUP_KEYS.includes(chat.group_key)) {
+				staticChats.push(chat);
+			} else {
+				userChats.push(chat);
+			}
+		}
+		return [...userChats.slice(0, 20), ...staticChats];
+	})());
 	
 	// Determine if "Show more" button should be visible
-	// Tier 1 ('initial'): Show if there are more than 20 local chats
+	// Tier 1 ('initial'): Show if there are more than 20 USER chats (excludes intro/example/legal)
 	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
 	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
 	let showMoreButtonVisible = $derived((() => {
 		if (loadTier === 'initial') {
-			return sortedAllChatsFiltered.length > 20;
+			const userChatCount = sortedAllChatsFiltered.filter(
+				c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+			).length;
+			return userChatCount > 20;
 		}
 		if (loadTier === 'loading_server') {
 			return true; // Keep button visible while loading
@@ -400,7 +419,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
 	// This allows the "Show more" button to be rendered between user chats and static sections,
 	// so users don't have to scroll past intro/example/legal chats to find it.
-	const STATIC_GROUP_KEYS = ['shared_by_others', 'intro', 'examples', 'legal'];
+	// NOTE: STATIC_GROUP_KEYS is declared earlier (before chatsForDisplay) since it's also used for phased loading.
 	
 	let orderedUserChatGroups = $derived((() => {
 		const groups = groupedChatsForDisplay;
