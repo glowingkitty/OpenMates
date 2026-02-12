@@ -210,8 +210,10 @@ changes to the documentation (to keep the documentation up to date).
         // Update settings navigation breadcrumbs using the current translations
         updateBreadcrumbsWithLanguage($text);
         
-        // Force text store subscribers to update by dispatching a custom event
-        window.dispatchEvent(new CustomEvent('language-changed'));
+        // NOTE: Don't dispatch 'language-changed' here - it's dispatched in the main
+        // changeLanguage() flow via setTimeout. Dispatching it here caused a double-dispatch
+        // that triggered two concurrent demo chat reloads, leading to a race condition where
+        // community demo chat titles would stay in the old language.
         
         // Force a re-render of all text elements
         const textElements = document.querySelectorAll('[data-i18n]');

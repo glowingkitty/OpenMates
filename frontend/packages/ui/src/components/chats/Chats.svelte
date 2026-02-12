@@ -449,6 +449,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
+	let languageChangeDemoDebounceTimer: ReturnType<typeof setTimeout> | null = null; // Debounce timer for demo reload on language change
+	let demoReloadAbortController: AbortController | null = null; // Abort controller to cancel in-flight demo reload on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -1030,10 +1032,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.addEventListener('language-changed', languageChangeHandler);
 
 		// Language change handler for demo chats - reload demos in new language
+		// DEBOUNCED: The 'language-changed' event fires multiple times in quick succession
+		// (once from updateNavigationAndBreadcrumbs, once from setTimeout in SettingsLanguage).
+		// Without debouncing, two concurrent loadDemoChatsFromServer(true) calls race against
+		// each other - the second call's communityDemoStore.clear() can wipe data that the
+		// first call just added, causing demo chat titles to briefly disappear or stay stale.
 		handleLanguageChangeForDemos = () => {
-			// Reload demos for ALL users when language changes
-			console.debug('[Chats] Language changed - reloading community demo chats');
-			loadDemoChatsFromServer(true); // Pass true to force reload
+			// Clear any pending debounce timer (collapses multiple rapid events into one)
+			if (languageChangeDemoDebounceTimer) {
+				clearTimeout(languageChangeDemoDebounceTimer);
+			}
+			languageChangeDemoDebounceTimer = setTimeout(() => {
+				languageChangeDemoDebounceTimer = null;
+				console.debug('[Chats] Language changed (debounced) - reloading community demo chats');
+				loadDemoChatsFromServer(true).catch(error => {
+					console.error('[Chats] Error reloading demo chats after language change:', error);
+				});
+			}, 100); // 100ms debounce - long enough to collapse double-dispatch, short enough to feel instant
 		};
 		window.addEventListener('language-changed', handleLanguageChangeForDemos);
 
@@ -1395,10 +1410,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			return;
 		}
 
+		// ABORT MECHANISM: Cancel any previous in-flight reload when a forced reload starts.
+		// This prevents race conditions where an old reload's results overwrite new data.
+		if (forceLanguageReload && demoReloadAbortController) {
+			console.debug('[Chats] Aborting previous demo reload in favor of new language reload');
+			demoReloadAbortController.abort();
+		}
+		const abortController = new AbortController();
+		if (forceLanguageReload) {
+			demoReloadAbortController = abortController;
+		}
+
 		try {
 			// CRITICAL: Wait for translations to be fully loaded before fetching
 			// This ensures svelteLocaleStore has the correct language for the API call
 			await waitLocale();
+			
+			// Check if this reload was superseded by a newer one
+			if (abortController.signal.aborted) {
+				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
+				return;
+			}
 			
 			communityDemoStore.setLoading(true);
 			
@@ -1424,6 +1456,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				await communityDemoStore.loadFromCache();
 			}
 
+			// Check abort again before making network requests
+			if (abortController.signal.aborted) {
+				console.debug('[Chats] Demo reload aborted before fetch (superseded by newer reload)');
+				return;
+			}
+
 			// STEP 3: Get local content hashes for change detection
 			const localHashes = await getLocalContentHashes();
 			const hashesParam = Array.from(localHashes.entries())
@@ -1441,7 +1479,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				? getApiEndpoint(`/v1/demo/chats?lang=${currentLang}&hashes=${encodeURIComponent(hashesParam)}`)
 				: getApiEndpoint(`/v1/demo/chats?lang=${currentLang}`);
 			
-			const response = await fetch(url);
+			const response = await fetch(url, { signal: abortController.signal });
 			if (!response.ok) {
 				// If server is unavailable, use cached demos (offline mode)
 				if (getAllCommunityDemoChats().length > 0) {
@@ -1477,13 +1515,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 			// Load each demo chat that needs updating
 			for (const demoChatMeta of demosToFetch) {
+				// Check abort before each demo fetch to bail out quickly if superseded
+				if (abortController.signal.aborted) {
+					console.debug('[Chats] Demo reload aborted during fetch loop');
+					return;
+				}
+
 				const demoId = demoChatMeta.demo_id;
 				const contentHash = demoChatMeta.content_hash || '';
 				if (!demoId) continue;
 
 				try {
 					// Fetch individual demo chat data
-					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`));
+					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`), { signal: abortController.signal });
 					if (!chatResponse.ok) {
 						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
 						continue;
@@ -1588,6 +1632,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					newlyLoadedIds.push(demoId);
 					console.debug(`[Chats] Successfully loaded community demo ${demoId} (chat_id: ${chatId}) into memory and cache`);
 				} catch (error) {
+					// Re-throw abort errors to be caught by the outer catch
+					if (error instanceof DOMException && error.name === 'AbortError') {
+						throw error;
+					}
 					console.error(`[Chats] Error loading community demo ${demoId}:`, error);
 				}
 			}
@@ -1595,6 +1643,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			communityDemoStore.markAsLoaded();
 			console.debug(`[Chats] Finished loading community demos: ${newlyLoadedIds.length} updated, ${getAllCommunityDemoChats().length} total`);
 		} catch (error) {
+			// Don't log abort errors (expected when a reload is superseded by a newer one)
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
+				return; // Don't markAsLoaded - the newer reload will handle it
+			}
 			console.error('[Chats] Error loading community demo chats from server:', error);
 			communityDemoStore.markAsLoaded();
 		}
@@ -1660,6 +1713,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
+		if (languageChangeDemoDebounceTimer) clearTimeout(languageChangeDemoDebounceTimer);
+		if (demoReloadAbortController) demoReloadAbortController.abort();
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		if (unsubscribeAuth) unsubscribeAuth();
 		
