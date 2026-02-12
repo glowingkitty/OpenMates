@@ -905,35 +905,83 @@ async def handle_main_processing(
     if discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
     
+    # === BUILD PRESELECTED SKILLS SET ===
+    # Build this BEFORE the instruction injection block so we can filter app instructions
+    # by whether their skills are preselected. Also used later for tool generation.
+    preselected_skills = None
+    if hasattr(preprocessing_results, 'relevant_app_skills'):
+        if preprocessing_results.relevant_app_skills is not None:
+            preselected_skills = set(preprocessing_results.relevant_app_skills)
+            if preselected_skills:
+                logger.debug(f"{log_prefix} Using preselected skills from preprocessing: {preselected_skills}")
+            else:
+                logger.debug(f"{log_prefix} No skills preselected by preprocessing (empty list)")
+        else:
+            logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
+            preselected_skills = set()
+
+    # HARDENING: Merge always_include_skills into preselected_skills
+    # Ensures critical skills (like web-search) are ALWAYS available regardless of preprocessing.
+    if always_include_skills:
+        if preselected_skills is None:
+            preselected_skills = set()
+        skills_to_add = set(always_include_skills) - preselected_skills
+        if skills_to_add:
+            logger.info(
+                f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
+                f"These skills are configured to always be available regardless of preprocessing."
+            )
+        preselected_skills = preselected_skills | set(always_include_skills)
+        logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
+
     # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
     # Load instructions from each available app's app.yml configuration.
-    # These instructions are ONLY included when the app is actually discovered/available.
-    # This prevents the AI from being instructed about capabilities it doesn't have
-    # (e.g., "use web-search" when the web app is unavailable).
+    # Instructions are ONLY included when at least one skill from the app is preselected
+    # (or the app has no skills, e.g. purely instructional apps).
+    # This prevents the AI from seeing references to tools it can't call in this turn,
+    # which would cause tool name hallucination (e.g., calling 'images' when images-generate
+    # wasn't preselected as a tool).
     app_instructions_added = []
+    app_instructions_skipped = []
     if discovered_apps_metadata:
         # Get the conversation category from preprocessing for category-filtered instructions
         conversation_category = preprocessing_results.category if preprocessing_results else None
         
         for app_id, app_metadata in discovered_apps_metadata.items():
-            if app_metadata.instructions:
-                for instruction_def in app_metadata.instructions:
-                    # Check if instruction has category filtering
-                    if instruction_def.categories:
-                        # Only include if conversation category matches
-                        if conversation_category and conversation_category in instruction_def.categories:
-                            prompt_parts.append(instruction_def.instruction)
-                            app_instructions_added.append(f"{app_id} (category: {conversation_category})")
-                        # Skip if categories specified but don't match
-                    else:
-                        # No category filter - always include when app is available
+            if not app_metadata.instructions:
+                continue
+            
+            # Check if this app has any skills preselected for this turn.
+            # If the app has skills but none were preselected, skip its instructions
+            # to avoid mentioning tool names the LLM can't actually call.
+            if app_metadata.skills and preselected_skills:
+                app_has_preselected_skill = any(
+                    f"{app_id}-{skill.id}" in preselected_skills
+                    for skill in app_metadata.skills
+                )
+                if not app_has_preselected_skill:
+                    app_instructions_skipped.append(app_id)
+                    continue
+            
+            for instruction_def in app_metadata.instructions:
+                # Check if instruction has category filtering
+                if instruction_def.categories:
+                    # Only include if conversation category matches
+                    if conversation_category and conversation_category in instruction_def.categories:
                         prompt_parts.append(instruction_def.instruction)
-                        app_instructions_added.append(app_id)
+                        app_instructions_added.append(f"{app_id} (category: {conversation_category})")
+                    # Skip if categories specified but don't match
+                else:
+                    # No category filter - include when app has preselected skills
+                    prompt_parts.append(instruction_def.instruction)
+                    app_instructions_added.append(app_id)
         
         if app_instructions_added:
-            logger.info(f"{log_prefix} [APP_INSTRUCTIONS] Loaded instructions from available apps: {', '.join(app_instructions_added)}")
+            logger.info(f"{log_prefix} [APP_INSTRUCTIONS] Loaded instructions from apps with preselected skills: {', '.join(app_instructions_added)}")
         else:
             logger.debug(f"{log_prefix} [APP_INSTRUCTIONS] No app-specific instructions to load (apps: {list(discovered_apps_metadata.keys())})")
+        if app_instructions_skipped:
+            logger.debug(f"{log_prefix} [APP_INSTRUCTIONS] Skipped instructions for apps without preselected skills: {', '.join(app_instructions_skipped)}")
     else:
         logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
     
@@ -1004,43 +1052,8 @@ async def handle_main_processing(
     
     # Generate tool definitions from discovered apps using the tool generator
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
-    # Note: Empty list means no skills preselected (valid case), None should not occur
-    # HARDENING: always_include_skills are ALWAYS added to the preselected set regardless of preprocessing
-    # This ensures critical skills like web-search are available even if preprocessing fails to detect intent
-    preselected_skills = None
-    if hasattr(preprocessing_results, 'relevant_app_skills'):
-        if preprocessing_results.relevant_app_skills is not None:
-            # Convert list to set for efficient lookup
-            preselected_skills = set(preprocessing_results.relevant_app_skills)
-            if preselected_skills:
-                logger.debug(f"{log_prefix} Using preselected skills from preprocessing: {preselected_skills}")
-            else:
-                logger.debug(f"{log_prefix} No skills preselected by preprocessing (empty list)")
-        else:
-            # None should not occur, but handle gracefully
-            logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
-            preselected_skills = set()  # Empty set means no skills
-    
-    # HARDENING: Merge always_include_skills into preselected_skills
-    # This is a safety net that ensures critical skills (like web-search) are ALWAYS available
-    # to the main LLM, regardless of preprocessing preselection decisions.
-    # Purpose: Handle edge cases where preprocessing LLM fails to detect follow-up query intent.
-    if always_include_skills:
-        if preselected_skills is None:
-            preselected_skills = set()
-        
-        # Log which skills we're force-including
-        skills_to_add = set(always_include_skills) - preselected_skills
-        if skills_to_add:
-            logger.info(
-                f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
-                f"These skills are configured to always be available regardless of preprocessing."
-            )
-        
-        # Merge the always-include skills into the preselected set
-        preselected_skills = preselected_skills | set(always_include_skills)
-        logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
-    
+    # Note: preselected_skills was already built earlier (before app instruction injection)
+    # so it's available here for tool generation.
     assigned_app_ids = selected_mate_config.assigned_apps if selected_mate_config else None
     
     # Initialize TranslationService to resolve skill descriptions from translation keys
@@ -3182,9 +3195,15 @@ async def handle_main_processing(
                 except Exception:
                     pass  # Don't fail if status publish fails
             except ValueError as e:
-                # Invalid tool name format
+                # Invalid tool name format - include available tools in error message
+                # so the LLM can self-correct on the next iteration
+                available_tool_names = [t["function"]["name"] for t in available_tools_for_llm] if available_tools_for_llm else []
                 logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': {e}")
-                tool_result_content_str = json.dumps({"error": "Invalid tool name format.", "details": str(e)})
+                tool_result_content_str = json.dumps({
+                    "error": f"Tool '{tool_name}' does not exist.",
+                    "available_tools": available_tool_names,
+                    "hint": "Use one of the available tools listed above, or respond with text if no suitable tool exists."
+                })
                 # Set ignore_fields_for_inference to None since invalid tool name format
                 # This variable is used later when adding to message history
                 ignore_fields_for_inference = None

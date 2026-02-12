@@ -36,6 +36,9 @@ skills:
     description_translation_key: images.generate.description.text
     preprocessor_hint: >
       Generate high-quality images from text prompts and/or reference images.
+      Also use for: mockups, design concepts, visual mockup creation, logo mockups,
+      product mockups, illustration requests, visual design, concept art, posters,
+      banners, thumbnails, or any request that implies creating a visual output.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
@@ -72,6 +75,8 @@ skills:
     description_translation_key: images.generate_draft.description.text
     preprocessor_hint: >
       Quickly generate a draft/preview image from a text prompt.
+      Also use for: quick mockups, rough design concepts, draft illustrations,
+      sketches, quick visual previews, or any request for a fast/rough image.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill

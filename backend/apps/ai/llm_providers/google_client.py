@@ -646,7 +646,8 @@ async def invoke_google_ai_studio_chat_completions(
                 try:
                     encoding = tiktoken.get_encoding("cl100k_base")
                     system_prompt_tokens = len(encoding.encode(system_prompt)) if system_prompt else 0
-                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts) + system_prompt_tokens
+                    # Filter out parts with None text (e.g. FunctionCall/FunctionResponse parts)
+                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts if part.text is not None) + system_prompt_tokens
                     completion_tokens = len(encoding.encode(output_buffer))
                     usage = GoogleUsageMetadata(
                         prompt_token_count=prompt_tokens,
@@ -985,7 +986,8 @@ async def invoke_google_chat_completions(
                 try:
                     encoding = tiktoken.get_encoding("cl100k_base")
                     system_prompt_tokens = len(encoding.encode(system_prompt)) if system_prompt else 0
-                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts) + system_prompt_tokens
+                    # Filter out parts with None text (e.g. FunctionCall/FunctionResponse parts)
+                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts if part.text is not None) + system_prompt_tokens
                     completion_tokens = len(encoding.encode(output_buffer))
                     usage = GoogleUsageMetadata(
                         prompt_token_count=prompt_tokens,
