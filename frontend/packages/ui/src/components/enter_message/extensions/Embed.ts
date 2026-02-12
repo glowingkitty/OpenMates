@@ -6,6 +6,64 @@ import { EmbedNodeAttributes, EmbedType } from "../../../message_parsing/types";
 import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 
+/**
+ * Extract the embed_id from a contentRef string.
+ * Only returns a value for "embed:{embed_id}" format (real embeds stored in EmbedStore).
+ * Returns null for preview: or stream: refs which are not stored in EmbedStore.
+ */
+function extractEmbedIdFromContentRef(
+  contentRef: string | null | undefined,
+): string | null {
+  if (!contentRef) return null;
+  if (contentRef.startsWith("embed:")) {
+    return contentRef.slice("embed:".length);
+  }
+  return null;
+}
+
+/**
+ * Clean up embed data from EmbedStore when an embed node is removed from the editor.
+ * This prevents orphaned embeds from accumulating in IndexedDB when the user
+ * deletes draft-stage embeds (code pastes, URL embeds) before sending.
+ *
+ * Uses dynamic import to avoid adding embedStore as a top-level dependency.
+ * Runs asynchronously and never blocks the editor operation — failures are logged but not thrown.
+ */
+function cleanupRemovedEmbed(contentRef: string | null | undefined): void {
+  const embedId = extractEmbedIdFromContentRef(contentRef);
+  if (!embedId) return;
+
+  // Fire-and-forget: delete from EmbedStore asynchronously
+  import("../../../services/embedStore")
+    .then(({ embedStore }) => {
+      embedStore.deleteEmbed(embedId).then(() => {
+        console.debug(
+          "[Embed] Cleaned up removed embed from EmbedStore:",
+          embedId,
+        );
+      });
+    })
+    .catch((error) => {
+      console.error(
+        "[Embed] Failed to clean up removed embed:",
+        embedId,
+        error,
+      );
+    });
+}
+
+/**
+ * Clean up all embeds in a group node from EmbedStore.
+ * Iterates through groupedItems and deletes each stored embed.
+ */
+function cleanupRemovedGroupEmbeds(attrs: EmbedNodeAttributes): void {
+  if (!attrs.groupedItems || attrs.groupedItems.length === 0) return;
+
+  for (const item of attrs.groupedItems) {
+    cleanupRemovedEmbed(item.contentRef);
+  }
+}
+
 export interface EmbedOptions {
   // Configuration options for the unified embed extension
   inline?: boolean;
@@ -804,6 +862,8 @@ export const Embed = Node.create<EmbedOptions>({
               groupHandlerRegistry.handleGroupBackspace(attrs);
 
             if (backspaceResult) {
+              const groupedItems = attrs.groupedItems || [];
+
               switch (backspaceResult.action) {
                 case "split-group":
                   if (backspaceResult.replacementContent) {
@@ -826,6 +886,12 @@ export const Embed = Node.create<EmbedOptions>({
                       .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementContent)
                       .run();
+
+                    // Clean up the last item's embed (the one removed from the group and converted to text)
+                    if (groupedItems.length > 0) {
+                      const removedItem = groupedItems[groupedItems.length - 1];
+                      cleanupRemovedEmbed(removedItem.contentRef);
+                    }
                   }
                   return true;
 
@@ -843,6 +909,9 @@ export const Embed = Node.create<EmbedOptions>({
                       .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementText)
                       .run();
+
+                    // Clean up all embeds in the group since the entire group is converted to text
+                    cleanupRemovedGroupEmbeds(attrs);
                   }
                   return true;
 
@@ -857,6 +926,9 @@ export const Embed = Node.create<EmbedOptions>({
                     .focus()
                     .deleteRange({ from, to: deleteTo })
                     .run();
+
+                  // Clean up all embeds in the group since the entire group is deleted
+                  cleanupRemovedGroupEmbeds(attrs);
                   return true;
               }
             }
@@ -871,6 +943,9 @@ export const Embed = Node.create<EmbedOptions>({
               hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
 
             editor.chain().focus().deleteRange({ from, to: deleteTo }).run();
+
+            // Clean up all embeds in the group on fallback deletion too
+            cleanupRemovedGroupEmbeds(attrs);
             return true;
           }
 
@@ -986,6 +1061,10 @@ export const Embed = Node.create<EmbedOptions>({
             .deleteRange({ from, to: deleteTo })
             .insertContent(markdown)
             .run();
+
+          // Clean up the embed from EmbedStore if it was a stored embed (contentRef: "embed:{id}")
+          // This prevents orphaned embeds in IndexedDB when users delete draft-stage embeds
+          cleanupRemovedEmbed(attrs.contentRef);
 
           return true;
         }
