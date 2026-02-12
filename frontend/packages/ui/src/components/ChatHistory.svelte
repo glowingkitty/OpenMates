@@ -859,11 +859,11 @@
     }
   }
   
-  export function scrollToBottom() {
+  export function scrollToBottom(smooth = false) {
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: 'auto' // Use instant scroll to avoid animation
+        behavior: smooth ? 'smooth' : 'auto' // Instant by default for programmatic calls; smooth for user-initiated
       });
     } else {
       console.warn("[ChatHistory] Container not found");

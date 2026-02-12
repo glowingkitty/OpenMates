@@ -1651,6 +1651,42 @@ class ChatCacheMixin:
             logger.error(f"Error deleting embed cache for chat {chat_id}: {e}", exc_info=True)
             return deleted_count
     
+    async def remove_embed_from_chat_cache(self, chat_id: str, embed_id: str) -> bool:
+        """
+        Remove a single embed from cache: deletes the embed:{embed_id} key
+        and removes the embed_id from the chat:{chat_id}:embed_ids set.
+        
+        Args:
+            chat_id: The chat ID the embed belongs to
+            embed_id: The embed_id to remove
+            
+        Returns:
+            True if the embed was found and removed, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, cannot remove embed {embed_id} from cache")
+            return False
+        
+        removed = False
+        try:
+            # Delete the individual embed cache entry
+            embed_key = self._get_embed_cache_key(embed_id)
+            result = await client.delete(embed_key)
+            if result:
+                removed = True
+                logger.debug(f"Deleted embed cache key: {embed_key}")
+            
+            # Remove from the chat's embed index set
+            chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)
+            await client.srem(chat_embed_index_key, embed_id)
+            logger.debug(f"Removed embed {embed_id} from chat embed index: {chat_embed_index_key}")
+            
+            return removed
+        except Exception as e:
+            logger.error(f"Error removing embed {embed_id} from cache for chat {chat_id}: {e}", exc_info=True)
+            return removed
+
     async def get_sync_embeds_for_chat(self, chat_id: str) -> List[Dict[str, Any]]:
         """
         Get all embeds from sync cache for a chat.

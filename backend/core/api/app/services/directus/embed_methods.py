@@ -626,6 +626,125 @@ class EmbedMethods:
             logger.error(f"Error deleting all embeds for hashed_chat_id: {hashed_chat_id[:16]}...: {e}", exc_info=True)
             return False
 
+    async def delete_embeds_for_message(self, hashed_chat_id: str, hashed_message_id: str, s3_service=None) -> list:
+        """
+        Deletes embeds for a specific message from Directus.
+        Only deletes embeds that are private/not shared (same logic as delete_all_embeds_for_chat).
+        Also deletes associated S3 files and embed_keys.
+        
+        Args:
+            hashed_chat_id: SHA256 hash of the chat_id
+            hashed_message_id: SHA256 hash of the message_id
+            s3_service: Optional S3UploadService instance for deleting associated S3 files
+            
+        Returns:
+            List of embed_id strings that were deleted (for cache cleanup)
+        """
+        logger.info(
+            f"Attempting to delete embeds for hashed_message_id: {hashed_message_id[:16]}... "
+            f"in hashed_chat_id: {hashed_chat_id[:16]}... from Directus."
+        )
+        deleted_embed_ids = []
+        try:
+            # Query for embeds belonging to this message that are not shared
+            params = {
+                'filter[hashed_chat_id][_eq]': hashed_chat_id,
+                'filter[hashed_message_id][_eq]': hashed_message_id,
+                'filter[_or][0][is_private][_eq]': True,
+                'filter[_or][1][is_shared][_eq]': False,
+                'fields': 'id,embed_id,s3_file_keys',
+                'limit': -1
+            }
+            
+            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+            
+            if not response or not isinstance(response, list) or len(response) == 0:
+                logger.info(
+                    f"No private embeds found for hashed_message_id: {hashed_message_id[:16]}... "
+                    f"in hashed_chat_id: {hashed_chat_id[:16]}... (nothing to delete)"
+                )
+                return []
+            
+            directus_ids = [embed.get('id') for embed in response if embed.get('id')]
+            embed_uuid_ids = [embed.get('embed_id') for embed in response if embed.get('embed_id')]
+            
+            logger.info(
+                f"Found {len(directus_ids)} private embed(s) to delete for hashed_message_id: {hashed_message_id[:16]}..."
+            )
+            
+            if not directus_ids:
+                return []
+            
+            # Delete associated S3 files before deleting embed records
+            if s3_service:
+                await self._delete_s3_files_for_embeds(response, s3_service)
+            
+            # Delete associated embed_keys for these embeds
+            for embed_uuid_id in embed_uuid_ids:
+                try:
+                    await self._delete_embed_keys_for_embed(embed_uuid_id)
+                except Exception as key_err:
+                    logger.warning(f"Failed to delete embed_keys for embed {embed_uuid_id}: {key_err}")
+            
+            # Bulk delete embed records
+            success = await self.directus_service.bulk_delete_items(collection='embeds', item_ids=directus_ids)
+            
+            if success:
+                deleted_embed_ids = embed_uuid_ids
+                logger.info(
+                    f"Successfully deleted {len(directus_ids)} embeds for hashed_message_id: "
+                    f"{hashed_message_id[:16]}... (embed_ids: {embed_uuid_ids[:5]}...)"
+                )
+            else:
+                logger.warning(
+                    f"Bulk delete failed for embeds of hashed_message_id: {hashed_message_id[:16]}..."
+                )
+            
+            return deleted_embed_ids
+        except Exception as e:
+            logger.error(
+                f"Error deleting embeds for hashed_message_id: {hashed_message_id[:16]}...: {e}",
+                exc_info=True
+            )
+            return deleted_embed_ids
+
+    async def _delete_embed_keys_for_embed(self, embed_id: str) -> bool:
+        """
+        Deletes all embed_keys entries for a specific embed from Directus.
+        
+        Args:
+            embed_id: The embed_id (UUID) to delete keys for
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            import hashlib
+            hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest()
+            
+            params = {
+                'filter[hashed_embed_id][_eq]': hashed_embed_id,
+                'fields': 'id',
+                'limit': -1
+            }
+            
+            response = await self.directus_service.get_items('embed_keys', params=params, no_cache=True)
+            
+            if not response or not isinstance(response, list) or len(response) == 0:
+                return True
+            
+            key_ids = [key.get('id') for key in response if key.get('id')]
+            if not key_ids:
+                return True
+            
+            success = await self.directus_service.bulk_delete_items(collection='embed_keys', item_ids=key_ids)
+            if success:
+                logger.debug(f"Deleted {len(key_ids)} embed_keys for embed {embed_id}")
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting embed_keys for embed {embed_id}: {e}", exc_info=True)
+            return False
+
     async def _delete_s3_files_for_embeds(self, embeds: list, s3_service) -> None:
         """
         Delete S3 files associated with embeds (e.g., generated images).

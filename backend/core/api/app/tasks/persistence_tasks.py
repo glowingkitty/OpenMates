@@ -876,14 +876,17 @@ async def _async_persist_delete_message(
     user_id: str,
     chat_id: str,
     client_message_id: str,
+    embed_ids_to_delete: Optional[list] = None,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
     """
     Asynchronously deletes a single message from Directus by its client_message_id.
+    Also deletes associated embeds (and their S3 files/embed_keys) if embed_ids_to_delete is provided.
     """
     logger.info(
         f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_message "
-        f"for user_id: {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, task_id: {task_id}"
+        f"for user_id: {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, "
+        f"embed_ids_to_delete: {len(embed_ids_to_delete or [])}, task_id: {task_id}"
     )
 
     directus_service = DirectusService()
@@ -891,21 +894,53 @@ async def _async_persist_delete_message(
     try:
         await directus_service.ensure_auth_token()
 
-        # Delete the message from Directus
+        # 1. Delete the message from Directus
         message_deleted = await directus_service.chat.delete_message_by_client_id(
             chat_id, client_message_id
         )
 
         if message_deleted:
             logger.info(
-                f"TASK_LOGIC_FINISH: _async_persist_delete_message completed "
-                f"for message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
+                f"Deleted message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
             )
         else:
             logger.warning(
-                f"TASK_LOGIC_FINISH: _async_persist_delete_message - "
-                f"failed to delete message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
+                f"Failed to delete message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
             )
+
+        # 2. Delete associated embeds from Directus (using hashed_message_id lookup)
+        # The client provides embed IDs it already identified, but we also do a server-side
+        # lookup by hashed_message_id for thoroughness (catches embeds the client may have missed)
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
+
+        # Initialize S3 service for cleaning up S3 files associated with embeds
+        s3_service = None
+        try:
+            secrets_manager = SecretsManager()
+            await secrets_manager.initialize()
+            s3_service = S3UploadService(secrets_manager=secrets_manager)
+            await s3_service.initialize()
+        except Exception as e:
+            logger.warning(
+                f"Failed to initialize S3 service for embed cleanup (message {client_message_id}): {e}. "
+                f"S3 files will not be cleaned up but embed records will still be deleted."
+            )
+
+        deleted_embeds = await directus_service.embed.delete_embeds_for_message(
+            hashed_chat_id, hashed_message_id, s3_service=s3_service
+        )
+
+        if deleted_embeds:
+            logger.info(
+                f"Deleted {len(deleted_embeds)} embeds for message {client_message_id} "
+                f"in chat {chat_id}. Task ID: {task_id}"
+            )
+
+        logger.info(
+            f"TASK_LOGIC_FINISH: _async_persist_delete_message completed "
+            f"for message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
+        )
     except Exception as e:
         logger.error(
             f"Error in _async_persist_delete_message for user {user_id}, chat {chat_id}, "
@@ -916,9 +951,9 @@ async def _async_persist_delete_message(
 
 
 @app.task(name="app.tasks.persistence_tasks.persist_delete_message", bind=True)
-def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: str):
+def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: str, embed_ids_to_delete: Optional[list] = None):
     """
-    Celery task (sync wrapper) to delete a single message from Directus.
+    Celery task (sync wrapper) to delete a single message and its embeds from Directus.
     """
     task_id = self.request.id or "UNKNOWN_TASK_ID"
     loop = None
@@ -930,7 +965,8 @@ def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_delete_message(
-            user_id=user_id, chat_id=chat_id, client_message_id=client_message_id, task_id=task_id
+            user_id=user_id, chat_id=chat_id, client_message_id=client_message_id,
+            embed_ids_to_delete=embed_ids_to_delete or [], task_id=task_id
         ))
         logger.info(
             f"TASK_SUCCESS_SYNC_WRAPPER: persist_delete_message task completed "

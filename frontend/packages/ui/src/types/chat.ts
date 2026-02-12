@@ -232,6 +232,7 @@ export interface DeleteChatPayload {
 export interface DeleteMessagePayload {
   chatId: string;
   messageId: string;
+  embedIdsToDelete?: string[]; // Embed IDs the client determined should be deleted (not shared with other chats)
 }
 
 export interface DeleteDraftPayload {
@@ -453,6 +454,7 @@ export interface ChatDeletedPayload {
 export interface MessageDeletedPayload {
   chat_id: string;
   message_id: string;
+  embed_ids_to_delete?: string[]; // Embed IDs to delete from IndexedDB on other devices (broadcast from server)
 }
 // --- End Chat Update Payloads ---
 

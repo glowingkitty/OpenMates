@@ -284,12 +284,56 @@
     console.debug(`[ChatMessage] Deleting message ${messageId} from chat ${chatId}`);
 
     try {
+      // Extract embed references from message content and clean them up from IndexedDB
+      const embedIdsToDelete: string[] = [];
+      const messageContent = typeof original_message?.content === 'string' ? original_message.content : '';
+      
+      if (messageContent) {
+        try {
+          const { extractEmbedReferences } = await import('../services/embedResolver');
+          const { embedStore } = await import('../services/embedStore');
+          const { computeSHA256 } = await import('../message_parsing/utils');
+          
+          const embedRefs = extractEmbedReferences(messageContent);
+          
+          if (embedRefs.length > 0) {
+            const hashedChatId = await computeSHA256(chatId);
+            
+            for (const ref of embedRefs) {
+              try {
+                const hashedEmbedId = await computeSHA256(ref.embed_id);
+                const isShared = await embedStore.isEmbedUsedByOtherChats(hashedEmbedId, hashedChatId);
+                
+                if (isShared) {
+                  console.debug(`[ChatMessage] Embed ${ref.embed_id} is shared, skipping deletion`);
+                } else {
+                  await embedStore.deleteEmbed(ref.embed_id, hashedEmbedId);
+                  embedIdsToDelete.push(ref.embed_id);
+                  console.debug(`[ChatMessage] Deleted embed ${ref.embed_id} from IndexedDB`);
+                }
+              } catch (embedErr) {
+                console.warn(`[ChatMessage] Error processing embed ${ref.embed_id} for deletion:`, embedErr);
+              }
+            }
+            
+            if (embedIdsToDelete.length > 0) {
+              console.debug(`[ChatMessage] Deleted ${embedIdsToDelete.length} embeds from IndexedDB`);
+            }
+          }
+        } catch (embedErr) {
+          console.warn('[ChatMessage] Error extracting/deleting embeds:', embedErr);
+        }
+      }
+
       // Delete the message from local IndexedDB
       await chatDB.deleteMessage(messageId);
 
-      // Send server request to delete from cache and Directus
+      // Send server request to delete from cache and Directus (including embed IDs for server cleanup)
       try {
-        await chatSyncService.sendDeleteMessage(chatId, messageId);
+        await chatSyncService.sendDeleteMessage(
+          chatId, messageId,
+          embedIdsToDelete.length > 0 ? embedIdsToDelete : undefined
+        );
       } catch (err) {
         console.error('[ChatMessage] Error sending delete_message to server (local deletion succeeded):', err);
       }

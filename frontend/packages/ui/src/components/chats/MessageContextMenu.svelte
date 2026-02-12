@@ -14,6 +14,7 @@
         onCopy?: () => void;
         onSelect?: () => void;
         onDelete?: () => void;
+        disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         messageId?: string;
         userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
         role?: MessageRole;
@@ -26,6 +27,7 @@
         onCopy,
         onSelect,
         onDelete,
+        disableDelete = false,
         messageId = undefined,
         userMessageId = undefined,
         role = undefined
@@ -253,11 +255,13 @@
             {$text('chats.context_menu.select.text', { default: 'Select' })}
         </button>
 
-        {#if onDelete}
+        {#if onDelete || disableDelete}
             <div class="menu-separator"></div>
             <button
                 class="menu-item delete"
                 class:confirming={confirmingDelete}
+                class:disabled={disableDelete}
+                disabled={disableDelete}
                 onclick={(event) => handleAction('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
@@ -400,6 +404,12 @@
 
     .menu-item.delete.confirming .clickable-icon {
         background-color: white;
+    }
+
+    .menu-item.delete.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 
     .clickable-icon {

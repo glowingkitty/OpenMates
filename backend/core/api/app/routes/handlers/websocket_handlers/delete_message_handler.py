@@ -35,6 +35,8 @@ async def handle_delete_message(
     """
     chat_id = payload.get("chatId")
     message_id = payload.get("messageId")
+    # Optional: embed IDs the client determined should be deleted (client computed hashes and checked sharing)
+    embed_ids_to_delete = payload.get("embedIdsToDelete") or []
 
     if not chat_id or not message_id:
         logger.warning(f"Received delete_message without chatId or messageId from {user_id}/{device_fingerprint_hash}")
@@ -44,7 +46,10 @@ async def handle_delete_message(
         )
         return
 
-    logger.info(f"Received delete_message request for message {message_id} in chat {chat_id} from {user_id}/{device_fingerprint_hash}")
+    logger.info(
+        f"Received delete_message request for message {message_id} in chat {chat_id} from {user_id}/{device_fingerprint_hash}"
+        f" (embed_ids_to_delete: {len(embed_ids_to_delete)})"
+    )
 
     try:
         # 1. Verify chat ownership before processing deletion
@@ -120,11 +125,24 @@ async def handle_delete_message(
             logger.error(f"Error removing message {message_id} from cache: {cache_error}", exc_info=True)
             # Continue even if cache removal fails - Directus deletion is more important
 
-        # 3. Queue Celery task to delete message from Directus
+        # 2b. Remove associated embeds from cache (if any)
+        if embed_ids_to_delete:
+            for embed_id in embed_ids_to_delete:
+                try:
+                    await cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                except Exception as embed_cache_err:
+                    logger.warning(f"Failed to remove embed {embed_id} from cache: {embed_cache_err}")
+
+        # 3. Queue Celery task to delete message (and embeds) from Directus
         try:
             app.send_task(
                 name='app.tasks.persistence_tasks.persist_delete_message',
-                kwargs={'user_id': user_id, 'chat_id': chat_id, 'client_message_id': message_id},
+                kwargs={
+                    'user_id': user_id,
+                    'chat_id': chat_id,
+                    'client_message_id': message_id,
+                    'embed_ids_to_delete': embed_ids_to_delete,
+                },
                 queue='persistence'
             )
             logger.info(f"Queued Celery task persist_delete_message for message {message_id} in chat {chat_id}")
@@ -132,10 +150,14 @@ async def handle_delete_message(
             logger.error(f"Failed to queue Celery task for message deletion {message_id}: {celery_e}", exc_info=True)
 
         # 4. Broadcast deletion confirmation to all user's devices
+        # Include embed_ids_to_delete so other devices can clean up IndexedDB
+        broadcast_payload = {"chat_id": chat_id, "message_id": message_id}
+        if embed_ids_to_delete:
+            broadcast_payload["embed_ids_to_delete"] = embed_ids_to_delete
         await manager.broadcast_to_user(
             {
                 "type": "message_deleted",
-                "payload": {"chat_id": chat_id, "message_id": message_id}
+                "payload": broadcast_payload
             },
             user_id,
             exclude_device_hash=None  # Send to ALL devices including the requesting one

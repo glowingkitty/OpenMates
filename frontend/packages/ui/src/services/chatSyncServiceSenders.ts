@@ -214,20 +214,30 @@ export async function sendDeleteChatImpl(
  * before calling this function. This function only handles server communication.
  * @param chat_id - The ID of the chat containing the message
  * @param message_id - The client_message_id of the message to delete
+ * @param embed_ids_to_delete - Optional array of embed IDs to delete on the server (not shared with other chats)
  */
 export async function sendDeleteMessageImpl(
   serviceInstance: ChatSynchronizationService,
   chat_id: string,
   message_id: string,
+  embed_ids_to_delete?: string[],
 ): Promise<void> {
   const payload: DeleteMessagePayload = {
     chatId: chat_id,
     messageId: message_id,
   };
 
+  // Include embed IDs if any need server-side cleanup
+  if (embed_ids_to_delete && embed_ids_to_delete.length > 0) {
+    payload.embedIdsToDelete = embed_ids_to_delete;
+  }
+
   try {
     console.debug(
-      `[ChatSyncService:Senders] Sending delete_message request to server for message ${message_id} in chat ${chat_id}`,
+      `[ChatSyncService:Senders] Sending delete_message request to server for message ${message_id} in chat ${chat_id}` +
+        (embed_ids_to_delete?.length
+          ? ` (${embed_ids_to_delete.length} embeds to delete)`
+          : ""),
     );
     await webSocketService.sendMessage("delete_message", payload);
     console.debug(

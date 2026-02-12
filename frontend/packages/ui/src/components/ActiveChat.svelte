@@ -102,7 +102,7 @@
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[]) => void;
         scrollToTop: () => void;
-        scrollToBottom: () => void;
+        scrollToBottom: (smooth?: boolean) => void;
         restoreScrollPosition: (messageId: string) => void;
     };
 
@@ -5457,7 +5457,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <button
                             class="scroll-nav-button scroll-to-bottom-button"
                             aria-label="Scroll to bottom"
-                            onclick={() => chatHistoryRef?.scrollToBottom()}
+                            onclick={() => chatHistoryRef?.scrollToBottom(true)}
                         >
                             <span class="scroll-nav-icon"></span>
                         </button>
@@ -6711,7 +6711,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container-name: chat-side;
     }
 
-    /* Scroll navigation buttons - round, icon-only, subtle grey */
+    /* Scroll navigation buttons - round, icon-only, subtle grey.
+       Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
     .scroll-nav-button {
         position: absolute;
         left: 50%;
@@ -6719,6 +6720,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: 2;
         width: 32px;
         height: 32px;
+        min-width: 32px;
         border-radius: 50%;
         border: none;
         background-color: var(--color-grey-20);
@@ -6729,10 +6731,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0.7;
         transition: opacity 0.2s ease;
         padding: 0;
+        margin: 0;
+        filter: none;
     }
 
     .scroll-nav-button:hover {
         opacity: 1;
+        scale: none;
+        background-color: var(--color-grey-20);
+    }
+
+    .scroll-nav-button:active {
+        scale: none;
+        filter: none;
+        background-color: var(--color-grey-25);
     }
 
     .scroll-to-top-button {

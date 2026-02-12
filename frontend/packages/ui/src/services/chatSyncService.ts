@@ -313,14 +313,43 @@ export class ChatSynchronizationService extends EventTarget {
     );
     // Handle single message deletion (broadcast from server to all devices)
     webSocketService.on("message_deleted", (payload) => {
-      const { chat_id, message_id } = payload as MessageDeletedPayload;
+      const { chat_id, message_id, embed_ids_to_delete } =
+        payload as MessageDeletedPayload;
       console.debug(
-        `[ChatSyncService] Received message_deleted for message ${message_id} in chat ${chat_id}`,
+        `[ChatSyncService] Received message_deleted for message ${message_id} in chat ${chat_id}` +
+          (embed_ids_to_delete?.length
+            ? ` (${embed_ids_to_delete.length} embeds to delete)`
+            : ""),
       );
       // Delete from IndexedDB (idempotent - no error if already deleted)
       chatDB
         .deleteMessage(message_id)
-        .then(() => {
+        .then(async () => {
+          // Delete associated embeds from IndexedDB (if any)
+          if (embed_ids_to_delete && embed_ids_to_delete.length > 0) {
+            try {
+              const { embedStore } = await import("./embedStore");
+              for (const embedId of embed_ids_to_delete) {
+                try {
+                  await embedStore.deleteEmbed(embedId);
+                } catch (embedErr) {
+                  console.warn(
+                    `[ChatSyncService] Failed to delete embed ${embedId} from IndexedDB on broadcast:`,
+                    embedErr,
+                  );
+                }
+              }
+              console.debug(
+                `[ChatSyncService] Deleted ${embed_ids_to_delete.length} embeds from IndexedDB on broadcast`,
+              );
+            } catch (importErr) {
+              console.error(
+                "[ChatSyncService] Failed to import embedStore for embed cleanup:",
+                importErr,
+              );
+            }
+          }
+
           // Dispatch event so UI components (ChatHistory, ActiveChat) can react
           this.dispatchEvent(
             new CustomEvent("messageDeleted", {
@@ -840,8 +869,17 @@ export class ChatSynchronizationService extends EventTarget {
   ) {
     await senders.sendDeleteChatImpl(this, chat_id, embed_ids_to_delete);
   }
-  public async sendDeleteMessage(chat_id: string, message_id: string) {
-    await senders.sendDeleteMessageImpl(this, chat_id, message_id);
+  public async sendDeleteMessage(
+    chat_id: string,
+    message_id: string,
+    embed_ids_to_delete?: string[],
+  ) {
+    await senders.sendDeleteMessageImpl(
+      this,
+      chat_id,
+      message_id,
+      embed_ids_to_delete,
+    );
   }
   public async sendNewMessage(
     message: Message,
