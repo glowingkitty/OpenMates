@@ -401,7 +401,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 ## Debugging Frontend Issues (Client Console Logs)
 
-Admin users have their browser console logs automatically forwarded to Loki via `clientLogForwarder.ts`. This means you can query frontend logs from the server without needing the user's browser open.
+**Admin users only** — browser console logs are automatically forwarded to Loki via `clientLogForwarder.ts`. Regular users' logs are **never** collected or stored. This only works when an admin has the app open in their browser.
 
 ### Querying Client Logs via Loki
 
