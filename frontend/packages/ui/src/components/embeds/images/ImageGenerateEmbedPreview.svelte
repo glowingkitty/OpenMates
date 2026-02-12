@@ -5,8 +5,9 @@
   Uses UnifiedEmbedPreview as base and provides image-specific details content.
   
   Shows:
-  - Processing state: shimmer skeleton + prompt text
-  - Finished state: decrypted preview image from S3 + prompt + model label
+  - Processing state: input prompt text (no skeleton/loading image)
+  - Finished (loading): input prompt text while image decrypts
+  - Finished (loaded): decrypted preview image from S3
   - Error state: error message
   
   The image is fetched from S3 as an encrypted blob and decrypted client-side
@@ -167,12 +168,6 @@
       : $text('embeds.image_generate.text')
   );
   
-  // Truncate prompt for processing skeleton state (2 lines max)
-  let promptPreview = $derived.by(() => {
-    if (!prompt) return '';
-    const text = prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
-    return text;
-  });
   
   /**
    * Load and decrypt the preview image from S3.
@@ -282,43 +277,35 @@
   {onFullscreen}
   showStatus={true}
   showSkillIcon={true}
-  hasFullWidthImage={status === 'finished' && !!imageUrl}
+  hasFullWidthImage={status === 'finished' && !!imageUrl && !error}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
-      {#if status === 'processing'}
-        <!-- Processing state: shimmer skeleton -->
-        <div class="skeleton-content">
-          <div class="skeleton-image"></div>
+      {#if status === 'finished' && !error && imageUrl}
+        <!-- Finished state with loaded image: show decrypted image only (no prompt text
+             below, so the image extends all the way into the BasicInfosBar via the negative
+             margin-bottom from hasFullWidthImage, eliminating white space). -->
+        <div class="image-content">
+          <div class="image-container">
+            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
+          </div>
+        </div>
+      {:else if status === 'finished' && !error && imageError}
+        <!-- Finished state but image decryption failed -->
+        <div class="image-error-small">
+          <span class="error-icon-small">!</span>
+          <span>{imageError}</span>
+        </div>
+      {:else if status !== 'error'}
+        <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
+        <div class="prompt-content">
           {#if prompt}
-            <div class="skeleton-prompt">
-              <span class="prompt-text">{promptPreview}</span>
-            </div>
+            <span class="prompt-text">{prompt}</span>
           {:else}
             <div class="skeleton-lines">
               <div class="skeleton-line long"></div>
               <div class="skeleton-line short"></div>
-            </div>
-          {/if}
-        </div>
-      {:else if status === 'finished' && !error}
-        <!-- Finished state: show decrypted image only (no prompt text below, so the image
-             extends all the way into the BasicInfosBar via the negative margin-bottom
-             from hasFullWidthImage, eliminating white space). -->
-        <div class="image-content">
-          {#if imageUrl}
-            <div class="image-container">
-              <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
-            </div>
-          {:else if isLoadingImage}
-            <div class="image-container">
-              <div class="skeleton-image loading"></div>
-            </div>
-          {:else if imageError}
-            <div class="image-error-small">
-              <span class="error-icon-small">!</span>
-              <span>{imageError}</span>
             </div>
           {/if}
         </div>
@@ -347,30 +334,30 @@
     padding: 0;
   }
   
-  /* Skeleton loading state */
-  .skeleton-content {
+  /* Prompt content (processing state / image-loading state) */
+  .prompt-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     width: 100%;
-    padding: 12px;
+    height: 100%;
+    padding: 16px 20px;
     box-sizing: border-box;
+    overflow: hidden;
   }
   
-  .skeleton-image {
-    width: 100%;
-    height: 120px;
-    background: var(--color-grey-15, #f0f0f0);
-    border-radius: 6px;
-    animation: pulse 1.5s ease-in-out infinite;
+  .prompt-content .prompt-text {
+    font-size: 14px;
+    color: var(--color-grey-70, #555);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
   }
   
-  .skeleton-image.loading {
-    background: linear-gradient(90deg, var(--color-grey-15, #f0f0f0) 25%, var(--color-grey-10, #f5f5f5) 50%, var(--color-grey-15, #f0f0f0) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-  
+  /* Skeleton lines fallback when prompt is not yet available */
   .skeleton-lines {
     display: flex;
     flex-direction: column;
@@ -392,31 +379,9 @@
     width: 50%;
   }
   
-  .skeleton-prompt {
-    padding: 6px 8px;
-    background: var(--color-grey-10, #f5f5f5);
-    border-radius: 4px;
-  }
-  
-  .skeleton-prompt .prompt-text {
-    font-size: 12px;
-    color: var(--color-grey-50, #888);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  
   @keyframes pulse {
     0%, 100% { opacity: 0.6; }
     50% { opacity: 1; }
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
   }
   
   /* Image content (finished state) */
@@ -507,27 +472,17 @@
   /* Mobile adjustments - no special handling needed since prompt was removed from preview */
   
   /* Dark mode support */
-  :global(.dark) .skeleton-image {
-    background: var(--color-grey-80, #333);
+  :global(.dark) .prompt-content .prompt-text {
+    color: var(--color-grey-40, #aaa);
   }
   
   :global(.dark) .skeleton-line {
     background: var(--color-grey-80, #333);
   }
   
-  :global(.dark) .skeleton-prompt {
-    background: var(--color-grey-90, #1a1a1a);
-  }
-  
-  :global(.dark) .skeleton-prompt .prompt-text {
-    color: var(--color-grey-50, #888);
-  }
-  
   :global(.dark) .image-container {
     background: var(--color-grey-90, #1a1a1a);
   }
-  
-  /* Dark mode .image-prompt styles removed (section no longer in template) */
   
   :global(.dark) .error-state {
     background: var(--color-error-95, #2a1515);
