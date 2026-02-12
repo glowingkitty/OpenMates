@@ -447,7 +447,7 @@ postprocess_response_tool:
           maxItems: 5
         chat_summary:
           type: "string"
-          description: "An updated concise summary of the full conversation including this latest exchange (max 20 words). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
+          description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
         relevant_settings_memory_categories:
           type: "array"
           description: |

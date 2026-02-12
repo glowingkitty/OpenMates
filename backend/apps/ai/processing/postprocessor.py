@@ -253,7 +253,7 @@ async def handle_postprocessing(
         f"\n\nLanguage instructions:\n"
         f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).\n"
         f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).\n"
-        f"- **chat_summary**: Generate in English (always)."
+        f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language)."
     )
 
     system_message = (
