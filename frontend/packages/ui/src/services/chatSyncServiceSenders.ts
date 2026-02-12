@@ -1373,36 +1373,42 @@ export async function sendSetActiveChatImpl(
     return;
   }
 
-  // CRITICAL: Update IndexedDB immediately when switching chats or opening new chat window
-  // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server)
-  // The server update happens via WebSocket, but IndexedDB update is immediate for better UX
-  try {
-    // Import userDB and updateProfile dynamically to avoid circular dependencies
-    const { userDB } = await import("../services/userDB");
-    const { updateProfile } = await import("../stores/userProfile");
+  // CRITICAL: Update IndexedDB immediately when switching chats (but NOT for new chat window).
+  // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server).
+  // The server update happens via WebSocket, but IndexedDB update is immediate for better UX.
+  //
+  // When chatId is null (new chat window), we intentionally do NOT update last_opened.
+  // This preserves the previous real chat ID so the "Continue where you left off" resume card
+  // always shows the last chat with actual content, not a blank new chat screen.
+  // Signup paths (e.g. '/signup/one_time_codes') and '/chat/new' (signup completion) are passed
+  // as explicit string values, not null, so they still get stored correctly.
+  if (chatId !== null) {
+    try {
+      // Import userDB and updateProfile dynamically to avoid circular dependencies
+      const { userDB } = await import("../services/userDB");
+      const { updateProfile } = await import("../stores/userProfile");
 
-    // Determine the last_opened value:
-    // - If chatId is a real chat ID, use it
-    // - If chatId is null (new chat window), use '/chat/new'
-    // - This ensures tab reload opens the correct view (chat or new chat window)
-    const lastOpenedValue = chatId || "/chat/new";
+      // Update IndexedDB with new last_opened chat
+      // This is the source of truth for tab reload scenarios
+      await userDB.updateUserData({ last_opened: chatId });
 
-    // Update IndexedDB with new last_opened chat/window
-    // This is the source of truth for tab reload scenarios
-    await userDB.updateUserData({ last_opened: lastOpenedValue });
+      // Also update the userProfile store to keep it in sync
+      updateProfile({ last_opened: chatId });
 
-    // Also update the userProfile store to keep it in sync
-    updateProfile({ last_opened: lastOpenedValue });
-
+      console.debug(
+        `[ChatSyncService:Senders] Updated IndexedDB with last_opened: ${chatId}`,
+      );
+    } catch (error) {
+      console.error(
+        `[ChatSyncService:Senders] Error updating IndexedDB with last_opened: ${chatId}:`,
+        error,
+      );
+      // Don't fail the whole operation if IndexedDB update fails
+    }
+  } else {
     console.debug(
-      `[ChatSyncService:Senders] Updated IndexedDB with last_opened: ${lastOpenedValue} (chatId: ${chatId})`,
+      `[ChatSyncService:Senders] Skipping last_opened update for new chat window (preserving previous value)`,
     );
-  } catch (error) {
-    console.error(
-      `[ChatSyncService:Senders] Error updating IndexedDB with last_opened: ${chatId}:`,
-      error,
-    );
-    // Don't fail the whole operation if IndexedDB update fails
   }
 
   // Send to server via WebSocket (for cross-device sync and login scenarios)
