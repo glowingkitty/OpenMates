@@ -378,15 +378,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	);
 	
 	// Determine if "Show more" button should be visible
-	// Tier 1: Show if there are more local chats beyond the first 20
-	// Tier 2 (all_local): Show if server has more chats beyond the 100 in IndexedDB
-	// While loading: Keep visible but disabled
+	// Tier 1 ('initial'): Show if there are more than 20 local chats
+	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
+	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
 	let showMoreButtonVisible = $derived((() => {
 		if (loadTier === 'initial') {
-			// During initial sync, show button if there are more than 20 local chats
 			return sortedAllChatsFiltered.length > 20;
 		}
-		// After showing all local chats, show button if server has more
+		if (loadTier === 'loading_server') {
+			return true; // Keep button visible while loading
+		}
+		// 'all_local' — show if server has more chats
 		return hasMoreOnServer;
 	})());
 
@@ -474,10 +476,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 	syncComplete = false;
 	 }, 1000);
 	 
-	 if (loadTier === 'initial') {
-			loadTier = 'all_local'; // Show all local chats
-			console.debug('[Chats] Sync complete, expanded to show all local chats.');
-		}
+	 // Sync complete — no auto-expansion needed. User stays at current tier.
+		 // They can click "Show more" to see remaining chats.
+		 console.debug('[Chats] Sync complete, loadTier remains:', loadTier);
 	};
 
 	/**
@@ -673,10 +674,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// CRITICAL: Expand to show all local chats after Phase 3
-		loadTier = 'all_local';
-		
-		// Track whether there are more chats on the server beyond the initial 100
+		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
+		// Only track server-side pagination metadata.
 		if (event.detail.total_chat_count) {
 			totalServerChatCount = event.detail.total_chat_count;
 			hasMoreOnServer = event.detail.total_chat_count > 100;
@@ -684,7 +683,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			console.info(`[Chats] Phase 3: total_chat_count=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
 		}
 		
-		console.info(`[Chats] Phase 3 complete - showing all local chats, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		console.info(`[Chats] Phase 3 complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// Show "Sync complete" message (syncing is derived from phasedSyncState)
 		syncComplete = true;
@@ -707,9 +706,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
-		// CRITICAL: Always ensure all local chats are displayed after sync complete
-		loadTier = 'all_local';
-		console.info(`[Chats] Phased sync complete - showing all local chats, allChatsFromDB has ${allChatsFromDB.length} chats`);
+		// Sync complete — stay on current tier. User clicks "Show more" to expand.
+		console.info(`[Chats] Phased sync complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// NOW mark sync as completed (this hides the syncing indicator)
 		// This prevents redundant syncs when Chats component is remounted
@@ -1350,18 +1348,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
-		// Check if sync has already completed - if so, show all local chats
+		// If sync was already completed before this component mounted, ensure we have the latest data
+		// This handles the case where the sidebar was closed during sync (common on mobile)
+		// We intentionally stay on Tier 1 (20 chats) — user clicks "Show more" to see the rest
 		if ($phasedSyncState.initialSyncCompleted) {
-			// CRITICAL: Show all local chats since sync is already done
-			// Without this, only the first 20 chats would be visible until the user closes/reopens the sidebar
-			if (loadTier === 'initial') {
-				loadTier = 'all_local';
-				console.debug('[Chats] Sync was already complete on mount, showing all local chats');
-			}
-			
-			// CRITICAL: If sync completed before this component mounted, ensure we have the latest data
-			// This handles the case where the sidebar was closed during sync (common on mobile)
 			await updateChatListFromDB();
+			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
 		}
 	});
 	
