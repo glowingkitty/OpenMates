@@ -56,10 +56,115 @@ async def handle_request_embed(
 
     try:
         cached = await cache_service.get(f"embed:{embed_id}")
+
+        # If the cache shows "processing", the embed may have already finished but the
+        # cache was never updated (the client that received the finished result encrypts
+        # and stores to Directus, but the operational cache is not refreshed).
+        # In this case, check Directus for the authoritative status.
+        if cached and cached.get("status") == "processing":
+            logger.info(
+                f"{log_prefix}Cache has stale 'processing' status, checking Directus for authoritative data"
+            )
+            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if directus_embed and directus_embed.get("status") == "finished":
+                logger.info(
+                    f"{log_prefix}Directus confirms embed is 'finished' - serving client-encrypted data from Directus"
+                )
+                # Directus has the client-encrypted final embed. Send it directly
+                # using the send_embed_data event so the client stores it in IndexedDB.
+                # The content in Directus is already client-encrypted (stored by the
+                # original device via store_embed), so we send it as-is.
+                send_payload = {
+                    "event": "send_embed_data",
+                    "type": "send_embed_data",
+                    "event_for_client": "send_embed_data",
+                    "payload": {
+                        "embed_id": embed_id,
+                        "type": directus_embed.get("encrypted_type") or "app_skill_use",
+                        "content": directus_embed.get("encrypted_content", ""),
+                        "status": "finished",
+                        "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
+                        "message_id": cached.get("message_id") or cached.get("hashed_message_id"),
+                        "user_id": user_id,
+                        "is_private": directus_embed.get("is_private", False),
+                        "is_shared": directus_embed.get("is_shared", False),
+                        "text_length_chars": directus_embed.get("text_length_chars"),
+                        "createdAt": directus_embed.get("created_at") or cached.get("created_at") or int(datetime.now().timestamp()),
+                        "updatedAt": directus_embed.get("updated_at") or cached.get("updated_at") or int(datetime.now().timestamp()),
+                        "embed_ids": directus_embed.get("embed_ids"),
+                        "parent_embed_id": directus_embed.get("parent_embed_id"),
+                        "version_number": directus_embed.get("version_number"),
+                        "file_path": directus_embed.get("file_path"),
+                        "content_hash": directus_embed.get("content_hash"),
+                        # Signal to the client that this content is already client-encrypted
+                        # and should be stored directly without re-encryption
+                        "already_encrypted": True,
+                        "encryption_mode": directus_embed.get("encryption_mode", "client"),
+                    }
+                }
+
+                # Also update the operational cache so subsequent requests are fast
+                try:
+                    import json as json_lib
+                    client = await cache_service.client
+                    if client:
+                        # Update the cached entry's status to "finished" to prevent
+                        # repeated Directus lookups
+                        cached["status"] = "finished"
+                        await client.set(
+                            f"embed:{embed_id}",
+                            json_lib.dumps(cached),
+                            ex=259200  # 72 hours
+                        )
+                        logger.debug(f"{log_prefix}Updated operational cache status to 'finished'")
+                except Exception as cache_err:
+                    logger.warning(f"{log_prefix}Failed to update cache after Directus lookup: {cache_err}")
+
+                await manager.send_personal_message(send_payload, user_id, device_fingerprint_hash)
+                logger.info(f"{log_prefix}Sent finished embed data from Directus to user {user_id}")
+                return
+
         if not cached:
-            logger.warning(f"{log_prefix}Embed not found in cache")
+            # If not in cache at all, check Directus as a last resort
+            logger.warning(f"{log_prefix}Embed not found in cache, checking Directus")
+            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if directus_embed and directus_embed.get("status") == "finished":
+                logger.info(f"{log_prefix}Found finished embed in Directus (not in cache)")
+                send_payload = {
+                    "event": "send_embed_data",
+                    "type": "send_embed_data",
+                    "event_for_client": "send_embed_data",
+                    "payload": {
+                        "embed_id": embed_id,
+                        "type": directus_embed.get("encrypted_type") or "app_skill_use",
+                        "content": directus_embed.get("encrypted_content", ""),
+                        "status": "finished",
+                        "chat_id": directus_embed.get("hashed_chat_id"),
+                        "message_id": directus_embed.get("hashed_message_id"),
+                        "user_id": user_id,
+                        "is_private": directus_embed.get("is_private", False),
+                        "is_shared": directus_embed.get("is_shared", False),
+                        "text_length_chars": directus_embed.get("text_length_chars"),
+                        "createdAt": directus_embed.get("created_at") or int(datetime.now().timestamp()),
+                        "updatedAt": directus_embed.get("updated_at") or int(datetime.now().timestamp()),
+                        "embed_ids": directus_embed.get("embed_ids"),
+                        "parent_embed_id": directus_embed.get("parent_embed_id"),
+                        "version_number": directus_embed.get("version_number"),
+                        "file_path": directus_embed.get("file_path"),
+                        "content_hash": directus_embed.get("content_hash"),
+                        "already_encrypted": True,
+                        "encryption_mode": directus_embed.get("encryption_mode", "client"),
+                    }
+                }
+                await manager.send_personal_message(send_payload, user_id, device_fingerprint_hash)
+                logger.info(f"{log_prefix}Sent finished embed data from Directus to user {user_id}")
+                return
+
+            logger.warning(f"{log_prefix}Embed not found in cache or Directus")
             return
 
+        # Cache has non-processing embed data (e.g. vault-encrypted content from
+        # active skill execution) - proceed with vault decryption
         # Retrieve user's vault key id from cache (authoritative)
         user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
         if not user_vault_key_id:

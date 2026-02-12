@@ -101,6 +101,30 @@ async def handle_store_embed(
             else:
                 logger.error(f"Failed to create embed {embed_id} in Directus")
 
+        # Update the operational cache (embed:{embed_id}) with the client-encrypted data.
+        # This prevents stale "processing" entries from being served to other devices
+        # via request_embed. The cache entry is updated with the embed's current status
+        # so subsequent request_embed calls return the correct data without hitting Directus.
+        try:
+            embed_status = payload.get("status")
+            if embed_status and embed_status != "processing":
+                client = await cache_service.client
+                if client:
+                    cache_key = f"embed:{embed_id}"
+                    existing_cache = await client.get(cache_key)
+                    if existing_cache:
+                        cached_data = json.loads(
+                            existing_cache.decode('utf-8') if isinstance(existing_cache, bytes) else existing_cache
+                        )
+                        # Update the status in the cached entry
+                        cached_data["status"] = embed_status
+                        await client.set(cache_key, json.dumps(cached_data), ex=259200)  # 72 hours
+                        logger.info(f"Updated operational cache for embed {embed_id} status to '{embed_status}'")
+                    else:
+                        logger.debug(f"No operational cache entry to update for embed {embed_id}")
+        except Exception as cache_err:
+            logger.warning(f"Failed to update operational cache for embed {embed_id}: {cache_err}")
+
         # Broadcast update to other devices
         # This ensures other open tabs/devices get the updated embed status/content
         broadcast_payload = {
