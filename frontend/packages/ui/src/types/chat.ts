@@ -118,6 +118,7 @@ export interface Chat {
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
+  encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
 
   // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
   // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions

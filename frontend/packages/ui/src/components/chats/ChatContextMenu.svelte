@@ -55,6 +55,9 @@
     // State for chat total credits
     let chatTotalCredits = $state<number | null>(null);
     
+    // State for active focus mode
+    let activeFocusId = $state<string | null>(null);
+    
     // Format credits with dots as thousand separators (European style)
     function formatCredits(credits: number): string {
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -76,6 +79,29 @@
             chatSummary = null;
         }
     });
+    
+    // Load active focus mode from decrypted metadata when menu is shown
+    $effect(() => {
+        if (show && chat) {
+            chatMetadataCache.getDecryptedMetadata(chat).then(metadata => {
+                activeFocusId = metadata?.activeFocusId ?? null;
+            });
+        } else {
+            activeFocusId = null;
+        }
+    });
+    
+    // Derive focus mode display info from focus ID
+    // Focus ID format: "{app_id}-{focus_name}" e.g., "jobs-career_insights"
+    let focusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    let focusTranslationKey = $derived(
+        activeFocusId ? `${activeFocusId.replace('-', '.')}.text` : null
+    );
+    let focusDisplayName = $derived(
+        focusTranslationKey
+            ? $text(focusTranslationKey, { default: activeFocusId?.split('-').slice(1).join(' ').replace(/_/g, ' ') || '' })
+            : null
+    );
     
     // Fetch chat total credits when menu is shown (only for authenticated users)
     $effect(() => {
@@ -158,9 +184,9 @@
     $effect(() => {
         if (show) {
             // First, calculate with estimated dimensions to prevent visual jump
-            // Increased estimates to account for potential chat summary and credits sections
+            // Increased estimates to account for potential chat summary, credits, and focus mode sections
             const estimatedWidth = 200;
-            const estimatedHeight = (chatSummary || chatTotalCredits) ? 220 : 120;
+            const estimatedHeight = (chatSummary || chatTotalCredits || activeFocusId) ? 240 : 120;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -332,6 +358,14 @@
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
+        <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
+        {#if activeFocusId && focusAppId && focusDisplayName}
+            <div class="focus-mode-indicator">
+                <div class="focus-mode-icon" style="background: var(--color-app-{focusAppId});"></div>
+                <span class="focus-mode-label">{focusDisplayName}</span>
+            </div>
+        {/if}
+        
         <!-- Chat summary section (shown above buttons if available) -->
         {#if chatSummary || chatTotalCredits !== null}
             <div class="chat-info-section">
@@ -551,6 +585,33 @@
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
+    }
+    
+    /* Active focus mode indicator at the top of the context menu */
+    .focus-mode-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px 8px;
+        border-bottom: 1px solid var(--color-grey-30);
+        margin-bottom: 4px;
+    }
+    
+    .focus-mode-icon {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .focus-mode-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-grey-80);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     /* Info section containing summary and/or credits */

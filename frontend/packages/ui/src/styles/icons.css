@@ -827,6 +827,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.jobs {
+  background: var(--color-app-jobs);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/job.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

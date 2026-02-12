@@ -368,6 +368,8 @@ export async function handlePhase1LastChatImpl(
         encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
         encrypted_icon: payload.chat_details.encrypted_icon ?? null,
         encrypted_category: payload.chat_details.encrypted_category ?? null,
+        encrypted_active_focus_id:
+          payload.chat_details.encrypted_active_focus_id ?? null,
         is_shared: payload.chat_details.is_shared,
         is_private: payload.chat_details.is_private,
         ...payload.chat_details,

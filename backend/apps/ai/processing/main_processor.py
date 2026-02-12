@@ -1412,7 +1412,10 @@ async def handle_main_processing(
                         continue
                     
                     # Create placeholder embed IMMEDIATELY (before skill execution)
-                    if cache_service and user_vault_key_id and directus_service and app_id != "unknown":
+                    # Skip for system tools (e.g., activate_focus_mode, deactivate_focus_mode)
+                    # because they create their own specific embed types (focus_mode_activation)
+                    # rather than the generic app_skill_use placeholder
+                    if cache_service and user_vault_key_id and directus_service and app_id != "unknown" and app_id != "system":
                         from backend.core.api.app.services.embed_service import EmbedService
                         
                         # Use passed-in encryption_service

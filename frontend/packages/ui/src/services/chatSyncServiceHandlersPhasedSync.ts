@@ -931,6 +931,8 @@ function mergeServerChatWithLocal(
       encrypted_settings_memories_suggestions:
         serverChat.encrypted_settings_memories_suggestions,
       rejected_suggestion_hashes: serverChat.rejected_suggestion_hashes,
+      // Active focus mode for this chat
+      encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       // Include sharing fields from server sync
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
@@ -991,6 +993,10 @@ function mergeServerChatWithLocal(
       localChat.rejected_suggestion_hashes,
       serverChat.rejected_suggestion_hashes,
     ),
+    // Active focus mode — server takes precedence (focus mode is activated/deactivated in real-time)
+    encrypted_active_focus_id:
+      serverChat.encrypted_active_focus_id ??
+      localChat.encrypted_active_focus_id,
     // Include sharing fields from server sync, falling back to local if server data is missing
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
@@ -1110,6 +1116,7 @@ export async function handleLoadMoreChatsResponseImpl(
           encrypted_chat_tags: details.encrypted_chat_tags || null,
           encrypted_follow_up_request_suggestions:
             details.encrypted_follow_up_request_suggestions || null,
+          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
           pinned: details.pinned || false,
           is_shared: details.is_shared || false,
           is_private: details.is_private || false,

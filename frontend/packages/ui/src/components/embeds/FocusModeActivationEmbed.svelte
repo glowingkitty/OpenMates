@@ -2,18 +2,38 @@
   frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
   
   Focus mode activation indicator embed.
-  Renders a compact card showing:
-  - App icon + focus mode name
-  - Countdown timer (4,3,2,1) with animated progress bar during auto-activation
+  Renders a compact bar (styled like BasicInfosBar) showing:
+  - App icon in gradient circle (uses the app's gradient color)
+  - Focus/insight skill icon (in focus-mode purple)
+  - Focus mode name + status text
+  - Countdown timer with progress bar during auto-activation (first time only)
   - "Focus activated" state after countdown completes
   - Click-to-reject during countdown (adds system message and deactivates)
+  
+  CRITICAL: The countdown should only run ONCE per embed ID. When the component
+  is remounted (scroll, tab switch, etc.), it should show the activated state
+  immediately if the countdown already completed for this embed.
   
   This component is mounted by FocusModeActivationRenderer inside the chat message.
 -->
 
+<script lang="ts" module>
+  /**
+   * Module-level set tracking which embed IDs have already completed activation.
+   * This persists across component remounts (scroll in/out, tab switches) to ensure
+   * the countdown animation only plays once per embed, ever.
+   */
+  const activatedEmbedIds = new Set<string>();
+  
+  /**
+   * Module-level set tracking which embed IDs have been rejected.
+   * Rejected embeds should remain hidden on remount.
+   */
+  const rejectedEmbedIds = new Set<string>();
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
 
   /**
@@ -22,11 +42,11 @@
   interface Props {
     /** Unique embed ID */
     id: string;
-    /** Full focus mode ID (e.g., 'web-research') */
+    /** Full focus mode ID (e.g., 'jobs-career_insights') */
     focusId: string;
     /** App ID that owns the focus mode */
     appId: string;
-    /** Translated display name of the focus mode */
+    /** Translated display name of the focus mode (translation key like 'jobs.career_insights.text') */
     focusModeName: string;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
@@ -37,7 +57,7 @@
   }
 
   let {
-    id: _id,
+    id,
     focusId,
     appId,
     focusModeName,
@@ -48,22 +68,26 @@
 
   // These props are used by the renderer for context menu dispatch;
   // not directly referenced in this component's template.
-  void _id;
   void _onDeactivate;
   void _onDetails;
 
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
 
+  // Check if this embed was already activated or rejected in a previous mount
+  const wasAlreadyActivated = activatedEmbedIds.has(id);
+  const wasAlreadyRejected = rejectedEmbedIds.has(id);
+
   // State
-  let countdownValue = $state(COUNTDOWN_SECONDS);
-  let isActivated = $state(false);
-  let isRejected = $state(false);
+  let countdownValue = $state(wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS);
+  let isActivated = $state(wasAlreadyActivated);
+  let isRejected = $state(wasAlreadyRejected);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Progress percentage for the progress bar (100% -> 0%)
-  let progressPercent = $derived(
-    isActivated ? 0 : (countdownValue / COUNTDOWN_SECONDS) * 100
+  // Resolve the focus mode name from translation key
+  // focusModeName comes as a translation key like "jobs.career_insights.text"
+  let displayName = $derived(
+    $text(focusModeName, { default: focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ') || focusModeName })
   );
 
   // Status text shown on the card
@@ -80,10 +104,20 @@
     });
   });
 
+  // Progress percentage for the progress bar (100% -> 0%)
+  let progressPercent = $derived(
+    isActivated ? 0 : (countdownValue / COUNTDOWN_SECONDS) * 100
+  );
+
+  // App gradient style for the icon circle
+  let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
+
   /**
-   * Start the countdown timer
+   * Start the countdown timer (only if not already activated)
    */
   function startCountdown() {
+    if (wasAlreadyActivated) return;
+    
     countdownValue = COUNTDOWN_SECONDS;
     countdownInterval = setInterval(() => {
       countdownValue -= 1;
@@ -92,6 +126,7 @@
         clearInterval(countdownInterval!);
         countdownInterval = null;
         isActivated = true;
+        activatedEmbedIds.add(id);
       }
     }, 1000);
   }
@@ -109,6 +144,7 @@
     }
 
     isRejected = true;
+    rejectedEmbedIds.add(id);
 
     // Notify parent/renderer about the rejection
     onReject?.(focusId, focusModeName);
@@ -116,13 +152,10 @@
 
   /**
    * Handle right-click / context menu on the embed
-   * Dispatches a custom event that ChatMessage.svelte listens for
    */
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    // The context menu is handled by the embed renderer via data attributes
-    // ChatMessage.svelte picks it up from the embed node
   }
 
   /**
@@ -136,7 +169,10 @@
   }
 
   onMount(() => {
-    startCountdown();
+    // Only start countdown if not already activated/rejected
+    if (!wasAlreadyActivated && !wasAlreadyRejected) {
+      startCountdown();
+    }
 
     // Listen for ESC key globally (not just when element is focused)
     document.addEventListener('keydown', handleKeydown);
@@ -151,31 +187,35 @@
 </script>
 
 {#if !isRejected}
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
-    class="focus-mode-activation"
+    class="focus-mode-bar"
     class:activated={isActivated}
     class:counting={!isActivated}
     data-focus-id={focusId}
     data-app-id={appId}
     data-embed-type="focus-mode-activation"
-    role="button"
-    tabindex="0"
+    role={!isActivated ? 'button' : 'presentation'}
+    tabindex={!isActivated ? 0 : -1}
     oncontextmenu={handleContextMenu}
     onclick={!isActivated ? handleRejectClick : undefined}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!isActivated) handleRejectClick(); } }}
   >
-    <!-- App icon and focus mode info -->
-    <div class="focus-header">
-      <div class="app-icon-container" style="--app-color: var(--color-app-{appId}, var(--color-primary-50))">
-        <div class="app-icon icon_app_{appId}"></div>
-      </div>
-      <div class="focus-info">
-        <span class="focus-name">{focusModeName}</span>
-        <span class="focus-status" class:active-status={isActivated}>{statusText}</span>
-      </div>
+    <!-- App icon in gradient circle (matches BasicInfosBar style) -->
+    <div class="app-icon-circle {appId}" style={appGradientStyle}>
+      <div class="icon_rounded {appId}"></div>
+    </div>
+    
+    <!-- Focus/insight skill icon (purple color for focus mode) -->
+    <div class="focus-skill-icon"></div>
+    
+    <!-- Status text -->
+    <div class="status-text">
+      <span class="status-label">{displayName}</span>
+      <span class="status-value" class:active-status={isActivated}>{statusText}</span>
     </div>
 
-    <!-- Progress bar (only during countdown) -->
+    <!-- Progress bar (only during countdown, overlaid at bottom) -->
     {#if !isActivated}
       <div class="progress-bar-container">
         <div
@@ -186,7 +226,7 @@
     {/if}
   </div>
 
-  <!-- Helper text below the card during countdown -->
+  <!-- Helper text below the bar during countdown -->
   {#if !isActivated}
     <div class="reject-hint">
       {$text('embeds.focus_mode.reject_hint.text', {
@@ -197,106 +237,137 @@
 {/if}
 
 <style>
-  .focus-mode-activation {
+  /* ===========================================
+     Focus Mode Bar - Styled like BasicInfosBar
+     =========================================== */
+  
+  .focus-mode-bar {
     display: inline-flex;
-    flex-direction: column;
-    background: var(--color-grey-10, #f7f7f7);
-    border-radius: 12px;
-    padding: 10px 14px;
-    gap: 8px;
-    cursor: default;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
-    max-width: 280px;
+    align-items: center;
+    gap: 10px;
+    height: 61px;
+    min-height: 61px;
+    background-color: var(--color-grey-30);
+    border-radius: 30px;
+    padding: 0;
     user-select: none;
     -webkit-user-select: none;
     position: relative;
     overflow: hidden;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    max-width: 380px;
   }
 
-  .focus-mode-activation.counting {
+  .focus-mode-bar.counting {
     cursor: pointer;
   }
 
-  .focus-mode-activation.counting:hover {
-    background: var(--color-grey-15, #efefef);
+  .focus-mode-bar.counting:hover {
+    background-color: var(--color-grey-25);
   }
 
-  .focus-mode-activation.activated {
-    background: var(--color-success-5, #f0faf4);
-    border: 1px solid var(--color-success-20, #c0e8cf);
-  }
-
-  .focus-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .app-icon-container {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    border-radius: 8px;
+  /* App icon circle: 61x61px with gradient background (same as BasicInfosBar) */
+  .focus-mode-bar .app-icon-circle {
+    width: 61px;
+    height: 61px;
+    min-width: 61px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--app-color, var(--color-primary-50));
+    flex-shrink: 0;
   }
 
-  .app-icon {
-    width: 18px;
-    height: 18px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
+  /* Override the default icon_rounded positioning for flex layout */
+  .focus-mode-bar .app-icon-circle .icon_rounded {
+    width: 26px;
+    height: 26px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+  }
+
+  /* Make the icon white on gradient background */
+  .focus-mode-bar .app-icon-circle .icon_rounded {
+    background: transparent !important;
+  }
+
+  .focus-mode-bar .app-icon-circle .icon_rounded::after {
     filter: brightness(0) invert(1);
   }
 
-  .focus-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+  /* Focus/insight skill icon: uses the focus mode purple gradient color */
+  .focus-mode-bar .focus-skill-icon {
+    width: 29px;
+    height: 29px;
+    min-width: 29px;
+    /* Use focus mode purple instead of grey */
+    background-color: var(--icon-focus-background-start, #5951D0);
+    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
+    mask-image: url('@openmates/ui/static/icons/insight.svg');
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    flex-shrink: 0;
   }
 
-  .focus-name {
-    font-size: 13px;
+  /* Status text container */
+  .focus-mode-bar .status-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+    padding-right: 16px;
+  }
+
+  .focus-mode-bar .status-label {
+    font-size: 16px;
     font-weight: 600;
-    color: var(--color-grey-80, #333);
+    color: var(--color-grey-100);
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .focus-status {
-    font-size: 11px;
-    color: var(--color-grey-50, #888);
+  .focus-mode-bar .status-value {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-grey-70);
     line-height: 1.2;
   }
 
-  .focus-status.active-status {
+  .focus-mode-bar .status-value.active-status {
     color: var(--color-success-60, #34a853);
     font-weight: 500;
   }
 
-  /* Progress bar */
-  .progress-bar-container {
+  /* Progress bar - thin bar at the very bottom of the bar */
+  .focus-mode-bar .progress-bar-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
     height: 3px;
-    background: var(--color-grey-15, #efefef);
-    border-radius: 2px;
+    background: var(--color-grey-25);
     overflow: hidden;
   }
 
-  .progress-bar {
+  .focus-mode-bar .progress-bar {
     height: 100%;
     background: var(--color-success-50, #4caf50);
-    border-radius: 2px;
+    border-radius: 0 2px 2px 0;
     transition: width 1s linear;
   }
 
-  /* Reject hint text */
+  /* Reject hint text below the bar */
   .reject-hint {
     font-size: 11px;
     color: var(--color-grey-40, #aaa);
@@ -306,34 +377,9 @@
     white-space: pre-line;
   }
 
-  /* Dark mode */
-  :global(.dark) .focus-mode-activation {
-    background: var(--color-grey-90, #1a1a1a);
-  }
-
-  :global(.dark) .focus-mode-activation.counting:hover {
-    background: var(--color-grey-85, #252525);
-  }
-
-  :global(.dark) .focus-mode-activation.activated {
-    background: var(--color-success-95, #0a2a14);
-    border-color: var(--color-success-80, #1a6030);
-  }
-
-  :global(.dark) .focus-name {
-    color: var(--color-grey-20, #eaeaea);
-  }
-
-  :global(.dark) .focus-status {
-    color: var(--color-grey-50, #888);
-  }
-
-  :global(.dark) .focus-status.active-status {
+  /* Dark mode adjustments */
+  :global(.dark) .focus-mode-bar .status-value.active-status {
     color: var(--color-success-40, #7ad09a);
-  }
-
-  :global(.dark) .progress-bar-container {
-    background: var(--color-grey-85, #252525);
   }
 
   :global(.dark) .reject-hint {
