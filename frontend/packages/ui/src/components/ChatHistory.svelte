@@ -509,6 +509,13 @@
   let isCurrentlyStreaming = $derived(
     messages.some(m => m.status === 'streaming')
   );
+  
+  // Detect if AI is processing (user message sent, waiting for first streaming chunk).
+  // Shows the centered ai.svg loading icon overlay. Hides once streaming starts.
+  let isAiProcessing = $derived(
+    messages.some(m => m.status === 'processing') && !messages.some(m => m.status === 'streaming')
+  );
+  
   // Track previous streaming state to detect transitions
   let wasStreaming = $state(false);
 
@@ -1192,6 +1199,15 @@
             {/if}
         </div>
     {/if}
+    
+    <!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
+         Shown when a user message is processing (waiting for AI) and no streaming has started yet.
+         Fades out when the assistant response begins streaming. -->
+    {#if isAiProcessing}
+        <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
+            <div class="ai-processing-icon"></div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -1295,5 +1311,53 @@
   .message-wrapper :global(.chat-message) {
     width: 100%;
     max-width: 900px;
+  }
+
+  /* AI Processing Overlay: Centered icon shown while waiting for AI response.
+     Positioned fixed within the scrollable container using sticky positioning
+     so it stays centered on screen regardless of scroll position. */
+  .ai-processing-overlay {
+    position: sticky;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+    margin-top: -20px; /* Offset to visually center (half the icon height) */
+  }
+
+  .ai-processing-icon {
+    width: 40px;
+    height: 40px;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-30, #ccc) 0%,
+      var(--color-grey-30, #ccc) 40%,
+      var(--color-grey-10, #f0f0f0) 50%,
+      var(--color-grey-30, #ccc) 60%,
+      var(--color-grey-30, #ccc) 100%
+    );
+    background-size: 200% 100%;
+    animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  @keyframes ai-processing-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 </style>

@@ -1378,14 +1378,7 @@
           />
         {/if}
         
-        <!-- AI Loading Indicator: Shown for placeholder assistant messages during processing.
-             Displays the ai.svg icon with a gradient shimmer animation while waiting for
-             the AI to start streaming. Replaced by ReadOnlyMessage once streaming begins. -->
-        {#if role === 'assistant' && status === 'processing' && (!content || (typeof content === 'string' && content.length === 0))}
-          <div class="ai-loading-indicator">
-            <div class="ai-loading-icon"></div>
-          </div>
-        {:else if showFullMessage && fullContent}
+        {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
               bind:this={readOnlyMessageComponent}
               content={fullContent}
@@ -1591,48 +1584,6 @@
 {/if}
 
 <style>
-  /* AI Loading Indicator: Shown inside assistant message bubble during processing.
-     Displays the ai.svg sparkle icon with a sweeping gradient shimmer animation.
-     Uses CSS mask-image so the gradient paints only the icon shape. */
-  .ai-loading-indicator {
-    display: flex;
-    align-items: center;
-    padding: 8px 4px;
-    min-height: 28px;
-  }
-
-  .ai-loading-icon {
-    width: 28px;
-    height: 28px;
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background: linear-gradient(
-      90deg,
-      var(--color-grey-30, #ccc) 0%,
-      var(--color-grey-30, #ccc) 40%,
-      var(--color-grey-10, #f0f0f0) 50%,
-      var(--color-grey-30, #ccc) 60%,
-      var(--color-grey-30, #ccc) 100%
-    );
-    background-size: 200% 100%;
-    animation: ai-icon-shimmer 1.5s infinite linear;
-  }
-
-  @keyframes ai-icon-shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
   /* System message notice: smaller text, centered, used for credit errors etc. */
   .chat-message.system {
     display: flex;
