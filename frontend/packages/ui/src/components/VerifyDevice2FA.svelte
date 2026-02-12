@@ -61,6 +61,7 @@ login_2fa_svelte:
 
     // Props using Svelte 5 runes
     let { 
+        reason = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
         tfaAppName = null,
@@ -68,6 +69,7 @@ login_2fa_svelte:
         isLoading = $bindable(false),
         errorMessage = $bindable(null)
     }: {
+        reason?: 'new_device' | 'location_change' | null;
         previewMode?: boolean;
         previewTfaAppName?: string;
         tfaAppName?: string | null;
@@ -173,6 +175,13 @@ login_2fa_svelte:
 </script>
 
 <div class="login-2fa" class:preview={previewMode}>
+    {#if reason === 'location_change'}
+        <div class="location-change-notice">
+            <span class="icon icon_shield"></span>
+            <p>{$text('login.verify_device_location_change_notice.text')}</p>
+        </div>
+    {/if}
+
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
         {#if currentDisplayedApp}
             <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
@@ -221,6 +230,31 @@ login_2fa_svelte:
     .login-2fa {
         display: flex;
         flex-direction: column;
+    }
+
+    .location-change-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 15px;
+        background-color: var(--color-warning-bg, var(--color-grey-10));
+        border-radius: 8px;
+        border-left: 3px solid var(--color-warning, var(--color-primary));
+    }
+
+    .location-change-notice .icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .location-change-notice p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--color-grey-70);
     }
 
     .check-2fa-text {

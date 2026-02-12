@@ -33,6 +33,7 @@ import {
   authStore,
   needsDeviceVerification,
   deviceVerificationType,
+  deviceVerificationReason,
   authInitialState,
 } from "./authState";
 // Import auth types
@@ -426,6 +427,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     isResettingTFA.set(false);
     needsDeviceVerification.set(false);
     deviceVerificationType.set(null);
+    deviceVerificationReason.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
 

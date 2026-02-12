@@ -259,7 +259,8 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
             if refresh_token:
                 token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -624,7 +625,8 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -936,7 +938,8 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -1076,7 +1079,8 @@ async def finalize_login_session(
     device_location_str: str, # Added location string
     latitude: Optional[float], # Added latitude
     longitude: Optional[float], # Added longitude
-    login_data: LoginRequest # Added login_data parameter for email_encryption_key
+    login_data: LoginRequest, # Added login_data parameter for email_encryption_key
+    country_code: Optional[str] = None # Country code from geo-IP lookup, stored for session-level location change detection
 ):
     """
     Helper function to perform common session finalization tasks:
@@ -1262,6 +1266,10 @@ async def finalize_login_session(
                     cached_user_data["last_online_timestamp"] = current_time
                     # Store stay_logged_in preference for session endpoint to use
                     cached_user_data["stay_logged_in"] = login_data.stay_logged_in
+                    # Store country code for session-level location change detection
+                    # This enables the session endpoint to detect suspicious country changes mid-session
+                    if country_code and country_code not in ("Local", "Unknown", None):
+                        cached_user_data["last_session_country"] = country_code
                     # CRITICAL: Preserve username and vault_key_id - don't overwrite with incomplete data from user parameter
                     # The user parameter might come from login_user_with_lookup_hash which could have incomplete data
                     # Update with any additional session data that might be needed
@@ -1286,6 +1294,9 @@ async def finalize_login_session(
                         # Ensure stay_logged_in is set in the profile data
                         user_profile["stay_logged_in"] = login_data.stay_logged_in
                         user_profile["last_online_timestamp"] = current_time
+                        # Store country code for session-level location change detection
+                        if country_code and country_code not in ("Local", "Unknown", None):
+                            user_profile["last_session_country"] = country_code
                         # Ensure user_id is in the profile for set_user to work
                         if "user_id" not in user_profile and "id" in user_profile:
                             user_profile["user_id"] = user_profile["id"]

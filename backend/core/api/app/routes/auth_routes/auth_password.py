@@ -1,17 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
-import time
 import hashlib
-import os
-import base64
-from typing import Optional
 from backend.core.api.app.schemas.auth import SetupPasswordRequest, SetupPasswordResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
 from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
@@ -55,13 +51,13 @@ async def setup_password(
             # First, validate that the invite code is still valid
             is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
             if not is_valid:
-                logger.warning(f"Invalid invite code used in password setup")
+                logger.warning("Invalid invite code used in password setup")
                 return SetupPasswordResponse(
                     success=False,
                     message="Invalid invite code. Please go back and start again."
                 )
         else:
-            logger.info(f"Invite code not required, skipping validation")
+            logger.info("Invite code not required, skipping validation")
 
         # Check if email was verified by looking for verification data in cache
         # Use hashed_email for lookup instead of plaintext email
@@ -69,7 +65,7 @@ async def setup_password(
         verification_data = await cache_service.get(verification_cache_key)
         
         if not verification_data:
-            logger.warning(f"Password setup attempted without email verification")
+            logger.warning("Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
                 message="Email verification required. Please verify your email first."
@@ -88,7 +84,7 @@ async def setup_password(
         # Use the hashed_email provided in the request for lookup
         exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(setup_request.hashed_email)
         if exists_result and existing_user:
-            logger.warning(f"Attempted to register with existing email")
+            logger.warning("Attempted to register with existing email")
             return SetupPasswordResponse(
                 success=False,
                 message="This email is already registered. Please log in instead."
@@ -348,7 +344,8 @@ async def setup_password(
             device_location_str=device_location_str,
             latitude=latitude,
             longitude=longitude,
-            login_data=mock_login_data  # Pass the mock login_data
+            login_data=mock_login_data,  # Pass the mock login_data
+            country_code=country_code  # Pass country code for session-level location tracking
         )
         
         # Add gifted credits to user data if applicable

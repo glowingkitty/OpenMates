@@ -19,6 +19,7 @@ export interface SessionCheckResult {
   user?: UserProfile; // Use UserProfile type from userProfile store
   message?: string;
   re_auth_required?: "2fa" | "passkey" | null; // Indicates if device verification (2FA or passkey) is needed
+  re_auth_reason?: "new_device" | "location_change" | null; // Explains WHY re-auth is needed (for UI messaging)
   token_refresh_needed?: boolean;
   require_invite_code?: boolean; // Indicates if invite code is required for signup
   ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)

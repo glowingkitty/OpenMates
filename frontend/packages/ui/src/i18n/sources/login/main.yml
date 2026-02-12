@@ -503,6 +503,29 @@ your_tfa_app:
   cs: vaše aplikace 2FA
   sv: din 2FA-app
   verified_by_human: []
+verify_device_location_change_notice:
+  context: Security notice shown when re-authentication is triggered because the user's connection location changed (e.g. VPN switch or travel). Explains why identity verification is required to protect against account takeover.
+  en: We detected that your connection location changed. To protect your account from unauthorized access, please verify your identity.
+  de: Wir haben festgestellt, dass sich dein Verbindungsstandort geaendert hat. Um dein Konto vor unbefugtem Zugriff zu schuetzen, bestaetige bitte deine Identitaet.
+  zh: 我们检测到您的连接位置发生了变化。为了保护您的帐户免受未经授权的访问，请验证您的身份。
+  es: Detectamos que la ubicacion de tu conexion cambio. Para proteger tu cuenta de accesos no autorizados, por favor verifica tu identidad.
+  fr: Nous avons detecte que l'emplacement de votre connexion a change. Pour proteger votre compte contre les acces non autorises, veuillez verifier votre identite.
+  pt: Detectamos que a localizacao da sua conexao mudou. Para proteger sua conta contra acessos nao autorizados, por favor verifique sua identidade.
+  ru: Мы обнаружили, что местоположение вашего подключения изменилось. Для защиты вашего аккаунта от несанкционированного доступа, пожалуйста, подтвердите свою личность.
+  ja: 接続場所の変更を検出しました。不正アクセスからアカウントを保護するため、本人確認を行ってください。
+  ko: 연결 위치가 변경된 것을 감지했습니다. 무단 접근으로부터 계정을 보호하기 위해 본인 확인을 해주세요.
+  it: Abbiamo rilevato che la posizione della tua connessione e cambiata. Per proteggere il tuo account da accessi non autorizzati, verifica la tua identita.
+  tr: Bağlantı konumunuzun değiştiğini tespit ettik. Hesabınızı yetkisiz erişimden korumak için lütfen kimliğinizi doğrulayın.
+  vi: Chung toi phat hien vi tri ket noi cua ban da thay doi. De bao ve tai khoan cua ban khoi truy cap trai phep, vui long xac minh danh tinh cua ban.
+  id: Kami mendeteksi bahwa lokasi koneksi Anda berubah. Untuk melindungi akun Anda dari akses tidak sah, silakan verifikasi identitas Anda.
+  pl: Wykrylismy, ze lokalizacja twojego polaczenia sie zmienila. Aby chronic twoje konto przed nieautoryzowanym dostepem, zweryfikuj swoja tozsamosc.
+  nl: We hebben gedetecteerd dat uw verbindingslocatie is gewijzigd. Om uw account te beschermen tegen ongeautoriseerde toegang, verifieert u alstublieft uw identiteit.
+  ar: اكتشفنا أن موقع اتصالك قد تغير. لحماية حسابك من الوصول غير المصرح به، يرجى التحقق من هويتك.
+  hi: हमने पाया कि आपके कनेक्शन की लोकेशन बदल गई है। अनधिकृत पहुँच से अपने खाते की सुरक्षा के लिए, कृपया अपनी पहचान सत्यापित करें।
+  th: เราตรวจพบว่าตำแหน่งการเชื่อมต่อของคุณเปลี่ยนไป เพื่อปกป้องบัญชีของคุณจากการเข้าถึงโดยไม่ได้รับอนุญาต กรุณายืนยันตัวตนของคุณ
+  cs: Zjistili jsme, ze se umisteni vaseho pripojeni zmenilo. Pro ochranu vaseho uctu pred neopravnenym pristupem overite prosim svou identitu.
+  sv: Vi upptackte att din anslutningsplats har andrats. For att skydda ditt konto fran obehörig atkomst, verifiera din identitet.
+  verified_by_human: []
 verify_device_passkey_prompt:
   context: Text shown when user needs to verify their identity with a passkey on a new device
   en: Verify your identity with your passkey to continue on this device.

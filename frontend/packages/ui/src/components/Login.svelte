@@ -3,7 +3,7 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
+    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
@@ -128,6 +128,7 @@
     // Shows either 2FA or passkey verification depending on deviceVerificationType
     let showVerifyDeviceView = $derived($needsDeviceVerification);
     let verifyDeviceType = $derived($deviceVerificationType);
+    let verifyDeviceReason = $derived($deviceVerificationReason);
 
     /**
      * Clear pending draft from sessionStorage for privacy reasons
@@ -329,6 +330,7 @@
         verifyDeviceErrorMessage = null;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        deviceVerificationReason.set(null);
         
         // Clear general login errors and warnings
         loginFailedWarning = false;
@@ -1796,6 +1798,7 @@
         showTfaView = false;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        deviceVerificationReason.set(null);
         
         // Stop the timer
         stopInactivityTimer();
@@ -1848,6 +1851,7 @@
         showTfaView = false;
         needsDeviceVerification.set(false); // Explicitly turn off device verification flag
         deviceVerificationType.set(null); // Reset verification type
+        deviceVerificationReason.set(null); // Reset verification reason
         email = ''; // Clear email
         password = ''; // Clear password
         tfaErrorMessage = null; // Clear 2FA errors
@@ -2158,6 +2162,7 @@
                                 <div in:fade={{ duration: 200 }}>
                                     {#if verifyDeviceType === 'passkey'}
                                         <VerifyDevicePasskey
+                                            reason={verifyDeviceReason}
                                             bind:isLoading
                                             bind:errorMessage={verifyDeviceErrorMessage}
                                             on:deviceVerified={async () => {
@@ -2170,6 +2175,7 @@
                                         />
                                     {:else}
                                         <VerifyDevice2FA
+                                            reason={verifyDeviceReason}
                                             bind:isLoading
                                             bind:errorMessage={verifyDeviceErrorMessage}
                                             on:deviceVerified={async () => {

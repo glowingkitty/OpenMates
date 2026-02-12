@@ -24,6 +24,12 @@ export const needsDeviceVerification = writable<boolean>(false);
 // Used alongside needsDeviceVerification to determine which verification UI to show.
 export const deviceVerificationType = writable<"2fa" | "passkey" | null>(null);
 
+// Tracks WHY device verification is required ('new_device' or 'location_change').
+// Used to show a contextual security explanation to the user (e.g., location change warning).
+export const deviceVerificationReason = writable<
+  "new_device" | "location_change" | null
+>(null);
+
 // Create the main writable store for authentication state
 // This store holds whether the user is fully authenticated and if the initial check is done.
 const mainAuthStore = writable<AuthState>(initialState);

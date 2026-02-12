@@ -1384,7 +1384,8 @@ async def passkey_registration_complete(
                     lookup_hash=complete_request.lookup_hash,
                     login_method="passkey",
                     stay_logged_in=False
-                )
+                ),
+                country_code=country_code
             )
             
             logger.info(f"Passkey registration completed successfully for user {user_id[:6]}...")
@@ -2149,7 +2150,8 @@ async def passkey_assertion_verify(
                 stay_logged_in=verify_request.stay_logged_in,
                 email_encryption_key=verify_request.email_encryption_key,
                 session_id=session_id
-            )
+            ),
+            country_code=country_code
         )
         
         logger.info(f"Passkey assertion verified and authenticated successfully for user {user_id[:6]}...")
@@ -2395,6 +2397,15 @@ async def verify_device_passkey(
         else:
             logger.error(f"Failed to add device hash for user {user_id[:6]}...: {update_msg}")
             # Continue - user has successfully verified
+        
+        # Update last_session_country after successful device verification
+        # This ensures the new country is stored so it won't trigger re-auth again on next session check
+        if country_code and country_code not in ("Local", "Unknown", None):
+            try:
+                await cache_service.update_user(user_id, {"last_session_country": country_code})
+                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}... after passkey device verification.")
+            except Exception as e:
+                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
         
         # Step 7: Log compliance event
         compliance_service.log_auth_event_safe(
