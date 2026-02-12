@@ -4,6 +4,7 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed } from "./embedResolver"; // Import storeEmbed
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
+import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import type { EmbedType } from "../message_parsing/types";
 import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -1070,6 +1071,17 @@ export async function handleAITypingStartedImpl( // Changed to async
               processing_metadata: verifyChat?.processing_metadata,
               processing_metadata_type: typeof verifyChat?.processing_metadata,
             },
+          );
+
+          // CRITICAL: Invalidate chatListCache directly so stale data is cleared
+          // even when the sidebar (Chats.svelte) is closed/unmounted (e.g., on mobile).
+          // Without this, the sidebar would show "Sending..." from the cached lastMessage
+          // because the localChatListChanged event handler only runs when the sidebar is mounted.
+          chatListCache.invalidateLastMessage(payload.chat_id);
+          chatMetadataCache.invalidateChat(payload.chat_id);
+          chatListCache.upsertChat(chatToUpdate);
+          console.info(
+            `[ChatSyncService:AI] 🗑️ Invalidated chatListCache/chatMetadataCache for chat ${payload.chat_id} (works even when sidebar is closed)`,
           );
 
           // CRITICAL: Dispatch localChatListChanged event to trigger immediate UI update

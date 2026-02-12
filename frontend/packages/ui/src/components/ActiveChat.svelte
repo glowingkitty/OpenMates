@@ -85,6 +85,7 @@
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
+    import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -2706,6 +2707,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 await chatDB.saveMessage(updatedUserMessage);
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
+                            
+                            // CRITICAL: Invalidate the chatListCache last message so the sidebar
+                            // doesn't show stale "Sending..." when reopened on mobile.
+                            // The cache was populated with status:'sending' during sendHandlers.ts,
+                            // and without this invalidation, reopening the sidebar would use the stale cache.
+                            chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status:', error);
                         }
