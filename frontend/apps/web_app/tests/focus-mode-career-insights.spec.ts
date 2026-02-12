@@ -374,7 +374,9 @@ test('career frustration message triggers Career insights focus mode', async ({
 	setupPageListeners(page);
 
 	test.slow();
-	test.setTimeout(300000);
+	// Focus mode activation involves AI preprocessing + main processing + streaming + cleanup.
+	// Allow up to 6 minutes for the full flow including cleanup time.
+	test.setTimeout(360000);
 
 	const logCheckpoint = createSignupLogger('FOCUS_MODE_CAREER');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -491,6 +493,10 @@ test('career frustration message triggers Career insights focus mode', async ({
 
 	logCheckpoint('Assistant response contains career-related content.');
 	await takeStepScreenshot(page, 'career-response-verified');
+
+	// Wait for AI to finish typing before cleanup to avoid interaction issues
+	logCheckpoint('Waiting for AI to finish typing before cleanup...');
+	await page.waitForTimeout(10000);
 
 	// ======================================================================
 	// STEP 8: Delete the chat (cleanup)
