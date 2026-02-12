@@ -10,6 +10,9 @@ focuses:
     name_translation_key: jobs.career_insights.text
     description_translation_key: jobs.career_insights.description.text
     stage: production
+    preprocessor_hint: >
+      Select when the user expresses career frustration, feels stuck in their job, is considering a career change,
+      wants career direction or guidance, asks about career paths, or needs help figuring out what to do next professionally.
     process:
       - understands the user's current situation (job role, industry, how long they've been there, what's prompting the change)
       - explores what they enjoy and dislike about their current and past roles

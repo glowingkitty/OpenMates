@@ -645,7 +645,7 @@ async def handle_preprocessing(
     
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
-    # Format: "app_id-focus_id" with description for LLM context
+    # Format: "app_id-focus_id: hint" with description for LLM context (same pattern as skills)
     available_focus_modes_list: List[str] = []
     
     if discovered_apps_metadata:
@@ -654,7 +654,11 @@ async def handle_preprocessing(
                 for focus in app_metadata.focuses:
                     # Use hyphen format for focus mode identifiers (consistent with skill tool names)
                     focus_identifier = f"{app_id}-{focus.id}"
-                    available_focus_modes_list.append(focus_identifier)
+                    # Include preprocessor_hint if available so the LLM can make informed focus mode selection decisions
+                    if focus.preprocessor_hint:
+                        available_focus_modes_list.append(f"{focus_identifier}: {focus.preprocessor_hint.strip()}")
+                    else:
+                        available_focus_modes_list.append(focus_identifier)
     
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")

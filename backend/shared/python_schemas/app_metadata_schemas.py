@@ -47,6 +47,10 @@ class AppFocusDefinition(BaseModel):
     system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML - optional for planning stage focuses
     process: Optional[List[str]] = Field(default=None, description="Optional list of process steps for the focus mode")
     stage: Optional[str] = Field(default=None, description="Stage of the focus mode: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    # Brief LLM-facing hint for the preprocessor describing when to select this focus mode.
+    # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
+    # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
+    preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this focus mode (1-3 sentences).")
 
 class AppMemoryFieldDefinition(BaseModel):
     """Defines the structure for a memory field within an app's metadata."""
