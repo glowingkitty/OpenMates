@@ -4928,10 +4928,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        // Handle single message deletion (from this device or broadcast from another device)
+        const messageDeletedHandler = ((event: CustomEvent) => {
+            const { chatId, messageId } = event.detail;
+            if (chatId !== currentChat?.chat_id) return;
+
+            console.debug(`[ActiveChat] Received messageDeleted event for message ${messageId} in chat ${chatId}`);
+            // Remove the deleted message from the current messages array
+            const beforeCount = currentMessages.length;
+            currentMessages = currentMessages.filter(m => m.message_id !== messageId);
+
+            if (currentMessages.length < beforeCount) {
+                console.info(`[ActiveChat] Removed message ${messageId} from UI (${beforeCount} -> ${currentMessages.length})`);
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+            }
+        }) as EventListenerCallback;
+
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
+        chatSyncService.addEventListener('messageDeleted', messageDeletedHandler);
         
         // STREAM INTERRUPTION RECOVERY: When the WebSocket reconnects after a disconnect
         // that interrupted an active AI stream, finalize any streaming messages in the current
@@ -5181,6 +5200,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListenerCallback);
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
+            chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);

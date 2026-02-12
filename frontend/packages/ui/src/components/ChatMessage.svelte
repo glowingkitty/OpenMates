@@ -17,6 +17,7 @@
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import { chatDB } from '../services/db';
+  import { chatSyncService } from '../services/chatSyncService';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -65,7 +66,8 @@
     piiRevealed = false,
     // Message identification props (for usage/cost lookup in message context menu)
     messageId = undefined,
-    userMessageId = undefined
+    userMessageId = undefined,
+    onDeleteMessage = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -91,6 +93,7 @@
     // Message identification props (for usage/cost lookup in message context menu)
     messageId?: string; // Message ID for cost lookup
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
+    onDeleteMessage?: () => void; // Callback when user confirms message deletion
   } = $props();
   
   // State for thinking section expansion
@@ -262,6 +265,56 @@
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  /**
+   * Handle deleting this message from chat history.
+   * Deletes from IndexedDB locally, then sends server request to remove from cache and Directus.
+   * If this is an assistant message, also deletes the triggering user message (and vice versa).
+   */
+  async function handleDeleteMessage() {
+    if (!messageId || !original_message?.chat_id) {
+      console.error('[ChatMessage] Cannot delete: missing messageId or chat_id');
+      return;
+    }
+
+    const chatId = original_message.chat_id;
+    console.debug(`[ChatMessage] Deleting message ${messageId} from chat ${chatId}`);
+
+    try {
+      // Delete the message from local IndexedDB
+      await chatDB.deleteMessage(messageId);
+
+      // Send server request to delete from cache and Directus
+      try {
+        await chatSyncService.sendDeleteMessage(chatId, messageId);
+      } catch (err) {
+        console.error('[ChatMessage] Error sending delete_message to server (local deletion succeeded):', err);
+      }
+
+      // If this is an assistant message and we know the triggering user message, delete it too
+      // If this is a user message, try to find and delete the assistant response
+      if (role === 'assistant' && userMessageId) {
+        try {
+          await chatDB.deleteMessage(userMessageId);
+          await chatSyncService.sendDeleteMessage(chatId, userMessageId);
+        } catch (err) {
+          console.error('[ChatMessage] Error deleting paired user message:', err);
+        }
+      }
+
+      // Notify parent component via callback (if provided by ChatHistory)
+      onDeleteMessage?.();
+
+      // Also dispatch a global event so ChatHistory/ActiveChat can react
+      chatSyncService.dispatchEvent(
+        new CustomEvent('messageDeleted', {
+          detail: { chatId, messageId },
+        }),
+      );
+    } catch (err) {
+      console.error('[ChatMessage] Error deleting message:', err);
+    }
   }
 
   /**
@@ -1447,6 +1500,7 @@
           onClose={() => showMessageMenu = false}
           onCopy={handleCopyMessage}
           onSelect={handleSelectMessage}
+          onDelete={messageId ? handleDeleteMessage : undefined}
           {messageId}
           {userMessageId}
           {role}

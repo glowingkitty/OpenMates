@@ -229,6 +229,11 @@ export interface DeleteChatPayload {
   chatId: string;
 }
 
+export interface DeleteMessagePayload {
+  chatId: string;
+  messageId: string;
+}
+
 export interface DeleteDraftPayload {
   chatId: string;
 }
@@ -443,6 +448,11 @@ export interface ChatMessageConfirmedPayload {
 export interface ChatDeletedPayload {
   chat_id: string;
   tombstone: boolean;
+}
+
+export interface MessageDeletedPayload {
+  chat_id: string;
+  message_id: string;
 }
 // --- End Chat Update Payloads ---
 

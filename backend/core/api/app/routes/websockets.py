@@ -17,6 +17,7 @@ from .handlers.websocket_handlers.title_update_handler import handle_update_titl
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
+from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
@@ -1333,6 +1334,18 @@ async def websocket_endpoint(
                     payload=payload
                 )
             
+            elif message_type == "delete_message":
+                await handle_delete_message(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
             elif message_type == "request_cache_status":
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
                 try:

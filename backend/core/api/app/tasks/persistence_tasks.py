@@ -872,6 +872,86 @@ def persist_delete_chat(self, user_id: str, chat_id: str):
         )
 
 
+async def _async_persist_delete_message(
+    user_id: str,
+    chat_id: str,
+    client_message_id: str,
+    task_id: Optional[str] = "UNKNOWN_TASK_ID"
+):
+    """
+    Asynchronously deletes a single message from Directus by its client_message_id.
+    """
+    logger.info(
+        f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_message "
+        f"for user_id: {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, task_id: {task_id}"
+    )
+
+    directus_service = DirectusService()
+
+    try:
+        await directus_service.ensure_auth_token()
+
+        # Delete the message from Directus
+        message_deleted = await directus_service.chat.delete_message_by_client_id(
+            chat_id, client_message_id
+        )
+
+        if message_deleted:
+            logger.info(
+                f"TASK_LOGIC_FINISH: _async_persist_delete_message completed "
+                f"for message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
+            )
+        else:
+            logger.warning(
+                f"TASK_LOGIC_FINISH: _async_persist_delete_message - "
+                f"failed to delete message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in _async_persist_delete_message for user {user_id}, chat {chat_id}, "
+            f"message {client_message_id}, task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_delete_message", bind=True)
+def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: str):
+    """
+    Celery task (sync wrapper) to delete a single message from Directus.
+    """
+    task_id = self.request.id or "UNKNOWN_TASK_ID"
+    loop = None
+    try:
+        logger.info(
+            f"TASK_ENTRY_SYNC_WRAPPER: Starting persist_delete_message task "
+            f"for user_id: {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, task_id: {task_id}"
+        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_delete_message(
+            user_id=user_id, chat_id=chat_id, client_message_id=client_message_id, task_id=task_id
+        ))
+        logger.info(
+            f"TASK_SUCCESS_SYNC_WRAPPER: persist_delete_message task completed "
+            f"for user_id: {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, task_id: {task_id}"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run persist_delete_message task "
+            f"for user_id {user_id}, chat_id: {chat_id}, client_message_id: {client_message_id}, task_id: {task_id}: {str(e)}",
+            exc_info=True
+        )
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        if loop:
+            loop.close()
+        logger.info(
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_message task_id: {task_id}"
+        )
+
+
 async def _async_persist_ai_response_to_directus(
     user_id: str,
     user_id_hash: str,

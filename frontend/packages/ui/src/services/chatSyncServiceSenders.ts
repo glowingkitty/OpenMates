@@ -15,6 +15,7 @@ import type {
   UpdateDraftPayload,
   DeleteDraftPayload,
   DeleteChatPayload,
+  DeleteMessagePayload,
   SetActiveChatPayload,
   CancelAITaskPayload,
   SyncOfflineChangesPayload, // Assuming this is used by a sender method if sendOfflineChanges is moved
@@ -204,6 +205,40 @@ export async function sendDeleteChatImpl(
       error,
     );
     throw error; // Re-throw so caller can handle the error
+  }
+}
+
+/**
+ * Send delete message request to server.
+ * NOTE: The actual deletion from IndexedDB should be done by the caller
+ * before calling this function. This function only handles server communication.
+ * @param chat_id - The ID of the chat containing the message
+ * @param message_id - The client_message_id of the message to delete
+ */
+export async function sendDeleteMessageImpl(
+  serviceInstance: ChatSynchronizationService,
+  chat_id: string,
+  message_id: string,
+): Promise<void> {
+  const payload: DeleteMessagePayload = {
+    chatId: chat_id,
+    messageId: message_id,
+  };
+
+  try {
+    console.debug(
+      `[ChatSyncService:Senders] Sending delete_message request to server for message ${message_id} in chat ${chat_id}`,
+    );
+    await webSocketService.sendMessage("delete_message", payload);
+    console.debug(
+      `[ChatSyncService:Senders] Delete message request sent successfully for message ${message_id}`,
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:Senders] Error sending delete_message request for message ${message_id}:`,
+      error,
+    );
+    throw error;
   }
 }
 

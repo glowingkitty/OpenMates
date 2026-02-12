@@ -998,6 +998,40 @@ class ChatMethods:
             logger.error(f"Error deleting all messages for chat_id: {chat_id}: {e}", exc_info=True)
             return False
 
+    async def delete_message_by_client_id(self, chat_id: str, client_message_id: str) -> bool:
+        """
+        Deletes a single message from the 'messages' collection by its client_message_id.
+        Verifies the message belongs to the specified chat_id for safety.
+        """
+        logger.info(f"Attempting to delete message with client_message_id: {client_message_id} from chat: {chat_id}")
+        try:
+            # Query for the message by client_message_id AND chat_id (safety check)
+            message_params = {
+                'filter[client_message_id][_eq]': client_message_id,
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',
+                'limit': 1
+            }
+            messages = await self.directus_service.get_items('messages', params=message_params)
+            if not messages:
+                logger.info(f"No message found with client_message_id: {client_message_id} in chat: {chat_id}. Nothing to delete.")
+                return True  # Treat as success - message doesn't exist
+
+            directus_id = messages[0].get('id')
+            if not directus_id:
+                logger.error(f"Found message with client_message_id: {client_message_id} but it has no Directus ID.")
+                return False
+
+            success = await self.directus_service.delete_item(collection='messages', item_id=directus_id)
+            if success:
+                logger.info(f"Successfully deleted message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            else:
+                logger.warning(f"Failed to delete message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting message {client_message_id} from chat {chat_id}: {e}", exc_info=True)
+            return False
+
     async def persist_delete_chat(self, chat_id: str) -> bool:
         """
         Deletes a chat item from the 'chats' collection.

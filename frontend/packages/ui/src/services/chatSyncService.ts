@@ -19,6 +19,7 @@ import type {
   ChatMessageReceivedPayload,
   ChatMessageConfirmedPayload,
   ChatDeletedPayload,
+  MessageDeletedPayload,
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
   CachePrimedPayload,
@@ -310,6 +311,30 @@ export class ChatSynchronizationService extends EventTarget {
         payload as ChatDeletedPayload,
       ),
     );
+    // Handle single message deletion (broadcast from server to all devices)
+    webSocketService.on("message_deleted", (payload) => {
+      const { chat_id, message_id } = payload as MessageDeletedPayload;
+      console.debug(
+        `[ChatSyncService] Received message_deleted for message ${message_id} in chat ${chat_id}`,
+      );
+      // Delete from IndexedDB (idempotent - no error if already deleted)
+      chatDB
+        .deleteMessage(message_id)
+        .then(() => {
+          // Dispatch event so UI components (ChatHistory, ActiveChat) can react
+          this.dispatchEvent(
+            new CustomEvent("messageDeleted", {
+              detail: { chatId: chat_id, messageId: message_id },
+            }),
+          );
+        })
+        .catch((err) => {
+          console.error(
+            `[ChatSyncService] Error deleting message ${message_id} from IndexedDB on broadcast:`,
+            err,
+          );
+        });
+    });
     // Handle encrypted_chat_metadata updates (e.g., when chat is hidden/unhidden on another device)
     webSocketService.on("encrypted_chat_metadata", (payload) =>
       chatUpdateHandlers.handleEncryptedChatMetadataImpl(
@@ -814,6 +839,9 @@ export class ChatSynchronizationService extends EventTarget {
     embed_ids_to_delete: string[] = [],
   ) {
     await senders.sendDeleteChatImpl(this, chat_id, embed_ids_to_delete);
+  }
+  public async sendDeleteMessage(chat_id: string, message_id: string) {
+    await senders.sendDeleteMessageImpl(this, chat_id, message_id);
   }
   public async sendNewMessage(
     message: Message,
