@@ -32,6 +32,7 @@ import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync 
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
 
 // Import core auth state and related flags
 import {
@@ -437,6 +438,12 @@ export async function checkAuth(
           auto_topup_low_balance_currency:
             data.user.auto_topup_low_balance_currency,
         });
+        // Start admin console log forwarding on session restore if user is admin.
+        // This ensures log forwarding resumes after page refresh without requiring re-login.
+        // Only admin users have logs forwarded - regular users are never affected.
+        if (data.user.is_admin) {
+          clientLogForwarder.start();
+        }
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }
@@ -448,6 +455,9 @@ export async function checkAuth(
         "Server explicitly indicates user is not logged in:",
         data.message,
       );
+
+      // Stop admin console log forwarding on session expiry (before clearing auth state)
+      clientLogForwarder.stop();
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());

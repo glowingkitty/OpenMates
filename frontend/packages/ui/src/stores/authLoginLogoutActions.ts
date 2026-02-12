@@ -26,6 +26,7 @@ import { aiTypingStore } from "./aiTypingStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
+import { clientLogForwarder } from "../services/clientLogForwarder";
 
 // Import core auth state and related flags
 import {
@@ -307,6 +308,13 @@ export async function login(
             // This ensures the server always has the user's current timezone
             // for reminders and time-sensitive features
             void syncBrowserTimezone(data.user.timezone);
+
+            // Start admin console log forwarding if user is admin
+            // This forwards browser console logs to the server (Loki) for centralized debugging.
+            // Only admin users have logs forwarded - regular users are never affected.
+            if (data.user.is_admin) {
+              clientLogForwarder.start();
+            }
           } else {
             console.warn(
               "Login successful but no user data received in response.",
@@ -374,6 +382,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
   try {
     // --- Pre-request cleanup (non-cookie items) ---
+    // Stop admin console log forwarding before clearing auth state
+    // This flushes any remaining buffered logs and unsubscribes from the log collector
+    clientLogForwarder.stop();
+
     // Clear sensitive crypto data BEFORE server request but AFTER any lookups
     console.debug("[AuthStore] Clearing sensitive data...");
     cryptoService.clearKeyFromStorage(); // Clear master key

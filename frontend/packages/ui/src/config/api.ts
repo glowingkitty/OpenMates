@@ -161,6 +161,7 @@ export const apiEndpoints = {
   },
   admin: {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
+    clientLogs: "/v1/admin/client-logs", // Admin-only: forward browser console logs to Loki for centralized debugging
   },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)
