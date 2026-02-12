@@ -914,8 +914,11 @@
     const isAtBottomLocal = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
+    // Check if scrolled to the very top (within 50px threshold)
+    const isAtTopLocal = container.scrollTop < 50;
+    
     // Dispatch immediate event for UI state changes (button visibility)
-    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal });
+    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
   }
 
   // Find the last message that's currently visible in viewport
@@ -1122,7 +1125,7 @@
              class:has-messages={displayMessages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-            {#each displayMessages as msg (msg.id)}
+            {#each displayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
@@ -1153,6 +1156,7 @@
                         {piiRevealed}
                         messageId={msg.id}
                         userMessageId={msg.original_message?.user_message_id}
+                        isFirstMessage={msgIndex === 0}
                     />
                 </div>
             {/each}

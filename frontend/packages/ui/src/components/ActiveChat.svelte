@@ -1836,6 +1836,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Will be set correctly by loadChat() or handleScrollPositionUI() once scroll position is determined
     let isAtBottom = $state(false);
     
+    // Track if user is at top of chat (for scroll-to-top button visibility)
+    let isAtTop = $state(true);
+    
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
 
@@ -3480,9 +3483,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Handle immediate UI state updates from ChatHistory (no debounce)
     function handleScrollPositionUI(event: CustomEvent) {
-        const { isAtBottom: atBottom } = event.detail;
+        const { isAtBottom: atBottom, isAtTop: atTop } = event.detail;
         // Immediately update UI state for responsive button visibility
         isAtBottom = atBottom;
+        isAtTop = atTop;
     }
     
     // Handle scroll position changes from ChatHistory (debounced for saving)
@@ -5474,6 +5478,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         on:scrollPositionChanged={handleScrollPositionChanged}
                         on:scrolledToBottom={handleScrolledToBottom}
                     />
+
+                    <!-- Scroll-to-top button: visible when not at top and chat has messages -->
+                    {#if !showWelcome && !isAtTop}
+                        <button
+                            class="scroll-nav-button scroll-to-top-button"
+                            aria-label="Scroll to top"
+                            onclick={() => chatHistoryRef?.scrollToTop()}
+                        >
+                            <span class="scroll-nav-icon scroll-nav-icon-up"></span>
+                        </button>
+                    {/if}
+
+                    <!-- Scroll-to-bottom button: visible when not at bottom and chat has messages -->
+                    {#if !showWelcome && !isAtBottom}
+                        <button
+                            class="scroll-nav-button scroll-to-bottom-button"
+                            aria-label="Scroll to bottom"
+                            onclick={() => chatHistoryRef?.scrollToBottom()}
+                        >
+                            <span class="scroll-nav-icon"></span>
+                        </button>
+                    {/if}
                 </div>
 
                 <!-- Right side container for message input -->
@@ -6721,6 +6747,56 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
+    }
+
+    /* Scroll navigation buttons - round, icon-only, subtle grey */
+    .scroll-nav-button {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background-color: var(--color-grey-20);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+        padding: 0;
+    }
+
+    .scroll-nav-button:hover {
+        opacity: 1;
+    }
+
+    .scroll-to-top-button {
+        top: 50px;
+    }
+
+    .scroll-to-bottom-button {
+        bottom: 80px;
+    }
+
+    /* Dropdown arrow icon using CSS mask (reuses existing dropdown.svg) */
+    .scroll-nav-icon {
+        display: block;
+        width: 12px;
+        height: 12px;
+        background-color: var(--color-grey-60);
+        -webkit-mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+    }
+
+    /* Rotate the icon 180deg for scroll-to-top (arrow points up) */
+    .scroll-nav-icon-up {
+        transform: rotate(180deg);
     }
 
     .top-buttons {
