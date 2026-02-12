@@ -662,13 +662,13 @@ class UsageMethods:
             
             chat_params = {
                 "filter": common_filter,
-                "fields": "chat_id,date,total_credits,entry_count",
+                "fields": "chat_id,date,total_credits,entry_count,updated_at",
                 "sort": ["-date"],
                 "limit": -1
             }
             api_key_params = {
                 "filter": common_filter,
-                "fields": "api_key_hash,date,total_credits,entry_count",
+                "fields": "api_key_hash,date,total_credits,entry_count,updated_at",
                 "sort": ["-date"],
                 "limit": -1
             }
@@ -684,6 +684,45 @@ class UsageMethods:
             # Structure: {date: {items: [...], total_credits: N}}
             days_map: Dict[str, Dict[str, Any]] = {}
             
+            # Collect unique chat_ids to batch-fetch metadata
+            unique_chat_ids = set()
+            for summary in (chat_summaries or []):
+                chat_id = summary.get("chat_id")
+                if chat_id:
+                    unique_chat_ids.add(chat_id)
+            
+            # Batch-fetch chat metadata from the chats collection
+            # This provides encrypted_title, encrypted_category, encrypted_icon, encrypted_chat_key
+            # so clients can display chat info even for chats not synced to IndexedDB.
+            # Chats that don't exist anymore (hard-deleted) will be flagged as is_deleted=True.
+            chat_metadata_map: Dict[str, Dict[str, Any]] = {}
+            if unique_chat_ids:
+                try:
+                    chat_fields = "id,encrypted_title,encrypted_category,encrypted_icon,encrypted_chat_key"
+                    chat_filter = {
+                        "id": {"_in": list(unique_chat_ids)}
+                    }
+                    chat_records = await self.sdk.get_items("chats", params={
+                        "filter": chat_filter,
+                        "fields": chat_fields,
+                        "limit": -1
+                    }, no_cache=True)
+                    
+                    for chat in (chat_records or []):
+                        chat_id = chat.get("id")
+                        if chat_id:
+                            chat_metadata_map[chat_id] = {
+                                "encrypted_title": chat.get("encrypted_title"),
+                                "encrypted_category": chat.get("encrypted_category"),
+                                "encrypted_icon": chat.get("encrypted_icon"),
+                                "encrypted_chat_key": chat.get("encrypted_chat_key"),
+                            }
+                    
+                    logger.debug(f"{log_prefix} Fetched metadata for {len(chat_metadata_map)}/{len(unique_chat_ids)} chats")
+                except Exception as meta_err:
+                    logger.warning(f"{log_prefix} Failed to fetch chat metadata: {meta_err}")
+                    # Non-fatal: continue without metadata enrichment
+            
             # Process chat summaries
             for summary in (chat_summaries or []):
                 date = summary.get("date")
@@ -692,13 +731,31 @@ class UsageMethods:
                 if date not in days_map:
                     days_map[date] = {"date": date, "total_credits": 0, "items": []}
                 credits = summary.get("total_credits", 0)
-                days_map[date]["items"].append({
+                chat_id = summary.get("chat_id")
+                
+                # Build the chat item with metadata enrichment
+                chat_item: Dict[str, Any] = {
                     "type": "chat",
-                    "chat_id": summary.get("chat_id"),
+                    "chat_id": chat_id,
                     "api_key_hash": None,
                     "total_credits": credits,
-                    "entry_count": summary.get("entry_count", 0)
-                })
+                    "entry_count": summary.get("entry_count", 0),
+                    "updated_at": summary.get("updated_at"),
+                }
+                
+                # Enrich with chat metadata (encrypted fields for client decryption)
+                if chat_id and chat_id in chat_metadata_map:
+                    meta = chat_metadata_map[chat_id]
+                    chat_item["encrypted_title"] = meta.get("encrypted_title")
+                    chat_item["encrypted_category"] = meta.get("encrypted_category")
+                    chat_item["encrypted_icon"] = meta.get("encrypted_icon")
+                    chat_item["encrypted_chat_key"] = meta.get("encrypted_chat_key")
+                    chat_item["is_deleted"] = False
+                elif chat_id:
+                    # Chat not found in Directus - it was hard-deleted
+                    chat_item["is_deleted"] = True
+                
+                days_map[date]["items"].append(chat_item)
                 days_map[date]["total_credits"] += credits
             
             # Process API key summaries
@@ -714,13 +771,14 @@ class UsageMethods:
                     "chat_id": None,
                     "api_key_hash": summary.get("api_key_hash"),
                     "total_credits": credits,
-                    "entry_count": summary.get("entry_count", 0)
+                    "entry_count": summary.get("entry_count", 0),
+                    "updated_at": summary.get("updated_at"),
                 })
                 days_map[date]["total_credits"] += credits
             
-            # Sort items within each day by credits descending (most expensive first)
+            # Sort items within each day by updated_at descending (most recently updated first)
             for day_data in days_map.values():
-                day_data["items"].sort(key=lambda x: x.get("total_credits", 0), reverse=True)
+                day_data["items"].sort(key=lambda x: x.get("updated_at") or "", reverse=True)
             
             # Convert to sorted list (most recent date first)
             result = sorted(days_map.values(), key=lambda x: x["date"], reverse=True)

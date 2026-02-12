@@ -13,7 +13,7 @@ Usage Settings - View usage statistics and export usage data
     import type { Chat } from '../../types/chat';
     import * as LucideIcons from '@lucide/svelte';
     import Icon from '../Icon.svelte';
-    import { decryptWithMasterKey, getKeyFromStorage } from '../../services/cryptoService';
+    import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
 
     // Usage entry interface
@@ -89,6 +89,13 @@ Usage Settings - View usage statistics and export usage data
         api_key_hash: string | null;
         total_credits: number;
         entry_count: number;
+        updated_at: string | null;
+        // Chat metadata enrichment from backend (encrypted, client decrypts)
+        encrypted_title?: string | null;
+        encrypted_category?: string | null;
+        encrypted_icon?: string | null;
+        encrypted_chat_key?: string | null;
+        is_deleted?: boolean;
     }
 
     // Daily overview day structure (returned from API)
@@ -130,7 +137,11 @@ Usage Settings - View usage statistics and export usage data
     let overviewSelectedEntry: UsageEntry | null = $state(null); // Selected entry for detail view (level 2)
     
     // Chat metadata cache for usage display
-    let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null }>>(new Map());
+    let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }>>(new Map());
+    
+    // Backend-provided encrypted metadata for chats not in IndexedDB
+    // Keyed by chat_id, stores the encrypted fields from the daily overview API
+    let backendChatMetadata = $state<Map<string, { encrypted_title?: string | null; encrypted_category?: string | null; encrypted_icon?: string | null; encrypted_chat_key?: string | null; is_deleted?: boolean }>>(new Map());
     
     // API keys cache
     let apiKeys = $state<ApiKey[]>([]);
@@ -502,6 +513,24 @@ Usage Settings - View usage statistics and export usage data
 
             dailyOverview = data.days;
             hasMoreDays = data.has_more_days === true;
+            
+            // Store backend-provided encrypted metadata for chats
+            // This is used as a fallback when chats are not in IndexedDB (not synced or beyond 100-chat limit)
+            for (const day of dailyOverview) {
+                for (const item of day.items) {
+                    if (item.type === 'chat' && item.chat_id) {
+                        if (item.encrypted_chat_key || item.is_deleted) {
+                            backendChatMetadata.set(item.chat_id, {
+                                encrypted_title: item.encrypted_title,
+                                encrypted_category: item.encrypted_category,
+                                encrypted_icon: item.encrypted_icon,
+                                encrypted_chat_key: item.encrypted_chat_key,
+                                is_deleted: item.is_deleted,
+                            });
+                        }
+                    }
+                }
+            }
             
             // Load chat metadata for any chat items in the overview
             // Collect all promises and await them so we can trigger a reactive update
@@ -903,11 +932,48 @@ Usage Settings - View usage statistics and export usage data
     }
 
     /**
+     * Decrypt chat metadata from backend-provided encrypted fields.
+     * Used when a chat is not in IndexedDB (not synced or beyond sync limit).
+     * Decrypts encrypted_chat_key with master key, then decrypts title/category/icon with chat key.
+     */
+    async function decryptBackendChatMetadata(chatId: string, backendMeta: { encrypted_title?: string | null; encrypted_category?: string | null; encrypted_icon?: string | null; encrypted_chat_key?: string | null }): Promise<DecryptedChatMetadata | null> {
+        try {
+            if (!backendMeta.encrypted_chat_key) return null;
+            
+            // Decrypt the chat key using the master key
+            const chatKey = await decryptChatKeyWithMasterKey(backendMeta.encrypted_chat_key);
+            if (!chatKey) return null;
+            
+            // Decrypt individual fields with the chat key
+            const [title, category, icon] = await Promise.all([
+                backendMeta.encrypted_title ? decryptWithChatKey(backendMeta.encrypted_title, chatKey) : null,
+                backendMeta.encrypted_category ? decryptWithChatKey(backendMeta.encrypted_category, chatKey) : null,
+                backendMeta.encrypted_icon ? decryptWithChatKey(backendMeta.encrypted_icon, chatKey) : null,
+            ]);
+            
+            return {
+                chat_id: chatId,
+                title: title || null,
+                category: category || null,
+                icon: icon || null,
+                summary: null,
+                draftPreview: null,
+                lastDecrypted: Date.now(),
+            };
+        } catch (error) {
+            console.warn(`[SettingsUsage] Failed to decrypt backend chat metadata:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Load chat metadata for a chat_id
-     * Fetches from IndexedDB and decrypts metadata
+     * Fetches from IndexedDB and decrypts metadata.
+     * Falls back to backend-provided encrypted metadata when chat is not in IndexedDB
+     * (e.g., chat not synced, beyond 100-chat sync limit, or deleted).
      * Note: For hidden chats, metadata can only be decrypted when hidden chats are unlocked
      */
-    async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null }> {
+    async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }> {
         // Check cache first, but invalidate if unlock status changed
         // (We check unlock status on each load to handle dynamic unlock/lock)
         const cached = chatMetadataMap.get(chatId);
@@ -944,7 +1010,23 @@ Usage Settings - View usage statistics and export usage data
         try {
             // Fetch chat from IndexedDB
             const chat = await chatDB.getChat(chatId);
+            
             if (!chat) {
+                // Chat not in IndexedDB - try backend-provided metadata
+                const backendMeta = backendChatMetadata.get(chatId);
+                if (backendMeta) {
+                    if (backendMeta.is_deleted) {
+                        // Chat was deleted from Directus - mark as deleted
+                        const result = { chat: null, metadata: null, isDeleted: true };
+                        chatMetadataMap.set(chatId, result);
+                        return result;
+                    }
+                    // Decrypt backend-provided encrypted metadata
+                    const metadata = await decryptBackendChatMetadata(chatId, backendMeta);
+                    const result = { chat: null, metadata, isDeleted: false };
+                    chatMetadataMap.set(chatId, result);
+                    return result;
+                }
                 const result = { chat: null, metadata: null };
                 chatMetadataMap.set(chatId, result);
                 return result;
@@ -1296,37 +1378,37 @@ Usage Settings - View usage statistics and export usage data
         class="tab-button"
         class:active={activeTab === 'overview'}
         onclick={() => activeTab = 'overview'}
-        title={$text('settings.usage.tab_overview.text')}
         aria-label={$text('settings.usage.tab_overview.text')}
     >
-        <div class="tab-icon icon icon_usage"></div>
+        <Icon name="usage" type="subsetting" />
+        <span class="tab-label">{$text('settings.usage.tab_overview.text')}</span>
     </button>
     <button
         class="tab-button"
         class:active={activeTab === 'chats'}
         onclick={() => activeTab = 'chats'}
-        title={$text('settings.usage.tab_chats.text')}
         aria-label={$text('settings.usage.tab_chats.text')}
     >
-        <div class="tab-icon icon icon_chat"></div>
+        <Icon name="chat" type="subsetting" />
+        <span class="tab-label">{$text('settings.usage.tab_chats.text')}</span>
     </button>
     <button
         class="tab-button"
         class:active={activeTab === 'apps'}
         onclick={() => activeTab = 'apps'}
-        title={$text('settings.usage.tab_apps.text')}
         aria-label={$text('settings.usage.tab_apps.text')}
     >
-        <div class="tab-icon icon icon_app_store"></div>
+        <Icon name="app" type="subsetting" />
+        <span class="tab-label">{$text('settings.usage.tab_apps.text')}</span>
     </button>
     <button
         class="tab-button"
         class:active={activeTab === 'api'}
         onclick={() => activeTab = 'api'}
-        title={$text('settings.usage.tab_api.text')}
         aria-label={$text('settings.usage.tab_api.text')}
     >
-        <div class="tab-icon icon icon_code"></div>
+        <Icon name="coding" type="subsetting" />
+        <span class="tab-label">{$text('settings.usage.tab_api.text')}</span>
     </button>
 </div>
 
@@ -1595,34 +1677,46 @@ Usage Settings - View usage statistics and export usage data
                                 {@const cached = chatMetadataMap.get(item.chat_id)}
                                 {@const metadata = cached?.metadata}
                                 {@const chat = cached?.chat}
+                                {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
                                 {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                                {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
+                                {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                                 {@const category = canShowDetails ? (metadata?.category || null) : null}
-                                {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                                {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
                                 {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                                {@const IconComponent = getLucideIcon(iconName)}
-                                {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
+                                {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
+                                {@const title = isDeletedChat ? $text('settings.usage.deleted_chat.text') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
                                 
                                 <button
                                     type="button"
                                     class="overview-usage-item clickable"
+                                    class:deleted={isDeletedChat}
                                     onclick={async () => {
                                         overviewSelectedChatId = item.chat_id;
                                         await fetchChatEntries(item.chat_id!);
                                     }}
                                 >
                                     <div class="chat-usage-icon-wrapper">
-                                        <div 
-                                            class="chat-usage-icon-circle" 
-                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                        >
-                                            <div class="chat-usage-icon">
-                                                <IconComponent size={16} color="white" />
+                                        {#if isDeletedChat}
+                                            <div class="chat-usage-icon-circle deleted-icon-circle">
+                                                <div class="chat-usage-icon">
+                                                    <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
+                                                </div>
                                             </div>
-                                        </div>
+                                        {:else}
+                                            <div 
+                                                class="chat-usage-icon-circle" 
+                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            >
+                                                <div class="chat-usage-icon">
+                                                    {#if IconComponent}
+                                                        <IconComponent size={16} color="white" />
+                                                    {/if}
+                                                </div>
+                                            </div>
+                                        {/if}
                                     </div>
                                     <div class="overview-item-content">
-                                        <div class="overview-item-title">{title}</div>
+                                        <div class="overview-item-title" class:deleted-text={isDeletedChat}>{title}</div>
                                         <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
                                     </div>
                                     <div class="overview-item-credits">
@@ -1938,17 +2032,20 @@ Usage Settings - View usage statistics and export usage data
                     {#each summaries as summary}
                         {@const chat = summary.chat}
                         {@const metadata = summary.metadata}
+                        {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
+                        {@const isDeletedChat = cachedEntry?.isDeleted === true}
                         {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                        {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
+                        {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                         {@const category = canShowDetails ? (metadata?.category || null) : null}
-                        {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                        {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
                         {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                        {@const IconComponent = getLucideIcon(iconName)}
-                        {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
+                        {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
+                        {@const title = isDeletedChat ? $text('settings.usage.deleted_chat.text') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
                         
                         <button
                             type="button"
                             class="chat-usage-item clickable"
+                            class:deleted={isDeletedChat}
                             onclick={async () => {
                                 selectedChatId = summary.chat_id;
                                 // Fetch details for this chat and month
@@ -1957,17 +2054,27 @@ Usage Settings - View usage statistics and export usage data
                             aria-label={$text('settings.usage.view_chat_details.text')}
                         >
                             <div class="chat-usage-icon-wrapper">
-                                <div 
-                                    class="chat-usage-icon-circle" 
-                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                >
-                                    <div class="chat-usage-icon">
-                                        <IconComponent size={16} color="white" />
+                                {#if isDeletedChat}
+                                    <div class="chat-usage-icon-circle deleted-icon-circle">
+                                        <div class="chat-usage-icon">
+                                            <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
+                                        </div>
                                     </div>
-                                </div>
+                                {:else}
+                                    <div 
+                                        class="chat-usage-icon-circle" 
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="chat-usage-icon">
+                                            {#if IconComponent}
+                                                <IconComponent size={16} color="white" />
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {/if}
                             </div>
                             <div class="chat-usage-content">
-                                <div class="chat-usage-title">{title}</div>
+                                <div class="chat-usage-title" class:deleted-text={isDeletedChat}>{title}</div>
                             </div>
                             <div class="chat-usage-credits">
                                 <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
@@ -2200,20 +2307,27 @@ Usage Settings - View usage statistics and export usage data
         margin-bottom: 16px;
         border-bottom: 1px solid var(--color-grey-20);
         justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .usage-tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .tab-button {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 20px;
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         transition: all 0.2s ease;
         flex-shrink: 0;
+        white-space: nowrap;
     }
 
     .tab-button:hover {
@@ -2226,9 +2340,15 @@ Usage Settings - View usage statistics and export usage data
         border-color: var(--color-primary);
     }
 
-    .tab-icon {
-        width: 22px;
-        height: 22px;
+    .tab-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-grey-80);
+        line-height: 1;
+    }
+
+    .tab-button.active .tab-label {
+        color: white;
     }
 
     .loading-state {
@@ -2914,5 +3034,20 @@ Usage Settings - View usage statistics and export usage data
         font-size: 12px;
         color: var(--color-grey-50);
         font-weight: 400;
+    }
+
+    /* Deleted chat styles */
+    .deleted-icon-circle {
+        background: var(--color-grey-25, #3a3a3a);
+    }
+
+    .deleted-text {
+        color: var(--color-grey-50);
+        font-style: italic;
+    }
+
+    .overview-usage-item.deleted,
+    .chat-usage-item.deleted {
+        opacity: 0.7;
     }
 </style>
