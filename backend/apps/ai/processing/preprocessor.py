@@ -645,8 +645,11 @@ async def handle_preprocessing(
     
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
-    # Format: "app_id-focus_id: hint" with description for LLM context (same pattern as skills)
+    # Two lists are maintained (same pattern as skills):
+    #   - available_focus_modes_list: enriched with preprocessor_hints for the LLM prompt (e.g., "jobs-career_insights: Select when the user...")
+    #   - available_focus_mode_ids: bare identifiers for validation of LLM responses (e.g., "jobs-career_insights")
     available_focus_modes_list: List[str] = []
+    available_focus_mode_ids: List[str] = []
     
     if discovered_apps_metadata:
         for app_id, app_metadata in discovered_apps_metadata.items():
@@ -654,6 +657,7 @@ async def handle_preprocessing(
                 for focus in app_metadata.focuses:
                     # Use hyphen format for focus mode identifiers (consistent with skill tool names)
                     focus_identifier = f"{app_id}-{focus.id}"
+                    available_focus_mode_ids.append(focus_identifier)
                     # Include preprocessor_hint if available so the LLM can make informed focus mode selection decisions
                     if focus.preprocessor_hint:
                         available_focus_modes_list.append(f"{focus_identifier}: {focus.preprocessor_hint.strip()}")
@@ -1512,9 +1516,11 @@ async def handle_preprocessing(
     
     if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
         # Build a resolver map to handle common LLM hallucinations (similar to skills)
+        # Uses available_focus_mode_ids (bare IDs) for validation, NOT available_focus_modes_list
+        # (which contains descriptions appended for LLM prompt context)
         focus_resolver_map: Dict[str, str] = {}
         
-        for valid_focus in available_focus_modes_list:
+        for valid_focus in available_focus_mode_ids:
             # Add exact match
             focus_resolver_map[valid_focus] = valid_focus
             
@@ -1527,7 +1533,7 @@ async def handle_preprocessing(
         invalid_focus_modes = []
         
         for focus in relevant_focus_modes_val:
-            if focus in available_focus_modes_list:
+            if focus in available_focus_mode_ids:
                 # Exact match - no correction needed
                 validated_relevant_focus_modes.append(focus)
             elif focus in focus_resolver_map:
@@ -1550,7 +1556,7 @@ async def handle_preprocessing(
         if invalid_focus_modes:
             logger.warning(
                 f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
-                f"Filtered out. Available focus modes: {available_focus_modes_list if available_focus_modes_list else 'None'}."
+                f"Filtered out. Available focus modes: {available_focus_mode_ids if available_focus_mode_ids else 'None'}."
             )
         
         if validated_relevant_focus_modes:
