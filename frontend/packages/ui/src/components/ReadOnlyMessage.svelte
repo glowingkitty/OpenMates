@@ -850,20 +850,19 @@
                 // Re-apply PII decorations after content update
                 applyPIIDecorations(editor);
                 
-                // STREAMING FIX: After content renders, update min-height if content grew taller
-                // This allows smooth upward growth while preventing any shrinkage during streaming
+                // STREAMING FIX: After content renders, update min-height to match actual content.
+                // Always track the real height to prevent both collapse AND stale over-sizing.
+                // The pre-setContent min-height above prevents the brief visual collapse during
+                // the TipTap DOM rebuild; here we reconcile to the actual rendered height.
                 if (isStreaming && editorElement) {
                     requestAnimationFrame(() => {
                         if (!editorElement) return;
-                        const newHeight = editorElement.offsetHeight;
-                        const currentMinHeight = preservedMinHeight || 0;
-                        
-                        if (newHeight > currentMinHeight) {
-                            // Content grew - update min-height to the new larger value
-                            editorElement.style.minHeight = `${newHeight}px`;
-                            preservedMinHeight = newHeight;
-                        }
-                        // If content is shorter, keep the previous min-height to prevent collapse
+                        const newHeight = editorElement.scrollHeight;
+                        // Always update min-height to match the actual content.
+                        // This prevents stale min-height from keeping the container stretched
+                        // when embed groups are rebuilt at a different height.
+                        editorElement.style.minHeight = `${newHeight}px`;
+                        preservedMinHeight = newHeight;
                     });
                 }
             }

@@ -1344,8 +1344,8 @@
   }
 
   .ai-processing-icon {
-    width: 40px;
-    height: 40px;
+    width: 64px;
+    height: 64px;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
     -webkit-mask-size: contain;
