@@ -13,17 +13,18 @@ This document consolidates all coding standards, guidelines, and instructions fo
 5. [Linting and Code Quality](#linting-and-code-quality)
 6. [Git Commit Best Practices](#git-commit-best-practices)
 7. [Debugging Backend Issues](#debugging-backend-issues)
-8. [Server Inspection Scripts](#server-inspection-scripts)
-9. [Testing Policy](#testing-policy)
-10. [Documentation Standards](#documentation-standards)
-11. [Logging and Error Handling](#logging-and-error-handling)
-12. [Internationalization (i18n)](#internationalization-i18n)
-13. [Key Files by Domain](#key-files-by-domain)
-14. [Docker Debug Mode](#docker-debug-mode)
-15. [Frontend Development Workflow](#frontend-development-workflow)
-16. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
-17. [Branch and Server Mapping](#branch-and-server-mapping)
-18. [Admin Debug CLI (Production Debugging)](#admin-debug-cli-production-debugging)
+8. [Debugging Frontend Issues (Client Console Logs)](#debugging-frontend-issues-client-console-logs)
+9. [Server Inspection Scripts](#server-inspection-scripts)
+10. [Testing Policy](#testing-policy)
+11. [Documentation Standards](#documentation-standards)
+12. [Logging and Error Handling](#logging-and-error-handling)
+13. [Internationalization (i18n)](#internationalization-i18n)
+14. [Key Files by Domain](#key-files-by-domain)
+15. [Docker Debug Mode](#docker-debug-mode)
+16. [Frontend Development Workflow](#frontend-development-workflow)
+17. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
+18. [Branch and Server Mapping](#branch-and-server-mapping)
+19. [Admin Debug CLI (Production Debugging)](#admin-debug-cli-production-debugging)
 
 ---
 
@@ -353,15 +354,16 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1
 
 ### Where to Look First (by Problem Type)
 
-| Problem Type            | Check First                    | Then Check                 |
-| ----------------------- | ------------------------------ | -------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)     |
-| Login/auth failures     | `api`                          | `cms` (Directus logs)      |
-| Payment issues          | `api`                          | `task-worker` (async jobs) |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)        |
-| WebSocket disconnects   | `api`                          | Browser console            |
-| Scheduled task failures | `task-scheduler`               | `task-worker`              |
-| User data issues        | `cms`, `cms-database`          | `api`                      |
+| Problem Type            | Check First                    | Then Check                    |
+| ----------------------- | ------------------------------ | ----------------------------- |
+| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
+| Login/auth failures     | `api`                          | `cms` (Directus logs)         |
+| Payment issues          | `api`                          | `task-worker` (async jobs)    |
+| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
+| Frontend/client issues  | Loki `{job="client-console"}`  | Browser console (manual)      |
+| WebSocket disconnects   | `api`                          | Loki `{job="client-console"}` |
+| Scheduled task failures | `task-scheduler`               | `task-worker`                 |
+| User data issues        | `cms`, `cms-database`          | `api`                         |
 
 ### Quick Debug Commands
 
@@ -394,6 +396,62 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 **App services:** `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-ai-worker`, `app-web-worker`
 
 **Infrastructure:** `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`, `grafana`
+
+---
+
+## Debugging Frontend Issues (Client Console Logs)
+
+Admin users have their browser console logs automatically forwarded to Loki via `clientLogForwarder.ts`. This means you can query frontend logs from the server without needing the user's browser open.
+
+### Querying Client Logs via Loki
+
+```bash
+# All admin client logs (last hour)
+docker exec api python -c "
+import asyncio, aiohttp
+async def q():
+    async with aiohttp.ClientSession() as s:
+        async with s.get('http://loki:3100/loki/api/v1/query_range', params={
+            'query': '{job=\"client-console\"}', 'limit': '50'
+        }) as r:
+            print(await r.text())
+asyncio.run(q())
+"
+
+# Filter by level (error, warn, info, debug)
+# query: {job="client-console", level="error"}
+
+# Filter by user
+# query: {job="client-console", user_email="jan41139"}
+
+# Search log content
+# query: {job="client-console"} |= "WebSocket"
+```
+
+### Key Loki Labels
+
+| Label        | Values                           | Description           |
+| ------------ | -------------------------------- | --------------------- |
+| `job`        | `client-console`                 | Always this value     |
+| `level`      | `debug`, `info`, `warn`, `error` | Console log level     |
+| `user_email` | Admin username (e.g. `jan41139`) | Which admin's browser |
+| `server_env` | `development`, `production`      | Which environment     |
+| `source`     | `browser`                        | Always this value     |
+
+### How It Works
+
+- `clientLogForwarder.ts` subscribes to `logCollector.onNewLog()`, buffers entries, and POSTs batches every 5s to `POST /v1/admin/client-logs`
+- Only activates when `is_admin === true` (checked on both client and server)
+- Regular users are **never** affected — no logs are collected or sent
+- Log messages are sanitized by `logCollector.ts` before forwarding (API keys, tokens, passwords redacted)
+- Each log entry includes `[tab=<id>] [<pageUrl>]` prefix for multi-tab disambiguation
+
+### Key Files
+
+- Client forwarder: `frontend/packages/ui/src/services/clientLogForwarder.ts`
+- Log collector (with sanitization): `frontend/packages/ui/src/services/logCollector.ts`
+- Backend endpoint: `backend/core/api/app/routes/admin_client_logs.py`
+- Loki push service: `backend/core/api/app/services/loki_push_service.py`
 
 ---
 
