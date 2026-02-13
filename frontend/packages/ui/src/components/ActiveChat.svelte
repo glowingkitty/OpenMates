@@ -5106,6 +5106,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
             const { chat_id, user_message_id } = event.detail;
+            console.log('[ActiveChat] aiTypingStartedHandler fired', { 
+                chat_id, 
+                currentChatId: currentChat?.chat_id,
+                eventDetail: event.detail,
+                currentTypingStatus: currentTypingStatus ? { 
+                    isTyping: currentTypingStatus.isTyping, 
+                    chatId: currentTypingStatus.chatId, 
+                    category: currentTypingStatus.category,
+                    modelName: currentTypingStatus.modelName,
+                    providerName: currentTypingStatus.providerName,
+                    serverRegion: currentTypingStatus.serverRegion
+                } : null
+            });
             if (chat_id === currentChat?.chat_id) {
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
@@ -5138,6 +5151,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 //   Line 1: "{mate} is typing..."
                 //   Line 2: model display name (e.g., "Gemini 3 Flash")
                 //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
+                console.log('[ActiveChat] About to check typing status for phase transition', {
+                    hasStatus: !!currentTypingStatus,
+                    isTyping: currentTypingStatus?.isTyping,
+                    statusChatId: currentTypingStatus?.chatId,
+                    eventChatId: chat_id,
+                    chatIdMatch: currentTypingStatus?.chatId === chat_id,
+                    category: currentTypingStatus?.category,
+                    modelName: currentTypingStatus?.modelName,
+                    providerName: currentTypingStatus?.providerName,
+                    serverRegion: currentTypingStatus?.serverRegion,
+                    currentProcessingPhase: processingPhase?.phase
+                });
                 if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === chat_id && currentTypingStatus.category) {
                     const mateName = $text('mates.' + currentTypingStatus.category + '.text');
                     const modelName = currentTypingStatus.modelName ? getModelDisplayName(currentTypingStatus.modelName) : '';
