@@ -24,6 +24,7 @@ import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptE
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
@@ -134,6 +135,17 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      // For sheet embeds, use Svelte component instead of HTML
+      if (baseType === "sheets-sheet") {
+        await this.renderSheetComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+        return;
+      }
+
       // For other types, use HTML rendering
       const itemHtml = await this.renderIndividualItem(
         attrs,
@@ -208,6 +220,18 @@ export class GroupRenderer implements EmbedRenderer {
     // so sizing and interactions match single-item rendering.
     if (baseType === "docs-doc") {
       await this.renderDocsGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content,
+      });
+      return;
+    }
+
+    // Sheet groups must render each item using SheetEmbedPreview component
+    // so sizing and interactions match single-item rendering.
+    if (baseType === "sheets-sheet") {
+      await this.renderSheetGroup({
         baseType,
         groupDisplayName,
         items: reversedItems,
@@ -1910,6 +1934,267 @@ export class GroupRenderer implements EmbedRenderer {
         decodedContent,
       );
       content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render sheet embed using Svelte component
+   * Uses SheetEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
+   */
+  private async renderSheetComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    // Use decoded content if available, otherwise fall back to item attributes
+    const title = decodedContent?.title || item.title;
+    const rowCount = decodedContent?.rows || item.rows || 0;
+    const colCount = decodedContent?.cols || item.cols || 0;
+
+    // For preview embeds (contentRef starts with 'preview:'), get table content from item attributes
+    // For real embeds, get table content from decodedContent
+    let tableContent = "";
+    if (item.contentRef?.startsWith("preview:")) {
+      tableContent = item.code || "";
+    } else {
+      tableContent = decodedContent?.code || decodedContent?.table || "";
+    }
+
+    // Determine status
+    const status = item.status || (tableContent ? "finished" : "processing");
+
+    // Get embed ID
+    const embedId =
+      item.contentRef
+        ?.replace("embed:", "")
+        ?.replace("preview:sheets-sheet:", "") ||
+      item.id ||
+      "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    // Clear the content element
+    content.innerHTML = "";
+
+    // Mount the Svelte component
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(SheetEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title,
+          rowCount,
+          colCount,
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          tableContent,
+        },
+      });
+
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+
+      console.debug("[GroupRenderer] Mounted SheetEmbedPreview component:", {
+        embedId,
+        title,
+        rowCount,
+        colCount,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting SheetEmbedPreview component:",
+        error,
+      );
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderSheetItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render sheet embed group with horizontal scrolling
+   * Similar to renderDocsGroup but for sheet embeds
+   */
+  private async renderSheetGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    // Try incremental update first — avoids destroying existing Svelte components
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountSheetPreview(item, target),
+    });
+    if (updated) return;
+
+    // Full re-render (first render or structural change)
+
+    // Cleanup any mounted components inside this node before re-rendering
+    this.unmountMountedComponentsInSubtree(content);
+
+    // Build group DOM
+    content.innerHTML = "";
+
+    const groupWrapper = document.createElement("div");
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "group-scroll-container";
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      itemWrapper.style.flex = "0 0 auto";
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
+
+      scrollContainer.appendChild(itemWrapper);
+
+      await this.mountSheetPreview(item, itemWrapper);
+    }
+  }
+
+  /**
+   * Mount SheetEmbedPreview component for a single sheet embed item
+   */
+  private async mountSheetPreview(
+    item: EmbedNodeAttributes,
+    target: HTMLElement,
+  ): Promise<void> {
+    // Resolve content for this sheet item
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+    const previewId = item.contentRef?.startsWith("preview:")
+      ? item.contentRef.replace("preview:sheets-sheet:", "")
+      : "";
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content
+          ? await decodeToonContent(embedData.content)
+          : null;
+      } catch (error) {
+        console.error(
+          "[GroupRenderer] Error loading sheet embed for group item:",
+          error,
+        );
+      }
+    }
+
+    // Use decoded content if available, otherwise fall back to item attributes
+    const title = decodedContent?.title || item.title;
+    const rowCount = decodedContent?.rows || item.rows || 0;
+    const colCount = decodedContent?.cols || item.cols || 0;
+
+    // For preview embeds (contentRef starts with 'preview:'), get content from item attributes
+    let tableContent = "";
+    if (item.contentRef?.startsWith("preview:")) {
+      tableContent = item.code || "";
+    } else {
+      tableContent = decodedContent?.code || decodedContent?.table || "";
+    }
+
+    // Determine status
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+    const taskId = decodedContent?.task_id;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    target.innerHTML = "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      const component = mount(SheetEmbedPreview, {
+        target,
+        props: {
+          id: embedId || previewId || item.id || "",
+          title,
+          rowCount,
+          colCount,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          tableContent,
+        },
+      });
+      mountedComponents.set(target, component);
+
+      console.debug(
+        "[GroupRenderer] Mounted SheetEmbedPreview component in group:",
+        {
+          embedId: embedId || previewId,
+          title,
+          rowCount,
+          colCount,
+          status,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting SheetEmbedPreview in group:",
+        error,
+      );
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderSheetItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      target.innerHTML = fallbackHtml;
     }
   }
 

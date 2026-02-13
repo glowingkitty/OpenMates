@@ -76,7 +76,8 @@
 :global(.ProseMirror .embed-unified-container[data-embed-type="app-skill-use"]),
 :global(.ProseMirror .embed-unified-container[data-embed-type="web-website"]),
 :global(.ProseMirror .embed-unified-container[data-embed-type="videos-video"]),
-:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]) {
+:global(.ProseMirror .embed-unified-container[data-embed-type="code-code"]),
+:global(.ProseMirror .embed-unified-container[data-embed-type="sheets-sheet"]) {
   /* Reset fixed dimensions - let Svelte component set its own size */
   width: auto;
   height: auto;
@@ -108,6 +109,11 @@
   .ProseMirror
     .embed-unified-container[data-embed-type="code-code"]
     .embed-content
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="sheets-sheet"]
+    .embed-content
 ) {
   position: relative;
   width: auto;
@@ -131,6 +137,9 @@
 ),
 :global(
   .ProseMirror .embed-unified-container[data-embed-type="code-code"]:hover
+),
+:global(
+  .ProseMirror .embed-unified-container[data-embed-type="sheets-sheet"]:hover
 ) {
   background-color: transparent;
   transform: none;
@@ -155,6 +164,11 @@
 :global(
   .ProseMirror
     .embed-unified-container[data-embed-type="code-code"]
+    .unified-embed-preview
+),
+:global(
+  .ProseMirror
+    .embed-unified-container[data-embed-type="sheets-sheet"]
     .unified-embed-preview
 ) {
   /* Component handles its own sizing: 300x200 desktop, 150x290 mobile */
