@@ -110,7 +110,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	});
 
 	// ========================================================================
-	// PHASE 1: Login with password + OTP
+	// PHASE 1: Login with password + OTP (with retry on OTP timing failures)
 	// ========================================================================
 
 	await page.goto('/');
@@ -132,30 +132,50 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for lookup.');
 
-	// Enter password — password+TFA is a single combined form
+	// Wait for password+TFA form to appear
 	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
-	await passwordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	logCheckpoint('Filled password.');
-
-	// Enter OTP code (TFA input already visible alongside password)
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
-	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-	await tfaInput.first().fill(otpCode);
-	await takeStepScreenshot(page, 'otp-entered');
-	logCheckpoint('Entered OTP code.');
+	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
-	// Submit login (password + OTP together)
-	const submitLoginButton = page.locator('button[type="submit"].login-button');
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login with password + OTP.');
+	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
+	// logged-in state. The .profile-container exists on the demo page too.
+	const authIndicator = page.locator('.chat-container.authenticated');
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat/, { timeout: 60000 });
+	// Retry login up to 3 times to handle OTP timing boundary failures
+	let loginSuccess = false;
+	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
+		logCheckpoint(`Login attempt ${attempt}/3.`);
+
+		// Fill password (may have been cleared by previous failed attempt)
+		await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+
+		// Generate a fresh OTP for each attempt
+		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+		await tfaInput.fill(otpCode);
+		logCheckpoint(`Filled password + OTP (attempt ${attempt}).`);
+
+		// Submit
+		await expect(submitLoginButton).toBeVisible();
+		await submitLoginButton.click();
+
+		// Check if login succeeded by waiting for authenticated container
+		try {
+			await expect(authIndicator).toBeVisible({ timeout: 10000 });
+			loginSuccess = true;
+			logCheckpoint('Login successful.');
+		} catch {
+			logCheckpoint(`Login attempt ${attempt} failed (likely OTP timing). Retrying...`);
+			// Wait a moment before retrying to ensure we're in a new TOTP window
+			if (attempt < 3) {
+				await page.waitForTimeout(2000);
+			}
+		}
+	}
+
+	expect(loginSuccess, 'Login should succeed within 3 attempts.').toBe(true);
 	await takeStepScreenshot(page, 'logged-in');
-	logCheckpoint('Login successful.');
 
 	// ========================================================================
 	// PHASE 2: Navigate to Settings > Security > Recovery Key
@@ -220,8 +240,8 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await takeStepScreenshot(page, 'recovery-key-save');
 	logCheckpoint('Recovery key generated, save step visible.');
 
-	// Click "Copy" button to copy the recovery key to clipboard
-	const copyButton = page.locator('button.save-button').filter({ hasText: /copy/i });
+	// Click "Copy" button to copy the recovery key to clipboard (scoped to save container)
+	const copyButton = saveContainer.locator('button.save-button').filter({ hasText: /copy/i });
 	await expect(copyButton).toBeVisible();
 	await copyButton.click();
 	logCheckpoint('Clicked Copy button for recovery key.');
