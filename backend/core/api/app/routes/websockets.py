@@ -342,24 +342,26 @@ async def listen_for_cache_events(app: FastAPI):
                         # metadata (e.g., context menu focus indicator) in real-time.
                         chat_id = payload.get("chat_id")
                         focus_id = payload.get("focus_id")
-                        encrypted_active_focus_id = payload.get("encrypted_active_focus_id")
                         
                         if chat_id and focus_id:
                             user_connections = manager.get_connections_for_user(user_id)
                             if user_connections:
-                                for device_id in user_connections.keys():
-                                    await manager.send_personal_message(
-                                        {
-                                            "type": "focus_mode_activated",
-                                            "payload": {
-                                                "chat_id": chat_id,
-                                                "focus_id": focus_id,
-                                                "encrypted_active_focus_id": encrypted_active_focus_id,
-                                            }
-                                        },
-                                        user_id,
-                                        device_id
-                                    )
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "focus_mode_activated",
+                                                "payload": {
+                                                    "chat_id": chat_id,
+                                                    "focus_id": focus_id,
+                                                }
+                                            },
+                                            user_id,
+                                            device_id
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send focus_mode_activated to device {device_id[:12]}...: {e}")
                                 logger.info(f"Redis Listener: Sent focus_mode_activated to user {user_id} for chat {chat_id} (focus: {focus_id})")
                             else:
                                 logger.debug(f"Redis Listener: User {user_id} has no active connections for focus_mode_activated event")
@@ -1516,6 +1518,31 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     encryption_service=encryption_service,
                 )
+            elif message_type == "update_encrypted_active_focus_id":
+                # Client sends the E2E-encrypted focus ID after receiving focus_mode_activated.
+                # The server cannot encrypt with the chat key, so the client encrypts and
+                # sends it back for cache + Directus persistence.
+                ueafi_chat_id = payload.get("chat_id")
+                ueafi_encrypted = payload.get("encrypted_active_focus_id")
+                if ueafi_chat_id and ueafi_encrypted:
+                    try:
+                        await cache_service.update_chat_active_focus_id(
+                            user_id=user_id,
+                            chat_id=ueafi_chat_id,
+                            encrypted_focus_id=ueafi_encrypted
+                        )
+                        from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                        celery_app_instance.send_task(
+                            'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                            kwargs={
+                                "chat_id": ueafi_chat_id,
+                                "encrypted_active_focus_id": ueafi_encrypted
+                            },
+                            queue='persistence'
+                        )
+                        logger.debug(f"Updated encrypted_active_focus_id for chat {ueafi_chat_id} from client")
+                    except Exception as e:
+                        logger.error(f"Error updating encrypted_active_focus_id for chat {ueafi_chat_id}: {e}", exc_info=True)
             elif message_type == "ai_response_completed":
                 # Handle completed AI response sent by client for encrypted Directus storage
                 await handle_ai_response_completed(

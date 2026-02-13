@@ -124,14 +124,14 @@ async def _async_focus_mode_auto_confirm(
         f"(original task: {original_task_id})"
     )
     
-    # Step 2a: Activate focus mode in cache and Directus
+    # Step 2a: Notify the client that focus mode was activated
+    # The client will encrypt the focus_id with the chat key (E2E) and send it back
+    # for persistence. The server cannot encrypt with the chat key.
     encryption_service = EncryptionService()
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
     
-    # Fetch user's vault key early — needed for both encryption (step 2a) and
-    # decryption (step 2c). encrypt_with_user_key uses a per-user derived Vault key
-    # that Celery workers have permission to access (unlike the generic user_data key).
+    # Fetch user's vault key — needed for decryption in step 2c
     user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
     if not user_vault_key_id:
         logger.debug(f"{log_prefix} vault_key_id not in cache, fetching from Directus")
@@ -143,37 +143,13 @@ async def _async_focus_mode_auto_confirm(
             logger.error(f"{log_prefix} Error fetching user profile: {e}", exc_info=True)
     
     if not user_vault_key_id:
-        logger.error(f"{log_prefix} Cannot encrypt/decrypt without vault_key_id")
+        logger.error(f"{log_prefix} Cannot decrypt without vault_key_id")
         return
     
-    encrypted_focus_id = None
-    try:
-        encrypted_focus_id, _ = await encryption_service.encrypt_with_user_key(focus_id, user_vault_key_id)
-        await cache_service.update_chat_active_focus_id(
-            user_id=user_id,
-            chat_id=chat_id,
-            encrypted_focus_id=encrypted_focus_id
-        )
-        logger.info(f"{log_prefix} Activated focus mode in cache")
-        
-        # Persist to Directus via Celery task
-        from backend.core.api.app.tasks.celery_config import app as celery_app_instance
-        celery_app_instance.send_task(
-            'app.tasks.persistence_tasks.persist_chat_active_focus_id',
-            kwargs={
-                "chat_id": chat_id,
-                "encrypted_active_focus_id": encrypted_focus_id
-            },
-            queue='persistence'
-        )
-        logger.info(f"{log_prefix} Dispatched persistence task for focus_id")
-    except Exception as e:
-        logger.error(f"{log_prefix} Error activating focus mode in cache/Directus: {e}", exc_info=True)
-        # Continue anyway — the continuation task can still work with active_focus_id set
-    
-    # Step 2b: Push focus_mode_activated event to client via Redis pub/sub
-    # The WebSocket listener in websockets.py picks this up from the user_cache_events channel
-    # and forwards it to the connected client
+    # Push focus_mode_activated event to client via Redis pub/sub.
+    # The client receives this, encrypts focus_id with the chat key (E2E),
+    # stores it in IndexedDB, and sends the encrypted value back via
+    # "update_encrypted_active_focus_id" WebSocket message for server persistence.
     try:
         redis_client = await cache_service.client
         if redis_client:
@@ -183,7 +159,6 @@ async def _async_focus_mode_auto_confirm(
                 "payload": {
                     "chat_id": chat_id,
                     "focus_id": focus_id,
-                    "encrypted_active_focus_id": encrypted_focus_id,
                 }
             }
             await redis_client.publish(channel, json.dumps(event_payload))

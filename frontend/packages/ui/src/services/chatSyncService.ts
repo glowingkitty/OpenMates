@@ -504,33 +504,52 @@ export class ChatSynchronizationService extends EventTarget {
       try {
         const chatId = payload?.chat_id;
         const focusId = payload?.focus_id;
-        const encryptedActiveFocusId = payload?.encrypted_active_focus_id;
         if (!chatId || !focusId) return;
         console.debug("[ChatSyncService] Focus mode activated:", {
           chatId,
           focusId,
         });
 
-        // Update the chat's list_item_data in IndexedDB with the new encrypted_active_focus_id
-        // This ensures chatMetadataCache.getDecryptedMetadata() returns the correct activeFocusId
+        // The server sends the plaintext focus_id — we must encrypt it with the
+        // chat key (client-side AES-GCM) before storing, because encrypted_active_focus_id
+        // is an E2E encrypted field that chatMetadataCache decrypts with decryptWithChatKey().
         const { chatDB } = await import("./db");
         const chat = await chatDB.getChat(chatId);
-        if (chat && encryptedActiveFocusId) {
-          // Update the encrypted_active_focus_id field on the chat object
-          chat.encrypted_active_focus_id = encryptedActiveFocusId;
-          await chatDB.updateChat(chat);
-          console.debug(
-            "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
-          );
+        if (chat) {
+          const chatKey = chatDB.getChatKey(chatId);
+          if (chatKey) {
+            const { encryptWithChatKey } = await import("./cryptoService");
+            const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
+            chat.encrypted_active_focus_id = encryptedFocusId;
+            await chatDB.updateChat(chat);
+            console.debug(
+              "[ChatSyncService] Encrypted and stored active focus ID in IndexedDB",
+            );
 
-          // CRITICAL: Invalidate the chatMetadataCache so the next read
-          // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
-          // instead of returning stale cached data without activeFocusId.
-          const { chatMetadataCache } = await import("./chatMetadataCache");
-          chatMetadataCache.invalidateChat(chatId);
-          console.debug(
-            "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
-          );
+            // CRITICAL: Invalidate the chatMetadataCache so the next read
+            // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
+            // instead of returning stale cached data without activeFocusId.
+            const { chatMetadataCache } = await import("./chatMetadataCache");
+            chatMetadataCache.invalidateChat(chatId);
+            console.debug(
+              "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
+            );
+
+            // Send the client-encrypted value back to the server so it can persist
+            // the correctly encrypted value to Directus and cache. The server cannot
+            // encrypt with the chat key (E2E), so the client must provide it.
+            webSocketService.sendMessage("update_encrypted_active_focus_id", {
+              chat_id: chatId,
+              encrypted_active_focus_id: encryptedFocusId,
+            });
+            console.debug(
+              "[ChatSyncService] Sent encrypted_active_focus_id to server for persistence",
+            );
+          } else {
+            console.warn(
+              "[ChatSyncService] No chat key available for focus mode encryption",
+            );
+          }
         }
 
         // Dispatch event so ActiveChat and other components can react
