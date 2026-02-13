@@ -1,104 +1,110 @@
 .chat-message {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 6px;
-    width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
 }
 
-.mate-message-content, .user-message-content {
-    position: relative;
-    border-radius: 13px;
-    padding: 12px;
-    flex: 1;
-    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
-    animation: none;
-    animation-delay: 800ms;
-    margin-top: var(--mate-profile-margin);
-    margin-bottom: 5px;
-    box-sizing: border-box;
+.mate-message-content,
+.user-message-content {
+  position: relative;
+  border-radius: 13px;
+  padding: 12px;
+  flex: 1;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+  animation: none;
+  animation-delay: 800ms;
+  margin-top: var(--mate-profile-margin);
+  margin-bottom: 5px;
+  box-sizing: border-box;
 }
 
 .mate-message-content {
-    background-color: var(--color-grey-0);
-    margin-top: var(--mate-profile-margin);
-    margin-right: 12px;
+  background-color: var(--color-grey-0);
+  margin-top: var(--mate-profile-margin);
+  margin-right: 12px;
 }
 
 .user-message-content {
-    position: relative;
-    background-color: var(--color-grey-blue);
-    /* margin-left: 86px; */
-    margin-right: 12px;
-    color: var(--color-grey-100);
-    padding: 12px;
-    border-radius: 13px;
+  position: relative;
+  background-color: var(--color-grey-blue);
+  /* margin-left: 86px; */
+  margin-right: 12px;
+  color: var(--color-grey-100);
+  padding: 12px;
+  border-radius: 13px;
 }
 
 /* Add back the speech bubble pointer */
 .user-message-content::before {
-    content: "";
-    position: absolute;
-    width: 12px;
-    height: 20px;
-    right: -12px;
-    bottom: 10px;
-    /* Use mask for the speech bubble shape */
-    -webkit-mask-image: url('@openmates/ui/static/speechbubble.svg');
-    mask-image: url('@openmates/ui/static/speechbubble.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    /* Apply the same background color as the message */
-    background-color: var(--color-grey-blue);
-    transform: scaleX(-1);
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 20px;
+  right: -12px;
+  bottom: 10px;
+  /* Use mask for the speech bubble shape */
+  -webkit-mask-image: url("@openmates/ui/static/speechbubble.svg");
+  mask-image: url("@openmates/ui/static/speechbubble.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* Apply the same background color as the message */
+  background-color: var(--color-grey-blue);
+  transform: scaleX(-1);
 }
 
 /* Add speech bubble pointer for mate messages */
 .mate-message-content::before {
-    content: "";
-    position: absolute;
-    width: 12px;
-    height: 20px;
-    left: -12px;
-    top: 20px;
-    /* Use mask for the speech bubble shape */
-    -webkit-mask-image: url('@openmates/ui/static/speechbubble.svg');
-    mask-image: url('@openmates/ui/static/speechbubble.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    /* Apply white background color for mate messages */
-    background-color: var(--color-grey-0);
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 20px;
+  left: -12px;
+  top: 20px;
+  /* Use mask for the speech bubble shape */
+  -webkit-mask-image: url("@openmates/ui/static/speechbubble.svg");
+  mask-image: url("@openmates/ui/static/speechbubble.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* Apply white background color for mate messages */
+  background-color: var(--color-grey-0);
 }
 
 /* Add the fade-in animation keyframes */
 @keyframes fadeInMessage {
-    from {
-        opacity: 0;
-        transform: translateY(10px); /* Added slight vertical movement for smoother appearance */
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(
+      10px
+    ); /* Added slight vertical movement for smoother appearance */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Add these new classes */
 .message-align-right {
-    margin-left: auto;
-    padding-left: 12px;
-    box-sizing: border-box;
-    max-width: 100%;
+  margin-left: auto;
+  padding-left: 12px;
+  box-sizing: border-box;
+  /* Cap width so the user bubble's left edge sits just before the assistant bubble's left edge.
+       Assistant content starts ~80px from left (60px avatar + margins/gap).
+       Using ~55px offset so user messages extend slightly further left than the assistant text. */
+  max-width: calc(100% - 55px);
 }
 
 .message-align-left {
-    margin-right: auto;
-    padding-right: 12px;
-    box-sizing: border-box;
-    max-width: calc(100% - 70px);
+  margin-right: auto;
+  padding-right: 12px;
+  box-sizing: border-box;
+  max-width: calc(100% - 70px);
 }
 
 /* 
@@ -107,126 +113,125 @@
  * The .mobile-stacked class is applied when containerWidth <= 500px
  */
 .chat-message.assistant.mobile-stacked {
-    flex-direction: column;
-    align-items: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .chat-message.assistant.mobile-stacked .mate-profile {
-    align-self: flex-start;
-    margin-bottom: 8px;
+  align-self: flex-start;
+  margin-bottom: 8px;
 }
 
 .chat-message.assistant.mobile-stacked .message-align-left.mobile-full-width {
-    max-width: 100%;
-    padding-right: 0px;
-    margin-left: 0;
+  max-width: 100%;
+  padding-right: 0px;
+  margin-left: 0;
 }
 
 /* Adjust mate message content margins for mobile stacked layout */
 .chat-message.assistant.mobile-stacked .mate-message-content {
-    margin-right: 0;
-    margin-top: 0;
+  margin-right: 0;
+  margin-top: 0;
 }
 
 /* Rotate and reposition speech bubble tail for mobile stacked layout */
 .chat-message.assistant.mobile-stacked .mate-message-content::before {
-    /* Rotate the tail 90 degrees to point upward */
-    transform: rotate(90deg);
-    /* Position at the top left of the message bubble */
-    left: 20px;
-    top: -12px;
-    right: auto;
-    bottom: auto;
+  /* Rotate the tail 90 degrees to point upward */
+  transform: rotate(90deg);
+  /* Position at the top left of the message bubble */
+  left: 20px;
+  top: -12px;
+  right: auto;
+  bottom: auto;
 }
 
 /* Media query for screens smaller than 500px - padding adjustments only */
 @media (max-width: 500px) {
-    .message-align-right {
-        padding-left: 0px;
-        max-width: calc(100% - 10px);
-    }
+  .message-align-right {
+    padding-left: 0px;
+    max-width: calc(100% - 30px);
+  }
 
-    .message-align-left {
-        padding-right: 0px;
-        max-width: calc(100% - 10px);
-    }
+  .message-align-left {
+    padding-right: 0px;
+    max-width: calc(100% - 10px);
+  }
 }
 
-
 .processing-details {
-    cursor: pointer;
-    opacity: 0.5;
-    transition: all 0.3s ease-in-out;
-    position: relative;
-    padding-right: 20px; /* Make space for the icon */
-    margin-left: 86px;   /* Match user message left margin */
-    margin-right: 12px;  /* Match message right margin */
-    margin-top: 10px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s ease-in-out;
+  position: relative;
+  padding-right: 20px; /* Make space for the icon */
+  margin-left: 86px; /* Match user message left margin */
+  margin-right: 12px; /* Match message right margin */
+  margin-top: 10px;
 }
 
 .processing-details::after {
-    content: "";
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background-image: url('@openmates/ui/static/icons/open.svg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-image: url("@openmates/ui/static/icons/open.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .processing-details:hover {
-    background: transparent !important;
-    opacity: 1;
+  background: transparent !important;
+  opacity: 1;
 }
 
 /* Add new styles for the app cards container in chat */
 .chat-app-cards-container {
-    margin-top: 16px;
-    margin-left: -12px;
-    margin-right: -12px;
-    display: flex;
-    gap: 16px;
-    padding: 4px 0;
-    scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    overflow-x: auto;
-    overflow-y: visible;
-    box-sizing: border-box;
-    contain: content;
+  margin-top: 16px;
+  margin-left: -12px;
+  margin-right: -12px;
+  display: flex;
+  gap: 16px;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-sizing: border-box;
+  contain: content;
 }
 
 /* Add this new rule to handle wheel events */
 .chat-app-cards-container {
-    scrollbar-width: thin;
-    -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+  scrollbar-width: thin;
+  -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
 }
 
 /* Optional: Hide the scrollbar for a cleaner look */
 .chat-app-cards-container::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 /* Style the scrollbar for webkit browsers */
 .chat-app-cards-container::-webkit-scrollbar {
-    height: 6px;
+  height: 6px;
 }
 
 .chat-app-cards-container::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
 }
 
 .chat-app-cards-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 3px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
 }
 
 /* Add a new class for animated messages */
 .message-animated {
-    animation: fadeInMessage 0.4s ease-in forwards;
+  animation: fadeInMessage 0.4s ease-in forwards;
 }
