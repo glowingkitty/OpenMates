@@ -96,6 +96,11 @@ def _parse_chat_id_from_path(path: Optional[str]) -> Optional[str]:
     if not path or path == '/chat/new' or path == 'new':
         return None
     
+    # Skip demo/legal/public chats — these are client-side-only static content
+    if path.startswith('demo-') or path.startswith('legal-'):
+        logger.debug(f"Skipping public/demo chat ID from last_opened: {path}")
+        return None
+    
     # Check if it's a path format
     if path.startswith('/chat/'):
         parts = path.split('/')

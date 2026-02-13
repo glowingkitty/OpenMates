@@ -1443,6 +1443,20 @@ export async function sendSetActiveChatImpl(
     return;
   }
 
+  // CRITICAL: Skip public/demo/legal chats — they are client-side-only static content
+  // and must NEVER be persisted as last_opened. If sent to the server, demo chat IDs
+  // (e.g. "demo-for-everyone") overwrite the real last_opened UUID, breaking the
+  // "Continue where you left off" resume card on next login.
+  if (chatId !== null) {
+    const { isPublicChat } = await import("../demo_chats/convertToChat");
+    if (isPublicChat(chatId)) {
+      console.debug(
+        `[ChatSyncService:Senders] Skipping set_active_chat for public/demo chat: ${chatId}`,
+      );
+      return;
+    }
+  }
+
   // CRITICAL: Update IndexedDB immediately when switching chats (but NOT for new chat window).
   // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server).
   // The server update happens via WebSocket, but IndexedDB update is immediate for better UX.

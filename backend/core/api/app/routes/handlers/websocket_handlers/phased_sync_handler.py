@@ -215,6 +215,27 @@ async def _handle_phase1_sync(
         # Extract chat ID from path (assuming format like "/chat/chat-id")
         chat_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
         
+        # Handle demo/legal/public chats — these are client-side-only static content, not real
+        # server-side chats. Treat them as "no last opened chat" and send suggestions only.
+        if chat_id.startswith("demo-") or chat_id.startswith("legal-"):
+            logger.info(f"Phase 1: Last opened was public/demo chat '{chat_id}', sending suggestions only")
+            await manager.send_personal_message(
+                {
+                    "type": "phase_1_last_chat_ready",
+                    "payload": {
+                        "chat_id": None,
+                        "chat_details": None,
+                        "messages": None,
+                        "new_chat_suggestions": new_chat_suggestions,
+                        "phase": "phase1",
+                        "already_synced": False
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+        
         # Handle "new" chat section - send only suggestions
         if chat_id == "new":
             logger.info("Phase 1: Last opened was 'new' chat section, sending suggestions only")

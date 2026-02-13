@@ -1399,16 +1399,23 @@ async def websocket_endpoint(
                 # Redis cache is updated first (fast) so that subsequent reads (e.g. phased_sync_handler,
                 # cache warming on next login) always see the latest value without hitting Directus.
                 # Directus is updated second as the persistent source of truth.
-                if active_chat_id:
-                    # Only update if a real chat is selected (not None/"new chat")
+                #
+                # GUARD: Only persist real chat IDs (UUIDs or /chat/ paths).
+                # Demo/legal/public chats (e.g. "demo-for-everyone", "legal-privacy") are client-side-only
+                # static content that must NEVER overwrite the real last_opened value. The frontend should
+                # already filter these out, but this is a safety net.
+                import re
+                uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                is_real_chat = (
+                    active_chat_id
+                    and not active_chat_id.startswith("demo-")
+                    and not active_chat_id.startswith("legal-")
+                    and (uuid_pattern.match(active_chat_id) or active_chat_id.startswith("/chat/"))
+                )
+                
+                if is_real_chat:
                     try:
-                        update_payload = {"last_opened": active_chat_id}
-                        
-                        # Optimization: If the user is opening a chat, mark signup as completed
-                        import re
-                        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
-                        if active_chat_id.startswith("/chat/") or uuid_pattern.match(active_chat_id):
-                            update_payload["signup_completed"] = True
+                        update_payload = {"last_opened": active_chat_id, "signup_completed": True}
                         
                         # Update Redis cache first (fast, ensures phased sync and cache warming
                         # always read the latest last_opened without needing a Directus round-trip)
@@ -1421,10 +1428,12 @@ async def websocket_endpoint(
                         
                         # Update Directus (persistent source of truth)
                         await directus_service.update_user(user_id, update_payload)
-                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id} (signup_completed: {update_payload.get('signup_completed', False)})")
+                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id}")
                     except Exception as e:
                         logger.error(f"User {user_id}: Failed to update last_opened in Directus: {str(e)}")
                         # Don't fail the whole operation if Directus update fails
+                elif active_chat_id:
+                    logger.debug(f"User {user_id}: Skipping last_opened update for non-real chat ID: {active_chat_id}")
                 else:
                     logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
                 
