@@ -54,6 +54,45 @@ import httpx
 # Add the backend to the path for imports
 sys.path.insert(0, '/app')
 
+
+def censor_email(email: str | None) -> str | None:
+    """
+    Censor an email address to protect user privacy.
+
+    Shows only the first 2 characters of the local part and the full domain.
+    Example: "john.doe@example.com" -> "jo***@example.com"
+    """
+    if not email or '@' not in email:
+        return email
+    local, domain = email.rsplit('@', 1)
+    if len(local) <= 2:
+        censored_local = local[0] + '***' if local else '***'
+    else:
+        censored_local = local[:2] + '***'
+    return f"{censored_local}@{domain}"
+
+
+# Keys known to contain email addresses in API responses
+_EMAIL_KEYS = {'contact_email', 'email'}
+
+
+def censor_emails_in_data(data: object) -> object:
+    """
+    Recursively walk a JSON-serializable structure and censor all email fields.
+
+    Modifies dicts in-place and returns the same reference for convenience.
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in _EMAIL_KEYS and isinstance(value, str):
+                data[key] = censor_email(value)
+            else:
+                censor_emails_in_data(value)
+    elif isinstance(data, list):
+        for item in data:
+            censor_emails_in_data(item)
+    return data
+
 # API base URLs - when running inside Docker, use internal service names
 # For production debugging, we hit the external API
 PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
@@ -181,7 +220,7 @@ async def cmd_issues(args, api_key: str):
     result = await make_request("issues", api_key, base_url, params)
     
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(json.dumps(censor_emails_in_data(result), indent=2))
     else:
         issues = result.get("issues", [])
         print(f"=== Issue Reports ({len(issues)} found) ===\n")
@@ -189,7 +228,7 @@ async def cmd_issues(args, api_key: str):
         for issue in issues:
             print(f"ID: {issue.get('id')}")
             print(f"  Title: {issue.get('title')}")
-            print(f"  Email: {issue.get('contact_email') or 'N/A'}")
+            print(f"  Email: {censor_email(issue.get('contact_email')) or 'N/A'}")
             print(f"  URL: {issue.get('chat_or_embed_url') or 'N/A'}")
             print(f"  Created: {issue.get('created_at')}")
             print(f"  Processed: {issue.get('processed')}")
@@ -208,11 +247,11 @@ async def cmd_issue(args, api_key: str):
     result = await make_request(f"issues/{args.issue_id}", api_key, base_url, params)
     
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(json.dumps(censor_emails_in_data(result), indent=2))
     else:
         print(f"=== Issue: {result.get('title')} ===\n")
         print(f"ID: {result.get('id')}")
-        print(f"Email: {result.get('contact_email') or 'N/A'}")
+        print(f"Email: {censor_email(result.get('contact_email')) or 'N/A'}")
         print(f"URL: {result.get('chat_or_embed_url') or 'N/A'}")
         print(f"Location: {result.get('estimated_location') or 'N/A'}")
         print(f"Device: {result.get('device_info') or 'N/A'}")
@@ -238,12 +277,12 @@ async def cmd_user(args, api_key: str):
     result = await make_request(f"inspect/user/{email}", api_key, base_url, params)
     
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(json.dumps(censor_emails_in_data(result), indent=2))
     else:
         data = result.get("data", {})
         user = data.get("user_metadata", {})
         
-        print(f"=== User: {data.get('email')} ===\n")
+        print(f"=== User: {censor_email(data.get('email'))} ===\n")
         print(f"ID: {user.get('id')}")
         print(f"Username: {user.get('username') or 'N/A'}")
         print(f"Is Admin: {user.get('is_server_admin')}")
@@ -365,6 +404,105 @@ async def cmd_requests(args, api_key: str):
             print()
 
 
+async def cmd_newsletter(args, api_key: str):
+    """Inspect newsletter subscription data."""
+    base_url = get_base_url(args.dev)
+
+    params = {}
+    if args.show_emails:
+        params["show_emails"] = "true"
+    if args.show_pending:
+        params["show_pending"] = "true"
+    if args.timeline:
+        params["timeline"] = "true"
+
+    result = await make_request("newsletter", api_key, base_url, params)
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return
+
+    summary = result.get("summary", {})
+
+    print()
+    print("=" * 60)
+    print("  NEWSLETTER SUBSCRIBERS REPORT")
+    print("=" * 60)
+    print()
+    print("  SUMMARY")
+    print("  " + "-" * 40)
+    print(f"  Confirmed subscribers:    {summary.get('confirmed_subscribers', 0)}")
+    print(f"  Unconfirmed records:      {summary.get('unconfirmed_records', 0)}")
+    print(f"  Total Directus records:   {summary.get('total_records_in_directus', 0)}")
+    print(f"  Blocked/ignored emails:   {summary.get('ignored_blocked_emails', 0)}")
+    print(f"  Darkmode preference:      {summary.get('darkmode_subscribers', 0)}")
+    print()
+
+    lang_breakdown = summary.get("language_breakdown", {})
+    if lang_breakdown:
+        print("  LANGUAGE BREAKDOWN")
+        print("  " + "-" * 40)
+        for lang, count in lang_breakdown.items():
+            print(f"    {lang:10s}  {count}")
+        print()
+
+    if args.show_pending:
+        pending = result.get("pending_in_cache", {})
+        pending_count = pending.get("count", 0)
+        print("  PENDING (UNCONFIRMED) IN CACHE")
+        print("  " + "-" * 40)
+        print(f"  Count: {pending_count}")
+        if pending_count > 0:
+            print()
+            for entry in pending.get("entries", []):
+                email = entry.get("email", "unknown")
+                expires = entry.get("expires_in_minutes", "?")
+                created = entry.get("created_at", "unknown")
+                print(f"    {email:30s}  lang={entry.get('language', '?'):5s}  expires in {expires} min  (requested: {created})")
+        else:
+            print("  No pending subscriptions in cache.")
+            print("  (Pending entries expire after 30 minutes)")
+        print()
+
+    if args.show_emails:
+        subscribers = result.get("subscribers", [])
+        print("  SUBSCRIBERS (DECRYPTED)")
+        print("  " + "-" * 40)
+        if subscribers:
+            for i, sub in enumerate(subscribers, 1):
+                email = sub.get("email", "[unknown]")
+                confirmed = sub.get("confirmed_at", "N/A")
+                subscribed = sub.get("subscribed_at", "N/A")
+                lang = sub.get("language", "?")
+                dark = "dark" if sub.get("darkmode") else "light"
+                has_unsub = "yes" if sub.get("has_unsubscribe_token") else "NO"
+                print(f"    {i}. {email}")
+                print(f"       Confirmed:    {confirmed}")
+                print(f"       Subscribed:   {subscribed}")
+                print(f"       Language:     {lang}")
+                print(f"       Theme:        {dark}")
+                print(f"       Unsub token:  {has_unsub}")
+                print()
+        else:
+            print("  No subscribers found.")
+        print()
+
+    if args.timeline:
+        timeline = result.get("timeline_monthly", {})
+        print("  SUBSCRIPTION TIMELINE (MONTHLY)")
+        print("  " + "-" * 40)
+        if timeline:
+            for month, count in timeline.items():
+                bar = "#" * min(count, 80)
+                print(f"    {month}  {count:3d}  {bar}")
+        else:
+            print("  No subscription data available.")
+        print()
+
+    print("=" * 60)
+    print()
+
+
 async def async_main(args):
     """Async main function."""
     # Get API key from Vault
@@ -436,6 +574,13 @@ def main():
     requests_parser = subparsers.add_parser("requests", help="Inspect recent AI requests")
     requests_parser.add_argument("--chat-id", "-c", help="Filter by chat ID")
     requests_parser.set_defaults(func=cmd_requests)
+    
+    # newsletter command
+    newsletter_parser = subparsers.add_parser("newsletter", help="Inspect newsletter subscription data")
+    newsletter_parser.add_argument("--show-emails", "-e", action="store_true", help="Decrypt and show subscriber emails")
+    newsletter_parser.add_argument("--show-pending", "-p", action="store_true", help="Show pending subscriptions from cache")
+    newsletter_parser.add_argument("--timeline", "-t", action="store_true", help="Show monthly subscription timeline")
+    newsletter_parser.set_defaults(func=cmd_newsletter)
     
     args = parser.parse_args()
     

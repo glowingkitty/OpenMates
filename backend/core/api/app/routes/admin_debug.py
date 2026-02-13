@@ -48,6 +48,30 @@ from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
+
+def censor_email(email: Optional[str]) -> Optional[str]:
+    """
+    Censor an email address to protect user privacy.
+
+    Shows only the first 2 characters of the local part and the full domain.
+    Example: "john.doe@example.com" -> "jo***@example.com"
+
+    Args:
+        email: Full email address string, or None
+
+    Returns:
+        Censored email string, or None if input is None
+    """
+    if not email or '@' not in email:
+        return email
+    local, domain = email.rsplit('@', 1)
+    if len(local) <= 2:
+        censored_local = local[0] + '***' if local else '***'
+    else:
+        censored_local = local[:2] + '***'
+    return f"{censored_local}@{domain}"
+
+
 router = APIRouter(
     prefix="/v1/admin/debug",
     tags=["Admin Debug"]
@@ -445,7 +469,7 @@ async def list_issues(
                 id=issue["id"],
                 title=issue.get("title", ""),
                 description=issue.get("description"),
-                contact_email=decrypted_email,
+                contact_email=censor_email(decrypted_email),
                 chat_or_embed_url=decrypted_url,
                 timestamp=issue.get("timestamp", ""),
                 created_at=issue.get("created_at", ""),
@@ -567,6 +591,12 @@ async def get_issue_detail(
                         
                         # Parse YAML
                         full_report = yaml.safe_load(decrypted_yaml)
+                        # Censor any email addresses in the S3 report
+                        if isinstance(full_report, dict):
+                            report_inner = full_report.get('issue_report', full_report)
+                            report_meta = report_inner.get('metadata', {}) if isinstance(report_inner, dict) else {}
+                            if report_meta.get('contact_email'):
+                                report_meta['contact_email'] = censor_email(report_meta['contact_email'])
                         logger.info(f"Successfully fetched issue report from S3 for issue {issue_id}")
             except Exception as e:
                 logger.warning(f"Failed to fetch S3 report for issue {issue_id}: {e}", exc_info=True)
@@ -575,7 +605,7 @@ async def get_issue_detail(
             id=issue["id"],
             title=issue.get("title", ""),
             description=issue.get("description"),
-            contact_email=decrypted_email,
+            contact_email=censor_email(decrypted_email),
             chat_or_embed_url=decrypted_url,
             timestamp=issue.get("timestamp", ""),
             estimated_location=decrypted_location,
@@ -942,7 +972,7 @@ async def inspect_user(
         return InspectResponse(
             success=True,
             data={
-                "email": email,
+                "email": censor_email(email),
                 "user_metadata": safe_user_data,
                 "item_counts": counts,
                 "recent_chats": recent_chats,
@@ -1299,3 +1329,163 @@ async def get_allowed_services(
         "allowed_services": ALLOWED_LOG_SERVICES,
         "count": len(ALLOWED_LOG_SERVICES),
     }
+
+
+# ============================================================================
+# NEWSLETTER INSPECTION
+# ============================================================================
+
+@router.get("/newsletter", include_in_schema=False)
+@limiter.limit("30/minute")
+async def inspect_newsletter(
+    request: Request,
+    show_emails: bool = False,
+    show_pending: bool = False,
+    timeline: bool = False,
+    admin_user: User = Depends(require_admin_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Dict[str, Any]:
+    """
+    Inspect newsletter subscription data.
+
+    Shows confirmed subscriber count, language breakdown, ignored email count,
+    and optionally decrypted subscriber emails, pending cache entries, and timeline.
+
+    Query params:
+        show_emails: Decrypt and return subscriber email addresses
+        show_pending: Include pending (unconfirmed) subscriptions from cache
+        timeline: Include monthly subscription timeline
+    """
+    from collections import defaultdict
+
+    result: Dict[str, Any] = {}
+
+    try:
+        # 1. Fetch all subscriber records with meta counts
+        collection_url = f"{directus_service.base_url}/items/newsletter_subscribers"
+        all_params = {
+            "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token",
+            "sort": "-subscribed_at",
+            "limit": -1,
+            "meta": "total_count,filter_count",
+        }
+        response = await directus_service._make_api_request("GET", collection_url, params=all_params)
+
+        subscribers: List[Dict[str, Any]] = []
+        total_records = 0
+        if response.status_code == 200:
+            data = response.json()
+            subscribers = data.get("data", [])
+            meta = data.get("meta", {})
+            total_records = int(meta.get("total_count", len(subscribers)))
+
+        confirmed_count = sum(1 for s in subscribers if s.get("confirmed_at"))
+        unconfirmed_count = total_records - confirmed_count
+
+        # 2. Language and darkmode breakdown
+        lang_breakdown: Dict[str, int] = defaultdict(int)
+        darkmode_count = 0
+        for sub in subscribers:
+            lang = sub.get("language", "unknown")
+            lang_breakdown[lang] += 1
+            if sub.get("darkmode"):
+                darkmode_count += 1
+
+        # 3. Ignored emails count
+        ignored_count = 0
+        try:
+            ignored_url = f"{directus_service.base_url}/items/ignored_emails"
+            ignored_resp = await directus_service._make_api_request(
+                "GET", ignored_url, params={"limit": 1, "meta": "total_count"}
+            )
+            if ignored_resp.status_code == 200:
+                ignored_meta = ignored_resp.json().get("meta", {})
+                ignored_count = int(ignored_meta.get("total_count", 0))
+        except Exception as e:
+            logger.warning(f"Error fetching ignored emails count: {e}")
+
+        result["summary"] = {
+            "total_records_in_directus": total_records,
+            "confirmed_subscribers": confirmed_count,
+            "unconfirmed_records": unconfirmed_count,
+            "ignored_blocked_emails": ignored_count,
+            "language_breakdown": dict(sorted(lang_breakdown.items(), key=lambda x: -x[1])),
+            "darkmode_subscribers": darkmode_count,
+        }
+
+        # 4. Pending subscriptions from cache
+        if show_pending:
+            pending_entries: List[Dict[str, Any]] = []
+            try:
+                keys = await cache_service.get_keys_by_pattern("newsletter_subscribe:*")
+                for key in keys:
+                    cache_data = await cache_service.get(key)
+                    if cache_data:
+                        token = key.replace("newsletter_subscribe:", "")
+                        entry: Dict[str, Any] = {
+                            "token": token[:8] + "...",
+                            "email": censor_email(cache_data.get("email", "unknown")),
+                            "language": cache_data.get("language", "en"),
+                            "darkmode": cache_data.get("darkmode", False),
+                            "created_at": cache_data.get("created_at", "unknown"),
+                        }
+                        try:
+                            client = await cache_service.client
+                            if client:
+                                ttl_val = await client.ttl(key)
+                                if ttl_val and ttl_val > 0:
+                                    entry["expires_in_minutes"] = round(ttl_val / 60, 1)
+                        except Exception:
+                            pass
+                        pending_entries.append(entry)
+            except Exception as e:
+                logger.warning(f"Error scanning cache for pending subscriptions: {e}")
+
+            result["pending_in_cache"] = {
+                "count": len(pending_entries),
+                "entries": pending_entries,
+            }
+
+        # 5. Decrypted subscriber list
+        if show_emails:
+            subscriber_list: List[Dict[str, Any]] = []
+            for sub in subscribers:
+                encrypted = sub.get("encrypted_email_address", "")
+                email = None
+                if encrypted:
+                    try:
+                        email = await encryption_service.decrypt_newsletter_email(encrypted)
+                    except Exception:
+                        pass
+                subscriber_list.append({
+                    "id": sub.get("id"),
+                    "email": email or "[decrypt failed]",
+                    "confirmed_at": sub.get("confirmed_at"),
+                    "subscribed_at": sub.get("subscribed_at"),
+                    "language": sub.get("language", "unknown"),
+                    "darkmode": sub.get("darkmode", False),
+                    "has_unsubscribe_token": bool(sub.get("unsubscribe_token")),
+                })
+            result["subscribers"] = subscriber_list
+
+        # 6. Monthly timeline
+        if timeline:
+            monthly: Dict[str, int] = defaultdict(int)
+            for sub in subscribers:
+                ts = sub.get("confirmed_at") or sub.get("subscribed_at")
+                if ts:
+                    try:
+                        ts_str = ts.replace("Z", "+00:00") if isinstance(ts, str) else str(ts)
+                        dt = datetime.fromisoformat(ts_str)
+                        monthly[dt.strftime("%Y-%m")] += 1
+                    except Exception:
+                        pass
+            result["timeline_monthly"] = dict(sorted(monthly.items()))
+
+    except Exception as e:
+        logger.error(f"Error inspecting newsletter: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error inspecting newsletter: {str(e)}")
+
+    return result
