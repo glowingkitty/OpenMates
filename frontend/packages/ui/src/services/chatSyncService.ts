@@ -512,6 +512,15 @@ export class ChatSynchronizationService extends EventTarget {
             console.debug(
               "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
             );
+
+            // CRITICAL: Invalidate the chatMetadataCache so the next read
+            // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
+            // instead of returning stale cached data without activeFocusId.
+            const { chatMetadataCache } = await import("./chatMetadataCache");
+            chatMetadataCache.invalidateChat(chatId);
+            console.debug(
+              "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
+            );
           }
 
           // Dispatch event so ActiveChat and other components can react

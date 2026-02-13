@@ -856,6 +856,22 @@
         } catch (e) {
             console.error('[ActiveChat] Error sending focus mode deactivation:', e);
         }
+        
+        // Clear the local encrypted_active_focus_id and invalidate the metadata cache
+        // so the ChatContextMenu immediately reflects the deactivation without waiting
+        // for a server round-trip or cache expiry.
+        try {
+            const chat = await chatDB.getChat(chatId);
+            if (chat) {
+                chat.encrypted_active_focus_id = null;
+                await chatDB.updateChat(chat);
+            }
+            const { chatMetadataCache } = await import('../services/chatMetadataCache');
+            chatMetadataCache.invalidateChat(chatId);
+            console.debug('[ActiveChat] Cleared local focus mode state and invalidated cache');
+        } catch (e) {
+            console.error('[ActiveChat] Error clearing local focus mode state:', e);
+        }
     }
     
     /**
@@ -2182,6 +2198,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
     
+    // Track content prefixes for focus mode continuation streams.
+    // When a continuation task (after focus mode auto-confirm) streams to the same message_id,
+    // the existing message already contains the focus mode embed. The continuation's
+    // full_content_so_far only has the new LLM text. This Map stores the existing embed content
+    // as a prefix keyed by message_id, so it can be prepended to each streaming chunk.
+    // Entries are cleaned up when the final chunk is received.
+    const continuationContentPrefixes = new Map<string, string>();
+    
     // ===========================================
     // Embed Navigation Derived States
     // ===========================================
@@ -2626,11 +2650,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const lengthDiff = newLength - previousLength;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
+            // ─── Focus mode continuation: preserve existing embed content ─────
+            // When a focus mode continuation task streams to the same message_id, the existing
+            // message already has content (the focus mode activation embed). The continuation's
+            // full_content_so_far only contains the new LLM text, not the embed.
+            // Detect this case: existing message was 'synced' (finalized from first stream) and
+            // a new streaming chunk arrives. Capture the existing content as a prefix once,
+            // then prepend it to all subsequent full_content_so_far values.
+            if (targetMessage.status === 'synced' && targetMessage.content && chunk.full_content_so_far) {
+                // First chunk of a continuation stream targeting an already-finalized message.
+                // Store the existing content as a prefix in a Map keyed by message_id.
+                if (!continuationContentPrefixes.has(chunk.message_id)) {
+                    continuationContentPrefixes.set(chunk.message_id, targetMessage.content);
+                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars) for message ${chunk.message_id}`);
+                }
+            }
+            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
                 // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                targetMessage.content = chunk.full_content_so_far || '';
+                // If this is a continuation, prepend the preserved embed content
+                const prefix = continuationContentPrefixes.get(chunk.message_id) || '';
+                targetMessage.content = prefix + (chunk.full_content_so_far || '');
             }
             // If this is a rejection message, update role and status accordingly
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
@@ -2767,6 +2809,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chunk.is_final_chunk) {
+            // Clean up continuation content prefix (if this was a focus mode continuation stream)
+            if (continuationContentPrefixes.has(chunk.message_id)) {
+                continuationContentPrefixes.delete(chunk.message_id);
+                console.debug(`[ActiveChat] Cleaned up continuation content prefix for message ${chunk.message_id}`);
+            }
+            
             console.log(
                 `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -3720,6 +3768,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     export async function loadChat(chat: Chat) {
         // Clear any active processing phase indicator from the previous chat
         clearProcessingPhase();
+        
+        // Clear any leftover continuation content prefixes from the previous chat
+        continuationContentPrefixes.clear();
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
@@ -5105,11 +5156,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
-            const { chat_id, user_message_id, category, model_name, provider_name, server_region } = event.detail;
+            const { chat_id, user_message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
                 currentChatId: currentChat?.chat_id,
-                eventPayload: { category, model_name, provider_name, server_region },
+                eventPayload: { category, model_name, provider_name, server_region, is_continuation },
                 storeStatus: currentTypingStatus ? { 
                     isTyping: currentTypingStatus.isTyping, 
                     chatId: currentTypingStatus.chatId, 
@@ -5140,71 +5191,81 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 
                 // ─── Progressive AI Status Indicator: Transition to 'typing' phase ─────
-                // Clear processing step timers and show the typing indicator with mate/model info.
-                // This replaces the timed steps with the actual mate and model information from the server.
-                for (const timer of processingStepTimers) {
-                    clearTimeout(timer);
-                }
-                processingStepTimers = [];
-                
-                // Build the typing phase with resolved text lines:
-                //   Line 1: "{mate} is typing..."
-                //   Line 2: model display name (e.g., "Gemini 3 Flash")
-                //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
-                //
-                // IMPORTANT: Use event.detail (the original WebSocket payload) as primary data source
-                // for model/provider info, with the store as fallback. This avoids any potential
-                // timing/reactivity issues where the $state variable hasn't updated yet when
-                // the custom event handler fires.
-                const resolvedCategory = category || currentTypingStatus?.category;
-                const resolvedModelName = model_name || currentTypingStatus?.modelName;
-                const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
-                const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
-                
-                console.log('[ActiveChat] Typing phase transition data', {
-                    fromEvent: { category, model_name, provider_name, server_region },
-                    fromStore: { 
-                        category: currentTypingStatus?.category, 
-                        modelName: currentTypingStatus?.modelName, 
-                        providerName: currentTypingStatus?.providerName, 
-                        serverRegion: currentTypingStatus?.serverRegion 
-                    },
-                    resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
-                    currentProcessingPhase: processingPhase?.phase
-                });
-                
-                if (resolvedCategory) {
-                    const mateName = $text('mates.' + resolvedCategory + '.text');
-                    const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
-                    const displayProviderName = resolvedProviderName || '';
-                    const displayServerRegion = resolvedServerRegion || '';
+                // For continuation tasks (e.g., after focus mode auto-confirm), skip the centered
+                // typing indicator. The assistant message already exists (with the focus embed),
+                // so showing a centered "is typing..." overlay over it would be confusing.
+                // The bottom inline indicator will handle the typing status during streaming.
+                if (is_continuation) {
+                    console.debug('[ActiveChat] Skipping centered typing indicator for continuation task');
+                    // Ensure the centered indicator is cleared (in case it was somehow active)
+                    clearProcessingPhase();
+                } else {
+                    // Clear processing step timers and show the typing indicator with mate/model info.
+                    // This replaces the timed steps with the actual mate and model information from the server.
+                    for (const timer of processingStepTimers) {
+                        clearTimeout(timer);
+                    }
+                    processingStepTimers = [];
                     
-                    // Build region flag for display
-                    const getRegionFlag = (region: string): string => {
-                        switch (region) {
-                            case 'EU': return '🇪🇺';
-                            case 'US': return '🇺🇸';
-                            case 'APAC': return '🌏';
-                            default: return '';
+                    // Build the typing phase with resolved text lines:
+                    //   Line 1: "{mate} is typing..."
+                    //   Line 2: model display name (e.g., "Gemini 3 Flash")
+                    //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
+                    //
+                    // IMPORTANT: Use event.detail (the original WebSocket payload) as primary data source
+                    // for model/provider info, with the store as fallback. This avoids any potential
+                    // timing/reactivity issues where the $state variable hasn't updated yet when
+                    // the custom event handler fires.
+                    const resolvedCategory = category || currentTypingStatus?.category;
+                    const resolvedModelName = model_name || currentTypingStatus?.modelName;
+                    const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
+                    const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
+                    
+                    console.log('[ActiveChat] Typing phase transition data', {
+                        fromEvent: { category, model_name, provider_name, server_region },
+                        fromStore: { 
+                            category: currentTypingStatus?.category, 
+                            modelName: currentTypingStatus?.modelName, 
+                            providerName: currentTypingStatus?.providerName, 
+                            serverRegion: currentTypingStatus?.serverRegion 
+                        },
+                        resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
+                        currentProcessingPhase: processingPhase?.phase
+                    });
+                    
+                    if (resolvedCategory) {
+                        const mateName = $text('mates.' + resolvedCategory + '.text');
+                        const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
+                        const displayProviderName = resolvedProviderName || '';
+                        const displayServerRegion = resolvedServerRegion || '';
+                        
+                        // Build region flag for display
+                        const getRegionFlag = (region: string): string => {
+                            switch (region) {
+                                case 'EU': return '🇪🇺';
+                                case 'US': return '🇺🇸';
+                                case 'APAC': return '🌏';
+                                default: return '';
+                            }
+                        };
+                        const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
+                        
+                        const lines: string[] = [
+                            $text('enter_message.is_typing.text').replace('{mate}', mateName)
+                        ];
+                        // Line 2: model name
+                        if (displayModelName) {
+                            lines.push(displayModelName);
                         }
-                    };
-                    const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
-                    
-                    const lines: string[] = [
-                        $text('enter_message.is_typing.text').replace('{mate}', mateName)
-                    ];
-                    // Line 2: model name
-                    if (displayModelName) {
-                        lines.push(displayModelName);
+                        // Line 3: "via {provider} {flag}"
+                        if (displayProviderName) {
+                            const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
+                            lines.push(providerLine);
+                        }
+                        
+                        processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
+                        console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                     }
-                    // Line 3: "via {provider} {flag}"
-                    if (displayProviderName) {
-                        const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
-                        lines.push(providerLine);
-                    }
-                    
-                    processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                 }
             }
         }) as EventListenerCallback;
