@@ -2375,12 +2375,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
-    // Reactive variable for typing indicator text (shown at the bottom, above message input).
+    // Reactive variable for typing indicator lines (shown at the bottom, above message input).
     // PROGRESSIVE STATUS INDICATOR: The centered overlay (processingPhase) handles:
     //   - "Sending..." → "Generating chat title..." → "Selecting AI model..." → "{Mate} is typing..."
     // The bottom indicator only shows during STREAMING (when processingPhase is null but AI is still typing).
     // Exception: "Waiting for you..." is always shown at the bottom (not part of the centered flow).
-    let typingIndicatorText = $derived((() => {
+    //
+    // Returns an array of lines matching the centered overlay format:
+    //   Line 1 (primary):   "{mate} is typing..."
+    //   Line 2 (secondary): "Powered by {model_name}"
+    //   Line 3 (tertiary):  "via {provider} {flag}"
+    let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
@@ -2395,14 +2400,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (hasWaitingForUserMessage) {
             const result = $text('enter_message.waiting_for_user.text');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
-            return result;
+            return [result]; // Single line
         }
         
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
         // The centered overlay handles sending, processing steps, and typing phases.
         if (processingPhase !== null) {
-            return null;
+            return [];
         }
         
         // Show detailed AI typing indicator once streaming has started
@@ -2410,17 +2415,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         //  but aiTypingStore still shows isTyping = true during streaming)
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-            // Use server name from provider config (falls back to "AI" if not provided)
-            // The backend should provide the server name (e.g., "Cerebras", "OpenRouter", "Mistral") 
-            // instead of generic "AI" - this comes from the provider config's server.name field
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
-            
-            // If we don't have model or provider name, just show the typing indicator without "Powered by"
-            if (!modelName && !providerName) {
-                return $text('enter_message.is_typing.text').replace('{mate}', mateName);
-            }
             
             // Get region flag for display (e.g., "EU" -> "🇪🇺", "US" -> "🇺🇸", "APAC" -> "🌏")
             const getRegionFlag = (region: string): string => {
@@ -2432,30 +2429,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             };
             
-            // Append region flag to provider name if available (e.g., "AWS Bedrock 🇪🇺")
-            const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
-            const displayProviderName = regionFlag ? `${providerName} ${regionFlag}` : providerName;
+            // Build multi-line indicator matching the centered overlay format:
+            //   Line 1: "{mate} is typing..."
+            //   Line 2: "Powered by {model_name}" (if available)
+            //   Line 3: "via {provider} {flag}" (if available)
+            const lines: string[] = [
+                $text('enter_message.is_typing.text').replace('{mate}', mateName)
+            ];
             
-            // Use translation key with placeholders for model and provider names
-            // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
-            // Apply getModelDisplayName to convert technical IDs (e.g., "gemini-3-pro-preview") to human-readable names ("Gemini 3 Pro")
+            // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
             const displayModelName = modelName ? getModelDisplayName(modelName) : '';
-            const result = $text('enter_message.is_typing_powered_by.text')
-                .replace('{mate}', mateName)
-                .replace('{model_name}', displayModelName)
-                .replace('{provider_name}', displayProviderName);
+            if (displayModelName) {
+                lines.push(`Powered by ${displayModelName}`);
+            }
             
-            console.debug('[ActiveChat] AI typing indicator text generated:', result);
-            return result;
+            // Line 3: "via {provider} {flag}" — with country flag at the bottom
+            if (providerName) {
+                const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
+                const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
+                lines.push(providerLine);
+            }
+            
+            console.debug('[ActiveChat] AI typing indicator lines:', lines);
+            return lines;
         }
         console.debug('[ActiveChat] Typing indicator: no status to show');
-        return null; // No indicator
+        return []; // No indicator
     })());
-
-    // Split typing indicator into safe text lines for rendering without {@html}.
-    let typingIndicatorParts = $derived.by(() => {
-        return typingIndicatorText ? splitHtmlLineBreaks(typingIndicatorText) : [];
-    });
 
     // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
     // Returns: 'typing' | 'waiting_for_user' | null
@@ -5784,7 +5784,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper">
-                    {#if typingIndicatorParts.length > 0}
+                    {#if typingIndicatorLines.length > 0}
                         <div 
                             class="typing-indicator"
                             class:status-sending={typingIndicatorStatusType === 'sending'}
@@ -5792,8 +5792,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             class:status-typing={typingIndicatorStatusType === 'typing'}
                             transition:fade={{ duration: 200 }}
                         >
-                            {#each typingIndicatorParts as part, index}
-                                <span>{part}</span>{#if index < typingIndicatorParts.length - 1}<br>{/if}
+                            {#each typingIndicatorLines as line, index}
+                                <span class={index === 0 ? 'indicator-primary-line' : index === 1 ? 'indicator-secondary-line' : 'indicator-tertiary-line'}>{line}</span>
                             {/each}
                         </div>
                     {/if}
@@ -6786,11 +6786,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .typing-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
         text-align: center;
         font-size: 0.8rem;
         color: var(--color-grey-60);
         padding: 6px 12px 4px;
-        min-height: 20px; /* Allocate space to prevent layout shift */
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the page background color (--color-grey-0) fading from transparent at the top. */
@@ -6803,13 +6806,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: 1;
     }
     
+    /* Primary line: "{mate} is typing..." — prominent */
+    .typing-indicator .indicator-primary-line {
+        font-size: 0.8rem;
+    }
+    
+    /* Secondary line: "Powered by {model}" — smaller, subtler */
+    .typing-indicator .indicator-secondary-line {
+        font-size: 0.7rem;
+        opacity: 0.8;
+    }
+    
+    /* Tertiary line: "via {provider} {flag}" — smallest, most subtle */
+    .typing-indicator .indicator-tertiary-line {
+        font-size: 0.65rem;
+        opacity: 0.65;
+    }
+    
     /* Shimmer animation for the bottom typing indicator during streaming */
     .typing-indicator.status-processing,
     .typing-indicator.status-typing {
-        /* IMPORTANT: For shimmer-on-text, we use a foreground gradient on the text only.
-           The background fade-to-white is on the parent .typing-indicator.
-           We achieve this with a nested span approach — but since we can't nest easily,
-           we use color-based shimmer on the text content via the existing spans. */
         color: var(--color-grey-50);
     }
     
