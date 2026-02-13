@@ -873,6 +873,11 @@ export async function handleAITypingStartedImpl( // Changed to async
       console.error(
         `[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`,
       );
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      // with model/provider info even if the chat isn't found in local storage yet
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
       return;
     }
 
@@ -880,6 +885,10 @@ export async function handleAITypingStartedImpl( // Changed to async
     if (isIncognitoChat) {
       console.debug(
         `[ChatSyncService:AI] Skipping metadata processing for incognito chat ${payload.chat_id}`,
+      );
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
       );
       return;
     }

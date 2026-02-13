@@ -5105,12 +5105,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
-            const { chat_id, user_message_id } = event.detail;
+            const { chat_id, user_message_id, category, model_name, provider_name, server_region } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
                 currentChatId: currentChat?.chat_id,
-                eventDetail: event.detail,
-                currentTypingStatus: currentTypingStatus ? { 
+                eventPayload: { category, model_name, provider_name, server_region },
+                storeStatus: currentTypingStatus ? { 
                     isTyping: currentTypingStatus.isTyping, 
                     chatId: currentTypingStatus.chatId, 
                     category: currentTypingStatus.category,
@@ -5151,23 +5151,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 //   Line 1: "{mate} is typing..."
                 //   Line 2: model display name (e.g., "Gemini 3 Flash")
                 //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
-                console.log('[ActiveChat] About to check typing status for phase transition', {
-                    hasStatus: !!currentTypingStatus,
-                    isTyping: currentTypingStatus?.isTyping,
-                    statusChatId: currentTypingStatus?.chatId,
-                    eventChatId: chat_id,
-                    chatIdMatch: currentTypingStatus?.chatId === chat_id,
-                    category: currentTypingStatus?.category,
-                    modelName: currentTypingStatus?.modelName,
-                    providerName: currentTypingStatus?.providerName,
-                    serverRegion: currentTypingStatus?.serverRegion,
+                //
+                // IMPORTANT: Use event.detail (the original WebSocket payload) as primary data source
+                // for model/provider info, with the store as fallback. This avoids any potential
+                // timing/reactivity issues where the $state variable hasn't updated yet when
+                // the custom event handler fires.
+                const resolvedCategory = category || currentTypingStatus?.category;
+                const resolvedModelName = model_name || currentTypingStatus?.modelName;
+                const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
+                const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
+                
+                console.log('[ActiveChat] Typing phase transition data', {
+                    fromEvent: { category, model_name, provider_name, server_region },
+                    fromStore: { 
+                        category: currentTypingStatus?.category, 
+                        modelName: currentTypingStatus?.modelName, 
+                        providerName: currentTypingStatus?.providerName, 
+                        serverRegion: currentTypingStatus?.serverRegion 
+                    },
+                    resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
                     currentProcessingPhase: processingPhase?.phase
                 });
-                if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === chat_id && currentTypingStatus.category) {
-                    const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-                    const modelName = currentTypingStatus.modelName ? getModelDisplayName(currentTypingStatus.modelName) : '';
-                    const providerName = currentTypingStatus.providerName || '';
-                    const serverRegion = currentTypingStatus.serverRegion || '';
+                
+                if (resolvedCategory) {
+                    const mateName = $text('mates.' + resolvedCategory + '.text');
+                    const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
+                    const displayProviderName = resolvedProviderName || '';
+                    const displayServerRegion = resolvedServerRegion || '';
                     
                     // Build region flag for display
                     const getRegionFlag = (region: string): string => {
@@ -5178,23 +5188,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             default: return '';
                         }
                     };
-                    const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
+                    const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
                     
                     const lines: string[] = [
                         $text('enter_message.is_typing.text').replace('{mate}', mateName)
                     ];
                     // Line 2: model name
-                    if (modelName) {
-                        lines.push(modelName);
+                    if (displayModelName) {
+                        lines.push(displayModelName);
                     }
                     // Line 3: "via {provider} {flag}"
-                    if (providerName) {
-                        const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
+                    if (displayProviderName) {
+                        const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
                         lines.push(providerLine);
                     }
                     
                     processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, modelName, providerName, serverRegion });
+                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                 }
             }
         }) as EventListenerCallback;
