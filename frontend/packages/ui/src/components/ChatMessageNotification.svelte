@@ -13,6 +13,7 @@
     import { slide } from 'svelte/transition';
     import { onMount, onDestroy, tick } from 'svelte';
     import { notificationStore, type Notification } from '../stores/notificationStore';
+    import { pendingNotificationReplyStore } from '../stores/pendingNotificationReplyStore';
     import { text } from '@repo/ui';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
@@ -60,8 +61,8 @@
      */
     function handleNotificationClick(): void {
         if (notification.chatId) {
-            // Navigate to the chat
-            window.location.hash = `#chat/${notification.chatId}`;
+            // Navigate to the chat using the correct hash format: #chat-id={chatId}
+            window.location.hash = `chat-id=${notification.chatId}`;
             handleDismiss();
         }
     }
@@ -72,12 +73,14 @@
     async function handleSendReply(): Promise<void> {
         if (!replyText.trim() || !notification.chatId) return;
         
-        // TODO: Implement actual message sending through chatSyncService
-        // For now, navigate to chat and dismiss
-        console.debug('[ChatMessageNotification] Would send reply:', replyText, 'to chat:', notification.chatId);
+        // Store the reply text so the chat input can pick it up after navigation.
+        // Sending directly from the notification would bypass the full message pipeline
+        // (IndexedDB save, embed processing, encryption, etc.), so we navigate to the
+        // chat and let the standard input handle it.
+        pendingNotificationReplyStore.set(notification.chatId, replyText.trim());
         
-        // Navigate to the chat
-        window.location.hash = `#chat/${notification.chatId}`;
+        // Navigate to the chat using the correct hash format
+        window.location.hash = `chat-id=${notification.chatId}`;
         handleDismiss();
     }
     

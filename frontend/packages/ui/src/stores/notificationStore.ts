@@ -289,7 +289,7 @@ export const notificationStore = {
       chatId,
       chatTitle,
       avatarUrl,
-      duration: 3000, // 3 seconds as specified
+      duration: 10000, // 10 seconds - enough time to read the preview and decide to reply
       dismissible: true,
     }),
 };

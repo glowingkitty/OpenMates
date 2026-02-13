@@ -18,6 +18,7 @@
         flushSaveDraft
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
+    import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
@@ -2490,6 +2491,26 @@
     $effect(() => {
         if (currentChatId !== undefined && chatSyncService) {
             updateActiveAITaskStatus();
+        }
+    });
+
+    // Check for pending notification reply when chat ID changes.
+    // If the user typed a reply in a notification and hit send, the text
+    // was stored in pendingNotificationReplyStore. We pick it up here,
+    // populate the editor, and focus it so the user can review and send.
+    $effect(() => {
+        if (currentChatId && editor && !editor.isDestroyed) {
+            const pendingReply = pendingNotificationReplyStore.consume(currentChatId);
+            if (pendingReply) {
+                console.debug('[MessageInput] Populating editor with pending notification reply:', pendingReply);
+                tick().then(() => {
+                    if (editor && !editor.isDestroyed) {
+                        editor.commands.setContent(`<p>${pendingReply}</p>`);
+                        editor.commands.focus('end');
+                        hasContent = true;
+                    }
+                });
+            }
         }
     });
  
