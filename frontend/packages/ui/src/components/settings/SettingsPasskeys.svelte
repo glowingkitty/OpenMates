@@ -23,7 +23,8 @@ Passkey Management - View, rename, delete, and add passkeys
         device_name: string | null;  // Decrypted device name for display
         registered_at: string | null;  // Registration timestamp
         last_used_at: string | null;  // Last usage timestamp
-        sign_count: number;  // Usage counter
+        sign_count: number;  // WebAuthn authenticator counter (for clone detection, often 0)
+        usage_count: number;  // Application-level usage counter for display
     }>>([]);
     let isLoading = $state(false);
     let errorMessage = $state<string | null>(null);
@@ -94,6 +95,7 @@ Passkey Management - View, rename, delete, and add passkeys
                         registered_at: passkey.registered_at,
                         last_used_at: passkey.last_used_at,
                         sign_count: passkey.sign_count,
+                        usage_count: passkey.usage_count,
                         encrypted_device_name: passkey.encrypted_device_name ? 'present' : 'missing'
                     });
                     
@@ -643,7 +645,7 @@ Passkey Management - View, rename, delete, and add passkeys
                         <div class="passkey-info">
                             <div class="passkey-header">
                                 <span class="device-name">{passkey.device_name || 'Unknown Device'}</span>
-                                <span class="sign-count">Used {passkey.sign_count} time(s)</span>
+                                <span class="sign-count">Used {passkey.usage_count} time(s)</span>
                             </div>
                             <div class="passkey-details">
                                 <div class="detail-item">

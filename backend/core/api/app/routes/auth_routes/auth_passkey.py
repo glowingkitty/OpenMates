@@ -2505,7 +2505,8 @@ async def list_passkeys(
                 "encrypted_device_name": passkey.get("encrypted_device_name"),  # Encrypted device name (client decrypts)
                 "registered_at": passkey.get("registered_at"),  # Registration timestamp for display
                 "last_used_at": passkey.get("last_used_at"),  # Last usage timestamp for display
-                "sign_count": passkey.get("sign_count", 0),  # Usage counter for display
+                "sign_count": passkey.get("sign_count", 0),  # WebAuthn authenticator counter (for clone detection, often 0)
+                "usage_count": passkey.get("usage_count", 0),  # Application-level usage counter for display
             }
             passkey_list.append(passkey_data)
         
