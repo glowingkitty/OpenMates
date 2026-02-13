@@ -5,6 +5,7 @@
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
+    import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
 
     // Props using Svelte 5 $props()
@@ -80,10 +81,17 @@
         }
     });
     
-    // Load active focus mode from decrypted metadata when menu is shown
+    // Load active focus mode from decrypted metadata when menu is shown.
+    // We fetch the latest chat from IndexedDB (not the prop) because the prop
+    // may be stale — e.g. after focus_mode_activated updates encrypted_active_focus_id
+    // in IndexedDB, the chat list's in-memory objects aren't refreshed yet.
     $effect(() => {
         if (show && chat) {
-            chatMetadataCache.getDecryptedMetadata(chat).then(metadata => {
+            const chatId = chat.chat_id;
+            chatDB.getChat(chatId).then(freshChat => {
+                const chatToUse = freshChat ?? chat;
+                return chatMetadataCache.getDecryptedMetadata(chatToUse);
+            }).then(metadata => {
                 activeFocusId = metadata?.activeFocusId ?? null;
             });
         } else {

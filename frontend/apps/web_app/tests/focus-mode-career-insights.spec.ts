@@ -483,6 +483,27 @@ test('career frustration message triggers Career insights focus mode', async ({
 	logCheckpoint('Assistant response contains career-related content.');
 	await takeStepScreenshot(page, 'career-response-verified');
 
+	// ======================================================================
+	// STEP 7b: Verify the focus mode embed STILL exists after continuation response
+	// This validates Bug 2 fix: the continuation stream must NOT replace the
+	// original embed content. The embed should remain visible in the first
+	// assistant message even after the follow-up AI text has streamed in.
+	// ======================================================================
+	logCheckpoint('Re-verifying focus mode embed is still visible after AI continuation...');
+
+	const embedAfterContinuation = page.locator(SELECTORS.focusModeBarActivated);
+	await expect(embedAfterContinuation.first()).toBeVisible({ timeout: 10000 });
+	logCheckpoint(
+		'Focus mode embed is STILL visible after continuation response — Bug 2 fix verified.'
+	);
+
+	// Also verify the embed still has the correct focus ID
+	const focusIdAfter = await embedAfterContinuation.first().getAttribute('data-focus-id');
+	logCheckpoint(`Focus mode ID after continuation: "${focusIdAfter}"`);
+	expect(focusIdAfter).toContain('career_insights');
+
+	await takeStepScreenshot(page, 'embed-persists-after-continuation');
+
 	logCheckpoint('All focus mode assertions passed. Attempting cleanup...');
 
 	// ======================================================================
@@ -921,37 +942,74 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	await takeStepScreenshot(page, 'followup-response-verified');
 
 	// ======================================================================
+	// STEP 6b: Verify the ORIGINAL focus mode embed in the first assistant message
+	// is still visible after the follow-up response. This catches Bug 2 regressions
+	// where continuation content could overwrite the embed.
+	// ======================================================================
+	logCheckpoint('Verifying original focus mode embed persists after follow-up response...');
+
+	const originalEmbed = page.locator(SELECTORS.focusModeBarActivated);
+	await expect(originalEmbed.first()).toBeVisible({ timeout: 10000 });
+	logCheckpoint(
+		'Original focus mode embed is STILL visible after follow-up — embed persistence verified.'
+	);
+
+	const originalFocusId = await originalEmbed.first().getAttribute('data-focus-id');
+	logCheckpoint(`Original embed focus ID after follow-up: "${originalFocusId}"`);
+	expect(originalFocusId).toContain('career_insights');
+
+	await takeStepScreenshot(page, 'followup-original-embed-persists');
+
+	// ======================================================================
 	// STEP 7: Verify focus mode is still active in context menu after follow-up
+	// Wait for sync propagation before checking, then retry up to 3 times.
 	// ======================================================================
 	logCheckpoint('Checking context menu still shows focus mode after follow-up...');
+
+	// Wait for server sync to propagate encrypted_active_focus_id
+	await page.waitForTimeout(5000);
 
 	// Ensure sidebar is visible
 	await ensureSidebarOpen(page, logCheckpoint);
 
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
-	if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Active chat item visible in sidebar.');
+
+	let foundFocusIndicator = false;
+	for (let attempt = 1; attempt <= 3 && !foundFocusIndicator; attempt++) {
+		logCheckpoint(`Context menu attempt ${attempt}/3 (follow-up test)...`);
+
 		await activeChatItem.click({ button: 'right' });
 		await page.waitForTimeout(500);
 
 		const focusIndicator = page.locator(SELECTORS.contextMenuFocusIndicator);
-		await expect(focusIndicator).toBeVisible({ timeout: 10000 });
-		logCheckpoint('Focus mode indicator is STILL visible in context menu after follow-up!');
+		if (await focusIndicator.isVisible({ timeout: 5000 }).catch(() => false)) {
+			foundFocusIndicator = true;
+			logCheckpoint('Focus mode indicator is STILL visible in context menu after follow-up!');
 
-		const focusLabel = page.locator(SELECTORS.contextMenuFocusLabel);
-		if (await focusLabel.isVisible({ timeout: 3000 }).catch(() => false)) {
-			const labelText = await focusLabel.textContent();
-			logCheckpoint(`Focus mode label after follow-up: "${labelText}"`);
-			expect(labelText?.toLowerCase()).toContain('career');
+			const focusLabel = page.locator(SELECTORS.contextMenuFocusLabel);
+			if (await focusLabel.isVisible({ timeout: 2000 }).catch(() => false)) {
+				const labelText = await focusLabel.textContent();
+				logCheckpoint(`Focus mode label after follow-up: "${labelText}"`);
+				expect(labelText?.toLowerCase()).toContain('career');
+			}
+
+			await takeStepScreenshot(page, 'followup-context-menu-still-active');
+
+			// Close context menu
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(300);
+		} else {
+			logCheckpoint(
+				`Focus indicator not visible on attempt ${attempt}. Closing menu and waiting for sync...`
+			);
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(5000);
 		}
-
-		await takeStepScreenshot(page, 'followup-context-menu-still-active');
-
-		// Close context menu
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(300);
-	} else {
-		logCheckpoint('WARNING: Could not find active chat item to verify context menu.');
 	}
+
+	expect(foundFocusIndicator).toBeTruthy();
 
 	// ======================================================================
 	// STEP 8: Delete the chat (cleanup)
