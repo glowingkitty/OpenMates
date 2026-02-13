@@ -2261,6 +2261,11 @@ class EmbedService:
                     f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
                     f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
                 )
+
+                # Track finished embeds as pending client encryption
+                if status == "finished":
+                    await self._track_pending_embed(user_id, embed_id, log_prefix)
+
                 return True
             else:
                 logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
@@ -2269,6 +2274,36 @@ class EmbedService:
         except Exception as e:
             logger.error(f"{log_prefix} Error sending embed data to client: {e}", exc_info=True)
             return False
+
+    async def _track_pending_embed(
+        self,
+        user_id: str,
+        embed_id: str,
+        log_prefix: str = ""
+    ) -> None:
+        """
+        Add an embed to the pending encryption tracking set.
+
+        Called after a finished embed is published via Redis pub/sub. The embed
+        stays in the pending set until the client confirms encryption via store_embed,
+        at which point it is removed by the store_embed handler.
+
+        This enables reliable re-delivery on reconnect if the pub/sub message is lost.
+
+        Args:
+            user_id: User ID (UUID string)
+            embed_id: Embed ID to track
+            log_prefix: Logging prefix for context
+        """
+        try:
+            await self.cache_service.add_pending_embed(user_id, embed_id)
+        except Exception as e:
+            # Non-critical: don't fail embed delivery if tracking fails.
+            # The existing fallback task still provides a safety net.
+            logger.warning(
+                f"{log_prefix} [PENDING_EMBED] Failed to track embed {embed_id} "
+                f"as pending for user {user_id[:8]}...: {e}"
+            )
 
     async def create_embeds_from_skill_results(
         self,

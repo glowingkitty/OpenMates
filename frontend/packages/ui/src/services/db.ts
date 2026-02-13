@@ -22,6 +22,7 @@ import type {
   ChatComponentVersions,
   OfflineChange,
   NewChatSuggestion,
+  StoreEmbedPayload,
 } from "../types/chat";
 
 // Import extracted modules for delegation
@@ -66,6 +67,19 @@ type EmbedMigrationRecord = {
 // Helper to safely detect Date values when legacy records store Date objects.
 const isDateValue = (value: unknown): value is Date => value instanceof Date;
 
+/**
+ * Represents a pending embed operation queued in IndexedDB for offline sync.
+ * When the WebSocket is disconnected during embed encryption, the operation
+ * is stored here and flushed on reconnect.
+ */
+export interface PendingEmbedOperation {
+  operation_id: string;
+  embed_id: string;
+  store_embed_payload: StoreEmbedPayload;
+  store_embed_keys_payload?: { keys: Array<Record<string, unknown>> };
+  created_at: number;
+}
+
 class ChatDatabase {
   // Database instance - public for extracted modules to access
   public db: IDBDatabase | null = null;
@@ -79,6 +93,8 @@ class ChatDatabase {
   public readonly APP_SETTINGS_MEMORIES_STORE_NAME = "app_settings_memories";
   private readonly PENDING_OG_METADATA_STORE_NAME =
     "pending_og_metadata_updates";
+  private readonly PENDING_EMBED_OPERATIONS_STORE_NAME =
+    "pending_embed_operations";
   private readonly PENDING_EMBED_SHARE_STORE_NAME =
     "pending_embed_share_updates";
 
@@ -87,7 +103,8 @@ class ChatDatabase {
   // Version 16: Added hashed_chat_id index to embeds store for embed cleanup on chat deletion
   // Version 17: (Removed) Was app_settings_memories_actions store - now using system messages instead
   // Version 18: Added pending_embed_share_updates store for embed share metadata retry queue
-  private readonly VERSION = 18;
+  // Version 19: Added pending_embed_operations store for offline embed queue
+  private readonly VERSION = 19;
   private initializationPromise: Promise<void> | null = null;
 
   // Flag to prevent new operations during database deletion
@@ -615,6 +632,19 @@ class ChatDatabase {
         unique: false,
       });
       console.debug("[ChatDatabase] Created pending_embed_share_updates store");
+    }
+
+    // Pending embed operations store (v19) - offline queue for embed encryption
+    if (!db.objectStoreNames.contains(this.PENDING_EMBED_OPERATIONS_STORE_NAME)) {
+      const pendingEmbedOpsStore = db.createObjectStore(
+        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+        { keyPath: "operation_id" },
+      );
+      pendingEmbedOpsStore.createIndex("embed_id", "embed_id", { unique: false });
+      pendingEmbedOpsStore.createIndex("created_at", "created_at", {
+        unique: false,
+      });
+      console.debug("[ChatDatabase] Created pending_embed_operations store");
     }
 
     // Note: app_settings_memories_actions store was removed in favor of system messages
@@ -1447,6 +1477,88 @@ class ChatDatabase {
   // ============================================================================
   // APP SETTINGS MEMORIES ACTIONS (Included/Rejected tracking)
   // ============================================================================
+
+  // ============================================================================
+  // PENDING EMBED OPERATIONS (offline queue for embed encryption)
+  // ============================================================================
+
+  /**
+   * Add a pending embed operation to the offline queue.
+   * Called when the WebSocket is disconnected during embed encryption.
+   */
+  async addPendingEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      "readwrite",
+    );
+    return new Promise((resolve, reject) => {
+      const store = transaction.objectStore(
+        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      );
+      const request = store.put(operation);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get all pending embed operations from the offline queue.
+   */
+  async getPendingEmbedOperations(): Promise<PendingEmbedOperation[]> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      "readonly",
+    );
+    return new Promise((resolve, reject) => {
+      const store = transaction.objectStore(
+        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      );
+      const request = store.getAll();
+      request.onsuccess = () =>
+        resolve((request.result as PendingEmbedOperation[]) || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Remove a single pending embed operation by its operation_id.
+   */
+  async removePendingEmbedOperation(operationId: string): Promise<void> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      "readwrite",
+    );
+    return new Promise((resolve, reject) => {
+      const store = transaction.objectStore(
+        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      );
+      const request = store.delete(operationId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Clear all pending embed operations (e.g., on logout).
+   */
+  async clearPendingEmbedOperations(): Promise<void> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      "readwrite",
+    );
+    return new Promise((resolve, reject) => {
+      const store = transaction.objectStore(
+        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+      );
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export const chatDB = new ChatDatabase();

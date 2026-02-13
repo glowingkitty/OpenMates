@@ -42,6 +42,12 @@ PENDING_DELIVERY_TTL = 5184000  # 60 days in seconds
 # Path for persisting pending deliveries during shutdown
 PENDING_DELIVERY_BACKUP_PATH = "/shared/cache/pending_deliveries_backup.json"
 
+# Pending embed encryption tracking constants
+# Tracks embeds finalized on server but not yet confirmed as client-encrypted via store_embed
+PENDING_EMBED_KEY_PREFIX = "pending_embed_encryption:"
+PENDING_EMBED_TTL = 2592000  # 30 days (seconds)
+EMBED_CACHE_EXTENDED_TTL = 2592000  # 30 days for embeds in the pending set
+
 
 class ReminderCacheMixin:
     """
@@ -891,4 +897,294 @@ class ReminderCacheMixin:
 
         except Exception as e:
             logger.error(f"Error auditing pending deliveries: {e}", exc_info=True)
+            return 0
+
+    # ===================================================================
+    # PENDING EMBED ENCRYPTION TRACKING
+    # ===================================================================
+    # Tracks embeds that have been finalized on the server but not yet
+    # confirmed as client-encrypted via store_embed. Uses a sorted set
+    # (score = creation timestamp) for efficient age-based cleanup.
+    #
+    # Key: pending_embed_encryption:{user_id}
+    # Members: embed_id strings
+    # Score: Unix timestamp when the embed was finalized
+    #
+    # Lifecycle:
+    # 1. Embed finalized → add_pending_embed()
+    # 2. Client sends store_embed → remove_pending_embed()
+    # 3. On reconnect → get_pending_embeds() → re-send to client
+    # 4. Safety net task → get_all_users_with_pending_embeds() → re-send
+    # ===================================================================
+
+    async def add_pending_embed(self, user_id: str, embed_id: str) -> bool:
+        """
+        Track a finalized embed as pending client encryption.
+
+        Adds the embed_id to a per-user sorted set with the current unix
+        timestamp as score. Sets/refreshes the key TTL to 30 days.
+
+        Args:
+            user_id: User ID (UUID string)
+            embed_id: Embed ID to track
+
+        Returns:
+            True if successfully added, False otherwise
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning(f"Cannot add pending embed {embed_id}: cache client not available")
+                return False
+
+            key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
+            score = time.time()
+
+            await client.zadd(key, {embed_id: score})
+            await client.expire(key, PENDING_EMBED_TTL)
+
+            logger.debug(
+                f"[PENDING_EMBED] Added embed {embed_id} to pending set for "
+                f"user {user_id[:8]}... (score={score:.0f})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error adding embed {embed_id} to pending set "
+                f"for user {user_id[:8]}...: {e}",
+                exc_info=True
+            )
+            return False
+
+    async def remove_pending_embed(self, user_id: str, embed_id: str) -> bool:
+        """
+        Remove an embed from the pending encryption tracking set.
+
+        Called when the client confirms encryption via store_embed.
+        Deletes the key entirely if the set becomes empty.
+
+        Args:
+            user_id: User ID (UUID string)
+            embed_id: Embed ID to remove
+
+        Returns:
+            True if the embed was removed (was in the set), False otherwise
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning(f"Cannot remove pending embed {embed_id}: cache client not available")
+                return False
+
+            key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
+            removed = await client.zrem(key, embed_id)
+
+            if removed:
+                # Check if the set is now empty and clean up the key
+                remaining = await client.zcard(key)
+                if remaining == 0:
+                    await client.delete(key)
+
+                logger.info(
+                    f"[PENDING_EMBED] Removed embed {embed_id} from pending set for "
+                    f"user {user_id[:8]}... (confirmed client encryption)"
+                )
+                return True
+            else:
+                logger.debug(
+                    f"[PENDING_EMBED] Embed {embed_id} was not in pending set for "
+                    f"user {user_id[:8]}... (already removed or never tracked)"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error removing embed {embed_id} from pending set "
+                f"for user {user_id[:8]}...: {e}",
+                exc_info=True
+            )
+            return False
+
+    async def get_pending_embed_ids(self, user_id: str) -> List[str]:
+        """
+        Get all pending embed IDs for a user.
+
+        Returns all members of the sorted set (embed_ids waiting for client encryption).
+
+        Args:
+            user_id: User ID (UUID string)
+
+        Returns:
+            List of embed_id strings, empty list if none or on error
+        """
+        try:
+            client = await self.client
+            if not client:
+                return []
+
+            key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
+            members = await client.zrange(key, 0, -1)
+
+            return [
+                m.decode("utf-8") if isinstance(m, bytes) else m
+                for m in members
+            ]
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error getting pending embeds for "
+                f"user {user_id[:8]}...: {e}",
+                exc_info=True
+            )
+            return []
+
+    async def get_all_users_with_pending_embeds(self) -> List[str]:
+        """
+        Find all users who have pending embed encryptions.
+
+        Uses SCAN to find all keys matching the pending embed prefix
+        and extracts the user_id from each key.
+
+        Returns:
+            List of user_id strings
+        """
+        try:
+            client = await self.client
+            if not client:
+                return []
+
+            user_ids = []
+            async for key in client.scan_iter(match=f"{PENDING_EMBED_KEY_PREFIX}*"):
+                if isinstance(key, bytes):
+                    key = key.decode("utf-8")
+                user_id = key.replace(PENDING_EMBED_KEY_PREFIX, "")
+                user_ids.append(user_id)
+
+            return user_ids
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error scanning for users with pending embeds: {e}",
+                exc_info=True
+            )
+            return []
+
+    async def refresh_pending_embed_cache_ttls(self, user_id: str) -> int:
+        """
+        Refresh cache TTLs for all pending embeds of a user.
+
+        Extends the TTL of each embed:{embed_id} cache key to 30 days
+        to prevent cache entries from expiring while still pending
+        client encryption.
+
+        Args:
+            user_id: User ID (UUID string)
+
+        Returns:
+            Number of cache entries whose TTL was refreshed
+        """
+        try:
+            client = await self.client
+            if not client:
+                return 0
+
+            pending_ids = await self.get_pending_embed_ids(user_id)
+            if not pending_ids:
+                return 0
+
+            refreshed = 0
+            for embed_id in pending_ids:
+                try:
+                    cache_key = f"embed:{embed_id}"
+                    existing = await client.get(cache_key)
+                    if existing:
+                        await client.expire(cache_key, EMBED_CACHE_EXTENDED_TTL)
+                        refreshed += 1
+                    else:
+                        logger.debug(
+                            f"[PENDING_EMBED] Cache key {cache_key} not found "
+                            f"(already expired?) for user {user_id[:8]}..."
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"[PENDING_EMBED] Error refreshing TTL for embed {embed_id}: {e}"
+                    )
+
+            if refreshed > 0:
+                logger.debug(
+                    f"[PENDING_EMBED] Refreshed {refreshed} cache TTLs for "
+                    f"user {user_id[:8]}..."
+                )
+            return refreshed
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error refreshing cache TTLs for "
+                f"user {user_id[:8]}...: {e}",
+                exc_info=True
+            )
+            return 0
+
+    async def cleanup_expired_pending_embeds(self, max_age_seconds: int = 2592000) -> int:
+        """
+        Remove stale entries from pending embed sets across all users.
+
+        Finds entries older than max_age_seconds (default 30 days) and removes them.
+        Deletes the sorted set key entirely if it becomes empty after cleanup.
+
+        Args:
+            max_age_seconds: Maximum age in seconds before an entry is considered expired.
+                           Default: 2592000 (30 days).
+
+        Returns:
+            Total number of expired entries removed across all users
+        """
+        try:
+            client = await self.client
+            if not client:
+                return 0
+
+            cutoff = time.time() - max_age_seconds
+            total_removed = 0
+
+            user_ids = await self.get_all_users_with_pending_embeds()
+            for user_id in user_ids:
+                try:
+                    key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
+
+                    # Find entries older than cutoff
+                    expired = await client.zrangebyscore(key, "-inf", cutoff)
+                    if expired:
+                        removed = await client.zremrangebyscore(key, "-inf", cutoff)
+                        total_removed += removed
+                        logger.info(
+                            f"[PENDING_EMBED] Cleaned up {removed} expired pending embed(s) "
+                            f"for user {user_id[:8]}... (older than {max_age_seconds / 86400:.0f} days)"
+                        )
+
+                    # Delete the key if the set is now empty
+                    remaining = await client.zcard(key)
+                    if remaining == 0:
+                        await client.delete(key)
+
+                except Exception as e:
+                    logger.warning(
+                        f"[PENDING_EMBED] Error cleaning up pending embeds for "
+                        f"user {user_id[:8]}...: {e}"
+                    )
+
+            if total_removed > 0:
+                logger.info(
+                    f"[PENDING_EMBED] Total cleanup: removed {total_removed} expired "
+                    f"pending embed entries across {len(user_ids)} users"
+                )
+
+            return total_removed
+
+        except Exception as e:
+            logger.error(
+                f"[PENDING_EMBED] Error in cleanup_expired_pending_embeds: {e}",
+                exc_info=True
+            )
             return 0

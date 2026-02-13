@@ -2290,27 +2290,11 @@ export async function sendPostProcessingMetadataImpl(
 export async function sendStoreEmbedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: StoreEmbedPayload,
+  embedKeysPayload?: { keys: Array<Record<string, unknown>> },
 ): Promise<void> {
-  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      "[ChatSyncService:Senders] Cannot send store_embed - WebSocket not connected",
-    );
-    // TODO: Queue for offline sync?
-    return;
-  }
-
-  try {
-    console.debug(
-      `[ChatSyncService:Senders] Sending encrypted embed ${payload.embed_id} to server`,
-    );
-    await webSocketService.sendMessage("store_embed", payload);
-  } catch (error) {
-    console.error(
-      "[ChatSyncService:Senders] Error sending store_embed:",
-      error,
-    );
-    throw error;
-  }
+  // Delegate to embedSenders.ts which handles offline queueing in IndexedDB
+  const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
+  return embedSendersImpl(serviceInstance, payload, embedKeysPayload);
 }
 
 /**
@@ -2445,29 +2429,9 @@ export async function sendStoreEmbedKeysImpl(
     }>;
   },
 ): Promise<void> {
-  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      "[ChatSyncService:Senders] Cannot send store_embed_keys - WebSocket not connected",
-    );
-    // TODO: Queue for offline sync?
-    return;
-  }
-
-  try {
-    console.debug(
-      `[ChatSyncService:Senders] Sending ${payload.keys.length} embed key wrapper(s) to server`,
-    );
-    await webSocketService.sendMessage("store_embed_keys", payload);
-    console.info(
-      `[ChatSyncService:Senders] Successfully sent embed key wrappers to server`,
-    );
-  } catch (error) {
-    console.error(
-      "[ChatSyncService:Senders] Error sending store_embed_keys:",
-      error,
-    );
-    throw error;
-  }
+  // Delegate to embedSenders.ts which handles offline awareness
+  const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } = await import("./embedSenders");
+  return embedSendersKeysImpl(serviceInstance, payload);
 }
 
 /**

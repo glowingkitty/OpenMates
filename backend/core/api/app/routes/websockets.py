@@ -1185,6 +1185,136 @@ async def _deliver_pending_reminders(
         logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
+async def _deliver_pending_embeds(
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+    manager: ConnectionManager,
+    user_id: str,
+    user_id_hash: str,
+    device_fingerprint_hash: str,
+):
+    """
+    Re-deliver any embeds that are pending client encryption.
+    Called as a background task after WebSocket connection is established.
+
+    Reads the pending_embed_encryption sorted set for this user, then for each
+    pending embed_id, reads the vault-encrypted data from cache, decrypts it,
+    and sends the plaintext TOON to the client via send_embed_data.
+    """
+    try:
+        # Brief delay to let client finish init (after pending reminders)
+        await asyncio.sleep(4)
+
+        pending_ids = await cache_service.get_pending_embed_ids(user_id)
+        if not pending_ids:
+            return
+
+        logger.info(
+            f"[PENDING_EMBEDS] Delivering {len(pending_ids)} pending embed(s) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        delivered = 0
+        for embed_id in pending_ids:
+            try:
+                # Read vault-encrypted data from cache
+                client = await cache_service.client
+                if not client:
+                    break
+
+                cache_key = f"embed:{embed_id}"
+                embed_json = await client.get(cache_key)
+                if not embed_json:
+                    logger.warning(
+                        f"[PENDING_EMBEDS] Embed {embed_id} not found in cache (expired?). "
+                        f"Removing from pending set."
+                    )
+                    await cache_service.remove_pending_embed(user_id, embed_id)
+                    continue
+
+                embed_data = json.loads(
+                    embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json
+                )
+
+                # Only re-send finished embeds
+                if embed_data.get("status") != "finished":
+                    continue
+
+                # Decrypt vault-encrypted content
+                vault_key_id = embed_data.get("vault_key_id")
+                encrypted_content = embed_data.get("encrypted_content")
+                if not vault_key_id or not encrypted_content:
+                    logger.warning(
+                        f"[PENDING_EMBEDS] Embed {embed_id} missing vault_key_id or content. Skipping."
+                    )
+                    continue
+
+                plaintext_toon = await encryption_service.decrypt_with_user_key(
+                    encrypted_content, vault_key_id
+                )
+                if not plaintext_toon:
+                    logger.error(f"[PENDING_EMBEDS] Failed to decrypt embed {embed_id}. Skipping.")
+                    continue
+
+                # Build send_embed_data payload
+                now_ts = int(time.time())
+
+                embed_payload = {
+                    "embed_id": embed_id,
+                    "type": embed_data.get("type", "app_skill_use"),
+                    "content": plaintext_toon,
+                    "status": "finished",
+                    "chat_id": embed_data.get("chat_id", ""),
+                    "message_id": embed_data.get("message_id", ""),
+                    "user_id": user_id,
+                    "is_private": embed_data.get("is_private", False),
+                    "is_shared": embed_data.get("is_shared", False),
+                    "encryption_mode": embed_data.get("encryption_mode", "client"),
+                    "text_length_chars": embed_data.get("text_length_chars") or len(plaintext_toon),
+                    "createdAt": embed_data.get("created_at") or now_ts,
+                    "updatedAt": now_ts,
+                }
+
+                # Add optional fields
+                if embed_data.get("embed_ids") is not None:
+                    embed_payload["embed_ids"] = embed_data["embed_ids"]
+                if embed_data.get("parent_embed_id") is not None:
+                    embed_payload["parent_embed_id"] = embed_data["parent_embed_id"]
+                if embed_data.get("task_id") is not None:
+                    embed_payload["task_id"] = embed_data["task_id"]
+                if embed_data.get("text_preview") is not None:
+                    embed_payload["text_preview"] = embed_data["text_preview"]
+
+                # Send directly via WebSocket (not pub/sub)
+                await manager.send_personal_message(
+                    message={
+                        "type": "send_embed_data",
+                        "payload": embed_payload
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                delivered += 1
+
+                # Small delay between embeds to avoid overwhelming the client
+                await asyncio.sleep(0.1)
+
+            except Exception as e:
+                logger.error(
+                    f"[PENDING_EMBEDS] Error delivering embed {embed_id}: {e}",
+                    exc_info=True
+                )
+
+        if delivered > 0:
+            logger.info(
+                f"[PENDING_EMBEDS] Delivered {delivered}/{len(pending_ids)} pending embeds "
+                f"to user {user_id[:8]}..."
+            )
+
+    except Exception as e:
+        logger.error(f"[PENDING_EMBEDS] Error delivering pending embeds: {e}", exc_info=True)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -1211,6 +1341,13 @@ async def websocket_endpoint(
     # This runs as a background task so it doesn't block the WebSocket message loop.
     asyncio.create_task(
         _deliver_pending_reminders(cache_service, manager, user_id, device_fingerprint_hash)
+    )
+
+    # Deliver any embeds pending client encryption (runs after reminders with extra delay)
+    asyncio.create_task(
+        _deliver_pending_embeds(
+            cache_service, encryption_service, manager, user_id, user_id_hash, device_fingerprint_hash
+        )
     )
     
     # NOTE: Pending app settings/memories permission requests are no longer re-delivered

@@ -679,6 +679,8 @@ When creating tests (with consent), ensure they meet these criteria:
 - **Use stable selectors**: `data-testid` attributes, not CSS classes
 - **Be deterministic**: No flaky timing-dependent assertions
 - **Cover critical paths**: Signup, login, payment, core features
+- **Account for Vercel deployment delay**: After pushing frontend changes, Vercel takes up to **200 seconds** to deploy. E2E tests must wait for the deployment to complete before running against the live URL (e.g., poll the site or add an explicit delay).
+- **Ask the user on unexpected screens**: If a Playwright test encounters a completely unexpected screen (e.g., a different page/layout than anticipated after an action), **stop and ask the user how to proceed** instead of guessing or failing silently.
 
 ### Test Location Standards
 

@@ -52,6 +52,8 @@ import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import * as senders from "./chatSyncServiceSenders";
+import { flushPendingEmbedOperations } from "./embedSenders";
+import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -141,6 +143,17 @@ export class ChatSynchronizationService extends EventTarget {
           this.activeAITasks.clear();
         }
 
+        // CRITICAL: Also clean up streaming/processing messages in ALL chats,
+        // not just the ones tracked in activeAITasks (which only tracks recent tasks).
+        // This handles edge cases where activeAITasks was cleared by a previous
+        // disconnect but messages remain stuck.
+        this._cleanupOrphanedStreamingMessages().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error cleaning up orphaned streaming messages:",
+            error,
+          );
+        });
+
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
 
@@ -153,12 +166,28 @@ export class ChatSynchronizationService extends EventTarget {
           );
         });
 
+        // Flush any encrypted embeds that couldn't be sent while offline
+        flushPendingEmbedOperations().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error flushing pending embed operations:",
+            error,
+          );
+        });
+
         // Flush any chat deletions that were queued while offline.
         // This sends delete_chat for each pending ID and removes it from the queue.
         // Must run before phased sync so the server knows about the deletions.
         this.flushPendingChatDeletions().catch((error) => {
           console.error(
             "[ChatSyncService] Error flushing pending chat deletions:",
+            error,
+          );
+        });
+
+        // Flush any offline changes (drafts, etc.) that were queued during disconnect
+        sendOfflineChangesImpl().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error sending offline changes:",
             error,
           );
         });
@@ -1278,6 +1307,49 @@ export class ChatSynchronizationService extends EventTarget {
 
   // NOTE: Phased sync handlers (handlePhase2RecentChats, handlePhase3FullSync, etc.)
   // and storage helpers (storeRecentChats, storeAllChats, etc.) are in chatSyncServiceHandlersPhasedSync.ts
+
+  /**
+   * Clean up messages stuck in 'streaming' or 'processing' status across ALL chats.
+   * This handles the case where the WebSocket disconnected during an AI stream,
+   * leaving messages in intermediate states. The subsequent phased sync will
+   * deliver the server-persisted (complete) version.
+   */
+  private async _cleanupOrphanedStreamingMessages(): Promise<void> {
+    try {
+      const allMessages = await chatDB.getAllMessages();
+      const orphaned = allMessages.filter(
+        (msg) =>
+          msg.status === "streaming" ||
+          (msg.status === "processing" && msg.role === "assistant"),
+      );
+
+      if (orphaned.length === 0) return;
+
+      console.warn(
+        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - finalizing to synced`,
+      );
+
+      for (const msg of orphaned) {
+        try {
+          const finalized = { ...msg, status: "synced" as const };
+          await chatDB.saveMessage(finalized);
+          console.info(
+            `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
+          );
+        } catch (error) {
+          console.error(
+            `[ChatSyncService] Error finalizing orphaned message ${msg.message_id}:`,
+            error,
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[ChatSyncService] Error in _cleanupOrphanedStreamingMessages:",
+        error,
+      );
+    }
+  }
 
   /**
    * Retry sending messages that are pending (status: 'waiting_for_internet' or 'sending')
