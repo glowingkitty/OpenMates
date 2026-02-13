@@ -1090,7 +1090,7 @@ async def handle_main_processing(
             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
-                        active_focus_prompt_text = focus_def.systemprompt
+                        active_focus_prompt_text = focus_def.system_prompt
                         break
         except Exception as e:
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)

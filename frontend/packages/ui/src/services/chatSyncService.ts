@@ -487,55 +487,6 @@ export class ChatSynchronizationService extends EventTarget {
         module.handleReminderFiredImpl(this, payload),
       );
 
-      // Handle focus mode activated events (sent after auto-confirm task fires)
-      // Updates the local chatMetadataCache so the context menu shows the focus indicator
-      // in real-time without requiring a page refresh
-      webSocketService.on("focus_mode_activated", async (payload) => {
-        try {
-          const chatId = payload?.chat_id;
-          const focusId = payload?.focus_id;
-          const encryptedActiveFocusId = payload?.encrypted_active_focus_id;
-          if (!chatId || !focusId) return;
-          console.debug("[ChatSyncService] Focus mode activated:", {
-            chatId,
-            focusId,
-          });
-
-          // Update the chat's list_item_data in IndexedDB with the new encrypted_active_focus_id
-          // This ensures chatMetadataCache.getDecryptedMetadata() returns the correct activeFocusId
-          const { chatDB } = await import("./db");
-          const chat = await chatDB.getChat(chatId);
-          if (chat && encryptedActiveFocusId) {
-            // Update the encrypted_active_focus_id field on the chat object
-            chat.encrypted_active_focus_id = encryptedActiveFocusId;
-            await chatDB.updateChat(chat);
-            console.debug(
-              "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
-            );
-
-            // CRITICAL: Invalidate the chatMetadataCache so the next read
-            // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
-            // instead of returning stale cached data without activeFocusId.
-            const { chatMetadataCache } = await import("./chatMetadataCache");
-            chatMetadataCache.invalidateChat(chatId);
-            console.debug(
-              "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
-            );
-          }
-
-          // Dispatch event so ActiveChat and other components can react
-          this.dispatchEvent(
-            new CustomEvent("focusModeActivated", {
-              detail: { chat_id: chatId, focus_id: focusId },
-            }),
-          );
-        } catch (e) {
-          console.error(
-            "[ChatSyncService] Error handling focus_mode_activated:",
-            e,
-          );
-        }
-      });
       // Handle pending AI response events (AI completed while user was offline)
       // Delivered from the pending delivery queue on WebSocket reconnect
       // Contains plaintext AI response; handler encrypts with chat key and persists
@@ -543,6 +494,59 @@ export class ChatSynchronizationService extends EventTarget {
         module.handlePendingAIResponseImpl(this, payload),
       );
     });
+
+    // Handle focus mode activated events (sent after auto-confirm task fires)
+    // Updates the local chatMetadataCache so the context menu shows the focus indicator
+    // in real-time without requiring a page refresh.
+    // IMPORTANT: Registered synchronously (not inside dynamic import .then()) to avoid
+    // a race condition where the WebSocket event arrives before the dynamic import resolves.
+    webSocketService.on("focus_mode_activated", async (payload) => {
+      try {
+        const chatId = payload?.chat_id;
+        const focusId = payload?.focus_id;
+        const encryptedActiveFocusId = payload?.encrypted_active_focus_id;
+        if (!chatId || !focusId) return;
+        console.debug("[ChatSyncService] Focus mode activated:", {
+          chatId,
+          focusId,
+        });
+
+        // Update the chat's list_item_data in IndexedDB with the new encrypted_active_focus_id
+        // This ensures chatMetadataCache.getDecryptedMetadata() returns the correct activeFocusId
+        const { chatDB } = await import("./db");
+        const chat = await chatDB.getChat(chatId);
+        if (chat && encryptedActiveFocusId) {
+          // Update the encrypted_active_focus_id field on the chat object
+          chat.encrypted_active_focus_id = encryptedActiveFocusId;
+          await chatDB.updateChat(chat);
+          console.debug(
+            "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
+          );
+
+          // CRITICAL: Invalidate the chatMetadataCache so the next read
+          // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
+          // instead of returning stale cached data without activeFocusId.
+          const { chatMetadataCache } = await import("./chatMetadataCache");
+          chatMetadataCache.invalidateChat(chatId);
+          console.debug(
+            "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
+          );
+        }
+
+        // Dispatch event so ActiveChat and other components can react
+        this.dispatchEvent(
+          new CustomEvent("focusModeActivated", {
+            detail: { chat_id: chatId, focus_id: focusId },
+          }),
+        );
+      } catch (e) {
+        console.error(
+          "[ChatSyncService] Error handling focus_mode_activated:",
+          e,
+        );
+      }
+    });
+
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
         .handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload)
