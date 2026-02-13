@@ -94,10 +94,10 @@
   margin-left: auto;
   padding-left: 12px;
   box-sizing: border-box;
-  /* Cap width so the user bubble's left edge sits just before the assistant bubble's left edge.
-       Assistant content starts ~80px from left (60px avatar + margins/gap).
-       Using ~55px offset so user messages extend slightly further left than the assistant text. */
-  max-width: calc(100% - 55px);
+  /* Cap width so the user bubble's left edge sits ~20px to the right of the assistant bubble's
+     left content edge. Assistant content starts ~80px from left (60px avatar + margins/gap),
+     so we offset by ~100px to land the user bubble's left edge at ~100px from the container left. */
+  max-width: calc(100% - 100px);
 }
 
 .message-align-left {
