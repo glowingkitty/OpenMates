@@ -1936,7 +1936,7 @@ async def handle_main_processing(
                             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                                 for focus_def in app_metadata_for_focus.focuses:
                                     if focus_def.id == focus_mode_id:
-                                        focus_prompt_text = focus_def.systemprompt or ""
+                                        focus_prompt_text = focus_def.system_prompt or ""
                                         logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt ({len(focus_prompt_text)} chars)")
                                         break
                         except Exception as e:

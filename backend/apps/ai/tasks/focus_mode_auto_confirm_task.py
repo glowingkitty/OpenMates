@@ -131,7 +131,7 @@ async def _async_focus_mode_auto_confirm(
     
     encrypted_focus_id = None
     try:
-        encrypted_focus_id = encryption_service.encrypt(focus_id)
+        encrypted_focus_id, _ = await encryption_service.encrypt(focus_id)
         await cache_service.update_chat_active_focus_id(
             user_id=user_id,
             chat_id=chat_id,
