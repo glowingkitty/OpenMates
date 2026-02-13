@@ -290,5 +290,95 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 
 	// Verify we're back on the overview (regenerate button should be visible again)
 	await expect(regenerateButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Back on Recovery Key overview. Test complete.');
+	logCheckpoint('Back on Recovery Key overview.');
+
+	// ========================================================================
+	// PHASE 7: Logout
+	// ========================================================================
+
+	// Navigate back to main settings where the logout item lives.
+	// Click the settings header back button repeatedly until logout is visible.
+	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
+	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	for (let i = 0; i < 5; i++) {
+		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
+		if (logoutNowVisible) break;
+		const backVisible = await settingsBackButton.isVisible().catch(() => false);
+		if (!backVisible) break;
+		await settingsBackButton.click();
+		await page.waitForTimeout(500);
+	}
+
+	await expect(logoutItem).toBeVisible({ timeout: 10000 });
+	await logoutItem.click();
+	await takeStepScreenshot(page, 'logged-out');
+	logCheckpoint('Logged out.');
+
+	// Wait for redirect to demo chat (logged out state)
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 30000
+	});
+	logCheckpoint('Redirected to demo chat after logout.');
+
+	// ========================================================================
+	// PHASE 8: Login with the new recovery key
+	// ========================================================================
+
+	// Open login dialog again
+	const loginButtonAfterLogout = page.getByRole('button', {
+		name: /login.*sign up|sign up/i
+	});
+	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
+	await loginButtonAfterLogout.click();
+	logCheckpoint('Opened login dialog after logout.');
+
+	// Enter email
+	const emailInputRelogin = page.locator('input[type="email"][name="username"]');
+	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
+	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
+	await page.getByRole('button', { name: /continue/i }).click();
+	logCheckpoint('Submitted email for re-login.');
+
+	// Enter password
+	const passwordInputRelogin = page.locator('input[type="password"]');
+	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
+	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	logCheckpoint('Filled password for re-login.');
+
+	// The TFA input should already be visible (tfa_enabled=true from lookup)
+	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
+	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
+	await takeStepScreenshot(page, 'tfa-prompt-relogin');
+
+	// Click "Login with recovery key" to switch to recovery key mode
+	const recoveryKeyButton = page.locator('#login-with-recoverykey button');
+	await expect(recoveryKeyButton).toBeVisible();
+	await recoveryKeyButton.click();
+	await takeStepScreenshot(page, 'recovery-key-mode');
+	logCheckpoint('Switched to recovery key login mode.');
+
+	// Wait for the recovery key input to appear
+	// EnterRecoveryKey.svelte uses type="password" with autocomplete="off" and monospace font
+	const recoveryKeyInput = page.locator('input[type="password"][autocomplete="off"]');
+	await expect(recoveryKeyInput).toBeVisible({ timeout: 10000 });
+
+	// Enter the recovery key we copied in Phase 5
+	logCheckpoint('Entering recovery key for login.', {
+		keyPreview: `${recoveryKey.slice(0, 4)}****`
+	});
+	await recoveryKeyInput.fill(recoveryKey);
+	await takeStepScreenshot(page, 'recovery-key-entered');
+	logCheckpoint('Entered recovery key.');
+
+	// Submit recovery key login (the submit button in EnterRecoveryKey has type="submit" class="login-button")
+	const recoverySubmitButton = page.locator('button[type="submit"].login-button');
+	await expect(recoverySubmitButton).toBeVisible();
+	await recoverySubmitButton.click();
+	logCheckpoint('Submitted recovery key login.');
+
+	// Wait for successful login - verify authenticated state
+	const authIndicatorRelogin = page.locator('.chat-container.authenticated');
+	await expect(authIndicatorRelogin).toBeVisible({ timeout: 60000 });
+	await takeStepScreenshot(page, 'login-success-recovery-key');
+	logCheckpoint('Login successful with new recovery key! Test complete.');
 });

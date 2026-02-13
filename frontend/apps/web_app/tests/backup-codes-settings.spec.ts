@@ -286,5 +286,94 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	// Verify we're back on the overview (Change App button should be visible)
 	const changeAppButton = page.locator('button.btn-primary').filter({ hasText: /change.*app/i });
 	await expect(changeAppButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Back on 2FA overview with Change App button. Test complete.');
+	logCheckpoint('Back on 2FA overview with Change App button.');
+
+	// ========================================================================
+	// PHASE 6: Logout
+	// ========================================================================
+
+	// Navigate back to main settings where the logout item lives.
+	// Click the settings header back button repeatedly until logout is visible.
+	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
+	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	for (let i = 0; i < 5; i++) {
+		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
+		if (logoutNowVisible) break;
+		const backVisible = await settingsBackButton.isVisible().catch(() => false);
+		if (!backVisible) break;
+		await settingsBackButton.click();
+		await page.waitForTimeout(500);
+	}
+
+	await expect(logoutItem).toBeVisible({ timeout: 10000 });
+	await logoutItem.click();
+	await takeStepScreenshot(page, 'logged-out');
+	logCheckpoint('Logged out.');
+
+	// Wait for redirect to demo chat (logged out state)
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 30000
+	});
+	logCheckpoint('Redirected to demo chat after logout.');
+
+	// ========================================================================
+	// PHASE 7: Login with one of the new backup codes
+	// ========================================================================
+
+	// Open login dialog again
+	const loginButtonAfterLogout = page.getByRole('button', {
+		name: /login.*sign up|sign up/i
+	});
+	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
+	await loginButtonAfterLogout.click();
+	logCheckpoint('Opened login dialog after logout.');
+
+	// Enter email
+	const emailInputRelogin = page.locator('input[type="email"][name="username"]');
+	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
+	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
+	await page.getByRole('button', { name: /continue/i }).click();
+	logCheckpoint('Submitted email for re-login.');
+
+	// Enter password
+	const passwordInputRelogin = page.locator('input[type="password"]');
+	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
+	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	logCheckpoint('Filled password for re-login.');
+
+	// The TFA input should already be visible (tfa_enabled=true from lookup)
+	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
+	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
+	await takeStepScreenshot(page, 'tfa-prompt-relogin');
+
+	// Switch to backup code mode using the toggle button
+	const backupModeButton = page.locator('#login-with-backup-code button');
+	await expect(backupModeButton).toBeVisible();
+	await backupModeButton.click();
+	await takeStepScreenshot(page, 'backup-mode-active');
+	logCheckpoint('Switched to backup code mode.');
+
+	// Enter the first backup code from the ones we captured in Phase 4
+	const backupCodeToUse = backupCodes[0];
+	logCheckpoint('Using backup code for login.', {
+		code: `${backupCodeToUse.slice(0, 5)}*****`
+	});
+
+	const backupCodeInput = page.locator('input[autocomplete="one-time-code"]').first();
+	await expect(backupCodeInput).toBeVisible();
+	await backupCodeInput.fill(backupCodeToUse);
+	await takeStepScreenshot(page, 'backup-code-entered');
+	logCheckpoint('Entered backup code.');
+
+	// Submit login with password + backup code
+	const loginSubmitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(loginSubmitButton).toBeVisible();
+	await loginSubmitButton.click();
+	logCheckpoint('Submitted login with backup code.');
+
+	// Wait for successful login - verify authenticated state
+	const authIndicatorRelogin = page.locator('.chat-container.authenticated');
+	await expect(authIndicatorRelogin).toBeVisible({ timeout: 60000 });
+	await takeStepScreenshot(page, 'login-success-backup-code');
+	logCheckpoint('Login successful with new backup code! Test complete.');
 });
