@@ -227,56 +227,89 @@ skills:
               - legs
       required:
         - requests
-  - id: price_calendar
-    name_translation_key: travel.price_calendar.text
-    description_translation_key: travel.price_calendar.description.text
-    preprocessor_hint: >
-      Monthly flight price overview: cheapest price per day across an entire month on a route.
-      Use for flexible dates, "prices for March", "cheapest time to fly", monthly price comparisons.
-      Prefer over search_connections for date-flexible queries (1 credit vs 25).
-    stage: production
-    class_path: backend.apps.travel.skills.price_calendar.PriceCalendarSkill
+
+  # -----------------------------------------------------------------------
+  # Search Stays – hotel / hostel / accommodation search via Google Hotels
+  # -----------------------------------------------------------------------
+  - id: search_stays
+    name_translation_key: app_skills.travel.search_stays
+    description_translation_key: app_skills.travel.search_stays.description
+    class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:
       per_unit:
-        credits: 1
-    providers:
-      - Travelpayouts
-    suggestions_follow_up_requests:
-      - Search flights for the cheapest date
-      - Show next month
-      - Show previous month
+        credits: 25
+    provider: Google
     tool_schema:
-      type: object
-      properties:
-        requests:
-          type: array
-          description: >
-            Array of price calendar requests. Each request fetches the cheapest
-            cached flight prices for every day of a given month on a route.
-            Ideal for finding the cheapest travel dates at a glance.
-          items:
-            type: object
-            properties:
-              origin:
-                type: string
-                description: >
-                  Origin city or airport name (e.g. "Munich", "Berlin",
-                  "London Heathrow") or IATA code (e.g. "MUC"). The system
-                  resolves city names to airport codes internally.
-              destination:
-                type: string
-                description: Destination city or airport name, or IATA code.
-              month:
-                type: string
-                description: >
-                  Month to show prices for, in YYYY-MM format (e.g. "2026-03").
-              currency:
-                type: string
-                description: Price currency (ISO 4217 code, e.g. "EUR", "USD").
-                default: EUR
-            required:
-              - origin
-              - destination
-              - month
-      required:
-        - requests
+      type: function
+      function:
+        name: search_stays
+        description: >
+          Search for hotels, hostels, and accommodations at a destination.
+          Returns properties with pricing, ratings, amenities, and images.
+          Use this for any stay / accommodation searches.
+        parameters:
+          type: object
+          properties:
+            requests:
+              type: array
+              description: >
+                Array of stay search requests. Each request searches for
+                accommodation at a specific destination for given dates.
+              items:
+                type: object
+                properties:
+                  query:
+                    type: string
+                    description: >
+                      Search query describing the destination or property
+                      (e.g. "Hotels in Paris", "Hostels near Eiffel Tower",
+                      "Barcelona beachfront hotel").
+                  check_in_date:
+                    type: string
+                    description: >
+                      Check-in date in YYYY-MM-DD format (e.g. "2026-03-15").
+                  check_out_date:
+                    type: string
+                    description: >
+                      Check-out date in YYYY-MM-DD format (e.g. "2026-03-18").
+                  adults:
+                    type: integer
+                    description: Number of adult guests.
+                    default: 2
+                  children:
+                    type: integer
+                    description: Number of children.
+                    default: 0
+                  currency:
+                    type: string
+                    description: >
+                      Price currency (ISO 4217 code, e.g. "EUR", "USD").
+                    default: EUR
+                  sort_by:
+                    type: string
+                    description: >
+                      Sort order for results. Options: "relevance" (default),
+                      "price_asc" (lowest price first), "rating_desc"
+                      (highest rated first), "reviews_desc" (most reviewed).
+                    default: relevance
+                  min_price:
+                    type: number
+                    description: Minimum nightly price filter.
+                  max_price:
+                    type: number
+                    description: Maximum nightly price filter.
+                  hotel_class:
+                    type: string
+                    description: >
+                      Comma-separated star rating filter (e.g. "3,4,5"
+                      for 3-star and above).
+                  max_results:
+                    type: integer
+                    description: Maximum number of results to return.
+                    default: 10
+                required:
+                  - query
+                  - check_in_date
+                  - check_out_date
+          required:
+            - requests

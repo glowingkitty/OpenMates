@@ -2071,3 +2071,59 @@ booking_link_failed:
   verified_by_human:
     - en
     - de
+stay:
+  context: Singular label for a travel stay/accommodation result
+  en: stay
+  de: Unterkunft
+  verified_by_human:
+    - en
+    - de
+stays:
+  context: Plural label for travel stay/accommodation results
+  en: stays
+  de: Unterkünfte
+  verified_by_human:
+    - en
+    - de
+per_night:
+  context: Price suffix for nightly rate, e.g. 'EUR 120 /night'
+  en: /night
+  de: /Nacht
+  verified_by_human:
+    - en
+    - de
+night:
+  context: Singular label for one night, e.g. '1 night'
+  en: night
+  de: Nacht
+  verified_by_human:
+    - en
+    - de
+total:
+  context: Label for total price, e.g. 'EUR 360 total'
+  en: total
+  de: gesamt
+  verified_by_human:
+    - en
+    - de
+no_stays_found:
+  context: Message when no accommodation results were found
+  en: No stays found.
+  de: Keine Unterkünfte gefunden.
+  verified_by_human:
+    - en
+    - de
+free_cancellation:
+  context: Badge text for hotels with free cancellation
+  en: Free cancellation
+  de: Kostenlose Stornierung
+  verified_by_human:
+    - en
+    - de
+eco_certified:
+  context: Badge text for eco-certified hotels
+  en: Eco-certified
+  de: Umweltzertifiziert
+  verified_by_human:
+    - en
+    - de

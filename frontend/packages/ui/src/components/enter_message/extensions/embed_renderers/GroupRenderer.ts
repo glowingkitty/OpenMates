@@ -26,6 +26,7 @@ import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPrevie
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
+import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 
 // Track mounted components for cleanup
@@ -790,6 +791,24 @@ export class GroupRenderer implements EmbedRenderer {
 
       if (appId === "travel" && skillId === "search_connections") {
         const component = mount(TravelSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Google",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "travel" && skillId === "search_stays") {
+        const component = mount(TravelStaysEmbedPreview, {
           target,
           props: {
             id: embedId,

@@ -33,6 +33,7 @@
     import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
     import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
+    import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
@@ -5706,6 +5707,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Travel Price Calendar Fullscreen -->
                         <TravelPriceCalendarEmbedFullscreen
                             query={embedFullscreenData.decodedContent?.query || ''}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'travel' && skillId === 'search_stays'}
+                        <!-- Travel Search Stays Fullscreen -->
+                        <TravelStaysEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}

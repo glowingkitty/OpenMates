@@ -62,3 +62,17 @@ price_calendar.description:
   verified_by_human:
     - en
     - de
+search_stays:
+  context: Skill name for travel search stays (hotels, hostels, accommodations)
+  en: Search stays
+  de: Unterkünfte suchen
+  verified_by_human:
+    - en
+    - de
+search_stays.description:
+  context: Description for the travel search stays skill - searches for hotels, hostels, and accommodations
+  en: Find hotels, hostels, and accommodations at a destination.
+  de: Finde Hotels, Hostels und Unterkünfte an einem Reiseziel.
+  verified_by_human:
+    - en
+    - de
