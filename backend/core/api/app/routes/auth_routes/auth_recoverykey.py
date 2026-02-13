@@ -114,20 +114,26 @@ async def confirm_recovery_key_stored(
             )
 
         # Update the user profile with the new lookup_hashes array
-        success = await directus_service.update_user(user_id, {
+        # Only update last_opened if user is currently in the signup flow
+        is_signup = user_data.get("last_opened", "").startswith("/signup")
+        update_fields = {
             "lookup_hashes": lookup_hashes,
             "consent_recovery_key_stored_timestamp": current_time,
-            "last_opened": "/signup/profile-picture"
-        })
+        }
+        if is_signup:
+            update_fields["last_opened"] = "/signup/profile-picture"
+
+        success = await directus_service.update_user(user_id, update_fields)
 
         if not success:
-            logger.error("Failed to record recovery key data or update last_opened")
+            logger.error("Failed to record recovery key data")
             return ConfirmRecoveryKeyStoredResponse(success=False, message="Failed to record your recovery key")
 
         # Update user cache
-        user_data["last_opened"] = "/signup/profile-picture"
+        if is_signup:
+            user_data["last_opened"] = "/signup/profile-picture"
         await cache_service.set_user(user_data, refresh_token=refresh_token)
-        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/profile-picture")
+        logger.info(f"Updated user cache for {user_id} (is_signup={is_signup})")
 
         # Log the event for compliance
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
