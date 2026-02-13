@@ -1418,7 +1418,7 @@
     <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
   {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 

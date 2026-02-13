@@ -145,11 +145,18 @@
   bottom: auto;
 }
 
+/* When container is ≤500px the assistant avatar stacks above the message,
+   so the user bubble no longer needs a large left offset — go nearly edge-to-edge. */
+.message-align-right.mobile-compact {
+  max-width: calc(100% - 20px);
+  padding-left: 0px;
+}
+
 /* Media query for screens smaller than 500px - padding adjustments only */
 @media (max-width: 500px) {
   .message-align-right {
     padding-left: 0px;
-    max-width: calc(100% - 30px);
+    max-width: calc(100% - 20px);
   }
 
   .message-align-left {
