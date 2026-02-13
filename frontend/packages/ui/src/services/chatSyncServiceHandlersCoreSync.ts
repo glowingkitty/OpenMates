@@ -3,6 +3,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
 import { notificationStore } from "../stores/notificationStore";
+import { activeChatStore } from "../stores/activeChatStore";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -16,6 +17,15 @@ import type {
   SyncEmbed,
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
+
+/**
+ * Yield control back to the browser's main thread.
+ * This prevents long-running sync operations from blocking UI rendering,
+ * which is especially important on mobile devices with limited resources.
+ */
+function yieldToMainThread(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 export async function handleInitialSyncResponseImpl(
   serviceInstance: ChatSynchronizationService,
@@ -760,7 +770,25 @@ export async function handleChatContentBatchResponseImpl(
   const chatIdsWithMessages = Object.keys(payload.messages_by_chat_id);
   let updatedChatCount = 0;
 
-  for (const chatId of chatIdsWithMessages) {
+  // PERFORMANCE FIX: Prioritize the active chat so its messages render first,
+  // then process remaining chats with yields to the UI thread between each.
+  // This prevents the "glitching" effect on mobile devices where processing
+  // many chats' IndexedDB writes simultaneously blocks the main thread.
+  const currentActiveChatId = activeChatStore.get();
+  const sortedChatIds = [...chatIdsWithMessages].sort((a, b) => {
+    if (a === currentActiveChatId) return -1;
+    if (b === currentActiveChatId) return 1;
+    return 0;
+  });
+
+  for (let i = 0; i < sortedChatIds.length; i++) {
+    const chatId = sortedChatIds[i];
+
+    // Yield to the main thread between non-active chat saves to prevent UI jank.
+    // Skip yielding for the first chat (active chat) to render it ASAP.
+    if (i > 0) {
+      await yieldToMainThread();
+    }
     const rawMessages = payload.messages_by_chat_id[chatId];
     if (!rawMessages || rawMessages.length === 0) {
       console.debug(

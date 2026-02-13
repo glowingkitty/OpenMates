@@ -18,6 +18,16 @@ import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
+import { activeChatStore } from "../stores/activeChatStore";
+
+/**
+ * Yield control back to the browser's main thread.
+ * This prevents long-running sync operations from blocking UI rendering,
+ * which is especially important on mobile devices with limited resources.
+ */
+function yieldToMainThread(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 /**
  * Handle Phase 2 completion (recent chats ready)
@@ -333,9 +343,25 @@ async function storeRecentChats(
       await import("./pendingChatDeletions");
     const pendingDeletions = getPendingChatDeletionsSet();
 
-    for (const chatItem of chats) {
+    // PERFORMANCE FIX: Sort chats so the active chat is processed first.
+    // This ensures the currently-viewed chat renders without delay,
+    // while background chats are processed with UI thread yields between them.
+    const currentActiveChatId = activeChatStore.get();
+    const sortedChats = [...chats].sort((a, b) => {
+      if (a.chat_details.id === currentActiveChatId) return -1;
+      if (b.chat_details.id === currentActiveChatId) return 1;
+      return 0;
+    });
+
+    for (let i = 0; i < sortedChats.length; i++) {
+      const chatItem = sortedChats[i];
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Yield to the main thread between non-active chat saves to prevent UI jank
+      if (i > 0) {
+        await yieldToMainThread();
+      }
 
       // Skip chats that are pending server deletion - do not re-add them
       if (pendingDeletions.has(chatId)) {
@@ -534,9 +560,24 @@ async function storeAllChats(
       await import("./pendingChatDeletions");
     const pendingDeletions = getPendingChatDeletionsSet();
 
-    for (const chatItem of chats) {
+    // PERFORMANCE FIX: Sort chats so the active chat is processed first.
+    // Same pattern as Phase 2 — prevents UI jank on mobile devices.
+    const currentActiveChatId = activeChatStore.get();
+    const sortedChats = [...chats].sort((a, b) => {
+      if (a.chat_details.id === currentActiveChatId) return -1;
+      if (b.chat_details.id === currentActiveChatId) return 1;
+      return 0;
+    });
+
+    for (let i = 0; i < sortedChats.length; i++) {
+      const chatItem = sortedChats[i];
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Yield to the main thread between non-active chat saves to prevent UI jank
+      if (i > 0) {
+        await yieldToMainThread();
+      }
 
       // Skip chats that are pending server deletion - do not re-add them
       if (pendingDeletions.has(chatId)) {

@@ -754,27 +754,53 @@ export async function batchSaveMessages(
   const messagesToSkip = new Set<string>();
   const existingMessagesMap = new Map<string, Message>();
 
-  // First, get all existing messages by their IDs using individual quick transactions
-  // This avoids the transaction auto-commit issue
+  // First, get all existing messages by their IDs using individual quick transactions.
+  // This avoids the transaction auto-commit issue.
+  // We use a single shared read transaction when possible for better performance,
+  // falling back to individual transactions only if the shared one fails.
+  let sharedReadTransaction: IDBTransaction | null = null;
+  try {
+    sharedReadTransaction = await dbInstance.getTransaction(
+      MESSAGES_STORE_NAME,
+      "readonly",
+    );
+  } catch {
+    // Shared transaction failed — will fall back to per-message transactions below
+    console.debug(
+      `[ChatDatabase] batchSaveMessages: Could not create shared read transaction, will use per-message fallback`,
+    );
+  }
+
   const existingMessageChecks = await Promise.all(
     validMessages.map(async (message) => {
       try {
-        // Create a fresh read transaction for each check - quick and safe
-        const checkTransaction = await dbInstance.getTransaction(
-          MESSAGES_STORE_NAME,
-          "readonly",
-        );
+        // Try the shared transaction first; if it's no longer active, create a fresh one
+        let txn = sharedReadTransaction;
+        try {
+          if (txn) {
+            // Test if the shared transaction is still active by accessing its objectStore
+            txn.objectStore(MESSAGES_STORE_NAME);
+          }
+        } catch {
+          txn = null; // Shared transaction expired, fall back
+        }
+
+        if (!txn) {
+          txn = await dbInstance.getTransaction(
+            MESSAGES_STORE_NAME,
+            "readonly",
+          );
+        }
+
         const existingMessage = await getMessage(
           dbInstance,
           message.message_id,
-          checkTransaction,
+          txn,
         );
         return { message, existingMessage };
-      } catch (checkError) {
-        console.warn(
-          `[ChatDatabase] batchSaveMessages: Could not check for existing message ${message.message_id}, will save anyway:`,
-          checkError,
-        );
+      } catch {
+        // Silently treat as "not found" — the put() below will handle it correctly
+        // since IndexedDB put() is an upsert operation (insert or update).
         return { message, existingMessage: null };
       }
     }),
