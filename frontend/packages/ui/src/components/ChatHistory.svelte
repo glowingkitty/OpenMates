@@ -701,9 +701,11 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // ChatGPT-like scroll behavior: when user sends a message, scroll to position
-  // the BOTTOM of the user message near the top of the viewport (showing last 1-2 lines)
-  // This leaves maximum space below for the assistant's response to render
+  // ChatGPT-like scroll behavior: when user sends a message, scroll so that only
+  // the LAST LINE of the user message is visible at the top of the viewport.
+  // This leaves maximum space below for the assistant's response to render.
+  // The scroll target is computed dynamically from the actual rendered line height
+  // so it works correctly regardless of viewport width or message length.
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
@@ -724,15 +726,36 @@
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Calculate scroll position to show the BOTTOM of the user message near the top.
-            // messageRect.bottom gives us the bottom edge of the message.
-            // We want the bottom of the message to be ~60px from the top of the viewport.
-            // This shows the last 1-2 lines of the user message with space below for the response.
-            const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
-            const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
+            // Measure the actual rendered line height from a text paragraph inside the
+            // message bubble. This adapts to any font-size / line-height / viewport width.
+            // Falls back to 24px (16px * 1.5 line-height) if the element can't be found.
+            let lineHeight = 24;
+            const paragraph = userMessageElement.querySelector('.ProseMirror p');
+            if (paragraph) {
+              const computed = window.getComputedStyle(paragraph);
+              const parsed = parseFloat(computed.lineHeight);
+              if (!isNaN(parsed) && parsed > 0) {
+                lineHeight = parsed;
+              }
+            }
+
+            // We want the scroll position such that only the last line of text
+            // (plus the bubble's bottom padding/chrome) peeks above the viewport top.
+            // "visiblePortion" = one line of text + bubble bottom padding (12px) + 
+            //   bubble tail/shadow clearance (8px)
+            const visiblePortion = lineHeight + 20;
+
+            // topOfMessage in scroll coordinates (relative to container's scroll origin)
+            const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+            // Total rendered height of the message wrapper element
+            const messageHeight = messageRect.height;
+
+            // Scroll so that the message is pushed up, leaving only visiblePortion showing.
+            // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
+            const scrollTarget = topOfMessage + messageHeight - visiblePortion;
 
             container.scrollTo({
-              top: Math.max(0, scrollOffset), // Don't scroll to negative
+              top: Math.max(0, scrollTarget),
               behavior: 'smooth'
             });
 
