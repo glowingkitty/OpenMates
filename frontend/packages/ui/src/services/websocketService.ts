@@ -315,7 +315,7 @@ class WebSocketService extends EventTarget {
 
     // Prevent connection attempts during logout to avoid auth errors
     if (get(isLoggingOut) || get(forcedLogoutInProgress)) {
-      console.debug("[WebSocketService] Cannot connect: Logout in progress.");
+      console.info("[WebSocketService] Cannot connect: Logout in progress.");
       websocketStatus.setStatus("disconnected");
       return Promise.reject("Logout in progress");
     }
@@ -327,15 +327,15 @@ class WebSocketService extends EventTarget {
     const sessionId = getSessionId();
     const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
-    // Enhanced debug logging for Safari/iPad troubleshooting
-    console.debug(
+    // Log auth token status at info level so it's visible in Loki for debugging connection issues
+    console.info(
       `[WebSocketService] Auth token retrieved: ${sanitizeTokenForLogging(authToken)}`,
     );
     if (!authToken) {
       console.warn(
         "[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad",
       );
-      console.debug(
+      console.info(
         "[WebSocketService] Checking sessionStorage keys:",
         typeof sessionStorage !== "undefined"
           ? Object.keys(sessionStorage)
@@ -344,7 +344,7 @@ class WebSocketService extends EventTarget {
     }
 
     this.url = getWebSocketUrl(sessionId, authToken || undefined);
-    console.debug(
+    console.info(
       `[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ""}`,
     );
 
@@ -949,7 +949,7 @@ class WebSocketService extends EventTarget {
    */
   public retryConnection(): void {
     if (this.isConnected()) {
-      console.debug("[WebSocketService] retryConnection: already connected.");
+      console.info("[WebSocketService] retryConnection: already connected.");
       return;
     }
     if (!get(authStore).isAuthenticated) {
@@ -959,7 +959,7 @@ class WebSocketService extends EventTarget {
       return;
     }
     if (this.connectionPromise) {
-      console.debug(
+      console.info(
         "[WebSocketService] retryConnection: connection attempt already in progress.",
       );
       return;

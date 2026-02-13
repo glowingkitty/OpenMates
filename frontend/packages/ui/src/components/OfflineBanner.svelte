@@ -55,6 +55,7 @@
      */
     function showOfflineNotification(): void {
         if (offlineNotificationId !== null) return; // Already showing
+        console.info('[OfflineBanner] Showing offline notification');
 
         const message = $text(
             'notifications.connection.offline_banner.text',
@@ -95,6 +96,7 @@
      */
     function hideOfflineNotification(): void {
         if (offlineNotificationId === null) return; // Not showing
+        console.info('[OfflineBanner] Hiding offline notification — connection restored');
 
         notificationStore.removeNotification(offlineNotificationId);
         offlineNotificationId = null;
@@ -123,6 +125,7 @@
 
         if (!online) {
             // Browser says offline — show immediately
+            console.info('[OfflineBanner] Browser reports offline (navigator.onLine=false)');
             showOfflineNotification();
         } else if (online && offlineNotificationId !== null) {
             // Browser says online — decide whether to hide based on auth status
@@ -168,6 +171,7 @@
 
         if (wsState.status === 'connected') {
             // WebSocket connected — hide notification and reset state
+            console.info('[OfflineBanner] WebSocket status changed to connected');
             clearWsOfflineTimer();
             wsDisconnectedSince = null;
             if (browserOnline) {
@@ -177,6 +181,7 @@
             // WebSocket is not connected
             if (wsDisconnectedSince === null) {
                 // First time noticing disconnection — record timestamp
+                console.info(`[OfflineBanner] WebSocket status changed to ${wsState.status} — starting ${WS_OFFLINE_DELAY_MS}ms timer`);
                 wsDisconnectedSince = Date.now();
             }
 
