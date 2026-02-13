@@ -232,8 +232,8 @@ skills:
   # Search Stays – hotel / hostel / accommodation search via Google Hotels
   # -----------------------------------------------------------------------
   - id: search_stays
-    name_translation_key: app_skills.travel.search_stays
-    description_translation_key: app_skills.travel.search_stays.description
+    name_translation_key: app_skills.travel.search_stays.text
+    description_translation_key: app_skills.travel.search_stays.description.text
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:
       per_unit:
