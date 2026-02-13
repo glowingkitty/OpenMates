@@ -1339,6 +1339,11 @@ async def _async_process_ai_skill_ask_task(
                         category=msg_dict.get("category")
                     ))
                 
+                # Preserve the current task's selected mate for follow-up messages.
+                # Without this, the preprocessor would re-select a mate based on category,
+                # potentially switching to a different persona mid-conversation.
+                current_mate_id = preprocessing_result.selected_mate_id if preprocessing_result else None
+                
                 combined_request = AskSkillRequestType(
                     chat_id=combined_chat_id,
                     message_id=combined_message_id,
@@ -1346,7 +1351,7 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     chat_has_title=combined_chat_has_title,
-                    mate_id=None,
+                    mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
                     user_preferences={}
                 )

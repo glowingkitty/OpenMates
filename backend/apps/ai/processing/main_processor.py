@@ -1955,7 +1955,7 @@ async def handle_main_processing(
                                     "message_id": request_data.message_id,
                                     "user_id": request_data.user_id,
                                     "user_id_hash": request_data.user_id_hash,
-                                    "mate_id": request_data.mate_id,
+                                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,  # Use preprocessor-selected mate, not the (typically None) request mate_id
                                     "chat_has_title": request_data.chat_has_title,
                                     "is_incognito": getattr(request_data, 'is_incognito', False),
                                     "task_id": task_id,

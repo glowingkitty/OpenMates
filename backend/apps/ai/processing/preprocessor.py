@@ -1226,7 +1226,22 @@ async def handle_preprocessing(
     # --- Mate selection based on validated category ---
     selected_mate_id: Optional[str] = None
 
-    if validated_category:
+    # If mate_id is explicitly provided (e.g., from focus mode continuation or follow-up queue),
+    # respect it and skip category-based selection. This prevents mate switching when the
+    # preprocessor re-runs during continuation tasks.
+    if request_data.mate_id:
+        # Validate the explicit mate_id exists in the mates list
+        explicit_mate = next((mate for mate in all_mates if mate.id == request_data.mate_id), None) if all_mates else None
+        if explicit_mate:
+            selected_mate_id = explicit_mate.id
+            logger.info(f"{log_prefix} Using explicitly provided mate_id '{selected_mate_id}' (skipping category-based selection).")
+        else:
+            logger.warning(
+                f"{log_prefix} Explicit mate_id '{request_data.mate_id}' not found in mates list. "
+                f"Falling back to category-based selection."
+            )
+
+    if not selected_mate_id and validated_category:
         if not all_mates:
             logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{validated_category}'.")
         else:

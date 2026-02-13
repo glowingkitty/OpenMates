@@ -2654,15 +2654,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // When a focus mode continuation task streams to the same message_id, the existing
             // message already has content (the focus mode activation embed). The continuation's
             // full_content_so_far only contains the new LLM text, not the embed.
-            // Detect this case: existing message was 'synced' (finalized from first stream) and
-            // a new streaming chunk arrives. Capture the existing content as a prefix once,
+            // Detect this case and capture the existing content as a prefix once,
             // then prepend it to all subsequent full_content_so_far values.
-            if (targetMessage.status === 'synced' && targetMessage.content && chunk.full_content_so_far) {
-                // First chunk of a continuation stream targeting an already-finalized message.
-                // Store the existing content as a prefix in a Map keyed by message_id.
-                if (!continuationContentPrefixes.has(chunk.message_id)) {
+            // We check multiple conditions to handle timing races:
+            //   1. Message is 'synced' (normal case: first stream finalized, continuation starts)
+            //   2. Message has any status but contains a focus_mode_activation embed reference
+            //      (race case: continuation starts before/during first stream finalization)
+            if (targetMessage.content && chunk.full_content_so_far && !continuationContentPrefixes.has(chunk.message_id)) {
+                const hasFocusEmbed = targetMessage.content.includes('"type":"focus_mode_activation"') ||
+                                      targetMessage.content.includes('"type": "focus_mode_activation"');
+                if (targetMessage.status === 'synced' || hasFocusEmbed) {
                     continuationContentPrefixes.set(chunk.message_id, targetMessage.content);
-                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars) for message ${chunk.message_id}`);
+                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars, status: ${targetMessage.status}) for message ${chunk.message_id}`);
                 }
             }
             

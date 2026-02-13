@@ -883,6 +883,7 @@ export async function sendNewMessageImpl(
     message_history?: Message[];
     encrypted_suggestion_to_delete?: string | null;
     app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
+    active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
   }
   const payload: SendMessagePayload = {
     chat_id: message.chat_id,
@@ -910,6 +911,34 @@ export async function sendNewMessageImpl(
       "[ChatSyncService:Senders] Including app settings/memories metadata:",
       appSettingsMemoriesMetadataKeys,
     );
+  }
+
+  // Include active focus mode ID for AI processing (if focus mode is active)
+  // The client is the only entity that can decrypt encrypted_active_focus_id (E2E encrypted),
+  // so we decrypt it here and send the plaintext focus_id to the server for AI context.
+  if (!isIncognitoChat && chat?.encrypted_active_focus_id) {
+    try {
+      const chatKey = chatDB.getChatKey(message.chat_id);
+      if (chatKey) {
+        const { decryptWithChatKey } = await import("./cryptoService");
+        const activeFocusId = await decryptWithChatKey(
+          chat.encrypted_active_focus_id,
+          chatKey,
+        );
+        if (activeFocusId) {
+          payload.active_focus_id = activeFocusId;
+          console.debug(
+            "[ChatSyncService:Senders] Including active_focus_id for AI processing:",
+            activeFocusId,
+          );
+        }
+      }
+    } catch (e) {
+      console.warn(
+        "[ChatSyncService:Senders] Failed to decrypt active_focus_id, AI will use default focus:",
+        e,
+      );
+    }
   }
 
   // For incognito chats, include full message history (no server-side caching)
