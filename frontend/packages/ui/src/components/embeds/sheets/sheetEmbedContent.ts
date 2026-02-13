@@ -254,3 +254,363 @@ function escapeCSVCell(value: string): string {
   }
   return value;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TSV export — tab-separated values for clipboard paste into Excel/Google Sheets
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert headers + rows to TSV (tab-separated values) string.
+ * TSV is the format Excel and Google Sheets expect when pasting from clipboard.
+ * Tabs inside cell content are replaced with spaces to avoid column misalignment.
+ */
+export function tableToTSV(headers: TableCell[], rows: TableCell[][]): string {
+  const lines: string[] = [];
+  lines.push(headers.map((h) => h.content.replace(/\t/g, " ")).join("\t"));
+  for (const row of rows) {
+    lines.push(row.map((cell) => cell.content.replace(/\t/g, " ")).join("\t"));
+  }
+  return lines.join("\n");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// XLSX export — minimal Office Open XML generator, zero external dependencies.
+//
+// An .xlsx file is a ZIP archive containing XML files:
+//   [Content_Types].xml       — declares part types
+//   _rels/.rels               — package relationships
+//   xl/workbook.xml           — workbook with sheet list
+//   xl/_rels/workbook.xml.rels — workbook relationships
+//   xl/styles.xml             — cell styles (bold header row)
+//   xl/worksheets/sheet1.xml  — the actual cell data
+//   xl/sharedStrings.xml      — string table for cell values
+//
+// We build the ZIP using the browser-native CompressionStream (deflate-raw)
+// with a manual ZIP container. All modern browsers support this API.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generate an .xlsx Blob from headers and data rows.
+ * Uses the browser-native CompressionStream API for deflate compression.
+ */
+export async function tableToXlsx(
+  headers: TableCell[],
+  rows: TableCell[][],
+  sheetName = "Sheet1",
+): Promise<Blob> {
+  // 1. Build shared string table (all unique cell values)
+  const sharedStrings: string[] = [];
+  const stringIndex = new Map<string, number>();
+
+  function getStringIndex(value: string): number {
+    let idx = stringIndex.get(value);
+    if (idx === undefined) {
+      idx = sharedStrings.length;
+      sharedStrings.push(value);
+      stringIndex.set(value, idx);
+    }
+    return idx;
+  }
+
+  // Index all header and data cell values
+  for (const h of headers) getStringIndex(h.content);
+  for (const row of rows) {
+    for (const cell of row) getStringIndex(cell.content);
+  }
+
+  // 2. Build sheet XML
+  const sheetXml = buildSheetXml(headers, rows, getStringIndex);
+
+  // 3. Build shared strings XML
+  const sharedStringsXml = buildSharedStringsXml(sharedStrings);
+
+  // 4. Build all required OOXML parts
+  const files: Record<string, string> = {
+    "[Content_Types].xml": contentTypesXml(),
+    "_rels/.rels": relsXml(),
+    "xl/workbook.xml": workbookXml(sheetName),
+    "xl/_rels/workbook.xml.rels": workbookRelsXml(),
+    "xl/styles.xml": stylesXml(),
+    "xl/worksheets/sheet1.xml": sheetXml,
+    "xl/sharedStrings.xml": sharedStringsXml,
+  };
+
+  // 5. Create ZIP archive
+  return await createZipBlob(files);
+}
+
+/**
+ * Convert a column index (0-based) to Excel column letter(s).
+ * 0 → A, 1 → B, …, 25 → Z, 26 → AA, 27 → AB, etc.
+ */
+function colIndexToLetter(index: number): string {
+  let result = "";
+  let n = index;
+  while (n >= 0) {
+    result = String.fromCharCode((n % 26) + 65) + result;
+    n = Math.floor(n / 26) - 1;
+  }
+  return result;
+}
+
+/** XML-escape special characters in cell content */
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Build the worksheet XML with cell references pointing to shared strings.
+ * Header row uses style index 1 (bold). Data rows use style index 0 (default).
+ */
+function buildSheetXml(
+  headers: TableCell[],
+  rows: TableCell[][],
+  getStringIndex: (value: string) => number,
+): string {
+  const colCount = headers.length;
+  const lastCol = colIndexToLetter(colCount - 1);
+  const lastRow = rows.length + 1; // +1 for header row
+
+  let xml =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+    ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">\n' +
+    `<dimension ref="A1:${lastCol}${lastRow}"/>\n` +
+    "<sheetData>\n";
+
+  // Header row (row 1) with bold style (s="1")
+  xml += '<row r="1">\n';
+  for (let c = 0; c < colCount; c++) {
+    const ref = `${colIndexToLetter(c)}1`;
+    const si = getStringIndex(headers[c].content);
+    xml += `<c r="${ref}" t="s" s="1"><v>${si}</v></c>\n`;
+  }
+  xml += "</row>\n";
+
+  // Data rows (row 2+)
+  for (let r = 0; r < rows.length; r++) {
+    const rowNum = r + 2;
+    xml += `<row r="${rowNum}">\n`;
+    for (let c = 0; c < colCount; c++) {
+      const ref = `${colIndexToLetter(c)}${rowNum}`;
+      const cellContent = rows[r][c]?.content ?? "";
+      const si = getStringIndex(cellContent);
+      xml += `<c r="${ref}" t="s"><v>${si}</v></c>\n`;
+    }
+    xml += "</row>\n";
+  }
+
+  xml += "</sheetData>\n</worksheet>";
+  return xml;
+}
+
+/** Build the shared strings XML table */
+function buildSharedStringsXml(strings: string[]): string {
+  let xml =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${strings.length}" uniqueCount="${strings.length}">\n`;
+  for (const s of strings) {
+    xml += `<si><t>${escapeXml(s)}</t></si>\n`;
+  }
+  xml += "</sst>";
+  return xml;
+}
+
+/** [Content_Types].xml — declares the MIME types for each part */
+function contentTypesXml(): string {
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>' +
+    "</Types>"
+  );
+}
+
+/** Package-level relationships */
+function relsXml(): string {
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    "</Relationships>"
+  );
+}
+
+/** Workbook XML listing the sheets */
+function workbookXml(sheetName: string): string {
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+    ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    `<sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets>` +
+    "</workbook>"
+  );
+}
+
+/** Workbook relationships — links sheet and shared strings */
+function workbookRelsXml(): string {
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>' +
+    "</Relationships>"
+  );
+}
+
+/**
+ * Minimal styles.xml — defines two cell formats:
+ *   index 0 = default (normal text)
+ *   index 1 = bold (for header row)
+ */
+function stylesXml(): string {
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    "<fonts>" +
+    '<font><sz val="11"/><name val="Calibri"/></font>' +
+    '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
+    "</fonts>" +
+    '<fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+    "<borders><border/></borders>" +
+    '<cellStyleXfs count="1"><xf/></cellStyleXfs>' +
+    "<cellXfs>" +
+    "<xf/>" +
+    '<xf fontId="1" applyFont="1"/>' +
+    "</cellXfs>" +
+    "</styleSheet>"
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Minimal ZIP archive builder using browser-native CompressionStream
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Create a ZIP Blob from a map of file paths → UTF-8 string content.
+ * Uses STORE method (no compression) for maximum compatibility. The files
+ * are small XML so compression savings are negligible.
+ */
+async function createZipBlob(files: Record<string, string>): Promise<Blob> {
+  const encoder = new TextEncoder();
+  const entries: Array<{
+    name: Uint8Array;
+    data: Uint8Array;
+    crc: number;
+    offset: number;
+  }> = [];
+
+  const parts: Uint8Array[] = [];
+  let offset = 0;
+
+  // Write local file headers + file data
+  for (const [path, content] of Object.entries(files)) {
+    const nameBytes = encoder.encode(path);
+    const dataBytes = encoder.encode(content);
+    const crc = crc32(dataBytes);
+
+    // Local file header (30 bytes + name + data)
+    const header = new Uint8Array(30 + nameBytes.length);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 0x04034b50, true); // local file header signature
+    view.setUint16(4, 20, true); // version needed (2.0)
+    view.setUint16(6, 0, true); // general purpose bit flag
+    view.setUint16(8, 0, true); // compression method: STORE
+    view.setUint16(10, 0, true); // last mod time
+    view.setUint16(12, 0, true); // last mod date
+    view.setUint32(14, crc, true); // crc-32
+    view.setUint32(18, dataBytes.length, true); // compressed size
+    view.setUint32(22, dataBytes.length, true); // uncompressed size
+    view.setUint16(26, nameBytes.length, true); // file name length
+    view.setUint16(28, 0, true); // extra field length
+    header.set(nameBytes, 30);
+
+    entries.push({ name: nameBytes, data: dataBytes, crc, offset });
+    parts.push(header);
+    parts.push(dataBytes);
+    offset += header.length + dataBytes.length;
+  }
+
+  // Write central directory
+  const centralStart = offset;
+  for (const entry of entries) {
+    const cdHeader = new Uint8Array(46 + entry.name.length);
+    const cdView = new DataView(cdHeader.buffer);
+    cdView.setUint32(0, 0x02014b50, true); // central directory header signature
+    cdView.setUint16(4, 20, true); // version made by
+    cdView.setUint16(6, 20, true); // version needed
+    cdView.setUint16(8, 0, true); // flags
+    cdView.setUint16(10, 0, true); // compression: STORE
+    cdView.setUint16(12, 0, true); // last mod time
+    cdView.setUint16(14, 0, true); // last mod date
+    cdView.setUint32(16, entry.crc, true); // crc-32
+    cdView.setUint32(20, entry.data.length, true); // compressed size
+    cdView.setUint32(24, entry.data.length, true); // uncompressed size
+    cdView.setUint16(28, entry.name.length, true); // file name length
+    cdView.setUint16(30, 0, true); // extra field length
+    cdView.setUint16(32, 0, true); // file comment length
+    cdView.setUint16(34, 0, true); // disk number start
+    cdView.setUint16(36, 0, true); // internal file attributes
+    cdView.setUint32(38, 0, true); // external file attributes
+    cdView.setUint32(42, entry.offset, true); // relative offset of local header
+    cdHeader.set(entry.name, 46);
+    parts.push(cdHeader);
+    offset += cdHeader.length;
+  }
+
+  const centralSize = offset - centralStart;
+
+  // End of central directory record (22 bytes)
+  const eocd = new Uint8Array(22);
+  const eocdView = new DataView(eocd.buffer);
+  eocdView.setUint32(0, 0x06054b50, true); // end of central dir signature
+  eocdView.setUint16(4, 0, true); // disk number
+  eocdView.setUint16(6, 0, true); // disk with central dir
+  eocdView.setUint16(8, entries.length, true); // entries on this disk
+  eocdView.setUint16(10, entries.length, true); // total entries
+  eocdView.setUint32(12, centralSize, true); // central directory size
+  eocdView.setUint32(16, centralStart, true); // central directory offset
+  eocdView.setUint16(20, 0, true); // comment length
+  parts.push(eocd);
+
+  return new Blob(parts as BlobPart[], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+/**
+ * CRC-32 implementation (ISO 3309 / ITU-T V.42).
+ * Used for ZIP local file headers and central directory entries.
+ */
+function crc32(data: Uint8Array): number {
+  // Build CRC table on first call (lazy singleton)
+  if (!crc32Table) {
+    crc32Table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      }
+      crc32Table[i] = c;
+    }
+  }
+
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc = crc32Table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** Lazy-initialized CRC-32 lookup table */
+let crc32Table: Uint32Array | null = null;

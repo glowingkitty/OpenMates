@@ -4,16 +4,20 @@
   Fullscreen view for Sheet/Table embeds.
   Uses UnifiedEmbedFullscreen as base and provides table-specific content.
   
-  Shows:
-  - Table title and dimensions in header
-  - Full scrollable table with column sorting and per-column text filtering
-  - Copy as CSV / Markdown buttons, Download CSV button
-  - Basic infos bar at the bottom
+  Design: Excel/Google Sheets-like appearance
+  - Always white background regardless of dark mode (like real spreadsheet software)
+  - Thin grey grid lines on all cell borders
+  - Light grey header row with bold text
+  - Row numbers in a fixed left gutter column
+  - Horizontal + vertical scrolling for wide/tall tables (no squeezing)
+  - Column sorting (click headers to cycle asc → desc → none)
+  - Per-column text filtering (toggle via filter button in the action bar)
   
-  Sorting: Click column headers to cycle through ascending → descending → none.
-  Filtering: Toggle filter row via toolbar button. Type in filter inputs to
-  match rows whose cell content includes the filter text (case-insensitive).
-  All operations are performed on in-memory arrays — no external dependencies.
+  Copy/Download:
+  - Copy button copies TSV (tab-separated) — pastes correctly into Excel/Sheets
+  - Download button exports .xlsx (Office Open XML) — opens natively in Excel/Sheets
+  - Both are wired through UnifiedEmbedFullscreen's onCopy/onDownload props
+    (uses the standard top-bar icon buttons, no custom text toolbar)
 -->
 
 <script lang="ts">
@@ -23,7 +27,8 @@
   import { 
     parseSheetEmbedContent, 
     formatTableDimensions, 
-    type TableCell
+    tableToTSV,
+    tableToXlsx,
   } from './sheetEmbedContent';
   
   /**
@@ -75,102 +80,75 @@
   let parsedContent = $derived.by(() => parseSheetEmbedContent(tableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
-  let renderMarkdown = $derived(parsedContent.markdown);
   
   // Get actual dimensions
   let actualRowCount = $derived(rowCount > 0 ? rowCount : parsedTable.rowCount);
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
   
   // ── Sorting state ──────────────────────────────────────────────────
-  // sortColumnIndex: which column is sorted (-1 = none)
-  // sortDirection: 'asc' | 'desc' | 'none'
   let sortColumnIndex = $state(-1);
   let sortDirection = $state<'asc' | 'desc' | 'none'>('none');
   
   /**
    * Cycle sort direction for a column header click.
-   * Clicking the same column cycles: none → asc → desc → none.
-   * Clicking a different column starts at asc.
+   * Same column: none → asc → desc → none. Different column: start at asc.
    */
   function handleSortClick(colIndex: number) {
     if (sortColumnIndex !== colIndex) {
-      // New column — start ascending
       sortColumnIndex = colIndex;
       sortDirection = 'asc';
     } else {
-      // Same column — cycle
-      if (sortDirection === 'asc') {
-        sortDirection = 'desc';
-      } else if (sortDirection === 'desc') {
-        sortDirection = 'none';
-        sortColumnIndex = -1;
-      } else {
-        sortDirection = 'asc';
-      }
+      if (sortDirection === 'asc') sortDirection = 'desc';
+      else if (sortDirection === 'desc') { sortDirection = 'none'; sortColumnIndex = -1; }
+      else sortDirection = 'asc';
     }
   }
   
   // ── Filtering state ────────────────────────────────────────────────
-  // One filter string per column. Empty string = no filter for that column.
   let showFilters = $state(false);
   let columnFilters = $state<string[]>([]);
   
-  // Reset filters when the table content changes (e.g. navigating between embeds)
+  // Reset filters when table changes
   $effect(() => {
-    // Access parsedTable to track it as a dependency
-    const colCount = parsedTable.headers.length;
-    columnFilters = new Array(colCount).fill('');
+    const cols = parsedTable.headers.length;
+    columnFilters = new Array(cols).fill('');
     sortColumnIndex = -1;
     sortDirection = 'none';
   });
   
-  /** Check whether any column filter is active */
   let hasActiveFilters = $derived(columnFilters.some(f => f.length > 0));
   
-  /**
-   * Clear all column filters
-   */
   function clearFilters() {
     columnFilters = columnFilters.map(() => '');
   }
   
   // ── Derived: filtered + sorted rows ────────────────────────────────
-  /**
-   * Apply column filters and sorting to produce the visible rows.
-   * All operations are pure array transforms — no mutation of parsedTable.
-   */
   let displayRows = $derived.by(() => {
     let rows = parsedTable.rows;
     
-    // 1. Filter: keep rows where every column with a non-empty filter matches
+    // Filter
     if (hasActiveFilters) {
-      rows = rows.filter(row => {
-        return columnFilters.every((filter, colIdx) => {
+      rows = rows.filter(row =>
+        columnFilters.every((filter, colIdx) => {
           if (!filter) return true;
           const cellContent = row[colIdx]?.content ?? '';
           return cellContent.toLowerCase().includes(filter.toLowerCase());
-        });
-      });
+        })
+      );
     }
     
-    // 2. Sort by selected column
+    // Sort
     if (sortColumnIndex >= 0 && sortDirection !== 'none') {
       const col = sortColumnIndex;
       const dir = sortDirection === 'asc' ? 1 : -1;
-      
-      // Spread to avoid mutating the original array
       rows = [...rows].sort((a, b) => {
         const aVal = a[col]?.content ?? '';
         const bVal = b[col]?.content ?? '';
-        
-        // Try numeric comparison first
         const aNum = Number(aVal);
         const bNum = Number(bVal);
         if (!isNaN(aNum) && !isNaN(bNum) && aVal !== '' && bVal !== '') {
           return (aNum - bNum) * dir;
         }
-        
-        // Fall back to locale-aware string comparison
         return aVal.localeCompare(bVal) * dir;
       });
     }
@@ -178,18 +156,12 @@
     return rows;
   });
   
-  /** How many rows are visible after filtering (used in status text) */
   let filteredRowCount = $derived(displayRows.length);
   
   // Build skill name for BasicInfosBar
-  let skillName = $derived.by(() => {
-    if (renderTitle) {
-      return renderTitle;
-    }
-    return $text('embeds.table.text');
-  });
+  let skillName = $derived.by(() => renderTitle || $text('embeds.table.text'));
   
-  // Build status text — show filtered count when filters are active
+  // Build status text
   let statusText = $derived.by(() => {
     if (actualRowCount === 0 && actualColCount === 0) return '';
     const dims = formatTableDimensions(actualRowCount, actualColCount);
@@ -199,21 +171,20 @@
     return dims;
   });
   
-  // No header title in fullscreen (buttons overlay the top area)
+  // No header title in fullscreen
   const fullscreenTitle = '';
-  
-  // Icon for tables
   const skillIconName = 'table';
   
   /**
-   * Copy table as CSV to clipboard
+   * Copy table as TSV to clipboard.
+   * TSV (tab-separated values) is what Excel and Google Sheets expect on paste.
    */
-  async function handleCopyCSV() {
+  async function handleCopy() {
     try {
-      const csv = displayRowsToCSV(parsedTable.headers, displayRows);
-      await navigator.clipboard.writeText(csv);
-      console.debug('[SheetEmbedFullscreen] Copied table as CSV to clipboard');
-      notificationStore.success('Table copied to clipboard as CSV');
+      const tsv = tableToTSV(parsedTable.headers, displayRows);
+      await navigator.clipboard.writeText(tsv);
+      console.debug('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
+      notificationStore.success('Table copied — paste into Excel or Google Sheets');
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to copy table:', error);
       notificationStore.error('Failed to copy table to clipboard');
@@ -221,63 +192,28 @@
   }
   
   /**
-   * Copy table as markdown to clipboard
-   */
-  async function handleCopyMarkdown() {
-    try {
-      await navigator.clipboard.writeText(renderMarkdown);
-      console.debug('[SheetEmbedFullscreen] Copied table as markdown to clipboard');
-      notificationStore.success('Table copied to clipboard as Markdown');
-    } catch (error) {
-      console.error('[SheetEmbedFullscreen] Failed to copy table:', error);
-      notificationStore.error('Failed to copy table to clipboard');
-    }
-  }
-  
-  /**
-   * Download table as CSV file.
+   * Download table as .xlsx file.
+   * Generates a minimal Office Open XML workbook using zero external dependencies.
    * When filters/sorting are active, exports only the visible rows.
    */
-  async function handleDownloadCSV() {
+  async function handleDownload() {
     try {
-      const csv = displayRowsToCSV(parsedTable.headers, displayRows);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const sheetName = renderTitle || 'Table';
+      const blob = await tableToXlsx(parsedTable.headers, displayRows, sheetName);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${renderTitle || 'table'}.csv`;
+      link.download = `${renderTitle || 'table'}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.debug('[SheetEmbedFullscreen] Downloaded table as CSV');
-      notificationStore.success('Table downloaded as CSV');
+      console.debug('[SheetEmbedFullscreen] Downloaded table as .xlsx');
+      notificationStore.success('Table downloaded as .xlsx');
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to download table:', error);
       notificationStore.error('Failed to download table');
     }
-  }
-  
-  /**
-   * Convert headers + display rows (possibly filtered/sorted) to CSV string.
-   */
-  function displayRowsToCSV(headers: TableCell[], rows: TableCell[][]): string {
-    const lines: string[] = [];
-    lines.push(headers.map(h => escapeCSVCell(h.content)).join(','));
-    for (const row of rows) {
-      lines.push(row.map(cell => escapeCSVCell(cell.content)).join(','));
-    }
-    return lines.join('\n');
-  }
-  
-  /**
-   * Escape a cell value for CSV output.
-   */
-  function escapeCSVCell(value: string): string {
-    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
   }
 </script>
 
@@ -291,6 +227,8 @@
   showSkillIcon={false}
   title={fullscreenTitle}
   {onClose}
+  onCopy={handleCopy}
+  onDownload={handleDownload}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -301,126 +239,88 @@
 >
   {#snippet content()}
     <div class="sheet-fullscreen">
-      <!-- Action buttons -->
-      <div class="action-buttons">
-        <button class="action-btn" onclick={handleCopyCSV} title="Copy as CSV">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          <span>Copy CSV</span>
-        </button>
-        <button class="action-btn" onclick={handleCopyMarkdown} title="Copy as Markdown">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          <span>Copy Markdown</span>
-        </button>
-        <button class="action-btn" onclick={handleDownloadCSV} title="Download CSV">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <span>Download</span>
-        </button>
-        
-        <!-- Separator -->
-        <div class="action-separator"></div>
-        
-        <!-- Filter toggle button -->
-        <button
-          class="action-btn"
-          class:action-btn-active={showFilters}
-          onclick={() => { showFilters = !showFilters; if (!showFilters) clearFilters(); }}
-          title="Toggle column filters"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-          </svg>
-          <span>Filter</span>
-        </button>
-        
-        <!-- Clear filters (only shown when filters are active) -->
-        {#if hasActiveFilters}
-          <button class="action-btn action-btn-clear" onclick={clearFilters} title="Clear all filters">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-            <span>Clear</span>
-          </button>
-        {/if}
-      </div>
+      <!-- Filter action bar — only shown when filter is toggled on -->
+      {#if showFilters}
+        <div class="filter-bar">
+          <div class="filter-bar-inner">
+            {#each parsedTable.headers as header, i}
+              <div class="filter-field">
+                <input
+                  type="text"
+                  class="filter-input"
+                  placeholder={header.content}
+                  bind:value={columnFilters[i]}
+                />
+              </div>
+            {/each}
+            {#if hasActiveFilters}
+              <button class="filter-clear-btn" onclick={clearFilters} title="Clear all filters" aria-label="Clear all filters">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
       
-      <!-- Table content -->
-      <div class="table-wrapper">
+      <!-- Spreadsheet area — scrolls both directions -->
+      <div class="spreadsheet-wrapper">
         {#if parsedTable.headers.length > 0}
-          <table class="fullscreen-table">
+          <table class="spreadsheet">
             <thead>
-              <!-- Header row with sort controls -->
               <tr>
+                <!-- Row number gutter header -->
+                <th class="row-num-header">
+                  <!-- Filter toggle lives in the gutter -->
+                  <button
+                    class="filter-toggle"
+                    class:filter-toggle-active={showFilters}
+                    onclick={() => { showFilters = !showFilters; if (!showFilters) clearFilters(); }}
+                    title="Toggle column filters"
+                    aria-label="Toggle column filters"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                  </button>
+                </th>
                 {#each parsedTable.headers as header, i}
                   <th
-                    style:text-align={header.align || 'left'}
-                    class="sortable-header"
+                    class="col-header"
                     onclick={() => handleSortClick(i)}
                     title="Click to sort"
                   >
-                    <span class="header-content">
-                      <span class="col-index">#{i + 1}</span>
-                      <span class="header-text">{header.content}</span>
-                      <span class="sort-indicator" class:sort-active={sortColumnIndex === i && sortDirection !== 'none'}>
+                    <span class="col-header-content">
+                      <span class="col-header-text">{header.content}</span>
+                      <span class="sort-icon" class:sort-icon-active={sortColumnIndex === i && sortDirection !== 'none'}>
                         {#if sortColumnIndex === i && sortDirection === 'asc'}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="18 15 12 9 6 15"></polyline>
-                          </svg>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg>
                         {:else if sortColumnIndex === i && sortDirection === 'desc'}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         {:else}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
-                            <polyline points="8 10 12 6 16 10"></polyline>
-                            <polyline points="8 14 12 18 16 14"></polyline>
-                          </svg>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><polyline points="8 10 12 6 16 10"></polyline><polyline points="8 14 12 18 16 14"></polyline></svg>
                         {/if}
                       </span>
                     </span>
                   </th>
                 {/each}
               </tr>
-              
-              <!-- Filter row (toggled by filter button) -->
-              {#if showFilters}
-                <tr class="filter-row">
-                  {#each parsedTable.headers as header, i}
-                    <th class="filter-cell">
-                      <input
-                        type="text"
-                        class="filter-input"
-                        placeholder="Filter {header.content}..."
-                        bind:value={columnFilters[i]}
-                      />
-                    </th>
-                  {/each}
-                </tr>
-              {/if}
             </thead>
             <tbody>
-              {#each displayRows as row}
+              {#each displayRows as row, rowIndex}
                 <tr>
+                  <td class="row-num">{rowIndex + 1}</td>
                   {#each row as cell}
-                    <td style:text-align={cell.align || 'left'}>{cell.content}</td>
+                    <td>{cell.content}</td>
                   {/each}
                 </tr>
               {/each}
               
-              <!-- Empty filtered state -->
               {#if displayRows.length === 0 && parsedTable.rows.length > 0}
                 <tr>
-                  <td colspan={parsedTable.headers.length} class="no-results">
+                  <td colspan={parsedTable.headers.length + 1} class="no-results">
                     No rows match the current filters
                   </td>
                 </tr>
@@ -429,7 +329,6 @@
           </table>
         {:else}
           <div class="empty-state">
-            <span class="empty-icon">📊</span>
             <p>No table data available</p>
           </div>
         {/if}
@@ -439,6 +338,11 @@
 </UnifiedEmbedFullscreen>
 
 <style>
+  /* ═══════════════════════════════════════════════════════════
+     Sheet Fullscreen — Excel / Google Sheets inspired design
+     Always white background, thin grid lines, row numbers.
+     ═══════════════════════════════════════════════════════════ */
+  
   .sheet-fullscreen {
     display: flex;
     flex-direction: column;
@@ -447,223 +351,237 @@
     overflow: hidden;
   }
   
-  /* Action buttons */
-  .action-buttons {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
-    background: var(--color-grey-5, #fafafa);
+  /* ── Filter bar ────────────────────────────────────────── */
+  
+  .filter-bar {
     flex-shrink: 0;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
   }
   
-  .action-btn {
+  .filter-bar-inner {
     display: flex;
-    align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    border: 1px solid var(--color-grey-20, #eaeaea);
-    border-radius: 6px;
-    background: var(--color-grey-0, #fff);
-    color: var(--color-grey-70, #444);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  
-  .action-btn:hover {
-    background: var(--color-grey-10, #f5f5f5);
-    border-color: var(--color-grey-30, #d0d0d0);
-  }
-  
-  .action-btn:active {
-    transform: scale(0.98);
-  }
-  
-  .action-btn svg {
-    flex-shrink: 0;
-  }
-  
-  .action-btn-active {
-    background: var(--color-primary-10, #e8f0fe);
-    border-color: var(--color-primary-50, #4285f4);
-    color: var(--color-primary-60, #1a73e8);
-  }
-  
-  .action-btn-active:hover {
-    background: var(--color-primary-15, #d2e3fc);
-  }
-  
-  .action-btn-clear {
-    color: var(--color-error-50, #d93025);
-    border-color: var(--color-error-30, #f5c6c2);
-  }
-  
-  .action-btn-clear:hover {
-    background: var(--color-error-5, #fef0ef);
-    border-color: var(--color-error-50, #d93025);
-  }
-  
-  .action-separator {
-    width: 1px;
-    align-self: stretch;
-    margin: 4px 4px;
-    background: var(--color-grey-20, #eaeaea);
-  }
-  
-  /* Table wrapper */
-  .table-wrapper {
-    flex: 1;
-    overflow: auto;
-    padding: 16px;
-  }
-  
-  .fullscreen-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    line-height: 1.5;
-    background: var(--color-grey-0, #fff);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-  
-  .fullscreen-table th,
-  .fullscreen-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
-    border-right: 1px solid var(--color-grey-10, #f5f5f5);
-  }
-  
-  .fullscreen-table th:last-child,
-  .fullscreen-table td:last-child {
-    border-right: none;
-  }
-  
-  .fullscreen-table th {
-    background: var(--color-grey-10, #f5f5f5);
-    font-weight: 600;
-    color: var(--color-grey-90, #1a1a1a);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-  
-  .col-index {
-    font-size: 10px;
-    color: var(--color-grey-40, #999);
-    margin-right: 6px;
-    font-weight: 400;
-  }
-  
-  /* Sortable headers */
-  .sortable-header {
-    cursor: pointer;
-    user-select: none;
-  }
-  
-  .sortable-header:hover {
-    background: var(--color-grey-15, #f0f0f0);
-  }
-  
-  .header-content {
-    display: inline-flex;
     align-items: center;
-    gap: 2px;
+    overflow-x: auto;
   }
   
-  .header-text {
-    flex: 1;
-  }
-  
-  .sort-indicator {
-    display: inline-flex;
-    align-items: center;
-    margin-left: 4px;
-    flex-shrink: 0;
-  }
-  
-  .sort-active {
-    color: var(--color-primary-60, #1a73e8);
-  }
-  
-  /* Filter row */
-  .filter-row th {
-    padding: 4px 8px;
-    background: var(--color-grey-5, #fafafa);
-    border-bottom: 2px solid var(--color-primary-30, #a8c7fa);
-  }
-  
-  .filter-cell {
-    font-weight: 400;
+  .filter-field {
+    flex: 0 0 auto;
+    min-width: 100px;
+    max-width: 180px;
   }
   
   .filter-input {
     width: 100%;
     padding: 4px 8px;
-    border: 1px solid var(--color-grey-20, #eaeaea);
-    border-radius: 4px;
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
     font-size: 12px;
-    background: var(--color-grey-0, #fff);
-    color: var(--color-grey-80, #333);
+    background: #fff;
+    color: #333;
     outline: none;
     box-sizing: border-box;
   }
   
   .filter-input:focus {
-    border-color: var(--color-primary-50, #4285f4);
-    box-shadow: 0 0 0 2px var(--color-primary-10, #e8f0fe);
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
   }
   
   .filter-input::placeholder {
-    color: var(--color-grey-40, #999);
+    color: #999;
   }
   
-  /* No results row */
+  .filter-clear-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: #d93025;
+    cursor: pointer;
+  }
+  
+  .filter-clear-btn:hover {
+    background: #fce8e6;
+  }
+  
+  /* ── Spreadsheet wrapper — scrolls both axes ───────────── */
+  
+  .spreadsheet-wrapper {
+    flex: 1;
+    overflow: auto;
+    /* Top padding to clear the floating top-bar buttons (~70px) */
+    padding-top: 70px;
+  }
+  
+  /* ── Table: always white, thin grid, no rounding ──────── */
+  
+  .spreadsheet {
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
+    white-space: nowrap;
+    background: #ffffff;
+  }
+  
+  /* All cells: thin grey border on every edge */
+  .spreadsheet th,
+  .spreadsheet td {
+    border: 1px solid #e2e2e2;
+    padding: 6px 12px;
+    text-align: left;
+    color: #202124;
+  }
+  
+  /* ── Header row ──────────────────────────────────────── */
+  
+  .spreadsheet thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #202124;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 2px solid #dadce0;
+  }
+  
+  .col-header {
+    cursor: pointer;
+    user-select: none;
+    min-width: 80px;
+  }
+  
+  .col-header:hover {
+    background: #eef1f5;
+  }
+  
+  .col-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .col-header-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .sort-icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: #5f6368;
+  }
+  
+  .sort-icon-active {
+    color: #1a73e8;
+  }
+  
+  /* ── Row number gutter ──────────────────────────────── */
+  
+  .row-num-header,
+  .row-num {
+    background: #f8f9fa;
+    color: #80868b;
+    text-align: center;
+    font-size: 11px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: 6px 4px;
+    user-select: none;
+    border-right: 2px solid #dadce0;
+  }
+  
+  /* Keep gutter sticky on horizontal scroll */
+  .row-num-header,
+  .row-num {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+  
+  .row-num-header {
+    z-index: 3; /* Above both sticky header row and sticky gutter column */
+  }
+  
+  /* Filter toggle button inside the row-number gutter header */
+  .filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: #80868b;
+    cursor: pointer;
+    margin: 0 auto;
+  }
+  
+  .filter-toggle:hover {
+    background: #e8eaed;
+    color: #5f6368;
+  }
+  
+  .filter-toggle-active {
+    background: #e8f0fe;
+    color: #1a73e8;
+  }
+  
+  .filter-toggle-active:hover {
+    background: #d2e3fc;
+  }
+  
+  /* ── Data cells ─────────────────────────────────────── */
+  
+  .spreadsheet tbody td {
+    color: #202124;
+  }
+  
+  /* Subtle alternating row colour for readability */
+  .spreadsheet tbody tr:nth-child(even) td:not(.row-num) {
+    background: #f8f9fb;
+  }
+  
+  .spreadsheet tbody tr:hover td:not(.row-num) {
+    background: #e8f0fe;
+  }
+  
+  .spreadsheet tbody tr:nth-child(even):hover td:not(.row-num) {
+    background: #e8f0fe;
+  }
+  
+  /* ── No-results row ────────────────────────────────── */
+  
   .no-results {
     text-align: center;
     padding: 24px 16px;
-    color: var(--color-grey-50, #888);
+    color: #80868b;
     font-style: italic;
+    background: #fff !important;
   }
   
-  .fullscreen-table td {
-    color: var(--color-grey-80, #333);
-  }
+  /* ── Empty state ───────────────────────────────────── */
   
-  .fullscreen-table tbody tr:hover {
-    background: var(--color-grey-5, #fafafa);
-  }
-  
-  .fullscreen-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-  
-  /* Alternating row colors */
-  .fullscreen-table tbody tr:nth-child(even) {
-    background: var(--color-grey-3, #fcfcfc);
-  }
-  
-  .fullscreen-table tbody tr:nth-child(even):hover {
-    background: var(--color-grey-8, #f7f7f7);
-  }
-  
-  /* Empty state */
   .empty-state {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
     min-height: 200px;
-    color: var(--color-grey-50, #888);
-  }
-  
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.5;
+    color: #80868b;
+    background: #fff;
   }
   
   .empty-state p {
@@ -671,140 +589,28 @@
     margin: 0;
   }
   
-  /* Dark mode */
-  :global(.dark) .action-buttons {
-    background: var(--color-grey-90, #1a1a1a);
-    border-bottom-color: var(--color-grey-80, #333);
-  }
+  /* ── Responsive ────────────────────────────────────── */
   
-  :global(.dark) .action-btn {
-    background: var(--color-grey-85, #252525);
-    border-color: var(--color-grey-75, #404040);
-    color: var(--color-grey-30, #d0d0d0);
-  }
-  
-  :global(.dark) .action-btn:hover {
-    background: var(--color-grey-80, #333);
-    border-color: var(--color-grey-60, #666);
-  }
-  
-  :global(.dark) .action-btn-active {
-    background: var(--color-primary-90, #1a2744);
-    border-color: var(--color-primary-50, #4285f4);
-    color: var(--color-primary-30, #a8c7fa);
-  }
-  
-  :global(.dark) .action-btn-active:hover {
-    background: var(--color-primary-85, #1e3050);
-  }
-  
-  :global(.dark) .action-btn-clear {
-    color: var(--color-error-40, #f28b82);
-    border-color: var(--color-error-80, #5c2624);
-  }
-  
-  :global(.dark) .action-btn-clear:hover {
-    background: var(--color-error-90, #3c1513);
-    border-color: var(--color-error-40, #f28b82);
-  }
-  
-  :global(.dark) .action-separator {
-    background: var(--color-grey-75, #404040);
-  }
-  
-  :global(.dark) .fullscreen-table {
-    background: var(--color-grey-90, #1a1a1a);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-  
-  :global(.dark) .fullscreen-table th {
-    background: var(--color-grey-85, #252525);
-    color: var(--color-grey-10, #f5f5f5);
-    border-bottom-color: var(--color-grey-75, #404040);
-  }
-  
-  :global(.dark) .fullscreen-table td {
-    color: var(--color-grey-20, #eaeaea);
-    border-bottom-color: var(--color-grey-80, #333);
-    border-right-color: var(--color-grey-85, #252525);
-  }
-  
-  :global(.dark) .fullscreen-table tbody tr:hover {
-    background: var(--color-grey-85, #252525);
-  }
-  
-  :global(.dark) .fullscreen-table tbody tr:nth-child(even) {
-    background: var(--color-grey-88, #202020);
-  }
-  
-  :global(.dark) .fullscreen-table tbody tr:nth-child(even):hover {
-    background: var(--color-grey-83, #282828);
-  }
-  
-  :global(.dark) .col-index {
-    color: var(--color-grey-60, #666);
-  }
-  
-  :global(.dark) .sortable-header:hover {
-    background: var(--color-grey-80, #333);
-  }
-  
-  :global(.dark) .sort-active {
-    color: var(--color-primary-30, #a8c7fa);
-  }
-  
-  :global(.dark) .filter-row th {
-    background: var(--color-grey-88, #202020);
-    border-bottom-color: var(--color-primary-70, #2b5797);
-  }
-  
-  :global(.dark) .filter-input {
-    background: var(--color-grey-85, #252525);
-    border-color: var(--color-grey-70, #444);
-    color: var(--color-grey-20, #eaeaea);
-  }
-  
-  :global(.dark) .filter-input:focus {
-    border-color: var(--color-primary-50, #4285f4);
-    box-shadow: 0 0 0 2px var(--color-primary-90, #1a2744);
-  }
-  
-  :global(.dark) .filter-input::placeholder {
-    color: var(--color-grey-60, #666);
-  }
-  
-  :global(.dark) .no-results {
-    color: var(--color-grey-50, #888);
-  }
-  
-  /* Responsive */
   @media (max-width: 768px) {
-    .action-buttons {
-      padding: 8px 12px;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    
-    .action-btn {
-      padding: 6px 10px;
+    .spreadsheet {
       font-size: 12px;
     }
     
-    .action-btn span {
-      display: none;
+    .spreadsheet th,
+    .spreadsheet td {
+      padding: 5px 8px;
     }
     
-    .table-wrapper {
-      padding: 12px;
+    .row-num-header,
+    .row-num {
+      width: 32px;
+      min-width: 32px;
+      max-width: 32px;
+      font-size: 10px;
     }
     
-    .fullscreen-table {
-      font-size: 12px;
-    }
-    
-    .fullscreen-table th,
-    .fullscreen-table td {
-      padding: 8px 12px;
+    .filter-field {
+      min-width: 80px;
     }
   }
 </style>
