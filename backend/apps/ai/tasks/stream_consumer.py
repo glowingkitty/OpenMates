@@ -934,6 +934,10 @@ async def _consume_main_processing_stream(
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
 
+    # Track embed IDs that failed during skill execution (received from main_processor)
+    # Their embed references will be stripped from the final message content before persistence
+    failed_embed_ids: set[str] = set()
+
     # Check for revocation before starting
     # Use AsyncResult to check task status
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -1082,6 +1086,15 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
                 tool_calls_info = chunk["__tool_calls_info__"]
                 logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+
+            # Check for failed embed IDs marker (special dict at end of stream)
+            # These are embed IDs that failed during skill execution (error/cancelled).
+            # Their references must be stripped from the final message content before persistence,
+            # otherwise the client would try to resolve them on every page load.
+            if isinstance(chunk, dict) and "__failed_embed_ids__" in chunk:
+                failed_embed_ids = chunk["__failed_embed_ids__"]
+                logger.info(f"{log_prefix} Received {len(failed_embed_ids)} failed embed ID(s) for content cleanup")
                 continue
             
             # Check for app settings/memories permission marker
@@ -2282,6 +2295,32 @@ async def _consume_main_processing_stream(
             f"Tool results are handled via Embeds."
         )
     
+    # --- Strip Failed Embed References from Message Content ---
+    # When skill execution fails, the embed reference JSON block (```json\n{"type":"app_skill_use","embed_id":"..."}\n```)
+    # is already in the streamed content. If not removed, the client will try to resolve these
+    # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
+    # We strip them here before the content is persisted.
+    if failed_embed_ids and aggregated_response:
+        import re
+        stripped_count = 0
+        for failed_id in failed_embed_ids:
+            # Match the exact JSON code block pattern for this embed_id:
+            # ```json\n{...embed_id...}\n```
+            # Use a pattern that matches the entire code block containing this embed_id
+            pattern = r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"' + re.escape(failed_id) + r'"[^}]*\}\s*\n\s*```\s*\n*'
+            new_response = re.sub(pattern, '', aggregated_response)
+            if new_response != aggregated_response:
+                stripped_count += 1
+                aggregated_response = new_response
+        
+        if stripped_count > 0:
+            # Update final_response_chunks to reflect the cleanup
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
+                f"Failed embed IDs: {failed_embed_ids}"
+            )
+
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.
     # We do NOT rely on the LLM to include these - they are injected deterministically based on

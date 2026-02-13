@@ -1223,6 +1223,13 @@ async def handle_main_processing(
     # Track all tool calls for code block generation
     # This will be used to prepend a code block with skill input/output/metadata to the assistant response
     tool_calls_info: List[Dict[str, Any]] = []
+
+    # Track embed IDs that failed (error/cancelled) during skill execution.
+    # These will be yielded at the end of the stream so the stream_consumer can
+    # strip their embed references from the final message content.
+    # Without this, the message markdown would contain embed references for embeds
+    # that no longer exist, causing the client to re-request them on every page load.
+    failed_embed_ids: set[str] = set()
     
     # --- End of existing logic ---
 
@@ -2315,6 +2322,7 @@ async def handle_main_processing(
                                     log_prefix=log_prefix
                                 )
                                 logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
+                                failed_embed_ids.add(embed_id)
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
 
@@ -2793,6 +2801,7 @@ async def handle_main_processing(
                                                 logger.info(
                                                     f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id}"
                                                 )
+                                                failed_embed_ids.add(placeholder_embed_id)
                                         except Exception as error_update_error:
                                             logger.warning(
                                                 f"{log_prefix} Failed to update placeholder to error status: {error_update_error}"
@@ -2837,6 +2846,7 @@ async def handle_main_processing(
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
                                                 updated_embed_data_list.append(updated_error_embed)
+                                                failed_embed_ids.add(error_embed_id)
                                     continue
                                 
                                 # Request succeeded - update placeholder or create new embed (use normalized key)
@@ -3217,8 +3227,9 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
+                        error_eid = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message="Invalid JSON in function arguments",
@@ -3230,6 +3241,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid:
+                            failed_embed_ids.add(error_eid)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3288,8 +3301,9 @@ async def handle_main_processing(
                         except ValueError:
                             app_id = "unknown"
                             skill_id = "unknown"
+                        error_eid2 = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid2,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message="Invalid tool name format",
@@ -3301,6 +3315,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid2:
+                            failed_embed_ids.add(error_eid2)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3348,8 +3364,9 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
+                        error_eid3 = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid3,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message=str(e),
@@ -3361,6 +3378,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid3:
+                            failed_embed_ids.add(error_eid3)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3422,6 +3441,17 @@ async def handle_main_processing(
         # Use a special dict marker that the stream consumer can detect
         yield {"__tool_calls_info__": tool_calls_info}
         logger.debug(f"{log_prefix} Yielding tool calls info for {len(tool_calls_info)} tool call(s)")
+
+    # Yield failed embed IDs so the stream consumer can strip their references
+    # from the final message content before persisting. Without this, the message
+    # would contain embed references for embeds that no longer exist, causing
+    # the client to re-request them on every page load.
+    if failed_embed_ids:
+        yield {"__failed_embed_ids__": failed_embed_ids}
+        logger.info(
+            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for content cleanup: "
+            f"{failed_embed_ids}"
+        )
 
     logger.info(f"{log_prefix} Main processing stream finished.")
 
