@@ -129,9 +129,26 @@ async def _async_focus_mode_auto_confirm(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
     
+    # Fetch user's vault key early — needed for both encryption (step 2a) and
+    # decryption (step 2c). encrypt_with_user_key uses a per-user derived Vault key
+    # that Celery workers have permission to access (unlike the generic user_data key).
+    user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+    if not user_vault_key_id:
+        logger.debug(f"{log_prefix} vault_key_id not in cache, fetching from Directus")
+        try:
+            user_profile_result = await directus_service.get_user_profile(user_id)
+            if user_profile_result and user_profile_result[0]:
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching user profile: {e}", exc_info=True)
+    
+    if not user_vault_key_id:
+        logger.error(f"{log_prefix} Cannot encrypt/decrypt without vault_key_id")
+        return
+    
     encrypted_focus_id = None
     try:
-        encrypted_focus_id, _ = await encryption_service.encrypt(focus_id)
+        encrypted_focus_id, _ = await encryption_service.encrypt_with_user_key(focus_id, user_vault_key_id)
         await cache_service.update_chat_active_focus_id(
             user_id=user_id,
             chat_id=chat_id,
@@ -180,21 +197,6 @@ async def _async_focus_mode_auto_confirm(
     
     if not cached_messages_str_list:
         logger.error(f"{log_prefix} Failed to retrieve cached messages for chat {chat_id} — cannot continue processing")
-        return
-    
-    # Get user's vault key for decryption
-    user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
-    if not user_vault_key_id:
-        logger.debug(f"{log_prefix} vault_key_id not in cache, fetching from Directus")
-        try:
-            user_profile_result = await directus_service.get_user_profile(user_id)
-            if user_profile_result and user_profile_result[0]:
-                user_vault_key_id = user_profile_result[1].get("vault_key_id")
-        except Exception as e:
-            logger.error(f"{log_prefix} Error fetching user profile: {e}", exc_info=True)
-    
-    if not user_vault_key_id:
-        logger.error(f"{log_prefix} Cannot decrypt messages without vault_key_id")
         return
     
     # Decrypt cached messages
