@@ -2119,3 +2119,200 @@ def append_rejected_suggestion_hash(
     finally:
         if loop:
             loop.close()
+
+
+# ==============================================================================
+# Embed Fallback Persistence Task
+# ==============================================================================
+# This task provides a server-side safety net for embed persistence.
+#
+# PROBLEM: The normal embed persistence flow relies on a client round-trip:
+#   1. Server creates embed in cache (vault-encrypted) → sends plaintext to client
+#   2. Client encrypts with chat key → sends "store_embed" back to server
+#   3. Server writes client-encrypted embed to Directus
+#
+# If step 2 fails (WebSocket disconnect, client crash, tab closure, etc.),
+# the embed is NEVER persisted to Directus. After the Redis cache TTL expires
+# (72 hours), the embed data is permanently lost.
+#
+# SOLUTION: Schedule this fallback task with a countdown (e.g., 60 seconds) after
+# an embed is finalized (status="finished"). It checks if the embed was persisted
+# to Directus by the client. If not, it reads the vault-encrypted data from Redis
+# cache and persists it directly to Directus with encryption_mode="vault".
+#
+# The client already handles vault-encrypted embeds: when it encounters
+# encryption_mode="vault", it stores locally and does NOT re-encrypt.
+# This means fallback-persisted embeds are fully functional on all devices.
+# ==============================================================================
+
+async def _async_persist_embed_fallback(
+    embed_id: str,
+    task_id: str
+):
+    """
+    Fallback persistence for an embed that may not have been stored by the client.
+    
+    Checks if the embed exists in Directus. If not, reads the vault-encrypted
+    data from Redis cache and persists it directly. This prevents silent data loss
+    when the client-to-server store_embed round-trip fails.
+    
+    Args:
+        embed_id: The embed ID to check/persist
+        task_id: Celery task ID for logging
+    """
+    logger.info(
+        f"[EMBED_FALLBACK] Task _async_persist_embed_fallback (task_id: {task_id}): "
+        f"Checking embed {embed_id} persistence status"
+    )
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    # Step 1: Check if the embed already exists in Directus (client persisted it via store_embed)
+    try:
+        existing = await directus_service.embed.get_embed_by_id(embed_id)
+        if existing:
+            logger.info(
+                f"[EMBED_FALLBACK] ✅ Embed {embed_id} already persisted to Directus "
+                f"(client handled it). Skipping fallback. (task_id: {task_id})"
+            )
+            return
+    except Exception as check_error:
+        logger.warning(
+            f"[EMBED_FALLBACK] Could not check Directus for embed {embed_id}: {check_error}. "
+            f"Proceeding with fallback attempt. (task_id: {task_id})"
+        )
+
+    # Step 2: Read embed data from Redis cache (vault-encrypted)
+    cache_service = CacheService()
+    client = await cache_service.client
+    if not client:
+        logger.error(
+            f"[EMBED_FALLBACK] ❌ Redis client not available for embed {embed_id}. "
+            f"Cannot persist without cache data. (task_id: {task_id})"
+        )
+        return
+
+    cache_key = f"embed:{embed_id}"
+    embed_json = await client.get(cache_key)
+    if not embed_json:
+        logger.warning(
+            f"[EMBED_FALLBACK] ⚠️ Embed {embed_id} not found in Redis cache (expired or never cached). "
+            f"Cannot persist without cache data. (task_id: {task_id})"
+        )
+        return
+
+    try:
+        embed_data = json.loads(embed_json)
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"[EMBED_FALLBACK] ❌ Failed to parse cached embed {embed_id}: {e}. "
+            f"(task_id: {task_id})"
+        )
+        return
+
+    # Step 3: Verify the embed is in "finished" status (don't persist processing/error embeds)
+    cached_status = embed_data.get("status")
+    if cached_status != "finished":
+        logger.info(
+            f"[EMBED_FALLBACK] Embed {embed_id} status is '{cached_status}', not 'finished'. "
+            f"Skipping fallback persistence. (task_id: {task_id})"
+        )
+        return
+
+    # Step 4: Build Directus payload from cache data
+    # The cache contains vault-encrypted content. We persist it with encryption_mode="vault"
+    # so the client knows to request server-side decryption rather than trying to decrypt
+    # with a chat key it doesn't have for this embed.
+    vault_key_id = embed_data.get("vault_key_id")
+    if not vault_key_id:
+        logger.warning(
+            f"[EMBED_FALLBACK] ⚠️ Embed {embed_id} has no vault_key_id in cache. "
+            f"The embed may have been cached before vault_key_id tracking was added. "
+            f"Persisting anyway with encryption_mode='vault'. (task_id: {task_id})"
+        )
+
+    # Determine encrypted_type: encrypt the plaintext type with vault key if possible
+    # For the fallback, we store the type as-is since it's not sensitive (it's metadata)
+    # The schema has encrypted_type field but for vault-mode embeds the server can read it
+    embed_type = embed_data.get("type", "app_skill_use")
+
+    directus_payload = {
+        "embed_id": embed_data.get("embed_id", embed_id),
+        "hashed_chat_id": embed_data.get("hashed_chat_id"),
+        "hashed_message_id": embed_data.get("hashed_message_id"),
+        "hashed_task_id": embed_data.get("hashed_task_id"),
+        "status": "finished",
+        "hashed_user_id": embed_data.get("hashed_user_id"),
+        "is_private": embed_data.get("is_private", False),
+        "is_shared": embed_data.get("is_shared", False),
+        "embed_ids": embed_data.get("embed_ids"),
+        "encryption_mode": "vault",  # Server-managed encryption (vault key)
+        "vault_key_id": vault_key_id,
+        "encrypted_content": embed_data.get("encrypted_content"),
+        "encrypted_type": embed_type,  # Store plaintext type (vault-mode allows server to read it)
+        "parent_embed_id": embed_data.get("parent_embed_id"),
+        "text_length_chars": embed_data.get("text_length_chars"),
+        "created_at": embed_data.get("created_at"),
+        "updated_at": embed_data.get("updated_at"),
+        "s3_file_keys": embed_data.get("s3_file_keys"),
+    }
+
+    # Remove None values to avoid overwriting defaults in Directus
+    directus_payload = {k: v for k, v in directus_payload.items() if v is not None}
+
+    # Step 5: Create the embed in Directus
+    try:
+        created = await directus_service.embed.create_embed(directus_payload)
+        if created:
+            logger.info(
+                f"[EMBED_FALLBACK] ✅ Successfully persisted embed {embed_id} to Directus "
+                f"via server-side fallback (encryption_mode=vault, vault_key_id={vault_key_id}). "
+                f"(task_id: {task_id})"
+            )
+        else:
+            logger.error(
+                f"[EMBED_FALLBACK] ❌ Failed to persist embed {embed_id} to Directus "
+                f"(create_embed returned None). (task_id: {task_id})"
+            )
+    except Exception as e:
+        logger.error(
+            f"[EMBED_FALLBACK] ❌ Exception persisting embed {embed_id} to Directus: {e}. "
+            f"(task_id: {task_id})",
+            exc_info=True
+        )
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_embed_fallback", bind=True)
+def persist_embed_fallback_task(self, embed_id: str):
+    """
+    Celery task (sync wrapper) to check if an embed was persisted to Directus
+    by the client, and if not, persist the vault-encrypted version from Redis cache.
+    
+    This task is dispatched with a countdown delay (e.g., 60 seconds) after an embed
+    is finalized. The delay gives the client time to complete the normal persistence
+    flow (encrypt → store_embed → Directus). If the client didn't persist it within
+    that window, this fallback persists the vault-encrypted version directly.
+    
+    Args:
+        embed_id: The embed ID to check/persist
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(
+        f"SYNC_WRAPPER: persist_embed_fallback for embed {embed_id}, task_id: {task_id}"
+    )
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_embed_fallback(embed_id, task_id))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_embed_fallback for embed {embed_id}, "
+            f"task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise
+    finally:
+        if loop:
+            loop.close()

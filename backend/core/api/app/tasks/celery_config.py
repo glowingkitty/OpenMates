@@ -807,6 +807,7 @@ _EXPLICIT_TASK_ROUTES = {
     # AI App tasks
     "apps.ai.tasks.skill_ask": "app_ai",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
+    "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
@@ -843,6 +844,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
     "app.tasks.persistence_tasks.append_rejected_suggestion_hash": "persistence",
+    "app.tasks.persistence_tasks.persist_embed_fallback": "persistence",
     
     # User cache tasks
     "app.tasks.user_cache_tasks.warm_user_cache": "user_init",

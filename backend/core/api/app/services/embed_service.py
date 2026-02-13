@@ -189,7 +189,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # SEND PLAINTEXT TOON TO CLIENT via WebSocket
             # This ensures the client has the embed data immediately to render the placeholder
@@ -326,7 +326,7 @@ class EmbedService:
             }
 
             # Cache
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # Send plaintext TOON to client via WebSocket
             await self.send_embed_data_to_client(
@@ -361,6 +361,9 @@ class EmbedService:
                 f"{log_prefix} [FOCUS_MODE] Created focus mode activation embed {embed_id} "
                 f"for focus_id={focus_id} (app={app_id}, name={focus_mode_name})"
             )
+
+            # Schedule fallback persistence for focus mode activation embed
+            self._schedule_embed_persistence_fallback(embed_id)
 
             return {
                 "embed_id": embed_id,
@@ -456,7 +459,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # SEND PLAINTEXT TOON TO CLIENT via WebSocket
             # This ensures the client has the embed data immediately to render the placeholder
@@ -590,7 +593,7 @@ class EmbedService:
                 )
 
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
             if should_send_event:
@@ -618,6 +621,11 @@ class EmbedService:
                 )
 
             logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
+
+            # Schedule fallback persistence when code embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
             return True
 
         except Exception as e:
@@ -709,7 +717,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # Send plaintext TOON to client via WebSocket for immediate rendering
             await self.send_embed_data_to_client(
@@ -837,7 +845,7 @@ class EmbedService:
                 )
 
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
             if should_send_event:
@@ -860,6 +868,11 @@ class EmbedService:
                 )
 
             logger.debug(f"{log_prefix} Updated document embed {embed_id} with {len(html_content)} chars, {word_count} words (status: {status})")
+
+            # Schedule fallback persistence when document embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
             return True
 
         except Exception as e:
@@ -1463,7 +1476,7 @@ class EmbedService:
                     child_embed_data["encrypted_content"] = encrypted_content
 
                     # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id)
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
                     # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
@@ -1568,9 +1581,15 @@ class EmbedService:
                 )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id)
 
                 logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                # This ensures embeds are persisted even if the client doesn't send store_embed
+                self._schedule_embed_persistence_fallback(embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
 
                 return {
                     "embed_id": embed_id,
@@ -1657,9 +1676,12 @@ class EmbedService:
                 )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id)
 
                 logger.info(f"{log_prefix} Updated single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
 
                 return {
                     "embed_id": embed_id,
@@ -2158,7 +2180,7 @@ class EmbedService:
                     child_embed_data["encrypted_content"] = encrypted_content
                     
                     # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id)
                     
                     # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
                     # Without this, child embeds only exist in server cache and won't be stored in Directus
@@ -2264,9 +2286,14 @@ class EmbedService:
                 )
                 
                 # Cache parent embed AFTER sending
-                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id)
                 
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                self._schedule_embed_persistence_fallback(parent_embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
                 
                 # Generate embed reference JSON
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
@@ -2371,9 +2398,12 @@ class EmbedService:
                 )
                 
                 # Cache embed AFTER sending
-                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id)
                 
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
                 
                 # Generate embed reference JSON
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
@@ -2401,7 +2431,8 @@ class EmbedService:
         embed_id: str,
         embed_data: Dict[str, Any],
         chat_id: str,
-        user_id_hash: str
+        user_id_hash: str,
+        user_vault_key_id: Optional[str] = None
     ) -> None:
         """
         Cache embed in Redis with vault encryption.
@@ -2411,10 +2442,19 @@ class EmbedService:
             embed_data: Embed data dictionary (already vault-encrypted)
             chat_id: Chat ID for indexing
             user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for fallback persistence.
+                              Stored in cache so the fallback Celery task can include it
+                              when persisting vault-encrypted content to Directus.
         """
         try:
             # Cache key: embed:{embed_id} (global cache, one entry per embed)
             cache_key = f"embed:{embed_id}"
+            
+            # Include vault_key_id in cached data for fallback persistence support.
+            # The fallback task reads this to set encryption_mode="vault" + vault_key_id
+            # when persisting directly to Directus without client round-trip.
+            if user_vault_key_id and "vault_key_id" not in embed_data:
+                embed_data["vault_key_id"] = user_vault_key_id
             
             # Store embed data (already encrypted with vault key)
             import json as json_lib
@@ -2437,3 +2477,40 @@ class EmbedService:
         except Exception as e:
             logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
             # Don't fail embed creation if caching fails
+
+    def _schedule_embed_persistence_fallback(
+        self,
+        embed_id: str,
+        countdown_seconds: int = 60
+    ) -> None:
+        """
+        Schedule a delayed Celery task to check if an embed was persisted to Directus
+        by the client, and if not, persist the vault-encrypted version from Redis cache.
+        
+        This provides a server-side safety net for embed persistence when the client-to-server
+        store_embed round-trip fails (WebSocket disconnect, client crash, tab closure, etc.).
+        
+        Args:
+            embed_id: The embed ID to schedule fallback for
+            countdown_seconds: Delay in seconds before the task runs (default: 60).
+                              Must be long enough for the client to complete normal persistence,
+                              but short enough that it runs well before the 72h cache TTL.
+        """
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.persistence_tasks.persist_embed_fallback",
+                kwargs={"embed_id": embed_id},
+                queue="persistence",
+                countdown=countdown_seconds,
+            )
+            logger.debug(
+                f"Scheduled embed fallback persistence for {embed_id} "
+                f"(countdown={countdown_seconds}s)"
+            )
+        except Exception as e:
+            # Non-critical: don't fail embed creation if scheduling fails.
+            # The normal client-side persistence may still succeed.
+            logger.warning(
+                f"Failed to schedule embed fallback persistence for {embed_id}: {e}"
+            )
