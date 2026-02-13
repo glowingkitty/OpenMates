@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
     import { slide } from 'svelte/transition';
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onDestroy, tick } from 'svelte';
     import { notificationStore, type Notification } from '../stores/notificationStore';
     import { pendingNotificationReplyStore } from '../stores/pendingNotificationReplyStore';
     import { text } from '@repo/ui';
@@ -118,9 +118,11 @@
         // counts as an interaction signal and the notification should stay visible.
     }
     
-    // Initialize TipTap editor for reply input
-    onMount(() => {
-        if (editorElement) {
+    // Initialize TipTap editor when the reply input element appears in the DOM.
+    // The editorElement is inside an {#if isExpanded} block, so it's null on mount.
+    // Using $effect ensures the editor is created when the element becomes available.
+    $effect(() => {
+        if (editorElement && !editor) {
             editor = new Editor({
                 element: editorElement,
                 extensions: [
