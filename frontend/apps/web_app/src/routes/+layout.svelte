@@ -21,7 +21,9 @@
 		theme,
 		initializeTheme,
 		initializeServerStatus,
-		notificationStore
+		notificationStore,
+		// Utils
+		performCleanUpdate
 	} from '@repo/ui';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -90,18 +92,31 @@
 	/**
 	 * Show notification when a new app version is detected.
 	 * Uses SvelteKit's built-in version detection via $app/state.
+	 *
+	 * Displays a persistent software_update notification with a "Refresh now" button.
+	 * Clicking the button triggers performCleanUpdate() which:
+	 * 1. Clears all Service Worker caches
+	 * 2. Activates any waiting Service Worker (SKIP_WAITING)
+	 * 3. Reloads the page for a clean fresh start
+	 *
+	 * If the user doesn't click the button, the beforeNavigate hook below
+	 * will trigger the same clean update flow on their next navigation.
 	 */
 	$effect(() => {
 		if (browser && updated.current && !updateNotificationShown) {
 			console.log('[Layout] New app version detected, showing notification');
 			updateNotificationShown = true;
 
-			// Show a persistent info notification (no auto-dismiss)
-			// User can dismiss it, or page will auto-refresh on next navigation
-			notificationStore.info(
-				'A new version is available. The page will refresh on your next navigation, or refresh now.',
-				0, // 0 = persistent, no auto-dismiss
-				true // dismissible
+			notificationStore.softwareUpdate(
+				'A new version is available. It will load on your next navigation.',
+				{
+					actionLabel: 'Refresh now',
+					onAction: () => {
+						console.log('[Layout] User triggered clean update via notification button');
+						performCleanUpdate();
+					},
+					dismissible: true
+				}
 			);
 		}
 	});
@@ -112,14 +127,14 @@
 	 *
 	 * When user navigates and an update is available:
 	 * - Instead of client-side navigation (which might fail due to missing chunks)
-	 * - We do a full page reload to get the fresh version
+	 * - We clear all caches, activate any waiting SW, and do a full page reload
 	 *
-	 * This is the recommended pattern from SvelteKit docs for handling version skew.
+	 * Uses performCleanUpdate() to ensure a completely fresh app state.
 	 */
 	beforeNavigate(({ willUnload, to }) => {
 		if (updated.current && !willUnload && to?.url) {
-			console.log('[Layout] New version detected, forcing full reload on navigation');
-			location.href = to.url.href;
+			console.log('[Layout] New version detected, performing clean update on navigation');
+			performCleanUpdate(to.url.href);
 		}
 	});
 </script>
