@@ -58,7 +58,7 @@ price_calendar:
 price_calendar.description:
   context: Description for the travel price calendar skill - shows cheapest flight prices for each day of a month
   en: Show flight price trends for a month on a route.
-  de: Zeige Flugpreistrends für einen Monat auf einer Strecke.
+  de: Flugpreistrends für einen Monat auf einer Strecke.
   verified_by_human:
     - en
     - de
@@ -71,8 +71,8 @@ search_stays:
     - de
 search_stays.description:
   context: Description for the travel search stays skill - searches for hotels, hostels, and accommodations
-  en: Find hotels, hostels, and accommodations at a destination.
-  de: Finde Hotels, Hostels und Unterkünfte an einem Reiseziel.
+  en: Find hotels, hostels and accommodations nearby.
+  de: Finde Hotels, Hostels und Unterkünfte vor Ort.
   verified_by_human:
     - en
     - de
