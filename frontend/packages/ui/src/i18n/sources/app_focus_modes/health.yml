@@ -25,26 +25,26 @@ prepare_doctor_report:
     - de
 prepare_doctor_report.description:
   context: Description for prepare doctor report focus mode
-  en: Asks clarifying questions to then create a report for the next doctor appointment. Including symptoms overview, previous doctor visits, previous tests and results (including links or QR codes and access instructions to access them) and data from health tracking / fitness tracking devices (Apple Watch for example).
-  de: Stellt klärende Fragen, um dann einen Bericht für den nächsten Arzttermin zu erstellen. Einschließlich Symptomübersicht, vorheriger Arztbesuche, vorheriger Tests und Ergebnisse (einschließlich Links oder QR-Codes und Zugriffsanweisungen) und Daten von Gesundheits- / Fitness-Tracking-Geräten (z. B. Apple Watch).
-  zh: 提出澄清问题，然后为下次医生预约创建报告。包括症状概述、之前的医生访问、之前的测试和结果（包括链接或二维码和访问说明）以及来自健康跟踪/健身跟踪设备的数据（例如Apple Watch）。
-  es: Hace preguntas aclaratorias para luego crear un informe para la próxima cita médica. Incluyendo resumen de síntomas, visitas médicas anteriores, pruebas y resultados anteriores (incluidos enlaces o códigos QR e instrucciones de acceso) y datos de dispositivos de seguimiento de salud / fitness (por ejemplo, Apple Watch).
-  fr: Pose des questions de clarification pour ensuite créer un rapport pour le prochain rendez-vous médical. Y compris un aperçu des symptômes, les visites médicales précédentes, les tests et résultats précédents (y compris les liens ou codes QR et les instructions d'accès) et les données des dispositifs de suivi de la santé / fitness (par exemple, Apple Watch).
-  pt: Faz perguntas esclarecedoras para então criar um relatório para a próxima consulta médica. Incluindo visão geral dos sintomas, visitas médicas anteriores, testes e resultados anteriores (incluindo links ou códigos QR e instruções de acesso) e dados de dispositivos de rastreamento de saúde / fitness (por exemplo, Apple Watch).
-  ru: Задает уточняющие вопросы, а затем создает отчет для следующего визита к врачу. Включая обзор симптомов, предыдущие визиты к врачу, предыдущие тесты и результаты (включая ссылки или QR-коды и инструкции по доступу) и данные с устройств отслеживания здоровья / фитнеса (например, Apple Watch).
-  ja: 明確化の質問をしてから、次の医師の予約のためのレポートを作成します。症状の概要、以前の医師の訪問、以前のテストと結果（リンクやQRコード、アクセス手順を含む）、健康追跡/フィットネス追跡デバイスからのデータ（例：Apple Watch）を含みます。
-  ko: "명확화 질문을 한 다음 다음 의사 예약을 위한 보고서를 생성합니다. 증상 개요, 이전 의사 방문, 이전 테스트 및 결과(링크 또는 QR 코드 및 액세스 지침 포함) 및 건강 추적/피트니스 추적 장치(예: Apple Watch)의 데이터를 포함합니다."
-  it: Pone domande chiarificatrici per poi creare un rapporto per il prossimo appuntamento medico. Inclusa panoramica dei sintomi, visite mediche precedenti, test e risultati precedenti (inclusi link o codici QR e istruzioni di accesso) e dati da dispositivi di monitoraggio della salute / fitness (ad esempio, Apple Watch).
-  tr: Bir sonraki doktor randevusu için bir rapor oluşturmak üzere açıklayıcı sorular sorar. Semptom özeti, önceki doktor ziyaretleri, önceki testler ve sonuçlar (bağlantılar veya QR kodlar ve erişim talimatları dahil) ve sağlık takibi / fitness takibi cihazlarından gelen veriler (örneğin, Apple Watch) dahil.
-  vi: "Đặt các câu hỏi làm rõ để sau đó tạo báo cáo cho cuộc hẹn bác sĩ tiếp theo. Bao gồm tổng quan về triệu chứng, các lần thăm khám bác sĩ trước đó, các xét nghiệm và kết quả trước đó (bao gồm liên kết hoặc mã QR và hướng dẫn truy cập) và dữ liệu từ thiết bị theo dõi sức khỏe / thể dục (ví dụ: Apple Watch)."
-  id: Mengajukan pertanyaan klarifikasi untuk kemudian membuat laporan untuk janji temu dokter berikutnya. Termasuk ringkasan gejala, kunjungan dokter sebelumnya, tes dan hasil sebelumnya (termasuk tautan atau kode QR dan instruksi akses) dan data dari perangkat pelacakan kesehatan / kebugaran (misalnya, Apple Watch).
-  pl: Zadaje pytania wyjaśniające, a następnie tworzy raport na następną wizytę u lekarza. W tym przegląd objawów, poprzednie wizyty u lekarza, poprzednie testy i wyniki (w tym linki lub kody QR i instrukcje dostępu) oraz dane z urządzeń śledzących zdrowie / fitness (na przykład Apple Watch).
-  nl: Stelt verhelderende vragen om vervolgens een rapport te maken voor de volgende doktersafspraak. Inclusief symptoomoverzicht, eerdere doktersbezoeken, eerdere tests en resultaten (inclusief links of QR-codes en toegangsinstructies) en gegevens van gezondheids- / fitnesstrackingapparaten (bijvoorbeeld Apple Watch).
-  ar: يطرح أسئلة توضيحية لإنشاء تقرير لموعد الطبيب التالي. بما في ذلك نظرة عامة على الأعراض والزيارات الطبية السابقة والاختبارات والنتائج السابقة (بما في ذلك الروابط أو رموز QR وتعليمات الوصول) والبيانات من أجهزة تتبع الصحة / اللياقة البدنية (على سبيل المثال، Apple Watch).
-  hi: अगली डॉक्टर अपॉइंटमेंट के लिए एक रिपोर्ट बनाने के लिए स्पष्टीकरण प्रश्न पूछता है। लक्षण अवलोकन, पिछली डॉक्टर यात्राएं, पिछले परीक्षण और परिणाम (लिंक या QR कोड और पहुंच निर्देश सहित) और स्वास्थ्य ट्रैकिंग / फिटनेस ट्रैकिंग उपकरणों से डेटा (उदाहरण के लिए, Apple Watch) शामिल है।
-  th: ถามคำถามเพื่อชี้แจงแล้วสร้างรายงานสำหรับการนัดหมายแพทย์ครั้งถัดไป รวมถึงภาพรวมของอาการ การไปพบแพทย์ครั้งก่อน การทดสอบและผลลัพธ์ก่อนหน้า (รวมถึงลิงก์หรือ QR code และคำแนะนำการเข้าถึง) และข้อมูลจากอุปกรณ์ติดตามสุขภาพ/ฟิตเนส (เช่น Apple Watch)
-  cs: Klade objasňující otázky a poté vytvoří zprávu pro další návštěvu lékaře. Včetně přehledu příznaků, předchozích návštěv lékaře, předchozích testů a výsledků (včetně odkazů nebo QR kódů a pokynů pro přístup) a dat ze zařízení pro sledování zdraví / fitness (například Apple Watch).
-  sv: Ställer förtydligande frågor för att sedan skapa en rapport för nästa läkarbesök. Inklusive symptomöversikt, tidigare läkarbesök, tidigare tester och resultat (inklusive länkar eller QR-koder och åtkomstinstruktioner) och data från hälso- / fitnesstrackingsenheter (till exempel Apple Watch).
+  en: Create a report for your next doctor visit.
+  de: Erstelle einen Bericht für den nächsten Arztbesuch.
+  zh: 为下次看医生创建一份报告。
+  es: Crea un informe para tu próxima visita médica.
+  fr: Créez un rapport pour votre prochain rendez-vous.
+  pt: Crie um relatório para sua próxima consulta.
+  ru: Создайте отчёт для следующего визита к врачу.
+  ja: 次の診察に向けたレポートを作成する。
+  ko: 다음 진료를 위한 보고서를 작성하세요.
+  it: Crea un rapporto per la prossima visita medica.
+  tr: Sonraki doktor ziyaretiniz için rapor oluşturun.
+  vi: Tạo báo cáo cho lần khám bác sĩ tiếp theo.
+  id: Buat laporan untuk kunjungan dokter berikutnya.
+  pl: Stwórz raport na następną wizytę u lekarza.
+  nl: Maak een rapport voor je volgende doktersbezoek.
+  ar: أنشئ تقريرًا لموعد طبيبك القادم.
+  hi: अगली डॉक्टर विज़िट के लिए रिपोर्ट बनाएं।
+  th: สร้างรายงานสำหรับการพบแพทย์ครั้งถัดไป
+  cs: Vytvořte zprávu pro další návštěvu lékaře.
+  sv: Skapa en rapport för nästa läkarbesök.
   verified_by_human:
     - en
     - de
@@ -75,26 +75,26 @@ health_insights:
     - de
 health_insights.description:
   context: Description for health insights focus mode
-  en: Get general health insights tailored to your questions, using multiple rounds of questions. Will also help you to find out which doctor to consult for advice
-  de: Erhalte allgemeine Gesundheitseinblicke, die auf deine Fragen zugeschnitten sind, mit mehreren Fragerunden. Hilft dir auch herauszufinden, welchen Arzt du um Rat fragen solltest
-  zh: 通过多轮问题获得针对你问题的通用健康洞察。还将帮助你找出应该咨询哪位医生寻求建议
-  es: Obtén perspectivas generales de salud adaptadas a tus preguntas, usando múltiples rondas de preguntas. También te ayudará a descubrir qué médico consultar para obtener consejos
-  fr: Obtenez des aperçus généraux sur la santé adaptés à vos questions, en utilisant plusieurs séries de questions. Vous aidera également à déterminer quel médecin consulter pour obtenir des conseils
-  pt: Obtenha insights gerais de saúde adaptados às suas perguntas, usando várias rodadas de perguntas. Também ajudará você a descobrir qual médico consultar para obter conselhos
-  ru: Получите общие инсайты о здоровье, адаптированные к вашим вопросам, используя несколько раундов вопросов. Также поможет вам выяснить, к какому врачу обратиться за советом
-  ja: 複数ラウンドの質問を使用して、あなたの質問に合わせた一般的な健康インサイトを取得します。また、アドバイスを求めるためにどの医師に相談すべきかを知るのにも役立ちます
-  ko: 여러 라운드의 질문을 사용하여 질문에 맞춘 일반적인 건강 인사이트를 얻으세요. 또한 조언을 구할 의사를 찾는 데 도움이 됩니다
-  it: Ottieni approfondimenti generali sulla salute su misura per le tue domande, usando più round di domande. Ti aiuterà anche a scoprire quale medico consultare per un consiglio
-  tr: Birden fazla soru turu kullanarak sorularınıza göre uyarlanmış genel sağlık içgörüleri edinin. Ayrıca tavsiye için hangi doktora danışacağınızı bulmanıza yardımcı olacaktır
-  vi: Nhận thông tin sức khỏe tổng quát được điều chỉnh theo câu hỏi của bạn, sử dụng nhiều vòng câu hỏi. Cũng sẽ giúp bạn tìm ra bác sĩ nào nên tư vấn để được tư vấn
-  id: Dapatkan wawasan kesehatan umum yang disesuaikan dengan pertanyaan Anda, menggunakan beberapa putaran pertanyaan. Juga akan membantu Anda mengetahui dokter mana yang harus dikonsultasikan untuk mendapatkan saran
-  pl: Uzyskaj ogólne wglądy w zdrowie dostosowane do Twoich pytań, używając wielu rund pytań. Pomoże Ci również dowiedzieć się, którego lekarza skonsultować w celu uzyskania porady
-  nl: Krijg algemene gezondheidsinzichten afgestemd op je vragen, met meerdere rondes vragen. Helpt je ook uitzoeken welke arts je moet raadplegen voor advies
-  ar: احصل على رؤى صحية عامة مخصصة لأسئلتك، باستخدام جولات متعددة من الأسئلة. سيساعدك أيضًا على معرفة الطبيب الذي يجب استشارته للحصول على المشورة
-  hi: कई दौर के प्रश्नों का उपयोग करके, आपके प्रश्नों के अनुरूप सामान्य स्वास्थ्य अंतर्दृष्टि प्राप्त करें। यह आपको यह पता लगाने में भी मदद करेगा कि सलाह के लिए किस डॉक्टर से परामर्श करना चाहिए
-  th: รับข้อมูลเชิงลึกด้านสุขภาพทั่วไปที่ปรับให้เหมาะกับคำถามของคุณโดยใช้หลายรอบคำถาม จะช่วยให้คุณค้นหาว่าควรปรึกษาแพทย์คนไหนเพื่อขอคำแนะนำ
-  cs: Získejte obecné zdravotní poznatky přizpůsobené vašim otázkám pomocí několika kol otázek. Také vám pomůže zjistit, kterého lékaře se poradit o radu
-  sv: Få allmänna hälsoinsikter anpassade till dina frågor med flera omgångar med frågor. Hjälper dig också att ta reda på vilken läkare du ska konsultera för råd
+  en: Get health insights and find the right doctor.
+  de: Gesundheitseinblicke und den richtigen Arzt finden.
+  zh: 获取健康洞察并找到合适的医生。
+  es: Obtén perspectivas de salud y encuentra tu médico.
+  fr: Obtenez des insights santé et trouvez un médecin.
+  pt: Obtenha insights de saúde e encontre o médico certo.
+  ru: Получите инсайты о здоровье и найдите врача.
+  ja: 健康のインサイトを得て適切な医師を見つける。
+  ko: 건강 인사이트를 얻고 적합한 의사를 찾으세요.
+  it: Ottieni informazioni sulla salute e trova un medico.
+  tr: Sağlık bilgileri alın ve doğru doktoru bulun.
+  vi: Nhận thông tin sức khỏe và tìm bác sĩ phù hợp.
+  id: Dapatkan wawasan kesehatan dan temukan dokter tepat.
+  pl: Uzyskaj wgląd w zdrowie i znajdź lekarza.
+  nl: Krijg gezondheidsinzichten en vind de juiste arts.
+  ar: احصل على رؤى صحية وابحث عن الطبيب المناسب.
+  hi: स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।
+  th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
+  cs: Získejte zdravotní poznatky a najděte lékaře.
+  sv: Få hälsoinsikter och hitta rätt läkare.
   verified_by_human:
     - en
     - de
@@ -125,27 +125,26 @@ prepare_doctor_appointment:
     - de
 prepare_doctor_appointment.description:
   context: Description for prepare doctor appointment focus mode
-  en: Prepare your next appointment, by discussing what symptoms & tests you should ask your doctor about and what previous test results to bring.
-  de: Bereite deinen nächsten Termin vor, indem du besprichst, welche Symptome und Tests du deinen Arzt fragen solltest und welche vorherigen Testergebnisse du mitbringen solltest.
-  zh: 通过讨论你应该向医生询问哪些症状和测试，以及应该携带哪些之前的测试结果，来准备你的下次预约。
-  es: Prepara tu próxima cita, discutiendo qué síntomas y pruebas debes preguntar a tu médico y qué resultados de pruebas anteriores debes traer.
-  fr: Préparez votre prochain rendez-vous en discutant des symptômes et des tests que vous devriez demander à votre médecin et des résultats de tests précédents à apporter.
-  pt: Prepare sua próxima consulta, discutindo quais sintomas e testes você deve perguntar ao seu médico e quais resultados de testes anteriores deve trazer.
-  ru: Подготовьтесь к следующему визиту, обсудив, о каких симптомах и тестах вы должны спросить своего врача и какие предыдущие результаты тестов принести.
-  ja: 次回の予約を準備します。医師に尋ねるべき症状と検査、および持参すべき以前の検査結果について話し合います。
-  ko: 다음 예약을 준비하세요. 의사에게 물어봐야 할 증상과 검사, 그리고 가져와야 할 이전 검사 결과에 대해 논의합니다.
-  it: Prepara il tuo prossimo appuntamento, discutendo quali sintomi e test dovresti chiedere al tuo medico e quali risultati di test precedenti portare.
-  tr: Doktorunuza hangi semptomlar ve testler hakkında sormanız gerektiğini ve hangi önceki test sonuçlarını getirmeniz gerektiğini tartışarak bir sonraki randevunuzu hazırlayın.
-  vi: Chuẩn bị cuộc hẹn tiếp theo của bạn bằng cách thảo luận về các triệu chứng và xét nghiệm bạn nên hỏi bác sĩ và các kết quả xét nghiệm trước đó nên mang theo.
-  id: Siapkan janji temu berikutnya dengan membahas gejala dan tes apa yang harus Anda tanyakan kepada dokter dan hasil tes sebelumnya yang harus dibawa.
-  pl: Przygotuj swoją następną wizytę, omawiając, jakie objawy i testy powinieneś zapytać swojego lekarza i jakie poprzednie wyniki testów przynieść.
-  nl: Bereid je volgende afspraak voor door te bespreken welke symptomen en tests je je arts moet vragen en welke eerdere testresultaten je moet meenemen.
-  ar: جهز موعدك القادم من خلال مناقشة الأعراض والاختبارات التي يجب أن تسأل طبيبك عنها ونتائج الاختبارات السابقة التي يجب إحضارها.
-  hi: अपने अगले अपॉइंटमेंट की तैयारी करें, चर्चा करके कि आपको अपने डॉक्टर से किन लक्षणों और परीक्षणों के बारे में पूछना चाहिए और कौन से पिछले परीक्षण परिणाम लाने चाहिए।
-  th: เตรียมการนัดหมายครั้งถัดไปของคุณโดยการหารือเกี่ยวกับอาการและการทดสอบที่คุณควรถามแพทย์และผลการทดสอบก่อนหน้าที่ควรนำมา
-  cs: Připravte si svou další schůzku diskusí o tom, jaké příznaky a testy byste se měli zeptat svého lékaře a jaké předchozí výsledky testů přinést.
-  sv: Förbered ditt nästa besök genom att diskutera vilka symptom och tester du bör fråga din läkare om och vilka tidigare testresultat du ska ta med.
+  en: Prepare what to discuss at your next visit.
+  de: Bereite die Themen für den nächsten Termin vor.
+  zh: 准备下次就诊要讨论的内容。
+  es: Prepara qué discutir en tu próxima visita.
+  fr: Préparez ce qu'il faut discuter à votre visite.
+  pt: Prepare o que discutir na próxima consulta.
+  ru: Подготовьте темы для следующего визита к врачу.
+  ja: 次の診察で相談する内容を準備する。
+  ko: 다음 진료에서 논의할 내용을 준비하세요.
+  it: Prepara cosa discutere alla prossima visita.
+  tr: Sonraki ziyaretiniz için konuları hazırlayın.
+  vi: Chuẩn bị nội dung thảo luận cho lần khám tới.
+  id: Siapkan topik untuk kunjungan dokter berikutnya.
+  pl: Przygotuj się na kolejną wizytę u lekarza.
+  nl: Bereid voor wat je bij de arts wilt bespreken.
+  ar: جهّز ما ستناقشه في موعدك القادم.
+  hi: अगली विज़िट में क्या चर्चा करनी है, तैयार करें।
+  th: เตรียมหัวข้อสำหรับการนัดหมายแพทย์ครั้งถัดไป
+  cs: Připravte témata pro další návštěvu lékaře.
+  sv: Förbered vad du vill diskutera vid nästa besök.
   verified_by_human:
     - en
     - de
-
