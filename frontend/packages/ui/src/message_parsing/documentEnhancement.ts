@@ -148,6 +148,40 @@ export function enhanceDocumentWithEmbeds(
       }
     }
 
+    // Handle table nodes that should be replaced with sheets-sheet embed nodes
+    // markdown-it creates { type: "table", content: [tableRow...] } nodes from markdown tables.
+    // parseEmbedNodes() detects these tables and creates sheets-sheet embed attributes,
+    // but without this handler the native table node passes through unchanged.
+    if (node.type === "table") {
+      const matchingEmbed = findMatchingEmbedForTable(node, embedNodes);
+
+      if (matchingEmbed) {
+        console.debug(
+          "[enhanceDocumentWithEmbeds] Replacing table with sheets-sheet embed:",
+          {
+            embedId: matchingEmbed.id,
+            rows: matchingEmbed.rows,
+            cols: matchingEmbed.cols,
+            mode,
+          },
+        );
+        return {
+          type: "paragraph",
+          content: [
+            {
+              type: "embed",
+              attrs: matchingEmbed,
+            },
+          ],
+        };
+      }
+
+      // No matching embed found - keep the native table node as-is
+      // This can happen if parseEmbedNodes() didn't detect this table
+      // (e.g., malformed or single-row table)
+      return node;
+    }
+
     // Handle paragraphs containing json_embed blocks in text
     if (node.type === "paragraph" && node.content) {
       const newParagraphContent = [];
@@ -478,6 +512,191 @@ function findMatchingEmbedForCodeBlock(
     }
   }
 
+  return null;
+}
+
+/**
+ * Extract markdown table text from a TipTap table node.
+ * Reconstructs the markdown representation from the TipTap table/tableRow/tableHeader/tableCell structure.
+ * @param tableNode - The TipTap table node
+ * @returns Reconstructed markdown table string
+ */
+function extractTableTextFromNode(tableNode: TipTapNode): string {
+  if (!tableNode.content) return "";
+
+  const rows: string[] = [];
+  let isFirstRow = true;
+
+  for (const rowNode of tableNode.content) {
+    if (rowNode.type !== "tableRow" || !rowNode.content) continue;
+
+    const cells: string[] = [];
+    let isHeader = false;
+
+    for (const cellNode of rowNode.content) {
+      if (cellNode.type === "tableHeader" || cellNode.type === "tableCell") {
+        if (cellNode.type === "tableHeader") isHeader = true;
+
+        // Extract text from cell content (paragraphs containing text nodes)
+        let cellText = "";
+        if (cellNode.content) {
+          for (const child of cellNode.content) {
+            if (child.type === "paragraph" && child.content) {
+              for (const textNode of child.content) {
+                if (textNode.type === "text" && textNode.text) {
+                  cellText += textNode.text;
+                }
+              }
+            } else if (child.type === "text" && child.text) {
+              cellText += child.text;
+            }
+          }
+        }
+        cells.push(cellText.trim());
+      }
+    }
+
+    rows.push("| " + cells.join(" | ") + " |");
+
+    // After the header row, insert a separator row
+    if (isFirstRow && isHeader) {
+      const separator = cells.map(() => "---").join(" | ");
+      rows.push("| " + separator + " |");
+    }
+    isFirstRow = false;
+  }
+
+  return rows.join("\n");
+}
+
+/**
+ * Find a matching sheets-sheet embed node for a TipTap table node.
+ * Matches by comparing the reconstructed markdown text from the table node
+ * against the stored content in sheets-sheet embeds.
+ * @param tableNode - The TipTap table node
+ * @param embedNodes - Array of embed nodes to search
+ * @returns The matching sheets-sheet embed node, or null
+ */
+function findMatchingEmbedForTable(
+  tableNode: TipTapNode,
+  embedNodes: EmbedNodeAttributes[],
+): EmbedNodeAttributes | null {
+  // Filter to only sheets-sheet embeds
+  const sheetEmbeds = embedNodes.filter((node) => node.type === "sheets-sheet");
+
+  if (sheetEmbeds.length === 0) {
+    return null;
+  }
+
+  // Extract text from the TipTap table node to compare against embed content
+  const tableText = extractTableTextFromNode(tableNode);
+  if (!tableText.trim()) {
+    return null;
+  }
+
+  // Normalize whitespace for comparison: collapse runs of whitespace, trim cells
+  const normalizeForComparison = (text: string): string => {
+    return text
+      .split("\n")
+      .map((line) =>
+        line
+          .split("|")
+          .map((cell) => cell.trim())
+          .join("|"),
+      )
+      .filter((line) => {
+        // Skip separator rows (e.g., |---|---|)
+        const stripped = line.replace(/[|\s-]/g, "");
+        return stripped.length > 0;
+      })
+      .join("\n")
+      .toLowerCase();
+  };
+
+  const normalizedTableText = normalizeForComparison(tableText);
+
+  console.debug(
+    "[findMatchingEmbedForTable] Looking for matching sheet embed:",
+    {
+      tableTextPreview: tableText.substring(0, 200),
+      sheetEmbedsCount: sheetEmbeds.length,
+    },
+  );
+
+  // Match by content similarity
+  for (let i = 0; i < sheetEmbeds.length; i++) {
+    const embed = sheetEmbeds[i];
+
+    // For preview embeds, compare using the stored code content
+    if (embed.code) {
+      const normalizedEmbedCode = normalizeForComparison(embed.code);
+      if (normalizedEmbedCode === normalizedTableText) {
+        console.debug(
+          "[findMatchingEmbedForTable] Found matching sheet embed by content:",
+          {
+            embedId: embed.id,
+            contentRef: embed.contentRef,
+          },
+        );
+        // Remove from array to prevent reuse
+        embedNodes.splice(embedNodes.indexOf(embed), 1);
+        return embed;
+      }
+    }
+
+    // For stream embeds (read mode), match by row/col count since content is in EmbedStore
+    if (
+      embed.contentRef?.startsWith("stream:") &&
+      embed.rows !== undefined &&
+      embed.cols !== undefined
+    ) {
+      // Count rows and cols from the table node
+      const tableRows = tableNode.content?.filter((n) => n.type === "tableRow");
+      const nodeRowCount = tableRows ? tableRows.length : 0;
+      // Subtract header row for data row count comparison
+      // The embed.rows from parseEmbedNodes counts data rows (total - header - separator)
+      // but TipTap table node rows include the header row
+      const nodeDataRowCount = nodeRowCount > 0 ? nodeRowCount - 1 : 0;
+      const firstRow = tableRows?.[0];
+      const nodeColCount = firstRow?.content?.length || 0;
+
+      if (
+        (embed.rows === nodeDataRowCount || embed.rows === nodeRowCount) &&
+        embed.cols === nodeColCount
+      ) {
+        console.debug(
+          "[findMatchingEmbedForTable] Found matching sheet embed by dimensions:",
+          {
+            embedId: embed.id,
+            embedRows: embed.rows,
+            embedCols: embed.cols,
+            nodeRows: nodeRowCount,
+            nodeCols: nodeColCount,
+          },
+        );
+        embedNodes.splice(embedNodes.indexOf(embed), 1);
+        return embed;
+      }
+    }
+  }
+
+  // Fallback: if there's exactly one unmatched sheet embed, use it
+  // This handles edge cases where normalization differs slightly
+  if (sheetEmbeds.length === 1) {
+    const embed = sheetEmbeds[0];
+    console.debug(
+      "[findMatchingEmbedForTable] Using single remaining sheet embed as fallback:",
+      {
+        embedId: embed.id,
+      },
+    );
+    embedNodes.splice(embedNodes.indexOf(embed), 1);
+    return embed;
+  }
+
+  console.debug(
+    "[findMatchingEmbedForTable] No matching sheet embed found for table",
+  );
   return null;
 }
 
