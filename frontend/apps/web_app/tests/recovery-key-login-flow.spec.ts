@@ -128,19 +128,15 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for lookup.');
 
-	// Enter password
+	// Enter password — password+TFA is a single combined form.
+	// Since tfa_enabled=true from lookup, the TFA input is already visible.
 	const passwordInput = page.locator('input[type="password"]');
 	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
 	await passwordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Click login
-	const loginButton = page.getByRole('button', { name: /login/i }).last();
-	await loginButton.click();
-	logCheckpoint('Clicked login button.');
-
-	// Handle 2FA - enter OTP code
+	// Handle 2FA - enter OTP code (TFA input is already visible alongside password)
 	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
 	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
 	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
@@ -148,8 +144,10 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'otp-entered');
 	logCheckpoint('Entered OTP code.');
 
-	// Submit OTP
-	await loginButton.click();
+	// Submit login (password + OTP together in one click)
+	const submitLoginButton = page.locator('button[type="submit"].login-button');
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
 
 	// Wait for successful login - redirect to chat
 	await page.waitForURL(/chat|demo/, { timeout: 60000 });
@@ -257,7 +255,12 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// PHASE 4: Logout
 	// ========================================================================
 
-	// Navigate back to main settings and logout
+	// After saving the recovery key, the settings panel is still open on a sub-page.
+	// We need to navigate back to the main settings menu where the logout item lives.
+	// The back button in the settings header uses `.nav-button` with a visible
+	// `.icon_back` child indicating it's active (not on the main menu).
+
+	// Ensure the settings menu is open
 	const settingsVisible = await page
 		.locator('.settings-menu.visible')
 		.isVisible()
@@ -267,22 +270,16 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 		await expect(page.locator('.settings-menu.visible')).toBeVisible();
 	}
 
-	// Look for the logout menu item - navigate back if needed
+	// Navigate back to main settings by clicking the header back button repeatedly.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const logoutVisible = await logoutItem.isVisible().catch(() => false);
-	if (!logoutVisible) {
-		const backButton = page.locator('.settings-menu .back-button, .settings-header .back-button');
-		for (let i = 0; i < 5; i++) {
-			const backVisible = await backButton
-				.first()
-				.isVisible()
-				.catch(() => false);
-			if (!backVisible) break;
-			await backButton.first().click();
-			await page.waitForTimeout(500);
-			const nowVisible = await logoutItem.isVisible().catch(() => false);
-			if (nowVisible) break;
-		}
+	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	for (let i = 0; i < 5; i++) {
+		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
+		if (logoutNowVisible) break;
+		const backVisible = await settingsBackButton.isVisible().catch(() => false);
+		if (!backVisible) break;
+		await settingsBackButton.click();
+		await page.waitForTimeout(500);
 	}
 
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
@@ -315,21 +312,19 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Wait for password step
+	// Enter password — the password+TFA form is a single combined step.
+	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
+	// visible alongside the password field. We do NOT need to click login first.
 	const passwordInputRelogin = page.locator('input[type="password"]');
 	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	logCheckpoint('Filled password for re-login.');
 
-	// Click login to trigger 2FA
-	const loginButtonRelogin = page.getByRole('button', { name: /login/i }).last();
-	await loginButtonRelogin.click();
-	logCheckpoint('Submitted password for re-login.');
-
-	// Wait for 2FA step to appear
+	// The TFA input should already be visible (tfa_enabled=true from lookup)
 	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
 	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
-	logCheckpoint('Reached 2FA prompt.');
+	logCheckpoint('TFA input visible alongside password (combined form).');
 
 	// Click "Login with recovery key" to switch to recovery key mode
 	const recoveryKeyButton = page.locator('#login-with-recoverykey button');

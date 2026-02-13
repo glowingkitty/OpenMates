@@ -130,29 +130,27 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	// Enter password
 	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
-	await passwordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
+	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Click login
-	const loginButton = page.getByRole('button', { name: /login/i }).last();
-	await loginButton.click();
-	logCheckpoint('Clicked login button.');
-
-	// Handle 2FA - enter OTP code
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
+	// Handle 2FA - enter OTP code (fill BEFORE clicking submit, same as chat-flow)
 	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-	await tfaInput.first().fill(otpCode);
+	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+	await tfaInput.fill(otpCode);
 	await takeStepScreenshot(page, 'otp-entered');
 	logCheckpoint('Entered OTP code.');
 
-	// Submit OTP
-	await loginButton.click();
+	// Submit login (password + OTP together in one click)
+	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+	logCheckpoint('Submitted login with password + OTP.');
 
 	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	await page.waitForURL(/chat/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'logged-in');
 	logCheckpoint('Login successful with password + OTP.');
 
@@ -288,11 +286,12 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// PHASE 4: Logout
 	// ========================================================================
 
-	// Navigate back to main settings menu to find logout
-	// The back button or direct navigation depends on the current settings page state.
-	// We'll re-open settings from scratch if needed.
+	// After clicking "Done" on 2FA success, the settings panel is still open on the
+	// account/security/2fa sub-page. We need to navigate back to the main settings
+	// menu where the logout item lives. The back button in the settings header uses
+	// the class `.nav-button` with a visible `.icon_back` child.
 
-	// Try to find the settings menu - it might still be open
+	// Ensure the settings menu is open
 	const settingsVisible = await page
 		.locator('.settings-menu.visible')
 		.isVisible()
@@ -302,24 +301,18 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 		await expect(page.locator('.settings-menu.visible')).toBeVisible();
 	}
 
-	// Look for the logout menu item
+	// Navigate back to main settings by clicking the header back button repeatedly.
+	// The actual back button is `.nav-button` inside `.settings-header`, with a
+	// `.icon_back.visible` child indicating it's active (not on the main menu).
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	// If not visible, we may need to navigate back to the main settings menu
-	const logoutVisible = await logoutItem.isVisible().catch(() => false);
-	if (!logoutVisible) {
-		// Click back buttons until we reach main settings
-		const backButton = page.locator('.settings-menu .back-button, .settings-header .back-button');
-		for (let i = 0; i < 5; i++) {
-			const backVisible = await backButton
-				.first()
-				.isVisible()
-				.catch(() => false);
-			if (!backVisible) break;
-			await backButton.first().click();
-			await page.waitForTimeout(500);
-			const nowVisible = await logoutItem.isVisible().catch(() => false);
-			if (nowVisible) break;
-		}
+	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	for (let i = 0; i < 5; i++) {
+		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
+		if (logoutNowVisible) break;
+		const backVisible = await settingsBackButton.isVisible().catch(() => false);
+		if (!backVisible) break;
+		await settingsBackButton.click();
+		await page.waitForTimeout(500);
 	}
 
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
@@ -352,23 +345,21 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password
+	// Enter password — the password+TFA form is a single combined step.
+	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
+	// visible alongside the password field. We do NOT need to click login first.
 	const passwordInputRelogin = page.locator('input[type="password"]');
 	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	logCheckpoint('Filled password for re-login.');
 
-	// Click login to trigger 2FA
-	const loginButtonRelogin = page.getByRole('button', { name: /login/i }).last();
-	await loginButtonRelogin.click();
-	logCheckpoint('Submitted password for re-login.');
-
-	// Wait for 2FA input
+	// The TFA input should already be visible (tfa_enabled=true from lookup)
 	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
 	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
-	logCheckpoint('Reached 2FA prompt during re-login.');
+	logCheckpoint('TFA input visible alongside password (combined form).');
 
-	// Switch to backup code mode
+	// Switch to backup code mode using the toggle button
 	const backupModeButton = page.locator('#login-with-backup-code button');
 	await expect(backupModeButton).toBeVisible();
 	await backupModeButton.click();
@@ -381,16 +372,17 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 		code: `${backupCodeToUse.slice(0, 5)}*****`
 	});
 
-	// The TFA input should now accept backup code format
-	// The input field reuses the same input but with different validation
+	// The TFA input now accepts backup code format (alphanumeric 14-char)
 	const backupCodeInput = page.locator('input[autocomplete="one-time-code"]').first();
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
 	logCheckpoint('Entered backup code.');
 
-	// Submit login with backup code
-	await loginButtonRelogin.click();
+	// Submit login with password + backup code using the form submit button
+	const loginSubmitButton = page.locator('button[type="submit"].login-button');
+	await expect(loginSubmitButton).toBeVisible();
+	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
 
 	// Wait for successful login - redirect to chat

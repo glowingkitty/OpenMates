@@ -59,6 +59,14 @@ Props:
     type TfaStep = 'overview' | 'auth' | 'setup' | 'verify' | 'select-app' | 'backup-codes' | 'success';
     let currentStep = $state<TfaStep>('overview');
     
+    /**
+     * Flag to distinguish between the "Change App" flow (full 2FA re-setup)
+     * and the "Reset Backup Codes" flow (standalone code regeneration).
+     * When true, the auth step leads directly to backup code generation
+     * instead of the full QR/OTP/app-selection setup.
+     */
+    let isResetBackupCodesFlow = $state(false);
+    
     /** Loading states */
     let isLoading = $state(false);
     let isVerifying = $state(false);
@@ -188,19 +196,73 @@ Props:
     // ========================================================================
     
     /**
-     * Start 2FA setup - requires authentication first.
+     * Start 2FA setup (Change App) - requires authentication first.
      */
     function startSetup() {
+        isResetBackupCodesFlow = false;
         currentStep = 'auth';
         errorMessage = null;
     }
     
     /**
-     * Handle successful authentication, proceed to setup.
+     * Start Reset Backup Codes flow - requires authentication first.
+     * After auth, skips the full 2FA re-setup and goes directly to
+     * generating new backup codes via the standalone endpoint.
+     */
+    function startResetBackupCodes() {
+        isResetBackupCodesFlow = true;
+        currentStep = 'auth';
+        errorMessage = null;
+    }
+    
+    /**
+     * Reset (regenerate) backup codes via the standalone endpoint.
+     * Called after SecurityAuth verification when isResetBackupCodesFlow is true.
+     * Generates new codes server-side and displays them to the user.
+     */
+    async function resetBackupCodes() {
+        isLoading = true;
+        errorMessage = null;
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.reset_backup_codes), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success && data.backup_codes) {
+                backupCodes = data.backup_codes;
+                currentStep = 'backup-codes';
+                console.log('[SettingsTwoFactorAuth] Backup codes reset successfully');
+            } else {
+                errorMessage = data.message || $text('settings.security.tfa_reset_codes_failed.text');
+                currentStep = 'overview';
+            }
+        } catch (error) {
+            console.error('[SettingsTwoFactorAuth] Error resetting backup codes:', error);
+            errorMessage = $text('settings.security.tfa_reset_codes_error.text');
+            currentStep = 'overview';
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    /**
+     * Handle successful authentication.
+     * Branches based on which flow initiated the auth:
+     * - Change App flow → proceed to full 2FA setup
+     * - Reset Backup Codes flow → call standalone endpoint
      */
     async function handleAuthSuccess() {
-        currentStep = 'setup';
-        await initiate2FASetup();
+        if (isResetBackupCodesFlow) {
+            await resetBackupCodes();
+        } else {
+            currentStep = 'setup';
+            await initiate2FASetup();
+        }
     }
     
     /**
@@ -210,6 +272,7 @@ Props:
     function handleAuthFailed(message: string) {
         console.error('[SettingsTwoFactorAuth] Authentication failed:', message);
         errorMessage = message;
+        isResetBackupCodesFlow = false;
         currentStep = 'overview';
     }
     
@@ -217,6 +280,7 @@ Props:
      * Handle authentication cancellation.
      */
     function handleAuthCancel() {
+        isResetBackupCodesFlow = false;
         currentStep = 'overview';
     }
     
@@ -473,6 +537,7 @@ Props:
         currentStep = 'overview';
         errorMessage = null;
         successMessage = null;
+        isResetBackupCodesFlow = false;
         // Reset setup state
         tfaSecret = '';
         otpauthUrl = '';
@@ -481,6 +546,20 @@ Props:
         selectedApp = null;
         backupCodes = [];
         codesConfirmed = false;
+    }
+    
+    /**
+     * Confirm backup codes stored during the reset flow.
+     * Unlike the full setup flow, this just returns to overview with a success message
+     * (no need to call /confirm-codes-stored since there's no active setup cache).
+     */
+    function confirmResetCodesStored() {
+        if (!codesConfirmed) return;
+        
+        const msg = $text('settings.security.tfa_reset_codes_success.text');
+        returnToOverview();
+        // Re-set the success message after returnToOverview clears it
+        successMessage = msg;
     }
 
     /**
@@ -531,6 +610,9 @@ Props:
             <div class="action-buttons">
                 <button class="btn-primary" onclick={startSetup}>
                     {$text('settings.security.tfa_change_app.text')}
+                </button>
+                <button class="btn-secondary" onclick={startResetBackupCodes}>
+                    {$text('settings.security.tfa_reset_backup_codes.text')}
                 </button>
             </div>
         </div>
@@ -655,7 +737,7 @@ Props:
     {:else if currentStep === 'backup-codes'}
         <!-- Backup Codes -->
         <div class="tfa-backup-codes">
-            <h3>{$text('settings.security.tfa_backup_codes.text')}</h3>
+            <h3>{isResetBackupCodesFlow ? $text('settings.security.tfa_new_backup_codes.text') : $text('settings.security.tfa_backup_codes.text')}</h3>
             <p class="description">{$text('settings.security.tfa_backup_codes_description.text')}</p>
             
             <div class="codes-container">
@@ -682,16 +764,28 @@ Props:
                 <div class="error-message">{errorMessage}</div>
             {/if}
             
-            <button
-                class="btn-primary"
-                onclick={confirmCodesStored}
-                disabled={!codesConfirmed || isLoading}
-            >
-                {#if isLoading}
-                    <div class="loading-spinner-small"></div>
-                {/if}
-                {$text('settings.security.tfa_complete_setup.text')}
-            </button>
+            {#if isResetBackupCodesFlow}
+                <!-- Reset flow: just confirm and go back to overview -->
+                <button
+                    class="btn-primary"
+                    onclick={confirmResetCodesStored}
+                    disabled={!codesConfirmed}
+                >
+                    {$text('common.done.text')}
+                </button>
+            {:else}
+                <!-- Full setup flow: confirm codes stored via API -->
+                <button
+                    class="btn-primary"
+                    onclick={confirmCodesStored}
+                    disabled={!codesConfirmed || isLoading}
+                >
+                    {#if isLoading}
+                        <div class="loading-spinner-small"></div>
+                    {/if}
+                    {$text('settings.security.tfa_complete_setup.text')}
+                </button>
+            {/if}
         </div>
         
     {:else if currentStep === 'success'}

@@ -86,6 +86,7 @@ export const apiEndpoints = {
     confirm_codes_stored: "/v1/auth/2fa/setup/confirm-codes-stored", // Confirm backup codes are stored by user
     confirm_recoverykey_stored: "/v1/auth/recovery-key/confirm-stored", // Confirm recovery key is stored by user
     regenerate_recovery_key: "/v1/auth/recovery-key/regenerate", // Regenerate recovery key (requires auth)
+    reset_backup_codes: "/v1/auth/2fa/setup/reset-backup-codes", // Regenerate backup codes (requires auth, 2FA must be enabled)
     setup_2fa_provider: "/v1/auth/2fa/setup/provider", // Save which 2FA provider was used
     verify_2fa_code: "/v1/auth/2fa/setup/verify-signup", // Verify 2FA OTP code during login
     verifyDevice2FA: "/v1/auth/2fa/verify/device", // Verify 2FA OTP code for new device
