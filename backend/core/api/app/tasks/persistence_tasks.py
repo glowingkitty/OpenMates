@@ -13,6 +13,7 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 
 logger = logging.getLogger(__name__)
@@ -2152,9 +2153,21 @@ async def _async_persist_embed_fallback(
     """
     Fallback persistence for an embed that may not have been stored by the client.
     
-    Checks if the embed exists in Directus. If not, reads the vault-encrypted
-    data from Redis cache and persists it directly. This prevents silent data loss
-    when the client-to-server store_embed round-trip fails.
+    The normal flow is: server sends plaintext TOON to client via WebSocket →
+    client encrypts with chat key → client sends store_embed back → server writes
+    client-encrypted embed to Directus. If the client-to-server round-trip fails
+    (WebSocket disconnect, tab closure, etc.), the embed never reaches Directus.
+    
+    This fallback (dispatched ~60s after embed finalization) checks if the client
+    already persisted the embed. If not, it:
+    1. Reads vault-encrypted content from Redis cache
+    2. Decrypts it server-side using the user's vault key
+    3. Re-sends the plaintext TOON to the client via Redis pub/sub (same as the
+       original send_embed_data event)
+    4. The client then goes through the normal flow: encrypt → store_embed → Directus
+    
+    This approach preserves the zero-knowledge architecture: the server never writes
+    client-encrypted content, and the client is always the one to encrypt and persist.
     
     Args:
         embed_id: The embed ID to check/persist
@@ -2173,7 +2186,7 @@ async def _async_persist_embed_fallback(
         existing = await directus_service.embed.get_embed_by_id(embed_id)
         if existing:
             logger.info(
-                f"[EMBED_FALLBACK] ✅ Embed {embed_id} already persisted to Directus "
+                f"[EMBED_FALLBACK] Embed {embed_id} already persisted to Directus "
                 f"(client handled it). Skipping fallback. (task_id: {task_id})"
             )
             return
@@ -2185,20 +2198,20 @@ async def _async_persist_embed_fallback(
 
     # Step 2: Read embed data from Redis cache (vault-encrypted)
     cache_service = CacheService()
-    client = await cache_service.client
-    if not client:
+    redis_client = await cache_service.client
+    if not redis_client:
         logger.error(
-            f"[EMBED_FALLBACK] ❌ Redis client not available for embed {embed_id}. "
-            f"Cannot persist without cache data. (task_id: {task_id})"
+            f"[EMBED_FALLBACK] Redis client not available for embed {embed_id}. "
+            f"Cannot proceed without cache data. (task_id: {task_id})"
         )
         return
 
     cache_key = f"embed:{embed_id}"
-    embed_json = await client.get(cache_key)
+    embed_json = await redis_client.get(cache_key)
     if not embed_json:
         logger.warning(
-            f"[EMBED_FALLBACK] ⚠️ Embed {embed_id} not found in Redis cache (expired or never cached). "
-            f"Cannot persist without cache data. (task_id: {task_id})"
+            f"[EMBED_FALLBACK] Embed {embed_id} not found in Redis cache (expired or never cached). "
+            f"Cannot proceed without cache data. (task_id: {task_id})"
         )
         return
 
@@ -2206,78 +2219,132 @@ async def _async_persist_embed_fallback(
         embed_data = json.loads(embed_json)
     except json.JSONDecodeError as e:
         logger.error(
-            f"[EMBED_FALLBACK] ❌ Failed to parse cached embed {embed_id}: {e}. "
+            f"[EMBED_FALLBACK] Failed to parse cached embed {embed_id}: {e}. "
             f"(task_id: {task_id})"
         )
         return
 
-    # Step 3: Verify the embed is in "finished" status (don't persist processing/error embeds)
+    # Step 3: Verify the embed is in "finished" status (don't re-send processing/error embeds)
     cached_status = embed_data.get("status")
     if cached_status != "finished":
         logger.info(
             f"[EMBED_FALLBACK] Embed {embed_id} status is '{cached_status}', not 'finished'. "
-            f"Skipping fallback persistence. (task_id: {task_id})"
+            f"Skipping fallback re-send. (task_id: {task_id})"
         )
         return
 
-    # Step 4: Build Directus payload from cache data
-    # The cache contains vault-encrypted content. We persist it with encryption_mode="vault"
-    # so the client knows to request server-side decryption rather than trying to decrypt
-    # with a chat key it doesn't have for this embed.
+    # Step 4: Validate required fields for decryption and re-send
     vault_key_id = embed_data.get("vault_key_id")
+    user_id = embed_data.get("user_id")
+    hashed_user_id = embed_data.get("hashed_user_id")
+    encrypted_content = embed_data.get("encrypted_content")
+
     if not vault_key_id:
-        logger.warning(
-            f"[EMBED_FALLBACK] ⚠️ Embed {embed_id} has no vault_key_id in cache. "
-            f"The embed may have been cached before vault_key_id tracking was added. "
-            f"Persisting anyway with encryption_mode='vault'. (task_id: {task_id})"
+        logger.error(
+            f"[EMBED_FALLBACK] Embed {embed_id} has no vault_key_id in cache. "
+            f"Cannot decrypt vault-encrypted content without the key ID. "
+            f"This embed may have been cached before vault_key_id tracking was added. "
+            f"(task_id: {task_id})"
         )
+        return
 
-    # Determine encrypted_type: encrypt the plaintext type with vault key if possible
-    # For the fallback, we store the type as-is since it's not sensitive (it's metadata)
-    # The schema has encrypted_type field but for vault-mode embeds the server can read it
-    embed_type = embed_data.get("type", "app_skill_use")
+    if not user_id:
+        logger.error(
+            f"[EMBED_FALLBACK] Embed {embed_id} has no user_id in cache. "
+            f"Cannot re-send to client without user identification. "
+            f"(task_id: {task_id})"
+        )
+        return
 
-    directus_payload = {
-        "embed_id": embed_data.get("embed_id", embed_id),
-        "hashed_chat_id": embed_data.get("hashed_chat_id"),
-        "hashed_message_id": embed_data.get("hashed_message_id"),
-        "hashed_task_id": embed_data.get("hashed_task_id"),
-        "status": "finished",
-        "hashed_user_id": embed_data.get("hashed_user_id"),
-        "is_private": embed_data.get("is_private", False),
-        "is_shared": embed_data.get("is_shared", False),
-        "embed_ids": embed_data.get("embed_ids"),
-        "encryption_mode": "vault",  # Server-managed encryption (vault key)
-        "vault_key_id": vault_key_id,
-        "encrypted_content": embed_data.get("encrypted_content"),
-        "encrypted_type": embed_type,  # Store plaintext type (vault-mode allows server to read it)
-        "parent_embed_id": embed_data.get("parent_embed_id"),
-        "text_length_chars": embed_data.get("text_length_chars"),
-        "created_at": embed_data.get("created_at"),
-        "updated_at": embed_data.get("updated_at"),
-        "s3_file_keys": embed_data.get("s3_file_keys"),
-    }
+    if not hashed_user_id:
+        logger.error(
+            f"[EMBED_FALLBACK] Embed {embed_id} has no hashed_user_id in cache. "
+            f"Cannot publish to WebSocket channel without user hash. "
+            f"(task_id: {task_id})"
+        )
+        return
 
-    # Remove None values to avoid overwriting defaults in Directus
-    directus_payload = {k: v for k, v in directus_payload.items() if v is not None}
+    if not encrypted_content:
+        logger.error(
+            f"[EMBED_FALLBACK] Embed {embed_id} has no encrypted_content in cache. "
+            f"Nothing to decrypt and re-send. (task_id: {task_id})"
+        )
+        return
 
-    # Step 5: Create the embed in Directus
+    # Step 5: Decrypt vault-encrypted content to get plaintext TOON
     try:
-        created = await directus_service.embed.create_embed(directus_payload)
-        if created:
-            logger.info(
-                f"[EMBED_FALLBACK] ✅ Successfully persisted embed {embed_id} to Directus "
-                f"via server-side fallback (encryption_mode=vault, vault_key_id={vault_key_id}). "
+        encryption_service = EncryptionService(cache_service=cache_service)
+        plaintext_toon = await encryption_service.decrypt_with_user_key(
+            encrypted_content, vault_key_id
+        )
+        if not plaintext_toon:
+            logger.error(
+                f"[EMBED_FALLBACK] Failed to decrypt embed {embed_id} content "
+                f"(decrypt_with_user_key returned None). vault_key_id={vault_key_id}. "
                 f"(task_id: {task_id})"
             )
-        else:
-            logger.error(
-                f"[EMBED_FALLBACK] ❌ Failed to persist embed {embed_id} to Directus "
-                f"(create_embed returned None). (task_id: {task_id})"
-            )
+            return
     except Exception as e:
         logger.error(
-            f"[EMBED_FALLBACK] ❌ Exception persisting embed {embed_id} to Directus: {e}. "
+            f"[EMBED_FALLBACK] Exception decrypting embed {embed_id}: {e}. "
+            f"vault_key_id={vault_key_id}. (task_id: {task_id})",
+            exc_info=True
+        )
+        return
+
+    # Step 6: Build send_embed_data payload (same structure as EmbedService.send_embed_data_to_client)
+    # This re-sends the plaintext TOON to the client via Redis pub/sub so the client can
+    # encrypt it with the chat key and persist it via the normal store_embed flow.
+    text_length_chars = embed_data.get("text_length_chars") or len(plaintext_toon)
+    now_ts = int(datetime.now().timestamp())
+
+    payload = {
+        "event": "send_embed_data",
+        "type": "send_embed_data",
+        "event_for_client": "send_embed_data",
+        "payload": {
+            "embed_id": embed_id,
+            "type": embed_data.get("type", "app_skill_use"),  # PLAINTEXT
+            "content": plaintext_toon,  # PLAINTEXT TOON (client will encrypt)
+            "status": "finished",
+            "chat_id": embed_data.get("chat_id", ""),  # PLAINTEXT (client will hash)
+            "message_id": embed_data.get("message_id", ""),  # PLAINTEXT (client will hash)
+            "user_id": user_id,
+            "is_private": embed_data.get("is_private", False),
+            "is_shared": embed_data.get("is_shared", False),
+            "encryption_mode": embed_data.get("encryption_mode", "client"),
+            "text_length_chars": text_length_chars,
+            "createdAt": embed_data.get("created_at") or now_ts,
+            "updatedAt": now_ts,  # Use current time since this is a re-send
+        }
+    }
+
+    # Add optional fields if present in cache
+    embed_ids = embed_data.get("embed_ids")
+    if embed_ids is not None:
+        payload["payload"]["embed_ids"] = embed_ids
+
+    parent_embed_id = embed_data.get("parent_embed_id")
+    if parent_embed_id is not None:
+        payload["payload"]["parent_embed_id"] = parent_embed_id
+
+    task_id_for_payload = embed_data.get("task_id") or embed_data.get("hashed_task_id")
+    if task_id_for_payload is not None:
+        payload["payload"]["task_id"] = task_id_for_payload
+
+    # Step 7: Publish to Redis pub/sub for WebSocket delivery
+    try:
+        channel_key = f"websocket:user:{hashed_user_id}"
+        await redis_client.publish(channel_key, json.dumps(payload))
+        logger.info(
+            f"[EMBED_FALLBACK] Re-sent send_embed_data for embed {embed_id} "
+            f"via Redis pub/sub (channel={channel_key}, type={embed_data.get('type')}, "
+            f"chat_id={embed_data.get('chat_id')}, content_len={len(plaintext_toon)}). "
+            f"Client should now encrypt and persist via store_embed. (task_id: {task_id})"
+        )
+    except Exception as e:
+        logger.error(
+            f"[EMBED_FALLBACK] Failed to publish re-send for embed {embed_id}: {e}. "
             f"(task_id: {task_id})",
             exc_info=True
         )
@@ -2287,15 +2354,19 @@ async def _async_persist_embed_fallback(
 def persist_embed_fallback_task(self, embed_id: str):
     """
     Celery task (sync wrapper) to check if an embed was persisted to Directus
-    by the client, and if not, persist the vault-encrypted version from Redis cache.
+    by the client, and if not, re-send the plaintext TOON via WebSocket pub/sub.
     
     This task is dispatched with a countdown delay (e.g., 60 seconds) after an embed
     is finalized. The delay gives the client time to complete the normal persistence
     flow (encrypt → store_embed → Directus). If the client didn't persist it within
-    that window, this fallback persists the vault-encrypted version directly.
+    that window, this fallback:
+    1. Reads vault-encrypted content from Redis cache
+    2. Decrypts it server-side using the user's vault key (EncryptionService)
+    3. Re-sends the plaintext TOON to the client via Redis pub/sub (send_embed_data event)
+    4. The client encrypts with chat key and persists via normal store_embed flow
     
     Args:
-        embed_id: The embed ID to check/persist
+        embed_id: The embed ID to check/re-send
     """
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
