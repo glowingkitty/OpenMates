@@ -1684,7 +1684,7 @@
       }
       
       // REAL CHAT HANDLING (authenticated users): Delete from IndexedDB and server
-      // Step 1: Delete from IndexedDB (local deletion) FIRST
+      // Step 1: Delete from IndexedDB (local deletion) FIRST - optimistic delete
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
       console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
@@ -1696,9 +1696,21 @@
       console.debug('[Chat] chatDeleted event dispatched for chat:', chatIdToDelete);
       
       // Step 3: Send delete request to server via chatSyncService
+      // If offline / WebSocket disconnected, queue the deletion for when we reconnect.
+      // The pending deletion is tracked in localStorage so phased sync won't re-add
+      // the chat from the server before the delete is confirmed.
       console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
-      await chatSyncService.sendDeleteChat(chatIdToDelete);
-      console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      try {
+        await chatSyncService.sendDeleteChat(chatIdToDelete);
+        console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      } catch (sendError) {
+        // Server delete failed (likely offline / WebSocket disconnected).
+        // Queue for retry on reconnect. The chat is already removed from IndexedDB
+        // and UI, so the user sees it as deleted immediately (optimistic delete).
+        console.warn('[Chat] Failed to send delete to server, queueing for reconnect:', chatIdToDelete, sendError);
+        const { addPendingChatDeletion } = await import('../../services/pendingChatDeletions');
+        addPendingChatDeletion(chatIdToDelete);
+      }
       
     } catch (error) {
       console.error('[Chat] Error deleting chat:', chatIdToDelete, error);

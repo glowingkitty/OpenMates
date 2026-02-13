@@ -616,6 +616,18 @@ export async function checkAuth(
             );
           }
 
+          // Clear any pending offline chat deletions from localStorage
+          try {
+            const { clearAllPendingChatDeletions } =
+              await import("../services/pendingChatDeletions");
+            clearAllPendingChatDeletions();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending chat deletions:",
+              clearError,
+            );
+          }
+
           // CRITICAL: Reset isLoggingOut flag after logout cleanup completes
           // This ensures the flag is reset even if logout was triggered by session expiration
           // Use a small delay to ensure all logout handlers have finished processing
@@ -691,6 +703,18 @@ export async function checkAuth(
             console.warn(
               "[AuthSessionActions] Failed to delete chatDB database during orphaned cleanup (may be blocked by open connections):",
               dbError,
+            );
+          }
+
+          // Clear any pending offline chat deletions from localStorage
+          try {
+            const { clearAllPendingChatDeletions } =
+              await import("../services/pendingChatDeletions");
+            clearAllPendingChatDeletions();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending chat deletions during orphaned cleanup:",
+              clearError,
             );
           }
 

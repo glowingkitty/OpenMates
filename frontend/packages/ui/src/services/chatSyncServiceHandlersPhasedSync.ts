@@ -326,9 +326,24 @@ async function storeRecentChats(
     const userProfile = await userDB.getUserProfile();
     const currentUserId = userProfile?.user_id;
 
+    // CRITICAL: Get pending deletions set to skip chats that were deleted locally
+    // while offline. Without this, the server would re-add the chat because it
+    // doesn't know about the deletion yet (the delete_chat WS message hasn't been sent).
+    const { getPendingChatDeletionsSet } =
+      await import("./pendingChatDeletions");
+    const pendingDeletions = getPendingChatDeletionsSet();
+
     for (const chatItem of chats) {
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Skip chats that are pending server deletion - do not re-add them
+      if (pendingDeletions.has(chatId)) {
+        console.info(
+          `[ChatSyncService] Phase 2 - Skipping chat ${chatId}: pending server deletion`,
+        );
+        continue;
+      }
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
@@ -512,9 +527,24 @@ async function storeAllChats(
     const userProfile = await userDB.getUserProfile();
     const currentUserId = userProfile?.user_id;
 
+    // CRITICAL: Get pending deletions set to skip chats that were deleted locally
+    // while offline. Without this, the server would re-add the chat because it
+    // doesn't know about the deletion yet (the delete_chat WS message hasn't been sent).
+    const { getPendingChatDeletionsSet } =
+      await import("./pendingChatDeletions");
+    const pendingDeletions = getPendingChatDeletionsSet();
+
     for (const chatItem of chats) {
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Skip chats that are pending server deletion - do not re-add them
+      if (pendingDeletions.has(chatId)) {
+        console.info(
+          `[ChatSyncService] Phase 3 - Skipping chat ${chatId}: pending server deletion`,
+        );
+        continue;
+      }
 
       console.debug(
         `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,

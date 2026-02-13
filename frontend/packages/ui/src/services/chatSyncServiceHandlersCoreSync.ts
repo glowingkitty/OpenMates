@@ -36,9 +36,21 @@ export async function handleInitialSyncResponseImpl(
     const userProfile = await userDB.getUserProfile();
     const currentUserId = userProfile?.user_id;
 
+    // CRITICAL: Filter out chats that are pending server deletion.
+    // These were deleted locally while offline and should not be re-added.
+    const { getPendingChatDeletionsSet } =
+      await import("./pendingChatDeletions");
+    const pendingDeletions = getPendingChatDeletionsSet();
+    const chatsToProcess =
+      pendingDeletions.size > 0
+        ? payload.chats_to_add_or_update.filter(
+            (c) => !pendingDeletions.has(c.chat_id),
+          )
+        : payload.chats_to_add_or_update;
+
     // Process chats with async decryption
     const chatsToUpdate: Chat[] = await Promise.all(
-      payload.chats_to_add_or_update.map(async (serverChat) => {
+      chatsToProcess.map(async (serverChat) => {
         // Decrypt encrypted title from server for in-memory use using chat-specific key
         let cleartextTitle: string | null = null;
         if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {

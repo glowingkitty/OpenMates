@@ -2821,9 +2821,18 @@ async function updateChatListFromDBInternal(force = false) {
                         deletedCount++;
                     } else {
                         // Real chat - delete from IndexedDB and server
+                        // Step 1: Optimistic local delete
                         await chatDB.deleteChat(chatId);
                         chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
-                        await chatSyncService.sendDeleteChat(chatId);
+                        // Step 2: Try server delete, queue if offline
+                        try {
+                            await chatSyncService.sendDeleteChat(chatId);
+                        } catch (sendError) {
+                            // Server delete failed (likely offline). Queue for reconnect.
+                            console.warn(`[Chats] Failed to send delete to server for ${chatId}, queueing:`, sendError);
+                            const { addPendingChatDeletion } = await import('../../services/pendingChatDeletions');
+                            addPendingChatDeletion(chatId);
+                        }
                         deletedCount++;
                     }
                 } catch (error) {

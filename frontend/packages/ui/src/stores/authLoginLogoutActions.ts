@@ -502,6 +502,18 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
           if (callbacks?.onError) await callbacks.onError(dbError);
         }
 
+        // Clear any pending offline chat deletions from localStorage
+        try {
+          const { clearAllPendingChatDeletions } =
+            await import("../services/pendingChatDeletions");
+          clearAllPendingChatDeletions();
+        } catch (clearError) {
+          console.error(
+            "[AuthStore] Failed to clear pending chat deletions:",
+            clearError,
+          );
+        }
+
         // Perform server logout - this ensures the backend is notified even if it's slow
         // If the server is unreachable, the request will fail gracefully and not affect the user
         console.debug(

@@ -153,6 +153,16 @@ export class ChatSynchronizationService extends EventTarget {
           );
         });
 
+        // Flush any chat deletions that were queued while offline.
+        // This sends delete_chat for each pending ID and removes it from the queue.
+        // Must run before phased sync so the server knows about the deletions.
+        this.flushPendingChatDeletions().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error flushing pending chat deletions:",
+            error,
+          );
+        });
+
         if (this.cacheStatusRequestTimeout) {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
@@ -476,6 +486,47 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("reminder_fired", (payload) =>
         module.handleReminderFiredImpl(this, payload),
       );
+
+      // Handle focus mode activated events (sent after auto-confirm task fires)
+      // Updates the local chatMetadataCache so the context menu shows the focus indicator
+      // in real-time without requiring a page refresh
+      webSocketService.on("focus_mode_activated", async (payload) => {
+        try {
+          const chatId = payload?.chat_id;
+          const focusId = payload?.focus_id;
+          const encryptedActiveFocusId = payload?.encrypted_active_focus_id;
+          if (!chatId || !focusId) return;
+          console.debug("[ChatSyncService] Focus mode activated:", {
+            chatId,
+            focusId,
+          });
+
+          // Update the chat's list_item_data in IndexedDB with the new encrypted_active_focus_id
+          // This ensures chatMetadataCache.getDecryptedMetadata() returns the correct activeFocusId
+          const { chatDB } = await import("./db");
+          const chat = await chatDB.getChat(chatId);
+          if (chat && encryptedActiveFocusId) {
+            // Update the encrypted_active_focus_id field on the chat object
+            chat.encrypted_active_focus_id = encryptedActiveFocusId;
+            await chatDB.saveChat(chat);
+            console.debug(
+              "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
+            );
+          }
+
+          // Dispatch event so ActiveChat and other components can react
+          this.dispatchEvent(
+            new CustomEvent("focusModeActivated", {
+              detail: { chat_id: chatId, focus_id: focusId },
+            }),
+          );
+        } catch (e) {
+          console.error(
+            "[ChatSyncService] Error handling focus_mode_activated:",
+            e,
+          );
+        }
+      });
       // Handle pending AI response events (AI completed while user was offline)
       // Delivered from the pending delivery queue on WebSocket reconnect
       // Contains plaintext AI response; handler encrypts with chat key and persists
@@ -964,6 +1015,41 @@ export class ChatSynchronizationService extends EventTarget {
     await senders.sendOfflineChangesImpl();
   }
 
+  /**
+   * Flush pending chat deletions that were queued while offline.
+   * Sends a delete_chat WebSocket message for each pending ID,
+   * then removes it from the pending queue on success.
+   * Called automatically on WebSocket reconnect.
+   */
+  public async flushPendingChatDeletions(): Promise<void> {
+    const { getPendingChatDeletions, removePendingChatDeletion } =
+      await import("./pendingChatDeletions");
+
+    const pendingIds = getPendingChatDeletions();
+    if (pendingIds.length === 0) return;
+
+    console.info(
+      `[ChatSyncService] Flushing ${pendingIds.length} pending chat deletion(s) to server...`,
+    );
+
+    for (const chatId of pendingIds) {
+      try {
+        await this.sendDeleteChat(chatId);
+        removePendingChatDeletion(chatId);
+        console.debug(
+          `[ChatSyncService] Successfully flushed pending deletion for chat ${chatId}`,
+        );
+      } catch (error) {
+        // If sending still fails (e.g., connection dropped again), leave it in the queue.
+        // It will be retried on the next reconnect.
+        console.warn(
+          `[ChatSyncService] Failed to flush pending deletion for chat ${chatId}, will retry later:`,
+          error,
+        );
+      }
+    }
+  }
+
   // Scroll position and read status sync methods
   public async sendScrollPositionUpdate(
     chat_id: string,
@@ -1023,6 +1109,23 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`,
       );
 
+      // CRITICAL: Filter out chats that are pending server deletion.
+      // If we include them in client_chat_ids, the server won't re-send them (good).
+      // But if we DON'T include them, the server sees them as "new" and sends them back.
+      // Since these chats were already deleted from IndexedDB (optimistic delete),
+      // they won't be in allChats. However, as an extra safety measure, we also
+      // exclude any pending deletion IDs from the version map. The real protection
+      // is in the phased sync handlers (storeRecentChats/storeAllChats) which skip
+      // chats that are in the pending deletions set.
+      const { getPendingChatDeletionsSet } =
+        await import("./pendingChatDeletions");
+      const pendingDeletions = getPendingChatDeletionsSet();
+      if (pendingDeletions.size > 0) {
+        console.info(
+          `[ChatSyncService] Phased sync: ${pendingDeletions.size} chat(s) pending server deletion, will be excluded from sync`,
+        );
+      }
+
       const client_chat_versions: Record<
         string,
         { messages_v: number; title_v: number; draft_v: number }
@@ -1030,6 +1133,8 @@ export class ChatSynchronizationService extends EventTarget {
       const client_chat_ids: string[] = [];
 
       for (const chat of allChats) {
+        // Skip chats pending deletion - they should not appear in client state
+        if (pendingDeletions.has(chat.chat_id)) continue;
         client_chat_ids.push(chat.chat_id);
         client_chat_versions[chat.chat_id] = {
           messages_v: chat.messages_v || 0,
