@@ -132,16 +132,16 @@
     
     // Update content from decoded TOON
     if (data.decodedContent) {
-      const content = data.decodedContent;
-      localTableContent = content.code || content.table || content.content || '';
-      if (content.title) {
-        localTitle = content.title;
+      const c = data.decodedContent;
+      localTableContent = String(c.code || c.table || c.content || '');
+      if (c.title) {
+        localTitle = String(c.title);
       }
-      if (typeof content.rows === 'number') {
-        localRowCount = content.rows;
+      if (typeof c.rows === 'number') {
+        localRowCount = c.rows;
       }
-      if (typeof content.cols === 'number') {
-        localColCount = content.cols;
+      if (typeof c.cols === 'number') {
+        localColCount = c.cols;
       }
     }
   }
@@ -229,12 +229,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 8px;
+    padding: 0;
     box-sizing: border-box;
   }
   
   .sheet-preview.mobile {
-    padding: 6px;
+    padding: 0;
   }
   
   /* Skeleton loading state */
@@ -267,12 +267,13 @@
     50% { opacity: 1; }
   }
   
-  /* Table preview */
+  /* Table preview - edge-to-edge, no border for flush appearance */
   .table-container {
     width: 100%;
+    flex: 1;
     overflow: hidden;
-    border-radius: 6px;
-    border: 1px solid var(--color-grey-20, #eaeaea);
+    border-radius: 0;
+    border: none;
     background: var(--color-grey-5, #fafafa);
   }
   

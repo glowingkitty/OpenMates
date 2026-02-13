@@ -1952,13 +1952,19 @@ export class GroupRenderer implements EmbedRenderer {
     const rowCount = decodedContent?.rows || item.rows || 0;
     const colCount = decodedContent?.cols || item.cols || 0;
 
-    // For preview embeds (contentRef starts with 'preview:'), get table content from item attributes
-    // For real embeds, get table content from decodedContent
+    // For preview/stream embeds, get table content from item attributes (code attr).
+    // For real embeds (embed: ref), get table content from decodedContent (EmbedStore).
+    // stream: refs are used after reload (read mode) — content lives in item.code.
+    // preview: refs are used during live streaming (write mode) — content also in item.code.
     let tableContent = "";
-    if (item.contentRef?.startsWith("preview:")) {
+    if (
+      item.contentRef?.startsWith("preview:") ||
+      item.contentRef?.startsWith("stream:")
+    ) {
       tableContent = item.code || "";
     } else {
-      tableContent = decodedContent?.code || decodedContent?.table || "";
+      tableContent =
+        decodedContent?.code || decodedContent?.table || item.code || "";
     }
 
     // Determine status
@@ -1968,7 +1974,8 @@ export class GroupRenderer implements EmbedRenderer {
     const embedId =
       item.contentRef
         ?.replace("embed:", "")
-        ?.replace("preview:sheets-sheet:", "") ||
+        ?.replace("preview:sheets-sheet:", "")
+        ?.replace("stream:", "") ||
       item.id ||
       "";
 
@@ -1988,7 +1995,14 @@ export class GroupRenderer implements EmbedRenderer {
     // Mount the Svelte component
     try {
       const handleFullscreen = () => {
-        this.openFullscreen(item, embedData, decodedContent);
+        // For preview/stream embeds, construct synthetic decodedContent
+        // so fullscreen has the table data without hitting EmbedStore
+        const fullscreenContent =
+          decodedContent ||
+          (tableContent
+            ? { code: tableContent, title, rows: rowCount, cols: colCount }
+            : null);
+        this.openFullscreen(item, embedData, fullscreenContent);
       };
 
       const component = mount(SheetEmbedPreview, {
@@ -2126,12 +2140,17 @@ export class GroupRenderer implements EmbedRenderer {
     const rowCount = decodedContent?.rows || item.rows || 0;
     const colCount = decodedContent?.cols || item.cols || 0;
 
-    // For preview embeds (contentRef starts with 'preview:'), get content from item attributes
+    // For preview/stream embeds, get content from item attributes (code attr).
+    // stream: refs are used after reload — content lives in item.code.
     let tableContent = "";
-    if (item.contentRef?.startsWith("preview:")) {
+    if (
+      item.contentRef?.startsWith("preview:") ||
+      item.contentRef?.startsWith("stream:")
+    ) {
       tableContent = item.code || "";
     } else {
-      tableContent = decodedContent?.code || decodedContent?.table || "";
+      tableContent =
+        decodedContent?.code || decodedContent?.table || item.code || "";
     }
 
     // Determine status
@@ -2153,7 +2172,14 @@ export class GroupRenderer implements EmbedRenderer {
     target.innerHTML = "";
 
     const handleFullscreen = () => {
-      this.openFullscreen(item, embedData, decodedContent);
+      // For preview/stream embeds, construct synthetic decodedContent
+      // so fullscreen has the table data without hitting EmbedStore
+      const fullscreenContent =
+        decodedContent ||
+        (tableContent
+          ? { code: tableContent, title, rows: rowCount, cols: colCount }
+          : null);
+      this.openFullscreen(item, embedData, fullscreenContent);
     };
 
     try {

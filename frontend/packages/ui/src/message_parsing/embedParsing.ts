@@ -474,6 +474,8 @@ function parseNonCodeBlockEmbeds(
             cols,
           });
         } else {
+          // In read mode, store table content in `code` attr so the renderer
+          // can display it after reload (stream: refs have no EmbedStore backing)
           embedNodes.push({
             id,
             type: "sheets-sheet",
@@ -483,6 +485,7 @@ function parseNonCodeBlockEmbeds(
             rows,
             cols,
             cellCount: rows * cols,
+            code: tableContent,
           });
         }
       }

@@ -26,6 +26,7 @@
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
+    import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
@@ -35,6 +36,7 @@
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
+    import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -819,6 +821,15 @@
         console.debug('[ActiveChat] showEmbedFullscreen changed:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     });
     
+    // --- Focus mode context menu state ---
+    let showFocusModeContextMenu = $state(false);
+    let focusModeContextMenuX = $state(0);
+    let focusModeContextMenuY = $state(0);
+    let focusModeContextMenuIsActivated = $state(false);
+    let focusModeContextMenuFocusId = $state('');
+    let focusModeContextMenuAppId = $state('');
+    let focusModeContextMenuFocusModeName = $state('');
+    
     // --- Focus mode event handlers ---
     
     /**
@@ -848,45 +859,101 @@
     }
     
     /**
-     * Add a system message to the chat indicating the focus mode was rejected.
-     * This is a local-only message for now (plaintext system event).
+     * Add a persisted system message to the chat indicating a focus mode state change.
+     * Encrypts with the chat key and sends via `chat_system_message_added` WebSocket
+     * so it's stored server-side and synced across devices.
+     * 
+     * @param focusId - The focus mode ID
+     * @param focusModeName - Display name for the focus mode
+     * @param action - 'rejected' or 'stopped'
      */
-    async function handleFocusModeRejectionSystemMessage(focusId: string, focusModeName: string) {
+    async function handleFocusModeSystemMessage(focusId: string, focusModeName: string, action: 'rejected' | 'stopped' = 'rejected') {
         const chatId = currentChat?.chat_id;
         if (!focusId || !chatId) return;
         const displayName = focusModeName || focusId;
-        const rejectionText = `Rejected ${displayName} focus mode.`;
+        const verb = action === 'stopped' ? 'Stopped' : 'Rejected';
+        const messageText = `${verb} ${displayName} focus mode.`;
         
-        console.debug('[ActiveChat] Adding focus mode rejection system message:', rejectionText);
+        console.debug('[ActiveChat] Adding focus mode system message:', messageText);
         
         try {
-            // Create a lightweight system-event message in the local chat messages
-            // This mirrors the pattern used by app settings/memories confirmations
-            const messageId = crypto.randomUUID();
-            const now = new Date().toISOString();
+            const { encryptWithChatKey } = await import('../services/cryptoService');
+            const { webSocketService } = await import('../services/websocketService');
+            const importedChatSyncService = (await import('../services/chatSyncService')).default;
             
+            // Generate message ID (format: last 10 chars of chat_id + uuid)
+            const chatIdSuffix = chatId.slice(-10);
+            const messageId = `${chatIdSuffix}-${crypto.randomUUID()}`;
+            const now = Math.floor(Date.now() / 1000);
+            
+            // Encrypt content with chat key (zero-knowledge architecture)
+            const chatKey = chatDB.getChatKey(chatId);
+            let encryptedContent: string | null = null;
+            
+            if (chatKey) {
+                encryptedContent = await encryptWithChatKey(messageText, chatKey);
+            }
+            
+            if (!chatKey || !encryptedContent) {
+                // Fallback: create local-only message if encryption fails (e.g., chat key not loaded)
+                console.warn('[ActiveChat] Cannot encrypt focus mode system message, creating local-only');
+                const localMessage = {
+                    message_id: messageId,
+                    chat_id: chatId,
+                    role: 'system' as const,
+                    content: messageText,
+                    created_at: now,
+                    status: 'sent' as const,
+                };
+                importedChatSyncService.dispatchEvent(
+                    new CustomEvent('chatUpdated', {
+                        detail: { chat_id: chatId, type: 'system_message_added', newMessage: localMessage },
+                    }),
+                );
+                return;
+            }
+            
+            // Create system message with encrypted content
             const systemMessage = {
                 message_id: messageId,
                 chat_id: chatId,
                 role: 'system' as const,
-                content: rejectionText,
+                content: messageText,
                 created_at: now,
-                status: 'sent' as const,
+                status: 'sending' as const,
+                encrypted_content: encryptedContent,
             };
             
-            // Dispatch a chatUpdated event so the message list picks it up
-            const chatSyncService = (await import('../services/chatSyncService')).default;
-            chatSyncService.dispatchEvent(
+            // Save to IndexedDB first
+            await chatDB.saveMessage(systemMessage);
+            
+            // Send encrypted content to server for persistence and cross-device sync
+            const payload = {
+                chat_id: chatId,
+                message: {
+                    message_id: messageId,
+                    role: 'system',
+                    encrypted_content: encryptedContent,
+                    created_at: now,
+                },
+            };
+            
+            await webSocketService.sendMessage('chat_system_message_added', payload);
+            
+            // Update status to synced
+            const syncedMessage = { ...systemMessage, status: 'synced' as const };
+            await chatDB.saveMessage(syncedMessage);
+            
+            // Dispatch UI update event
+            importedChatSyncService.dispatchEvent(
                 new CustomEvent('chatUpdated', {
-                    detail: {
-                        chat_id: chatId,
-                        type: 'system_message_added',
-                        newMessage: systemMessage,
-                    },
+                    detail: { chat_id: chatId, type: 'system_message_added', newMessage: syncedMessage },
                 }),
             );
+            
+            console.debug('[ActiveChat] Persisted focus mode system message:', messageId);
         } catch (e) {
-            console.error('[ActiveChat] Error creating focus mode rejection system message:', e);
+            console.error('[ActiveChat] Error creating focus mode system message:', e);
         }
     }
     
@@ -926,7 +993,12 @@
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
         
-        if (embedId) {
+        // Skip EmbedStore lookup for preview/stream embeds — these are ephemeral and their
+        // content is passed inline via the event's decodedContent (e.g., sheets-sheet tables
+        // auto-detected from markdown). They have no backing entry in the EmbedStore.
+        const isEphemeralEmbed = embedId && (embedId.startsWith('stream:') || embedId.startsWith('preview:'));
+        
+        if (embedId && !isEphemeralEmbed) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
@@ -962,15 +1034,15 @@
                         // Check decoded content keys
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
-                } else if (!finalEmbedData) {
-                    // Only error if we have no data at all
+                } else if (!finalEmbedData && !finalDecodedContent) {
+                    // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
                     return;
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
-                if (!finalEmbedData) {
+                if (!finalEmbedData && !finalDecodedContent) {
                     return;
                 }
             }
@@ -998,6 +1070,9 @@
                 case 'video':
                 case 'videos-video':
                     return 'videos-video';
+                case 'sheet':
+                case 'sheets-sheet':
+                    return 'sheets-sheet';
                 default:
                     return t;
             }
@@ -4395,13 +4470,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // --- Focus mode event listeners ---
         // Handle focus mode rejection (user clicked during countdown to cancel activation)
-        const focusModeRejectedHandler = (event: CustomEvent) => {
+        // With the deferred activation architecture, this sends "focus_mode_rejected" to the
+        // backend which consumes the pending context and fires a non-focus continuation task.
+        // If the auto-confirm already ran, it falls back to deactivating the already-active mode.
+        const focusModeRejectedHandler = async (event: CustomEvent) => {
             const { focusId, focusModeName } = event.detail || {};
+            const chatId = currentChat?.chat_id;
             console.debug('[ActiveChat] Focus mode rejected:', focusId, focusModeName);
-            // Dispatch deactivation to backend (clear cache + Directus)
-            handleFocusModeDeactivation(focusId);
-            // Add a system message indicating the rejection
-            handleFocusModeRejectionSystemMessage(focusId, focusModeName);
+            
+            // Send rejection to backend via WebSocket (new deferred activation protocol)
+            // The backend will either:
+            // a) Consume the pending context and fire a non-focus continuation task
+            // b) Fall back to deactivation if auto-confirm already ran
+            if (chatId && focusId) {
+                try {
+                    const { webSocketService } = await import('../services/websocketService');
+                    webSocketService.sendMessage('focus_mode_rejected', {
+                        chat_id: chatId,
+                        focus_id: focusId,
+                    });
+                    console.debug('[ActiveChat] Sent focus_mode_rejected to backend');
+                } catch (e) {
+                    console.error('[ActiveChat] Error sending focus_mode_rejected:', e);
+                }
+            }
+            
+            // Add a persisted system message indicating the rejection
+            handleFocusModeSystemMessage(focusId, focusModeName, 'rejected');
         };
         document.addEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
         
@@ -4420,6 +4515,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleFocusModeDetailsNavigation(focusId, appId);
         };
         document.addEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
+        
+        // Handle focus mode context menu (right-click or long-press on focus mode embed)
+        // Opens the FocusModeContextMenu component at the event coordinates.
+        const focusModeContextMenuHandler = (event: CustomEvent) => {
+            const { focusId, appId, focusModeName, isActivated, isRejected, event: originalEvent } = event.detail || {};
+            console.debug('[ActiveChat] Focus mode context menu requested:', { focusId, isActivated, isRejected });
+            
+            // Don't show context menu for already-rejected embeds
+            if (isRejected) return;
+            
+            // Get coordinates from the original mouse/touch event
+            let x = 0;
+            let y = 0;
+            if (originalEvent instanceof MouseEvent) {
+                x = originalEvent.clientX;
+                y = originalEvent.clientY;
+            } else if (originalEvent instanceof TouchEvent && originalEvent.touches.length > 0) {
+                x = originalEvent.touches[0].clientX;
+                y = originalEvent.touches[0].clientY;
+            } else if (originalEvent instanceof TouchEvent && originalEvent.changedTouches?.length > 0) {
+                x = originalEvent.changedTouches[0].clientX;
+                y = originalEvent.changedTouches[0].clientY;
+            }
+            
+            focusModeContextMenuX = x;
+            focusModeContextMenuY = y;
+            focusModeContextMenuIsActivated = !!isActivated;
+            focusModeContextMenuFocusId = focusId || '';
+            focusModeContextMenuAppId = appId || '';
+            focusModeContextMenuFocusModeName = focusModeName || '';
+            showFocusModeContextMenu = true;
+        };
+        document.addEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
         
         // Add event listener for video PiP restore fullscreen events
         // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
@@ -5234,6 +5362,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
+            // Remove focus mode event listeners
+            document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
+            document.removeEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
+            document.removeEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
+            document.removeEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
         };
     });
 
@@ -5976,6 +6109,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onShowChat={handleShowChat}
                         />
                     {/if}
+                {:else if embedFullscreenData.embedType === 'sheets-sheet'}
+                    <!-- Sheet/Table Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        {@const sheetContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
+                        {@const sheetTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
+                        {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
+                        {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
+                        <SheetEmbedFullscreen 
+                            tableContent={sheetContent}
+                            title={sheetTitle}
+                            rowCount={sheetRows}
+                            colCount={sheetCols}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
                     <!-- Constructs VideoMetadata from decodedContent (backend TOON format: snake_case) -->
@@ -6085,6 +6240,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         </div>
     {/if}
 </div>
+
+<!-- Focus mode context menu (body-appended, shown on right-click/long-press on focus mode embeds) -->
+<FocusModeContextMenu
+    x={focusModeContextMenuX}
+    y={focusModeContextMenuY}
+    show={showFocusModeContextMenu}
+    isActivated={focusModeContextMenuIsActivated}
+    focusModeName={focusModeContextMenuFocusModeName}
+    onClose={() => { showFocusModeContextMenu = false; }}
+    onCancelOrStop={() => {
+        showFocusModeContextMenu = false;
+        if (focusModeContextMenuIsActivated) {
+            // Already activated — dispatch deactivation event (same as "Stop Focus Mode")
+            document.dispatchEvent(new CustomEvent('focusModeDeactivated', {
+                bubbles: true,
+                detail: { focusId: focusModeContextMenuFocusId, appId: focusModeContextMenuAppId },
+            }));
+            // Add "Stopped X focus mode." persisted system message
+            handleFocusModeSystemMessage(focusModeContextMenuFocusId, focusModeContextMenuFocusModeName, 'stopped');
+        } else {
+            // Still in countdown — dispatch rejection event (same as clicking to cancel)
+            document.dispatchEvent(new CustomEvent('focusModeRejected', {
+                bubbles: true,
+                detail: { focusId: focusModeContextMenuFocusId, focusModeName: focusModeContextMenuFocusModeName, appId: focusModeContextMenuAppId },
+            }));
+        }
+    }}
+    onDetails={() => {
+        showFocusModeContextMenu = false;
+        handleFocusModeDetailsNavigation(focusModeContextMenuFocusId, focusModeContextMenuAppId);
+    }}
+/>
 
 <style>
     /* 
