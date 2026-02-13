@@ -5000,6 +5000,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // This will cause Tiptap to re-render embed NodeViews, which will now find
             // the embed data in the store and display the actual content instead of "Processing..."
             if (chatHistoryRef && currentMessages.length > 0) {
+                // CRITICAL: For error/cancelled embeds, check if the error is already tracked.
+                // If so, skip the re-render to prevent an infinite loop where:
+                //   error embed -> re-render -> resolveEmbed() -> request_embed -> send_embed_data(error)
+                //   -> embedUpdated(error) -> re-render -> ...
+                if (status === 'error' || status === 'cancelled') {
+                    const targetMsg = currentMessages.find(
+                        msg => msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant'
+                    );
+                    if (targetMsg) {
+                        const existingErrors: Set<string> = (targetMsg as MessageWithEmbedMeta)._embedErrors ?? new Set();
+                        if (existingErrors.has(embed_id)) {
+                            console.debug(`[ActiveChat] Error already tracked for embed ${embed_id}, skipping re-render to prevent loop`);
+                            return;
+                        }
+                    }
+                }
+                
                 // Create new message array references to force Svelte reactivity
                 // CRITICAL: We need to create NEW content objects to break reference equality
                 // so that ChatHistory detects the change and re-renders ReadOnlyMessage components

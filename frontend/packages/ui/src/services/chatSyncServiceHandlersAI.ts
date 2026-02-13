@@ -2,7 +2,7 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
-import { storeEmbed } from "./embedResolver"; // Import storeEmbed
+import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
 import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import type { EmbedType } from "../message_parsing/types";
@@ -2646,13 +2646,19 @@ export async function handleSendEmbedDataImpl(
       // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
       // The backend has already removed the processing placeholder from its cache.
       // We just need to:
-      // 1. Remove the in-memory processing placeholder
-      // 2. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
-      // 3. The UI will hide the embed and show the error banner
+      // 1. Mark embed as error in the embedResolver's knownErrorEmbeds set
+      //    (CRITICAL: prevents infinite loop where resolveEmbed() re-requests
+      //    error embeds from the server on every render cycle)
+      // 2. Remove the in-memory processing placeholder
+      // 3. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
+      // 4. The UI will hide the embed and show the error banner
       console.info(
         `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
           `cleaning up without persisting (failed embeds are not stored)`,
       );
+
+      // Mark as known error FIRST so resolveEmbed() won't re-request it
+      markEmbedAsError(embedData.embed_id, embedData.status);
 
       try {
         const { embedStore } = await import("./embedStore");
