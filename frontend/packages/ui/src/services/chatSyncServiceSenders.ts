@@ -333,10 +333,16 @@ export async function sendNewMessageImpl(
     chat = await chatDB.getChat(message.chat_id);
   }
 
-  const chatHasMessages = (chat?.messages_v ?? 0) > 1; // > 1 because current message will be message #1
+  // Use title_v to determine if the chat already has a title generated.
+  // Previously used (messages_v > 1) as a proxy, but this was unreliable due to race conditions:
+  // Between handleSend creating the chat (messages_v=1) and this function reading it back,
+  // messages_v could be incremented by concurrent operations (AI response handler, sync service),
+  // causing the backend to skip title/icon/category generation for new chats.
+  // title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
+  const chatHasTitle = (chat?.title_v ?? 0) > 0;
 
   console.debug(
-    `[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? "FOLLOW-UP" : "NEW CHAT"}, isIncognito: ${isIncognitoChat}`,
+    `[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${chatHasTitle ? "FOLLOW-UP" : "NEW CHAT"}, isIncognito: ${isIncognitoChat}`,
   );
 
   // ========================================================================
@@ -888,7 +894,7 @@ export async function sendNewMessageImpl(
       content: contentForServer,
       created_at: message.created_at,
       sender_name: message.sender_name, // Include for cache but not critical for AI
-      chat_has_title: chatHasMessages, // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
+      chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
       // NO category or encrypted fields - those go to Phase 2
       // NO message_history - server will request if cache is stale (unless incognito)
     },
@@ -929,7 +935,7 @@ export async function sendNewMessageImpl(
   // For duplicated demo chats or new chats with history, include full message history
   // This allows the server to persist history for a brand-new chat ID in one go.
   // The server will use the cleartext 'content' for AI context and 'encrypted_content' for DB storage.
-  if (!isIncognitoChat && !chatHasMessages && messageHistory.length > 0) {
+  if (!isIncognitoChat && !chatHasTitle && messageHistory.length > 0) {
     payload.message_history = messageHistory.map(
       (msg) =>
         ({
@@ -1224,7 +1230,8 @@ export async function sendNewMessageImpl(
       messageId: message.message_id,
       chatId: message.chat_id,
       hasPlaintextContent: !!message.content,
-      chatHasMessages: chatHasMessages,
+      chatHasTitle: chatHasTitle,
+      titleV: chat?.title_v,
       messagesV: chat?.messages_v,
     },
   );
