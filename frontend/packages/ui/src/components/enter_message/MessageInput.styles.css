@@ -109,6 +109,10 @@
   cursor: text;
   /* Ensure MessageInput is always on top of FollowUpSuggestions gradient */
   z-index: 100;
+  /* Prevent double-tap-to-zoom on mobile while still allowing single tap and scroll.
+     This stops iOS/Firefox from zooming in when users quickly tap the input area
+     (e.g., tapping send then tapping back into the input). */
+  touch-action: manipulation;
 }
 
 /* Main message field container */
@@ -197,6 +201,10 @@
   color: var(--color-font-primary);
   line-height: 1.6;
   caret-color: var(--color-primary);
+  /* Prevent double-tap-to-zoom on the contenteditable editor on mobile.
+     Without this, quickly tapping to position cursor or tapping after sending
+     a message can trigger iOS/Firefox zoom-in. */
+  touch-action: manipulation;
 }
 
 :global(.ProseMirror p) {

@@ -60,10 +60,46 @@
 		// (e.g., legal chats briefly appearing on self-hosted instances)
 		initializeServerStatus();
 
-		// iOS Safari zoom fix: When the virtual keyboard closes, Safari can leave the page
-		// in a zoomed-in state. Use the visualViewport API to detect when the viewport height
-		// returns to the window height (keyboard closed) and reset any residual zoom by
-		// scrolling to top-left. This complements the maximum-scale=1 viewport meta tag.
+		// =====================================================================
+		// Mobile zoom glitch prevention
+		// =====================================================================
+		// Two distinct zoom glitches happen on iOS mobile browsers:
+		//
+		// 1. KEYBOARD DISMISS ZOOM: When the virtual keyboard closes, Safari/Firefox
+		//    can leave the page in a zoomed-in state with a scroll offset.
+		//    Fixed by detecting visualViewport resize (keyboard close) and resetting.
+		//
+		// 2. TAB SWITCH ZOOM (Firefox iOS bug #31457): Switching away from the tab
+		//    and back (or opening tab tray) causes Firefox to spontaneously zoom in.
+		//    Fixed by detecting visibilitychange → visible and forcing a viewport reset
+		//    via a brief maximum-scale toggle trick that forces the browser to recalculate.
+		//
+		// Both fixes work together with the maximum-scale=1 in the viewport meta tag
+		// (set in both app.html and MetaTags.svelte).
+		// =====================================================================
+
+		/**
+		 * Force-reset any unwanted browser zoom by briefly toggling the viewport
+		 * meta tag's maximum-scale. This causes WebKit/Gecko to snap back to scale=1.
+		 * Uses requestAnimationFrame to ensure the browser processes the change.
+		 */
+		const resetZoom = () => {
+			const vp = document.querySelector('meta[name="viewport"]');
+			if (!vp) return;
+			const original = vp.getAttribute('content') || '';
+			// Only act if zoom is actually not at 1x (visualViewport.scale > 1 means zoomed in)
+			const vv = window.visualViewport;
+			if (vv && Math.abs(vv.scale - 1) < 0.01) return; // Already at 1x, no reset needed
+			// Temporarily set a strict viewport to force zoom reset
+			vp.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1');
+			requestAnimationFrame(() => {
+				// Restore the original viewport content on the next frame
+				vp.setAttribute('content', original);
+			});
+		};
+
+		// Fix 1: Keyboard dismiss zoom — detect when keyboard closes and viewport
+		// has residual zoom offset, then reset scroll position + zoom
 		if (window.visualViewport) {
 			let lastViewportHeight = window.visualViewport.height;
 			const handleViewportResize = () => {
@@ -73,13 +109,26 @@
 				// Keyboard closed: viewport height increased back (keyboard was taking space)
 				// AND there's residual zoom offset that needs resetting
 				if (currentHeight > lastViewportHeight && (vv.offsetTop > 0 || vv.offsetLeft > 0)) {
-					// Reset any zoom/scroll offset left by iOS Safari keyboard dismiss
+					// Reset any zoom/scroll offset left by iOS keyboard dismiss
 					window.scrollTo(0, 0);
+					resetZoom();
 				}
 				lastViewportHeight = currentHeight;
 			};
 			window.visualViewport.addEventListener('resize', handleViewportResize);
 		}
+
+		// Fix 2: Tab switch zoom — when returning to the tab, check if the browser
+		// has introduced unwanted zoom (Firefox iOS tab-tray bug) and reset it.
+		// Also handles the case where sending a message triggers focus changes that
+		// cause zoom drift on iOS.
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible') {
+				// Small delay to let the browser finish its tab-switch rendering.
+				// Without this, the visualViewport.scale may not yet reflect the glitched state.
+				setTimeout(resetZoom, 100);
+			}
+		});
 	});
 
 	// Watch theme changes and update document attribute
