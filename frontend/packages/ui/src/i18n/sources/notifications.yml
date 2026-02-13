@@ -45,6 +45,11 @@ connection.offline_banner.title:
   en: You are offline
   de: Du bist offline
 
+connection.tap_to_reconnect:
+  context: Action button text on the offline notification, lets the user manually trigger a reconnection attempt
+  en: Tap to reconnect
+  de: Zum Wiederverbinden tippen
+
 # Software update notifications
 software_update.title:
   context: Title for software update notification

@@ -25,6 +25,7 @@
     import { notificationStore } from '../stores/notificationStore';
     import { text } from '../i18n/translations';
     import { authStore } from '../stores/authStore';
+    import { webSocketService } from '../services/websocketService';
 
     /**
      * Track the notification ID so we can auto-dismiss it when back online.
@@ -64,11 +65,28 @@
             { default: 'You are offline' }
         ) as string;
 
+        // For authenticated users, show a "Tap to reconnect" action button
+        // that triggers an immediate WebSocket reconnection attempt
+        const isAuthenticated = $authStore.isAuthenticated;
+        const actionLabel = isAuthenticated
+            ? $text(
+                'notifications.connection.tap_to_reconnect.text',
+                { default: 'Tap to reconnect' }
+              ) as string
+            : undefined;
+
         offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
             title,
             message,
             duration: 0, // Persistent — does not auto-dismiss
             dismissible: true, // User can close or swipe away
+            ...(isAuthenticated && {
+                onAction: () => {
+                    console.info('[OfflineBanner] User tapped reconnect — triggering WebSocket retry');
+                    webSocketService.retryConnection();
+                },
+                actionLabel,
+            }),
         });
     }
 

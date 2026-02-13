@@ -187,6 +187,17 @@
             {#if notification.messageSecondary}
                 <span class="notification-message-secondary">{notification.messageSecondary}</span>
             {/if}
+            {#if notification.onAction && notification.actionLabel}
+                <button
+                    class="notification-action-btn"
+                    onclick={(e: MouseEvent) => {
+                        e.stopPropagation();
+                        notification.onAction?.();
+                    }}
+                >
+                    {notification.actionLabel}
+                </button>
+            {/if}
         </div>
     </div>
 </div>
@@ -403,6 +414,30 @@
         font-weight: 600;
         line-height: 1.4;
         color: var(--color-grey-90);
+    }
+    
+    /* Action button for interactive notifications (e.g., "Tap to reconnect") */
+    .notification-action-btn {
+        all: unset;
+        cursor: pointer;
+        margin-top: 6px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.4;
+        color: var(--color-primary);
+        background-color: var(--color-grey-40);
+        border-radius: 8px;
+        transition: background-color 0.15s ease, opacity 0.15s ease;
+        align-self: flex-start;
+    }
+    
+    .notification-action-btn:hover {
+        background-color: var(--color-grey-50);
+    }
+    
+    .notification-action-btn:active {
+        opacity: 0.8;
     }
     
     /* Type-specific icon background colors */

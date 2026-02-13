@@ -39,6 +39,8 @@ export type NotificationType =
  * - messageSecondary: Secondary message (in bold font color)
  * - chatId: For chat_message notifications, the chat ID to reply to
  * - avatarUrl: For chat_message notifications, the avatar image URL
+ * - onAction: Optional callback for an action button (e.g., "Tap to reconnect")
+ * - actionLabel: Label text for the action button
  */
 export interface Notification {
   id: string;
@@ -48,6 +50,10 @@ export interface Notification {
   messageSecondary?: string; // Secondary message (displayed in bold)
   duration?: number; // Duration in ms, if undefined, notification is persistent until dismissed
   dismissible?: boolean; // Whether the notification can be dismissed by the user
+
+  // Action button support (e.g., "Tap to reconnect" on connection notifications)
+  onAction?: () => void; // Callback when action button is clicked
+  actionLabel?: string; // Label text for the action button
 
   // Chat message notification specific fields
   chatId?: string; // The chat ID for reply functionality
@@ -64,6 +70,8 @@ export interface NotificationOptions {
   messageSecondary?: string;
   duration?: number;
   dismissible?: boolean;
+  onAction?: () => void; // Optional callback for action button
+  actionLabel?: string; // Label text for the action button
   chatId?: string;
   chatTitle?: string;
   avatarUrl?: string;
