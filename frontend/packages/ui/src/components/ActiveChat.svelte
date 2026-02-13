@@ -13,7 +13,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -1921,6 +1921,71 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
     let _aiTaskStateTrigger = 0;
 
+    // ─── Progressive AI Status Indicator ─────────────────────────────────
+    // Tracks the current phase of the message processing pipeline for the
+    // centered status indicator in ChatHistory.
+    // Lifecycle: sending → processing (timed steps) → typing → null (streaming)
+    let processingPhase = $state<ProcessingPhase>(null);
+    // Timers for the timed step progression during the 'processing' phase.
+    // Cleared when transitioning to typing or when the chat changes.
+    let processingStepTimers: ReturnType<typeof setTimeout>[] = [];
+    // Whether the current message being processed is for a new chat (no title yet).
+    // Determines which processing steps to show (new chat includes title generation).
+    let isNewChatProcessing = $state(false);
+
+    /**
+     * Clear all processing step timers and reset the processing phase.
+     * Called on chat switch, unmount, error, or when streaming begins.
+     */
+    function clearProcessingPhase() {
+        for (const timer of processingStepTimers) {
+            clearTimeout(timer);
+        }
+        processingStepTimers = [];
+        processingPhase = null;
+    }
+
+    /**
+     * Start the timed progression of processing step messages.
+     * For new chats: "Generating chat title..." → "Selecting optimal mate..." → "Selecting AI model..."
+     * For existing chats: "Analyzing your message..." → "Selecting AI model..."
+     * Each step transitions after ~1.5s. Steps are frontend-only (the backend does all
+     * preprocessing in a single LLM call). Timers are cleared if ai_typing_started arrives early.
+     */
+    function startProcessingStepProgression(isNewChat: boolean) {
+        // Clear any existing timers from a previous message
+        for (const timer of processingStepTimers) {
+            clearTimeout(timer);
+        }
+        processingStepTimers = [];
+
+        const steps: { text: string; delay: number }[] = isNewChat
+            ? [
+                { text: $text('enter_message.status.generating_title.text'), delay: 0 },
+                { text: $text('enter_message.status.selecting_mate.text'), delay: 1500 },
+                { text: $text('enter_message.status.selecting_model.text'), delay: 3000 },
+              ]
+            : [
+                { text: $text('enter_message.status.analyzing_message.text'), delay: 0 },
+                { text: $text('enter_message.status.selecting_model.text'), delay: 1500 },
+              ];
+
+        for (const step of steps) {
+            if (step.delay === 0) {
+                // Set the first step immediately
+                processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
+            } else {
+                const timer = setTimeout(() => {
+                    // Only update if still in processing phase (not already transitioned to typing/null)
+                    if (processingPhase?.phase === 'processing') {
+                        processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
+                    }
+                }, step.delay);
+                processingStepTimers.push(timer);
+            }
+        }
+    }
+
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
     // Track live input text for incremental search in new chat suggestions
@@ -2310,67 +2375,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
-    // Reactive variable for typing indicator text
-    // Shows: "Sending..." when user message is being sent to server
-    // Then shows: "Processing..." when server received message and is processing
-    // Then shows: "{mate} is typing...<br>Powered by {model_name} via {provider_name}" when AI is responding
-    // Using Svelte 5 $derived for typing indicator text
+    // Reactive variable for typing indicator text (shown at the bottom, above message input).
+    // PROGRESSIVE STATUS INDICATOR: The centered overlay (processingPhase) handles:
+    //   - "Sending..." → "Generating chat title..." → "Selecting AI model..." → "{Mate} is typing..."
+    // The bottom indicator only shows during STREAMING (when processingPhase is null but AI is still typing).
+    // Exception: "Waiting for you..." is always shown at the bottom (not part of the centered flow).
     let typingIndicatorText = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
-        
-        // Check if there's a sending message (user message being sent to server)
-        const hasSendingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
-        );
-        
-        // Check if there's a processing message (user message waiting for AI to start)
-        const hasProcessingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
-        );
         
         // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
         const hasWaitingForUserMessage = currentMessages.some(m => 
             m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
         
-        // Debug logging for typing indicator
-        console.debug('[ActiveChat] Typing indicator check:', {
-            hasSendingMessage,
-            hasProcessingMessage,
-            hasWaitingForUserMessage,
-            isTyping: currentTypingStatus?.isTyping,
-            typingChatId: currentTypingStatus?.chatId,
-            currentChatId: currentChat?.chat_id,
-            category: currentTypingStatus?.category,
-            modelName: currentTypingStatus?.modelName,
-            providerName: currentTypingStatus?.providerName
-        });
-        
         // Show "Waiting for you..." if chat is paused waiting for user action
-        // (e.g., insufficient credits, app settings/memories permission)
+        // This is ALWAYS shown at the bottom (not part of the centered indicator flow)
         if (hasWaitingForUserMessage) {
             const result = $text('enter_message.waiting_for_user.text');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
             return result;
         }
         
-        // Show "Sending..." if there's a user message being sent
-        if (hasSendingMessage) {
-            const result = $text('enter_message.sending.text');
-            console.debug('[ActiveChat] Showing sending indicator:', result);
-            return result;
+        // When the centered indicator is active (processingPhase is not null),
+        // hide the bottom typing indicator to avoid duplicate text.
+        // The centered overlay handles sending, processing steps, and typing phases.
+        if (processingPhase !== null) {
+            return null;
         }
         
-        // Show "Processing..." if there's a user message in processing state
-        if (hasProcessingMessage) {
-            const result = $text('enter_message.processing.text');
-            console.debug('[ActiveChat] Showing processing indicator:', result);
-            return result;
-        }
-        
-        // Show detailed AI typing indicator once AI has started responding
+        // Show detailed AI typing indicator once streaming has started
+        // (processingPhase is null, meaning the centered indicator has faded out,
+        //  but aiTypingStore still shows isTyping = true during streaming)
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
             // Use server name from provider config (falls back to "AI" if not provided)
@@ -2420,21 +2457,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return typingIndicatorText ? splitHtmlLineBreaks(typingIndicatorText) : [];
     });
 
-    // Track the current status type for CSS styling (shimmer animation)
-    // Returns: 'sending' | 'processing' | 'typing' | null
+    // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
+    // Returns: 'typing' | 'waiting_for_user' | null
+    // 'sending' and 'processing' are no longer shown at the bottom — they're in the centered overlay.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
         
-        const hasSendingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
+        // "Waiting for you..." is always shown at the bottom
+        const hasWaitingForUserMessage = currentMessages.some(m => 
+            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
-        if (hasSendingMessage) return 'sending';
+        if (hasWaitingForUserMessage) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
-        const hasProcessingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
-        );
-        if (hasProcessingMessage) return 'processing';
+        // When centered indicator is active, bottom shows nothing
+        if (processingPhase !== null) return null;
         
+        // During streaming, show the typing shimmer
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
             return 'typing';
         }
@@ -2566,6 +2604,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             isNewMessageInStream = true;
             previousContentLengthForPersistence = 0;
             newContentLengthForPersistence = newAiMessage.content.length;
+            
+            // ─── Progressive AI Status Indicator: Clear centered indicator on first chunk ─────
+            // The assistant response div is now being shown, so fade out the centered overlay.
+            // The bottom typing indicator (in ActiveChat template) will take over for the
+            // "{Mate} is typing..." display while streaming continues.
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (first streaming chunk received)');
+            
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -3166,6 +3212,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
+        // ─── Progressive AI Status Indicator: Start with 'sending' phase ─────
+        // Determine if this is a new chat (no title yet) to decide which processing
+        // steps to show later when ai_task_initiated arrives.
+        const chatForNewCheck = newChat || currentChat;
+        isNewChatProcessing = !chatForNewCheck?.title_v || chatForNewCheck.title_v === 0;
+        
+        // Start the centered status indicator immediately with "Sending..."
+        processingPhase = {
+            phase: 'sending',
+            statusLines: [$text('enter_message.sending.text')]
+        };
+        console.debug('[ActiveChat] Processing phase set to SENDING', { isNewChat: isNewChatProcessing });
+
         if (chatHistoryRef) {
             console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
             chatHistoryRef.updateMessages(currentMessages);
@@ -3203,6 +3262,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
         isAtBottom = false; // Reset to hide action buttons for new chat (user needs to interact first)
+        
+        // Clear any active processing phase indicator
+        clearProcessingPhase();
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -3650,6 +3712,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
+        // Clear any active processing phase indicator from the previous chat
+        clearProcessingPhase();
+        
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
         if (showCodeFullscreen) {
@@ -4978,6 +5043,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatHistoryRef.updateMessages(currentMessages);
                     }
                 }
+                
+                // ─── Progressive AI Status Indicator: Transition to 'processing' phase ─────
+                // Start the timed step progression with appropriate steps for new/existing chat
+                startProcessingStepProgression(isNewChatProcessing);
+                console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                
                 _aiTaskStateTrigger++;
             }
         }) as EventListenerCallback;
@@ -4985,6 +5056,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
+                
+                // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
+                clearProcessingPhase();
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
@@ -5032,6 +5106,58 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
+                }
+                
+                // ─── Progressive AI Status Indicator: Transition to 'typing' phase ─────
+                // Clear processing step timers and show the typing indicator with mate/model info.
+                // This replaces the timed steps with the actual mate and model information from the server.
+                for (const timer of processingStepTimers) {
+                    clearTimeout(timer);
+                }
+                processingStepTimers = [];
+                
+                // Build the typing phase with resolved text lines
+                if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === chat_id && currentTypingStatus.category) {
+                    const mateName = $text('mates.' + currentTypingStatus.category + '.text');
+                    const modelName = currentTypingStatus.modelName ? getModelDisplayName(currentTypingStatus.modelName) : '';
+                    const providerName = currentTypingStatus.providerName || '';
+                    const serverRegion = currentTypingStatus.serverRegion || '';
+                    
+                    // Build region flag for display
+                    const getRegionFlag = (region: string): string => {
+                        switch (region) {
+                            case 'EU': return '🇪🇺';
+                            case 'US': return '🇺🇸';
+                            case 'APAC': return '🌏';
+                            default: return '';
+                        }
+                    };
+                    const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
+                    const displayProvider = regionFlag ? `${providerName} ${regionFlag}` : providerName;
+                    
+                    const lines: string[] = [
+                        $text('enter_message.is_typing.text').replace('{mate}', mateName)
+                    ];
+                    if (modelName && displayProvider) {
+                        // Extract the "Powered by..." portion from the multi-line translation.
+                        // The translation format is "{mate} is typing...\nPowered by {model_name} via {provider_name}"
+                        // We split by <br> (used in rendering) or newlines and take the last non-empty line.
+                        const fullTypingText = $text('enter_message.is_typing_powered_by.text')
+                            .replace('{mate}', mateName)
+                            .replace('{model_name}', modelName)
+                            .replace('{provider_name}', displayProvider);
+                        const poweredByLine = fullTypingText
+                            .split(/<br\s*\/?>|\n/)
+                            .map(l => l.trim())
+                            .filter(l => l.length > 0)
+                            .pop();
+                        if (poweredByLine) {
+                            lines.push(poweredByLine);
+                        }
+                    }
+                    
+                    processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
+                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, modelName, providerName });
                 }
             }
         }) as EventListenerCallback;
@@ -5384,6 +5510,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Unsubscribe from PII visibility store
         unsubPiiVisibility();
+        
+        // Clean up processing phase timers
+        clearProcessingPhase();
     });
 </script>
 
@@ -5605,6 +5734,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         containerWidth={effectiveChatWidth}
                         currentChatId={currentChat?.chat_id}
+                        {processingPhase}
                         {thinkingContentByTask}
                         {settingsMemoriesSuggestions}
                         {rejectedSuggestionHashes}
@@ -6645,15 +6775,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: center;
         font-size: 0.8rem;
         color: var(--color-grey-60);
-        padding: 4px 0;
-        height: 20px; /* Allocate space to prevent layout shift */
+        padding: 6px 12px 4px;
+        min-height: 20px; /* Allocate space to prevent layout shift */
         font-style: italic;
+        /* Gradient background so the text remains readable when positioned over chat messages.
+           Uses the page background color (--color-grey-0) fading from transparent at the top. */
+        background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            var(--color-grey-0, #fff) 40%
+        );
+        position: relative;
+        z-index: 1;
     }
     
-    /* Shimmer animation for status indicators (Sending..., Processing..., is typing...) */
-    .typing-indicator.status-sending,
+    /* Shimmer animation for the bottom typing indicator during streaming */
     .typing-indicator.status-processing,
     .typing-indicator.status-typing {
+        /* IMPORTANT: For shimmer-on-text, we use a foreground gradient on the text only.
+           The background fade-to-white is on the parent .typing-indicator.
+           We achieve this with a nested span approach — but since we can't nest easily,
+           we use color-based shimmer on the text content via the existing spans. */
+        color: var(--color-grey-50);
+    }
+    
+    /* Apply shimmer to the text spans inside the typing indicator */
+    .typing-indicator.status-typing span,
+    .typing-indicator.status-processing span {
         background: linear-gradient(
             90deg,
             var(--color-grey-60) 0%,

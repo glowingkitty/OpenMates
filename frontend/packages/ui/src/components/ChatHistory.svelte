@@ -4,7 +4,7 @@
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fade } from "svelte/transition";
-  import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
+  import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -373,6 +373,7 @@
     messageInputHeight = 0,
     containerWidth = 0,
     currentChatId = undefined,
+    processingPhase = null,
     thinkingContentByTask = new Map(),
     settingsMemoriesSuggestions = [],
     rejectedSuggestionHashes = null,
@@ -382,6 +383,7 @@
     messageInputHeight?: number;
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
+    processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
     settingsMemoriesSuggestions?: SuggestedSettingsMemoryEntry[]; // Suggested settings/memories entries from AI post-processing
     rejectedSuggestionHashes?: string[] | null; // SHA-256 hashes of rejected suggestions for client-side filtering
@@ -510,11 +512,10 @@
     messages.some(m => m.status === 'streaming')
   );
   
-  // Detect if AI is processing (user message sent, waiting for first streaming chunk).
-  // Shows the centered ai.svg loading icon overlay. Hides once streaming starts.
-  let isAiProcessing = $derived(
-    messages.some(m => m.status === 'processing') && !messages.some(m => m.status === 'streaming')
-  );
+  // Whether to show the centered AI status overlay.
+  // Driven by processingPhase prop from ActiveChat (sending → processing → typing → null).
+  // The overlay shows status text during all phases and adds the AI icon during processing/typing.
+  let showCenteredIndicator = $derived(processingPhase !== null);
   
   // Track previous streaming state to detect transitions
   let wasStreaming = $state(false);
@@ -1203,13 +1204,36 @@
     
 </div>
 
-<!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
+<!-- AI Status Overlay: Centered status indicator with progressive phase display.
      Positioned absolutely over the scroll container via the wrapper.
-     Shown when a user message is processing (waiting for AI) and no streaming has started yet.
-     Fades out when the assistant response begins streaming. -->
-{#if isAiProcessing}
+     Shows phased status text (Sending -> Processing steps -> Typing) with optional AI icon.
+     The AI icon only appears during processing and typing phases (when showIcon=true).
+     Fades out entirely when the assistant response begins streaming. -->
+{#if showCenteredIndicator && processingPhase}
     <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
-        <div class="ai-processing-icon"></div>
+        <div class="ai-status-indicator">
+            <!-- AI icon: only shown when showIcon is true (processing and typing phases) -->
+            {#if processingPhase.phase !== 'sending' && processingPhase.showIcon}
+                <div class="ai-processing-icon" transition:fade={{ duration: 300 }}></div>
+            {/if}
+
+            <!-- Status text: shown during all phases with shimmer animation.
+                 Uses {#key} to trigger fade transitions when text changes between steps. -->
+            {#key processingPhase.statusLines.join('|')}
+                <div
+                    class="ai-status-text"
+                    class:phase-sending={processingPhase.phase === 'sending'}
+                    class:phase-processing={processingPhase.phase === 'processing'}
+                    class:phase-typing={processingPhase.phase === 'typing'}
+                    in:fade={{ duration: 200, delay: 100 }}
+                    out:fade={{ duration: 150 }}
+                >
+                    {#each processingPhase.statusLines as line, index}
+                        <span class={index === 0 ? 'status-primary-line' : 'status-secondary-line'}>{line}</span>
+                    {/each}
+                </div>
+            {/key}
+        </div>
     </div>
 {/if}
 </div>
@@ -1327,7 +1351,7 @@
     max-width: 900px;
   }
 
-  /* AI Processing Overlay: Centered icon shown while waiting for AI response.
+  /* AI Status Overlay: Centered indicator shown during message processing lifecycle.
      Positioned absolutely over the scroll container (sibling, not child).
      This ensures it stays visually centered regardless of scroll position. */
   .ai-processing-overlay {
@@ -1343,9 +1367,18 @@
     z-index: 10;
   }
 
+  /* Vertical layout container for the AI icon and status text */
+  .ai-status-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* AI icon with shimmer animation — shown during processing and typing phases */
   .ai-processing-icon {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
     -webkit-mask-size: contain;
@@ -1364,6 +1397,47 @@
     );
     background-size: 200% 100%;
     animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  /* Status text container below the AI icon — shows phase-specific messages */
+  .ai-status-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* Shimmer text effect for all phases */
+  .ai-status-text.phase-sending,
+  .ai-status-text.phase-processing,
+  .ai-status-text.phase-typing {
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-60) 0%,
+      var(--color-grey-60) 40%,
+      var(--color-grey-40) 50%,
+      var(--color-grey-60) 60%,
+      var(--color-grey-60) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  /* Primary line (first line): slightly larger for emphasis */
+  .ai-status-text .status-primary-line {
+    font-size: 0.85rem;
+  }
+
+  /* Secondary line (e.g., "Powered by..." info): smaller, more subtle */
+  .ai-status-text .status-secondary-line {
+    font-size: 0.75rem;
+    opacity: 0.8;
   }
 
   @keyframes ai-processing-shimmer {

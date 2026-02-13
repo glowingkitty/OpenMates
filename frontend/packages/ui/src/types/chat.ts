@@ -18,6 +18,26 @@ export type MessageStatus =
 
 export type MessageRole = "user" | "assistant" | "system"; // Added system for potential future use
 
+/**
+ * Processing phase for the centered AI status indicator in ChatHistory.
+ * Tracks the current stage of the message processing pipeline to show
+ * progressive status updates to the user.
+ *
+ * Lifecycle: sending → processing → typing → null (streaming started)
+ *
+ * - sending: Message being sent to server. No AI icon, only status text.
+ * - processing: Backend is preprocessing. AI icon + timed step text.
+ *   `statusLines` contains the resolved translated text for the current step.
+ * - typing: Backend preprocessing done, AI is about to stream.
+ *   `statusLines` contains mate name + powered-by info as separate lines.
+ * - null: Streaming started or no active processing.
+ */
+export type ProcessingPhase =
+  | { phase: "sending"; statusLines: string[] }
+  | { phase: "processing"; statusLines: string[]; showIcon: boolean }
+  | { phase: "typing"; statusLines: string[]; showIcon: boolean }
+  | null;
+
 export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
