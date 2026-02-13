@@ -94,14 +94,23 @@
     // Derive focus mode display info from focus ID
     // Focus ID format: "{app_id}-{focus_name}" e.g., "jobs-career_insights"
     let focusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    // Build a human-readable fallback from the focus ID: "career_insights" → "Career Insights"
+    let focusFallbackName = $derived(
+        activeFocusId
+            ? activeFocusId.split('-').slice(1).join(' ').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            : null
+    );
     let focusTranslationKey = $derived(
         activeFocusId ? `${activeFocusId.replace('-', '.')}.text` : null
     );
-    let focusDisplayName = $derived(
-        focusTranslationKey
-            ? $text(focusTranslationKey, { default: activeFocusId?.split('-').slice(1).join(' ').replace(/_/g, ' ') || '' })
-            : null
-    );
+    let focusDisplayName = $derived.by(() => {
+        if (!focusTranslationKey) return focusFallbackName;
+        const translated = $text(focusTranslationKey, { default: focusFallbackName || '' });
+        // If $text returned the raw key (translation not found and default wasn't applied),
+        // fall back to the human-readable name derived from the focus ID
+        if (translated === focusTranslationKey) return focusFallbackName;
+        return translated || focusFallbackName;
+    });
     
     // Fetch chat total credits when menu is shown (only for authenticated users)
     $effect(() => {

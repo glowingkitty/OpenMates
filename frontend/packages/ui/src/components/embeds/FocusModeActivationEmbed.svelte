@@ -100,11 +100,18 @@
   let isRejected = $state(wasAlreadyRejected);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Resolve the focus mode name from translation key
-  // focusModeName comes as a translation key like "jobs.career_insights.text"
-  let displayName = $derived(
-    $text(focusModeName, { default: focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ') || focusModeName })
+  // Resolve the focus mode name — may be a translation key like "jobs.career_insights.text"
+  // or a pre-resolved display name from the backend like "Career Insights"
+  let focusFallbackName = $derived(
+    focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || focusModeName
   );
+  let displayName = $derived.by(() => {
+    const translated = $text(focusModeName, { default: focusFallbackName });
+    // If $text returned the raw key (translation not found and default wasn't applied),
+    // fall back to the human-readable name
+    if (translated === focusModeName && focusFallbackName !== focusModeName) return focusFallbackName;
+    return translated || focusFallbackName;
+  });
 
   // Status text shown on the card
   let statusText = $derived.by(() => {

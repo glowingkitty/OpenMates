@@ -1970,7 +1970,7 @@ async def handle_main_processing(
                                 # If we can't store, fall through — auto-confirm will no-op
                         
                         # --- Schedule auto-confirm Celery task ---
-                        # This task fires in 6 seconds (2s buffer over 4s client countdown).
+                        # This task fires in 5 seconds (1s buffer over 4s client countdown).
                         # If the user hasn't rejected by then, it activates focus mode and
                         # fires a continuation task with focus prompt.
                         try:

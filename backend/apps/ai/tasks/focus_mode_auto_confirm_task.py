@@ -26,8 +26,8 @@ from backend.core.api.app.tasks.celery_config import app
 
 logger = logging.getLogger(__name__)
 
-# Countdown delay in seconds — 2s buffer over the 4s client countdown
-FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN = 6
+# Countdown delay in seconds — 1s buffer over the 4s client countdown
+FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN = 5
 
 
 def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
@@ -259,6 +259,10 @@ async def _async_focus_mode_auto_confirm(
             # Signal that this is a continuation after focus mode activation
             # The task should NOT re-persist the user message (it's already persisted)
             "is_focus_mode_continuation": True,
+            # Reuse the original task_id as the AI message_id so the continuation
+            # response is appended to the same message bubble that contains the
+            # focus mode activation embed, instead of creating a separate bubble.
+            "continuation_message_id": original_task_id,
         }
         
         task = process_ai_skill_ask_task.apply_async(
