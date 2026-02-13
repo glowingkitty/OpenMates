@@ -1246,6 +1246,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
         const embedIds: string[] = [];
         
+        // Collect all embed IDs that are known to have errored.
+        // _embedErrors is populated by the embedUpdated event handler when
+        // an embed's status transitions to 'error' (see ~line 4998).
+        const errorEmbedIds = new Set<string>();
+        for (const msg of messages) {
+            const errors = (msg as MessageWithEmbedMeta)._embedErrors;
+            if (errors) {
+                for (const id of errors) {
+                    errorEmbedIds.add(id);
+                }
+            }
+        }
+        
         for (const message of messages) {
             // Get message content as markdown string
             let markdownContent = '';
@@ -1259,6 +1272,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Extract embed references from markdown content
             const refs = extractEmbedReferences(markdownContent);
             for (const ref of refs) {
+                // Skip error embeds — they are hidden from the UI and should
+                // not appear in fullscreen prev/next navigation.
+                if (errorEmbedIds.has(ref.embed_id)) {
+                    continue;
+                }
                 // Avoid duplicates
                 if (!embedIds.includes(ref.embed_id)) {
                     embedIds.push(ref.embed_id);

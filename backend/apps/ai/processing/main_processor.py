@@ -478,6 +478,20 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' returned 0 results, skipping billing.")
             return
         
+        # Skip charging if ALL results indicate failure (error/cancelled status).
+        # When a skill execution fails (HTTP error, rate limit, timeout, etc.),
+        # the results list contains dicts with status="error" or status="cancelled".
+        # Users should not be charged for failed executions.
+        # Note: the REST API flow (apps_api.py) already handles this via
+        # is_skill_execution_successful() — this mirrors that logic for the
+        # AI chat flow.
+        if all(
+            isinstance(r, dict) and r.get("status") in ("error", "cancelled")
+            for r in results
+        ):
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' failed — all {len(results)} result(s) have error/cancelled status, skipping billing.")
+            return
+        
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
         units_processed = None
