@@ -33,7 +33,13 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 /**
  * Generic renderer for group embeds (website-group, code-group, doc-group, etc.)
- * Delegates to individual renderers for each item in the group
+ * Delegates to individual renderers for each item in the group.
+ *
+ * IMPORTANT — Incremental rendering during streaming:
+ * When a group grows (e.g., 2 → 3 items) the renderer preserves existing
+ * Svelte components and only appends / prepends new items.  This avoids the
+ * visible "flash" caused by destroying and re-mounting every component on
+ * each streaming update.
  */
 export class GroupRenderer implements EmbedRenderer {
   type = "group"; // This is a generic type - actual matching happens in the registry
@@ -369,6 +375,165 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  /**
+   * Recount the visible items in a group's scroll container and update the
+   * header text to reflect the real visible count.
+   *
+   * This is necessary because error embeds are hidden via `target.remove()`
+   * at render time (in `mountAppSkillUsePreview`), so the header's count
+   * (derived from `groupCount` / `groupedItems.length`) can be stale.
+   */
+  private reconcileGroupHeader(
+    scrollContainer: HTMLElement,
+    header: HTMLElement,
+    baseType: string,
+  ): void {
+    const visibleItems =
+      scrollContainer.querySelectorAll(".embed-group-item").length;
+    const newDisplayName = this.getGroupDisplayName(baseType, visibleItems);
+
+    // Update header text, preserving child elements (e.g. download icon)
+    const textSpan = header.querySelector("span");
+    if (textSpan) {
+      textSpan.textContent = newDisplayName;
+    } else if (
+      header.childNodes.length >= 1 &&
+      header.childNodes[0].nodeType === Node.TEXT_NODE
+    ) {
+      header.childNodes[0].textContent = newDisplayName;
+    } else {
+      header.textContent = newDisplayName;
+    }
+  }
+
+  /**
+   * Try to incrementally update an existing group DOM by only adding new items.
+   *
+   * During streaming, groups typically grow (new embeds appended) while existing
+   * items stay the same.  Instead of tearing down every Svelte component and
+   * recreating the entire group, we:
+   *   1. Find the existing scroll-container.
+   *   2. Build a set of IDs already rendered (from data-embed-item-id).
+   *   3. Append only the items that are genuinely new.
+   *   4. Update the header text (e.g. "3 requests" → "4 requests").
+   *
+   * Returns `true` if the incremental path succeeded. Returns `false` if a full
+   * re-render is required (e.g. first render, items reordered, items removed).
+   */
+  async tryIncrementalGroupUpdate(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+    mountFn: (item: EmbedNodeAttributes, target: HTMLElement) => Promise<void>;
+  }): Promise<boolean> {
+    // Note: groupDisplayName is not used here — reconcileGroupHeader computes
+    // the display name from the actual visible item count (accounting for hidden error embeds).
+    const { baseType, items, content, mountFn } = args;
+
+    // Find the existing group wrapper and scroll container
+    const groupWrapper = content.querySelector<HTMLElement>(
+      `.${CSS.escape(baseType)}-preview-group`,
+    );
+    if (!groupWrapper) return false;
+
+    const scrollContainer = groupWrapper.querySelector<HTMLElement>(
+      ".group-scroll-container",
+    );
+    if (!scrollContainer) return false;
+
+    // Build a set of IDs already rendered in the DOM
+    const existingItemElements = Array.from(
+      scrollContainer.querySelectorAll<HTMLElement>(
+        ".embed-group-item[data-embed-item-id]",
+      ),
+    );
+    const existingIds = new Set<string>();
+    for (let i = 0; i < existingItemElements.length; i++) {
+      const id = existingItemElements[i].getAttribute("data-embed-item-id");
+      if (id) existingIds.add(id);
+    }
+
+    // If items were removed or reordered we cannot do an incremental update.
+    // Quick check: existing IDs must be a prefix-subset of the new items
+    // (since items are reversed, new items appear at the beginning).
+    // We allow both prepending (new items at start) and appending (new items at end).
+
+    // Collect new item IDs in order
+    const newItemIds = items.map(
+      (item) => item.id || item.contentRef || "unknown",
+    );
+
+    // Find which items are genuinely new (not yet in DOM)
+    const itemsToAdd: { item: EmbedNodeAttributes; index: number }[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const itemId = newItemIds[i];
+      if (!existingIds.has(itemId)) {
+        itemsToAdd.push({ item: items[i], index: i });
+      }
+    }
+
+    // If no new items, reconcile the header count (visible items may differ
+    // from groupCount due to error embeds being removed from DOM) and return.
+    if (itemsToAdd.length === 0) {
+      this.reconcileGroupHeader(
+        scrollContainer,
+        groupWrapper.querySelector<HTMLElement>(".group-header")!,
+        baseType,
+      );
+      return true;
+    }
+
+    // If ALL items are new (shouldn't happen for an update) or items were removed,
+    // fall back to full re-render.
+    if (itemsToAdd.length === items.length) return false;
+
+    // Check for removed items - if any existing ID is not in the new set, fall back
+    const existingIdsArray = Array.from(existingIds);
+    for (let i = 0; i < existingIdsArray.length; i++) {
+      if (!newItemIds.includes(existingIdsArray[i])) {
+        console.debug(
+          "[GroupRenderer] Item removed, falling back to full re-render",
+        );
+        return false;
+      }
+    }
+
+    console.debug(
+      `[GroupRenderer] Incremental update: adding ${itemsToAdd.length} new items to group (${existingIds.size} existing)`,
+    );
+
+    // Mount only the new items.
+    // Since items are reversed (newest first), new items appear at the
+    // beginning of the array.  We insert them at the correct position.
+    for (const { item, index } of itemsToAdd) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      itemWrapper.style.flex = "0 0 auto";
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
+
+      // Insert at the correct position in the scroll container
+      const referenceNode = scrollContainer.children[index] || null;
+      scrollContainer.insertBefore(itemWrapper, referenceNode);
+
+      await mountFn(item, itemWrapper);
+    }
+
+    // Reconcile header with actual visible count (error embeds may have been removed)
+    const header = groupWrapper.querySelector<HTMLElement>(".group-header");
+    if (header) {
+      this.reconcileGroupHeader(scrollContainer, header, baseType);
+    }
+
+    console.debug(
+      `[GroupRenderer] ✅ Incremental update complete: ${itemsToAdd.length} new items added`,
+    );
+    return true;
+  }
+
   private async renderAppSkillUseGroup(args: {
     baseType: string;
     groupDisplayName: string;
@@ -391,6 +556,18 @@ export class GroupRenderer implements EmbedRenderer {
         query: (item as any).query,
       })),
     });
+
+    // Try incremental update first — avoids destroying existing Svelte components
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountAppSkillUsePreview(item, target),
+    });
+    if (updated) return;
+
+    // Full re-render (first render or structural change)
 
     // Cleanup any mounted components inside this node before re-rendering
     this.unmountMountedComponentsInSubtree(content);
@@ -418,6 +595,11 @@ export class GroupRenderer implements EmbedRenderer {
       itemWrapper.className = "embed-group-item";
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
+      // Tag each item wrapper with its ID for incremental updates
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
 
       scrollContainer.appendChild(itemWrapper);
 
@@ -427,6 +609,11 @@ export class GroupRenderer implements EmbedRenderer {
       });
       await this.mountAppSkillUsePreview(item, itemWrapper);
     }
+
+    // CRITICAL: Recount visible items after mounting — error embeds call target.remove()
+    // so the actual number of rendered items may be less than items.length.
+    // Update the header to reflect the real visible count.
+    this.reconcileGroupHeader(scrollContainer, header, baseType);
 
     console.debug(
       `[GroupRenderer] ✅ Finished mounting all ${items.length} items in group`,
@@ -757,6 +944,18 @@ export class GroupRenderer implements EmbedRenderer {
   }): Promise<void> {
     const { baseType, groupDisplayName, items, content } = args;
 
+    // Try incremental update first — avoids destroying existing Svelte components
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountCodePreview(item, target),
+    });
+    if (updated) return;
+
+    // Full re-render (first render or structural change)
+
     // Cleanup any mounted components inside this node before re-rendering
     this.unmountMountedComponentsInSubtree(content);
 
@@ -811,6 +1010,11 @@ export class GroupRenderer implements EmbedRenderer {
       itemWrapper.className = "embed-group-item";
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
+      // Tag each item wrapper with its ID for incremental updates
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
 
       scrollContainer.appendChild(itemWrapper);
 
@@ -899,6 +1103,18 @@ export class GroupRenderer implements EmbedRenderer {
   }): Promise<void> {
     const { baseType, groupDisplayName, items, content } = args;
 
+    // Try incremental update first — avoids destroying existing Svelte components
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountDocsPreview(item, target),
+    });
+    if (updated) return;
+
+    // Full re-render (first render or structural change)
+
     // Cleanup any mounted components inside this node before re-rendering
     this.unmountMountedComponentsInSubtree(content);
 
@@ -924,6 +1140,11 @@ export class GroupRenderer implements EmbedRenderer {
       itemWrapper.className = "embed-group-item";
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
+      // Tag each item wrapper with its ID for incremental updates
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
 
       scrollContainer.appendChild(itemWrapper);
 
