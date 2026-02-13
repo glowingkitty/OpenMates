@@ -1,4 +1,4 @@
-search:
+search_connections:
   context: Skill name for travel search connections (flights, trains, routes between cities)
   en: Search connections
   de: Verbindungen suchen
@@ -23,8 +23,8 @@ search:
   verified_by_human:
     - en
     - de
-search.description:
-  context: Description for the travel search skill - searches for flights, trains, and routes between cities
+search_connections.description:
+  context: Description for the travel search connections skill - searches for flights, trains, and routes between cities
   en: Find flights, trains, and routes between cities.
   de: Finde Flüge, Züge und Routen zwischen Städten.
   zh: 查找城市之间的航班、火车和路线。

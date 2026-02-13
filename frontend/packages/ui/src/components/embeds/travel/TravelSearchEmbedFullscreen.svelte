@@ -187,7 +187,7 @@
   let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
   
   // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search.text') || 'Search');
+  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search');
   
   // "via {provider}" text
   let viaProvider = $derived(

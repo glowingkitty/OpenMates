@@ -105,8 +105,8 @@ settings_and_memories:
         - name
 skills:
   - id: search_connections
-    name_translation_key: travel.search.text
-    description_translation_key: travel.search.description.text
+    name_translation_key: app_skills.travel.search_connections.text
+    description_translation_key: app_skills.travel.search_connections.description.text
     preprocessor_hint: >
       Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
       Use when user specifies an exact travel date. Costs 25 credits per search.
@@ -234,82 +234,76 @@ skills:
   - id: search_stays
     name_translation_key: app_skills.travel.search_stays.text
     description_translation_key: app_skills.travel.search_stays.description.text
+    stage: production
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:
       per_unit:
         credits: 25
-    provider: Google
+    providers:
+      - Google
     tool_schema:
-      type: function
-      function:
-        name: search_stays
-        description: >
-          Search for hotels, hostels, and accommodations at a destination.
-          Returns properties with pricing, ratings, amenities, and images.
-          Use this for any stay / accommodation searches.
-        parameters:
-          type: object
-          properties:
-            requests:
-              type: array
-              description: >
-                Array of stay search requests. Each request searches for
-                accommodation at a specific destination for given dates.
-              items:
-                type: object
-                properties:
-                  query:
-                    type: string
-                    description: >
-                      Search query describing the destination or property
-                      (e.g. "Hotels in Paris", "Hostels near Eiffel Tower",
-                      "Barcelona beachfront hotel").
-                  check_in_date:
-                    type: string
-                    description: >
-                      Check-in date in YYYY-MM-DD format (e.g. "2026-03-15").
-                  check_out_date:
-                    type: string
-                    description: >
-                      Check-out date in YYYY-MM-DD format (e.g. "2026-03-18").
-                  adults:
-                    type: integer
-                    description: Number of adult guests.
-                    default: 2
-                  children:
-                    type: integer
-                    description: Number of children.
-                    default: 0
-                  currency:
-                    type: string
-                    description: >
-                      Price currency (ISO 4217 code, e.g. "EUR", "USD").
-                    default: EUR
-                  sort_by:
-                    type: string
-                    description: >
-                      Sort order for results. Options: "relevance" (default),
-                      "price_asc" (lowest price first), "rating_desc"
-                      (highest rated first), "reviews_desc" (most reviewed).
-                    default: relevance
-                  min_price:
-                    type: number
-                    description: Minimum nightly price filter.
-                  max_price:
-                    type: number
-                    description: Maximum nightly price filter.
-                  hotel_class:
-                    type: string
-                    description: >
-                      Comma-separated star rating filter (e.g. "3,4,5"
-                      for 3-star and above).
-                  max_results:
-                    type: integer
-                    description: Maximum number of results to return.
-                    default: 10
-                required:
-                  - query
-                  - check_in_date
-                  - check_out_date
-          required:
-            - requests
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of stay search requests. Each request searches for
+            accommodation at a specific destination for given dates.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Search query describing the destination or property
+                  (e.g. "Hotels in Paris", "Hostels near Eiffel Tower",
+                  "Barcelona beachfront hotel").
+              check_in_date:
+                type: string
+                description: >
+                  Check-in date in YYYY-MM-DD format (e.g. "2026-03-15").
+              check_out_date:
+                type: string
+                description: >
+                  Check-out date in YYYY-MM-DD format (e.g. "2026-03-18").
+              adults:
+                type: integer
+                description: Number of adult guests.
+                default: 2
+              children:
+                type: integer
+                description: Number of children.
+                default: 0
+              currency:
+                type: string
+                description: >
+                  Price currency (ISO 4217 code, e.g. "EUR", "USD").
+                default: EUR
+              sort_by:
+                type: string
+                description: >
+                  Sort order for results. Options: "relevance" (default),
+                  "price_asc" (lowest price first), "rating_desc"
+                  (highest rated first), "reviews_desc" (most reviewed).
+                default: relevance
+              min_price:
+                type: number
+                description: Minimum nightly price filter.
+              max_price:
+                type: number
+                description: Maximum nightly price filter.
+              hotel_class:
+                type: string
+                description: >
+                  Comma-separated star rating filter (e.g. "3,4,5"
+                  for 3-star and above).
+              max_results:
+                type: integer
+                description: Maximum number of results to return.
+                default: 10
+            required:
+              - query
+              - check_in_date
+              - check_out_date
+      required:
+        - requests

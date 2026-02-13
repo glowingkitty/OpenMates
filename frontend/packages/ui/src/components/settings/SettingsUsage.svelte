@@ -296,7 +296,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     // Look up the skill's name_translation_key from static app metadata.
-    // Returns the correct key (e.g. "app_skills.travel.search.text") or null if not found.
+    // Returns the correct key (e.g. "app_skills.travel.search_connections.text") or null if not found.
     function getSkillTranslationKey(appId: string, skillId: string): string | null {
         const app = appsMetadata[appId];
         if (!app?.skills) return null;

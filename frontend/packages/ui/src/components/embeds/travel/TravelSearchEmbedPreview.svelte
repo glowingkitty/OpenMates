@@ -192,7 +192,7 @@
   }
   
   // Skill display name from translations
-  let skillName = $derived($text('app_skills.travel.search.text') || 'Search');
+  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search');
   
   // Skill icon
   const skillIconName = 'search';
