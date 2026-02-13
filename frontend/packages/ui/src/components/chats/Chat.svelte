@@ -642,16 +642,14 @@
       } else {
         displayText = '';
       }
-    } else if (lastMessage?.status === 'sending') {
-      displayLabel = $text('enter_message.sending.text');
+    } else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing') {
+      // Sidebar always shows "Processing..." for both sending and processing states.
+      // The detailed status steps (generating title, selecting mate, etc.) are shown
+      // only in the ActiveChat centered overlay — the sidebar keeps it simple.
+      displayLabel = $text('enter_message.processing.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
       displayLabel = $text('enter_message.waiting_for_internet.text');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
-    } else if (lastMessage?.status === 'processing') {
-      // Show "Processing..." if message is processing
-      // Note: isWaitingForTitle is checked separately in template to show "Processing..." as title
-      displayLabel = $text('enter_message.processing.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 

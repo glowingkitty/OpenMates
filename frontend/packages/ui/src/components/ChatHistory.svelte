@@ -1218,21 +1218,24 @@
             {/if}
 
             <!-- Status text: shown during all phases with shimmer animation.
-                 Uses {#key} to trigger fade transitions when text changes between steps. -->
-            {#key processingPhase.statusLines.join('|')}
-                <div
-                    class="ai-status-text"
-                    class:phase-sending={processingPhase.phase === 'sending'}
-                    class:phase-processing={processingPhase.phase === 'processing'}
-                    class:phase-typing={processingPhase.phase === 'typing'}
-                    in:fade={{ duration: 200, delay: 100 }}
-                    out:fade={{ duration: 150 }}
-                >
-                    {#each processingPhase.statusLines as line, index}
-                        <span class={index === 0 ? 'status-primary-line' : 'status-secondary-line'}>{line}</span>
-                    {/each}
-                </div>
-            {/key}
+                 Uses {#key} with absolute positioning so outgoing/incoming text
+                 crossfade in the same spot without shifting the layout. -->
+            <div class="ai-status-text-container">
+                {#key processingPhase.statusLines.join('|')}
+                    <div
+                        class="ai-status-text"
+                        class:phase-sending={processingPhase.phase === 'sending'}
+                        class:phase-processing={processingPhase.phase === 'processing'}
+                        class:phase-typing={processingPhase.phase === 'typing'}
+                        in:fade={{ duration: 200, delay: 150 }}
+                        out:fade={{ duration: 150 }}
+                    >
+                        {#each processingPhase.statusLines as line, index}
+                            <span class={index === 0 ? 'status-primary-line' : index === 1 ? 'status-secondary-line' : 'status-tertiary-line'}>{line}</span>
+                        {/each}
+                    </div>
+                {/key}
+            </div>
         </div>
     </div>
 {/if}
@@ -1399,11 +1402,24 @@
     animation: ai-processing-shimmer 1.5s infinite linear;
   }
 
-  /* Status text container below the AI icon — shows phase-specific messages */
+  /* Fixed-size container for the status text — prevents layout shifts during crossfade.
+     The inner .ai-status-text is positioned absolutely so old and new text overlap
+     in the same spot during the {#key} transition. */
+  .ai-status-text-container {
+    position: relative;
+    width: 260px;
+    min-height: 3.6em; /* enough for 3 lines: typing + model + provider */
+  }
+
+  /* Status text below the AI icon — shows phase-specific messages.
+     Positioned absolutely within the container to prevent layout jumps during crossfade. */
   .ai-status-text {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     font-size: 0.85rem;
     font-style: italic;
@@ -1434,10 +1450,16 @@
     font-size: 0.85rem;
   }
 
-  /* Secondary line (e.g., "Powered by..." info): smaller, more subtle */
+  /* Secondary line (e.g., model name): smaller, more subtle */
   .ai-status-text .status-secondary-line {
     font-size: 0.75rem;
     opacity: 0.8;
+  }
+
+  /* Tertiary line (e.g., "via Provider 🇺🇸"): even smaller and more subtle */
+  .ai-status-text .status-tertiary-line {
+    font-size: 0.7rem;
+    opacity: 0.65;
   }
 
   @keyframes ai-processing-shimmer {

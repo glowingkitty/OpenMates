@@ -994,8 +994,8 @@
         let finalDecodedContent = decodedContent;
         
         // Skip EmbedStore lookup for preview/stream embeds — these are ephemeral and their
-        // content is passed inline via the event's decodedContent (e.g., sheets-sheet tables
-        // auto-detected from markdown). They have no backing entry in the EmbedStore.
+        // content is passed inline via the event's decodedContent. They have no backing
+        // entry in the EmbedStore. (Legacy path — new embeds use embed: refs.)
         const isEphemeralEmbed = embedId && (embedId.startsWith('stream:') || embedId.startsWith('preview:'));
         
         if (embedId && !isEphemeralEmbed) {
@@ -2980,6 +2980,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             
             console.log(`[ActiveChat] 🧠 Created placeholder message for thinking | message_id: ${messageId}`);
             currentMessages = [...currentMessages, placeholderMessage];
+            
+            // ─── Progressive AI Status Indicator: Clear centered indicator when thinking starts ─────
+            // The thinking bubble is now visible in the chat, so the centered overlay must fade out.
+            // The bottom typing indicator will take over.
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (thinking placeholder created)');
         }
         
         // Update thinking content map using message_id (same as task_id)
@@ -3916,24 +3922,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         
         // SANITIZE STALE MESSAGE STATUSES: After a page reload, messages may be stuck
-        // in transient states ('processing', 'sending') in IndexedDB if the AI task was
-        // dispatched but the worker never picked it up, or the page was closed mid-flight.
+        // in transient states ('processing', 'sending', 'streaming') in IndexedDB if the
+        // AI task was dispatched but the worker never picked it up, or the page was closed
+        // mid-flight (e.g., during focus mode countdown before continuation arrives).
         // Reset these to 'synced' so the typing indicator doesn't show permanently.
         // The phased sync will reconcile with the server's authoritative state.
         let sanitizedCount = 0;
         for (let i = 0; i < newMessages.length; i++) {
             const msg = newMessages[i];
+            // User messages stuck in processing/sending
             if (msg.role === 'user' && (msg.status === 'processing' || msg.status === 'sending')) {
                 newMessages[i] = { ...msg, status: 'synced' as const };
                 sanitizedCount++;
-                // Persist the corrected status to IndexedDB
                 chatDB.saveMessage(newMessages[i]).catch(error => {
                     console.error(`[ActiveChat] Error sanitizing stale ${msg.status} message ${msg.message_id}:`, error);
                 });
             }
+            // Assistant messages stuck in streaming (e.g., page reload during focus mode
+            // countdown before continuation task arrives). If the message has content
+            // (embed reference), transition to synced so the embed is visible. If empty,
+            // also transition so the typing indicator doesn't persist.
+            if (msg.role === 'assistant' && msg.status === 'streaming') {
+                newMessages[i] = { ...msg, status: 'synced' as const };
+                sanitizedCount++;
+                chatDB.saveMessage(newMessages[i]).catch(error => {
+                    console.error(`[ActiveChat] Error sanitizing stale streaming assistant message ${msg.message_id}:`, error);
+                });
+            }
         }
         if (sanitizedCount > 0) {
-            console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale user message(s) from processing/sending to synced`);
+            console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale message(s) to synced status`);
         }
 
         currentMessages = newMessages;
@@ -5116,7 +5134,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 processingStepTimers = [];
                 
-                // Build the typing phase with resolved text lines
+                // Build the typing phase with resolved text lines:
+                //   Line 1: "{mate} is typing..."
+                //   Line 2: model display name (e.g., "Gemini 3 Flash")
+                //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
                 if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === chat_id && currentTypingStatus.category) {
                     const mateName = $text('mates.' + currentTypingStatus.category + '.text');
                     const modelName = currentTypingStatus.modelName ? getModelDisplayName(currentTypingStatus.modelName) : '';
@@ -5133,31 +5154,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         }
                     };
                     const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
-                    const displayProvider = regionFlag ? `${providerName} ${regionFlag}` : providerName;
                     
                     const lines: string[] = [
                         $text('enter_message.is_typing.text').replace('{mate}', mateName)
                     ];
-                    if (modelName && displayProvider) {
-                        // Extract the "Powered by..." portion from the multi-line translation.
-                        // The translation format is "{mate} is typing...\nPowered by {model_name} via {provider_name}"
-                        // We split by <br> (used in rendering) or newlines and take the last non-empty line.
-                        const fullTypingText = $text('enter_message.is_typing_powered_by.text')
-                            .replace('{mate}', mateName)
-                            .replace('{model_name}', modelName)
-                            .replace('{provider_name}', displayProvider);
-                        const poweredByLine = fullTypingText
-                            .split(/<br\s*\/?>|\n/)
-                            .map(l => l.trim())
-                            .filter(l => l.length > 0)
-                            .pop();
-                        if (poweredByLine) {
-                            lines.push(poweredByLine);
-                        }
+                    // Line 2: model name
+                    if (modelName) {
+                        lines.push(modelName);
+                    }
+                    // Line 3: "via {provider} {flag}"
+                    if (providerName) {
+                        const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
+                        lines.push(providerLine);
                     }
                     
                     processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, modelName, providerName });
+                    console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, modelName, providerName, serverRegion });
                 }
             }
         }) as EventListenerCallback;
@@ -6241,11 +6253,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                 {:else if embedFullscreenData.embedType === 'sheets-sheet'}
                     <!-- Sheet/Table Fullscreen -->
-                    {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
-                        {@const sheetContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
+                    <!-- TOON content uses: table (markdown), title, row_count, col_count -->
+                    <!-- Fallback to legacy fields (code, rows, cols) for backward compatibility -->
+                    {#if embedFullscreenData.decodedContent?.table || embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        {@const sheetContent = coerceString(embedFullscreenData.decodedContent?.table ?? embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
                         {@const sheetTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
-                        {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
-                        {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
+                        {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.row_count ?? embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
+                        {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.col_count ?? embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
                         <SheetEmbedFullscreen 
                             tableContent={sheetContent}
                             title={sheetTitle}
