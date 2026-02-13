@@ -87,6 +87,12 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Explicit Consent Required for Destructive/External Actions
+
+- **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
+- **NEVER merge branches** unless the user explicitly asks for it.
+- These actions affect production and other developers — they require clear, unambiguous user intent.
+
 ### Logging Rule
 
 - **Only remove debugging logs after the user confirms the issue is fixed**
