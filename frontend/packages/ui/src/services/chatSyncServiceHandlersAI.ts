@@ -2636,9 +2636,55 @@ export async function handleSendEmbedDataImpl(
           },
         }),
       );
+    } else if (
+      embedData.status === "error" ||
+      embedData.status === "cancelled"
+    ) {
+      // ============================================================
+      // ERROR/CANCELLED STATUS: Clean up only, no persistence
+      // ============================================================
+      // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
+      // The backend has already removed the processing placeholder from its cache.
+      // We just need to:
+      // 1. Remove the in-memory processing placeholder
+      // 2. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
+      // 3. The UI will hide the embed and show the error banner
+      console.info(
+        `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
+          `cleaning up without persisting (failed embeds are not stored)`,
+      );
+
+      try {
+        const { embedStore } = await import("./embedStore");
+        const embedRef = `embed:${embedData.embed_id}`;
+        // Remove the "processing" placeholder from memory cache
+        embedStore.removeFromMemoryCache(embedRef);
+        console.debug(
+          `[ChatSyncService:AI] Removed processing placeholder for ${embedData.status} embed ${embedData.embed_id} from memory cache`,
+        );
+      } catch (err) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to remove ${embedData.status} embed from memory cache:`,
+          err,
+        );
+      }
+
+      // Dispatch event so ActiveChat can track the error and update the UI
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            child_embed_ids: embedData.embed_ids,
+            isProcessing: false,
+          },
+        }),
+      );
     } else {
       // ============================================================
-      // FINALIZED STATUS (completed/error/cancelled/etc): Full encryption and persistence
+      // FINALIZED STATUS (completed/etc): Full encryption and persistence
       // ============================================================
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)

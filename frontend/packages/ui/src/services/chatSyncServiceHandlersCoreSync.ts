@@ -541,6 +541,14 @@ export async function handlePhase1LastChatImpl(
             continue;
           }
 
+          // Skip error/cancelled embeds — not displayed, not worth storing locally
+          if (embed.status === "error" || embed.status === "cancelled") {
+            console.debug(
+              `[ChatSyncService:CoreSync] Skipping ${embed.status} embed ${embed.embed_id}`,
+            );
+            continue;
+          }
+
           // Create contentRef in the format used by embeds: embed:{embed_id}
           const contentRef = `embed:${embed.embed_id}`;
 

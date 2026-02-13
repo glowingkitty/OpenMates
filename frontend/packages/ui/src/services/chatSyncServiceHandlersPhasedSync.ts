@@ -756,6 +756,15 @@ async function storeEmbedsBatch(
         continue;
       }
 
+      // Skip error/cancelled embeds — they are not displayed and should not
+      // be stored locally. The backend filters these out but this is a safety net.
+      if (embed.status === "error" || embed.status === "cancelled") {
+        console.debug(
+          `[ChatSyncService] ${phaseName} - Skipping ${embed.status} embed ${embed.embed_id}`,
+        );
+        continue;
+      }
+
       try {
         // Create contentRef in the format used by embeds: embed:{embed_id}
         const contentRef = `embed:${embed.embed_id}`;

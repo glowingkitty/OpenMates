@@ -60,6 +60,12 @@ async def _load_and_cache_embeds_for_chats(
                 for embed in all_embeds:
                     embed_id = embed.get("embed_id")
                     hashed_chat_id = embed.get("hashed_chat_id")
+                    embed_status = embed.get("status")
+                    
+                    # Skip error/cancelled embeds — these are not stored or
+                    # displayed by the client. Caching them wastes memory.
+                    if embed_status in ("error", "cancelled"):
+                        continue
                     
                     if embed_id and hashed_chat_id:
                         # Get original chat_id

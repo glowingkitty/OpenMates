@@ -1708,14 +1708,8 @@ class EmbedService:
             None if update fails
         """
         try:
-            import hashlib
             from datetime import datetime
             from toon_format import encode
-            
-            # Hash sensitive IDs for privacy protection
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             # Retrieve original placeholder metadata (query, provider, etc.)
             # This ensures we preserve the original metadata when updating the embed
@@ -1746,37 +1740,21 @@ class EmbedService:
             # Calculate text length
             error_text_length_chars = len(error_content_toon)
             
-            # Encrypt with vault key
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                error_content_toon,
-                user_vault_key_id
-            )
-            
-            # Update embed in cache
             updated_at = int(datetime.now().timestamp())
-            updated_embed_data = {
-                "embed_id": embed_id,
-                "type": "app_skill_use",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "hashed_chat_id": hashed_chat_id,
-                "hashed_message_id": hashed_message_id,
-                "hashed_task_id": hashed_task_id,
-                "status": "error",
-                "hashed_user_id": user_id_hash,
-                "is_private": False,
-                "is_shared": False,
-                "embed_ids": None,  # No child embeds
-                "encrypted_content": encrypted_content,
-                "text_length_chars": error_text_length_chars,
-                "created_at": updated_at,
-                "updated_at": updated_at
-            }
             
-            # Update cache (overwrites placeholder)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing an error embed. Failed embeds are wasted storage — the error
+            # is already logged and the client will hide the embed from the UI.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for failed embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
             
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can:
+            # 1. Remove the in-memory processing placeholder
+            # 2. Track the error in _embedErrors for UI cleanup (hide embed, show error banner)
+            # 3. Skip persisting to IndexedDB (no store_embed sent back to server)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -1840,14 +1818,8 @@ class EmbedService:
             Dictionary with embed_id and status if successful, None if update fails
         """
         try:
-            import hashlib
             from datetime import datetime
             from toon_format import encode
-            
-            # Hash sensitive IDs for privacy protection
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             # Retrieve original placeholder metadata (query, provider, etc.)
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
@@ -1874,37 +1846,19 @@ class EmbedService:
             
             cancelled_text_length_chars = len(cancelled_content_toon)
             
-            # Encrypt with vault key
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                cancelled_content_toon,
-                user_vault_key_id
-            )
-            
-            # Update embed in cache
             updated_at = int(datetime.now().timestamp())
-            updated_embed_data = {
-                "embed_id": embed_id,
-                "type": "app_skill_use",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "hashed_chat_id": hashed_chat_id,
-                "hashed_message_id": hashed_message_id,
-                "hashed_task_id": hashed_task_id,
-                "status": "cancelled",
-                "hashed_user_id": user_id_hash,
-                "is_private": False,
-                "is_shared": False,
-                "embed_ids": None,
-                "encrypted_content": encrypted_content,
-                "text_length_chars": cancelled_text_length_chars,
-                "created_at": updated_at,
-                "updated_at": updated_at
-            }
             
-            # Update cache (overwrites placeholder)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing a cancelled embed. Failed/cancelled embeds are wasted storage.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for cancelled embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
             
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can
+            # clean up the in-memory processing placeholder and update the UI.
+            # The client will NOT persist this to IndexedDB or send it back to Directus.
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",

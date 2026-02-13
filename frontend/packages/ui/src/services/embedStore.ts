@@ -1158,6 +1158,22 @@ export class EmbedStore {
   }
 
   /**
+   * Remove an embed from the in-memory cache.
+   * Used to clean up "processing" placeholders when an embed transitions to
+   * error/cancelled status without being persisted to IndexedDB.
+   * @param contentRef - The embed reference key (e.g., embed:{embed_id})
+   */
+  removeFromMemoryCache(contentRef: string): void {
+    if (embedCache.has(contentRef)) {
+      embedCache.delete(contentRef);
+      console.debug(
+        "[EmbedStore] Removed embed from memory cache:",
+        contentRef,
+      );
+    }
+  }
+
+  /**
    * Cancel all "processing" embeds in memory cache that belong to a specific chat.
    * Used when a full AI task is cancelled via the stop button.
    * Returns the list of embed_ids that were cancelled so the UI can be updated.

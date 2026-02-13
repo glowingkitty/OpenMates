@@ -531,12 +531,14 @@ async def _handle_phase1_sync(
             # Fallback: try to get embeds from Directus if not in sync cache
             raw_embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
         
-        # Filter and track sent embeds to prevent duplicates across phases
+        # Filter and track sent embeds to prevent duplicates across phases.
+        # Also skip error/cancelled embeds — they are not stored or displayed by the client.
         embeds_data = []
         if raw_embeds_data:
             for embed in raw_embeds_data:
                 embed_id = embed.get("embed_id")
-                if embed_id and embed_id not in sent_embed_ids:
+                embed_status = embed.get("status")
+                if embed_id and embed_id not in sent_embed_ids and embed_status not in ("error", "cancelled"):
                     embeds_data.append(embed)
                     sent_embed_ids.add(embed_id)
             logger.info(f"Phase 1: Sending {len(embeds_data)} embeds for chat {chat_id} (filtered from {len(raw_embeds_data)}, {len(sent_embed_ids)} total sent)")
@@ -939,8 +941,9 @@ async def _handle_phase2_sync(
                     if embeds:
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
-                            # Skip if already sent in previous phases OR already added in this phase
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                            embed_status = embed.get("status")
+                            # Skip if already sent, already added in this phase, or error/cancelled
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 2: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
@@ -1351,8 +1354,9 @@ async def _handle_phase3_sync(
                     if embeds:
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
-                            # Skip if already sent in previous phases OR already added in this phase
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                            embed_status = embed.get("status")
+                            # Skip if already sent, already added in this phase, or error/cancelled
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 3: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
