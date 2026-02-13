@@ -25,7 +25,7 @@ from fastapi import WebSocket
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.encryption_service import EncryptionService
+from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 

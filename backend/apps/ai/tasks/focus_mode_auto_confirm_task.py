@@ -96,7 +96,7 @@ async def _async_focus_mode_auto_confirm(
     """
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus import DirectusService
-    from backend.core.api.app.services.encryption_service import EncryptionService
+    from backend.core.api.app.utils.encryption import EncryptionService
     
     log_prefix = f"[FocusModeAutoConfirm][Task: {task_id[:8]}][Chat: {chat_id[:8]}]"
     
