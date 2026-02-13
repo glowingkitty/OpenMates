@@ -61,6 +61,11 @@
     onDeactivate?: (focusId: string) => void;
     /** Callback to open focus mode details in settings */
     onDetails?: (focusId: string, appId: string) => void;
+    /**
+     * Callback when the user right-clicks or long-presses the embed.
+     * Opens the FocusModeContextMenu with Cancel/Stop/Details options.
+     */
+    onContextMenu?: (event: MouseEvent | TouchEvent, state: { isActivated: boolean; isRejected: boolean }) => void;
   }
 
   let {
@@ -71,7 +76,8 @@
     alreadyActive = false,
     onReject,
     onDeactivate: _onDeactivate,
-    onDetails: _onDetails
+    onDetails: _onDetails,
+    onContextMenu: _onContextMenu,
   }: Props = $props();
 
   // These props are used by the renderer for context menu dispatch;
@@ -161,11 +167,62 @@
   }
 
   /**
-   * Handle right-click / context menu on the embed
+   * Handle right-click / context menu on the embed.
+   * Opens the FocusModeContextMenu via the onContextMenu callback.
    */
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    _onContextMenu?.(event, { isActivated, isRejected });
+  }
+
+  // --- Long-press (touch) handling for mobile context menu ---
+  const LONG_PRESS_DURATION = 500;
+  const TOUCH_MOVE_THRESHOLD = 10;
+  let touchTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  function handleTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) {
+      clearTouchTimer();
+      return;
+    }
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    touchTimer = setTimeout(() => {
+      touchTimer = null;
+      // Prevent the subsequent touchend from triggering a click/reject
+      event.preventDefault();
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      _onContextMenu?.(event, { isActivated, isRejected });
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleTouchMove(event: TouchEvent) {
+    if (!touchTimer) return;
+    const touch = event.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+    const deltaY = Math.abs(touch.clientY - touchStartY);
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearTouchTimer();
+    }
+  }
+
+  function handleTouchEnd() {
+    clearTouchTimer();
+  }
+
+  function clearTouchTimer() {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
   }
 
   /**
@@ -208,6 +265,9 @@
     role={!isActivated ? 'button' : 'presentation'}
     tabindex={!isActivated ? 0 : -1}
     oncontextmenu={handleContextMenu}
+    ontouchstart={handleTouchStart}
+    ontouchmove={handleTouchMove}
+    ontouchend={handleTouchEnd}
     onclick={!isActivated ? handleRejectClick : undefined}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!isActivated) handleRejectClick(); } }}
   >

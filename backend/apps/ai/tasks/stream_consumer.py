@@ -1106,6 +1106,18 @@ async def _consume_main_processing_stream(
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
                 continue
             
+            # Check for focus mode confirmation marker
+            # This is yielded by main_processor when the AI calls activate_focus_mode.
+            # Instead of activating immediately, the processor stores pending context
+            # in Redis and schedules an auto-confirm task. The task completes without
+            # an LLM response — the continuation will come from either the auto-confirm
+            # task (after countdown) or the rejection handler (if user rejects).
+            if isinstance(chunk, dict) and "__awaiting_focus_mode_confirmation__" in chunk:
+                awaiting_app_settings_memories_permission = True  # Reuse this flag to prevent error handling
+                focus_id = chunk.get("focus_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
+                continue
+            
             # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
             # These chunks contain thinking content or signatures that should be streamed
             # to a separate channel for the frontend to display

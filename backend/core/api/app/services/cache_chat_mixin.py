@@ -2104,3 +2104,125 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
             return False
+
+    # === Pending Focus Mode Activation Methods ===
+    # These methods manage the pending focus mode activation context.
+    # When the AI calls activate_focus_mode, we store the context and wait
+    # for either the countdown to complete (auto-confirm after 6s) or the
+    # user to reject. This prevents the LLM from being re-invoked with
+    # focus instructions before the user has a chance to reject.
+    
+    PENDING_FOCUS_ACTIVATION_TTL = 30  # 30 seconds — covers 6s auto-confirm + network jitter
+    
+    def _get_pending_focus_activation_key(self, chat_id: str) -> str:
+        """Get Redis key for pending focus mode activation context."""
+        return f"pending_focus_activation:{chat_id}"
+    
+    async def store_pending_focus_activation(
+        self,
+        chat_id: str,
+        context: Dict[str, Any],
+        ttl: Optional[int] = None
+    ) -> bool:
+        """
+        Store pending focus mode activation context.
+        
+        When the AI calls activate_focus_mode, we store the request context
+        instead of immediately activating. A Celery task with countdown=6s
+        will auto-confirm unless the user rejects first.
+        
+        Args:
+            chat_id: Chat ID
+            context: Request context needed to continue processing:
+                - focus_id: The focus mode being activated
+                - focus_prompt: The focus mode system prompt text
+                - embed_id: The focus mode embed ID (for reference)
+                - chat_id, message_id, user_id, user_id_hash, mate_id,
+                  chat_has_title, task_id: Standard continuation context
+                - accumulated_response: Text yielded so far (embed reference)
+                - iteration: Current tool call iteration number
+                - tool_call_result_message: The activate_focus_mode tool response
+                - full_system_prompt: System prompt (before focus injection)
+            ttl: Time to live in seconds (default: 30s)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, skipping pending focus activation storage for chat {chat_id}")
+            return False
+        
+        key = self._get_pending_focus_activation_key(chat_id)
+        effective_ttl = ttl or self.PENDING_FOCUS_ACTIVATION_TTL
+        try:
+            import json
+            context_json = json.dumps(context)
+            await client.set(key, context_json, ex=effective_ttl)
+            logger.info(f"[FOCUS_MODE] Stored pending focus activation context for chat {chat_id} with TTL {effective_ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"[FOCUS_MODE] Error storing pending focus activation for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_and_delete_pending_focus_activation(
+        self,
+        chat_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Atomically get and delete pending focus mode activation context.
+        
+        Uses Redis GETDEL to prevent race conditions between the auto-confirm
+        task and a user rejection arriving simultaneously. Whichever runs first
+        gets the context; the other sees None and handles accordingly.
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            Request context dictionary if found (and deleted), None if already consumed or missing
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_pending_focus_activation_key(chat_id)
+        try:
+            import json
+            # GETDEL is atomic: returns the value AND deletes the key in one operation
+            # This prevents both auto-confirm and rejection from processing the same context
+            data = await client.getdel(key)
+            if data:
+                context = json.loads(data.decode('utf-8') if isinstance(data, bytes) else data)
+                logger.info(f"[FOCUS_MODE] Retrieved and deleted pending focus activation context for chat {chat_id}")
+                return context
+            logger.debug(f"[FOCUS_MODE] No pending focus activation context found for chat {chat_id} (already consumed or expired)")
+            return None
+        except Exception as e:
+            logger.error(f"[FOCUS_MODE] Error getting pending focus activation for chat {chat_id}: {e}", exc_info=True)
+            return None
+    
+    async def peek_pending_focus_activation(
+        self,
+        chat_id: str
+    ) -> bool:
+        """
+        Check if a pending focus activation exists without consuming it.
+        Used for diagnostics and logging only.
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            True if pending context exists, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_pending_focus_activation_key(chat_id)
+        try:
+            return await client.exists(key) > 0
+        except Exception as e:
+            logger.error(f"[FOCUS_MODE] Error checking pending focus activation for chat {chat_id}: {e}", exc_info=True)
+            return False

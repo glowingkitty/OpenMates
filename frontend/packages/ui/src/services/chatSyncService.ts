@@ -508,7 +508,7 @@ export class ChatSynchronizationService extends EventTarget {
           if (chat && encryptedActiveFocusId) {
             // Update the encrypted_active_focus_id field on the chat object
             chat.encrypted_active_focus_id = encryptedActiveFocusId;
-            await chatDB.saveChat(chat);
+            await chatDB.updateChat(chat);
             console.debug(
               "[ChatSyncService] Updated chat encrypted_active_focus_id in IndexedDB",
             );

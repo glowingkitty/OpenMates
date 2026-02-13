@@ -26,6 +26,7 @@ from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
+from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -335,6 +336,33 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "focus_mode_activated":
+                        # Focus mode was auto-confirmed after countdown. Push the activation
+                        # event to all connected devices so the client can update its local
+                        # metadata (e.g., context menu focus indicator) in real-time.
+                        chat_id = payload.get("chat_id")
+                        focus_id = payload.get("focus_id")
+                        encrypted_active_focus_id = payload.get("encrypted_active_focus_id")
+                        
+                        if chat_id and focus_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                for device_id in user_connections.keys():
+                                    await manager.send_personal_message(
+                                        {
+                                            "type": "focus_mode_activated",
+                                            "payload": {
+                                                "chat_id": chat_id,
+                                                "focus_id": focus_id,
+                                                "encrypted_active_focus_id": encrypted_active_focus_id,
+                                            }
+                                        },
+                                        user_id,
+                                        device_id
+                                    )
+                                logger.info(f"Redis Listener: Sent focus_mode_activated to user {user_id} for chat {chat_id} (focus: {focus_id})")
+                            else:
+                                logger.debug(f"Redis Listener: User {user_id} has no active connections for focus_mode_activated event")
                     elif event_type == "dismiss_app_settings_memories_dialog":
                         # User sent a new message without responding to the permission dialog
                         # Auto-reject the previous request and tell client to dismiss the dialog
@@ -1465,7 +1493,7 @@ async def websocket_endpoint(
                 )
             elif message_type == "chat_focus_mode_deactivate":
                 # Handle request to deactivate a focus mode for a chat
-                # Triggered when user rejects during countdown or clicks "Deactivate"
+                # Triggered when user clicks "Stop Focus Mode" in context menu
                 await handle_focus_mode_deactivate(
                     websocket=websocket,
                     manager=manager,
@@ -1473,6 +1501,20 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     cache_service=cache_service
+                )
+            elif message_type == "focus_mode_rejected":
+                # Handle user rejection of focus mode during the countdown
+                # Triggered when user clicks the embed or presses ESC within 4 seconds
+                # Consumes the pending activation context and fires a non-focus continuation task
+                await handle_focus_mode_rejected(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
                 )
             elif message_type == "ai_response_completed":
                 # Handle completed AI response sent by client for encrypted Directus storage

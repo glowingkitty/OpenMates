@@ -160,6 +160,29 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
               }),
             );
           },
+          onContextMenu: (
+            event: MouseEvent | TouchEvent,
+            state: { isActivated: boolean; isRejected: boolean },
+          ) => {
+            console.debug(
+              "[FocusModeActivationRenderer] Context menu requested:",
+              { focusId, state },
+            );
+            document.dispatchEvent(
+              new CustomEvent("focusModeContextMenu", {
+                bubbles: true,
+                detail: {
+                  focusId,
+                  appId,
+                  focusModeName,
+                  embedId: attrs.id,
+                  event,
+                  isActivated: state.isActivated,
+                  isRejected: state.isRejected,
+                },
+              }),
+            );
+          },
         },
       });
 

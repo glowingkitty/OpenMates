@@ -1077,8 +1077,9 @@ async def _async_process_ai_skill_ask_task(
                 "provider_name": provider_name, # Add provider_name to the payload
                 "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
                 # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
-                # When this is True, the user message was already persisted before the app settings/memories pause
-                "is_continuation": request_data.is_app_settings_memories_continuation,
+                # When this is True, the user message was already persisted before the app settings/memories
+                # or focus mode deferred activation pause
+                "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
             }
             
             # Log the complete typing payload for debugging
