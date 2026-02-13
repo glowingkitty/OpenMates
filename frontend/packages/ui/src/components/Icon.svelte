@@ -48,7 +48,7 @@
   const iconMappings: Record<string, string> = {
     'health': 'heart',
     'plants': 'plant',
-    'jobs': 'job',
+
     'events': 'event',
     'photos': 'image',
     'books': 'book',
@@ -341,7 +341,7 @@
     --icon-url-image: url('@openmates/ui/static/icons/image.svg');
     --icon-url-insight: url('@openmates/ui/static/icons/insight.svg');
     --icon-url-introduction: url('@openmates/ui/static/icons/introduction.svg');
-    --icon-url-job: url('@openmates/ui/static/icons/job.svg');
+    --icon-url-jobs: url('@openmates/ui/static/icons/jobs.svg');
     --icon-url-language: url('@openmates/ui/static/icons/language.svg');
     --icon-url-laptop: url('@openmates/ui/static/icons/laptop.svg');
     --icon-url-legal: url('@openmates/ui/static/icons/legal.svg');

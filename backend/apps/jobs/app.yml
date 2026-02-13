@@ -1,7 +1,7 @@
 name_translation_key: jobs.text
 description_translation_key: jobs.description.text
 icon_image: |
-  job.svg
+  jobs.svg
 category: work
 last_updated: "2026-02-12"
 skills: []

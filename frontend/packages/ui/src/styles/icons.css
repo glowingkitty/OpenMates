@@ -830,7 +830,7 @@ div.clickable-icon {
 .icon_rounded.jobs {
   background: var(--color-app-jobs);
   &::after {
-    background-image: url("@openmates/ui/static/icons/job.svg");
+    background-image: url("@openmates/ui/static/icons/jobs.svg");
   }
 }
 
@@ -1569,7 +1569,7 @@ div.clickable-icon {
 .icon.app-jobs {
   background: var(--color-app-jobs);
   &::before {
-    background-image: url("@openmates/ui/static/icons/job.svg");
+    background-image: url("@openmates/ui/static/icons/jobs.svg");
   }
 }
 
