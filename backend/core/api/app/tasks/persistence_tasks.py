@@ -2166,8 +2166,8 @@ async def _async_persist_embed_fallback(
        original send_embed_data event)
     4. The client then goes through the normal flow: encrypt → store_embed → Directus
     
-    This approach preserves the zero-knowledge architecture: the server never writes
-    client-encrypted content, and the client is always the one to encrypt and persist.
+    This keeps the client as the sole producer of client-encrypted content in Directus.
+    The server can't encrypt on the client's behalf (it doesn't have the chat/master keys).
     
     Args:
         embed_id: The embed ID to check/persist
