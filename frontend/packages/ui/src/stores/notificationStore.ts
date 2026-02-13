@@ -154,6 +154,20 @@ export const notificationStore = {
     return id;
   },
 
+  /**
+   * Update an existing notification's properties in-place.
+   * Useful for changing message text, action button, etc. without dismiss/re-add flicker.
+   */
+  updateNotification: (id: string, changes: Partial<NotificationOptions>) => {
+    update((state) => {
+      return {
+        notifications: state.notifications.map((n) =>
+          n.id === id ? { ...n, ...changes } : n,
+        ),
+      };
+    });
+  },
+
   removeNotification: (id: string) => {
     update((state) => {
       return {
@@ -233,19 +247,27 @@ export const notificationStore = {
 
   /**
    * Show software update notification
-   * @param message Primary message (e.g., "OpenMates v0.3 is available now.")
-   * @param messageSecondary Secondary message (e.g., "Check your server settings to install it.")
+   * @param message Primary message (e.g., "A new version is available.")
+   * @param options Optional overrides for secondary message, duration, action button, etc.
    */
   softwareUpdate: (
     message: string,
-    messageSecondary?: string,
-    duration?: number,
+    options?: {
+      messageSecondary?: string;
+      duration?: number;
+      onAction?: () => void;
+      actionLabel?: string;
+      dismissible?: boolean;
+    },
   ) =>
     notificationStore.addNotificationWithOptions("software_update", {
       title: "Software update available",
       message,
-      messageSecondary,
-      duration: duration ?? 10000,
+      messageSecondary: options?.messageSecondary,
+      duration: options?.duration ?? 0, // Persistent by default for update notifications
+      dismissible: options?.dismissible ?? true,
+      onAction: options?.onAction,
+      actionLabel: options?.actionLabel,
     }),
 
   /**
@@ -282,5 +304,5 @@ export const notificationStore = {
 // // New design API
 // notificationStore.autoLogout("Consider activating 'Stay logged in'.", "During login, to remain connected.");
 // notificationStore.connection("Trying to reconnect for 30 seconds.", "Else Offline Mode will be activated.");
-// notificationStore.softwareUpdate("OpenMates v0.3 is available now.", "Check your server settings to install it.");
+// notificationStore.softwareUpdate("A new version is available.", { actionLabel: "Refresh now", onAction: () => {} });
 // notificationStore.chatMessage("chat-123", "Offline Whisper iOS Integration", "As promised, here the updated code...");

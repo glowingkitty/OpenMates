@@ -50,6 +50,16 @@ connection.tap_to_reconnect:
   en: Tap to reconnect
   de: Zum Wiederverbinden tippen
 
+connection.reconnecting.title:
+  context: Title shown on the notification while a reconnection attempt is in progress
+  en: Reconnecting...
+  de: Verbindung wird hergestellt...
+
+connection.reconnecting:
+  context: Message shown on the notification while a reconnection attempt is in progress
+  en: Attempting to reconnect to the server.
+  de: Verbindung zum Server wird hergestellt.
+
 # Software update notifications
 software_update.title:
   context: Title for software update notification
@@ -65,6 +75,17 @@ software_update.check_settings:
   context: Secondary message about where to install update
   en: Check your server settings to install it.
   de: Überprüfen Sie Ihre Server-Einstellungen zur Installation.
+
+# Web app version update notifications (shown when SvelteKit detects a new deployment)
+software_update.web_app_available:
+  context: Primary message shown in the notification when a new web app version is detected
+  en: A new version is available. It will load on your next navigation.
+  de: Eine neue Version ist verfügbar. Sie wird bei der nächsten Navigation geladen.
+
+software_update.refresh_now:
+  context: Action button label to immediately refresh the page and load the new version
+  en: Refresh now
+  de: Jetzt aktualisieren
 
 # Chat message notifications
 chat_message.new_ai_response:
