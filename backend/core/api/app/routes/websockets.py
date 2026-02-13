@@ -1395,8 +1395,10 @@ async def websocket_endpoint(
                 manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
                 
-                # Update user's last_opened field in Directus for Phase 1 sync
-                # This ensures the last opened chat is synced first on next login/reload
+                # Update user's last_opened field in both Redis cache AND Directus for Phase 1 sync.
+                # Redis cache is updated first (fast) so that subsequent reads (e.g. phased_sync_handler,
+                # cache warming on next login) always see the latest value without hitting Directus.
+                # Directus is updated second as the persistent source of truth.
                 if active_chat_id:
                     # Only update if a real chat is selected (not None/"new chat")
                     try:
@@ -1407,11 +1409,21 @@ async def websocket_endpoint(
                         uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
                         if active_chat_id.startswith("/chat/") or uuid_pattern.match(active_chat_id):
                             update_payload["signup_completed"] = True
-                            
+                        
+                        # Update Redis cache first (fast, ensures phased sync and cache warming
+                        # always read the latest last_opened without needing a Directus round-trip)
+                        try:
+                            await cache_service.update_user(user_id, update_payload)
+                            logger.debug(f"User {user_id}: Updated last_opened in cache to {active_chat_id}")
+                        except Exception as cache_err:
+                            logger.warning(f"User {user_id}: Failed to update last_opened in cache: {cache_err}")
+                            # Non-critical: Directus update below is the persistent fallback
+                        
+                        # Update Directus (persistent source of truth)
                         await directus_service.update_user(user_id, update_payload)
                         logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id} (signup_completed: {update_payload.get('signup_completed', False)})")
                     except Exception as e:
-                        logger.error(f"User {user_id}: Failed to update last_opened: {str(e)}")
+                        logger.error(f"User {user_id}: Failed to update last_opened in Directus: {str(e)}")
                         # Don't fail the whole operation if Directus update fails
                 else:
                     logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")

@@ -742,6 +742,19 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     await directus_service.ensure_auth_token()
     encryption_service = EncryptionService()
 
+    # Ensure the user profile in Redis cache has the latest last_opened value.
+    # The /lookup endpoint caches the user profile from Directus, but if the user
+    # changed chats after that (via set_active_chat), the cached value may already
+    # be updated. However, if cache was evicted or this is a fresh warm, we ensure
+    # the value passed from the login flow is reflected in the cache.
+    if last_opened_path_from_user_model:
+        try:
+            await cache_service.update_user(user_id, {"last_opened": last_opened_path_from_user_model})
+            logger.debug(f"User {user_id}: Ensured last_opened='{last_opened_path_from_user_model}' in user cache during warming")
+        except Exception as e:
+            logger.warning(f"User {user_id}: Failed to update last_opened in cache during warming: {e}")
+            # Non-critical: Phase 1 will still use the parameter value directly
+
     target_immediate_chat_id = await _warm_cache_phase_one(
         user_id, last_opened_path_from_user_model, cache_service, directus_service, encryption_service
     )

@@ -157,29 +157,41 @@ async def _handle_phase1_sync(
         new_chat_suggestions = await _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
         logger.info(f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions")
         
-        # Get last opened chat from user profile
-        user_profile = await directus_service.get_user_profile(user_id)
-        if not user_profile[1]:  # user_profile returns (success, data, error)
-            logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
-            # Still send suggestions even if profile fetch fails
-            await manager.send_personal_message(
-                {
-                    "type": "phase_1_last_chat_ready",
-                    "payload": {
-                        "chat_id": None,
-                        "chat_details": None,
-                        "messages": None,
-                        "new_chat_suggestions": new_chat_suggestions,
-                        "phase": "phase1",
-                        "already_synced": False
-                    }
-                },
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+        # Get last opened chat from user profile.
+        # CACHE-FIRST: Try Redis cache first (kept up-to-date by set_active_chat handler),
+        # then fall back to Directus if cache miss. This avoids a Directus round-trip
+        # and ensures we always read the latest last_opened value.
+        last_opened_path = None
+        cached_user = await cache_service.get_user_by_id(user_id)
+        if cached_user:
+            last_opened_path = cached_user.get("last_opened")
+            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from cache for user {user_id}")
         
-        last_opened_path = user_profile[1].get("last_opened")
+        if not last_opened_path:
+            # Cache miss or no last_opened in cache — fall back to Directus
+            user_profile = await directus_service.get_user_profile(user_id)
+            if not user_profile[1]:  # user_profile returns (success, data, error)
+                logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
+                # Still send suggestions even if profile fetch fails
+                await manager.send_personal_message(
+                    {
+                        "type": "phase_1_last_chat_ready",
+                        "payload": {
+                            "chat_id": None,
+                            "chat_details": None,
+                            "messages": None,
+                            "new_chat_suggestions": new_chat_suggestions,
+                            "phase": "phase1",
+                            "already_synced": False
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+            
+            last_opened_path = user_profile[1].get("last_opened")
+            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from Directus for user {user_id}")
         if not last_opened_path:
             logger.info(f"No last opened path for user {user_id}, sending only suggestions")
             # Send suggestions without chat
